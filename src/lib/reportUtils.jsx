@@ -700,7 +700,8 @@ const generateGenericReportHtml = (record, type) => {
                 <tr><td colspan="2"><h3 style="margin-top: 20px; margin-bottom: 15px;">Giriş Yapılan Kalemler (Detaylı Bilgiler)</h3>${detailedItemsHtml}</td></tr>
                 `;
                 break;
-        case 'supplier_audit':
+            }
+        case 'supplier_audit': {
             const getGradeInfo = (score) => {
                 if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış', color: '#6b7280' };
                 if (score >= 90) return { grade: 'A', description: 'Stratejik İş Ortağı', color: '#16a34a' };
@@ -723,14 +724,18 @@ const generateGenericReportHtml = (record, type) => {
                 </tr>
                 <tr><td>Denetim Notları</td><td><pre>${record.notes || '-'}</pre></td></tr>
             `;
-        case 'internal_audit':
+            break;
+            }
+        case 'internal_audit': {
             return `
                 <tr><td>Tetkik Başlığı</td><td>${record.title || '-'}</td></tr>
                 <tr><td>Denetlenen Birim</td><td>${record.department?.unit_name || '-'}</td></tr>
                 <tr><td>Tetkik Tarihi</td><td>${formatDate(record.audit_date)}</td></tr>
                 <tr><td>Tetkikçi</td><td>${record.auditor_name || '-'}</td></tr>
             `;
-        case 'equipment':
+            break;
+            }
+        case 'equipment': {
             const latestCalibration = record.equipment_calibrations?.sort((a,b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
             return `
                 <tr><td>Ekipman Adı</td><td>${record.name}</td></tr>
@@ -739,6 +744,8 @@ const generateGenericReportHtml = (record, type) => {
                 <tr><td>Son Kalibrasyon</td><td>${latestCalibration ? formatDate(latestCalibration.calibration_date) : '-'}</td></tr>
                 <tr><td>Sonraki Kalibrasyon</td><td>${latestCalibration ? formatDate(latestCalibration.next_calibration_date) : '-'}</td></tr>
             `;
+            break;
+            }
         default: return `<tr><td>Detaylar</td><td>Bu modül için özel rapor formatı tanımlanmamış.</td></tr>`;
     }
 };
