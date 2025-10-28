@@ -1,0 +1,386 @@
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { X, Plus, Trash2, AlertCircle, AlertTriangle, FileText, ExternalLink, HelpCircle } from 'lucide-react';
+import { useDropzone } from 'react-dropzone';
+import { sanitizeFileName } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { v4 as uuidv4 } from 'uuid';
+import { format, subMonths, formatDistanceToNow } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { useData } from '@/contexts/DataContext';
+
+const INITIAL_FORM_STATE = {
+    inspection_date: new Date().toISOString().split('T')[0],
+    supplier_id: '',
+    delivery_note_number: '',
+    part_name: '',
+    part_code: '',
+    quantity_received: 0,
+    unit: 'Adet',
+    decision: 'Beklemede',
+    quantity_accepted: 0,
+    quantity_conditional: 0,
+    quantity_rejected: 0,
+    attachments: [],
+};
+
+const InspectionResultRow = ({ item, index, onResultChange, isViewMode }) => {
+    const hasTolerance = item.min_value !== null && item.max_value !== null;
+
+    const handleActualValueChange = (value) => {
+        let result = null;
+        const normalizedValue = String(value).replace(',', '.');
+
+        if (hasTolerance) {
+            const actual = parseFloat(normalizedValue);
+            if (!isNaN(actual)) {
+                const min = parseFloat(item.min_value);
+                const max = parseFloat(item.max_value);
+                 if (!isNaN(min) && !isNaN(max)) {
+                    result = actual >= min && actual <= max;
+                }
+            }
+        } else {
+            const lowerCaseValue = normalizedValue.trim().toLowerCase();
+            if (lowerCaseValue === 'ok' || lowerCaseValue === 'uygun') {
+                result = true;
+            } else if (lowerCaseValue !== '') {
+                result = false;
+            }
+        }
+        onResultChange(index, 'actual_value', value, result);
+    };
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center border rounded-lg p-3">
+            <div className="md:col-span-3">
+                <Label className="font-semibold text-sm">Özellik</Label>
+                <p className="font-medium text-base">{item.feature}</p>
+                <p className="text-xs text-muted-foreground">Yöntem: {item.method}</p>
+            </div>
+
+            <div className="md:col-span-2">
+                <Label>Nominal</Label>
+                <Input value={item.nominal_value || '—'} readOnly disabled className="bg-muted text-center" />
+            </div>
+
+            {hasTolerance && (
+                <>
+                    <div className="md:col-span-1">
+                        <Label>Min</Label>
+                        <Input value={item.min_value || '—'} readOnly disabled className="bg-muted text-center" />
+                    </div>
+                    <div className="md:col-span-1">
+                        <Label>Max</Label>
+                        <Input value={item.max_value || '—'} readOnly disabled className="bg-muted text-center" />
+                    </div>
+                </>
+            )}
+
+            <div className={hasTolerance ? "md:col-span-3" : "md:col-span-5"}>
+                <Label>Ölçülen Değer</Label>
+                <Input
+                    type="text"
+                    inputMode={hasTolerance ? "decimal" : "text"}
+                    placeholder="Değer girin..."
+                    value={item.actual_value || ''}
+                    onChange={(e) => handleActualValueChange(e.target.value)}
+                    disabled={isViewMode}
+                    className={item.result === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+                />
+            </div>
+            <div className="md:col-span-2">
+                <Label>Sonuç</Label>
+                <div className={`text-center p-2 rounded-md font-medium ${item.result === true ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : item.result === false ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-muted'}`}>
+                    {item.result === true ? 'UYGUN' : item.result === false ? 'UYGUN DEĞİL' : 'Bekliyor'}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const IncomingInspectionFormModal = ({ isOpen, setIsOpen, existingInspection, refreshData, isViewMode, onOpenStockRiskModal }) => {
+    const { toast } = useToast();
+    const { suppliers, characteristics, equipment } = useData();
+    const [formData, setFormData] = useState(INITIAL_FORM_STATE);
+    const [controlPlan, setControlPlan] = useState(null);
+    const [inkrReport, setInkrReport] = useState(null);
+    const [results, setResults] = useState([]);
+    const [defects, setDefects] = useState([]);
+    const [newAttachments, setNewAttachments] = useState([]);
+    const [existingAttachments, setExistingAttachments] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [warnings, setWarnings] = useState({ inkr: null, plan: null });
+    const [partHistory, setPartHistory] = useState([]);
+    const [riskyStock, setRiskyStock] = useState([]);
+
+    const resetForm = useCallback(() => {
+        setFormData(INITIAL_FORM_STATE);
+        setControlPlan(null);
+        setInkrReport(null);
+        setResults([]);
+        setDefects([]);
+        setNewAttachments([]);
+        setExistingAttachments([]);
+        setWarnings({ inkr: null, plan: null });
+        setRiskyStock([]);
+        setPartHistory([]);
+    }, []);
+
+    const quantityTotal = useMemo(() => {
+        return (Number(formData.quantity_accepted) || 0) + (Number(formData.quantity_conditional) || 0) + (Number(formData.quantity_rejected) || 0);
+    }, [formData.quantity_accepted, formData.quantity_conditional, formData.quantity_rejected]);
+
+    const isQuantityMismatch = useMemo(() => {
+        const received = Number(formData.quantity_received) || 0;
+        return received > 0 && quantityTotal !== received;
+    }, [quantityTotal, formData.quantity_received]);
+
+    const handlePartCodeChange = useCallback(async (partCode) => {
+        const trimmedPartCode = partCode?.trim();
+        setFormData(prev => ({ ...prev, part_code: trimmedPartCode, part_name: '' }));
+        setWarnings({ inkr: null, plan: null });
+        setControlPlan(null);
+        setResults([]);
+        setPartHistory([]);
+
+        if (!trimmedPartCode) return;
+        
+        try {
+            const planPromise = supabase.from('incoming_control_plans').select('*').eq('part_code', trimmedPartCode).order('revision_number', { ascending: false }).limit(1).maybeSingle();
+            const inkrPromise = supabase.from('inkr_reports').select('id').eq('part_code', trimmedPartCode).maybeSingle();
+            const historyPromise = supabase.from('incoming_inspections')
+                .select('delivery_note_number, inspection_date, decision, quantity_rejected, quantity_conditional, suppliers(name)')
+                .eq('part_code', trimmedPartCode)
+                .in('decision', ['Ret', 'Şartlı Kabul'])
+                .gte('inspection_date', format(subMonths(new Date(), 12), 'yyyy-MM-dd'))
+                .order('inspection_date', { ascending: false })
+                .limit(5);
+
+            const [planRes, inkrRes, historyRes] = await Promise.all([planPromise, inkrPromise, historyPromise]);
+
+            if (planRes.error) throw planRes.error;
+            if (inkrRes.error) throw inkrRes.error;
+            if (historyRes.error) throw historyRes.error;
+
+            setPartHistory(historyRes.data || []);
+            setControlPlan(planRes.data);
+            setInkrReport(inkrRes.data);
+
+            if (planRes.data) {
+                setFormData(prev => ({ ...prev, part_name: planRes.data.part_name }));
+                const newResults = (planRes.data.items || []).map(item => ({
+                    id: uuidv4(),
+                    feature: characteristics.find(c => c.value === item.characteristic_id)?.label || 'Bilinmeyen Özellik',
+                    method: equipment.find(e => e.value === item.equipment_id)?.label || 'Bilinmiyor',
+                    nominal_value: item.nominal_value,
+                    min_value: item.min_value,
+                    max_value: item.max_value,
+                    actual_value: '',
+                    result: null
+                }));
+                setResults(newResults);
+            } else {
+                setWarnings(prev => ({ ...prev, plan: 'Bu parça için bir Kontrol Planı hazırlanmalı.' }));
+            }
+
+            if (!inkrRes.data) {
+                setWarnings(prev => ({ ...prev, inkr: 'Bu parça için bir İlk Numune Kontrol Raporu (INKR) bulunamadı.' }));
+            }
+            
+        } catch(error) {
+             toast({ variant: 'destructive', title: 'Hata', description: `Veri çekilirken hata: ${error.message}` });
+        }
+    }, [toast, characteristics, equipment]);
+    
+    useEffect(() => {
+        const initializeForm = async () => {
+            resetForm();
+            if (existingInspection) {
+                const { supplier, defects: existingDefects, attachments: existingAttachmentsData, results: existingResultsData, ...rest } = existingInspection;
+                
+                setFormData({
+                    ...INITIAL_FORM_STATE,
+                    ...rest,
+                    supplier_id: rest.supplier_id || '',
+                    inspection_date: new Date(rest.inspection_date).toISOString().split('T')[0],
+                });
+
+                if (rest.part_code) {
+                    await handlePartCodeChange(rest.part_code);
+                }
+                
+                setDefects(existingDefects || []);
+                if (existingResultsData && existingResultsData.length > 0) {
+                     setResults(existingResultsData.map(r => ({...r, id: uuidv4() })));
+                }
+                setExistingAttachments(existingAttachmentsData || []);
+                
+            } else {
+                setFormData(INITIAL_FORM_STATE);
+            }
+        };
+        if (isOpen) initializeForm();
+    }, [isOpen, existingInspection, resetForm, handlePartCodeChange]);
+
+    useEffect(() => {
+        const fetchRiskyStock = async () => {
+            if (!formData.part_code) return;
+            const sixMonthsAgo = format(subMonths(new Date(), 6), 'yyyy-MM-dd');
+            let query = supabase.from('incoming_inspections').select('id, inspection_date, quantity_received, delivery_note_number, supplier:suppliers(id, name)').eq('part_code', formData.part_code).eq('decision', 'Kabul').gte('inspection_date', sixMonthsAgo).order('inspection_date', { ascending: false });
+            if (formData.id) query = query.neq('id', formData.id);
+            const { data, error } = await query;
+            if (error) toast({ variant: 'destructive', title: 'Hata', description: 'Potansiyel riskli stok verileri çekilemedi.' });
+            else setRiskyStock(data);
+        };
+        
+        const { quantity_accepted, quantity_conditional, quantity_rejected, quantity_received } = formData;
+        const qtyAccepted = Number(quantity_accepted) || 0;
+        const qtyConditional = Number(quantity_conditional) || 0;
+        const qtyRejected = Number(quantity_rejected) || 0;
+        const qtyReceivedNum = Number(quantity_received) || 0;
+
+        let newDecision = 'Beklemede';
+        if (qtyReceivedNum > 0 && quantityTotal === qtyReceivedNum) {
+            if (qtyRejected > 0) newDecision = 'Ret';
+            else if (qtyConditional > 0) newDecision = 'Şartlı Kabul';
+            else if (qtyAccepted === qtyReceivedNum) newDecision = 'Kabul';
+        }
+        setFormData(prev => ({...prev, decision: newDecision }));
+
+        if ((newDecision === 'Ret' || newDecision === 'Şartlı Kabul') && !existingInspection) fetchRiskyStock();
+        else setRiskyStock([]);
+    }, [formData.quantity_accepted, formData.quantity_conditional, formData.quantity_rejected, formData.quantity_received, quantityTotal, formData.part_code, toast, formData.id, existingInspection]);
+
+    const handleResultChange = (index, field, value, resultStatus) => {
+        const newResults = [...results];
+        const currentResult = { ...newResults[index], [field]: value };
+        if(resultStatus !== undefined) currentResult.result = resultStatus;
+        newResults[index] = currentResult;
+        setResults(newResults);
+    };
+    
+    const handleInputChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleSelectChange = (name, value) => setFormData(prev => ({ ...prev, [name]: value }));
+    const handleDefectChange = (index, field, value) => { const newDefects = [...defects]; newDefects[index][field] = value; setDefects(newDefects); };
+    const addDefect = () => setDefects([...defects, { defect_description: '', quantity: 1 }]);
+    const removeDefect = (index) => setDefects(defects.filter((_, i) => i !== index));
+    const onDrop = useCallback((acceptedFiles) => setNewAttachments(prev => [...prev, ...acceptedFiles]), []);
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, disabled: isViewMode });
+    const removeNewAttachment = (index) => setNewAttachments(prev => prev.filter((_, i) => i !== index));
+    const removeExistingAttachment = async (attachmentId, filePath) => {
+        const { error: deleteError } = await supabase.storage.from('incoming_control').remove([filePath]);
+        if (deleteError) { toast({ variant: "destructive", title: "Hata", description: `Dosya silinemedi: ${deleteError.message}` }); return; }
+        const { error } = await supabase.from('incoming_inspection_attachments').delete().eq('id', attachmentId);
+        if (error) { toast({ variant: "destructive", title: "Hata", description: "Veritabanından dosya kaydı silinemedi." }); } 
+        else { setExistingAttachments(prev => prev.filter(att => att.id !== attachmentId)); toast({ title: "Başarılı", description: "Ek silindi." });}
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (isViewMode) return;
+        if (isQuantityMismatch) { toast({ variant: 'destructive', title: 'Hata', description: 'Miktar toplamı, gelen miktar ile eşleşmiyor.' }); return; }
+        setIsSubmitting(true);
+        
+        const { id, ...dataToSubmit } = formData;
+        if (!dataToSubmit.supplier_id) dataToSubmit.supplier_id = null;
+        dataToSubmit.part_name = dataToSubmit.part_name || dataToSubmit.part_code;
+        const fieldsToDelete = ['created_at', 'updated_at', 'record_no', 'is_first_sample', 'non_conformity', 'supplier', 'defects', 'results', 'attachments'];
+        fieldsToDelete.forEach(field => delete dataToSubmit[field]);
+
+        let error, inspectionRecord;
+        if (existingInspection) {
+            const { data, error: updateError } = await supabase.from('incoming_inspections').update(dataToSubmit).eq('id', existingInspection.id).select().single();
+            error = updateError;
+            inspectionRecord = data;
+        } else {
+             const { data, error: insertError } = await supabase.from('incoming_inspections').insert(dataToSubmit).select().single();
+            error = insertError;
+            inspectionRecord = data;
+        }
+
+        if (error || !inspectionRecord) { toast({ variant: 'destructive', title: 'Hata', description: `Kayıt başarısız: ${error?.message}` }); setIsSubmitting(false); return; }
+        const inspectionId = inspectionRecord.id;
+        
+        await supabase.from('incoming_inspection_results').delete().eq('inspection_id', inspectionId);
+        const validResults = results.filter(r => r.actual_value !== '' && r.actual_value !== null);
+        if (validResults.length > 0) {
+            const { error: resultsError } = await supabase.from('incoming_inspection_results').insert(validResults.map(r => ({ inspection_id: inspectionId, feature: r.feature, nominal_value: r.nominal_value, min_value: r.min_value, max_value: r.max_value, actual_value: String(r.actual_value), result: r.result })));
+            if (resultsError) { console.error("Error inserting results:", resultsError); }
+        }
+        
+        await supabase.from('incoming_inspection_defects').delete().eq('inspection_id', inspectionId);
+        const validDefects = defects.filter(d => d.defect_description);
+        if (validDefects.length > 0) await supabase.from('incoming_inspection_defects').insert(validDefects.map(d => ({ inspection_id: inspectionId, defect_description: d.defect_description, quantity: d.quantity })));
+
+        if (newAttachments.length > 0) {
+            const attachmentPromises = newAttachments.map(async (file) => {
+                const fileName = sanitizeFileName(file.name);
+                const filePath = `inspections/${inspectionId}/${uuidv4()}-${fileName}`;
+                const { error: uploadError } = await supabase.storage.from('incoming_control').upload(filePath, file);
+                if (uploadError) throw new Error(`Dosya yüklenemedi: ${uploadError.message}`);
+                return { inspection_id: inspectionId, file_path: filePath, file_name: fileName };
+            });
+            try {
+                const attachmentsToInsert = await Promise.all(attachmentPromises);
+                await supabase.from('incoming_inspection_attachments').insert(attachmentsToInsert);
+            } catch (uploadError) { toast({ variant: 'destructive', title: 'Hata', description: uploadError.message }); setIsSubmitting(false); return; }
+        }
+
+        toast({ title: 'Başarılı', description: 'Girdi kontrol kaydı başarıyla kaydedildi.' });
+        refreshData();
+        setIsOpen(false);
+        setIsSubmitting(false);
+    };
+
+    const title = isViewMode ? 'Girdi Kontrol Kaydını Görüntüle' : (existingInspection ? 'Girdi Kontrol Kaydını Düzenle' : 'Yeni Girdi Kontrol Kaydı');
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}><DialogContent className="max-w-5xl xl:max-w-6xl">
+            <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>Tedarikçiden gelen malzemeler için kontrol sonuçlarını girin.</DialogDescription></DialogHeader>
+            <form onSubmit={handleSubmit}><ScrollArea className="h-[75vh] p-4"><div className="space-y-6">
+                <div className="space-y-2">
+                    {warnings.plan && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.plan}</AlertDescription></Alert>}
+                    {warnings.inkr && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.inkr}</AlertDescription></Alert>}
+                    {partHistory.length > 0 && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>DİKKAT: Bu parça daha önce sorun yaşamıştır!</AlertTitle><AlertDescription><ul className="list-disc pl-5 mt-2 space-y-1">{partHistory.map((item, index) => <li key={index} className="text-xs">{item.suppliers?.name || 'Bilinmeyen Tedarikçi'} - İrsaliye: {item.delivery_note_number || '-'} - Tarih: {format(new Date(item.inspection_date), 'dd.MM.yyyy')} ({formatDistanceToNow(new Date(item.inspection_date), { addSuffix: true, locale: tr })}) - Karar: <span className="font-bold">{item.decision}</span> - Etkilenen Miktar: {item.quantity_rejected + item.quantity_conditional}</li>)}</ul></AlertDescription></Alert>}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
+                    <div><Label>Kontrol Tarihi</Label><Input type="date" name="inspection_date" value={formData.inspection_date} onChange={handleInputChange} required disabled={isViewMode} /></div>
+                    <div><Label>Tedarikçi</Label><Select name="supplier_id" value={formData.supplier_id || ''} onValueChange={(v) => handleSelectChange('supplier_id', v)} disabled={isViewMode}><SelectTrigger><SelectValue placeholder="Tedarikçi Seçin" /></SelectTrigger><SelectContent>{(suppliers || []).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
+                    <div><Label>İrsaliye No</Label><Input name="delivery_note_number" value={formData.delivery_note_number || ''} onChange={handleInputChange} placeholder="İrsaliye No" disabled={isViewMode} /></div>
+                    <div><Label>Parça Kodu</Label><Input name="part_code" value={formData.part_code || ''} onChange={(e) => handlePartCodeChange(e.target.value)} placeholder="Parça Kodu Girin..." required disabled={isViewMode || !!existingInspection} /></div>
+                    <div className="md:col-span-2"><Label>Parça Adı</Label><Input name="part_name" value={formData.part_name} onChange={handleInputChange} placeholder="Parça Adı" required disabled={isViewMode || !!controlPlan}/></div>
+                    <div className="flex items-end gap-2">
+                        <div className="flex-grow"><Label>Gelen Miktar</Label><Input type="number" name="quantity_received" value={formData.quantity_received} onChange={handleInputChange} placeholder="Miktar" required disabled={isViewMode} /></div>
+                        <div className="w-24"><Label>Birim</Label><Select name="unit" value={formData.unit} onValueChange={(v) => handleSelectChange('unit', v)} disabled={isViewMode}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Adet">Adet</SelectItem><SelectItem value="Kg">Kg</SelectItem><SelectItem value="Metre">Metre</SelectItem></SelectContent></Select></div>
+                    </div>
+                </div>
+                <div className="space-y-4 pt-4"><h3 className="font-semibold text-lg border-b pb-2">Miktar Dağılımı ve Karar</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+                        <div><Label htmlFor="quantity_accepted">Kabul Edilen</Label><Input type="number" id="quantity_accepted" name="quantity_accepted" value={formData.quantity_accepted} onChange={handleInputChange} disabled={isViewMode} /></div>
+                        <div><Label htmlFor="quantity_conditional">Şartlı Kabul</Label><Input type="number" id="quantity_conditional" name="quantity_conditional" value={formData.quantity_conditional} onChange={handleInputChange} disabled={isViewMode} /></div>
+                        <div><Label htmlFor="quantity_rejected">Ret Edilen</Label><Input type="number" id="quantity_rejected" name="quantity_rejected" value={formData.quantity_rejected} onChange={handleInputChange} disabled={isViewMode} /></div>
+                        <div className="flex flex-col"><Label>Nihai Karar</Label><div className="mt-2 flex items-center gap-2"><span className={`font-bold text-lg ${formData.decision === 'Kabul' ? 'text-green-600' : formData.decision === 'Ret' ? 'text-red-600' : formData.decision === 'Şartlı Kabul' ? 'text-yellow-600' : 'text-muted-foreground'}`}>{formData.decision}</span><TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p>Karar, girilen miktarlara göre otomatik hesaplanır.</p></TooltipContent></Tooltip></TooltipProvider></div></div>
+                    </div>
+                    {isQuantityMismatch && !isViewMode && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Miktar Uyuşmazlığı!</AlertTitle><AlertDescription>Kabul, ret ve şartlı kabul miktarlarının toplamı ({quantityTotal}), gelen miktardan ({Number(formData.quantity_received) || 0}) farklıdır.</AlertDescription></Alert>}
+                </div>
+                {riskyStock.length > 0 && <div className="space-y-4 pt-4"><Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Potansiyel Riskli Stok Kontrolü Gerekli!</AlertTitle><AlertDescription>Bu parçada uygunsuzluk tespit edildi. Aşağıda, son 6 ayda 'Kabul' edilmiş aynı parçaya ait girişler listelenmiştir. Stoktaki bu partilerin kontrol edilmesi önerilir.</AlertDescription><Button className="mt-2" onClick={() => { onOpenStockRiskModal(formData, riskyStock); setIsOpen(false); }}>Stok Kontrolü Başlat</Button><ScrollArea className="h-40 mt-4 border rounded-md p-2"><div className="grid grid-cols-4 gap-2 font-medium text-sm text-destructive/80 px-2 pb-2 border-b border-destructive/20"><span>Tedarikçi</span><span>İrsaliye No</span><span className="text-center">Miktar</span><span className="text-right">Tarih</span></div><ul className="space-y-1 text-sm pt-2">{riskyStock.map((item, index) => <li key={index} className="grid grid-cols-4 gap-2 items-center p-1 rounded hover:bg-destructive/10"><span>{item.supplier?.name || 'Bilinmeyen'}</span><span className="truncate">{item.delivery_note_number || '-'}</span><span className="font-mono text-center">{item.quantity_received} adet</span><span className="text-right">{format(new Date(item.inspection_date), 'dd.MM.yyyy')}</span></li>)}</ul></ScrollArea></Alert></div>}
+                <div className="space-y-4 pt-4"><h3 className="font-semibold text-lg border-b pb-2">Kontrol Sonuçları</h3>{results && results.length > 0 ? (<div className="space-y-3">{results.map((res, index) => (<InspectionResultRow key={res.id || index} item={res} index={index} onResultChange={handleResultChange} isViewMode={isViewMode} />))}</div>) : <p className="text-muted-foreground text-sm py-4 text-center">Kontrol edilecek özellik bulunamadı.</p>}</div>
+                <div className="space-y-4"><h3 className="font-semibold text-lg border-b pb-2">Tespit Edilen Hatalar</h3>{defects.map((defect, index) => (<div key={defect.id || index} className="flex items-center gap-2"><Input placeholder="Hata açıklaması" value={defect.defect_description} onChange={(e) => handleDefectChange(index, 'defect_description', e.target.value)} disabled={isViewMode} /><Input type="number" placeholder="Miktar" value={defect.quantity} onChange={(e) => handleDefectChange(index, 'quantity', e.target.value)} className="w-32" disabled={isViewMode} />{!isViewMode && <Button type="button" variant="destructive" size="icon" onClick={() => removeDefect(index)}><Trash2 className="h-4 w-4" /></Button>}</div>))}{!isViewMode && <Button type="button" variant="outline" onClick={addDefect}><Plus className="h-4 w-4 mr-2" /> Hata Ekle</Button>}</div>
+                <div className="space-y-4"><h3 className="font-semibold text-lg border-b pb-2">Sertifika ve Ekler</h3>{!isViewMode && <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-input hover:border-primary/50'} cursor-pointer`}><input {...getInputProps()} /><p className="text-muted-foreground">Dosyaları buraya sürükleyin veya seçmek için tıklayın.</p></div>}<ul className="space-y-2">{existingAttachments.map(att => <li key={att.id} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded-md"><a href={supabase.storage.from('incoming_control').getPublicUrl(att.file_path).data.publicUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline"><FileText className="h-4 w-4" /><span>{att.file_name}</span><ExternalLink className="h-3 w-3" /></a>{!isViewMode && <Button type="button" variant="ghost" size="icon" onClick={() => removeExistingAttachment(att.id, att.file_path)}><X className="h-4 w-4 text-destructive" /></Button>}</li>)}{newAttachments.map((file, index) => <li key={index} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded-md"><span>{file.name}</span>{!isViewMode && <Button type="button" variant="ghost" size="icon" onClick={() => removeNewAttachment(index)}><X className="h-4 w-4" /></Button>}</li>)}</ul></div>
+            </div></ScrollArea><DialogFooter className="pt-6 border-t mt-4"><Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>{!isViewMode && <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>}</DialogFooter></form>
+        </DialogContent></Dialog>
+    );
+};
+
+export default IncomingInspectionFormModal;
+  

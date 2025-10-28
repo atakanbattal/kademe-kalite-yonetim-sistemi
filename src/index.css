@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%; /* Beyaz */
+  --foreground: 222.2 47.4% 11.2%; /* Koyu Mavi/Siyah */
+  --card: 0 0% 100%; /* Kartlar için beyaz */
+  --card-foreground: 222.2 47.4% 11.2%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+  --primary: 217 91% 60%; /* Canlı Mavi */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%; /* Açık Gri */
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%; /* Soluk Gri */
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%; /* Canlı Kırmızı */
+  --destructive-foreground: 210 40% 98%;
+  --border: 210 40% 90%; /* Daha belirgin border */
+  --input: 210 40% 90%;
+  --ring: 217 91% 60%;
+  --radius: 0.75rem;
+
+  --chart-1: 34.9 98.6% 72.9%;
+  --chart-2: 217 91% 60%;
+  --chart-3: 0 84.2% 60.2%;
+  --chart-4: 142.1 76.2% 36.3%;
+  --chart-5: 262.1 83.3% 57.8%;
+}
+
+body {
+  @apply bg-secondary text-foreground;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Updated dashboard widget for light theme */
+.dashboard-widget {
+  @apply bg-card text-card-foreground rounded-xl p-4 sm:p-5 shadow-sm border border-border transition-all duration-300;
+}
+
+.dashboard-widget:hover {
+    @apply shadow-lg border-primary/50;
+}
+
+/* Updated titles for better readability */
+.widget-title {
+  @apply text-sm font-medium text-muted-foreground;
+}
+
+.widget-value {
+  @apply text-3xl font-bold text-foreground;
+}
+
+/* Updated table styles for light theme */
+.data-table {
+  @apply w-full border-collapse;
+}
+
+.data-table th {
+  @apply bg-secondary/50 px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border;
+}
+
+.data-table td {
+  @apply px-6 py-4 whitespace-nowrap text-sm text-foreground/90 border-b border-border/50;
+}
+
+.data-table tr:hover {
+  @apply bg-secondary;
+}
+
+.search-input {
+  @apply w-full pl-10 pr-4 py-2 border border-input rounded-md shadow-sm focus:ring-2 focus:ring-ring focus:border-ring text-sm;
+}
+
+.search-box {
+  @apply relative;
+}
+
+.status-indicator {
+    @apply px-2 py-1 text-xs font-semibold rounded-full inline-block;
+}
+
+/* Fix for shadcn/ui Dialog scroll issue */
+[role='dialog'] [data-radix-scroll-area-viewport] {
+  max-height: 80vh; /* Adjust as needed */
+  overflow-y: auto;
+}
+
+/* Global Print Style Overrides to remove URLs from PDFs */
+@media print {
+  /* Tarayıcı/ütüleyici kütüphanelerin eklediği “(href)” uzantılarını kapat */
+  a[href]::after { content: "" !important; }
+  a[href]::before { content: "" !important; }
+  /* Linkleri normal metin gibi göster */
+  a, a:visited { color: inherit !important; text-decoration: none !important; }
+  /* Tooltip/title kaynaklı döküme düşebilecek metinleri engelle */
+  [title]::after { content: "" !important; }
+}
