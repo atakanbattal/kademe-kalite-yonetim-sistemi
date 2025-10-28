@@ -599,45 +599,46 @@ const generateGenericReportHtml = (record, type) => {
                 <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
                 <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları (Ölçüm Detayları)</h3>${resultsTableHtml}</td></tr>
             `;
-            case 'sheet_metal_entry':
-            const itemsTableHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
-                ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Kalem No</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Boyutlar (L×G×K)</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ağırlık (kg)</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Miktar</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Kalite</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Standart</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Heat No</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Coil No</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sertlik</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Karar</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${record.sheet_metal_items.map((item, idx) => `
-                            <tr style="border-bottom: 1px solid #d1d5db;">
-                                <td style="border: 1px solid #d1d5db; padding: 8px; font-weight: bold;">${idx + 1}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.uzunluk || '-'} × ${item.genislik || '-'} × ${item.kalinlik || '-'}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.weight || '-'}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.quantity || '-'}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.material_quality || '-'}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.malzeme_standarti || '-'}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.heat_number || '-'}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.coil_no || '-'}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.hardness || '-'}</td>
-                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${item.decision === 'Kabul' || item.decision === 'Kabul Edildi' ? '#16a34a' : item.decision === 'Ret' ? '#dc2626' : '#f59e0b'};">${item.decision || 'Beklemede'}</td>
+            case 'sheet_metal_entry': {
+                // Özet Tablo
+                const itemsTableHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
+                    ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Kalem No</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Boyutlar (L×G×K)</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ağırlık (kg)</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Miktar</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Kalite</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Standart</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Heat No</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Coil No</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sertlik</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Karar</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>`
-                : '<p>Kalem bilgisi bulunamadı.</p>';
+                        </thead>
+                        <tbody>
+                            ${record.sheet_metal_items.map((item, idx) => `
+                                <tr style="border-bottom: 1px solid #d1d5db;">
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; font-weight: bold;">${idx + 1}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.uzunluk || '-'} × ${item.genislik || '-'} × ${item.kalinlik || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.weight || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.quantity || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.material_quality || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.malzeme_standarti || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.heat_number || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.coil_no || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.hardness || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${item.decision === 'Kabul' || item.decision === 'Kabul Edildi' ? '#16a34a' : item.decision === 'Ret' ? '#dc2626' : '#f59e0b'};">${item.decision || 'Beklemede'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`
+                    : '<p>Kalem bilgisi bulunamadı.</p>';
 
-            // Detaylı bilgiler her kalem için
-            const detailedItemsHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
-                ? record.sheet_metal_items.map((item, idx) => `
+                // Detaylı bilgiler her kalem için
+                const detailedItemsHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
+                    ? record.sheet_metal_items.map((item, idx) => `
                     <div style="margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; background-color: #fafafa;">
                         <h4 style="margin-top: 0; margin-bottom: 10px; border-bottom: 2px solid #2563eb; padding-bottom: 8px; color: #1f2937;">Kalem ${idx + 1} - Detaylı Bilgiler</h4>
                         
@@ -699,6 +700,7 @@ const generateGenericReportHtml = (record, type) => {
                 <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Giriş Yapılan Kalemler (Özet Tablo)</h3>${itemsTableHtml}</td></tr>
                 <tr><td colspan="2"><h3 style="margin-top: 20px; margin-bottom: 15px;">Giriş Yapılan Kalemler (Detaylı Bilgiler)</h3>${detailedItemsHtml}</td></tr>
                 `;
+            }
         case 'supplier_audit':
             const getGradeInfo = (score) => {
                 if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış', color: '#6b7280' };

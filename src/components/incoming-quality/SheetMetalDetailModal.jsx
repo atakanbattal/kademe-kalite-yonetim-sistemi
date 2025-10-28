@@ -84,7 +84,7 @@ const SheetMetalDetailModal = ({
                     <TabsContent value="main" className="space-y-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Tedarikçi & Teslimat</CardTitle>
+                                <CardTitle className="text-base">Giriş Bilgileri</CardTitle>
                             </CardHeader>
                             <CardContent className="grid grid-cols-2 gap-4">
                                 <div>
@@ -92,7 +92,7 @@ const SheetMetalDetailModal = ({
                                     <p className="font-medium">{record.supplier?.name || record.supplier_name || '-'}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Teslimat Belgesi</Label>
+                                    <Label className="text-xs font-semibold text-muted-foreground">Teslimat Belgesi (İrsaliye No)</Label>
                                     <p className="font-medium">{record.delivery_note_number || '-'}</p>
                                 </div>
                                 <div>
@@ -100,76 +100,22 @@ const SheetMetalDetailModal = ({
                                     <p className="font-medium">{record.entry_date ? format(new Date(record.entry_date), 'dd.MM.yyyy') : '-'}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Karar</Label>
-                                    <p className="font-medium">{getDecisionBadge(record.decision)}</p>
+                                    <Label className="text-xs font-semibold text-muted-foreground">Toplam Kalem Sayısı</Label>
+                                    <p className="font-medium">{record.sheet_metal_items?.length || 0} Adet</p>
                                 </div>
                             </CardContent>
                         </Card>
 
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Malzeme Özellikleri</CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Uzunluk</Label>
-                                    <p className="font-medium">{record.uzunluk || '-'} mm</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Genişlik</Label>
-                                    <p className="font-medium">{record.genislik || '-'} mm</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Kalınlık</Label>
-                                    <p className="font-medium">{record.kalinlik || '-'} mm</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Ağırlık</Label>
-                                    <p className="font-medium">{record.weight || '-'} kg</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Malzeme Kalitesi</Label>
-                                    <p className="font-medium">{record.material_quality || '-'}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Malzeme Standardı</Label>
-                                    <p className="font-medium">{record.malzeme_standarti || '-'}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">Lot & Referans Bilgileri</CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Lot Numarası</Label>
-                                    <p className="font-medium">{record.lot_number || '-'}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Heat Numarası</Label>
-                                    <p className="font-medium">{record.heat_number || '-'}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Coil No</Label>
-                                    <p className="font-medium">{record.coil_no || '-'}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Miktar</Label>
-                                    <p className="font-medium">{record.quantity || '-'}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">Test Sonuçları</CardTitle>
+                                <CardTitle className="text-base">Kalem Detayları Notu</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">Sertlik (Hardness)</Label>
-                                    <p className="font-medium">{record.hardness || 'Belirtilmemiş'}</p>
+                                <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                                    <p className="text-sm text-blue-900">
+                                        ℹ️ Bu giriş {record.sheet_metal_items?.length || 0} adet kalem içermektedir. 
+                                        Tüm kalem detaylarını "Detaylı Ölçümler" sekmesinde görebilirsiniz.
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
