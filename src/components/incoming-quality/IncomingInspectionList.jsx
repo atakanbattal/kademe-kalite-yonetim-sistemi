@@ -125,34 +125,64 @@ import React from 'react';
         };
 
         const handleViewDetail = async (inspection) => {
-            const { data, error } = await supabase
-                .from('incoming_inspections')
-                .select('*, supplier:suppliers(id, name), attachments:incoming_inspection_attachments(*), defects:incoming_inspection_defects(*), results:incoming_inspection_results(*)')
+            // İlk olarak incoming_inspections_with_supplier VIEW'dan temel bilgi al (supplier_name dahil)
+            const { data: inspectionWithSupplier, error: viewError } = await supabase
+                .from('incoming_inspections_with_supplier')
+                .select('*')
                 .eq('id', inspection.id)
                 .single();
             
-            if (error) {
+            if (viewError) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Muayene detayları alınamadı.' });
                 return;
             }
             
-            setSelectedInspection(data);
+            // Related data'yı ayrı ayrı çek
+            const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
+                supabase.from('incoming_inspection_attachments').select('*').eq('inspection_id', inspection.id),
+                supabase.from('incoming_inspection_defects').select('*').eq('inspection_id', inspection.id),
+                supabase.from('incoming_inspection_results').select('*').eq('inspection_id', inspection.id)
+            ]);
+            
+            const fullData = {
+                ...inspectionWithSupplier,
+                attachments: attachmentsRes.data || [],
+                defects: defectsRes.data || [],
+                results: resultsRes.data || []
+            };
+            
+            setSelectedInspection(fullData);
             setIsDetailModalOpen(true);
         };
 
         const handleDownloadPDF = async (inspection) => {
-            const { data, error } = await supabase
-                .from('incoming_inspections')
-                .select('*, supplier:suppliers(id, name), attachments:incoming_inspection_attachments(*), defects:incoming_inspection_defects(*), results:incoming_inspection_results(*)')
+            // İlk olarak incoming_inspections_with_supplier VIEW'dan temel bilgi al (supplier_name dahil)
+            const { data: inspectionWithSupplier, error: viewError } = await supabase
+                .from('incoming_inspections_with_supplier')
+                .select('*')
                 .eq('id', inspection.id)
                 .single();
             
-            if (error) {
+            if (viewError) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Rapor verileri alınamadı.' });
                 return;
             }
             
-            onDownloadPDF(data);
+            // Related data'yı ayrı ayrı çek
+            const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
+                supabase.from('incoming_inspection_attachments').select('*').eq('inspection_id', inspection.id),
+                supabase.from('incoming_inspection_defects').select('*').eq('inspection_id', inspection.id),
+                supabase.from('incoming_inspection_results').select('*').eq('inspection_id', inspection.id)
+            ]);
+            
+            const fullData = {
+                ...inspectionWithSupplier,
+                attachments: attachmentsRes.data || [],
+                defects: defectsRes.data || [],
+                results: resultsRes.data || []
+            };
+            
+            onDownloadPDF(fullData);
         };
 
         return (
