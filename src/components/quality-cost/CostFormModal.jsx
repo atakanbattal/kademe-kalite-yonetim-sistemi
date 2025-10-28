@@ -21,9 +21,39 @@ import React, { useState, useEffect, useCallback } from 'react';
     const SearchableSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Ara..." }) => {
         const [search, setSearch] = useState('');
         const [open, setOpen] = useState(false);
+        const [highlightedIndex, setHighlightedIndex] = useState(0);
         const filteredItems = items.filter(item => 
             item.toLowerCase().includes(search.toLowerCase())
         );
+
+        const handleSelect = (item) => {
+            onValueChange(item);
+            setSearch('');
+            setOpen(false);
+            setHighlightedIndex(0);
+        };
+
+        const handleKeyDown = (e) => {
+            if (!open) return;
+            
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (filteredItems.length > 0) {
+                    handleSelect(filteredItems[highlightedIndex]);
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setHighlightedIndex((prev) => 
+                    prev < filteredItems.length - 1 ? prev + 1 : prev
+                );
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setOpen(false);
+            }
+        };
 
         return (
             <div className="relative">
@@ -34,7 +64,9 @@ import React, { useState, useEffect, useCallback } from 'react';
                     onChange={(e) => {
                         setSearch(e.target.value);
                         setOpen(true);
+                        setHighlightedIndex(0);
                     }}
+                    onKeyDown={handleKeyDown}
                     onFocus={() => setOpen(true)}
                     onBlur={() => setTimeout(() => setOpen(false), 200)}
                     className="w-full px-3 py-2 border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -42,16 +74,16 @@ import React, { useState, useEffect, useCallback } from 'react';
                 {open && filteredItems.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-input rounded-md shadow-lg z-50">
                         <div className="max-h-48 overflow-y-auto">
-                            {filteredItems.map((item) => (
+                            {filteredItems.map((item, index) => (
                                 <button
                                     key={item}
                                     type="button"
-                                    onClick={() => {
-                                        onValueChange(item);
-                                        setSearch('');
-                                        setOpen(false);
-                                    }}
-                                    className="w-full text-left px-3 py-2 hover:bg-accent transition-colors text-sm"
+                                    onClick={() => handleSelect(item)}
+                                    className={`w-full text-left px-3 py-2 transition-colors text-sm ${
+                                        highlightedIndex === index 
+                                            ? 'bg-accent text-accent-foreground' 
+                                            : 'hover:bg-accent'
+                                    }`}
                                 >
                                     {item}
                                 </button>
@@ -67,10 +99,40 @@ import React, { useState, useEffect, useCallback } from 'react';
     const PersonnelSearchableSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Personel ara..." }) => {
         const [search, setSearch] = useState('');
         const [open, setOpen] = useState(false);
+        const [highlightedIndex, setHighlightedIndex] = useState(0);
         const filteredItems = items.filter(item =>
             item.full_name.toLowerCase().includes(search.toLowerCase())
         );
         const selectedName = items.find(p => p.id === value)?.full_name;
+
+        const handleSelect = (item) => {
+            onValueChange(item.id);
+            setSearch('');
+            setOpen(false);
+            setHighlightedIndex(0);
+        };
+
+        const handleKeyDown = (e) => {
+            if (!open) return;
+            
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (filteredItems.length > 0) {
+                    handleSelect(filteredItems[highlightedIndex]);
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setHighlightedIndex((prev) => 
+                    prev < filteredItems.length - 1 ? prev + 1 : prev
+                );
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setOpen(false);
+            }
+        };
 
         return (
             <div className="relative">
@@ -81,7 +143,9 @@ import React, { useState, useEffect, useCallback } from 'react';
                     onChange={(e) => {
                         setSearch(e.target.value);
                         setOpen(true);
+                        setHighlightedIndex(0);
                     }}
+                    onKeyDown={handleKeyDown}
                     onFocus={() => setOpen(true)}
                     onBlur={() => setTimeout(() => setOpen(false), 200)}
                     className="w-full px-3 py-2 border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -89,16 +153,16 @@ import React, { useState, useEffect, useCallback } from 'react';
                 {open && filteredItems.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-input rounded-md shadow-lg z-50">
                         <div className="max-h-48 overflow-y-auto">
-                            {filteredItems.map((item) => (
+                            {filteredItems.map((item, index) => (
                                 <button
                                     key={item.id}
                                     type="button"
-                                    onClick={() => {
-                                        onValueChange(item.id);
-                                        setSearch('');
-                                        setOpen(false);
-                                    }}
-                                    className="w-full text-left px-3 py-2 hover:bg-accent transition-colors text-sm"
+                                    onClick={() => handleSelect(item)}
+                                    className={`w-full text-left px-3 py-2 transition-colors text-sm ${
+                                        highlightedIndex === index 
+                                            ? 'bg-accent text-accent-foreground' 
+                                            : 'hover:bg-accent'
+                                    }`}
                                 >
                                     {item.full_name}
                                 </button>
