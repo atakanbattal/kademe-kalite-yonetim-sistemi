@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { COST_TYPES, VEHICLE_TYPES, MEASUREMENT_UNITS } from './constants';
     import { Zap, Trash2, Plus, Wrench, Search, X } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
+    import ReactDOM from 'react-dom';
 
     const formatCurrency = (value) => {
         if (typeof value !== 'number' || isNaN(value)) return '0,00 ₺';
@@ -21,6 +22,8 @@ import React, { useState, useEffect, useCallback } from 'react';
     const SearchableSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Ara..." }) => {
         const [open, setOpen] = useState(false);
         const [search, setSearch] = useState('');
+        const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+        const buttonRef = useRef(null);
 
         const filteredItems = items.filter(item => 
             item.toLowerCase().includes(search.toLowerCase())
@@ -28,68 +31,91 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         const displayValue = value || placeholder;
 
-        return (
-            <div className="relative w-full">
-                <button
-                    type="button"
-                    onClick={() => setOpen(!open)}
-                    className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
-                >
-                    <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{displayValue}</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
-                </button>
+        useEffect(() => {
+            if (open && buttonRef.current) {
+                const rect = buttonRef.current.getBoundingClientRect();
+                setPosition({
+                    top: rect.bottom + window.scrollY,
+                    left: rect.left + window.scrollX,
+                    width: rect.width
+                });
+            }
+        }, [open]);
 
-                {open && (
-                    <div className="absolute z-50 w-full mt-1 bg-popover border border-input rounded-md shadow-md">
-                        <div className="p-2 border-b border-input">
-                            <div className="relative">
-                                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input
-                                    type="text"
-                                    placeholder={searchPlaceholder}
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                                    autoFocus
-                                />
-                                {search && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setSearch('')}
-                                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                                    >
-                                        <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <div className="max-h-48 overflow-y-auto">
-                            {filteredItems.length > 0 ? (
-                                filteredItems.map((item) => (
-                                    <button
-                                        key={item}
-                                        type="button"
-                                        onClick={() => {
-                                            onValueChange(item);
-                                            setOpen(false);
-                                            setSearch('');
-                                        }}
-                                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
-                                            value === item ? 'bg-accent font-semibold' : ''
-                                        }`}
-                                    >
-                                        {item}
-                                    </button>
-                                ))
-                            ) : (
-                                <div className="px-3 py-2 text-sm text-muted-foreground">Sonuç bulunamadı</div>
-                            )}
-                        </div>
+        const dropdown = open && (
+            <div 
+                className="fixed z-[9999] bg-popover border border-input rounded-md shadow-lg"
+                style={{
+                    top: `${position.top}px`,
+                    left: `${position.left}px`,
+                    width: `${position.width}px`,
+                    minWidth: '200px'
+                }}
+            >
+                <div className="p-2 border-b border-input">
+                    <div className="relative">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder={searchPlaceholder}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            autoFocus
+                        />
+                        {search && (
+                            <button
+                                type="button"
+                                onClick={() => setSearch('')}
+                                className="absolute right-2 top-1/2 transform -translate-y-1/2 hover:text-foreground"
+                            >
+                                <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                            </button>
+                        )}
                     </div>
-                )}
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                    {filteredItems.length > 0 ? (
+                        filteredItems.map((item) => (
+                            <button
+                                key={item}
+                                type="button"
+                                onClick={() => {
+                                    onValueChange(item);
+                                    setOpen(false);
+                                    setSearch('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
+                                    value === item ? 'bg-accent font-semibold' : ''
+                                }`}
+                            >
+                                {item}
+                            </button>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">Sonuç bulunamadı</div>
+                    )}
+                </div>
             </div>
+        );
+
+        return (
+            <>
+                <div className="relative w-full">
+                    <button
+                        ref={buttonRef}
+                        type="button"
+                        onClick={() => setOpen(!open)}
+                        className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
+                    >
+                        <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{displayValue}</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                    </button>
+                </div>
+                {open && ReactDOM.createPortal(dropdown, document.body)}
+            </>
         );
     };
 
@@ -97,6 +123,8 @@ import React, { useState, useEffect, useCallback } from 'react';
     const SearchablePersonnelSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Personel ara..." }) => {
         const [open, setOpen] = useState(false);
         const [search, setSearch] = useState('');
+        const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+        const buttonRef = useRef(null);
 
         const filteredItems = items.filter(item =>
             item.full_name.toLowerCase().includes(search.toLowerCase())
@@ -104,68 +132,91 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         const selectedName = items.find(p => p.id === value)?.full_name || placeholder;
 
-        return (
-            <div className="relative w-full">
-                <button
-                    type="button"
-                    onClick={() => setOpen(!open)}
-                    className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
-                >
-                    <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{selectedName}</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
-                </button>
+        useEffect(() => {
+            if (open && buttonRef.current) {
+                const rect = buttonRef.current.getBoundingClientRect();
+                setPosition({
+                    top: rect.bottom + window.scrollY,
+                    left: rect.left + window.scrollX,
+                    width: rect.width
+                });
+            }
+        }, [open]);
 
-                {open && (
-                    <div className="absolute z-50 w-full mt-1 bg-popover border border-input rounded-md shadow-md">
-                        <div className="p-2 border-b border-input">
-                            <div className="relative">
-                                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input
-                                    type="text"
-                                    placeholder={searchPlaceholder}
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                                    autoFocus
-                                />
-                                {search && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setSearch('')}
-                                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                                    >
-                                        <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <div className="max-h-48 overflow-y-auto">
-                            {filteredItems.length > 0 ? (
-                                filteredItems.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        onClick={() => {
-                                            onValueChange(item.id);
-                                            setOpen(false);
-                                            setSearch('');
-                                        }}
-                                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
-                                            value === item.id ? 'bg-accent font-semibold' : ''
-                                        }`}
-                                    >
-                                        {item.full_name}
-                                    </button>
-                                ))
-                            ) : (
-                                <div className="px-3 py-2 text-sm text-muted-foreground">Personel bulunamadı</div>
-                            )}
-                        </div>
+        const dropdown = open && (
+            <div 
+                className="fixed z-[9999] bg-popover border border-input rounded-md shadow-lg"
+                style={{
+                    top: `${position.top}px`,
+                    left: `${position.left}px`,
+                    width: `${position.width}px`,
+                    minWidth: '200px'
+                }}
+            >
+                <div className="p-2 border-b border-input">
+                    <div className="relative">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder={searchPlaceholder}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            autoFocus
+                        />
+                        {search && (
+                            <button
+                                type="button"
+                                onClick={() => setSearch('')}
+                                className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                            >
+                                <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                            </button>
+                        )}
                     </div>
-                )}
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                    {filteredItems.length > 0 ? (
+                        filteredItems.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                    onValueChange(item.id);
+                                    setOpen(false);
+                                    setSearch('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
+                                    value === item.id ? 'bg-accent font-semibold' : ''
+                                }`}
+                            >
+                                {item.full_name}
+                            </button>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">Personel bulunamadı</div>
+                    )}
+                </div>
             </div>
+        );
+
+        return (
+            <>
+                <div className="relative w-full">
+                    <button
+                        ref={buttonRef}
+                        type="button"
+                        onClick={() => setOpen(!open)}
+                        className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
+                    >
+                        <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{selectedName}</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                    </button>
+                </div>
+                {open && ReactDOM.createPortal(dropdown, document.body)}
+            </>
         );
     };
 
