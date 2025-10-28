@@ -314,7 +314,10 @@ import React, { useState, useEffect, useCallback } from 'react';
             return () => clearTimeout(delayDebounceFn);
         }, [fetchRecords, searchTerm]);
     
-        const handleView = (record) => { setSelectedRecord(record); setIsViewMode(true); setFormModalOpen(true); };
+        const handleView = (record) => { 
+            setSelectedRecord(record); 
+            setIsDetailModalOpen(true); 
+        };
         const handleEdit = (record) => { setSelectedRecord(record); setIsViewMode(false); setFormModalOpen(true); };
         const handleNew = () => { setSelectedRecord(null); setIsViewMode(false); setFormModalOpen(true); };
         const handleDelete = async (id) => {
