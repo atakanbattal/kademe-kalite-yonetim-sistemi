@@ -68,7 +68,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                     minWidth: '200px'
                 }}
                 onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
             >
                 <div className="p-2 border-b border-input">
                     <div className="relative">
@@ -81,7 +80,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                                 e.stopPropagation();
                                 setSearch(e.target.value);
                             }}
-                            onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => e.stopPropagation()}
                             className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                             autoFocus
@@ -93,7 +91,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                                     e.stopPropagation();
                                     setSearch('');
                                 }}
-                                onMouseDown={(e) => e.stopPropagation()}
                                 className="absolute right-2 top-1/2 transform -translate-y-1/2 hover:text-foreground"
                             >
                                 <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
@@ -113,7 +110,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                                     setOpen(false);
                                     setSearch('');
                                 }}
-                                onMouseDown={(e) => e.stopPropagation()}
                                 className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
                                     value === item ? 'bg-accent font-semibold' : ''
                                 }`}
@@ -138,7 +134,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                             e.stopPropagation();
                             setOpen(!open);
                         }}
-                        onMouseDown={(e) => e.stopPropagation()}
                         className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
                     >
                         <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{displayValue}</span>
@@ -202,7 +197,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                     minWidth: '200px'
                 }}
                 onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
             >
                 <div className="p-2 border-b border-input">
                     <div className="relative">
@@ -215,7 +209,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                                 e.stopPropagation();
                                 setSearch(e.target.value);
                             }}
-                            onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => e.stopPropagation()}
                             className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                             autoFocus
@@ -227,7 +220,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                                     e.stopPropagation();
                                     setSearch('');
                                 }}
-                                onMouseDown={(e) => e.stopPropagation()}
                                 className="absolute right-2 top-1/2 transform -translate-y-1/2"
                             >
                                 <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
@@ -247,7 +239,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                                     setOpen(false);
                                     setSearch('');
                                 }}
-                                onMouseDown={(e) => e.stopPropagation()}
                                 className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
                                     value === item.id ? 'bg-accent font-semibold' : ''
                                 }`}
@@ -272,7 +263,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                             e.stopPropagation();
                             setOpen(!open);
                         }}
-                        onMouseDown={(e) => e.stopPropagation()}
                         className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
                     >
                         <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{selectedName}</span>
