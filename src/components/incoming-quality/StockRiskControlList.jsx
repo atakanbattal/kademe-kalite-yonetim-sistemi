@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import StockRiskDetailModal from './StockRiskDetailModal';
+import { openPrintableReport } from '@/lib/reportUtils';
 
 const StockRiskControlList = () => {
     const { stockRiskControls, loading, refreshData } = useData();
@@ -87,8 +89,14 @@ const StockRiskControlList = () => {
     };
 
 
-    return (
-        <div className="dashboard-widget">
+    <>
+                <StockRiskDetailModal
+                    isOpen={isDetailModalOpen}
+                    setIsOpen={setIsDetailModalOpen}
+                    record={selectedStockRiskDetail}
+                    onDownloadPDF={handleDownloadDetailPDF}
+                />
+                <div className="dashboard-widget">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="widget-title">Stok Risk Kontrol Kayıtları</h2>
                 <div className="relative w-full max-w-sm">
@@ -183,7 +191,8 @@ const StockRiskControlList = () => {
                 </AlertDialogContent>
             </AlertDialog>
         </div>
-    );
+            </>
+        );
 };
 
 export default StockRiskControlList;

@@ -16,6 +16,9 @@ import PdfViewerModal from '@/components/document/PdfViewerModal';
 import SheetMetalManagement from '@/components/incoming-quality/SheetMetalManagement';
 import StockRiskControlList from '@/components/incoming-quality/StockRiskControlList';
 import StockRiskControlModal from '@/components/incoming-quality/StockRiskControlModal';
+import ControlPlanDetailModal from '@/components/incoming-quality/ControlPlanDetailModal';
+import InkrDetailModal from '@/components/incoming-quality/InkrDetailModal';
+import StockRiskDetailModal from '@/components/incoming-quality/StockRiskDetailModal';
 
 const PAGE_SIZE = 20;
 const DASHBOARD_FETCH_LIMIT = 1000;
@@ -33,12 +36,18 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const [isFormOpen, setFormOpen] = useState(false);
     const [isDecisionModalOpen, setDecisionModalOpen] = useState(false);
-    const [isStockRiskModalOpen, setStockRiskModalOpen] = useState(false);
     const [stockRiskData, setStockRiskData] = useState(null);
+    const [stockRiskModalOpen, setStockRiskModalOpen] = useState(false);
+    const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: '', title: '' });
+    const [selectedControlPlan, setSelectedControlPlan] = useState(null);
+    const [isControlPlanDetailOpen, setIsControlPlanDetailOpen] = useState(false);
+    const [selectedInkr, setSelectedInkr] = useState(null);
+    const [isInkrDetailOpen, setIsInkrDetailOpen] = useState(false);
+    const [selectedStockRisk, setSelectedStockRisk] = useState(null);
+    const [isStockRiskDetailOpen, setIsStockRiskDetailOpen] = useState(false);
     const [selectedInspection, setSelectedInspection] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
-    const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
-    const [isControlPlanModalOpen, setControlPlanModalOpen] = useState(false);
+
     const [filters, setFilters] = useState({
         searchTerm: '',
         dateRange: { from: null, to: null },

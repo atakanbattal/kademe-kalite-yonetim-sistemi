@@ -139,6 +139,12 @@ import React, { useEffect, useState } from 'react';
                             }
                             break;
                         }
+                        case 'incoming_control_plans':
+                        case 'inkr_management':
+                        case 'stock_risk_controls': {
+                            recordData = recordData; // URL parametrelerinden zaten geldi
+                            break;
+                        }
                         case 'deviation':
                         case 'quarantine':
                         case 'equipment': {

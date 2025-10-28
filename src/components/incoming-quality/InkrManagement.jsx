@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import InkrDetailModal from './InkrDetailModal';
+import { openPrintableReport } from '@/lib/reportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -125,6 +127,8 @@ const InkrManagement = ({ onViewPdf }) => {
     const { toast } = useToast();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [selectedInkrDetail, setSelectedInkrDetail] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');

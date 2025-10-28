@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import ControlPlanDetailModal from './ControlPlanDetailModal';
+import { openPrintableReport } from '@/lib/reportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -498,6 +500,8 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         const [isModalOpen, setIsModalOpen] = useState(isOpen || false);
         const [selectedPlan, setSelectedPlan] = useState(null);
         const [searchTerm, setSearchTerm] = useState('');
+        const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+        const [selectedPlanDetail, setSelectedPlanDetail] = useState(null);
 
         const fetchPlans = useCallback(async () => {
             setLoading(true);
@@ -574,6 +578,15 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             }
         };
 
+        const handleViewDetail = (plan) => {
+            setSelectedPlanDetail(plan);
+            setIsDetailModalOpen(true);
+        };
+
+        const handleDownloadDetailPDF = (enrichedData) => {
+            openPrintableReport(enrichedData, 'incoming_control_plans', true);
+        };
+
         return (
             <div className="dashboard-widget">
                 <ControlPlanForm 
@@ -583,6 +596,12 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                   refreshPlans={fetchPlans}
                   onEdit={handleEdit}
                   onRevise={handleRevise}
+                />
+                <ControlPlanDetailModal
+                    isOpen={isDetailModalOpen}
+                    setIsOpen={setIsDetailModalOpen}
+                    plan={selectedPlanDetail}
+                    onDownloadPDF={handleDownloadDetailPDF}
                 />
                 <div className="flex justify-between items-center mb-4">
                     <div className="relative w-full max-w-sm">
@@ -610,7 +629,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                                 <tr><td colSpan="6" className="text-center py-8">Kontrol planı bulunamadı.</td></tr>
                             ) : (
                                 plans.map((plan, index) => (
-                                    <motion.tr key={plan.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }}>
+                                    <motion.tr key={plan.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }} onClick={() => handleViewDetail(plan)} className="cursor-pointer hover:bg-gray-50">
                                         <td className="font-medium text-foreground">{plan.part_code}</td>
                                         <td className="text-foreground">{plan.part_name}</td>
                                         <td className="text-muted-foreground">Rev.{plan.revision_number || 0}</td>
