@@ -33,6 +33,7 @@ const IncomingInspectionDetailModal = ({
 }) => {
     const { toast } = useToast();
     const [preparedBy, setPreparedBy] = useState('');
+    const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
 
     const getDecisionBadge = (decision) => {
@@ -55,6 +56,7 @@ const IncomingInspectionDetailModal = ({
             const enrichedData = {
                 ...inspection,
                 prepared_by: preparedBy || '',
+                controlled_by: controlledBy || '',
                 created_by: createdBy || '',
             };
             onDownloadPDF(enrichedData);
@@ -409,10 +411,23 @@ const IncomingInspectionDetailModal = ({
                                 </div>
                                 <div>
                                     <Label className="text-sm font-semibold">
-                                        Oluşturan (Ad Soyad)
+                                        Kontrol Eden (Ad Soyad)
                                     </Label>
                                     <Input
-                                        placeholder="İmzalayan adını girin..."
+                                        placeholder="Kontrol eden adını girin..."
+                                        value={controlledBy}
+                                        onChange={(e) =>
+                                            setControlledBy(e.target.value)
+                                        }
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <Label className="text-sm font-semibold">
+                                        Onaylayan (Ad Soyad)
+                                    </Label>
+                                    <Input
+                                        placeholder="Onaylayan adını girin..."
                                         value={createdBy}
                                         onChange={(e) =>
                                             setCreatedBy(e.target.value)
@@ -423,7 +438,8 @@ const IncomingInspectionDetailModal = ({
                                 <div className="bg-blue-50 border border-blue-200 rounded p-3">
                                     <p className="text-xs text-blue-700">
                                         💡 Bu isimler PDF raporunda imzalayan
-                                        kişiler olarak gösterilecektir.
+                                        kişiler olarak gösterilecektir. Boş bırakırsanız
+                                        ıslak imza için PDF'te boş gelir.
                                     </p>
                                 </div>
                             </CardContent>
