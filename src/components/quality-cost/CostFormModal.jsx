@@ -46,8 +46,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 <CommandItem
                                     key={item}
                                     value={item}
-                                    onSelect={(currentValue) => {
-                                        onValueChange(currentValue === value ? "" : currentValue);
+                                    onSelect={() => {
+                                        onValueChange(item);
                                         setOpen(false);
                                     }}
                                 >
