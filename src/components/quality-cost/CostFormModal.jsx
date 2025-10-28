@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
@@ -9,270 +9,109 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
     import { Textarea } from '@/components/ui/textarea';
     import { Switch } from '@/components/ui/switch';
     import { COST_TYPES, VEHICLE_TYPES, MEASUREMENT_UNITS } from './constants';
-    import { Zap, Trash2, Plus, Wrench, Search, X } from 'lucide-react';
+    import { Zap, Trash2, Plus, Wrench, Search, ChevronsUpDown, Check } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
-    import ReactDOM from 'react-dom';
+    import { cn } from '@/lib/utils';
+    import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+    import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 
     const formatCurrency = (value) => {
         if (typeof value !== 'number' || isNaN(value)) return '0,00 ₺';
         return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
     };
 
-    // Aranabilir Select Komponenti
-    const SearchableSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Ara..." }) => {
+    // Aranabilir Combobox Componenti
+    const SearchableCombobox = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Ara..." }) => {
         const [open, setOpen] = useState(false);
-        const [search, setSearch] = useState('');
-        const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
-        const buttonRef = useRef(null);
-        const dropdownRef = useRef(null);
-
-        const filteredItems = items.filter(item => 
-            item.toLowerCase().includes(search.toLowerCase())
-        );
-
-        const displayValue = value || placeholder;
-
-        useEffect(() => {
-            if (open && buttonRef.current) {
-                const rect = buttonRef.current.getBoundingClientRect();
-                setPosition({
-                    top: rect.bottom + window.scrollY,
-                    left: rect.left + window.scrollX,
-                    width: rect.width
-                });
-            }
-        }, [open]);
-
-        // Click outside handler
-        useEffect(() => {
-            const handleClickOutside = (e) => {
-                if (dropdownRef.current && !dropdownRef.current.contains(e.target) && buttonRef.current && !buttonRef.current.contains(e.target)) {
-                    setOpen(false);
-                }
-            };
-
-            if (open) {
-                document.addEventListener('mousedown', handleClickOutside);
-                return () => document.removeEventListener('mousedown', handleClickOutside);
-            }
-        }, [open]);
-
-        const dropdown = open && (
-            <div 
-                ref={dropdownRef}
-                className="fixed z-[9999999] bg-popover border border-input rounded-md shadow-2xl"
-                style={{
-                    top: `${position.top}px`,
-                    left: `${position.left}px`,
-                    width: `${position.width}px`,
-                    minWidth: '200px'
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-2 border-b border-input">
-                    <div className="relative">
-                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
-                            type="text"
-                            placeholder={searchPlaceholder}
-                            value={search}
-                            onChange={(e) => {
-                                e.stopPropagation();
-                                setSearch(e.target.value);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                            autoFocus
-                        />
-                        {search && (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSearch('');
-                                }}
-                                className="absolute right-2 top-1/2 transform -translate-y-1/2 hover:text-foreground"
-                            >
-                                <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                            </button>
-                        )}
-                    </div>
-                </div>
-                <div className="max-h-48 overflow-y-auto">
-                    {filteredItems.length > 0 ? (
-                        filteredItems.map((item) => (
-                            <button
-                                key={item}
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onValueChange(item);
-                                    setOpen(false);
-                                    setSearch('');
-                                }}
-                                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
-                                    value === item ? 'bg-accent font-semibold' : ''
-                                }`}
-                            >
-                                {item}
-                            </button>
-                        ))
-                    ) : (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">Sonuç bulunamadı</div>
-                    )}
-                </div>
-            </div>
-        );
 
         return (
-            <>
-                <div className="relative w-full">
-                    <button
-                        ref={buttonRef}
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setOpen(!open);
-                        }}
-                        className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={open}
+                        className="w-full justify-between"
                     >
-                        <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{displayValue}</span>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
-                    </button>
-                </div>
-                {open && ReactDOM.createPortal(dropdown, document.body)}
-            </>
+                        {value || placeholder}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                        <CommandInput placeholder={searchPlaceholder} />
+                        <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                            {items.map((item) => (
+                                <CommandItem
+                                    key={item}
+                                    value={item}
+                                    onSelect={(currentValue) => {
+                                        onValueChange(currentValue === value ? "" : currentValue);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check
+                                        className={cn(
+                                            "mr-2 h-4 w-4",
+                                            value === item ? "opacity-100" : "opacity-0"
+                                        )}
+                                    />
+                                    {item}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </Command>
+                </PopoverContent>
+            </Popover>
         );
     };
 
-    // Aranabilir Personel Select
-    const SearchablePersonnelSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Personel ara..." }) => {
+    // Personel için Aranabilir Combobox
+    const PersonnelCombobox = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Personel ara..." }) => {
         const [open, setOpen] = useState(false);
-        const [search, setSearch] = useState('');
-        const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
-        const buttonRef = useRef(null);
-        const dropdownRef = useRef(null);
-
-        const filteredItems = items.filter(item =>
-            item.full_name.toLowerCase().includes(search.toLowerCase())
-        );
-
-        const selectedName = items.find(p => p.id === value)?.full_name || placeholder;
-
-        useEffect(() => {
-            if (open && buttonRef.current) {
-                const rect = buttonRef.current.getBoundingClientRect();
-                setPosition({
-                    top: rect.bottom + window.scrollY,
-                    left: rect.left + window.scrollX,
-                    width: rect.width
-                });
-            }
-        }, [open]);
-
-        // Click outside handler
-        useEffect(() => {
-            const handleClickOutside = (e) => {
-                if (dropdownRef.current && !dropdownRef.current.contains(e.target) && buttonRef.current && !buttonRef.current.contains(e.target)) {
-                    setOpen(false);
-                }
-            };
-
-            if (open) {
-                document.addEventListener('mousedown', handleClickOutside);
-                return () => document.removeEventListener('mousedown', handleClickOutside);
-            }
-        }, [open]);
-
-        const dropdown = open && (
-            <div 
-                ref={dropdownRef}
-                className="fixed z-[9999999] bg-popover border border-input rounded-md shadow-2xl"
-                style={{
-                    top: `${position.top}px`,
-                    left: `${position.left}px`,
-                    width: `${position.width}px`,
-                    minWidth: '200px'
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-2 border-b border-input">
-                    <div className="relative">
-                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
-                            type="text"
-                            placeholder={searchPlaceholder}
-                            value={search}
-                            onChange={(e) => {
-                                e.stopPropagation();
-                                setSearch(e.target.value);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                            autoFocus
-                        />
-                        {search && (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSearch('');
-                                }}
-                                className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                            >
-                                <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                            </button>
-                        )}
-                    </div>
-                </div>
-                <div className="max-h-48 overflow-y-auto">
-                    {filteredItems.length > 0 ? (
-                        filteredItems.map((item) => (
-                            <button
-                                key={item.id}
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onValueChange(item.id);
-                                    setOpen(false);
-                                    setSearch('');
-                                }}
-                                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
-                                    value === item.id ? 'bg-accent font-semibold' : ''
-                                }`}
-                            >
-                                {item.full_name}
-                            </button>
-                        ))
-                    ) : (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">Personel bulunamadı</div>
-                    )}
-                </div>
-            </div>
-        );
+        const selectedName = items.find(p => p.id === value)?.full_name;
 
         return (
-            <>
-                <div className="relative w-full">
-                    <button
-                        ref={buttonRef}
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setOpen(!open);
-                        }}
-                        className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={open}
+                        className="w-full justify-between"
                     >
-                        <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{selectedName}</span>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
-                    </button>
-                </div>
-                {open && ReactDOM.createPortal(dropdown, document.body)}
-            </>
+                        {selectedName || placeholder}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                        <CommandInput placeholder={searchPlaceholder} />
+                        <CommandEmpty>Personel bulunamadı.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                            {items.map((item) => (
+                                <CommandItem
+                                    key={item.id}
+                                    value={item.full_name}
+                                    onSelect={() => {
+                                        onValueChange(item.id === value ? "" : item.id);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check
+                                        className={cn(
+                                            "mr-2 h-4 w-4",
+                                            value === item.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                    />
+                                    {item.full_name}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </Command>
+                </PopoverContent>
+            </Popover>
         );
     };
 
@@ -559,21 +398,21 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                     
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 pt-4 max-h-[65vh] overflow-y-auto pr-2">
                         
-                        <div><Label>Maliyet Türü <span className="text-red-500">*</span></Label><SearchableSelect value={formData.cost_type || ''} onValueChange={(v) => handleSelectChange('cost_type', v)} placeholder="Seçiniz..." items={COST_TYPES} searchPlaceholder="Maliyet türü ara..." /></div>
+                        <div><Label>Maliyet Türü <span className="text-red-500">*</span></Label><SearchableCombobox value={formData.cost_type || ''} onValueChange={(v) => handleSelectChange('cost_type', v)} placeholder="Seçiniz..." items={COST_TYPES} searchPlaceholder="Maliyet türü ara..." /></div>
                         
                         {isReworkCost && (
                             <>
                                 <div><Label htmlFor="rework_duration">Ana İşlem Süresi (dk)</Label><Input id="rework_duration" type="number" value={formData.rework_duration || ''} onChange={handleInputChange} /></div>
                                 <div>
                                     <Label>Sorumlu Personel</Label>
-                                    <SearchablePersonnelSelect value={formData.responsible_personnel_id || ''} onValueChange={(v) => handleSelectChange('responsible_personnel_id', v)} placeholder="Personel seçin..." items={personnelList} />
+                                    <PersonnelCombobox value={formData.responsible_personnel_id || ''} onValueChange={(v) => handleSelectChange('responsible_personnel_id', v)} placeholder="Personel seçin..." items={personnelList} searchPlaceholder="Personel ara..." />
                                 </div>
                             </>
                         )}
 
                          {(isScrapCost || isWasteCost) && (
                             <>
-                                <div><Label>Malzeme Türü <span className="text-red-500">*</span></Label><SearchableSelect value={formData.material_type || ''} onValueChange={(v) => handleSelectChange('material_type', v)} placeholder="Malzeme seçin..." items={materialTypes} searchPlaceholder="Malzeme ara..." /></div>
+                                <div><Label>Malzeme Türü <span className="text-red-500">*</span></Label><SearchableCombobox value={formData.material_type || ''} onValueChange={(v) => handleSelectChange('material_type', v)} placeholder="Malzeme seçin..." items={materialTypes} searchPlaceholder="Malzeme ara..." /></div>
                                 <div><Label htmlFor="scrap_weight">Ağırlık (kg)</Label><Input id="scrap_weight" type="number" value={formData.scrap_weight || ''} onChange={handleInputChange} placeholder="Ağırlık girin..." /></div>
                             </>
                         )}
@@ -586,7 +425,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                         {showQuantityFields && (
                              <>
                                 <div><Label htmlFor="quantity">Miktar</Label><Input id="quantity" type="number" value={formData.quantity || ''} onChange={handleInputChange} /></div>
-                                <div><Label>Ölçü Birimi</Label><SearchableSelect value={formData.measurement_unit || ''} onValueChange={(v) => handleSelectChange('measurement_unit', v)} placeholder="Birim seçin..." items={MEASUREMENT_UNITS} searchPlaceholder="Birim ara..." /></div>
+                                <div><Label>Ölçü Birimi</Label><SearchableCombobox value={formData.measurement_unit || ''} onValueChange={(v) => handleSelectChange('measurement_unit', v)} placeholder="Birim seçin..." items={MEASUREMENT_UNITS} searchPlaceholder="Birim ara..." /></div>
                             </>
                         )}
 
@@ -595,7 +434,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                                 <Label className="text-base font-semibold">Etkilenen Birimler</Label>
                                 {affectedUnits.map((unit, index) => (
                                     <div key={unit.id} className="grid grid-cols-12 gap-2 items-center">
-                                        <div className="col-span-6"><SearchableSelect value={unit.unit} onValueChange={(v) => handleAffectedUnitChange(unit.id, 'unit', v)} placeholder="Birim seç..." items={departments} searchPlaceholder="Birim ara..." /></div>
+                                        <div className="col-span-6"><SearchableCombobox value={unit.unit} onValueChange={(v) => handleAffectedUnitChange(unit.id, 'unit', v)} placeholder="Birim seç..." items={departments} searchPlaceholder="Birim ara..." /></div>
                                         <div className="col-span-4"><Input type="number" placeholder="Süre (dk)" value={unit.duration} onChange={(e) => handleAffectedUnitChange(unit.id, 'duration', e.target.value)} /></div>
                                         <div className="col-span-2"><Button type="button" variant="destructive" size="icon" onClick={() => removeAffectedUnit(unit.id)}><Trash2 className="w-4 h-4" /></Button></div>
                                     </div>
@@ -621,13 +460,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                             <Label>Birim (Kaynak) <span className={!isReworkCost ? "text-red-500" : (parseFloat(formData.rework_duration) > 0 ? "text-red-500" : "")}>
                                 {!isReworkCost || (parseFloat(formData.rework_duration) > 0) ? '*' : ''}
                             </span></Label>
-                            <SearchableSelect value={formData.unit || ''} onValueChange={(v) => handleSelectChange('unit', v)} placeholder="Birim seçin..." items={departments} searchPlaceholder="Birim ara..." />
+                            <SearchableCombobox value={formData.unit || ''} onValueChange={(v) => handleSelectChange('unit', v)} placeholder="Birim seçin..." items={departments} searchPlaceholder="Birim ara..." />
                         </div>
-                        <div><Label>Araç Türü {isVehicleTypeRequired && <span className="text-red-500">*</span>}</Label><SearchableSelect value={formData.vehicle_type || ''} onValueChange={(v) => handleSelectChange('vehicle_type', v)} placeholder="Seçiniz..." items={VEHICLE_TYPES} searchPlaceholder="Araç türü ara..." /></div>
+                        <div><Label>Araç Türü {isVehicleTypeRequired && <span className="text-red-500">*</span>}</Label><SearchableCombobox value={formData.vehicle_type || ''} onValueChange={(v) => handleSelectChange('vehicle_type', v)} placeholder="Seçiniz..." items={VEHICLE_TYPES} searchPlaceholder="Araç türü ara..." /></div>
                         <div><Label htmlFor="part_code">Parça Kodu</Label><Input id="part_code" value={formData.part_code || ''} onChange={handleInputChange} /></div>
                         <div><Label htmlFor="part_name">Parça Adı</Label><Input id="part_name" value={formData.part_name || ''} onChange={handleInputChange} /></div>
                         <div><Label htmlFor="cost_date">Tarih <span className="text-red-500">*</span></Label><Input id="cost_date" type="date" value={formData.cost_date || ''} onChange={handleInputChange} required /></div>
-                        <div><Label>Durum</Label><SearchableSelect value={formData.status || 'Aktif'} onValueChange={(v) => handleSelectChange('status', v)} items={['Aktif', 'Kapatıldı']} placeholder="Seçiniz..." searchPlaceholder="Durum ara..." /></div>
+                        <div><Label>Durum</Label><SearchableCombobox value={formData.status || 'Aktif'} onValueChange={(v) => handleSelectChange('status', v)} placeholder="Seçiniz..." items={['Aktif', 'Kapatıldı']} searchPlaceholder="Durum ara..." /></div>
                         <div className="md:col-span-3"><Label htmlFor="description">Açıklama</Label><Textarea id="description" value={formData.description || ''} onChange={handleInputChange} rows={3} /></div>
 
                         <DialogFooter className="col-span-1 md:col-span-3 mt-4">
