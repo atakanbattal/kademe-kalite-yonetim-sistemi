@@ -192,7 +192,7 @@ const StockRiskControlList = () => {
             </AlertDialog>
         </div>
     </>
-);
+    );
 };
 
 export default StockRiskControlList;
