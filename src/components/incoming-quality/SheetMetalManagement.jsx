@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Label } from '@/components/ui/label';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-    import { Plus, Trash2, Edit, Search, FileText, X, MoreHorizontal, Eye, ExternalLink, FileDown, Check, XCircle as CircleX } from 'lucide-react';
+    import { Plus, Trash2, Edit, Search, FileText, X, MoreHorizontal, Eye, ExternalLink, Check, XCircle as CircleX } from 'lucide-react';
     import { motion } from 'framer-motion';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { useDropzone } from 'react-dropzone';
@@ -326,36 +326,6 @@ import React, { useState, useEffect, useCallback } from 'react';
             else { toast({ title: 'Başarılı!', description: 'Sac kalemi silindi.' }); fetchRecords(); }
         };
 
-        const handleDownloadReport = async (deliveryNoteNumber) => {
-            if (!deliveryNoteNumber) {
-                toast({ variant: 'destructive', title: 'Hata', description: 'Rapor oluşturmak için irsaliye numarası gerekli.' });
-                return;
-            }
-            
-            const { data, error } = await supabase
-                .from('sheet_metal_items')
-                .select('*, supplier:suppliers(id, name)')
-                .eq('delivery_note_number', deliveryNoteNumber);
-
-            if (error || !data || data.length === 0) {
-                 toast({ variant: 'destructive', title: 'Hata', description: `Rapor verileri alınamadı: ${error?.message || 'Kayıt bulunamadı'}` });
-                 return;
-            }
-            
-            // Tüm items'i bir araya topla
-            const pseudoEntryRecord = {
-                id: data[0].id, 
-                delivery_note_number: deliveryNoteNumber,
-                entry_date: data[0].entry_date,
-                supplier: data[0].supplier,
-                supplier_name: data[0].supplier?.name,
-                sheet_metal_items: data
-            };
-            
-            setSelectedRecord(pseudoEntryRecord);
-            setIsDetailModalOpen(true);
-        };
-        
         const getDecisionBadge = (decision) => {
             switch (decision) {
                 case 'Kabul': return <Badge variant="success">Kabul</Badge>;
@@ -398,7 +368,6 @@ import React, { useState, useEffect, useCallback } from 'react';
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem onClick={() => handleView(item)}><Eye className="mr-2 h-4 w-4" /> Görüntüle</DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleEdit(item)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleDownloadReport(item.delivery_note_number)}><FileDown className="mr-2 h-4 w-4" /> Rapor Al</DropdownMenuItem>
                                                 <AlertDialogTrigger asChild><DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Sil</DropdownMenuItem></AlertDialogTrigger>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
