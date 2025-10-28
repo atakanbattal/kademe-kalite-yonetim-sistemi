@@ -58,6 +58,39 @@ import { format, differenceInDays } from 'date-fns';
                 return `Başarı Sertifikası - ${record.personnelName || ''}`;
             case 'exam_paper':
                 return `Sınav Kağıdı - ${record.title || ''}`;
+        case 'incoming_control_plans':
+            return `
+                <tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
+                <tr><td>Parça Adı</td><td>${record.part_name || '-'}</td></tr>
+                <tr><td>Revizyon</td><td>${record.revision || '-'}</td></tr>
+                <tr><td>Muayene Türü</td><td>${record.inspection_type || '-'}</td></tr>
+                <tr><td>Örnekleme Seviyesi</td><td>${record.sampling_level || '-'}</td></tr>
+                <tr><td>Örnek Boyutu</td><td>${record.sample_size ? record.sample_size + ' Adet' : '-'}</td></tr>
+                <tr><td>AQL (Kabul Kriteri)</td><td>${record.aql || '-'}</td></tr>
+                <tr><td>Geçerli Durum</td><td>${record.is_current ? 'Evet (Güncel)' : 'Hayır (Eski)'}</td></tr>
+                <tr><td>Oluşturulma Tarihi</td><td>${formatDate(record.created_at)}</td></tr>
+                <tr><td colspan="2"><h3 style="margin-top: 15px;">Plan Açıklaması</h3><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.description || 'Açıklama bulunmamaktadır.'}</pre></td></tr>
+            `;
+        case 'inkr_management':
+            return `
+                <tr><td>INKR Numarası</td><td>${record.inkr_number || '-'}</td></tr>
+                <tr><td>Ürün Adı</td><td>${record.product_name || '-'}</td></tr>
+                <tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
+                <tr><td>Tarih</td><td>${formatDate(record.date)}</td></tr>
+                <tr><td>Durum</td><td><strong style="font-weight: bold; color: ${record.status === 'Tamamlandı' ? '#16a34a' : record.status === 'Devam Ediyor' ? '#2563eb' : '#f59e0b'};">${record.status || 'Beklemede'}</strong></td></tr>
+                <tr><td>Sorumlu Personel</td><td>${record.responsible_person || '-'}</td></tr>
+                <tr><td>Açıklama</td><td><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.description || 'Açıklama bulunmamaktadır.'}</pre></td></tr>
+            `;
+        case 'stock_risk_controls':
+            return `
+                <tr><td>Kontrol Numarası</td><td>${record.control_number || '-'}</td></tr>
+                <tr><td>Risk Türü</td><td>${record.risk_type || '-'}</td></tr>
+                <tr><td>Ürün / Lot</td><td>${record.product_lot || '-'}</td></tr>
+                <tr><td>Tespit Tarihi</td><td>${formatDate(record.detection_date)}</td></tr>
+                <tr><td>Risk Seviyesi</td><td><strong style="font-weight: bold; color: ${record.risk_level === 'Yüksek' ? '#dc2626' : record.risk_level === 'Orta' ? '#f59e0b' : '#16a34a'};">${record.risk_level || 'Belirsiz'}</strong></td></tr>
+                <tr><td>Durum</td><td><strong style="font-weight: bold; color: ${record.status === 'Çözüldü' ? '#16a34a' : record.status === 'Izleme Altında' ? '#2563eb' : '#f59e0b'};">${record.status || 'Yeni'}</strong></td></tr>
+                <tr><td>İşlemler Alınanlar</td><td><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.actions_taken || 'İşlem belirtilmemiştir.'}</pre></td></tr>
+            `;
             default:
                 return 'Detaylı Rapor';
         }
@@ -516,96 +549,96 @@ import { format, differenceInDays } from 'date-fns';
                         <tr><td>Sebep Olan Birim</td><td>${record.source_department || '-'}</td></tr>
                         ${deviationRef}
                     `;
-                case 'incoming_inspection':
-                    const defectsHtml = record.defects && record.defects.length > 0 
-                        ? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
-                        : '<li>Kusur tespit edilmemiştir.</li>';
-                    
-                    const resultsTableHtml = record.results && record.results.length > 0
-                        ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Özellik</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Yöntem</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçüm No</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Nominal</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Min</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Mak</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçülen</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sonuç</th>
+            case 'incoming_inspection':
+                const defectsHtml = record.defects && record.defects.length > 0 
+                    ? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
+                    : '<li>Kusur tespit edilmemiştir.</li>';
+                
+                const resultsTableHtml = record.results && record.results.length > 0
+                    ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Özellik</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Yöntem</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçüm No</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Nominal</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Min</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Mak</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçülen</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sonuç</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${record.results.map(r => `
+                                <tr style="border-bottom: 1px solid #d1d5db;">
+                                    <td style="border: 1px solid #d1d5db; padding: 8px;">${r.feature || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; font-size: 0.9em;">${r.measurement_method || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.measurement_number || '-'} / ${r.total_measurements || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.nominal_value || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.min_value || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.max_value || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.actual_value || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${r.result ? '#16a34a' : '#dc2626'};">${r.result ? '✓ OK' : '✗ NOK'}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                ${record.results.map(r => `
-                                    <tr style="border-bottom: 1px solid #d1d5db;">
-                                        <td style="border: 1px solid #d1d5db; padding: 8px;">${r.feature || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; font-size: 0.9em;">${r.measurement_method || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.measurement_number || '-'} / ${r.total_measurements || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.nominal_value || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.min_value || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.max_value || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.actual_value || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${r.result ? '#16a34a' : '#dc2626'};">${r.result ? '✓ OK' : '✗ NOK'}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>`
-                        : '<p>Muayene sonuçları bulunamadı.</p>';
-                    
-                    return `
-                        <tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
-                        <tr><td>Teslimat Belgesi</td><td>${record.delivery_note_number || '-'}</td></tr>
-                        <tr><td>Parça Adı / Kodu</td><td>${record.part_name || '-'} / ${record.part_code || '-'}</td></tr>
-                        <tr><td>Gelen Miktar</td><td>${record.quantity_received || 0} ${record.unit || 'Adet'}</td></tr>
-                        <tr><td>Muayene Tarihi</td><td>${formatDate(record.inspection_date)}</td></tr>
-                        <tr><td>Karar</td><td><strong style="font-weight: bold; ${record.decision === 'Kabul' ? 'color: #16a34a' : record.decision === 'Ret' ? 'color: #dc2626' : 'color: #f59e0b'}">${record.decision || 'Beklemede'}</strong></td></tr>
-                        <tr><td>Kabul Edilen</td><td>${record.quantity_accepted || 0} ${record.unit || 'Adet'}</td></tr>
-                        <tr><td>Şartlı Kabul</td><td>${record.quantity_conditional || 0} ${record.unit || 'Adet'}</td></tr>
-                        <tr><td>Reddedilen</td><td>${record.quantity_rejected || 0} ${record.unit || 'Adet'}</td></tr>
-                        <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
-                        <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları (Ölçüm Detayları)</h3>${resultsTableHtml}</td></tr>
-                    `;
+                            `).join('')}
+                        </tbody>
+                    </table>`
+                    : '<p>Muayene sonuçları bulunamadı.</p>';
+                
+                return `
+                    <tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
+                    <tr><td>Teslimat Belgesi</td><td>${record.delivery_note_number || '-'}</td></tr>
+                    <tr><td>Parça Adı / Kodu</td><td>${record.part_name || '-'} / ${record.part_code || '-'}</td></tr>
+                    <tr><td>Gelen Miktar</td><td>${record.quantity_received || 0} ${record.unit || 'Adet'}</td></tr>
+                    <tr><td>Muayene Tarihi</td><td>${formatDate(record.inspection_date)}</td></tr>
+                    <tr><td>Karar</td><td><strong style="font-weight: bold; ${record.decision === 'Kabul' ? 'color: #16a34a' : record.decision === 'Ret' ? 'color: #dc2626' : 'color: #f59e0b'}">${record.decision || 'Beklemede'}</strong></td></tr>
+                    <tr><td>Kabul Edilen</td><td>${record.quantity_accepted || 0} ${record.unit || 'Adet'}</td></tr>
+                    <tr><td>Şartlı Kabul</td><td>${record.quantity_conditional || 0} ${record.unit || 'Adet'}</td></tr>
+                    <tr><td>Reddedilen</td><td>${record.quantity_rejected || 0} ${record.unit || 'Adet'}</td></tr>
+                    <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
+                    <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları (Ölçüm Detayları)</h3>${resultsTableHtml}</td></tr>
+                `;
                 case 'sheet_metal_entry':
-                    const itemsTableHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
-                        ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Kalem No</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Boyutlar (L×G×K)</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ağırlık (kg)</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Miktar</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Kalite</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Standart</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Heat No</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Coil No</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sertlik</th>
-                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Karar</th>
+                const itemsTableHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
+                    ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Kalem No</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Boyutlar (L×G×K)</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ağırlık (kg)</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Miktar</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Kalite</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Standart</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Heat No</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Coil No</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sertlik</th>
+                                <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Karar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${record.sheet_metal_items.map((item, idx) => `
+                                <tr style="border-bottom: 1px solid #d1d5db;">
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; font-weight: bold;">${idx + 1}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.uzunluk || '-'} × ${item.genislik || '-'} × ${item.kalinlik || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.weight || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.quantity || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.material_quality || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.malzeme_standarti || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.heat_number || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.coil_no || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.hardness || '-'}</td>
+                                    <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${item.decision === 'Kabul' || item.decision === 'Kabul Edildi' ? '#16a34a' : item.decision === 'Ret' ? '#dc2626' : '#f59e0b'};">${item.decision || 'Beklemede'}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                ${record.sheet_metal_items.map((item, idx) => `
-                                    <tr style="border-bottom: 1px solid #d1d5db;">
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; font-weight: bold;">${idx + 1}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.uzunluk || '-'} × ${item.genislik || '-'} × ${item.kalinlik || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.weight || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.quantity || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.material_quality || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.malzeme_standarti || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.heat_number || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.coil_no || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 0.9em;">${item.hardness || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${item.decision === 'Kabul' || item.decision === 'Kabul Edildi' ? '#16a34a' : item.decision === 'Ret' ? '#dc2626' : '#f59e0b'};">${item.decision || 'Beklemede'}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>`
-                        : '<p>Kalem bilgisi bulunamadı.</p>';
-                    
-                    return `
-                        <tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`
+                    : '<p>Kalem bilgisi bulunamadı.</p>';
+    
+                        return `
+                    <tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
                         <tr><td>İrsaliye No</td><td>${record.delivery_note_number || '-'}</td></tr>
                         <tr><td>Giriş Tarihi</td><td>${formatDate(record.entry_date)}</td></tr>
-                        <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Giriş Yapılan Kalemler (Detaylı)</h3>${itemsTableHtml}</td></tr>
+                    <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Giriş Yapılan Kalemler (Detaylı)</h3>${itemsTableHtml}</td></tr>
                     `;
                 case 'supplier_audit':
                     const getGradeInfo = (score) => {
@@ -818,17 +851,17 @@ import { format, differenceInDays } from 'date-fns';
                     <div class="signature-box">
                         <p class="role">HAZIRLAYAN</p>
                         <div class="signature-line"></div>
-                        <p class="name">${type === 'incoming_inspection' ? (record.prepared_by ? record.prepared_by : '&nbsp;') : '&nbsp;'}</p>
+                    <p class="name">${type === 'incoming_inspection' ? (record.prepared_by ? record.prepared_by : '&nbsp;') : '&nbsp;'}</p>
                     </div>
                     <div class="signature-box">
                         <p class="role">KONTROL EDEN</p>
                         <div class="signature-line"></div>
-                        <p class="name">${type === 'incoming_inspection' ? (record.controlled_by ? record.controlled_by : '&nbsp;') : '&nbsp;'}</p>
+                    <p class="name">${type === 'incoming_inspection' ? (record.controlled_by ? record.controlled_by : '&nbsp;') : '&nbsp;'}</p>
                     </div>
                     <div class="signature-box">
                         <p class="role">ONAYLAYAN</p>
                         <div class="signature-line"></div>
-                        <p class="name">${type === 'incoming_inspection' ? (record.created_by ? record.created_by : '&nbsp;') : '&nbsp;'}</p>
+                    <p class="name">${type === 'incoming_inspection' ? (record.created_by ? record.created_by : '&nbsp;') : '&nbsp;'}</p>
                     </div>
                 </div>
             </div>
@@ -881,7 +914,7 @@ import { format, differenceInDays } from 'date-fns';
             
             .report-header { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; }
             .report-logo img { height: 50px; }
-            .company-title { text-align: center; }
+        .company-title { text-align: center; }
             .company-title h1 { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
             .company-title p { font-size: 12px; margin: 0; color: #4b5563; }
             .print-info { text-align: right; font-size: 9px; color: #4b5563; }
@@ -1232,7 +1265,7 @@ import { format, differenceInDays } from 'date-fns';
             </div>
         </body>
         </html>
-    `;
+`
     };
     
     export { openPrintableReport, getReportTitle, generatePrintableReportHtml };
