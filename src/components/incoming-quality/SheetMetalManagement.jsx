@@ -18,6 +18,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { sanitizeFileName } from '@/lib/utils';
     import { materialStandards, materialQualityOptions, allStandardOptions } from './constants';
     import { openPrintableReport } from '@/lib/reportUtils';
+    import SheetMetalDetailModal from '@/components/incoming-quality/SheetMetalDetailModal';
 
     const getInitialItemState = () => ({
       temp_id: uuidv4(),
@@ -286,7 +287,8 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [selectedRecord, setSelectedRecord] = useState(null);
         const [searchTerm, setSearchTerm] = useState('');
         const [isViewMode, setIsViewMode] = useState(false);
-    
+        const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
         const fetchRecords = useCallback(async () => {
             setLoading(true);
             let query = supabase.from('sheet_metal_items').select('*, supplier:suppliers(name)').order('entry_date', { ascending: false });
@@ -337,15 +339,18 @@ import React, { useState, useEffect, useCallback } from 'react';
                  return;
             }
             
+            // Tüm items'i bir araya topla
             const pseudoEntryRecord = {
                 id: data[0].id, 
                 delivery_note_number: deliveryNoteNumber,
                 entry_date: data[0].entry_date,
                 supplier: data[0].supplier,
+                supplier_name: data[0].supplier?.name,
                 sheet_metal_items: data
             };
             
-            openPrintableReport(pseudoEntryRecord, 'sheet_metal_entry', true);
+            setSelectedRecord(pseudoEntryRecord);
+            setIsDetailModalOpen(true);
         };
         
         const getDecisionBadge = (decision) => {
@@ -362,6 +367,9 @@ import React, { useState, useEffect, useCallback } from 'react';
         return (
             <div className="dashboard-widget">
                 <SheetMetalFormModal isOpen={isFormModalOpen} setIsOpen={setFormModalOpen} existingRecord={selectedRecord} refreshData={fetchRecords} isViewMode={isViewMode} />
+                <SheetMetalDetailModal isOpen={isDetailModalOpen} setIsOpen={setIsDetailModalOpen} record={selectedRecord} onDownloadPDF={(record) => {
+                    openPrintableReport(record, 'sheet_metal_entry', true);
+                }} />
                 <div className="flex justify-between items-center mb-4">
                     <div className="relative w-full max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="İrsaliye, tedarikçi, kalite, heat/coil no ara..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
                     <Button onClick={handleNew}><Plus className="w-4 h-4 mr-2" /> Yeni Giriş</Button>

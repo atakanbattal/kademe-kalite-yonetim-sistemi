@@ -73,21 +73,8 @@ import React, { useEffect, useState } from 'react';
                             break;
                         }
                         case 'sheet_metal_entry': {
-                           const { data: items, error: itemsError } = await supabase
-                                .from('sheet_metal_items')
-                                .select('*, supplier:suppliers(name)')
-                                .eq('delivery_note_number', id);
-
-                            if (itemsError) throw itemsError;
-                            if (!items || items.length === 0) throw new Error('Bu irsaliyeye ait kalem bulunamadı.');
-
-                            recordData = {
-                                id: items[0].id, 
-                                delivery_note_number: id,
-                                entry_date: items[0].entry_date,
-                                supplier: items[0].supplier,
-                                sheet_metal_items: items
-                            };
+                            // URL parametresiyle gelen data'yı kullan (useUrlParams=true olduğunda)
+                            if (!recordData) throw new Error('Sac malzeme giriş verisi bulunamadı.');
                             break;
                         }
                         case 'incoming_inspection': {
