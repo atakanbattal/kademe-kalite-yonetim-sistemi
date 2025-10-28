@@ -599,8 +599,7 @@ const generateGenericReportHtml = (record, type) => {
                 <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
                 <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları (Ölçüm Detayları)</h3>${resultsTableHtml}</td></tr>
             `;
-            case 'sheet_metal_entry': {
-                // Özet Tablo
+            case 'sheet_metal_entry':
                 const itemsTableHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
                     ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
                         <thead>
@@ -700,7 +699,6 @@ const generateGenericReportHtml = (record, type) => {
                 <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Giriş Yapılan Kalemler (Özet Tablo)</h3>${itemsTableHtml}</td></tr>
                 <tr><td colspan="2"><h3 style="margin-top: 20px; margin-bottom: 15px;">Giriş Yapılan Kalemler (Detaylı Bilgiler)</h3>${detailedItemsHtml}</td></tr>
                 `;
-            }
         case 'supplier_audit':
             const getGradeInfo = (score) => {
                 if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış', color: '#6b7280' };
