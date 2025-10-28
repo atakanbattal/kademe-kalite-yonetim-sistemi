@@ -55,12 +55,15 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
         };
 
+        // Eğer arama yapılıyorsa search göster, yoksa seçilen değeri göster
+        const displayValue = open ? search : (search || value);
+
         return (
             <div className="relative">
                 <input
                     type="text"
-                    placeholder={search === '' ? placeholder : searchPlaceholder}
-                    value={search || value}
+                    placeholder={!open && !value ? placeholder : searchPlaceholder}
+                    value={displayValue}
                     onChange={(e) => {
                         setSearch(e.target.value);
                         setOpen(true);
@@ -134,12 +137,15 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
         };
 
+        // Eğer arama yapılıyorsa search göster, yoksa seçilen değeri göster
+        const displayValue = open ? search : (search || selectedName || '');
+
         return (
             <div className="relative">
                 <input
                     type="text"
-                    placeholder={search === '' ? placeholder : searchPlaceholder}
-                    value={search || selectedName || ''}
+                    placeholder={!open && !value ? placeholder : searchPlaceholder}
+                    value={displayValue}
                     onChange={(e) => {
                         setSearch(e.target.value);
                         setOpen(true);
