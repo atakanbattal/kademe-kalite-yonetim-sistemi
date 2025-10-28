@@ -62,6 +62,8 @@ const IncomingInspectionDetailModal = ({
                 title: 'Başarılı',
                 description: 'Rapor oluşturuldu!',
             });
+            // Modal'ı kapat
+            setIsOpen(false);
         } catch (error) {
             toast({
                 variant: 'destructive',

@@ -457,17 +457,19 @@ setShowRiskyStockAlert(false);
             if (validResults.length > 0) {
                 const resultsToInsert = validResults.map(r => ({
                     inspection_id: inspectionId,
-                    feature: r.characteristic_name,
+                    characteristic_name: r.characteristic_name,
+                    measurement_method: r.measurement_method,
+                    measurement_number: r.measurement_number || null,
+                    total_measurements: r.total_measurements || null,
                     nominal_value: r.nominal_value,
                     min_value: r.min_value,
                     max_value: r.max_value,
-                    actual_value: String(r.measured_value),
+                    measured_value: String(r.measured_value),
                     result: r.result,
                     characteristic_type: r.characteristic_type,
-                    measurement_method: r.measurement_method,
                 }));
                 const { error: resultsError } = await supabase.from('incoming_inspection_results').insert(resultsToInsert);
-                if (resultsError) { console.error("Error inserting results:", resultsError); }
+                if (resultsError) { console.error("Error inserting results:", resultsError); toast({ variant: 'destructive', title: 'Hata', description: `Ölçüm sonuçları kaydedilemedi: ${resultsError.message}` }); }
             }
             
             await supabase.from('incoming_inspection_defects').delete().eq('inspection_id', inspectionId);
