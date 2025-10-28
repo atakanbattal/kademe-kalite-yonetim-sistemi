@@ -4,7 +4,7 @@ import React from 'react';
     import { Badge } from '@/components/ui/badge';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-    import { MoreHorizontal, Plus, Search, Edit, FileSignature, FileDown, Trash2, Eye, CheckSquare, Filter, Check, XCircle as CircleX, FilePlus, ChevronLeft, ChevronRight } from 'lucide-react';
+    import { MoreHorizontal, Plus, Search, Edit, FileSignature, Trash2, Eye, CheckSquare, Filter, Check, XCircle as CircleX, FilePlus, ChevronLeft, ChevronRight } from 'lucide-react';
     import { format } from 'date-fns';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { supabase } from '@/lib/customSupabaseClient';
@@ -155,36 +155,6 @@ import React from 'react';
             setIsDetailModalOpen(true);
         };
 
-        const handleDownloadPDF = async (inspection) => {
-            // İlk olarak incoming_inspections_with_supplier VIEW'dan temel bilgi al (supplier_name dahil)
-            const { data: inspectionWithSupplier, error: viewError } = await supabase
-                .from('incoming_inspections_with_supplier')
-                .select('*')
-                .eq('id', inspection.id)
-                .single();
-            
-            if (viewError) {
-                toast({ variant: 'destructive', title: 'Hata', description: 'Rapor verileri alınamadı.' });
-                return;
-            }
-            
-            // Related data'yı ayrı ayrı çek
-            const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
-                supabase.from('incoming_inspection_attachments').select('*').eq('inspection_id', inspection.id),
-                supabase.from('incoming_inspection_defects').select('*').eq('inspection_id', inspection.id),
-                supabase.from('incoming_inspection_results').select('*').eq('inspection_id', inspection.id)
-            ]);
-            
-            const fullData = {
-                ...inspectionWithSupplier,
-                attachments: attachmentsRes.data || [],
-                defects: defectsRes.data || [],
-                results: resultsRes.data || []
-            };
-            
-            onDownloadPDF(fullData);
-        };
-
         return (
             <div className="p-4 border rounded-lg bg-card">
                 <div className="flex items-center justify-between mb-4 gap-2">
@@ -246,10 +216,6 @@ import React from 'react';
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => onDecide(inspection)}>
                                                             <CheckSquare className="mr-2 h-4 w-4" /> Karar Ver
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleDownloadPDF(inspection)}>
-                                                            <FileDown className="mr-2 h-4 w-4" /> Rapor Al
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <AlertDialogTrigger asChild>
