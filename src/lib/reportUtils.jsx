@@ -1,15 +1,8 @@
 import { format, differenceInDays } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { supabase } from '@/lib/customSupabaseClient';
-    import { generateIncomingInspectionPDF } from '@/lib/incomingInspectionPdfGenerator';
     
     const openPrintableReport = (record, type, useUrlParams = false) => {
-        // Incoming Inspection PDF Generator direkt çalıştır
-        if (type === 'incoming_inspection_pdf') {
-            generateIncomingInspectionPDF(record);
-            return;
-        }
-
         if (!record || (!record.id && !record.delivery_note_number)) {
             console.error("openPrintableReport called with invalid record:", record);
             return;
@@ -522,6 +515,47 @@ import { format, differenceInDays } from 'date-fns';
                         <tr><td>Karantina Sebebi</td><td><pre>${record.description || '-'}</pre></td></tr>
                         <tr><td>Sebep Olan Birim</td><td>${record.source_department || '-'}</td></tr>
                         ${deviationRef}
+                    `;
+                case 'incoming_inspection':
+                    const defectsHtml = record.defects && record.defects.length > 0 
+                        ? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
+                        : '<li>Kusur tespit edilmemiştir.</li>';
+                    
+                    const resultsTableHtml = record.results && record.results.length > 0
+                        ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #f3f4f6;">
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Özellik</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Nominal</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçülen</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sonuç</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${record.results.map(r => `
+                                    <tr>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px;">${r.characteristic_name || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.nominal_value || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.measured_value || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${r.result ? '#16a34a' : '#dc2626'};">${r.result ? '✓ OK' : '✗ NOK'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>`
+                        : '<p>Muayene sonuçları bulunamadı.</p>';
+                    
+                    return `
+                        <tr><td>Tedarikçi</td><td>${record.supplier_name || '-'}</td></tr>
+                        <tr><td>Teslimat Belgesi</td><td>${record.delivery_note_number || '-'}</td></tr>
+                        <tr><td>Parça Adı / Kodu</td><td>${record.part_name} / ${record.part_code || '-'}</td></tr>
+                        <tr><td>Gelen Miktar</td><td>${record.quantity_received} ${record.unit}</td></tr>
+                        <tr><td>Muayene Tarihi</td><td>${formatDate(record.inspection_date)}</td></tr>
+                        <tr><td>Karar</td><td><strong style="font-weight: bold; ${record.decision === 'Kabul' ? 'color: #16a34a' : record.decision === 'Ret' ? 'color: #dc2626' : 'color: #f59e0b'}">${record.decision || 'Beklemede'}</strong></td></tr>
+                        <tr><td>Kabul Edilen</td><td>${record.quantity_accepted || 0} ${record.unit}</td></tr>
+                        <tr><td>Şartlı Kabul</td><td>${record.quantity_conditional || 0} ${record.unit}</td></tr>
+                        <tr><td>Reddedilen</td><td>${record.quantity_rejected || 0} ${record.unit}</td></tr>
+                        <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
+                        <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları</h3>${resultsTableHtml}</td></tr>
                     `;
                 case 'sheet_metal_entry':
                     const itemsHtml = record.sheet_metal_items?.map(item => {
