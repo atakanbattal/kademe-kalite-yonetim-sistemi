@@ -538,13 +538,13 @@ import { format, differenceInDays } from 'date-fns';
                             <tbody>
                                 ${record.results.map(r => `
                                     <tr style="border-bottom: 1px solid #d1d5db;">
-                                        <td style="border: 1px solid #d1d5db; padding: 8px;">${r.characteristic_name || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px;">${r.feature || '-'}</td>
                                         <td style="border: 1px solid #d1d5db; padding: 8px; font-size: 0.9em;">${r.measurement_method || '-'}</td>
                                         <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.measurement_number || '-'} / ${r.total_measurements || '-'}</td>
                                         <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.nominal_value || '-'}</td>
                                         <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.min_value || '-'}</td>
                                         <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.max_value || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.measured_value || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.actual_value || '-'}</td>
                                         <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${r.result ? '#16a34a' : '#dc2626'};">${r.result ? '✓ OK' : '✗ NOK'}</td>
                                     </tr>
                                 `).join('')}

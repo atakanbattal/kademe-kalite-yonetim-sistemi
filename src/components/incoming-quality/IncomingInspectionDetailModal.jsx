@@ -317,7 +317,7 @@ const IncomingInspectionDetailModal = ({
                                                         >
                                                             <td className="p-2 border-r font-semibold">
                                                                 {
-                                                                    result.characteristic_name
+                                                                    result.feature
                                                                 }
                                                             </td>
                                                             <td className="p-2 border-r text-xs">
@@ -357,7 +357,7 @@ const IncomingInspectionDetailModal = ({
                                                             </td>
                                                             <td className="p-2 border-r text-center font-bold">
                                                                 {
-                                                                    result.measured_value ||
+                                                                    result.actual_value ||
                                                                     '-'
                                                                 }
                                                             </td>
