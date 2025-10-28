@@ -140,6 +140,21 @@ import React from 'react';
             setIsDetailModalOpen(true);
         };
 
+        const handleDownloadPDF = async (inspection) => {
+            const { data, error } = await supabase
+                .from('incoming_inspections')
+                .select('*, supplier:suppliers(id, name), attachments:incoming_inspection_attachments(*), defects:incoming_inspection_defects(*), results:incoming_inspection_results(*)')
+                .eq('id', inspection.id)
+                .single();
+            
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Rapor verileri alınamadı.' });
+                return;
+            }
+            
+            onDownloadPDF(data);
+        };
+
         return (
             <div className="p-4 border rounded-lg bg-card">
                 <div className="flex items-center justify-between mb-4 gap-2">
@@ -203,7 +218,7 @@ import React from 'react';
                                                             <CheckSquare className="mr-2 h-4 w-4" /> Karar Ver
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => onDownloadPDF(inspection)}>
+                                                        <DropdownMenuItem onClick={() => handleDownloadPDF(inspection)}>
                                                             <FileDown className="mr-2 h-4 w-4" /> Rapor Al
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />

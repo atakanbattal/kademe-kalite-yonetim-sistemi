@@ -114,7 +114,7 @@ const IncomingInspectionDetailModal = ({
                                         Tedarikçi Adı
                                     </Label>
                                     <p className="font-medium">
-                                        {inspection.supplier_name || '-'}
+                                        {inspection.supplier?.name || inspection.supplier_name || '-'}
                                     </p>
                                 </div>
                                 <div>

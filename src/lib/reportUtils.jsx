@@ -803,7 +803,7 @@ import { format, differenceInDays } from 'date-fns';
                     <div class="signature-box">
                         <p class="role">KONTROL EDEN</p>
                         <div class="signature-line"></div>
-                        <p class="name">Atakan BATTAL</p>
+                        <p class="name">${type === 'incoming_inspection' ? (record.controlled_by ? record.controlled_by : '&nbsp;') : '&nbsp;'}</p>
                     </div>
                     <div class="signature-box">
                         <p class="role">ONAYLAYAN</p>

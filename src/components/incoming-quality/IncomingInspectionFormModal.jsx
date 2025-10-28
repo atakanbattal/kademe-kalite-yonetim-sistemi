@@ -307,7 +307,12 @@ setShowRiskyStockAlert(false);
                     
                     setDefects(existingDefects || []);
                     if (existingResultsData && existingResultsData.length > 0) {
-                         setResults(existingResultsData.map(r => ({...r, id: uuidv4() })));
+                         setResults(existingResultsData.map(r => ({
+                            ...r,
+                            id: uuidv4(),
+                            characteristic_name: r.feature,
+                            measured_value: r.actual_value,
+                        })));
                     }
                     setExistingAttachments(existingAttachmentsData || []);
                     
