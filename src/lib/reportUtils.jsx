@@ -524,19 +524,27 @@ import { format, differenceInDays } from 'date-fns';
                     const resultsTableHtml = record.results && record.results.length > 0
                         ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
                             <thead>
-                                <tr style="background-color: #f3f4f6;">
+                                <tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
                                     <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Özellik</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Yöntem</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçüm No</th>
                                     <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Nominal</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Min</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Mak</th>
                                     <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçülen</th>
                                     <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sonuç</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${record.results.map(r => `
-                                    <tr>
+                                    <tr style="border-bottom: 1px solid #d1d5db;">
                                         <td style="border: 1px solid #d1d5db; padding: 8px;">${r.characteristic_name || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; font-size: 0.9em;">${r.measurement_method || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.measurement_number || '-'} / ${r.total_measurements || '-'}</td>
                                         <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.nominal_value || '-'}</td>
-                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.measured_value || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.min_value || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.max_value || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.measured_value || '-'}</td>
                                         <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${r.result ? '#16a34a' : '#dc2626'};">${r.result ? '✓ OK' : '✗ NOK'}</td>
                                     </tr>
                                 `).join('')}
@@ -545,17 +553,17 @@ import { format, differenceInDays } from 'date-fns';
                         : '<p>Muayene sonuçları bulunamadı.</p>';
                     
                     return `
-                        <tr><td>Tedarikçi</td><td>${record.supplier_name || '-'}</td></tr>
+                        <tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
                         <tr><td>Teslimat Belgesi</td><td>${record.delivery_note_number || '-'}</td></tr>
-                        <tr><td>Parça Adı / Kodu</td><td>${record.part_name} / ${record.part_code || '-'}</td></tr>
-                        <tr><td>Gelen Miktar</td><td>${record.quantity_received} ${record.unit}</td></tr>
+                        <tr><td>Parça Adı / Kodu</td><td>${record.part_name || '-'} / ${record.part_code || '-'}</td></tr>
+                        <tr><td>Gelen Miktar</td><td>${record.quantity_received || 0} ${record.unit || 'Adet'}</td></tr>
                         <tr><td>Muayene Tarihi</td><td>${formatDate(record.inspection_date)}</td></tr>
                         <tr><td>Karar</td><td><strong style="font-weight: bold; ${record.decision === 'Kabul' ? 'color: #16a34a' : record.decision === 'Ret' ? 'color: #dc2626' : 'color: #f59e0b'}">${record.decision || 'Beklemede'}</strong></td></tr>
-                        <tr><td>Kabul Edilen</td><td>${record.quantity_accepted || 0} ${record.unit}</td></tr>
-                        <tr><td>Şartlı Kabul</td><td>${record.quantity_conditional || 0} ${record.unit}</td></tr>
-                        <tr><td>Reddedilen</td><td>${record.quantity_rejected || 0} ${record.unit}</td></tr>
+                        <tr><td>Kabul Edilen</td><td>${record.quantity_accepted || 0} ${record.unit || 'Adet'}</td></tr>
+                        <tr><td>Şartlı Kabul</td><td>${record.quantity_conditional || 0} ${record.unit || 'Adet'}</td></tr>
+                        <tr><td>Reddedilen</td><td>${record.quantity_rejected || 0} ${record.unit || 'Adet'}</td></tr>
                         <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
-                        <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları</h3>${resultsTableHtml}</td></tr>
+                        <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları (Ölçüm Detayları)</h3>${resultsTableHtml}</td></tr>
                     `;
                 case 'sheet_metal_entry':
                     const itemsHtml = record.sheet_metal_items?.map(item => {
@@ -790,7 +798,7 @@ import { format, differenceInDays } from 'date-fns';
                     <div class="signature-box">
                         <p class="role">HAZIRLAYAN</p>
                         <div class="signature-line"></div>
-                        <p class="name">Atakan BATTAL</p>
+                        <p class="name">&nbsp;</p>
                     </div>
                     <div class="signature-box">
                         <p class="role">KONTROL EDEN</p>
@@ -853,6 +861,7 @@ import { format, differenceInDays } from 'date-fns';
             
             .report-header { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; }
             .report-logo img { height: 50px; }
+            .company-title { text-align: center; }
             .company-title h1 { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
             .company-title p { font-size: 12px; margin: 0; color: #4b5563; }
             .print-info { text-align: right; font-size: 9px; color: #4b5563; }
