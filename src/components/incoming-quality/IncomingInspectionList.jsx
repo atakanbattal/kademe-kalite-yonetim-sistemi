@@ -13,6 +13,7 @@ import React from 'react';
     import { Label } from '@/components/ui/label';
     import { DateRangePicker } from '@/components/ui/date-range-picker';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    import IncomingInspectionDetailModal from './IncomingInspectionDetailModal';
 
     const InspectionFilters = ({ filters, setFilters, suppliers }) => {
         const handleReset = () => {
@@ -98,6 +99,8 @@ import React from 'react';
     const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, onDecide, onOpenNCForm, onDownloadPDF, refreshData, suppliers, filters, setFilters, onOpenControlPlanForm, page, setPage, totalCount, pageSize }) => {
         const { toast } = useToast();
         const totalPages = Math.ceil(totalCount / pageSize);
+        const [selectedInspection, setSelectedInspection] = React.useState(null);
+        const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
 
         const getDecisionBadge = (decision) => {
             switch (decision) {
@@ -123,6 +126,11 @@ import React from 'react';
                 toast({ title: 'Başarılı!', description: 'Kayıt başarıyla silindi.' });
                 refreshData();
             }
+        };
+
+        const handleViewDetail = (inspection) => {
+            setSelectedInspection(inspection);
+            setIsDetailModalOpen(true);
         };
 
         return (
@@ -163,7 +171,7 @@ import React from 'react';
                                 <TableRow><TableCell colSpan="8" className="text-center">Kayıt bulunamadı.</TableCell></TableRow>
                             ) : (
                                 inspections.map(inspection => (
-                                    <TableRow key={inspection.id} onClick={() => onView(inspection)} className="cursor-pointer">
+                                    <TableRow key={inspection.id} className="cursor-pointer">
                                         <TableCell className="font-medium">{inspection.record_no}</TableCell>
                                         <TableCell>{format(new Date(inspection.inspection_date), 'dd.MM.yyyy')}</TableCell>
                                         <TableCell>{inspection.supplier_name || '-'}</TableCell>
@@ -183,15 +191,16 @@ import React from 'react';
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => onDecide(inspection)}>
-                                                            <CheckSquare className="mr-2 h-4 w-4" /> Karar Ver
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => onView(inspection)}>
+                                                        <DropdownMenuItem onClick={() => handleViewDetail(inspection)}>
                                                             <Eye className="mr-2 h-4 w-4" /> Görüntüle
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => onEdit(inspection)}>
                                                             <Edit className="mr-2 h-4 w-4" /> Düzenle
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => onDecide(inspection)}>
+                                                            <CheckSquare className="mr-2 h-4 w-4" /> Karar Ver
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
                                                         <DropdownMenuItem onClick={() => onDownloadPDF(inspection)}>
                                                             <FileDown className="mr-2 h-4 w-4" /> Rapor Al
                                                         </DropdownMenuItem>
@@ -256,6 +265,13 @@ import React from 'react';
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>
+
+                <IncomingInspectionDetailModal
+                    isOpen={isDetailModalOpen}
+                    setIsOpen={setIsDetailModalOpen}
+                    inspection={selectedInspection}
+                    onDownloadPDF={onDownloadPDF}
+                />
             </div>
         );
     };

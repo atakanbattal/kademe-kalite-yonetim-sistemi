@@ -1,8 +1,15 @@
 import { format, differenceInDays } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { supabase } from '@/lib/customSupabaseClient';
+    import { generateIncomingInspectionPDF } from '@/lib/incomingInspectionPdfGenerator';
     
     const openPrintableReport = (record, type, useUrlParams = false) => {
+        // Incoming Inspection PDF Generator direkt çalıştır
+        if (type === 'incoming_inspection_pdf') {
+            generateIncomingInspectionPDF(record);
+            return;
+        }
+
         if (!record || (!record.id && !record.delivery_note_number)) {
             console.error("openPrintableReport called with invalid record:", record);
             return;

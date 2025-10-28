@@ -214,7 +214,12 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     };
 
     const handleDownloadPDF = (record, type) => {
-        openPrintableReport(record, type);
+        // Incoming Inspection için yeni PDF generator'ı kullan
+        if (type === 'incoming_inspection' || !type) {
+            openPrintableReport(record, 'incoming_inspection_pdf');
+        } else {
+            openPrintableReport(record, type);
+        }
     };
 
     const handleViewPdf = async (path, bucket = 'incoming_control') => {
