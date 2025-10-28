@@ -7,7 +7,6 @@ yarn.lock
 package-lock.json
 
 # Build artifacts
-dist
 dist-ssr
 build
 *.local
