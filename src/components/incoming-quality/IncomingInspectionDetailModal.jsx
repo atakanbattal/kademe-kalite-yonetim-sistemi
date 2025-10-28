@@ -51,21 +51,11 @@ const IncomingInspectionDetailModal = ({
     };
 
     const handleGenerateReport = async () => {
-        if (!preparedBy.trim() || !createdBy.trim()) {
-            toast({
-                variant: 'destructive',
-                title: 'Hata',
-                description:
-                    'Hazırlayan ve Oluşturan isimlerini girin!',
-            });
-            return;
-        }
-
         try {
             const enrichedData = {
                 ...inspection,
-                prepared_by: preparedBy,
-                created_by: createdBy,
+                prepared_by: preparedBy || '',
+                created_by: createdBy || '',
             };
             onDownloadPDF(enrichedData);
             toast({
@@ -282,21 +272,33 @@ const IncomingInspectionDetailModal = ({
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-base">
-                                        Muayene Sonuçları
+                                        Muayene Sonuçları (Detaylı Ölçümler)
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
+                                        <table className="w-full text-xs border border-gray-300">
                                             <thead>
-                                                <tr className="border-b">
-                                                    <th className="text-left p-2">
+                                                <tr className="bg-gray-100 border-b">
+                                                    <th className="text-left p-2 border-r">
                                                         Özellik
                                                     </th>
-                                                    <th className="text-center p-2">
+                                                    <th className="text-left p-2 border-r">
+                                                        Yöntem
+                                                    </th>
+                                                    <th className="text-center p-2 border-r">
+                                                        Ölçüm No
+                                                    </th>
+                                                    <th className="text-center p-2 border-r">
                                                         Nominal
                                                     </th>
-                                                    <th className="text-center p-2">
+                                                    <th className="text-center p-2 border-r">
+                                                        Min
+                                                    </th>
+                                                    <th className="text-center p-2 border-r">
+                                                        Mak
+                                                    </th>
+                                                    <th className="text-center p-2 border-r">
                                                         Ölçülen
                                                     </th>
                                                     <th className="text-center p-2">
@@ -309,33 +311,66 @@ const IncomingInspectionDetailModal = ({
                                                     (result, idx) => (
                                                         <tr
                                                             key={idx}
-                                                            className="border-b"
+                                                            className="border-b hover:bg-gray-50"
                                                         >
-                                                            <td className="p-2">
+                                                            <td className="p-2 border-r font-semibold">
                                                                 {
                                                                     result.characteristic_name
                                                                 }
                                                             </td>
-                                                            <td className="p-2 text-center text-xs">
+                                                            <td className="p-2 border-r text-xs">
                                                                 {
-                                                                    result.nominal_value
+                                                                    result.measurement_method ||
+                                                                    '-'
                                                                 }
                                                             </td>
-                                                            <td className="p-2 text-center text-xs">
+                                                            <td className="p-2 border-r text-center font-bold">
                                                                 {
-                                                                    result.measured_value
+                                                                    result.measurement_number ||
+                                                                    '-'
+                                                                }
+                                                                /
+                                                                {
+                                                                    result.total_measurements ||
+                                                                    '-'
                                                                 }
                                                             </td>
-                                                            <td className="p-2 text-center">
-                                                                {result.result ? (
-                                                                    <Badge className="bg-green-500">
-                                                                        OK
-                                                                    </Badge>
-                                                                ) : (
-                                                                    <Badge className="bg-red-500">
-                                                                        NOK
-                                                                    </Badge>
-                                                                )}
+                                                            <td className="p-2 border-r text-center">
+                                                                {
+                                                                    result.nominal_value ||
+                                                                    '-'
+                                                                }
+                                                            </td>
+                                                            <td className="p-2 border-r text-center">
+                                                                {
+                                                                    result.min_value ||
+                                                                    '-'
+                                                                }
+                                                            </td>
+                                                            <td className="p-2 border-r text-center">
+                                                                {
+                                                                    result.max_value ||
+                                                                    '-'
+                                                                }
+                                                            </td>
+                                                            <td className="p-2 border-r text-center font-bold">
+                                                                {
+                                                                    result.measured_value ||
+                                                                    '-'
+                                                                }
+                                                            </td>
+                                                            <td className="p-2 text-center font-bold">
+                                                                <span
+                                                                    className={`px-2 py-1 rounded ${
+                                                                        result.result
+                                                                            ? 'bg-green-100 text-green-800'
+                                                                            : 'bg-red-100 text-red-800'
+                                                                    }`}
+                                                                >
+                                                                    {result.result
+                                                                        ? '✓ OK'
+                                                                        : '✗ NOK'}
+                                                                </span>
                                                             </td>
                                                         </tr>
                                                     )

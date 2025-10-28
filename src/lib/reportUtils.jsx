@@ -798,17 +798,17 @@ import { format, differenceInDays } from 'date-fns';
                     <div class="signature-box">
                         <p class="role">HAZIRLAYAN</p>
                         <div class="signature-line"></div>
-                        <p class="name">&nbsp;</p>
+                        <p class="name">${type === 'incoming_inspection' ? (record.prepared_by ? record.prepared_by : '&nbsp;') : '&nbsp;'}</p>
                     </div>
                     <div class="signature-box">
                         <p class="role">KONTROL EDEN</p>
                         <div class="signature-line"></div>
-                        <p class="name">&nbsp;</p>
+                        <p class="name">Atakan BATTAL</p>
                     </div>
                     <div class="signature-box">
                         <p class="role">ONAYLAYAN</p>
                         <div class="signature-line"></div>
-                        <p class="name">&nbsp;</p>
+                        <p class="name">${type === 'incoming_inspection' ? (record.created_by ? record.created_by : '&nbsp;') : '&nbsp;'}</p>
                     </div>
                 </div>
             </div>
