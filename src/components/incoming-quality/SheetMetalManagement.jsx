@@ -292,40 +292,40 @@ import React, { useState, useEffect, useCallback } from 'react';
         const fetchRecords = useCallback(async () => {
             setLoading(true);
             try {
-                // sheet_metal_entries'ten unique entry'leri al
-                let entriesQuery = supabase
-                    .from('sheet_metal_entries')
-                    .select('id, supplier_id, delivery_note_number, entry_date, suppliers(name)')
+                // sheet_metal_items'ten TÜM kalemler al
+                let query = supabase
+                    .from('sheet_metal_items')
+                    .select('*, supplier:suppliers(name)')
                     .order('entry_date', { ascending: false });
                 
                 if (searchTerm) {
                     const term = `%${searchTerm.toLowerCase()}%`;
-                    entriesQuery = entriesQuery.or(`delivery_note_number.ilike.${term},suppliers.name.ilike.${term}`);
+                    query = query.or(`delivery_note_number.ilike.${term},supplier.name.ilike.${term},material_quality.ilike.${term},heat_number.ilike.${term},coil_no.ilike.${term}`);
                 }
                 
-                let { data: entries, error: entriesError } = await entriesQuery;
+                let { data: allItems, error: itemsError } = await query;
                 
-                if (entriesError) throw entriesError;
+                if (itemsError) throw itemsError;
                 
-                // Her entry için sheet_metal_items fetch et
-                const entriesWithItems = await Promise.all(
-                    (entries || []).map(async (entry) => {
-                        let itemsQuery = supabase
-                            .from('sheet_metal_items')
-                            .select('*')
-                            .eq('entry_id', entry.id);
-                        
-                        let { data: items } = await itemsQuery;
-                        
-                        return {
-                            ...entry,
-                            supplier: entry.suppliers,
-                            sheet_metal_items: items || []
-                        };
-                    })
-                );
+                // Kalemler'i delivery_note_number'e göre GROUP'la (Her giriş bir entry)
+                const entriesMap = new Map();
+                (allItems || []).forEach(item => {
+                    const key = `${item.delivery_note_number}|${item.entry_date}|${item.supplier_id}`;
+                    if (!entriesMap.has(key)) {
+                        entriesMap.set(key, {
+                            id: item.id,
+                            delivery_note_number: item.delivery_note_number,
+                            entry_date: item.entry_date,
+                            supplier_id: item.supplier_id,
+                            supplier: item.supplier,
+                            sheet_metal_items: []
+                        });
+                    }
+                    entriesMap.get(key).sheet_metal_items.push(item);
+                });
                 
-                setItems(entriesWithItems);
+                const entries = Array.from(entriesMap.values());
+                setItems(entries);
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Hata!', description: 'Veri alınamadı: ' + error.message });
                 setItems([]);
