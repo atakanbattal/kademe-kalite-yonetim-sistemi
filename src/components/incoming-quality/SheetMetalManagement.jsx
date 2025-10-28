@@ -379,30 +379,39 @@ import React, { useState, useEffect, useCallback } from 'react';
                             : items.length === 0 ? (<tr><td colSpan="9" className="text-center py-8">Kayıt bulunamadı.</td></tr>) 
                             : (items.flatMap((entry) => {
                                 const kalemler = entry.sheet_metal_items || [];
-                                return kalemler.map((item, itemIdx) => (
-                                    <motion.tr key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => handleView(entry)} className="cursor-pointer">
-                                        <td className="font-medium text-foreground">{itemIdx === 0 ? (entry.delivery_note_number || '-') : ''}</td>
-                                        <td>{itemIdx === 0 ? (entry.supplier?.name || '-') : ''}</td>
-                                        <td>{itemIdx === 0 ? new Date(entry.entry_date).toLocaleDateString('tr-TR') : ''}</td>
+                                // Eski veri check: Tüm kalemler aynı özellikleri mi? (Eski buglu veri)
+                                const allItemsAreSame = kalemler.length > 0 && kalemler.every(item => 
+                                    item.material_quality === kalemler[0].material_quality &&
+                                    item.heat_number === kalemler[0].heat_number &&
+                                    item.coil_no === kalemler[0].coil_no
+                                );
+                                
+                                // Eğer tüm kalemler aynıysa (eski veri), sadece 1 satırda göster
+                                // Yeni veriler için tüm kalemler gösterilecek (farklı olacaklar)
+                                const displayItems = allItemsAreSame ? [kalemler[0]] : kalemler;
+                                
+                                return displayItems.map((item, itemIdx) => (
+                                    <motion.tr key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => handleView(entry)} className="cursor-pointer border-b border-border">
+                                        <td className="font-medium text-foreground">{entry.delivery_note_number || '-'}{allItemsAreSame && kalemler.length > 1 ? ` (${kalemler.length} adet)` : ''}</td>
+                                        <td>{entry.supplier?.name || '-'}</td>
+                                        <td>{new Date(entry.entry_date).toLocaleDateString('tr-TR')}</td>
                                         <td>{item.material_quality || '-'}</td>
                                         <td>{item.heat_number || '-'}</td>
                                         <td>{item.coil_no || '-'}</td>
                                         <td>{getDecisionBadge(item.decision)}</td>
                                         <td className='text-center'>{hasCertificates(item) ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <CircleX className="h-5 w-5 text-red-500 mx-auto" />}</td>
                                         <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                                            {itemIdx === 0 && (
-                                                <AlertDialog><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => handleView(entry)}><Eye className="mr-2 h-4 w-4" /> Görüntüle</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleEdit(entry)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
-                                                        <AlertDialogTrigger asChild><DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Sil</DropdownMenuItem></AlertDialogTrigger>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader><AlertDialogTitle>Emin misiniz?</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
-                                                    <AlertDialogFooter><AlertDialogCancel>İptal</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(entry.id)} className="bg-destructive hover:bg-destructive/90">Sil</AlertDialogAction></AlertDialogFooter>
-                                                </AlertDialogContent></AlertDialog>
-                                            )}
+                                            <AlertDialog><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleView(entry)}><Eye className="mr-2 h-4 w-4" /> Görüntüle</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleEdit(entry)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
+                                                    <AlertDialogTrigger asChild><DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Sil</DropdownMenuItem></AlertDialogTrigger>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader><AlertDialogTitle>Emin misiniz?</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
+                                                <AlertDialogFooter><AlertDialogCancel>İptal</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(entry.id)} className="bg-destructive hover:bg-destructive/90">Sil</AlertDialogAction></AlertDialogFooter>
+                                            </AlertDialogContent></AlertDialog>
                                         </td>
                                     </motion.tr>
                                 ));
