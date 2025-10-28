@@ -245,6 +245,8 @@ export default defineConfig({
 			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},
 		allowedHosts: true,
+		port: 3001,
+		host: '::',
 	},
 	resolve: {
 		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],
