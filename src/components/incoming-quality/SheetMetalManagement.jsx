@@ -291,20 +291,44 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         const fetchRecords = useCallback(async () => {
             setLoading(true);
-            let query = supabase.from('sheet_metal_items').select('*, supplier:suppliers(name)').order('entry_date', { ascending: false });
-            
-            if (searchTerm) {
-                const term = `%${searchTerm.toLowerCase()}%`;
-                query = query.or(`delivery_note_number.ilike.${term},supplier.name.ilike.${term},material_quality.ilike.${term},heat_number.ilike.${term},coil_no.ilike.${term}`);
-            }
-
-            let { data, error } = await query;
-            
-            if (error) {
-                toast({ variant: 'destructive', title: 'Hata!', description: 'Sac giriş kalemleri alınamadı: ' + error.message });
+            try {
+                // sheet_metal_entries'ten unique entry'leri al
+                let entriesQuery = supabase
+                    .from('sheet_metal_entries')
+                    .select('id, supplier_id, delivery_note_number, entry_date, suppliers(name)')
+                    .order('entry_date', { ascending: false });
+                
+                if (searchTerm) {
+                    const term = `%${searchTerm.toLowerCase()}%`;
+                    entriesQuery = entriesQuery.or(`delivery_note_number.ilike.${term},suppliers.name.ilike.${term}`);
+                }
+                
+                let { data: entries, error: entriesError } = await entriesQuery;
+                
+                if (entriesError) throw entriesError;
+                
+                // Her entry için sheet_metal_items fetch et
+                const entriesWithItems = await Promise.all(
+                    (entries || []).map(async (entry) => {
+                        let itemsQuery = supabase
+                            .from('sheet_metal_items')
+                            .select('*')
+                            .eq('entry_id', entry.id);
+                        
+                        let { data: items } = await itemsQuery;
+                        
+                        return {
+                            ...entry,
+                            supplier: entry.suppliers,
+                            sheet_metal_items: items || []
+                        };
+                    })
+                );
+                
+                setItems(entriesWithItems);
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Hata!', description: 'Veri alınamadı: ' + error.message });
                 setItems([]);
-            } else {
-                setItems(data);
             }
             setLoading(false);
         }, [toast, searchTerm]);
@@ -353,31 +377,36 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <tbody>
                             {loading ? (<tr><td colSpan="9" className="text-center py-8">Yükleniyor...</td></tr>) 
                             : items.length === 0 ? (<tr><td colSpan="9" className="text-center py-8">Kayıt bulunamadı.</td></tr>) 
-                            : (items.map((item, index) => (
-                                <motion.tr key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }} onClick={() => handleView(item)} className="cursor-pointer">
-                                    <td className="font-medium text-foreground">{item.delivery_note_number || '-'}</td>
-                                    <td>{item.supplier?.name || '-'}</td>
-                                    <td>{new Date(item.entry_date).toLocaleDateString('tr-TR')}</td>
-                                    <td>{item.material_quality}</td>
-                                    <td>{item.heat_number}</td>
-                                    <td>{item.coil_no}</td>
-                                    <td>{getDecisionBadge(item.decision)}</td>
-                                    <td className='text-center'>{hasCertificates(item) ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <CircleX className="h-5 w-5 text-red-500 mx-auto" />}</td>
-                                    <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                                        <AlertDialog><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleView(item)}><Eye className="mr-2 h-4 w-4" /> Görüntüle</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleEdit(item)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
-                                                <AlertDialogTrigger asChild><DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Sil</DropdownMenuItem></AlertDialogTrigger>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader><AlertDialogTitle>Emin misiniz?</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz. Bu sac kalemini kalıcı olarak sileceksiniz.</AlertDialogDescription></AlertDialogHeader>
-                                            <AlertDialogFooter><AlertDialogCancel>İptal</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive hover:bg-destructive/90">Sil</AlertDialogAction></AlertDialogFooter>
-                                        </AlertDialogContent></AlertDialog>
-                                    </td>
-                                </motion.tr>
-                            )))}
+                            : (items.flatMap((entry) => {
+                                const kalemler = entry.sheet_metal_items || [];
+                                return kalemler.map((item, itemIdx) => (
+                                    <motion.tr key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => handleView(entry)} className="cursor-pointer">
+                                        <td className="font-medium text-foreground">{itemIdx === 0 ? (entry.delivery_note_number || '-') : ''}</td>
+                                        <td>{itemIdx === 0 ? (entry.supplier?.name || '-') : ''}</td>
+                                        <td>{itemIdx === 0 ? new Date(entry.entry_date).toLocaleDateString('tr-TR') : ''}</td>
+                                        <td>{item.material_quality || '-'}</td>
+                                        <td>{item.heat_number || '-'}</td>
+                                        <td>{item.coil_no || '-'}</td>
+                                        <td>{getDecisionBadge(item.decision)}</td>
+                                        <td className='text-center'>{hasCertificates(item) ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <CircleX className="h-5 w-5 text-red-500 mx-auto" />}</td>
+                                        <td className="text-right" onClick={(e) => e.stopPropagation()}>
+                                            {itemIdx === 0 && (
+                                                <AlertDialog><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => handleView(entry)}><Eye className="mr-2 h-4 w-4" /> Görüntüle</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEdit(entry)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
+                                                        <AlertDialogTrigger asChild><DropdownMenuItem className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Sil</DropdownMenuItem></AlertDialogTrigger>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Emin misiniz?</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>İptal</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(entry.id)} className="bg-destructive hover:bg-destructive/90">Sil</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent></AlertDialog>
+                                            )}
+                                        </td>
+                                    </motion.tr>
+                                ));
+                            }))}
                         </tbody>
                     </table>
                 </div>
