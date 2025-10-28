@@ -44,6 +44,7 @@ const SheetMetalDetailModal = ({
         try {
             const enrichedData = {
                 ...record,
+                sheet_metal_items: record.sheet_metal_items || [],
                 prepared_by: preparedBy || '',
                 controlled_by: controlledBy || '',
                 created_by: createdBy || '',
