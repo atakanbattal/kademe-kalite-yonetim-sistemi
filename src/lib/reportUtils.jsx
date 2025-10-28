@@ -746,6 +746,86 @@ const generateGenericReportHtml = (record, type) => {
             `;
             break;
             }
+        case 'incoming_control_plans': {
+            const itemsTableHtml = record.items && record.items.length > 0
+                ? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
+                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Sıra</th>
+                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Özellik</th>
+                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Tip</th>
+                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Ölçüm Yöntemi</th>
+                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Örnek Boyutu</th>
+                            <th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">AQL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${record.items.map((item, idx) => `
+                            <tr style="border-bottom: 1px solid #d1d5db;">
+                                <td style="border: 1px solid #d1d5db; padding: 8px;">${idx + 1}</td>
+                                <td style="border: 1px solid #d1d5db; padding: 8px;">${item.characteristic_label || '-'}</td>
+                                <td style="border: 1px solid #d1d5db; padding: 8px;">${item.characteristic_type || '-'}</td>
+                                <td style="border: 1px solid #d1d5db; padding: 8px;">${item.equipment_label || '-'}</td>
+                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.sample_size || '-'}</td>
+                                <td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${item.aql || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`
+                : '<p>Örnekleme detayı bulunamadı.</p>';
+            
+            return `
+                <tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
+                <tr><td>Parça Adı</td><td>${record.part_name || '-'}</td></tr>
+                <tr><td>Revizyon No</td><td>${record.revision_number || 0}</td></tr>
+                <tr><td>Revizyon Tarihi</td><td>${formatDate(record.revision_date)}</td></tr>
+                <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Örnekleme Planı</h3>${itemsTableHtml}</td></tr>
+            `;
+            break;
+            }
+        case 'inkr_management': {
+            const testResultsHtml = record.test_results && record.test_results.length > 0
+                ? `<div style="margin-top: 10px;">${record.test_results.map((test, idx) => `
+                    <div style="margin-bottom: 8px; padding: 8px; border-left: 3px solid #2563eb; background-color: #f0f9ff;">
+                        <strong>${test.test_name || `Test ${idx + 1}`}:</strong> ${test.result || '-'}
+                        ${test.description ? `<br><small style="color: #6b7280;">${test.description}</small>` : ''}
+                    </div>
+                `).join('')}</div>`
+                : '<p style="color: #6b7280;">Test sonucu bulunmadı.</p>';
+            
+            return `
+                <tr><td>INKR Numarası</td><td>${record.inkr_number || '-'}</td></tr>
+                <tr><td>Ürün Adı</td><td>${record.part_name || '-'}</td></tr>
+                <tr><td>Ürün Kodu</td><td>${record.part_code || '-'}</td></tr>
+                <tr><td>Tedarikçi</td><td>${record.supplier_name || '-'}</td></tr>
+                <tr><td>Rapor Tarihi</td><td>${formatDate(record.report_date || record.created_at)}</td></tr>
+                <tr><td>Durum</td><td>${record.status || 'Aktif'}</td></tr>
+                <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Test Sonuçları</h3>${testResultsHtml}</td></tr>
+                ${record.notes ? `<tr><td>Notlar</td><td><pre>${record.notes}</pre></td></tr>` : ''}
+            `;
+            break;
+            }
+        case 'stock_risk_controls': {
+            const riskLevelColor = {
+                'Yüksek': '#dc2626',
+                'Orta': '#f59e0b',
+                'Düşük': '#16a34a',
+            };
+            const color = riskLevelColor[record.risk_level] || '#6b7280';
+            
+            return `
+                <tr><td>Kontrol Numarası</td><td>${record.control_number || '-'}</td></tr>
+                <tr><td>Ürün / Lot</td><td>${record.product_lot || '-'}</td></tr>
+                <tr><td>Risk Türü</td><td>${record.risk_type || '-'}</td></tr>
+                <tr><td>Risk Seviyesi</td><td><strong style="color: ${color}; font-size: 1.1em;">${record.risk_level || '-'}</strong></td></tr>
+                <tr><td>Tespit Tarihi</td><td>${formatDate(record.control_date || record.created_at)}</td></tr>
+                <tr><td>Durum</td><td>${record.status || 'Açık'}</td></tr>
+                <tr><td>Sorumlu Personel</td><td>${record.responsible_person || '-'}</td></tr>
+                ${record.risk_description ? `<tr><td>Risk Açıklaması</td><td><pre>${record.risk_description}</pre></td></tr>` : ''}
+                ${record.actions_taken ? `<tr><td>Alınan İşlemler</td><td><pre>${record.actions_taken}</pre></td></tr>` : ''}
+            `;
+            break;
+            }
         default: return `<tr><td>Detaylar</td><td>Bu modül için özel rapor formatı tanımlanmamış.</td></tr>`;
     }
 };

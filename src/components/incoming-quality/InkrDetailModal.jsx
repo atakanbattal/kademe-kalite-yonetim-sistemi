@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileDown, X } from 'lucide-react';
@@ -18,10 +17,10 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
 
-const ControlPlanDetailModal = ({
+const InkrDetailModal = ({
     isOpen,
     setIsOpen,
-    plan,
+    inkr,
     onDownloadPDF,
 }) => {
     const { toast } = useToast();
@@ -32,7 +31,7 @@ const ControlPlanDetailModal = ({
     const handleGenerateReport = async () => {
         try {
             const enrichedData = {
-                ...plan,
+                ...inkr,
                 prepared_by: preparedBy || '',
                 controlled_by: controlledBy || '',
                 created_by: createdBy || '',
@@ -52,17 +51,17 @@ const ControlPlanDetailModal = ({
         }
     };
 
-    if (!plan) return null;
+    if (!inkr) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Kontrol Planı Detayları</DialogTitle>
+                    <DialogTitle>INKR Detayları</DialogTitle>
                     <DialogDescription>
-                        Plan No: {plan.part_code} • Tarih:{' '}
+                        INKR No: {inkr.inkr_number} • Tarih:{' '}
                         {format(
-                            new Date(plan.updated_at || plan.created_at),
+                            new Date(inkr.report_date || inkr.created_at),
                             'dd MMMM yyyy',
                             { locale: tr }
                         )}
@@ -72,7 +71,7 @@ const ControlPlanDetailModal = ({
                 <Tabs defaultValue="basic" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="basic">Temel Bilgiler</TabsTrigger>
-                        <TabsTrigger value="sampling">Örnekleme Planı</TabsTrigger>
+                        <TabsTrigger value="details">Muayene Sonuçları</TabsTrigger>
                         <TabsTrigger value="report">Rapor</TabsTrigger>
                     </TabsList>
 
@@ -80,98 +79,86 @@ const ControlPlanDetailModal = ({
                     <TabsContent value="basic" className="space-y-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Plan Bilgileri</CardTitle>
+                                <CardTitle>INKR Bilgileri</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label className="text-gray-600">Parça Kodu</Label>
-                                        <p className="font-medium">{plan.part_code || '-'}</p>
+                                        <Label className="text-gray-600">INKR Numarası</Label>
+                                        <p className="font-medium">{inkr.inkr_number || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Parça Adı</Label>
-                                        <p className="font-medium">{plan.part_name || '-'}</p>
+                                        <Label className="text-gray-600">Ürün Adı</Label>
+                                        <p className="font-medium">{inkr.part_name || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Revizyon No</Label>
-                                        <p className="font-medium">{plan.revision_number || 0}</p>
+                                        <Label className="text-gray-600">Ürün Kodu</Label>
+                                        <p className="font-medium">{inkr.part_code || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Revizyon Tarihi</Label>
+                                        <Label className="text-gray-600">Tedarikçi</Label>
+                                        <p className="font-medium">{inkr.supplier_name || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-gray-600">Rapor Tarihi</Label>
                                         <p className="font-medium">
                                             {format(
-                                                new Date(plan.revision_date),
+                                                new Date(inkr.report_date || inkr.created_at),
                                                 'dd.MM.yyyy'
                                             )}
                                         </p>
                                     </div>
+                                    <div>
+                                        <Label className="text-gray-600">Durum</Label>
+                                        <p className="font-medium">{inkr.status || 'Aktif'}</p>
+                                    </div>
                                 </div>
+                                {inkr.notes && (
+                                    <div>
+                                        <Label className="text-gray-600">Notlar</Label>
+                                        <p className="font-medium whitespace-pre-wrap">
+                                            {inkr.notes}
+                                        </p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    {/* TAB 2: ÖRNEKLEME PLANI */}
-                    <TabsContent value="sampling" className="space-y-4">
-                        {plan.items && plan.items.length > 0 ? (
+                    {/* TAB 2: MUAYENE SONUÇLARI */}
+                    <TabsContent value="details" className="space-y-4">
+                        {inkr.test_results && inkr.test_results.length > 0 ? (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Örnekleme Detayları</CardTitle>
+                                    <CardTitle>Test Sonuçları</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-100 border">
-                                                    <th className="border p-2 text-left font-semibold">
-                                                        Sıra
-                                                    </th>
-                                                    <th className="border p-2 text-left font-semibold">
-                                                        Özellik / Karakteristik
-                                                    </th>
-                                                    <th className="border p-2 text-left font-semibold">
-                                                        Tip
-                                                    </th>
-                                                    <th className="border p-2 text-left font-semibold">
-                                                        Ölçüm Yöntemi
-                                                    </th>
-                                                    <th className="border p-2 text-center font-semibold">
-                                                        Örnek Boyutu
-                                                    </th>
-                                                    <th className="border p-2 text-center font-semibold">
-                                                        AQL
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {plan.items.map((item, idx) => (
-                                                    <tr key={idx} className="border hover:bg-gray-50">
-                                                        <td className="border p-2">{idx + 1}</td>
-                                                        <td className="border p-2">
-                                                            {item.characteristic_label || '-'}
-                                                        </td>
-                                                        <td className="border p-2">
-                                                            {item.characteristic_type || '-'}
-                                                        </td>
-                                                        <td className="border p-2">
-                                                            {item.equipment_label || '-'}
-                                                        </td>
-                                                        <td className="border p-2 text-center">
-                                                            {item.sample_size || '-'}
-                                                        </td>
-                                                        <td className="border p-2 text-center">
-                                                            {item.aql || '-'}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                    <div className="space-y-3">
+                                        {inkr.test_results.map((result, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="border rounded p-3 bg-gray-50"
+                                            >
+                                                <p className="font-semibold">
+                                                    {result.test_name || `Test ${idx + 1}`}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    Sonuç: {result.result || '-'}
+                                                </p>
+                                                {result.description && (
+                                                    <p className="text-sm">
+                                                        Açıklama: {result.description}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 </CardContent>
                             </Card>
                         ) : (
                             <Card>
                                 <CardContent className="pt-6">
-                                    <p className="text-gray-500">Örnekleme detayı bulunamadı.</p>
+                                    <p className="text-gray-500">Test sonucu bulunamadı.</p>
                                 </CardContent>
                             </Card>
                         )}
@@ -232,4 +219,4 @@ const ControlPlanDetailModal = ({
     );
 };
 
-export default ControlPlanDetailModal;
+export default InkrDetailModal;

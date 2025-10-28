@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
     DialogDescription,
-    DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileDown, X } from 'lucide-react';
@@ -18,10 +16,10 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
 
-const ControlPlanDetailModal = ({
+const StockRiskDetailModal = ({
     isOpen,
     setIsOpen,
-    plan,
+    record,
     onDownloadPDF,
 }) => {
     const { toast } = useToast();
@@ -29,10 +27,23 @@ const ControlPlanDetailModal = ({
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
 
+    const getRiskBadge = (riskLevel) => {
+        switch (riskLevel?.toLowerCase()) {
+            case 'yüksek':
+                return <span className="px-2 py-1 bg-red-100 text-red-800 rounded">🔴 Yüksek</span>;
+            case 'orta':
+                return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">🟡 Orta</span>;
+            case 'düşük':
+                return <span className="px-2 py-1 bg-green-100 text-green-800 rounded">🟢 Düşük</span>;
+            default:
+                return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded">Tanımsız</span>;
+        }
+    };
+
     const handleGenerateReport = async () => {
         try {
             const enrichedData = {
-                ...plan,
+                ...record,
                 prepared_by: preparedBy || '',
                 controlled_by: controlledBy || '',
                 created_by: createdBy || '',
@@ -52,17 +63,17 @@ const ControlPlanDetailModal = ({
         }
     };
 
-    if (!plan) return null;
+    if (!record) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Kontrol Planı Detayları</DialogTitle>
+                    <DialogTitle>Stok Risk Kontrolü Detayları</DialogTitle>
                     <DialogDescription>
-                        Plan No: {plan.part_code} • Tarih:{' '}
+                        Kontrol No: {record.control_number} • Tarih:{' '}
                         {format(
-                            new Date(plan.updated_at || plan.created_at),
+                            new Date(record.control_date || record.created_at),
                             'dd MMMM yyyy',
                             { locale: tr }
                         )}
@@ -72,7 +83,7 @@ const ControlPlanDetailModal = ({
                 <Tabs defaultValue="basic" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="basic">Temel Bilgiler</TabsTrigger>
-                        <TabsTrigger value="sampling">Örnekleme Planı</TabsTrigger>
+                        <TabsTrigger value="details">Risk Detayları</TabsTrigger>
                         <TabsTrigger value="report">Rapor</TabsTrigger>
                     </TabsList>
 
@@ -80,101 +91,75 @@ const ControlPlanDetailModal = ({
                     <TabsContent value="basic" className="space-y-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Plan Bilgileri</CardTitle>
+                                <CardTitle>Kontrol Bilgileri</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label className="text-gray-600">Parça Kodu</Label>
-                                        <p className="font-medium">{plan.part_code || '-'}</p>
+                                        <Label className="text-gray-600">Kontrol Numarası</Label>
+                                        <p className="font-medium">{record.control_number || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Parça Adı</Label>
-                                        <p className="font-medium">{plan.part_name || '-'}</p>
+                                        <Label className="text-gray-600">Ürün / Lot</Label>
+                                        <p className="font-medium">{record.product_lot || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Revizyon No</Label>
-                                        <p className="font-medium">{plan.revision_number || 0}</p>
+                                        <Label className="text-gray-600">Risk Türü</Label>
+                                        <p className="font-medium">{record.risk_type || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Revizyon Tarihi</Label>
+                                        <Label className="text-gray-600">Risk Seviyesi</Label>
+                                        <div>{getRiskBadge(record.risk_level)}</div>
+                                    </div>
+                                    <div>
+                                        <Label className="text-gray-600">Tespit Tarihi</Label>
                                         <p className="font-medium">
                                             {format(
-                                                new Date(plan.revision_date),
+                                                new Date(record.control_date || record.created_at),
                                                 'dd.MM.yyyy'
                                             )}
                                         </p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-gray-600">Durum</Label>
+                                        <p className="font-medium">{record.status || 'Açık'}</p>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    {/* TAB 2: ÖRNEKLEME PLANI */}
-                    <TabsContent value="sampling" className="space-y-4">
-                        {plan.items && plan.items.length > 0 ? (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Örnekleme Detayları</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-100 border">
-                                                    <th className="border p-2 text-left font-semibold">
-                                                        Sıra
-                                                    </th>
-                                                    <th className="border p-2 text-left font-semibold">
-                                                        Özellik / Karakteristik
-                                                    </th>
-                                                    <th className="border p-2 text-left font-semibold">
-                                                        Tip
-                                                    </th>
-                                                    <th className="border p-2 text-left font-semibold">
-                                                        Ölçüm Yöntemi
-                                                    </th>
-                                                    <th className="border p-2 text-center font-semibold">
-                                                        Örnek Boyutu
-                                                    </th>
-                                                    <th className="border p-2 text-center font-semibold">
-                                                        AQL
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {plan.items.map((item, idx) => (
-                                                    <tr key={idx} className="border hover:bg-gray-50">
-                                                        <td className="border p-2">{idx + 1}</td>
-                                                        <td className="border p-2">
-                                                            {item.characteristic_label || '-'}
-                                                        </td>
-                                                        <td className="border p-2">
-                                                            {item.characteristic_type || '-'}
-                                                        </td>
-                                                        <td className="border p-2">
-                                                            {item.equipment_label || '-'}
-                                                        </td>
-                                                        <td className="border p-2 text-center">
-                                                            {item.sample_size || '-'}
-                                                        </td>
-                                                        <td className="border p-2 text-center">
-                                                            {item.aql || '-'}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                    {/* TAB 2: RİSK DETAYLARI */}
+                    <TabsContent value="details" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Risk ve İşlemler</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {record.risk_description && (
+                                    <div>
+                                        <Label className="text-gray-600">Risk Açıklaması</Label>
+                                        <p className="font-medium whitespace-pre-wrap">
+                                            {record.risk_description}
+                                        </p>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <p className="text-gray-500">Örnekleme detayı bulunamadı.</p>
-                                </CardContent>
-                            </Card>
-                        )}
+                                )}
+                                {record.actions_taken && (
+                                    <div>
+                                        <Label className="text-gray-600">Alınan İşlemler</Label>
+                                        <p className="font-medium whitespace-pre-wrap">
+                                            {record.actions_taken}
+                                        </p>
+                                    </div>
+                                )}
+                                {record.responsible_person && (
+                                    <div>
+                                        <Label className="text-gray-600">Sorumlu Personel</Label>
+                                        <p className="font-medium">{record.responsible_person}</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     {/* TAB 3: RAPOR */}
@@ -232,4 +217,4 @@ const ControlPlanDetailModal = ({
     );
 };
 
-export default ControlPlanDetailModal;
+export default StockRiskDetailModal;
