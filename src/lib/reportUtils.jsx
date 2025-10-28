@@ -642,7 +642,7 @@ const generateGenericReportHtml = (record, type) => {
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                             <div>
-                                <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">📏 Malzeme Özellikleri</h5>
+                                <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">Malzeme Özellikleri</h5>
                                 <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
                                     <tr><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;"><strong>Uzunluk (mm):</strong></td><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;">${item.uzunluk || '-'}</td></tr>
                                     <tr><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;"><strong>Genişlik (mm):</strong></td><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;">${item.genislik || '-'}</td></tr>
@@ -653,7 +653,7 @@ const generateGenericReportHtml = (record, type) => {
                             </div>
                             
                             <div>
-                                <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">📋 Lot & Referans Bilgileri</h5>
+                                <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">Lot & Referans Bilgileri</h5>
                                 <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
                                     <tr><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;"><strong>Lot No:</strong></td><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;">${item.lot_number || '-'}</td></tr>
                                     <tr><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;"><strong>Heat No (Şarj):</strong></td><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;">${item.heat_number || '-'}</td></tr>
@@ -665,7 +665,7 @@ const generateGenericReportHtml = (record, type) => {
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div>
-                                <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">🧪 Test Sonuçları</h5>
+                                <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">Test Sonuçları</h5>
                                 <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
                                     <tr><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;"><strong>Sertlik (HRB/HRC):</strong></td><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;">${item.hardness || '-'}</td></tr>
                                     <tr><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;"><strong>Ağırlık (kg):</strong></td><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;">${item.weight || '-'}</td></tr>
@@ -675,7 +675,7 @@ const generateGenericReportHtml = (record, type) => {
                             </div>
                             
                             <div>
-                                <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">📄 Sertifika Bilgileri</h5>
+                                <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">Sertifika Bilgileri</h5>
                                 ${item.certificates && item.certificates.length > 0
                                     ? `<ul style="margin: 0; padding-left: 20px; font-size: 0.9em;">
                                         ${item.certificates.map((cert, cidx) => {

@@ -177,72 +177,114 @@ const SheetMetalDetailModal = ({
 
                     {/* TAB 2: DETAYLI ÖLÇÜMLER */}
                     <TabsContent value="details" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">Sertifika Bilgileri</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {record.certificates && record.certificates.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {record.certificates.map((cert, idx) => (
-                                            <div key={idx} className="p-2 border rounded bg-gray-50">
-                                                <p className="text-sm font-semibold">Sertifika {idx + 1}</p>
-                                                <p className="text-xs text-gray-600">Yol: {cert.path || '-'}</p>
-                                                <p className="text-xs text-gray-600">Tür: {cert.sertifika_turu || '-'}</p>
-                                            </div>
-                                        ))}
+                        {record.sheet_metal_items && record.sheet_metal_items.length > 0 ? (
+                            record.sheet_metal_items.map((item, idx) => (
+                                <div key={item.id || idx} className="space-y-4">
+                                    <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+                                        <h4 className="font-semibold text-sm text-blue-900">Kalem {idx + 1}</h4>
                                     </div>
-                                ) : (
-                                    <p className="text-sm text-gray-500">Sertifika bilgisi bulunamadı.</p>
-                                )}
-                            </CardContent>
-                        </Card>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">Detaylı Boyutlar Tablosu</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-xs border border-gray-300">
-                                        <tbody>
-                                            <tr className="border-b">
-                                                <td className="p-2 font-semibold bg-gray-100 border-r">Özellık</td>
-                                                <td className="p-2 bg-gray-100">Değer</td>
-                                            </tr>
-                                            <tr className="border-b">
-                                                <td className="p-2 font-semibold border-r">Uzunluk (mm)</td>
-                                                <td className="p-2">{record.uzunluk || '-'}</td>
-                                            </tr>
-                                            <tr className="border-b">
-                                                <td className="p-2 font-semibold border-r">Genişlik (mm)</td>
-                                                <td className="p-2">{record.genislik || '-'}</td>
-                                            </tr>
-                                            <tr className="border-b">
-                                                <td className="p-2 font-semibold border-r">Kalınlık (mm)</td>
-                                                <td className="p-2">{record.kalinlik || '-'}</td>
-                                            </tr>
-                                            <tr className="border-b">
-                                                <td className="p-2 font-semibold border-r">Ağırlık (kg)</td>
-                                                <td className="p-2">{record.weight || '-'}</td>
-                                            </tr>
-                                            <tr className="border-b">
-                                                <td className="p-2 font-semibold border-r">Sertlik</td>
-                                                <td className="p-2">{record.hardness || '-'}</td>
-                                            </tr>
-                                            <tr className="border-b">
-                                                <td className="p-2 font-semibold border-r">Malzeme Kalitesi</td>
-                                                <td className="p-2">{record.material_quality || '-'}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="p-2 font-semibold border-r">Malzeme Standardı</td>
-                                                <td className="p-2">{record.malzeme_standarti || '-'}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Malzeme Özellikleri</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Uzunluk (mm)</Label>
+                                                <p className="font-medium">{item.uzunluk || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Genişlik (mm)</Label>
+                                                <p className="font-medium">{item.genislik || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Kalınlık (mm)</Label>
+                                                <p className="font-medium">{item.kalinlik || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Kalite</Label>
+                                                <p className="font-medium">{item.material_quality || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Standart</Label>
+                                                <p className="font-medium">{item.malzeme_standarti || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Ağırlık (kg)</Label>
+                                                <p className="font-medium">{item.weight || '-'}</p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Lot & Referans Bilgileri</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Lot No</Label>
+                                                <p className="font-medium">{item.lot_number || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Heat No (Şarj)</Label>
+                                                <p className="font-medium">{item.heat_number || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Coil No (Bobin)</Label>
+                                                <p className="font-medium">{item.coil_no || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Sertifika Türü</Label>
+                                                <p className="font-medium">{item.sertifika_turu || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Miktar</Label>
+                                                <p className="font-medium">{item.quantity || '-'}</p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Test Sonuçları</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Sertlik (HRB/HRC)</Label>
+                                                <p className="font-medium">{item.hardness || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs font-semibold text-muted-foreground">Karar</Label>
+                                                <p className="font-medium">{getDecisionBadge(item.decision)}</p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {item.certificates && item.certificates.length > 0 && (
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="text-base">Sertifika Bilgileri</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="space-y-2">
+                                                    {item.certificates.map((cert, cidx) => {
+                                                        const certName = typeof cert === 'string' ? cert.split('/').pop() : cert.name || cert.path?.split('/').pop() || `Sertifika ${cidx + 1}`;
+                                                        return <p key={cidx} className="text-sm p-2 border rounded bg-gray-50">{certName}</p>;
+                                                    })}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                    {idx < (record.sheet_metal_items.length - 1) && <hr className="my-6" />}
                                 </div>
-                            </CardContent>
-                        </Card>
+                            ))
+                        ) : (
+                            <Card>
+                                <CardContent className="p-4 text-center text-muted-foreground">
+                                    Kalem bilgisi bulunamadı
+                                </CardContent>
+                            </Card>
+                        )}
                     </TabsContent>
 
                     {/* TAB 3: RAPOR */}
