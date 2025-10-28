@@ -699,6 +699,7 @@ const generateGenericReportHtml = (record, type) => {
                 <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Giriş Yapılan Kalemler (Özet Tablo)</h3>${itemsTableHtml}</td></tr>
                 <tr><td colspan="2"><h3 style="margin-top: 20px; margin-bottom: 15px;">Giriş Yapılan Kalemler (Detaylı Bilgiler)</h3>${detailedItemsHtml}</td></tr>
                 `;
+                break;
         case 'supplier_audit':
             const getGradeInfo = (score) => {
                 if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış', color: '#6b7280' };
