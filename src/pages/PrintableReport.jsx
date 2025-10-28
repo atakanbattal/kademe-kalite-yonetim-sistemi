@@ -101,6 +101,42 @@ import React, { useEffect, useState } from 'react';
                                 defects: defectsRes.data || [],
                                 results: resultsRes.data || []
                             };
+                            
+                            // Measurement numbers regenerate et (eski kayıtlarda NULL olabilir)
+                            if (recordData.results && recordData.results.length > 0) {
+                                const hasNullMeasurements = recordData.results.some(
+                                    r => !r.measurement_number || !r.total_measurements
+                                );
+                                
+                                if (hasNullMeasurements) {
+                                    const { data: controlPlan } = await supabase
+                                        .from('incoming_control_plans')
+                                        .select('*')
+                                        .eq('part_code', inspectionData.part_code)
+                                        .maybeSingle();
+                                    
+                                    if (controlPlan?.items) {
+                                        recordData.results = recordData.results.map(r => {
+                                            if (r.measurement_number && r.total_measurements) {
+                                                return r;
+                                            }
+                                            
+                                            const planItem = controlPlan.items?.find(
+                                                item => item.id === r.control_plan_item_id
+                                            );
+                                            
+                                            const incomingQuantity = inspectionData.quantity_received || 1;
+                                            const samplingSize = planItem?.sample_size || incomingQuantity;
+                                            
+                                            return {
+                                                ...r,
+                                                measurement_number: r.measurement_number || 1,
+                                                total_measurements: r.total_measurements || samplingSize,
+                                            };
+                                        });
+                                    }
+                                }
+                            }
                             break;
                         }
                         case 'deviation':

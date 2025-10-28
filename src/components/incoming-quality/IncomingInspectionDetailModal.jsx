@@ -35,6 +35,75 @@ const IncomingInspectionDetailModal = ({
     const [preparedBy, setPreparedBy] = useState('');
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
+    const [enrichedInspection, setEnrichedInspection] = useState(inspection);
+
+    // Ölçüm numaralarını kontrol planından regenerate et
+    React.useEffect(() => {
+        const enrichResults = async () => {
+            if (!inspection || !inspection.results) {
+                setEnrichedInspection(inspection);
+                return;
+            }
+
+            // Eğer measurement_number veya total_measurements NULL ise kontrol planını çek
+            const hasNullMeasurements = inspection.results.some(
+                r => !r.measurement_number || !r.total_measurements
+            );
+
+            if (!hasNullMeasurements) {
+                setEnrichedInspection(inspection);
+                return;
+            }
+
+            try {
+                // Kontrol planını çek
+                const { data: controlPlan } = await supabase
+                    .from('incoming_control_plans')
+                    .select('*')
+                    .eq('part_code', inspection.part_code)
+                    .single();
+
+                if (!controlPlan || !controlPlan.items) {
+                    setEnrichedInspection(inspection);
+                    return;
+                }
+
+                // Results'ı kontrol planından regenerate et
+                const enrichedResults = inspection.results.map(r => {
+                    if (r.measurement_number && r.total_measurements) {
+                        return r; // Zaten var
+                    }
+
+                    // Kontrol planı item'ından oku
+                    const planItem = controlPlan.items?.find(
+                        item => item.id === r.control_plan_item_id
+                    );
+
+                    if (!planItem) return r;
+
+                    // Gelen miktar sayısı kadar ölçüm
+                    const incomingQuantity = inspection.quantity_received || 1;
+                    const samplingSize = planItem.sample_size || incomingQuantity;
+
+                    return {
+                        ...r,
+                        measurement_number: r.measurement_number || 1,
+                        total_measurements: r.total_measurements || samplingSize,
+                    };
+                });
+
+                setEnrichedInspection({
+                    ...inspection,
+                    results: enrichedResults,
+                });
+            } catch (error) {
+                console.error('Error enriching results:', error);
+                setEnrichedInspection(inspection);
+            }
+        };
+
+        enrichResults();
+    }, [inspection]);
 
     const getDecisionBadge = (decision) => {
         switch (decision) {
@@ -54,7 +123,7 @@ const IncomingInspectionDetailModal = ({
     const handleGenerateReport = async () => {
         try {
             const enrichedData = {
-                ...inspection,
+                ...enrichedInspection,
                 prepared_by: preparedBy || '',
                 controlled_by: controlledBy || '',
                 created_by: createdBy || '',
@@ -75,7 +144,7 @@ const IncomingInspectionDetailModal = ({
         }
     };
 
-    if (!inspection) return null;
+    if (!enrichedInspection) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -86,9 +155,9 @@ const IncomingInspectionDetailModal = ({
                         Muayene Kaydı Detayları
                     </DialogTitle>
                     <DialogDescription>
-                        Kayıt No: {inspection.record_no} • Tarih:{' '}
+                        Kayıt No: {enrichedInspection.record_no} • Tarih:{' '}
                         {format(
-                            new Date(inspection.inspection_date),
+                            new Date(enrichedInspection.inspection_date),
                             'dd MMMM yyyy',
                             { locale: tr }
                         )}
@@ -116,7 +185,7 @@ const IncomingInspectionDetailModal = ({
                                         Tedarikçi Adı
                                     </Label>
                                     <p className="font-medium">
-                                        {inspection.supplier?.name || inspection.supplier_name || '-'}
+                                        {enrichedInspection.supplier?.name || enrichedInspection.supplier_name || '-'}
                                     </p>
                                 </div>
                                 <div>
@@ -124,7 +193,7 @@ const IncomingInspectionDetailModal = ({
                                         Teslimat Belgesi No
                                     </Label>
                                     <p className="font-medium">
-                                        {inspection.delivery_note_number || '-'}
+                                        {enrichedInspection.delivery_note_number || '-'}
                                     </p>
                                 </div>
                             </CardContent>
@@ -142,7 +211,7 @@ const IncomingInspectionDetailModal = ({
                                         Parça Adı
                                     </Label>
                                     <p className="font-medium">
-                                        {inspection.part_name || '-'}
+                                        {enrichedInspection.part_name || '-'}
                                     </p>
                                 </div>
                                 <div>
@@ -150,7 +219,7 @@ const IncomingInspectionDetailModal = ({
                                         Parça Kodu
                                     </Label>
                                     <p className="font-medium">
-                                        {inspection.part_code || '-'}
+                                        {enrichedInspection.part_code || '-'}
                                     </p>
                                 </div>
                                 <div>
@@ -158,8 +227,8 @@ const IncomingInspectionDetailModal = ({
                                         Gelen Miktar
                                     </Label>
                                     <p className="font-medium">
-                                        {inspection.quantity_received}{' '}
-                                        {inspection.unit}
+                                        {enrichedInspection.quantity_received}{' '}
+                                        {enrichedInspection.unit}
                                     </p>
                                 </div>
                                 <div>
@@ -169,7 +238,7 @@ const IncomingInspectionDetailModal = ({
                                     <p className="font-medium">
                                         {format(
                                             new Date(
-                                                inspection.inspection_date
+                                                enrichedInspection.inspection_date
                                             ),
                                             'dd.MM.yyyy'
                                         )}
@@ -189,7 +258,7 @@ const IncomingInspectionDetailModal = ({
                                     <Label className="text-sm font-semibold">
                                         Karar
                                     </Label>
-                                    {getDecisionBadge(inspection.decision)}
+                                    {getDecisionBadge(enrichedInspection.decision)}
                                 </div>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div>
@@ -197,8 +266,8 @@ const IncomingInspectionDetailModal = ({
                                             Kabul Edilen
                                         </Label>
                                         <p className="text-lg font-bold">
-                                            {inspection.quantity_accepted || 0}{' '}
-                                            {inspection.unit}
+                                            {enrichedInspection.quantity_accepted || 0}{' '}
+                                            {enrichedInspection.unit}
                                         </p>
                                     </div>
                                     <div>
@@ -206,9 +275,9 @@ const IncomingInspectionDetailModal = ({
                                             Şartlı Kabul
                                         </Label>
                                         <p className="text-lg font-bold">
-                                            {inspection.quantity_conditional ||
+                                            {enrichedInspection.quantity_conditional ||
                                                 0}{' '}
-                                            {inspection.unit}
+                                            {enrichedInspection.unit}
                                         </p>
                                     </div>
                                     <div>
@@ -216,8 +285,8 @@ const IncomingInspectionDetailModal = ({
                                             Reddedilen
                                         </Label>
                                         <p className="text-lg font-bold">
-                                            {inspection.quantity_rejected || 0}{' '}
-                                            {inspection.unit}
+                                            {enrichedInspection.quantity_rejected || 0}{' '}
+                                            {enrichedInspection.unit}
                                         </p>
                                     </div>
                                 </div>
@@ -227,8 +296,8 @@ const IncomingInspectionDetailModal = ({
 
                     {/* TAB 2: MUAYENE DETAYLARı */}
                     <TabsContent value="details" className="space-y-4">
-                        {inspection.defects &&
-                        inspection.defects.length > 0 ? (
+                        {enrichedInspection.defects &&
+                        enrichedInspection.defects.length > 0 ? (
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-base">
@@ -237,7 +306,7 @@ const IncomingInspectionDetailModal = ({
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-2">
-                                        {inspection.defects.map(
+                                        {enrichedInspection.defects.map(
                                             (defect, idx) => (
                                                 <div
                                                     key={idx}
@@ -271,8 +340,8 @@ const IncomingInspectionDetailModal = ({
                             </Card>
                         )}
 
-                        {inspection.results &&
-                        inspection.results.length > 0 ? (
+                        {enrichedInspection.results &&
+                        enrichedInspection.results.length > 0 ? (
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-base">
@@ -311,7 +380,7 @@ const IncomingInspectionDetailModal = ({
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {inspection.results.map(
+                                                {enrichedInspection.results.map(
                                                     (result, idx) => (
                                                         <tr
                                                             key={idx}
@@ -453,7 +522,7 @@ const IncomingInspectionDetailModal = ({
                             </CardHeader>
                             <CardContent className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                    {inspection.supplier_name ? (
+                                    {enrichedInspection.supplier_name ? (
                                         <CheckCircle className="h-5 w-5 text-green-600" />
                                     ) : (
                                         <AlertCircle className="h-5 w-5 text-red-600" />
@@ -463,7 +532,7 @@ const IncomingInspectionDetailModal = ({
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {inspection.part_name ? (
+                                    {enrichedInspection.part_name ? (
                                         <CheckCircle className="h-5 w-5 text-green-600" />
                                     ) : (
                                         <AlertCircle className="h-5 w-5 text-red-600" />
@@ -473,8 +542,8 @@ const IncomingInspectionDetailModal = ({
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {inspection.decision &&
-                                    inspection.decision !==
+                                    {enrichedInspection.decision &&
+                                    enrichedInspection.decision !==
                                         'Beklemede' ? (
                                         <CheckCircle className="h-5 w-5 text-green-600" />
                                     ) : (
