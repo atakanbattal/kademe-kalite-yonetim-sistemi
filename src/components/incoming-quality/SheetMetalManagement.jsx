@@ -186,8 +186,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                 const { temp_id, new_certificates, supplier, ...itemData } = item;
                 
                 const dbItem = {
-                    ...itemData,
                     ...formData,
+                    ...itemData,
                     certificates: uploadedFilePaths,
                 };
                 itemsToUpsert.push(dbItem);
