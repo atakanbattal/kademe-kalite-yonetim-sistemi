@@ -35,11 +35,12 @@ const getReportTitle = (record, type) => {
         case 'supplier_audit':
             return `Tedarikçi Denetim Raporu - ${record.supplier?.name || 'Bilinmiyor'}`;
         case 'internal_audit':
-            return `İç Tetkik Raporu - ${record.report_number || 'Bilinmiyor'}`;
+            return `İç Tetkik Raporu - ${record.report_number || 'Bilinmiyor'}`;            case 'sheet_metal_entry':
+            return `Sac Metal Giriş Raporu - ${record.delivery_note_number || 'Bilinmiyor'}`;
+        
         case 'incoming_inspection':
             return `Girdi Kontrol Raporu - ${record.record_no || 'Bilinmiyor'}`;
-        case 'sheet_metal_entry':
-            return `Sac Metal Giriş Raporu - ${record.delivery_note_number || 'Bilinmiyor'}`;
+        
         case 'deviation':
             return `Sapma Talep Raporu - ${record.request_no || 'Bilinmiyor'}`;
         case 'nonconformity':
