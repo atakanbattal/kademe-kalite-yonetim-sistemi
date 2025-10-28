@@ -60,7 +60,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
         const dropdown = open && (
             <div 
                 ref={dropdownRef}
-                className="fixed z-[9999] bg-popover border border-input rounded-md shadow-lg"
+                className="fixed z-[9999999] bg-popover border border-input rounded-md shadow-2xl"
                 style={{
                     top: `${position.top}px`,
                     left: `${position.left}px`,
@@ -194,7 +194,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
         const dropdown = open && (
             <div 
                 ref={dropdownRef}
-                className="fixed z-[9999] bg-popover border border-input rounded-md shadow-lg"
+                className="fixed z-[9999999] bg-popover border border-input rounded-md shadow-2xl"
                 style={{
                     top: `${position.top}px`,
                     left: `${position.left}px`,
