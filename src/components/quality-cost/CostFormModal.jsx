@@ -9,12 +9,164 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Textarea } from '@/components/ui/textarea';
     import { Switch } from '@/components/ui/switch';
     import { COST_TYPES, VEHICLE_TYPES, MEASUREMENT_UNITS } from './constants';
-    import { Zap, Trash2, Plus, Wrench } from 'lucide-react';
+    import { Zap, Trash2, Plus, Wrench, Search, X } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
 
     const formatCurrency = (value) => {
         if (typeof value !== 'number' || isNaN(value)) return '0,00 ₺';
         return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+    };
+
+    // Aranabilir Select Komponenti
+    const SearchableSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Ara..." }) => {
+        const [open, setOpen] = useState(false);
+        const [search, setSearch] = useState('');
+
+        const filteredItems = items.filter(item => 
+            item.toLowerCase().includes(search.toLowerCase())
+        );
+
+        const displayValue = value || placeholder;
+
+        return (
+            <div className="relative w-full">
+                <button
+                    type="button"
+                    onClick={() => setOpen(!open)}
+                    className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
+                >
+                    <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{displayValue}</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                </button>
+
+                {open && (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border border-input rounded-md shadow-md">
+                        <div className="p-2 border-b border-input">
+                            <div className="relative">
+                                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    placeholder={searchPlaceholder}
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                                    autoFocus
+                                />
+                                {search && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearch('')}
+                                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                                    >
+                                        <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                            {filteredItems.length > 0 ? (
+                                filteredItems.map((item) => (
+                                    <button
+                                        key={item}
+                                        type="button"
+                                        onClick={() => {
+                                            onValueChange(item);
+                                            setOpen(false);
+                                            setSearch('');
+                                        }}
+                                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
+                                            value === item ? 'bg-accent font-semibold' : ''
+                                        }`}
+                                    >
+                                        {item}
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="px-3 py-2 text-sm text-muted-foreground">Sonuç bulunamadı</div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Aranabilir Personel Select
+    const SearchablePersonnelSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Personel ara..." }) => {
+        const [open, setOpen] = useState(false);
+        const [search, setSearch] = useState('');
+
+        const filteredItems = items.filter(item =>
+            item.full_name.toLowerCase().includes(search.toLowerCase())
+        );
+
+        const selectedName = items.find(p => p.id === value)?.full_name || placeholder;
+
+        return (
+            <div className="relative w-full">
+                <button
+                    type="button"
+                    onClick={() => setOpen(!open)}
+                    className="w-full px-3 py-2 text-left bg-background border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex justify-between items-center"
+                >
+                    <span className={value ? 'text-foreground' : 'text-muted-foreground'}>{selectedName}</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                </button>
+
+                {open && (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border border-input rounded-md shadow-md">
+                        <div className="p-2 border-b border-input">
+                            <div className="relative">
+                                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    placeholder={searchPlaceholder}
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="w-full pl-8 pr-2 py-1 text-sm border border-input rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                                    autoFocus
+                                />
+                                {search && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearch('')}
+                                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                                    >
+                                        <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                            {filteredItems.length > 0 ? (
+                                filteredItems.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onValueChange(item.id);
+                                            setOpen(false);
+                                            setSearch('');
+                                        }}
+                                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${
+                                            value === item.id ? 'bg-accent font-semibold' : ''
+                                        }`}
+                                    >
+                                        {item.full_name}
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="px-3 py-2 text-sm text-muted-foreground">Personel bulunamadı</div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
     };
 
     export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost }) => {
@@ -300,24 +452,21 @@ import React, { useState, useEffect, useCallback } from 'react';
                     
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 pt-4 max-h-[65vh] overflow-y-auto pr-2">
                         
-                        <div><Label>Maliyet Türü <span className="text-red-500">*</span></Label><Select value={formData.cost_type || ''} onValueChange={(v) => handleSelectChange('cost_type', v)} required><SelectTrigger><SelectValue placeholder="Seçiniz..." /></SelectTrigger><SelectContent>{COST_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
+                        <div><Label>Maliyet Türü <span className="text-red-500">*</span></Label><SearchableSelect value={formData.cost_type || ''} onValueChange={(v) => handleSelectChange('cost_type', v)} placeholder="Seçiniz..." items={COST_TYPES} searchPlaceholder="Maliyet türü ara..." /></div>
                         
                         {isReworkCost && (
                             <>
                                 <div><Label htmlFor="rework_duration">Ana İşlem Süresi (dk)</Label><Input id="rework_duration" type="number" value={formData.rework_duration || ''} onChange={handleInputChange} /></div>
                                 <div>
                                     <Label>Sorumlu Personel</Label>
-                                    <Select value={formData.responsible_personnel_id || ''} onValueChange={(v) => handleSelectChange('responsible_personnel_id', v)}>
-                                        <SelectTrigger><SelectValue placeholder="Personel seçin..." /></SelectTrigger>
-                                        <SelectContent>{personnelList.map(p => (<SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>))}</SelectContent>
-                                    </Select>
+                                    <SearchablePersonnelSelect value={formData.responsible_personnel_id || ''} onValueChange={(v) => handleSelectChange('responsible_personnel_id', v)} placeholder="Personel seçin..." items={personnelList} />
                                 </div>
                             </>
                         )}
 
                          {(isScrapCost || isWasteCost) && (
                             <>
-                                <div><Label>Malzeme Türü <span className="text-red-500">*</span></Label><Select value={formData.material_type || ''} onValueChange={(v) => handleSelectChange('material_type', v)} required><SelectTrigger><SelectValue placeholder="Malzeme seçin..." /></SelectTrigger><SelectContent>{materialTypes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select></div>
+                                <div><Label>Malzeme Türü <span className="text-red-500">*</span></Label><SearchableSelect value={formData.material_type || ''} onValueChange={(v) => handleSelectChange('material_type', v)} placeholder="Malzeme seçin..." items={materialTypes} searchPlaceholder="Malzeme ara..." /></div>
                                 <div><Label htmlFor="scrap_weight">Ağırlık (kg)</Label><Input id="scrap_weight" type="number" value={formData.scrap_weight || ''} onChange={handleInputChange} placeholder="Ağırlık girin..." /></div>
                             </>
                         )}
@@ -330,7 +479,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         {showQuantityFields && (
                              <>
                                 <div><Label htmlFor="quantity">Miktar</Label><Input id="quantity" type="number" value={formData.quantity || ''} onChange={handleInputChange} /></div>
-                                <div><Label>Ölçü Birimi</Label><Select value={formData.measurement_unit || ''} onValueChange={(v) => handleSelectChange('measurement_unit', v)}><SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger><SelectContent>{MEASUREMENT_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent></Select></div>
+                                <div><Label>Ölçü Birimi</Label><SearchableSelect value={formData.measurement_unit || ''} onValueChange={(v) => handleSelectChange('measurement_unit', v)} placeholder="Birim seçin..." items={MEASUREMENT_UNITS} searchPlaceholder="Birim ara..." /></div>
                             </>
                         )}
 
@@ -339,7 +488,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 <Label className="text-base font-semibold">Etkilenen Birimler</Label>
                                 {affectedUnits.map((unit, index) => (
                                     <div key={unit.id} className="grid grid-cols-12 gap-2 items-center">
-                                        <div className="col-span-6"><Select value={unit.unit} onValueChange={(v) => handleAffectedUnitChange(unit.id, 'unit', v)}><SelectTrigger><SelectValue placeholder="Birim seç..." /></SelectTrigger><SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
+                                        <div className="col-span-6"><SearchableSelect value={unit.unit} onValueChange={(v) => handleAffectedUnitChange(unit.id, 'unit', v)} placeholder="Birim seç..." items={departments} searchPlaceholder="Birim ara..." /></div>
                                         <div className="col-span-4"><Input type="number" placeholder="Süre (dk)" value={unit.duration} onChange={(e) => handleAffectedUnitChange(unit.id, 'duration', e.target.value)} /></div>
                                         <div className="col-span-2"><Button type="button" variant="destructive" size="icon" onClick={() => removeAffectedUnit(unit.id)}><Trash2 className="w-4 h-4" /></Button></div>
                                     </div>
@@ -365,16 +514,13 @@ import React, { useState, useEffect, useCallback } from 'react';
                             <Label>Birim (Kaynak) <span className={!isReworkCost ? "text-red-500" : (parseFloat(formData.rework_duration) > 0 ? "text-red-500" : "")}>
                                 {!isReworkCost || (parseFloat(formData.rework_duration) > 0) ? '*' : ''}
                             </span></Label>
-                            <Select value={formData.unit || ''} onValueChange={(v) => handleSelectChange('unit', v)} required={!isReworkCost || (parseFloat(formData.rework_duration) > 0)}>
-                                <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
-                                <SelectContent>{departments.map(d => (<SelectItem key={d} value={d}>{d}</SelectItem>))}</SelectContent>
-                            </Select>
+                            <SearchableSelect value={formData.unit || ''} onValueChange={(v) => handleSelectChange('unit', v)} placeholder="Birim seçin..." items={departments} searchPlaceholder="Birim ara..." />
                         </div>
-                        <div><Label>Araç Türü {isVehicleTypeRequired && <span className="text-red-500">*</span>}</Label><Select value={formData.vehicle_type || ''} onValueChange={(v) => handleSelectChange('vehicle_type', v)} required={isVehicleTypeRequired}><SelectTrigger><SelectValue placeholder="Seçiniz..." /></SelectTrigger><SelectContent>{VEHICLE_TYPES.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
+                        <div><Label>Araç Türü {isVehicleTypeRequired && <span className="text-red-500">*</span>}</Label><SearchableSelect value={formData.vehicle_type || ''} onValueChange={(v) => handleSelectChange('vehicle_type', v)} placeholder="Seçiniz..." items={VEHICLE_TYPES} searchPlaceholder="Araç türü ara..." /></div>
                         <div><Label htmlFor="part_code">Parça Kodu</Label><Input id="part_code" value={formData.part_code || ''} onChange={handleInputChange} /></div>
                         <div><Label htmlFor="part_name">Parça Adı</Label><Input id="part_name" value={formData.part_name || ''} onChange={handleInputChange} /></div>
                         <div><Label htmlFor="cost_date">Tarih <span className="text-red-500">*</span></Label><Input id="cost_date" type="date" value={formData.cost_date || ''} onChange={handleInputChange} required /></div>
-                        <div><Label>Durum</Label><Select value={formData.status || 'Aktif'} onValueChange={(v) => handleSelectChange('status', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Aktif">Aktif</SelectItem><SelectItem value="Kapatıldı">Kapatıldı</SelectItem></SelectContent></Select></div>
+                        <div><Label>Durum</Label><SearchableSelect value={formData.status || 'Aktif'} onValueChange={(v) => handleSelectChange('status', v)} items={['Aktif', 'Kapatıldı']} placeholder="Seçiniz..." searchPlaceholder="Durum ara..." /></div>
                         <div className="md:col-span-3"><Label htmlFor="description">Açıklama</Label><Textarea id="description" value={formData.description || ''} onChange={handleInputChange} rows={3} /></div>
 
                         <DialogFooter className="col-span-1 md:col-span-3 mt-4">
