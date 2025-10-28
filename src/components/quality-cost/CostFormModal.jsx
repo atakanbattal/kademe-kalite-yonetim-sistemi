@@ -17,41 +17,48 @@ import React, { useState, useEffect, useCallback } from 'react';
         return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
     };
 
-    // Basit Aranabilir Select Componenti
+    // Basit ve Kullanışlı Aranabilir Select Componenti
     const SearchableSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Ara..." }) => {
         const [search, setSearch] = useState('');
+        const [open, setOpen] = useState(false);
         const filteredItems = items.filter(item => 
             item.toLowerCase().includes(search.toLowerCase())
         );
 
         return (
-            <div className="space-y-2">
-                <Input 
+            <div className="relative">
+                <input
                     type="text"
-                    placeholder={searchPlaceholder}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="text-sm"
+                    placeholder={search === '' ? placeholder : searchPlaceholder}
+                    value={search || value}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setOpen(true);
+                    }}
+                    onFocus={() => setOpen(true)}
+                    onBlur={() => setTimeout(() => setOpen(false), 200)}
+                    className="w-full px-3 py-2 border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 />
-                <Select value={value || ''} onValueChange={(v) => {
-                    onValueChange(v);
-                    setSearch('');
-                }}>
-                    <SelectTrigger>
-                        <SelectValue placeholder={placeholder} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {filteredItems.length > 0 ? (
-                            filteredItems.map(item => (
-                                <SelectItem key={item} value={item}>
+                {open && filteredItems.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-input rounded-md shadow-lg z-50">
+                        <div className="max-h-48 overflow-y-auto">
+                            {filteredItems.map((item) => (
+                                <button
+                                    key={item}
+                                    type="button"
+                                    onClick={() => {
+                                        onValueChange(item);
+                                        setSearch('');
+                                        setOpen(false);
+                                    }}
+                                    className="w-full text-left px-3 py-2 hover:bg-accent transition-colors text-sm"
+                                >
                                     {item}
-                                </SelectItem>
-                            ))
-                        ) : (
-                            <div className="p-2 text-sm text-muted-foreground">Sonuç bulunamadı</div>
-                        )}
-                    </SelectContent>
-                </Select>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -59,38 +66,46 @@ import React, { useState, useEffect, useCallback } from 'react';
     // Personel için Aranabilir Select
     const PersonnelSearchableSelect = ({ value, onValueChange, placeholder, items, searchPlaceholder = "Personel ara..." }) => {
         const [search, setSearch] = useState('');
+        const [open, setOpen] = useState(false);
         const filteredItems = items.filter(item =>
             item.full_name.toLowerCase().includes(search.toLowerCase())
         );
+        const selectedName = items.find(p => p.id === value)?.full_name;
 
         return (
-            <div className="space-y-2">
-                <Input 
+            <div className="relative">
+                <input
                     type="text"
-                    placeholder={searchPlaceholder}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="text-sm"
+                    placeholder={search === '' ? placeholder : searchPlaceholder}
+                    value={search || selectedName || ''}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setOpen(true);
+                    }}
+                    onFocus={() => setOpen(true)}
+                    onBlur={() => setTimeout(() => setOpen(false), 200)}
+                    className="w-full px-3 py-2 border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 />
-                <Select value={value || ''} onValueChange={(v) => {
-                    onValueChange(v);
-                    setSearch('');
-                }}>
-                    <SelectTrigger>
-                        <SelectValue placeholder={placeholder} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {filteredItems.length > 0 ? (
-                            filteredItems.map(item => (
-                                <SelectItem key={item.id} value={item.id}>
+                {open && filteredItems.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-input rounded-md shadow-lg z-50">
+                        <div className="max-h-48 overflow-y-auto">
+                            {filteredItems.map((item) => (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => {
+                                        onValueChange(item.id);
+                                        setSearch('');
+                                        setOpen(false);
+                                    }}
+                                    className="w-full text-left px-3 py-2 hover:bg-accent transition-colors text-sm"
+                                >
                                     {item.full_name}
-                                </SelectItem>
-                            ))
-                        ) : (
-                            <div className="p-2 text-sm text-muted-foreground">Personel bulunamadı</div>
-                        )}
-                    </SelectContent>
-                </Select>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
