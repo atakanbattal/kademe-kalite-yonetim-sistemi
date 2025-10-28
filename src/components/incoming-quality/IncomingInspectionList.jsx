@@ -16,79 +16,75 @@ import React from 'react';
     import IncomingInspectionDetailModal from './IncomingInspectionDetailModal';
 
     const InspectionFilters = ({ filters, setFilters, suppliers }) => {
-        const handleReset = () => {
+        
+        const handleClear = () => {
             setFilters({
                 searchTerm: '',
-                dateRange: { from: null, to: null },
-                decision: 'all',
-                supplierId: 'all',
-                controlPlanStatus: 'all',
+                supplier: null,
+                controlPlanStatus: null,
+                decision: null,
+                dateRange: null,
             });
         };
 
         return (
             <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="outline"><Filter className="mr-2 h-4 w-4" /> Filtreler</Button>
+                    <Button variant="outline">
+                        <Filter className="mr-2 h-4 w-4" />
+                        Filtrele
+                    </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80">
-                    <div className="grid gap-4">
-                        <div className="space-y-2">
-                            <h4 className="font-medium leading-none">Filtreleme Seçenekleri</h4>
-                            <p className="text-sm text-muted-foreground">Muayene kayıtlarını filtreleyin.</p>
+                <PopoverContent className="w-72">
+                    <div className="space-y-4">
+                        <div>
+                            <Label>Tedarikçi</Label>
+                            <Select value={filters.supplier || ''} onValueChange={(val) => setFilters(prev => ({...prev, supplier: val || null}))}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Tümü" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Tümü</SelectItem>
+                                    {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <div className="grid gap-2">
-                            <div className="grid grid-cols-3 items-center gap-4">
-                                <Label>Tarih Aralığı</Label>
-                                <div className="col-span-2">
-                                    <DateRangePicker
-                                        date={filters.dateRange}
-                                        onDateChange={(range) => setFilters(prev => ({ ...prev, dateRange: range }))}
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-3 items-center gap-4">
-                                <Label>Karar</Label>
-                                <Select value={filters.decision} onValueChange={(v) => setFilters(p => ({ ...p, decision: v }))}>
-                                    <SelectTrigger className="col-span-2">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tümü</SelectItem>
-                                        <SelectItem value="Beklemede">Beklemede</SelectItem>
-                                        <SelectItem value="Kabul">Kabul</SelectItem>
-                                        <SelectItem value="Şartlı Kabul">Şartlı Kabul</SelectItem>
-                                        <SelectItem value="Ret">Ret</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-3 items-center gap-4">
-                                <Label>Tedarikçi</Label>
-                                 <Select value={filters.supplierId} onValueChange={(v) => setFilters(p => ({ ...p, supplierId: v }))}>
-                                    <SelectTrigger className="col-span-2">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tümü</SelectItem>
-                                        {(suppliers || []).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                             <div className="grid grid-cols-3 items-center gap-4">
-                                <Label>Kontrol Planı</Label>
-                                <Select value={filters.controlPlanStatus} onValueChange={(v) => setFilters(p => ({ ...p, controlPlanStatus: v }))}>
-                                    <SelectTrigger className="col-span-2">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tümü</SelectItem>
-                                        <SelectItem value="Mevcut">Mevcut</SelectItem>
-                                        <SelectItem value="Mevcut Değil">Mevcut Değil</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                        <div>
+                            <Label>Kontrol Planı Durumu</Label>
+                            <Select value={filters.controlPlanStatus || ''} onValueChange={(val) => setFilters(prev => ({...prev, controlPlanStatus: val || null}))}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Tümü" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Tümü</SelectItem>
+                                    <SelectItem value="Mevcut">Mevcut</SelectItem>
+                                    <SelectItem value="Mevcut Değil">Mevcut Değil</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                         <Button variant="ghost" onClick={handleReset}>Filtreleri Temizle</Button>
+                        <div>
+                            <Label>Karar</Label>
+                            <Select value={filters.decision || ''} onValueChange={(val) => setFilters(prev => ({...prev, decision: val || null}))}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Tümü" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Tümü</SelectItem>
+                                    <SelectItem value="Kabul">Kabul</SelectItem>
+                                    <SelectItem value="Şartlı Kabul">Şartlı Kabul</SelectItem>
+                                    <SelectItem value="Ret">Ret</SelectItem>
+                                    <SelectItem value="Beklemede">Beklemede</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Tarih Aralığı</Label>
+                            <DateRangePicker
+                                value={filters.dateRange}
+                                onValueChange={(range) => setFilters(prev => ({...prev, dateRange: range}))}
+                            />
+                        </div>
+                        <Button onClick={handleClear} variant="outline" className="w-full">Temizle</Button>
                     </div>
                 </PopoverContent>
             </Popover>
@@ -128,8 +124,19 @@ import React from 'react';
             }
         };
 
-        const handleViewDetail = (inspection) => {
-            setSelectedInspection(inspection);
+        const handleViewDetail = async (inspection) => {
+            const { data, error } = await supabase
+                .from('incoming_inspections')
+                .select('*, supplier:suppliers(id, name), attachments:incoming_inspection_attachments(*), defects:incoming_inspection_defects(*), results:incoming_inspection_results(*)')
+                .eq('id', inspection.id)
+                .single();
+            
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Muayene detayları alınamadı.' });
+                return;
+            }
+            
+            setSelectedInspection(data);
             setIsDetailModalOpen(true);
         };
 
@@ -157,30 +164,25 @@ import React from 'react';
                                 <TableHead>Kayıt No</TableHead>
                                 <TableHead>Tarih</TableHead>
                                 <TableHead>Tedarikçi</TableHead>
-                                <TableHead>Parça Adı/Kodu</TableHead>
+                                <TableHead>Parça</TableHead>
                                 <TableHead>Miktar</TableHead>
-                                <TableHead>Kontrol Planı</TableHead>
                                 <TableHead>Karar</TableHead>
                                 <TableHead className="text-right">İşlemler</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan="8" className="text-center">Yükleniyor...</TableCell></TableRow>
-                            ) : inspections.length === 0 ? (
-                                <TableRow><TableCell colSpan="8" className="text-center">Kayıt bulunamadı.</TableCell></TableRow>
-                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan="7" className="text-center py-8">Yükleniyor...</TableCell>
+                                </TableRow>
+                            ) : inspections && inspections.length > 0 ? (
                                 inspections.map(inspection => (
-                                    <TableRow key={inspection.id} className="cursor-pointer">
-                                        <TableCell className="font-medium">{inspection.record_no}</TableCell>
+                                    <TableRow key={inspection.id} onClick={() => handleViewDetail(inspection)} className="cursor-pointer hover:bg-muted/50">
+                                        <TableCell>{inspection.record_no || '-'}</TableCell>
                                         <TableCell>{format(new Date(inspection.inspection_date), 'dd.MM.yyyy')}</TableCell>
                                         <TableCell>{inspection.supplier_name || '-'}</TableCell>
-                                        <TableCell>
-                                            <div>{inspection.part_name}</div>
-                                            <div className="text-xs text-muted-foreground">{inspection.part_code}</div>
-                                        </TableCell>
+                                        <TableCell>{inspection.part_name || '-'}</TableCell>
                                         <TableCell>{inspection.quantity_received} {inspection.unit}</TableCell>
-                                        <TableCell className="text-center">{inspection.control_plan_status === 'Mevcut' ? <Check className="h-5 w-5 text-green-500 mx-auto"/> : <CircleX className="h-5 w-5 text-red-500 mx-auto"/>}</TableCell>
                                         <TableCell>{getDecisionBadge(inspection.decision)}</TableCell>
                                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                             <AlertDialog>
@@ -204,21 +206,9 @@ import React from 'react';
                                                         <DropdownMenuItem onClick={() => onDownloadPDF(inspection)}>
                                                             <FileDown className="mr-2 h-4 w-4" /> Rapor Al
                                                         </DropdownMenuItem>
-                                                        {inspection.decision === 'Ret' && (
-                                                            <DropdownMenuItem onClick={() => onOpenNCForm({
-                                                                source_inspection_id: inspection.id,
-                                                                title: `${inspection.part_name} GKK Uygunsuzluğu`,
-                                                                description: `Girdi kalite kontrol sırasında ${inspection.quantity_rejected} adet ${inspection.part_name} (${inspection.part_code}) reddedilmiştir.`,
-                                                                supplier_id: inspection.supplier_id,
-                                                                is_supplier_nc: true,
-                                                                type: 'DF'
-                                                            })}>
-                                                                <FileSignature className="mr-2 h-4 w-4" /> DF Aç
-                                                            </DropdownMenuItem>
-                                                        )}
                                                         <DropdownMenuSeparator />
                                                         <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                                            <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
                                                                 <Trash2 className="mr-2 h-4 w-4" /> Sil
                                                             </DropdownMenuItem>
                                                         </AlertDialogTrigger>
@@ -226,22 +216,31 @@ import React from 'react';
                                                 </DropdownMenu>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                                        <AlertDialogDescription>Bu işlem geri alınamaz. Bu muayene kaydını ve ilişkili tüm verileri kalıcı olarak sileceksiniz.</AlertDialogDescription>
+                                                        <AlertDialogTitle>Kayıtı Sil</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Bu kayıtı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                                                        </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDelete(inspection)} className="bg-destructive hover:bg-destructive/90">Sil</AlertDialogAction>
+                                                        <AlertDialogAction onClick={() => handleDelete(inspection)} className="bg-red-600">
+                                                            Sil
+                                                        </AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </TableCell>
                                     </TableRow>
                                 ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan="7" className="text-center py-8">Muayene kaydı bulunamadı</TableCell>
+                                </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </div>
+
                 <div className="flex items-center justify-end space-x-2 py-4">
                     <span className="text-sm text-muted-foreground">
                         Sayfa {page + 1} / {totalPages > 0 ? totalPages : 1} ({totalCount} kayıt)
