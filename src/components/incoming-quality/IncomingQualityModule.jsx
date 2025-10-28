@@ -214,7 +214,12 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     };
 
     const handleDownloadPDF = (record, type) => {
-        openPrintableReport(record, type || 'incoming_inspection');
+        // incoming_inspection için URL parametreleriyle veri gönder (imza alanları, ölçümler, vs)
+        if (type === 'incoming_inspection') {
+            openPrintableReport(record, type, true);
+        } else {
+            openPrintableReport(record, type || 'incoming_inspection');
+        }
     };
 
     const handleViewPdf = async (path, bucket = 'incoming_control') => {
