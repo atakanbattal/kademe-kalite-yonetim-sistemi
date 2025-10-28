@@ -90,7 +90,31 @@ import React, { useEffect, useState } from 'react';
                             };
                             break;
                         }
-                        case 'incoming_inspection':
+                        case 'incoming_inspection': {
+                            const { data: inspectionData, error: inspectionError } = await supabase
+                                .from('incoming_inspections_with_supplier')
+                                .select('*')
+                                .eq('id', id)
+                                .maybeSingle();
+                            
+                            if (inspectionError) throw inspectionError;
+                            if (!inspectionData) throw new Error('Muayene kaydı bulunamadı.');
+                            
+                            // Related data'yı ayrı ayrı çek
+                            const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
+                                supabase.from('incoming_inspection_attachments').select('*').eq('inspection_id', id),
+                                supabase.from('incoming_inspection_defects').select('*').eq('inspection_id', id),
+                                supabase.from('incoming_inspection_results').select('*').eq('inspection_id', id)
+                            ]);
+                            
+                            recordData = {
+                                ...inspectionData,
+                                attachments: attachmentsRes.data || [],
+                                defects: defectsRes.data || [],
+                                results: resultsRes.data || []
+                            };
+                            break;
+                        }
                         case 'deviation':
                         case 'quarantine':
                         case 'equipment': {
