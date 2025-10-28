@@ -36,6 +36,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             description: '', status: 'Aktif', rework_duration: '', scrap_weight: '', responsible_personnel_id: null,
             quantity: '', measurement_unit: '', affected_units: [],
             additional_labor_cost: 0,
+            unit_cost: 0, // Birim başına maliyet
         }), []);
 
         useEffect(() => {
@@ -88,6 +89,11 @@ import React, { useState, useEffect, useCallback } from 'react';
                     const scrapPrice = parseFloat(materialSetting.scrap_price_per_kg) || 0;
                     const weight = parseFloat(data.scrap_weight) || 0;
                     let materialCost = (purchasePrice - scrapPrice) * weight;
+                    
+                    // Adet ile çarp
+                    const quantity = parseFloat(data.quantity) || 1;
+                    materialCost = materialCost * quantity;
+                    
                     let totalCost = materialCost;
 
                     if (data.cost_type === 'Hurda Maliyeti' && addLaborToScrap) {
@@ -125,8 +131,12 @@ import React, { useState, useEffect, useCallback } from 'react';
                 }
             });
             
+            // Adet ile çarp (birim başına maliyet x adet)
+            const quantity = parseFloat(formData.quantity) || 1;
+            totalCost = totalCost * quantity;
+            
             return totalCost;
-        }, [formData.rework_duration, formData.unit, affectedUnits, unitCostSettings]);
+        }, [formData.rework_duration, formData.unit, formData.quantity, affectedUnits, unitCostSettings]);
 
 
         useEffect(() => {
@@ -151,13 +161,14 @@ import React, { useState, useEffect, useCallback } from 'react';
                 }
                 return currentFormData;
             });
-        }, [formData.cost_type, formData.unit, formData.rework_duration, formData.material_type, formData.scrap_weight, affectedUnits, autoCalculate, addLaborToScrap, unitCostSettings, calculateScrapOrWasteCost, calculateReworkCost]);
+        }, [formData.cost_type, formData.unit, formData.rework_duration, formData.material_type, formData.scrap_weight, formData.quantity, affectedUnits, autoCalculate, addLaborToScrap, unitCostSettings, calculateScrapOrWasteCost, calculateReworkCost]);
 
 
         const handleSubmit = async (e) => {
             e.preventDefault();
             
             const isRework = formData.cost_type === 'Yeniden İşlem Maliyeti';
+            const isScrap = formData.cost_type === 'Hurda Maliyeti';
             const isWaste = formData.cost_type === 'Fire Maliyeti';
             const hasMainRework = parseFloat(formData.rework_duration) > 0;
             
@@ -170,8 +181,23 @@ import React, { useState, useEffect, useCallback } from 'react';
                      toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Ana işlem süresi girildiğinde "Birim (Kaynak)" seçimi zorunludur.' });
                      return;
                 }
+                // Adet zorunlu kontrolü
+                if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
+                    toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Yeniden işlem maliyeti için adet girmek zorunludur.' });
+                    return;
+                }
+            } else if (isScrap || isWaste) {
+                // Adet zorunlu kontrolü
+                if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
+                    toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Hurda/Fire maliyeti için adet girmek zorunludur.' });
+                    return;
+                }
+                 if (!formData.cost_type || !formData.unit || !formData.vehicle_type || formData.amount === '' || !formData.cost_date) {
+                    toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen yıldızlı zorunlu alanları doldurun.' });
+                    return;
+                }
             } else {
-                 if (!formData.cost_type || !formData.unit || ( !isWaste && !formData.vehicle_type ) || formData.amount === '' || !formData.cost_date) {
+                 if (!formData.cost_type || !formData.unit || !formData.vehicle_type || formData.amount === '' || !formData.cost_date) {
                     toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen yıldızlı zorunlu alanları doldurun.' });
                     return;
                 }
@@ -192,7 +218,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                     const purchasePrice = parseFloat(materialSetting.purchase_price_per_kg) || 0;
                     const scrapPrice = parseFloat(materialSetting.scrap_price_per_kg) || 0;
                     const weight = parseFloat(submissionData.scrap_weight) || 0;
-                    const materialCost = (purchasePrice - scrapPrice) * weight;
+                    const quantity = parseFloat(submissionData.quantity) || 1;
+                    const materialCost = (purchasePrice - scrapPrice) * weight * quantity;
                     submissionData.additional_labor_cost = materialCost * 0.5;
                     submissionData.amount = materialCost * 1.5;
                 } else {
@@ -238,6 +265,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         const isScrapCost = formData.cost_type === 'Hurda Maliyeti';
         const isWasteCost = formData.cost_type === 'Fire Maliyeti';
         const showQuantityFields = formData.cost_type && !isReworkCost && !isScrapCost && !isWasteCost;
+        const showQuantityForReworkAndScrap = isReworkCost || isScrapCost || isWasteCost;
         const isAmountReadOnly = (isScrapCost || isReworkCost || isWasteCost) && autoCalculate;
         const isVehicleTypeRequired = !(isWasteCost);
 
@@ -294,6 +322,11 @@ import React, { useState, useEffect, useCallback } from 'react';
                             </>
                         )}
                         
+                        {/* Adet Alanı - Yeniden İşlem, Hurda ve Fire için */}
+                        {showQuantityForReworkAndScrap && (
+                            <div><Label htmlFor="quantity">Adet <span className="text-red-500">*</span></Label><Input id="quantity" type="number" value={formData.quantity || ''} onChange={handleInputChange} placeholder="Adet girin..." required /></div>
+                        )}
+                        
                         {showQuantityFields && (
                              <>
                                 <div><Label htmlFor="quantity">Miktar</Label><Input id="quantity" type="number" value={formData.quantity || ''} onChange={handleInputChange} /></div>
@@ -318,13 +351,13 @@ import React, { useState, useEffect, useCallback } from 'react';
                         {isReworkCost && autoCalculate && (
                             <div className="md:col-span-3 bg-secondary p-4 rounded-lg space-y-2">
                                 <div className="flex justify-between items-center text-lg font-bold text-primary">
-                                    <span>Nihai Toplam Maliyet</span>
+                                    <span>Nihai Toplam Maliyet ({formData.quantity || 1} adet × birim maliyet)</span>
                                     <span>{formatCurrency(totalReworkCost)}</span>
                                 </div>
                             </div>
                         )}
 
-                        <div className={(isReworkCost || (autoCalculate && (isScrapCost || isWasteCost))) ? '' : ''}><Label htmlFor="amount">Maliyet Tutarı (₺) <span className="text-red-500">*</span></Label><Input id="amount" type="number" value={formData.amount || ''} onChange={handleInputChange} required readOnly={isAmountReadOnly} /></div>
+                        <div><Label htmlFor="amount">Maliyet Tutarı (₺) <span className="text-red-500">*</span></Label><Input id="amount" type="number" value={formData.amount || ''} onChange={handleInputChange} required readOnly={isAmountReadOnly} /></div>
                         
                         <div className="md:col-span-3"><hr className="my-2 border-border"/></div>
 
