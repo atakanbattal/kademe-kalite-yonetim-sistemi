@@ -142,7 +142,21 @@ import React, { useEffect, useState } from 'react';
                         case 'incoming_control_plans':
                         case 'inkr_management':
                         case 'stock_risk_controls': {
-                            recordData = recordData; // URL parametrelerinden zaten geldi
+                            const tableMap = {
+                                'incoming_control_plans': 'incoming_control_plans',
+                                'inkr_management': 'inkr_management',
+                                'stock_risk_controls': 'stock_risk_controls'
+                            };
+                            const tableName = tableMap[type];
+                            
+                            const { data: queryData, error: queryError2 } = await supabase
+                                .from(tableName)
+                                .select('*')
+                                .eq('id', id)
+                                .maybeSingle();
+                            
+                            if (queryError2) throw queryError2;
+                            recordData = queryData;
                             break;
                         }
                         case 'deviation':
