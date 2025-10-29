@@ -1,6 +1,6 @@
 import { format, differenceInDays } from 'date-fns';
-import { tr } from 'date-fns/locale';
-import { supabase } from '@/lib/customSupabaseClient';
+    import { tr } from 'date-fns/locale';
+    import { supabase } from '@/lib/customSupabaseClient';
 
 // Global formatter helpers
 const formatDateHelper = (dateStr, style = 'dd.MM.yyyy') => dateStr ? format(new Date(dateStr), style, { locale: tr }) : '-';
@@ -8,12 +8,12 @@ const formatDateTimeFull = (dateStr) => dateStr ? format(new Date(dateStr), 'dd 
 const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
 const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
-
-const openPrintableReport = (record, type, useUrlParams = false) => {
+    
+    const openPrintableReport = (record, type, useUrlParams = false) => {
     if (!record) {
-        console.error("openPrintableReport called with invalid record:", record);
-        return;
-    }
+            console.error("openPrintableReport called with invalid record:", record);
+            return;
+        }
 
     // Kontrol planları ve diğer tipler için farklı ID field'leri
     const hasValidId = record.id || record.delivery_note_number;
@@ -24,55 +24,55 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 
     const reportId = type === 'sheet_metal_entry' ? record.delivery_note_number : (record.id || record.delivery_note_number);
     
-    let reportUrl;
-    if (useUrlParams) {
-        const dataStr = btoa(encodeURIComponent(JSON.stringify(record)));
-        const params = new URLSearchParams({
-            useUrlParams: 'true',
-            data: dataStr,
-            autoprint: 'true',
-        });
-        reportUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
-    } else {
-        reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
-    }
+        let reportUrl;
+        if (useUrlParams) {
+            const dataStr = btoa(encodeURIComponent(JSON.stringify(record)));
+            const params = new URLSearchParams({
+                useUrlParams: 'true',
+                data: dataStr,
+                autoprint: 'true',
+            });
+            reportUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
+        } else {
+            reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
+        }
+        
+        const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
+        if (reportWindow) {
+            reportWindow.focus();
+        }
+    };
     
-    const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
-    if (reportWindow) {
-        reportWindow.focus();
-    }
-};
-
-const getReportTitle = (record, type) => {
-    if (!record) return 'Rapor';
-    switch (type) {
-        case 'supplier_audit':
-            return `Tedarikçi Denetim Raporu - ${record.supplier?.name || 'Bilinmiyor'}`;
-        case 'internal_audit':
+    const getReportTitle = (record, type) => {
+        if (!record) return 'Rapor';
+        switch (type) {
+            case 'supplier_audit':
+                return `Tedarikçi Denetim Raporu - ${record.supplier?.name || 'Bilinmiyor'}`;
+            case 'internal_audit':
         return `İç Tetkik Raporu - ${record.report_number || 'Bilinmiyor'}`;            case 'sheet_metal_entry':
         return `Sac Metal Giriş Raporu - ${record.delivery_note_number || 'Bilinmiyor'}`;
     
-        case 'incoming_inspection':
-            return `Girdi Kontrol Raporu - ${record.record_no || 'Bilinmiyor'}`;
+            case 'incoming_inspection':
+                return `Girdi Kontrol Raporu - ${record.record_no || 'Bilinmiyor'}`;
     
-        case 'deviation':
-            return `Sapma Talep Raporu - ${record.request_no || 'Bilinmiyor'}`;
-        case 'nonconformity':
-            return `${record.type} Raporu - ${record.nc_number || record.mdi_no || 'Bilinmiyor'}`;
-        case 'kaizen':
-            return `Kaizen Raporu - ${record.kaizen_no || 'Bilinmiyor'}`;
-        case 'quarantine':
-            return `Karantina Raporu - ${record.lot_no || 'Bilinmiyor'}`;
-        case 'quarantine_list':
-            return 'Genel Karantina Raporu';
-        case 'wps':
-            return `Kaynak Prosedür Şartnamesi (WPS) - ${record.wps_no || 'Bilinmiyor'}`;
-        case 'equipment':
-            return `Ekipman Raporu - ${record.serial_number || 'Bilinmiyor'}`;
-        case 'certificate':
-            return `Başarı Sertifikası - ${record.personnelName || ''}`;
-        case 'exam_paper':
-            return `Sınav Kağıdı - ${record.title || ''}`;
+            case 'deviation':
+                return `Sapma Talep Raporu - ${record.request_no || 'Bilinmiyor'}`;
+            case 'nonconformity':
+                return `${record.type} Raporu - ${record.nc_number || record.mdi_no || 'Bilinmiyor'}`;
+            case 'kaizen':
+                return `Kaizen Raporu - ${record.kaizen_no || 'Bilinmiyor'}`;
+            case 'quarantine':
+                return `Karantina Raporu - ${record.lot_no || 'Bilinmiyor'}`;
+            case 'quarantine_list':
+                return 'Genel Karantina Raporu';
+            case 'wps':
+                return `Kaynak Prosedür Şartnamesi (WPS) - ${record.wps_no || 'Bilinmiyor'}`;
+            case 'equipment':
+                return `Ekipman Raporu - ${record.serial_number || 'Bilinmiyor'}`;
+            case 'certificate':
+                return `Başarı Sertifikası - ${record.personnelName || ''}`;
+            case 'exam_paper':
+                return `Sınav Kağıdı - ${record.title || ''}`;
 case 'incoming_control_plans':
     return `
         <tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
@@ -106,467 +106,467 @@ case 'stock_risk_controls':
         <tr><td>Durum</td><td><strong style="font-weight: bold; color: ${record.status === 'Çözüldü' ? '#16a34a' : record.status === 'Izleme Altında' ? '#2563eb' : '#f59e0b'};">${record.status || 'Yeni'}</strong></td></tr>
         <tr><td>İşlemler Alınanlar</td><td><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.actions_taken || 'İşlem belirtilmemiştir.'}</pre></td></tr>
     `;
-        default:
-            return 'Detaylı Rapor';
-    }
-};
-
-const getFormNumber = (type) => {
-    const formNumbers = {
-        nonconformity: 'FR-KAL-021',
-        kaizen: 'FR-KAL-022',
-        incoming_inspection: 'FR-KAL-023',
-        deviation: 'FR-KAL-024',
-        quarantine: 'FR-KAL-025',
-        quarantine_list: 'FR-KAL-025-A',
-        supplier_audit: 'FR-KAL-026',
-        sheet_metal_entry: 'FR-KAL-027',
-        wps: 'FR-KAL-028',
-        internal_audit: 'FR-KAL-029',
-        equipment: 'FR-KAL-030',
-        certificate: 'FR-EGT-001',
-        exam_paper: 'FR-EGT-002',
+            default:
+                return 'Detaylı Rapor';
+        }
     };
-    return formNumbers[type] || 'FR-GEN-000';
-};
-
-const generateCertificateReportHtml = (record) => {
-    const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd MMMM yyyy', { locale: tr }) : '-';
-    const participantName = record?.personnelName || 'VERİ YOK';
-    return `
-        <div class="certificate-container">
-            <div class="certificate-content">
-                <div class="bg-shape top-right"></div>
-                <div class="bg-shape bottom-left"></div>
-                
-                <div class="logo-header">
-                    <img class="header-logo" alt="Kademe Logosu" src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png" />
-                    <img class="header-logo" alt="Albayrak Logosu" src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png" />
-                </div>
-
-        <div class="header-section">
-            <p class="company-name">KADEME AKADEMİ</p>
-            <h1 class="main-title">BAŞARI SERTİFİKASI</h1>
-            <p class="subtitle">Bu sertifika, aşağıdaki eğitimi başarıyla tamamlayan</p>
-        </div>
-
-        <p class="participant-name">${participantName}</p>
-        
-        <p class="training-title">adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimini başarıyla tamamladığı için verilmiştir.</p>
-
-        <div class="details-section">
-            <div class="detail-item">
-                <strong>Eğitim Tarihi</strong>
-                <span>${formatDate(record?.completedAt)}</span>
-            </div>
-            <div class="detail-item">
-                 <strong>Sertifika No</strong>
-                 <span>${record?.id?.substring(0, 8).toUpperCase() || 'N/A'}</span>
-            </div>
-        </div>
-
-        <div class="signature-area">
-            <div class="signature-block">
-                <p class="name">${record?.trainingInstructor || 'Eğitmen Adı'}</p>
-                <div class="signature-line"></div>
-                <p class="title">Eğitmen</p>
-            </div>
-            <div class="signature-block">
-                <p class="name">Atakan BATTAL</p>
-                <div class="signature-line"></div>
-                <p class="title">Kalite Güvence Yöneticisi</p>
-            </div>
-            <div class="signature-block">
-                <p class="name">Kenan ÇELİK</p>
-                <div class="signature-line"></div>
-                <p class="title">Genel Müdür</p>
-            </div>
-        </div>
-    </div>
-</div>
-`;
-};
-
-const generateExamPaperHtml = (record) => {
-    const exam = record;
-    const questions = exam.training_exam_questions || [];
-
-    const questionsHtml = questions.map((q, index) => {
-        const optionsHtml = q.options?.map((opt, i) => `
-            <div class="exam-option">
-                <div class="exam-option-letter">${String.fromCharCode(65 + i)}</div>
-                <div class="exam-option-text">${opt.text}</div>
-            </div>
-        `).join('') || '';
-
+    
+    const getFormNumber = (type) => {
+        const formNumbers = {
+            nonconformity: 'FR-KAL-021',
+            kaizen: 'FR-KAL-022',
+            incoming_inspection: 'FR-KAL-023',
+            deviation: 'FR-KAL-024',
+            quarantine: 'FR-KAL-025',
+            quarantine_list: 'FR-KAL-025-A',
+            supplier_audit: 'FR-KAL-026',
+            sheet_metal_entry: 'FR-KAL-027',
+            wps: 'FR-KAL-028',
+            internal_audit: 'FR-KAL-029',
+            equipment: 'FR-KAL-030',
+            certificate: 'FR-EGT-001',
+            exam_paper: 'FR-EGT-002',
+        };
+        return formNumbers[type] || 'FR-GEN-000';
+    };
+    
+    const generateCertificateReportHtml = (record) => {
+        const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd MMMM yyyy', { locale: tr }) : '-';
+        const participantName = record?.personnelName || 'VERİ YOK';
         return `
-            <div class="exam-question-card">
-                <div class="exam-question-header">
-                    <span class="exam-question-number">Soru ${index + 1}</span>
-                    <span class="exam-question-points">${q.points || 0} Puan</span>
-                </div>
-                <p class="exam-question-text">${q.question_text}</p>
-                <div class="exam-options-grid">
-                    ${optionsHtml}
+            <div class="certificate-container">
+                <div class="certificate-content">
+                    <div class="bg-shape top-right"></div>
+                    <div class="bg-shape bottom-left"></div>
+                    
+                    <div class="logo-header">
+                        <img class="header-logo" alt="Kademe Logosu" src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png" />
+                        <img class="header-logo" alt="Albayrak Logosu" src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png" />
+                    </div>
+    
+                    <div class="header-section">
+                        <p class="company-name">KADEME AKADEMİ</p>
+                        <h1 class="main-title">BAŞARI SERTİFİKASI</h1>
+                        <p class="subtitle">Bu sertifika, aşağıdaki eğitimi başarıyla tamamlayan</p>
+                    </div>
+    
+                    <p class="participant-name">${participantName}</p>
+                    
+                    <p class="training-title">adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimini başarıyla tamamladığı için verilmiştir.</p>
+    
+                    <div class="details-section">
+                        <div class="detail-item">
+                            <strong>Eğitim Tarihi</strong>
+                            <span>${formatDate(record?.completedAt)}</span>
+                        </div>
+                        <div class="detail-item">
+                             <strong>Sertifika No</strong>
+                             <span>${record?.id?.substring(0, 8).toUpperCase() || 'N/A'}</span>
+                        </div>
+                    </div>
+    
+                    <div class="signature-area">
+                        <div class="signature-block">
+                            <p class="name">${record?.trainingInstructor || 'Eğitmen Adı'}</p>
+                            <div class="signature-line"></div>
+                            <p class="title">Eğitmen</p>
+                        </div>
+                        <div class="signature-block">
+                            <p class="name">Atakan BATTAL</p>
+                            <div class="signature-line"></div>
+                            <p class="title">Kalite Güvence Yöneticisi</p>
+                        </div>
+                        <div class="signature-block">
+                            <p class="name">Kenan ÇELİK</p>
+                            <div class="signature-line"></div>
+                            <p class="title">Genel Müdür</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
-    }).join('');
-
-    return `
-        <div class="exam-header">
-            <div class="company-logo-exam">
-                <img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
-            </div>
-            <div class="exam-title-section">
-                <h1>${exam.title || 'Sınav Değerlendirme Formu'}</h1>
-                <p>${exam.trainings?.title || 'Genel Eğitim'}</p>
-            </div>
-             <div class="exam-meta-grid">
-                <div><strong>Doküman No:</strong> ${getFormNumber('exam_paper')}</div>
-                <div><strong>Yayın Tarihi:</strong> ${format(new Date(), 'dd.MM.yyyy')}</div>
-                <div><strong>Revizyon No:</strong> 00</div>
-             </div>
-        </div>
-
-        <div class="exam-participant-info">
-            <div class="exam-info-field">
-                <label>Ad Soyad</label>
-                <span></span>
-            </div>
-            <div class="exam-info-field">
-                <label>Tarih</label>
-                <span></span>
-            </div>
-            <div class="exam-info-field">
-                <label>Toplam Puan</label>
-                <span></span>
-            </div>
-             <div class="exam-info-field">
-                <label>Geçme Notu</label>
-                <span class="static-value">${exam.passing_score || '-'}</span>
-            </div>
-        </div>
-
-        <div class="exam-questions-container">
-            ${questionsHtml}
-        </div>
-    `;
-};
-
-
-const generateWPSReportHtml = (record) => {
-    const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
-    const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
-
-    const passPlanHtml = record.pass_plan?.map(p => `
-        <tr>
-            <td>${p.pass || '-'}</td>
-            <td>${p.technique || '-'}</td>
-            <td>${p.current_polarity || '-'}</td>
-            <td>${p.min_current_a || ''} - ${p.max_current_a || ''}</td>
-            <td>${p.min_voltage_v || ''} - ${p.max_voltage_v || ''}</td>
-            <td>${p.travel_speed || '-'}</td>
-            <td>${p.heat_input || '-'}</td>
-        </tr>
-    `).join('') || '<tr><td colspan="7" class="text-center">Paso planı detayı bulunamadı.</td></tr>';
-    
-    const jointTypeMap = {
-        'Butt': 'Alın (Butt)',
-        'Fillet': 'Köşe (Fillet)'
     };
-
-    return `
-        <div class="report-header">
-             <div class="report-logo">
-                <img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
-            </div>
-            <div class="company-title">
-                <h1>KADEME A.Ş.</h1>
-                <p>Kalite Yönetim Sistemi</p>
-            </div>
-            <div class="print-info">
-                Yazdır: ${record.wps_no || ''}<br>
-                Yazdırılma: ${formatDateTime(new Date())}
-            </div>
-        </div>
-
-        <div class="meta-box">
-            <div class="meta-item"><strong>Belge Türü:</strong> WPS Spesifikasyonu</div>
-            <div class="meta-item"><strong>WPS No:</strong> ${record.wps_no || '-'}</div>
-            <div class="meta-item"><strong>Revizyon:</strong> ${record.revision || '0'}</div>
-            <div class="meta-item"><strong>Sistem:</strong> Kademe Kalite Yönetim Sistemi</div>
-            <div class="meta-item"><strong>Yayın Tarihi:</strong> ${formatDate(record.wps_date)}</div>
-            <div class="meta-item"><strong>Güncelleme:</strong> ${formatDate(record.updated_at)}</div>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title blue">1. TEMEL BİLGİLER</h2>
-            <table class="info-table">
-                <tbody>
-                    <tr><td>Ana Malzeme</td><td>${record.base_material_1?.name || '-'} (${record.base_material_1?.standard || '-'}) / Grup ${record.base_material_1?.iso_15608_group || '-'}</td></tr>
-                    <tr><td>Malzeme Kalınlığı</td><td>${record.thickness_1 || '-'} mm</td></tr>
-                    <tr><td>Dolgu Malzemesi</td><td>${record.filler_material?.classification || '-'}</td></tr>
-                    <tr><td>Kaynak Prosesi</td><td>${record.welding_process_code || '-'}</td></tr>
-                    <tr><td>Kaynak Pozisyonu</td><td>${record.welding_position || '-'}</td></tr>
-                    <tr><td>Birleşim Tipi</td><td>${jointTypeMap[record.joint_type] || record.joint_type || '-'}</td></tr>
-                    <tr><td>Kaynak Ağzı Tasarımı</td><td>${record.joint_detail || '-'} (${record.joint_detail === 'I' ? 'N/A' : (record.joint_angle || 'N/A') + '°'}) / Kök Aralığı: ${record.root_gap || 'N/A'} mm</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title red">2. KAYNAK PARAMETRELERİ</h2>
-            <table class="info-table">
-                <tbody>
-                    <tr><td>Koruyucu Gaz</td><td>${record.shielding_gas?.name || '-'}</td></tr>
-                    <tr><td>Gaz Debisi</td><td>${record.gas_flow_rate || '-'} L/dk</td></tr>
-                    <tr><td>Tel Çapı</td><td>${record.filler_diameter || '-'} mm</td></tr>
-                    <tr><td>Ön Tav Sıcaklığı</td><td>${record.preheat_temperature || '-'} °C</td></tr>
-                    <tr><td>Pasolar Arası Sıcaklık</td><td>${record.interpass_temperature || '-'} °C</td></tr>
-                    <tr><td>Verim (η)</td><td>${record.efficiency || '-'}</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title gray">3. PASO PLANI</h2>
-            <table class="pass-table">
-                <thead>
-                    <tr>
-                        <th>Paso</th>
-                        <th>Teknik</th>
-                        <th>Akım Türü</th>
-                        <th>Akım (A)</th>
-                        <th>Voltaj (V)</th>
-                        <th>İlerleme (mm/dk)</th>
-                        <th>Isı Girdisi (kJ/mm)</th>
-                    </tr>
-                </thead>
-                <tbody>${passPlanHtml}</tbody>
-            </table>
-        </div>
-        
-        <div class="section">
-             <h2 class="section-title gray">4. NOTLAR</h2>
-             <div class="notes-box">
-                <strong>Kaynakçı Notları:</strong>
-                <pre>${record.welder_notes || 'Belirtilmemiş.'}</pre>
-             </div>
-        </div>
-
-        <div class="section signature-section">
-            <h2 class="section-title dark">5. İMZA VE ONAY</h2>
-            <div class="signature-area">
-                <div class="signature-box">
-                    <p class="role">HAZIRLAYAN</p>
-                    <div class="signature-line"></div>
-                    <p class="name">Atakan BATTAL</p>
-                    <p class="title">Kaynak Mühendisi</p>
+    
+    const generateExamPaperHtml = (record) => {
+        const exam = record;
+        const questions = exam.training_exam_questions || [];
+    
+        const questionsHtml = questions.map((q, index) => {
+            const optionsHtml = q.options?.map((opt, i) => `
+                <div class="exam-option">
+                    <div class="exam-option-letter">${String.fromCharCode(65 + i)}</div>
+                    <div class="exam-option-text">${opt.text}</div>
                 </div>
-                <div class="signature-box">
-                    <p class="role">KONTROL EDEN</p>
-                    <div class="signature-line"></div>
-                    <p class="name">&nbsp;</p>
-                    <p class="title">Üretim Müdürü</p>
+            `).join('') || '';
+    
+            return `
+                <div class="exam-question-card">
+                    <div class="exam-question-header">
+                        <span class="exam-question-number">Soru ${index + 1}</span>
+                        <span class="exam-question-points">${q.points || 0} Puan</span>
+                    </div>
+                    <p class="exam-question-text">${q.question_text}</p>
+                    <div class="exam-options-grid">
+                        ${optionsHtml}
+                    </div>
                 </div>
-                <div class="signature-box">
-                    <p class="role">ONAYLAYAN</p>
-                    <div class="signature-line"></div>
-                    <p class="name">&nbsp;</p>
-                    <p class="title">Kalite Müdürü</p>
+            `;
+        }).join('');
+    
+        return `
+            <div class="exam-header">
+                <div class="company-logo-exam">
+                    <img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+                </div>
+                <div class="exam-title-section">
+                    <h1>${exam.title || 'Sınav Değerlendirme Formu'}</h1>
+                    <p>${exam.trainings?.title || 'Genel Eğitim'}</p>
+                </div>
+                 <div class="exam-meta-grid">
+                    <div><strong>Doküman No:</strong> ${getFormNumber('exam_paper')}</div>
+                    <div><strong>Yayın Tarihi:</strong> ${format(new Date(), 'dd.MM.yyyy')}</div>
+                    <div><strong>Revizyon No:</strong> 00</div>
+                 </div>
+            </div>
+    
+            <div class="exam-participant-info">
+                <div class="exam-info-field">
+                    <label>Ad Soyad</label>
+                    <span></span>
+                </div>
+                <div class="exam-info-field">
+                    <label>Tarih</label>
+                    <span></span>
+                </div>
+                <div class="exam-info-field">
+                    <label>Toplam Puan</label>
+                    <span></span>
+                </div>
+                 <div class="exam-info-field">
+                    <label>Geçme Notu</label>
+                    <span class="static-value">${exam.passing_score || '-'}</span>
                 </div>
             </div>
-        </div>
-    `;
-};
-
-const generateListReportHtml = (record, type) => {
-    const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
-    const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
-
-    let title = '';
-    let headers = [];
-    let rowsHtml = '';
-    let totalCount = record.items.length;
-    let summaryHtml = '';
-
-    if (type === 'quarantine_list') {
-        title = 'Genel Karantina Raporu';
-        headers = ['Tarih', 'Parça Adı/Kodu', 'Miktar', 'Birim', 'Durum', 'Sebep'];
-        rowsHtml = record.items.map(item => `
+    
+            <div class="exam-questions-container">
+                ${questionsHtml}
+            </div>
+        `;
+    };
+    
+    
+    const generateWPSReportHtml = (record) => {
+        const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
+        const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
+    
+        const passPlanHtml = record.pass_plan?.map(p => `
             <tr>
-                <td>${formatDate(item.quarantine_date)}</td>
-                <td>${item.part_name || ''}<br><small class="muted">${item.part_code || ''}</small></td>
-                <td>${item.quantity || '0'}</td>
-                <td>${item.unit || '-'}</td>
-                <td>${item.status || '-'}</td>
-                <td><pre>${item.description || '-'}</pre></td>
+                <td>${p.pass || '-'}</td>
+                <td>${p.technique || '-'}</td>
+                <td>${p.current_polarity || '-'}</td>
+                <td>${p.min_current_a || ''} - ${p.max_current_a || ''}</td>
+                <td>${p.min_voltage_v || ''} - ${p.max_voltage_v || ''}</td>
+                <td>${p.travel_speed || '-'}</td>
+                <td>${p.heat_input || '-'}</td>
             </tr>
-        `).join('');
-        summaryHtml = `<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>`;
-    }
-
-    return `
-        <div class="report-header">
-             <div class="report-logo">
-                <img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
-            </div>
-            <div class="company-title">
-                <h1>KADEME A.Ş.</h1>
-                <p>Kalite Yönetim Sistemi</p>
-            </div>
-            <div class="print-info">
-                Rapor Tarihi: ${formatDateTime(new Date())}
-            </div>
-        </div>
-
-        <div class="meta-box">
-            <div class="meta-item"><strong>Belge Türü:</strong> ${title}</div>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title blue">${title}</h2>
-            <div class="list-summary">${summaryHtml}</div>
-            <table class="info-table results-table">
-                <thead>
-                    <tr>
-                        ${headers.map(h => `<th>${h}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
-        </div>
-
-         <div class="section signature-section">
-            <h2 class="section-title dark">İMZA VE ONAY</h2>
-            <div class="signature-area">
-                <div class="signature-box">
-                    <p class="role">HAZIRLAYAN</p>
-                    <div class="signature-line"></div>
-                    <p class="name">Atakan BATTAL</p>
+        `).join('') || '<tr><td colspan="7" class="text-center">Paso planı detayı bulunamadı.</td></tr>';
+        
+        const jointTypeMap = {
+            'Butt': 'Alın (Butt)',
+            'Fillet': 'Köşe (Fillet)'
+        };
+    
+        return `
+            <div class="report-header">
+                 <div class="report-logo">
+                    <img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+                </div>
+                <div class="company-title">
+                    <h1>KADEME A.Ş.</h1>
+                    <p>Kalite Yönetim Sistemi</p>
+                </div>
+                <div class="print-info">
+                    Yazdır: ${record.wps_no || ''}<br>
+                    Yazdırılma: ${formatDateTime(new Date())}
                 </div>
             </div>
-        </div>
-    `;
-};
-
-const generateGenericReportHtml = (record, type) => {
-    const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
-    const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
-    const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
-    const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
-
-    const getAttachmentUrl = (path, bucket) => {
-        if (typeof path === 'object' && path !== null && path.path) {
-            path = path.path;
-        }
-        if (typeof path !== 'string') return '';
-        const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-        return data?.publicUrl || '';
+    
+            <div class="meta-box">
+                <div class="meta-item"><strong>Belge Türü:</strong> WPS Spesifikasyonu</div>
+                <div class="meta-item"><strong>WPS No:</strong> ${record.wps_no || '-'}</div>
+                <div class="meta-item"><strong>Revizyon:</strong> ${record.revision || '0'}</div>
+                <div class="meta-item"><strong>Sistem:</strong> Kademe Kalite Yönetim Sistemi</div>
+                <div class="meta-item"><strong>Yayın Tarihi:</strong> ${formatDate(record.wps_date)}</div>
+                <div class="meta-item"><strong>Güncelleme:</strong> ${formatDate(record.updated_at)}</div>
+            </div>
+    
+            <div class="section">
+                <h2 class="section-title blue">1. TEMEL BİLGİLER</h2>
+                <table class="info-table">
+                    <tbody>
+                        <tr><td>Ana Malzeme</td><td>${record.base_material_1?.name || '-'} (${record.base_material_1?.standard || '-'}) / Grup ${record.base_material_1?.iso_15608_group || '-'}</td></tr>
+                        <tr><td>Malzeme Kalınlığı</td><td>${record.thickness_1 || '-'} mm</td></tr>
+                        <tr><td>Dolgu Malzemesi</td><td>${record.filler_material?.classification || '-'}</td></tr>
+                        <tr><td>Kaynak Prosesi</td><td>${record.welding_process_code || '-'}</td></tr>
+                        <tr><td>Kaynak Pozisyonu</td><td>${record.welding_position || '-'}</td></tr>
+                        <tr><td>Birleşim Tipi</td><td>${jointTypeMap[record.joint_type] || record.joint_type || '-'}</td></tr>
+                        <tr><td>Kaynak Ağzı Tasarımı</td><td>${record.joint_detail || '-'} (${record.joint_detail === 'I' ? 'N/A' : (record.joint_angle || 'N/A') + '°'}) / Kök Aralığı: ${record.root_gap || 'N/A'} mm</td></tr>
+                    </tbody>
+                </table>
+            </div>
+    
+            <div class="section">
+                <h2 class="section-title red">2. KAYNAK PARAMETRELERİ</h2>
+                <table class="info-table">
+                    <tbody>
+                        <tr><td>Koruyucu Gaz</td><td>${record.shielding_gas?.name || '-'}</td></tr>
+                        <tr><td>Gaz Debisi</td><td>${record.gas_flow_rate || '-'} L/dk</td></tr>
+                        <tr><td>Tel Çapı</td><td>${record.filler_diameter || '-'} mm</td></tr>
+                        <tr><td>Ön Tav Sıcaklığı</td><td>${record.preheat_temperature || '-'} °C</td></tr>
+                        <tr><td>Pasolar Arası Sıcaklık</td><td>${record.interpass_temperature || '-'} °C</td></tr>
+                        <tr><td>Verim (η)</td><td>${record.efficiency || '-'}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+    
+            <div class="section">
+                <h2 class="section-title gray">3. PASO PLANI</h2>
+                <table class="pass-table">
+                    <thead>
+                        <tr>
+                            <th>Paso</th>
+                            <th>Teknik</th>
+                            <th>Akım Türü</th>
+                            <th>Akım (A)</th>
+                            <th>Voltaj (V)</th>
+                            <th>İlerleme (mm/dk)</th>
+                            <th>Isı Girdisi (kJ/mm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${passPlanHtml}</tbody>
+                </table>
+            </div>
+            
+            <div class="section">
+                 <h2 class="section-title gray">4. NOTLAR</h2>
+                 <div class="notes-box">
+                    <strong>Kaynakçı Notları:</strong>
+                    <pre>${record.welder_notes || 'Belirtilmemiş.'}</pre>
+                 </div>
+            </div>
+    
+            <div class="section signature-section">
+                <h2 class="section-title dark">5. İMZA VE ONAY</h2>
+                <div class="signature-area">
+                    <div class="signature-box">
+                        <p class="role">HAZIRLAYAN</p>
+                        <div class="signature-line"></div>
+                        <p class="name">Atakan BATTAL</p>
+                        <p class="title">Kaynak Mühendisi</p>
+                    </div>
+                    <div class="signature-box">
+                        <p class="role">KONTROL EDEN</p>
+                        <div class="signature-line"></div>
+                        <p class="name">&nbsp;</p>
+                        <p class="title">Üretim Müdürü</p>
+                    </div>
+                    <div class="signature-box">
+                        <p class="role">ONAYLAYAN</p>
+                        <div class="signature-line"></div>
+                        <p class="name">&nbsp;</p>
+                        <p class="title">Kalite Müdürü</p>
+                    </div>
+                </div>
+            </div>
+        `;
     };
-
-    const getDocumentNumber = () => {
-        switch (type) {
-            case 'nonconformity': return record.nc_number || record.mdi_no || '-';
-            case 'deviation': return record.request_no || '-';
-            case 'kaizen': return record.kaizen_no || '-';
-            case 'quarantine': return record.lot_no || '-';
-            case 'incoming_inspection': return record.record_no || '-';
+    
+    const generateListReportHtml = (record, type) => {
+        const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
+        const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
+    
+        let title = '';
+        let headers = [];
+        let rowsHtml = '';
+        let totalCount = record.items.length;
+        let summaryHtml = '';
+    
+        if (type === 'quarantine_list') {
+            title = 'Genel Karantina Raporu';
+            headers = ['Tarih', 'Parça Adı/Kodu', 'Miktar', 'Birim', 'Durum', 'Sebep'];
+            rowsHtml = record.items.map(item => `
+                <tr>
+                    <td>${formatDate(item.quarantine_date)}</td>
+                    <td>${item.part_name || ''}<br><small class="muted">${item.part_code || ''}</small></td>
+                    <td>${item.quantity || '0'}</td>
+                    <td>${item.unit || '-'}</td>
+                    <td>${item.status || '-'}</td>
+                    <td><pre>${item.description || '-'}</pre></td>
+                </tr>
+            `).join('');
+            summaryHtml = `<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>`;
+        }
+    
+        return `
+            <div class="report-header">
+                 <div class="report-logo">
+                    <img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+                </div>
+                <div class="company-title">
+                    <h1>KADEME A.Ş.</h1>
+                    <p>Kalite Yönetim Sistemi</p>
+                </div>
+                <div class="print-info">
+                    Rapor Tarihi: ${formatDateTime(new Date())}
+                </div>
+            </div>
+    
+            <div class="meta-box">
+                <div class="meta-item"><strong>Belge Türü:</strong> ${title}</div>
+            </div>
+    
+            <div class="section">
+                <h2 class="section-title blue">${title}</h2>
+                <div class="list-summary">${summaryHtml}</div>
+                <table class="info-table results-table">
+                    <thead>
+                        <tr>
+                            ${headers.map(h => `<th>${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+    
+             <div class="section signature-section">
+                <h2 class="section-title dark">İMZA VE ONAY</h2>
+                <div class="signature-area">
+                    <div class="signature-box">
+                        <p class="role">HAZIRLAYAN</p>
+                        <div class="signature-line"></div>
+                        <p class="name">Atakan BATTAL</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+    
+    const generateGenericReportHtml = (record, type) => {
+        const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
+        const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
+        const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+        const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
+    
+        const getAttachmentUrl = (path, bucket) => {
+            if (typeof path === 'object' && path !== null && path.path) {
+                path = path.path;
+            }
+            if (typeof path !== 'string') return '';
+            const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+            return data?.publicUrl || '';
+        };
+    
+        const getDocumentNumber = () => {
+            switch (type) {
+                case 'nonconformity': return record.nc_number || record.mdi_no || '-';
+                case 'deviation': return record.request_no || '-';
+                case 'kaizen': return record.kaizen_no || '-';
+                case 'quarantine': return record.lot_no || '-';
+                case 'incoming_inspection': return record.record_no || '-';
             case 'incoming_control_plans': return record.part_code || '-';
-            case 'sheet_metal_entry': return record.delivery_note_number || '-';
-            case 'supplier_audit': return `TDA-${format(new Date(record.planned_date || record.actual_date || new Date()), 'yyyy-MM')}-${record.id.substring(0, 4)}`;
-            case 'internal_audit': return record.report_number || '-';
-            case 'equipment': return record.serial_number || '-';
-            default: return record.id;
-        }
-    };
-    
-    const getDocumentType = () => {
-        switch (type) {
-            case 'nonconformity': return `${record.type} Raporu`;
-            case 'deviation': return 'Sapma Talep Raporu';
-            case 'kaizen': return 'Kaizen Raporu';
-            case 'quarantine': return 'Karantina Raporu';
-            case 'incoming_inspection': return 'Girdi Kontrol Raporu';
-            case 'incoming_control_plans': return 'Kontrol Planı Raporu';
-            case 'sheet_metal_entry': return 'Sac Metal Giriş Raporu';
-            case 'supplier_audit': return 'Tedarikçi Denetim Raporu';
-            case 'internal_audit': return 'İç Tetkik Raporu';
-            case 'equipment': return 'Ekipman Kalibrasyon Raporu';
-            default: return 'Rapor';
-        }
-    };
-
-    const getPublicationDate = () => {
-        return formatDate(record.created_at || record.opening_date || record.df_opened_at || record.quarantine_date || record.inspection_date || record.entry_date || record.audit_date || record.planned_date);
-    };
-    
-    const getDeviationApprovalReference = (ref) => {
-        if (!ref || typeof ref !== 'string') return '-';
+                case 'sheet_metal_entry': return record.delivery_note_number || '-';
+                case 'supplier_audit': return `TDA-${format(new Date(record.planned_date || record.actual_date || new Date()), 'yyyy-MM')}-${record.id.substring(0, 4)}`;
+                case 'internal_audit': return record.report_number || '-';
+                case 'equipment': return record.serial_number || '-';
+                default: return record.id;
+            }
+        };
         
-        const deviationNoMatch = ref.match(/ST-\d{4}-\d+/i);
-        if (deviationNoMatch) {
-            return `Sapma No: ${deviationNoMatch[0]}`;
-        }
-
-        const uuidMatch = ref.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
-        if (uuidMatch) {
-             return `Sapma No: ${record.nc_number || uuidMatch[0]}`;
-        }
-
-        if (ref.includes('/') && ref.length > 40) {
-            const parts = ref.split('/');
-            const lastPart = parts[parts.length - 1];
-             if (lastPart) return `Sapma No: ${lastPart}`;
-        }
-        return `Sapma Ref: ${ref}`;
-    };
-
-
-    const getGeneralInfo = () => {
+        const getDocumentType = () => {
+            switch (type) {
+                case 'nonconformity': return `${record.type} Raporu`;
+                case 'deviation': return 'Sapma Talep Raporu';
+                case 'kaizen': return 'Kaizen Raporu';
+                case 'quarantine': return 'Karantina Raporu';
+                case 'incoming_inspection': return 'Girdi Kontrol Raporu';
+            case 'incoming_control_plans': return 'Kontrol Planı Raporu';
+                case 'sheet_metal_entry': return 'Sac Metal Giriş Raporu';
+                case 'supplier_audit': return 'Tedarikçi Denetim Raporu';
+                case 'internal_audit': return 'İç Tetkik Raporu';
+                case 'equipment': return 'Ekipman Kalibrasyon Raporu';
+                default: return 'Rapor';
+            }
+        };
+    
+        const getPublicationDate = () => {
+            return formatDate(record.created_at || record.opening_date || record.df_opened_at || record.quarantine_date || record.inspection_date || record.entry_date || record.audit_date || record.planned_date);
+        };
+        
+        const getDeviationApprovalReference = (ref) => {
+            if (!ref || typeof ref !== 'string') return '-';
+            
+            const deviationNoMatch = ref.match(/ST-\d{4}-\d+/i);
+            if (deviationNoMatch) {
+                return `Sapma No: ${deviationNoMatch[0]}`;
+            }
+    
+            const uuidMatch = ref.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+            if (uuidMatch) {
+                 return `Sapma No: ${record.nc_number || uuidMatch[0]}`;
+            }
+    
+            if (ref.includes('/') && ref.length > 40) {
+                const parts = ref.split('/');
+                const lastPart = parts[parts.length - 1];
+                 if (lastPart) return `Sapma No: ${lastPart}`;
+            }
+            return `Sapma Ref: ${ref}`;
+        };
+    
+    
+        const getGeneralInfo = () => {
         const formatDate = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
-        switch (type) {
-            case 'nonconformity':
-                return `
-                    <tr><td>Problem Tanımı</td><td><pre>${record.description || '-'}</pre></td></tr>
-                    <tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
-                    <tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
-                    <tr><td>Sorumlu Kişi</td><td>${record.responsible_person || '-'}</td></tr>
-                    <tr><td>Sorumlu Birim</td><td>${record.department || '-'}</td></tr>
-                    <tr><td>Termin Tarihi</td><td>${formatDate(record.due_at || record.due_date)}</td></tr>
-                `;
-            case 'deviation':
-                return `
-                    <tr><td>Sapma Açıklaması</td><td><pre>${record.description || '-'}</pre></td></tr>
-                    <tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
-                    <tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
-                    <tr><td>Sapma Kaynağı</td><td>${record.source || '-'}</td></tr>
-                    <tr><td>Araç Tipi</td><td>${record.vehicle_type || '-'}</td></tr>
-                `;
-            case 'kaizen':
-                const teamMembers = record.team_members_profiles?.map(p => p.full_name).join(', ') || '-';
-                const duration = record.start_date && record.end_date ? `${differenceInDays(new Date(record.end_date), new Date(record.start_date))} gün` : '-';
-                return `
-                    <tr><td>Kaizen Konusu</td><td>${record.title || '-'}</td></tr>
-                    <tr><td>Problem Tanımı</td><td><pre>${record.description || '-'}</pre></td></tr>
-                    <tr><td>Öneri Sahibi</td><td>${record.proposer?.full_name || '-'}</td></tr>
-                    <tr><td>Sorumlu Kişi</td><td>${record.responsible_person?.full_name || '-'}</td></tr>
-                    <tr><td>Departman</td><td>${record.department?.unit_name || '-'}</td></tr>
-                    <tr><td>Kaizen Ekibi</td><td>${teamMembers}</td></tr>
-                    <tr><td>Süre</td><td>${duration}</td></tr>
-                `;
-            case 'quarantine':
-                 const deviationRef = record.deviation_approval_url ? `<tr><td>İlişkili Sapma</td><td>${getDeviationApprovalReference(record.deviation_approval_url)}</td></tr>` : '';
-                return `
-                    <tr><td>Parça Adı / Kodu</td><td>${record.part_name} / ${record.part_code || '-'}</td></tr>
-                    <tr><td>Miktar</td><td>${record.quantity} ${record.unit}</td></tr>
-                    <tr><td>Karantina Sebebi</td><td><pre>${record.description || '-'}</pre></td></tr>
-                    <tr><td>Sebep Olan Birim</td><td>${record.source_department || '-'}</td></tr>
-                    ${deviationRef}
-                `;
+            switch (type) {
+                case 'nonconformity':
+                    return `
+                        <tr><td>Problem Tanımı</td><td><pre>${record.description || '-'}</pre></td></tr>
+                        <tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
+                        <tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
+                        <tr><td>Sorumlu Kişi</td><td>${record.responsible_person || '-'}</td></tr>
+                        <tr><td>Sorumlu Birim</td><td>${record.department || '-'}</td></tr>
+                        <tr><td>Termin Tarihi</td><td>${formatDate(record.due_at || record.due_date)}</td></tr>
+                    `;
+                case 'deviation':
+                    return `
+                        <tr><td>Sapma Açıklaması</td><td><pre>${record.description || '-'}</pre></td></tr>
+                        <tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
+                        <tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
+                        <tr><td>Sapma Kaynağı</td><td>${record.source || '-'}</td></tr>
+                        <tr><td>Araç Tipi</td><td>${record.vehicle_type || '-'}</td></tr>
+                    `;
+                case 'kaizen':
+                    const teamMembers = record.team_members_profiles?.map(p => p.full_name).join(', ') || '-';
+                    const duration = record.start_date && record.end_date ? `${differenceInDays(new Date(record.end_date), new Date(record.start_date))} gün` : '-';
+                    return `
+                        <tr><td>Kaizen Konusu</td><td>${record.title || '-'}</td></tr>
+                        <tr><td>Problem Tanımı</td><td><pre>${record.description || '-'}</pre></td></tr>
+                        <tr><td>Öneri Sahibi</td><td>${record.proposer?.full_name || '-'}</td></tr>
+                        <tr><td>Sorumlu Kişi</td><td>${record.responsible_person?.full_name || '-'}</td></tr>
+                        <tr><td>Departman</td><td>${record.department?.unit_name || '-'}</td></tr>
+                        <tr><td>Kaizen Ekibi</td><td>${teamMembers}</td></tr>
+                        <tr><td>Süre</td><td>${duration}</td></tr>
+                    `;
+                case 'quarantine':
+                     const deviationRef = record.deviation_approval_url ? `<tr><td>İlişkili Sapma</td><td>${getDeviationApprovalReference(record.deviation_approval_url)}</td></tr>` : '';
+                    return `
+                        <tr><td>Parça Adı / Kodu</td><td>${record.part_name} / ${record.part_code || '-'}</td></tr>
+                        <tr><td>Miktar</td><td>${record.quantity} ${record.unit}</td></tr>
+                        <tr><td>Karantina Sebebi</td><td><pre>${record.description || '-'}</pre></td></tr>
+                        <tr><td>Sebep Olan Birim</td><td>${record.source_department || '-'}</td></tr>
+                        ${deviationRef}
+                    `;
         case 'incoming_inspection':
             const defectsHtml = record.defects && record.defects.length > 0 
                 ? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
@@ -602,8 +602,8 @@ const generateGenericReportHtml = (record, type) => {
                     </tbody>
                 </table>`
                 : '<p>Muayene sonuçları bulunamadı.</p>';
-
-                    return `
+    
+                        return `
             <tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
             <tr><td>Teslimat Belgesi</td><td>${record.delivery_note_number || '-'}</td></tr>
             <tr><td>Parça Adı / Kodu</td><td>${record.part_name || '-'} / ${record.part_code || '-'}</td></tr>
@@ -668,7 +668,7 @@ const generateGenericReportHtml = (record, type) => {
                                 <tr><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;"><strong>Kalite:</strong></td><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;">${item.material_quality || '-'}</td></tr>
                                 <tr><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;"><strong>Standart:</strong></td><td style="padding: 4px; border-bottom: 1px solid #e5e7eb;">${item.malzeme_standarti || '-'}</td></tr>
                             </table>
-                    </div>
+                        </div>
                         
                         <div>
                             <h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">Lot & Referans Bilgileri</h5>
@@ -709,13 +709,13 @@ const generateGenericReportHtml = (record, type) => {
             `).join('')
             : '<p>Kalem bilgisi bulunamadı.</p>';
 
-                return `
+                    return `
             <tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
-                    <tr><td>İrsaliye No</td><td>${record.delivery_note_number || '-'}</td></tr>
-                    <tr><td>Giriş Tarihi</td><td>${formatDate(record.entry_date)}</td></tr>
+                        <tr><td>İrsaliye No</td><td>${record.delivery_note_number || '-'}</td></tr>
+                        <tr><td>Giriş Tarihi</td><td>${formatDate(record.entry_date)}</td></tr>
             <tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Giriş Yapılan Kalemler (Özet Tablo)</h3>${itemsTableHtml}</td></tr>
             <tr><td colspan="2"><h3 style="margin-top: 20px; margin-bottom: 15px;">Giriş Yapılan Kalemler (Detaylı Bilgiler)</h3>${detailedItemsHtml}</td></tr>
-                `;
+                    `;
             break;
         }
     case 'supplier_audit': {
@@ -826,18 +826,43 @@ const generateGenericReportHtml = (record, type) => {
                 'Orta': '#f59e0b',
                 'Düşük': '#16a34a',
             };
-            const color = riskLevelColor[record.risk_level] || '#6b7280';
+            const color = riskLevelColor[record.decision] || '#6b7280';
+            
+            // Build results table if exists
+            const resultsTableHtml = record.results && Array.isArray(record.results) && record.results.length > 0
+                ? `
+                    <tr><td colspan="2"><h4 style="margin: 10px 0;">Kontrol Sonuçları</h4>
+                        <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+                            <thead>
+                                <tr style="background-color: #f3f4f6;">
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Ölçüm Türü</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Değer</th>
+                                    <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Sonuç</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${record.results.map(r => `
+                                    <tr>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px;">${r.measurement_type || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px;">${r.value || '-'}</td>
+                                        <td style="border: 1px solid #d1d5db; padding: 8px;">${r.result || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </td></tr>
+                `
+                : '';
             
             return `
-                <tr><td>Kontrol Numarası</td><td>${record.control_number || '-'}</td></tr>
-                <tr><td>Ürün / Lot</td><td>${record.product_lot || '-'}</td></tr>
-                <tr><td>Risk Türü</td><td>${record.risk_type || '-'}</td></tr>
-                <tr><td>Risk Seviyesi</td><td><strong style="color: ${color}; font-size: 1.1em;">${record.risk_level || '-'}</strong></td></tr>
-                <tr><td>Tespit Tarihi</td><td>${formatDateHelper(record.control_date || record.created_at)}</td></tr>
-                <tr><td>Durum</td><td>${record.status || 'Açık'}</td></tr>
-                <tr><td>Sorumlu Personel</td><td>${record.responsible_person || '-'}</td></tr>
-                ${record.risk_description ? `<tr><td>Risk Açıklaması</td><td><pre>${record.risk_description}</pre></td></tr>` : ''}
-                ${record.actions_taken ? `<tr><td>Alınan İşlemler</td><td><pre>${record.actions_taken}</pre></td></tr>` : ''}
+                <tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
+                <tr><td>Parça Adı</td><td>${record.part_name || '-'}</td></tr>
+                <tr><td>Tedarikçi</td><td>${record.supplier?.name || '-'}</td></tr>
+                <tr><td>Karar</td><td><strong style="color: ${color}; font-size: 1.1em;">${record.decision || '-'}</strong></td></tr>
+                <tr><td>Kontrol Tarihi</td><td>${formatDateHelper(record.created_at)}</td></tr>
+                <tr><td>Kontrol Eden</td><td>${record.controlled_by?.full_name || '-'}</td></tr>
+                ${resultsTableHtml}
+                ${record.notes ? `<tr><td>Notlar</td><td><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.notes}</pre></td></tr>` : ''}
             `;
             break;
             }

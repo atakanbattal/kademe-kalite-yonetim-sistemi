@@ -173,8 +173,10 @@ const InkrManagement = ({ onViewPdf }) => {
     };
     
     const handleViewRecord = (report) => {
+        console.log('📋 INKR handleViewRecord called with:', report);
         setSelectedInkrDetail(report);
         setIsDetailModalOpen(true);
+        console.log('📋 Modal state should now be true');
     };
 
     const handleDownloadDetailPDF = (enrichedData) => {
