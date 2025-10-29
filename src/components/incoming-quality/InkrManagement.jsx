@@ -172,6 +172,15 @@ const InkrManagement = ({ onViewPdf }) => {
         }
     };
     
+    const handleViewRecord = (report) => {
+        setSelectedInkrDetail(report);
+        setIsDetailModalOpen(true);
+    };
+
+    const handleDownloadDetailPDF = (enrichedData) => {
+        openPrintableReport(enrichedData, 'inkr_management', true);
+    };
+    
     const getStatusVariant = (status) => {
         switch (status) {
             case 'Onaylandı': return 'success';
@@ -183,6 +192,12 @@ const InkrManagement = ({ onViewPdf }) => {
     return (
         <div className="dashboard-widget">
             <InkrFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} existingReport={selectedReport} refreshReports={fetchReports} />
+            <InkrDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                report={selectedInkrDetail}
+                onDownloadPDF={handleDownloadDetailPDF}
+            />
             <div className="flex justify-between items-center mb-4">
                 <div className="relative w-full max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -220,6 +235,7 @@ const InkrManagement = ({ onViewPdf }) => {
                                             <Button variant="ghost" size="icon" onClick={() => onViewPdf(report.file_path)}><Eye className="h-4 w-4" /></Button>
                                         )}
                                         <Button variant="ghost" size="icon" onClick={() => handleEdit(report)}><Edit className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleViewRecord(report)}><FileText className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(report.id)}><Trash2 className="h-4 w-4" /></Button>
                                     </td>
                                 </motion.tr>

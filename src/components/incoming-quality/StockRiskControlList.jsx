@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Search, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Search, MoreHorizontal, Trash2, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
     DropdownMenu,
@@ -147,7 +147,8 @@ const StockRiskControlList = () => {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.3, delay: index * 0.05 }}
-                                    className="hover:bg-muted/50"
+                                    className="hover:bg-muted/50 cursor-pointer"
+                                    onClick={() => handleViewRecord(control)}
                                 >
                                     <TableCell>
                                         <div className="font-medium">{control.part_name}</div>
@@ -162,7 +163,7 @@ const StockRiskControlList = () => {
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                                     <span className="sr-only">Menüyü aç</span>
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
@@ -170,6 +171,10 @@ const StockRiskControlList = () => {
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => handleViewRecord(control)}>
+                                                    <Eye className="mr-2 h-4 w-4" />
+                                                    <span>Görüntüle</span>
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem
                                                     onClick={() => handleDeleteClick(control)}
                                                     className="text-destructive focus:text-destructive"
