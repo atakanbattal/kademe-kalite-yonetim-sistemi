@@ -324,9 +324,9 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 />
             )}
             
-            {isStockRiskModalOpen && (
+            {stockRiskModalOpen && (
                 <StockRiskControlModal
-                    isOpen={isStockRiskModalOpen}
+                    isOpen={stockRiskModalOpen}
                     setIsOpen={setStockRiskModalOpen}
                     stockRiskData={stockRiskData}
                     refreshData={handleSuccess}
