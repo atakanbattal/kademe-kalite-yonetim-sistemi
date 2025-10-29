@@ -3,12 +3,19 @@ import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
 
 const openPrintableReport = (record, type, useUrlParams = false) => {
-    if (!record || (!record.id && !record.delivery_note_number)) {
+    if (!record) {
         console.error("openPrintableReport called with invalid record:", record);
         return;
     }
 
-    const reportId = type === 'sheet_metal_entry' ? record.delivery_note_number : record.id;
+    // Kontrol planları ve diğer tipler için farklı ID field'leri
+    const hasValidId = record.id || record.delivery_note_number;
+    if (!hasValidId) {
+        console.error("openPrintableReport: record has no valid ID field:", record);
+        return;
+    }
+
+    const reportId = type === 'sheet_metal_entry' ? record.delivery_note_number : (record.id || record.delivery_note_number);
 
     let reportUrl;
     if (useUrlParams) {
