@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { v4 as uuidv4 } from 'uuid';
+import { useData } from '@/hooks/useData';
 
 const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) => {
     const { toast } = useToast();
@@ -125,32 +126,12 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) =>
 
 const InkrManagement = ({ onViewPdf }) => {
     const { toast } = useToast();
-    const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { inkrReports, loading, refreshData } = useData();
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedInkrDetail, setSelectedInkrDetail] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-
-    const fetchReports = useCallback(async () => {
-        setLoading(true);
-        let query = supabase.from('inkr_reports').select('*, supplier:suppliers(name)').order('report_date', { ascending: false });
-        if (searchTerm) {
-            query = query.or(`part_code.ilike.%${searchTerm}%,part_name.ilike.%${searchTerm}%`);
-        }
-        const { data, error } = await query;
-        if (error) {
-            toast({ variant: 'destructive', title: 'Hata!', description: 'INKR raporları alınamadı.' });
-        } else {
-            setReports(data);
-        }
-        setLoading(false);
-    }, [toast, searchTerm]);
-
-    useEffect(() => {
-        fetchReports();
-    }, [fetchReports]);
 
     const handleEdit = (report) => {
         setSelectedReport(report);
@@ -168,7 +149,7 @@ const InkrManagement = ({ onViewPdf }) => {
             toast({ variant: 'destructive', title: 'Hata!', description: `Rapor silinemedi: ${error.message}` });
         } else {
             toast({ title: 'Başarılı!', description: 'INKR raporu silindi.' });
-            fetchReports();
+            refreshData();
         }
     };
     
@@ -193,7 +174,7 @@ const InkrManagement = ({ onViewPdf }) => {
 
     return (
         <div className="dashboard-widget">
-            <InkrFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} existingReport={selectedReport} refreshReports={fetchReports} />
+            <InkrFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} existingReport={selectedReport} refreshReports={refreshData} />
             <InkrDetailModal
                 isOpen={isDetailModalOpen}
                 setIsOpen={setIsDetailModalOpen}
@@ -222,10 +203,10 @@ const InkrManagement = ({ onViewPdf }) => {
                     <tbody>
                         {loading ? (
                             <tr><td colSpan="6" className="text-center py-8">Yükleniyor...</td></tr>
-                        ) : reports.length === 0 ? (
+                        ) : inkrReports.length === 0 ? (
                             <tr><td colSpan="6" className="text-center py-8">INKR raporu bulunamadı.</td></tr>
                         ) : (
-                            reports.map((report, index) => (
+                            inkrReports.map((report, index) => (
                                 <tr 
                                     key={report.id} 
                                     onClick={() => handleViewRecord(report)}
