@@ -119,12 +119,18 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                  toast({ variant: 'destructive', title: 'Hata', description: 'Görüntülenecek dosya yolu bulunamadı.' });
                 return;
             }
-            const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
-            if (data.publicUrl) {
-                setPdfViewerState({ isOpen: true, url: data.publicUrl, title });
-            } else {
-                toast({ variant: "destructive", title: "Hata", description: "PDF URL'si oluşturulamadı." });
-            }
+            // Use createSignedUrl instead of getPublicUrl for temporary access
+            supabase.storage.from(BUCKET_NAME).createSignedUrl(filePath, 3600).then(({ data, error }) => {
+                if (error) {
+                    toast({ variant: 'destructive', title: 'Hata', description: `PDF görüntülenemedi: ${error.message}` });
+                    return;
+                }
+                if (data?.signedUrl) {
+                    setPdfViewerState({ isOpen: true, url: data.signedUrl, title });
+                } else {
+                    toast({ variant: "destructive", title: "Hata", description: "PDF URL'si oluşturulamadı." });
+                }
+            });
         };
 
         const currentCategory = DOCUMENT_CATEGORIES.find(c => c.value === activeTab);
