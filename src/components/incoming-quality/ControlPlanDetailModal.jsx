@@ -29,6 +29,14 @@ const ControlPlanDetailModal = ({
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
 
+    useEffect(() => {
+        if (plan) {
+            console.log('📋 ControlPlanDetailModal opened with plan:', plan);
+            console.log('📊 Plan items:', plan.items);
+            console.log('📊 Items count:', plan.items ? plan.items.length : 0);
+        }
+    }, [plan, isOpen]);
+
     const handleGenerateReport = async () => {
         try {
             const enrichedData = {

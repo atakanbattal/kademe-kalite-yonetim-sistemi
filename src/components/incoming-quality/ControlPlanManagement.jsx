@@ -629,13 +629,13 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                                 <tr><td colSpan="6" className="text-center py-8">Kontrol planı bulunamadı.</td></tr>
                             ) : (
                                 plans.map((plan, index) => (
-                                    <motion.tr key={plan.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }} onClick={() => handleViewDetail(plan)} className="cursor-pointer hover:bg-gray-50">
+                                    <motion.tr key={plan.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }} onClick={(e) => { e.stopPropagation(); handleViewDetail(plan); }} className="cursor-pointer hover:bg-gray-50">
                                         <td className="font-medium text-foreground">{plan.part_code}</td>
                                         <td className="text-foreground">{plan.part_name}</td>
                                         <td className="text-muted-foreground">Rev.{plan.revision_number || 0}</td>
                                         <td className="text-muted-foreground text-center">{(plan.items || []).length}</td>
                                         <td className="text-muted-foreground">{plan.updated_at ? new Date(plan.updated_at).toLocaleDateString('tr-TR') : '-'}</td>
-                                        <td className="flex gap-1">
+                                        <td className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                             {plan.file_path && (<Button variant="ghost" size="icon" onClick={() => onViewPdf(plan.file_path, `Kontrol Planı: ${plan.part_name}`)}><Eye className="h-4 w-4" /></Button>)}
                                             <Button variant="ghost" size="icon" onClick={() => handleEdit(plan)}><Edit className="h-4 w-4" /></Button>
                                             <Button variant="ghost" size="icon" onClick={() => handleRevise(plan)}><History className="h-4 w-4" /></Button>
