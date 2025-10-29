@@ -155,6 +155,37 @@ import React from 'react';
             setIsDetailModalOpen(true);
         };
 
+        // Same logic for edit - fetch full data with results/defects/attachments
+        const handleEditWithFullData = async (inspection) => {
+            const { data: inspectionWithSupplier, error: viewError } = await supabase
+                .from('incoming_inspections_with_supplier')
+                .select('*')
+                .eq('id', inspection.id)
+                .single();
+            
+            if (viewError) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Muayene detayları alınamadı.' });
+                return;
+            }
+            
+            // Related data'yı ayrı ayrı çek
+            const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
+                supabase.from('incoming_inspection_attachments').select('*').eq('inspection_id', inspection.id),
+                supabase.from('incoming_inspection_defects').select('*').eq('inspection_id', inspection.id),
+                supabase.from('incoming_inspection_results').select('*').eq('inspection_id', inspection.id)
+            ]);
+            
+            const fullData = {
+                ...inspectionWithSupplier,
+                attachments: attachmentsRes.data || [],
+                defects: defectsRes.data || [],
+                results: resultsRes.data || []
+            };
+            
+            // Call onEdit with full data
+            onEdit(fullData);
+        };
+
         return (
             <div className="p-4 border rounded-lg bg-card">
                 <div className="flex items-center justify-between mb-4 gap-2">
@@ -211,7 +242,7 @@ import React from 'react';
                                                         <DropdownMenuItem onClick={() => handleViewDetail(inspection)}>
                                                             <Eye className="mr-2 h-4 w-4" /> Görüntüle
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => onEdit(inspection)}>
+                                                        <DropdownMenuItem onClick={() => handleEditWithFullData(inspection)}>
                                                             <Edit className="mr-2 h-4 w-4" /> Düzenle
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => onDecide(inspection)}>
