@@ -629,7 +629,15 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                                 <tr><td colSpan="6" className="text-center py-8">Kontrol planı bulunamadı.</td></tr>
                             ) : (
                                 plans.map((plan, index) => (
-                                    <motion.tr key={plan.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }} onClick={(e) => { e.stopPropagation(); handleViewDetail(plan); }} className="cursor-pointer hover:bg-gray-50">
+                                    <tr 
+                                        key={plan.id} 
+                                        onClick={() => handleViewDetail(plan)}
+                                        className="cursor-pointer hover:bg-gray-50 transition-colors"
+                                        style={{
+                                            opacity: 0,
+                                            animation: `fadeIn 0.3s ease-in forwards ${index * 0.05}s`
+                                        }}
+                                    >
                                         <td className="font-medium text-foreground">{plan.part_code}</td>
                                         <td className="text-foreground">{plan.part_name}</td>
                                         <td className="text-muted-foreground">Rev.{plan.revision_number || 0}</td>
@@ -641,7 +649,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                                             <Button variant="ghost" size="icon" onClick={() => handleRevise(plan)}><History className="h-4 w-4" /></Button>
                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(plan.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </td>
-                                    </motion.tr>
+                                    </tr>
                                 ))
                             )}
                         </tbody>

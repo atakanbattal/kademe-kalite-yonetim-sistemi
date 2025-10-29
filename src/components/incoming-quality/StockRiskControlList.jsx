@@ -142,12 +142,13 @@ const StockRiskControlList = () => {
                             <TableRow><TableCell colSpan="8" className="text-center">Kayıt bulunamadı.</TableCell></TableRow>
                         ) : (
                             filteredControls.map((control, index) => (
-                                <motion.tr 
+                                <tr 
                                     key={control.id} 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                                    className="hover:bg-muted/50 cursor-pointer"
+                                    className="hover:bg-muted/50 cursor-pointer transition-colors"
+                                    style={{
+                                        opacity: 0,
+                                        animation: `fadeIn 0.3s ease-in forwards ${index * 0.05}s`
+                                    }}
                                     onClick={() => handleViewRecord(control)}
                                 >
                                     <TableCell>
@@ -185,7 +186,7 @@ const StockRiskControlList = () => {
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
-                                </motion.tr>
+                                </tr>
                             ))
                         )}
                     </TableBody>
