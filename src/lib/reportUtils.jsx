@@ -1183,21 +1183,35 @@ const generatePrintableReportHtml = (record, type) => {
 		.attachment-file a { text-decoration: none; color: #2563eb; word-break: break-all; }
 
 		@media print {
+			* {
+				margin: 0 !important;
+				padding: 0 !important;
+			}
 			html, body {
-				width: 210mm;
-				height: 297mm;
-				background-color: white;
+				width: 210mm !important;
+				height: 297mm !important;
+				background-color: white !important;
+				margin: 0 !important;
+				padding: 0 !important;
+			}
+			@page {
+				size: A4;
+				margin: 0;
+				padding: 0;
 			}
 			.page-container { 
-				margin: 0; 
-				box-shadow: none; 
-				border: none;
-				width: 100%;
-				padding: 0;
+				margin: 0 !important; 
+				box-shadow: none !important; 
+				border: none !important;
+				width: 210mm !important;
+				height: 297mm !important;
+				padding: 15mm !important;
+				box-sizing: border-box !important;
 			}
 			.report-wrapper {
-				padding: 0;
-				min-height: 0;
+				padding: 0 !important;
+				min-height: 0 !important;
+				margin: 0 !important;
 			}
 			.footer {
 				display: none !important;
@@ -1441,6 +1455,8 @@ const generatePrintableReportHtml = (record, type) => {
 	<html lang="tr">
 	<head>
 		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<title>${getReportTitle(record, type)}</title>
 		<style>
 			${isCertificate ? certificateStyles : (isExam ? `${defaultStyles} ${examPaperStyles}` : defaultStyles)}
