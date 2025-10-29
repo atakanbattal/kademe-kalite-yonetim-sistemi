@@ -96,17 +96,21 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
         };
 
-        const handleView = (filePath, fileName) => {
-            if (/\.pdf$/i.test(fileName)) {
-                 const { data } = supabase.storage.from('training_documents').getPublicUrl(filePath);
-                 if (data.publicUrl) {
-                    onOpenPdfViewer(data.publicUrl, fileName);
-                 } else {
-                    toast({ variant: 'destructive', title: 'Hata', description: `Dosya URL'si alınamadı.` });
-                 }
-            } else {
-                const { data } = supabase.storage.from('training_documents').getPublicUrl(filePath);
-                window.open(data.publicUrl, '_blank');
+        const handleView = async (filePath, fileName) => {
+            try {
+                const { data, error } = await supabase.storage.from('training_documents').createSignedUrl(filePath, 3600);
+                if (error) {
+                    toast({ variant: 'destructive', title: 'Hata', description: `Dosya açılamadı: ${error.message}` });
+                    return;
+                }
+                if (/\.pdf$/i.test(fileName)) {
+                    onOpenPdfViewer(data.signedUrl, fileName);
+                } else {
+                    window.open(data.signedUrl, '_blank');
+                }
+            } catch (err) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Dosya açılırken hata oluştu.' });
+                console.error('File view error:', err);
             }
         };
 

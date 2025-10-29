@@ -9,9 +9,25 @@ import React from 'react';
             return <p className="text-muted-foreground text-center py-4">Kalibrasyon geçmişi bulunmuyor.</p>;
         }
 
-        const handleDownload = (path) => {
-            const { data } = supabase.storage.from('calibration_certificates').getPublicUrl(path);
-            window.open(data.publicUrl, '_blank');
+        const handleDownload = async (path) => {
+            try {
+                const { data, error } = await supabase.storage.from('calibration_certificates').download(path);
+                if (error) {
+                    console.error('Download error:', error);
+                    return;
+                }
+                const blob = new Blob([data]);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = path.split('/').pop();
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (err) {
+                console.error('File download error:', err);
+            }
         };
         
         return (

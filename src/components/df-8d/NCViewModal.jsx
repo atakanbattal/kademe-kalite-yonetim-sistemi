@@ -83,17 +83,34 @@ const EightDStepView = ({ stepKey, step }) => (
 );
 
 const AttachmentItem = ({ path, onPreview }) => {
-    const { data } = supabase.storage.from('df_attachments').getPublicUrl(path);
-    const publicUrl = data?.publicUrl;
-    if (!publicUrl) return null;
+    const [signedUrl, setSignedUrl] = React.useState(null);
+    
+    React.useEffect(() => {
+        const fetchSignedUrl = async () => {
+            try {
+                const { data, error } = await supabase.storage.from('df_attachments').createSignedUrl(path, 3600);
+                if (!error && data?.signedUrl) {
+                    setSignedUrl(data.signedUrl);
+                }
+            } catch (err) {
+                console.error('Signed URL fetch error:', err);
+            }
+        };
+        
+        if (path) {
+            fetchSignedUrl();
+        }
+    }, [path]);
+
+    if (!signedUrl) return null;
 
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
 
     if (isImage) {
         return (
-            <div className="group cursor-pointer" onClick={() => onPreview(publicUrl)}>
+            <div className="group cursor-pointer" onClick={() => onPreview(signedUrl)}>
                 <img
-                    src={publicUrl}
+                    src={signedUrl}
                     alt="Ek"
                     className="rounded-lg object-cover w-full h-32 transition-transform duration-300 group-hover:scale-105"
                 />
@@ -102,7 +119,7 @@ const AttachmentItem = ({ path, onPreview }) => {
     }
     
     return (
-        <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all">
+        <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all">
             <Paperclip className="w-6 h-6 text-muted-foreground" />
             <span className="text-xs text-muted-foreground truncate w-full">{path.split('/').pop()}</span>
         </a>

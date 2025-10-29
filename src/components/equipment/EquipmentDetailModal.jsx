@@ -76,12 +76,21 @@ import React, { useState, useEffect } from 'react';
             }
         };
 
-        const handleOpenPdfViewer = (filePath, title) => {
-            const { data } = supabase.storage.from('calibration_certificates').getPublicUrl(filePath);
-            if (data.publicUrl) {
-                setPdfViewerState({ isOpen: true, url: data.publicUrl, title });
-            } else {
-                toast({ variant: "destructive", title: "Hata", description: "PDF URL'si oluşturulamadı." });
+        const handleOpenPdfViewer = async (filePath, title) => {
+            try {
+                const { data, error } = await supabase.storage.from('calibration_certificates').download(filePath);
+                if (error) {
+                    toast({ variant: "destructive", title: "Hata", description: `PDF açılamadı: ${error.message}` });
+                    return;
+                }
+                
+                const blob = new Blob([data], { type: 'application/pdf' });
+                const blobUrl = window.URL.createObjectURL(blob);
+                
+                setPdfViewerState({ isOpen: true, url: blobUrl, title });
+            } catch (err) {
+                toast({ variant: "destructive", title: "Hata", description: "PDF açılırken hata oluştu." });
+                console.error('PDF view error:', err);
             }
         };
 

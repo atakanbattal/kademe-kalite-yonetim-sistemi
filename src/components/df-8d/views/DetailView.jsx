@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ const EightDStepView = ({ stepKey, step }) => (
 
 
 const DetailView = ({ record, onClose, onEdit, onReject, onConvertTo8D, onToggleStatus, onDelete }) => {
+    const [attachmentUrls, setAttachmentUrls] = useState({});
     
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
     
@@ -57,10 +58,27 @@ const DetailView = ({ record, onClose, onEdit, onReject, onConvertTo8D, onToggle
         }
     };
 
-    const getPublicUrl = (path) => {
-        const { data } = supabase.storage.from('documents').getPublicUrl(path);
-        return data.publicUrl;
-    };
+    useEffect(() => {
+        const fetchAttachmentUrls = async () => {
+            if (!record.attachments || record.attachments.length === 0) return;
+            
+            const urls = {};
+            for (let i = 0; i < record.attachments.length; i++) {
+                const path = record.attachments[i];
+                try {
+                    const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, 3600);
+                    if (!error && data?.signedUrl) {
+                        urls[i] = data.signedUrl;
+                    }
+                } catch (err) {
+                    console.error(`Error fetching URL for attachment ${i}:`, err);
+                }
+            }
+            setAttachmentUrls(urls);
+        };
+        
+        fetchAttachmentUrls();
+    }, [record.attachments]);
     
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -125,9 +143,11 @@ const DetailView = ({ record, onClose, onEdit, onReject, onConvertTo8D, onToggle
                      <h3 className="font-semibold text-foreground">Ekli Dosyalar</h3>
                      <div className="flex flex-wrap gap-2">
                         {record.attachments.map((path, i) => (
-                            <a key={i} href={getPublicUrl(path)} target="_blank" rel="noopener noreferrer" className="block w-24 h-24 rounded-lg overflow-hidden group">
-                                <img src={getPublicUrl(path)} alt={`Ek ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
-                            </a>
+                            attachmentUrls[i] && (
+                                <a key={i} href={attachmentUrls[i]} target="_blank" rel="noopener noreferrer" className="block w-24 h-24 rounded-lg overflow-hidden group">
+                                    <img src={attachmentUrls[i]} alt={`Ek ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                                </a>
+                            )
                         ))}
                     </div>
                 </div>
