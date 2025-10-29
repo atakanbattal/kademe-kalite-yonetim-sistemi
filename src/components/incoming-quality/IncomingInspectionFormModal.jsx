@@ -146,6 +146,49 @@ setShowRiskyStockAlert(false);
             setCheckingRiskyStock(false);
         }, []);
 
+        // Load existing inspection data when modal opens
+        useEffect(() => {
+            if (!isOpen) return;
+            
+            if (existingInspection) {
+                console.log('Loading existing inspection:', existingInspection);
+                setFormData({
+                    inspection_date: existingInspection.inspection_date || new Date().toISOString().split('T')[0],
+                    supplier_id: existingInspection.supplier_id || '',
+                    delivery_note_number: existingInspection.delivery_note_number || '',
+                    part_name: existingInspection.part_name || '',
+                    part_code: existingInspection.part_code || '',
+                    quantity_received: existingInspection.quantity_received || 0,
+                    unit: existingInspection.unit || 'Adet',
+                    decision: existingInspection.decision || 'Beklemede',
+                    quantity_accepted: existingInspection.quantity_accepted || 0,
+                    quantity_conditional: existingInspection.quantity_conditional || 0,
+                    quantity_rejected: existingInspection.quantity_rejected || 0,
+                    attachments: existingInspection.attachments || [],
+                });
+                
+                // Load measurement results
+                if (existingInspection.results && Array.isArray(existingInspection.results)) {
+                    setResults(existingInspection.results);
+                    console.log('Loaded results:', existingInspection.results);
+                }
+                
+                // Load defects
+                if (existingInspection.defects && Array.isArray(existingInspection.defects)) {
+                    setDefects(existingInspection.defects);
+                    console.log('Loaded defects:', existingInspection.defects);
+                }
+                
+                // Load existing attachments
+                if (existingInspection.attachments && Array.isArray(existingInspection.attachments)) {
+                    setExistingAttachments(existingInspection.attachments);
+                    console.log('Loaded attachments:', existingInspection.attachments);
+                }
+            } else {
+                resetForm();
+            }
+        }, [isOpen, existingInspection, resetForm]);
+
         const quantityTotal = useMemo(() => {
             return (Number(formData.quantity_accepted) || 0) + (Number(formData.quantity_conditional) || 0) + (Number(formData.quantity_rejected) || 0);
         }, [formData.quantity_accepted, formData.quantity_conditional, formData.quantity_rejected]);
