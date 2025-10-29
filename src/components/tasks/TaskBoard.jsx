@@ -14,9 +14,32 @@ const DEFAULT_STATUS_COLUMNS = [
 
 const TaskBoard = ({ tasks, onEditTask, onViewTask, onUpdateStatus }) => {
     const [showSettings, setShowSettings] = useState(false);
-    const [statusColumns, setStatusColumns] = useState(DEFAULT_STATUS_COLUMNS);
+    
+    // localStorage key for persisting status columns
+    const STATUS_COLUMNS_KEY = 'task-status-columns';
+    
+    // Initialize from localStorage or use defaults
+    const [statusColumns, setStatusColumns] = useState(() => {
+        try {
+            const saved = localStorage.getItem(STATUS_COLUMNS_KEY);
+            return saved ? JSON.parse(saved) : DEFAULT_STATUS_COLUMNS;
+        } catch {
+            return DEFAULT_STATUS_COLUMNS;
+        }
+    });
+    
     const [editingStatus, setEditingStatus] = useState(null);
     const [newStatusName, setNewStatusName] = useState('');
+
+    // Save to localStorage whenever statusColumns changes
+    const updateStatusColumns = (newColumns) => {
+        setStatusColumns(newColumns);
+        try {
+            localStorage.setItem(STATUS_COLUMNS_KEY, JSON.stringify(newColumns));
+        } catch {
+            console.warn('Failed to save status columns to localStorage');
+        }
+    };
 
     // Dinamik grid sütun sayısı
     const getGridColsClass = () => {
@@ -35,17 +58,17 @@ const TaskBoard = ({ tasks, onEditTask, onViewTask, onUpdateStatus }) => {
                 title: newStatusName,
                 color: 'bg-slate-100 dark:bg-slate-800'
             };
-            setStatusColumns([...statusColumns, newStatus]);
+            updateStatusColumns([...statusColumns, newStatus]);
             setNewStatusName('');
         }
     };
 
     const handleRemoveStatus = (id) => {
-        setStatusColumns(statusColumns.filter(s => s.id !== id));
+        updateStatusColumns(statusColumns.filter(s => s.id !== id));
     };
 
     const handleEditStatus = (id, newName) => {
-        setStatusColumns(statusColumns.map(s =>
+        updateStatusColumns(statusColumns.map(s =>
             s.id === id ? { ...s, id: newName, title: newName } : s
         ));
         setEditingStatus(null);
