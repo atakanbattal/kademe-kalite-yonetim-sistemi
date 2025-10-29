@@ -20,7 +20,7 @@ import { useToast } from '@/components/ui/use-toast';
 const InkrDetailModal = ({
     isOpen,
     setIsOpen,
-    inkr,
+    report,
     onDownloadPDF,
 }) => {
     const { toast } = useToast();
@@ -31,7 +31,7 @@ const InkrDetailModal = ({
     const handleGenerateReport = async () => {
         try {
             const enrichedData = {
-                ...inkr,
+                ...report,
                 prepared_by: preparedBy || '',
                 controlled_by: controlledBy || '',
                 created_by: createdBy || '',
@@ -51,7 +51,7 @@ const InkrDetailModal = ({
         }
     };
 
-    if (!inkr) return null;
+    if (!report) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -59,9 +59,9 @@ const InkrDetailModal = ({
                 <DialogHeader>
                     <DialogTitle>INKR Detayları</DialogTitle>
                     <DialogDescription>
-                        INKR No: {inkr.inkr_number} • Tarih:{' '}
+                        INKR No: {report.inkr_number} • Tarih:{' '}
                         {format(
-                            new Date(inkr.report_date || inkr.created_at),
+                            new Date(report.report_date || report.created_at),
                             'dd MMMM yyyy',
                             { locale: tr }
                         )}
@@ -85,39 +85,39 @@ const InkrDetailModal = ({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label className="text-gray-600">INKR Numarası</Label>
-                                        <p className="font-medium">{inkr.inkr_number || '-'}</p>
+                                        <p className="font-medium">{report.inkr_number || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Ürün Adı</Label>
-                                        <p className="font-medium">{inkr.part_name || '-'}</p>
+                                        <p className="font-medium">{report.part_name || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Ürün Kodu</Label>
-                                        <p className="font-medium">{inkr.part_code || '-'}</p>
+                                        <p className="font-medium">{report.part_code || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Tedarikçi</Label>
-                                        <p className="font-medium">{inkr.supplier_name || '-'}</p>
+                                        <p className="font-medium">{report.supplier_name || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Rapor Tarihi</Label>
                                         <p className="font-medium">
                                             {format(
-                                                new Date(inkr.report_date || inkr.created_at),
+                                                new Date(report.report_date || report.created_at),
                                                 'dd.MM.yyyy'
                                             )}
                                         </p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Durum</Label>
-                                        <p className="font-medium">{inkr.status || 'Aktif'}</p>
+                                        <p className="font-medium">{report.status || 'Aktif'}</p>
                                     </div>
                                 </div>
-                                {inkr.notes && (
+                                {report.notes && (
                                     <div>
                                         <Label className="text-gray-600">Notlar</Label>
                                         <p className="font-medium whitespace-pre-wrap">
-                                            {inkr.notes}
+                                            {report.notes}
                                         </p>
                                     </div>
                                 )}
@@ -127,14 +127,14 @@ const InkrDetailModal = ({
 
                     {/* TAB 2: MUAYENE SONUÇLARI */}
                     <TabsContent value="details" className="space-y-4">
-                        {inkr.test_results && inkr.test_results.length > 0 ? (
+                        {report.test_results && report.test_results.length > 0 ? (
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Test Sonuçları</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-3">
-                                        {inkr.test_results.map((result, idx) => (
+                                        {report.test_results.map((result, idx) => (
                                             <div
                                                 key={idx}
                                                 className="border rounded p-3 bg-gray-50"
