@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -15,6 +15,7 @@ import { FileDown, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
 
 const StockRiskDetailModal = ({
     isOpen,
@@ -26,6 +27,65 @@ const StockRiskDetailModal = ({
     const [preparedBy, setPreparedBy] = useState('');
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
+    const [enrichedRecord, setEnrichedRecord] = useState(record);
+
+    // Enrich record with related data on modal open
+    useEffect(() => {
+        if (!isOpen || !record) return;
+        
+        const enrichData = async () => {
+            try {
+                const enriched = { ...record };
+                
+                // Fetch controlled_by user
+                if (record.controlled_by_id) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('id, full_name')
+                        .eq('id', record.controlled_by_id)
+                        .single();
+                    if (profile) enriched.controlled_by = profile;
+                }
+                
+                // Fetch supplier
+                if (record.supplier_id) {
+                    const { data: supplier } = await supabase
+                        .from('suppliers')
+                        .select('id, name')
+                        .eq('id', record.supplier_id)
+                        .single();
+                    if (supplier) enriched.supplier = supplier;
+                }
+                
+                // Fetch controlled_inspection
+                if (record.controlled_inspection_id) {
+                    const { data: inspect } = await supabase
+                        .from('incoming_inspections')
+                        .select('id, record_no, part_code, part_name')
+                        .eq('id', record.controlled_inspection_id)
+                        .single();
+                    if (inspect) enriched.controlled_inspection = inspect;
+                }
+                
+                // Fetch source_inspection
+                if (record.source_inspection_id) {
+                    const { data: srcInspect } = await supabase
+                        .from('incoming_inspections')
+                        .select('id, record_no, part_code, part_name')
+                        .eq('id', record.source_inspection_id)
+                        .single();
+                    if (srcInspect) enriched.source_inspection = srcInspect;
+                }
+                
+                setEnrichedRecord(enriched);
+            } catch (error) {
+                console.error('Error enriching record:', error);
+                setEnrichedRecord(record);
+            }
+        };
+        
+        enrichData();
+    }, [isOpen, record]);
 
     const getRiskBadge = (riskLevel) => {
         switch (riskLevel?.toLowerCase()) {
@@ -43,7 +103,7 @@ const StockRiskDetailModal = ({
     const handleGenerateReport = async () => {
         try {
             const enrichedData = {
-                ...record,
+                ...enrichedRecord,
                 prepared_by: preparedBy || '',
                 controlled_by: controlledBy || '',
                 created_by: createdBy || '',
@@ -63,7 +123,7 @@ const StockRiskDetailModal = ({
         }
     };
 
-    if (!record) return null;
+    if (!enrichedRecord) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -71,9 +131,9 @@ const StockRiskDetailModal = ({
                 <DialogHeader>
                     <DialogTitle>Stok Risk Kontrolü Detayları</DialogTitle>
                     <DialogDescription>
-                        Ürün: {record.part_code || '-'} • Tarih:{' '}
+                        Ürün: {enrichedRecord.part_code || '-'} • Tarih:{' '}
                         {format(
-                            new Date(record.created_at),
+                            new Date(enrichedRecord.created_at),
                             'dd MMMM yyyy',
                             { locale: tr }
                         )}
@@ -97,32 +157,32 @@ const StockRiskDetailModal = ({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label className="text-gray-600">Parça Kodu</Label>
-                                        <p className="font-medium">{record.part_code || '-'}</p>
+                                        <p className="font-medium">{enrichedRecord.part_code || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Parça Adı</Label>
-                                        <p className="font-medium">{record.part_name || '-'}</p>
+                                        <p className="font-medium">{enrichedRecord.part_name || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Tedarikçi</Label>
-                                        <p className="font-medium">{record.supplier?.name || '-'}</p>
+                                        <p className="font-medium">{enrichedRecord.supplier?.name || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Karar</Label>
-                                        <p className="font-medium">{record.decision || '-'}</p>
+                                        <p className="font-medium">{enrichedRecord.decision || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Kontrol Tarihi</Label>
                                         <p className="font-medium">
                                             {format(
-                                                new Date(record.created_at),
+                                                new Date(enrichedRecord.created_at),
                                                 'dd.MM.yyyy HH:mm'
                                             )}
                                         </p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Kontrol Eden</Label>
-                                        <p className="font-medium">{record.controlled_by?.full_name || '-'}</p>
+                                        <p className="font-medium">{enrichedRecord.controlled_by?.full_name || '-'}</p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -136,7 +196,7 @@ const StockRiskDetailModal = ({
                                 <CardTitle>Kontrol Sonuçları</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {record.results && Array.isArray(record.results) && record.results.length > 0 ? (
+                                {enrichedRecord.results && Array.isArray(enrichedRecord.results) && enrichedRecord.results.length > 0 ? (
                                     <table className="w-full border-collapse border border-gray-300">
                                         <thead>
                                             <tr className="bg-gray-50">
@@ -146,7 +206,7 @@ const StockRiskDetailModal = ({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {record.results.map((result, index) => (
+                                            {enrichedRecord.results.map((result, index) => (
                                                 <tr key={index}>
                                                     <td className="border p-2">{result.measurement_type || '-'}</td>
                                                     <td className="border p-2">{result.value || '-'}</td>
@@ -158,11 +218,11 @@ const StockRiskDetailModal = ({
                                 ) : (
                                     <p className="text-muted-foreground">Kontrol sonucu kaydı bulunamadı.</p>
                                 )}
-                                {record.notes && (
+                                {enrichedRecord.notes && (
                                     <div>
                                         <Label className="text-gray-600">Notlar</Label>
                                         <p className="font-medium whitespace-pre-wrap">
-                                            {record.notes}
+                                            {enrichedRecord.notes}
                                         </p>
                                     </div>
                                 )}
