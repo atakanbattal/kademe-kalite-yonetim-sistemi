@@ -6,7 +6,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import Dashboard from '@/components/Dashboard';
     import KPIModule from '@/components/KPIModule';
     import QualityCostModule from '@/components/quality-cost/QualityCostModule';
-    import QuarantineModule from '@/components/QuarantineModule';
+    import QuarantineModule from '@/components/quarantine/QuarantineModule';
     import Df8dManagement from '@/pages/Df8dManagement';
     import InternalAuditModule from '@/components/InternalAuditModule';
     import DocumentModule from '@/components/DocumentModule';
