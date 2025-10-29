@@ -151,38 +151,6 @@ const PersonnelManager = () => {
     const [editingPersonnel, setEditingPersonnel] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Column visibility state with localStorage persistence
-    const COLUMNS_KEY = 'personnel-table-columns';
-    const defaultColumns = {
-        sNo: true,
-        fullName: true,
-        registrationNumber: true,
-        jobTitle: true,
-        department: true,
-        status: true,
-        actions: true,
-    };
-
-    const [visibleColumns, setVisibleColumns] = useState(() => {
-        try {
-            const saved = localStorage.getItem(COLUMNS_KEY);
-            return saved ? { ...defaultColumns, ...JSON.parse(saved) } : defaultColumns;
-        } catch {
-            return defaultColumns;
-        }
-    });
-
-    // Save column visibility to localStorage
-    const handleToggleColumn = (column) => {
-        const updated = { ...visibleColumns, [column]: !visibleColumns[column] };
-        setVisibleColumns(updated);
-        try {
-            localStorage.setItem(COLUMNS_KEY, JSON.stringify(updated));
-        } catch {
-            console.warn('localStorage save failed');
-        }
-    };
-
     const fetchData = useCallback(async () => {
         setLoading(true);
         const { data: personnelData, error: personnelError } = await supabase.from('personnel').select('*, unit:cost_settings(unit_name)').order('full_name');
@@ -267,34 +235,25 @@ const PersonnelManager = () => {
                 <table className="data-table">
                     <thead>
                         <tr>
-                            {visibleColumns.sNo && <th>S.No</th>}
-                            {visibleColumns.fullName && <th>Ad Soyad</th>}
-                            {visibleColumns.registrationNumber && <th>Sicil No</th>}
-                            {visibleColumns.jobTitle && <th>Görevi</th>}
-                            {visibleColumns.department && <th>Departman</th>}
-                            {visibleColumns.status && <th>Durum</th>}
-                            {visibleColumns.actions && <th>İşlemler</th>}
-                        </tr>
-                        <tr style={{backgroundColor: '#f5f5f5'}}>
-                            {visibleColumns.sNo && <th className="p-2"><Checkbox checked={true} disabled /></th>}
-                            {visibleColumns.fullName && <th className="p-2"><Checkbox checked={visibleColumns.fullName} onCheckedChange={() => handleToggleColumn('fullName')} /></th>}
-                            {visibleColumns.registrationNumber && <th className="p-2"><Checkbox checked={visibleColumns.registrationNumber} onCheckedChange={() => handleToggleColumn('registrationNumber')} /></th>}
-                            {visibleColumns.jobTitle && <th className="p-2"><Checkbox checked={visibleColumns.jobTitle} onCheckedChange={() => handleToggleColumn('jobTitle')} /></th>}
-                            {visibleColumns.department && <th className="p-2"><Checkbox checked={visibleColumns.department} onCheckedChange={() => handleToggleColumn('department')} /></th>}
-                            {visibleColumns.status && <th className="p-2"><Checkbox checked={visibleColumns.status} onCheckedChange={() => handleToggleColumn('status')} /></th>}
-                            {visibleColumns.actions && <th className="p-2"><Checkbox checked={visibleColumns.actions} onCheckedChange={() => handleToggleColumn('actions')} /></th>}
+                            <th>S.No</th>
+                            <th>Ad Soyad</th>
+                            <th>Sicil No</th>
+                            <th>Görevi</th>
+                            <th>Departman</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? <tr><td colSpan="7" className="text-center">Yükleniyor...</td></tr> : filteredPersonnel.map((p, index) => (
                             <tr key={p.id}>
-                                {visibleColumns.sNo && <td>{index + 1}</td>}
-                                {visibleColumns.fullName && <td className="font-medium">{p.full_name}</td>}
-                                {visibleColumns.registrationNumber && <td>{p.registration_number}</td>}
-                                {visibleColumns.jobTitle && <td>{p.job_title}</td>}
-                                {visibleColumns.department && <td>{p.department}</td>}
-                                {visibleColumns.status && <td><Badge variant={p.is_active ? "success" : "destructive"}>{p.is_active ? 'Aktif' : 'Pasif'}</Badge></td>}
-                                {visibleColumns.actions && <td className="flex gap-2">
+                                <td>{index + 1}</td>
+                                <td className="font-medium">{p.full_name}</td>
+                                <td>{p.registration_number}</td>
+                                <td>{p.job_title}</td>
+                                <td>{p.department}</td>
+                                <td><Badge variant={p.is_active ? "success" : "destructive"}>{p.is_active ? 'Aktif' : 'Pasif'}</Badge></td>
+                                <td className="flex gap-2">
                                     <Button size="sm" variant="outline" onClick={() => openModal(p)}><Edit className="w-4 h-4 mr-1" /> Düzenle</Button>
                                      <AlertDialog>
                                         <AlertDialogTrigger asChild>
@@ -311,7 +270,7 @@ const PersonnelManager = () => {
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
-                                </td>}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
