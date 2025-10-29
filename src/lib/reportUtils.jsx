@@ -536,6 +536,12 @@ const generateGenericReportHtml = (record, type) => {
 	const formatDate = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
 		switch (type) {
 			case 'nonconformity':
+				console.log('DEBUG: NC Report record:', {
+					due_at: record.due_at,
+					due_date: record.due_date,
+					attachments: record.attachments,
+					closing_attachments: record.closing_attachments
+				});
 				return `
 					<tr><td>Problem Tanımı</td><td><pre>${record.description || '-'}</pre></td></tr>
 					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
