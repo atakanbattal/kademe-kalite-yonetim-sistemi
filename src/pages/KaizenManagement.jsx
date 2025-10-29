@@ -48,13 +48,25 @@ const KaizenManagement = () => {
     }, [toast]);
 
     const fetchDropdownData = useCallback(async () => {
-        const { data: personnelData, error: personnelError } = await supabase.from('personnel').select('id, full_name, department');
-        const { data: unitsData, error: unitsError } = await supabase.from('cost_settings').select('id, unit_name, cost_per_minute');
-        const { data: suppliersData, error: suppliersError } = await supabase.from('suppliers').select('id, name');
+        try {
+            const [personnelResult, unitsResult, suppliersResult] = await Promise.all([
+                supabase.from('personnel').select('id, full_name, department'),
+                supabase.from('cost_settings').select('id, unit_name, cost_per_minute'),
+                supabase.from('suppliers').select('id, name')
+            ]);
 
-        if(personnelError) toast({ variant: 'destructive', title: 'Personel verisi alınamadı.' }); else setPersonnel(personnelData);
-        if(unitsError) toast({ variant: 'destructive', title: 'Birim verisi alınamadı.' }); else setUnits(unitsData);
-        if(suppliersError) toast({ variant: 'destructive', title: 'Tedarikçi verisi alınamadı.' }); else setSuppliers(suppliersData);
+            if (personnelResult.data) setPersonnel(personnelResult.data);
+            if (unitsResult.data) setUnits(unitsResult.data);
+            if (suppliersResult.data) setSuppliers(suppliersResult.data);
+
+            // Only show error toast if multiple critical failures
+            const errors = [personnelResult.error, unitsResult.error, suppliersResult.error].filter(Boolean);
+            if (errors.length === 3) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Filtre verileri yüklenemedi.' });
+            }
+        } catch (error) {
+            console.error('Dropdown data fetch error:', error);
+        }
     }, [toast]);
 
     useEffect(() => {

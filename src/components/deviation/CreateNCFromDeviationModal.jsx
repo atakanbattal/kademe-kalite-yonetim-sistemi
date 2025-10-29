@@ -1,39 +1,32 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
-const CreateNCFromQuarantineModal = ({ isOpen, setIsOpen, quarantineRecord, onOpenNCForm, refreshData }) => {
+const CreateNCFromDeviationModal = ({ isOpen, setIsOpen, deviation, onOpenNCForm, refreshData }) => {
     const { toast } = useToast();
-    const [defaultDesc, setDefaultDesc] = React.useState('');
 
-    useEffect(() => {
-        if (quarantineRecord) {
-            const desc = `Karantina Kaydından Oluşturuldu\n\nParça: ${quarantineRecord.part_code}\nLot: ${quarantineRecord.lot_no}\nMiktar: ${quarantineRecord.quantity} ${quarantineRecord.unit}\n\nSebep: ${quarantineRecord.reason || 'Belirtilmemiş'}\n\nAçıklama: ${quarantineRecord.description || ''}`;
-            setDefaultDesc(desc);
-        }
-    }, [quarantineRecord, isOpen]);
-
-    const handleCreateNC = (ncType) => {
-        if (!quarantineRecord) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'Karantina kaydı bulunamadı.' });
+    const handleCreateNC = async (ncType) => {
+        if (!deviation) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Sapma kaydı bulunamadı.' });
             return;
         }
 
+        // DF ve 8D Yönetimindeki NCFormModal'ı aç
         const ncData = {
             type: ncType,
-            title: `${quarantineRecord.part_code} - ${quarantineRecord.part_name}`,
-            description: defaultDesc,
-            source: 'quarantine',
-            source_quarantine_id: quarantineRecord?.id,
-            part_code: quarantineRecord?.part_code || '',
-            part_name: quarantineRecord?.part_name || '',
+            title: deviation?.description || '',
+            description: `Sapma Kaydından Oluşturuldu\n\nSapma Numarası: ${deviation?.request_no}\nSapma Sebebi: ${deviation?.source}\n\nDetay: ${deviation?.description}`,
+            source: 'deviation',
+            source_deviation_id: deviation?.id,
+            part_code: deviation?.part_code || '',
+            part_name: deviation?.part_name || '',
             status: 'Açık',
             priority: 'Normal',
-            requesting_unit: quarantineRecord?.requesting_department || '',
-            department: quarantineRecord?.source_department || '',
+            requesting_unit: deviation?.requesting_unit || '',
+            department: deviation?.requesting_unit || '',
             eight_d_steps: ncType === '8D' ? {
-                'D0': { title: 'Planlama', responsible: '', completionDate: '', description: 'Karantina kaydından otomatik oluşturuldu' },
+                'D0': { title: 'Planlama', responsible: '', completionDate: '', description: 'Sapma kaydından otomatik oluşturuldu' },
                 'D1': { title: 'Takım Kurma', responsible: '', completionDate: '', description: '' },
-                'D2': { title: 'Problem Tanımlama', responsible: '', completionDate: '', description: `Karantina Sebebi: ${quarantineRecord?.reason}` },
+                'D2': { title: 'Problem Tanımlama', responsible: '', completionDate: '', description: deviation?.description },
                 'D3': { title: 'Kök Neden Analizi', responsible: '', completionDate: '', description: '' },
                 'D4': { title: 'Geçici Çözüm', responsible: '', completionDate: '', description: '' },
                 'D5': { title: 'Kalıcı Çözüm', responsible: '', completionDate: '', description: '' },
@@ -42,7 +35,7 @@ const CreateNCFromQuarantineModal = ({ isOpen, setIsOpen, quarantineRecord, onOp
             } : null,
         };
 
-        // NCFormModal'ı aç
+        // NCFormModal'ı aç ve callback ile refreshData çağır
         if (onOpenNCForm) {
             onOpenNCForm(ncData, () => {
                 setIsOpen(false);
@@ -52,14 +45,14 @@ const CreateNCFromQuarantineModal = ({ isOpen, setIsOpen, quarantineRecord, onOp
         }
     };
 
-    if (!isOpen || !quarantineRecord) return null;
+    if (!isOpen || !deviation) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
-                <h2 className="text-xl font-bold mb-2">Uygunsuzluk Türü Seçin</h2>
+                <h2 className="text-xl font-bold mb-4">Uygunsuzluk Türü Seçin</h2>
                 <p className="text-sm text-gray-600 mb-6">
-                    Karantina kaydı <strong>{quarantineRecord?.part_code}</strong> için hangi türde uygunsuzluk oluşturmak istiyorsunuz?
+                    Sapma kaydı <strong>{deviation?.request_no}</strong> için hangi türde uygunsuzluk oluşturmak istiyorsunuz?
                 </p>
                 
                 <div className="grid grid-cols-1 gap-3">
@@ -88,7 +81,7 @@ const CreateNCFromQuarantineModal = ({ isOpen, setIsOpen, quarantineRecord, onOp
                     </button>
                 </div>
 
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 flex justify-end gap-2">
                     <button
                         onClick={() => setIsOpen(false)}
                         className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
@@ -101,4 +94,4 @@ const CreateNCFromQuarantineModal = ({ isOpen, setIsOpen, quarantineRecord, onOp
     );
 };
 
-export default CreateNCFromQuarantineModal;
+export default CreateNCFromDeviationModal;

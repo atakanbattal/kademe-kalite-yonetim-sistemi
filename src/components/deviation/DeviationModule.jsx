@@ -3,24 +3,27 @@ import { Helmet } from 'react-helmet';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Plus, LayoutGrid, List } from 'lucide-react';
+import { Plus, LayoutGrid, List, BarChart3 } from 'lucide-react';
 import DeviationList from '@/components/deviation/DeviationList';
 import DeviationFormModal from '@/components/deviation/DeviationFormModal';
 import DeviationDetailModal from '@/components/deviation/DeviationDetailModal';
 import DeviationDashboard from '@/components/deviation/DeviationDashboard';
 import DeviationApprovalModal from '@/components/deviation/DeviationApprovalModal';
 import DeviationFilters from '@/components/deviation/DeviationFilters';
+import DeviationAnalytics from '@/components/deviation/DeviationAnalytics';
+import CreateNCFromDeviationModal from '@/components/deviation/CreateNCFromDeviationModal';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { useData } from '@/contexts/DataContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { parseISO, isAfter, isBefore } from 'date-fns';
 
-const DeviationModule = () => {
+const DeviationModule = ({ onOpenNCForm }) => {
     const { toast } = useToast();
     const { deviations, loading, refreshData } = useData();
     const [isFormOpen, setFormOpen] = useState(false);
     const [isDetailOpen, setDetailOpen] = useState(false);
     const [isApprovalOpen, setApprovalOpen] = useState(false);
+    const [isCreateNCOpen, setCreateNCOpen] = useState(false);
     const [selectedDeviation, setSelectedDeviation] = useState(null);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [filters, setFilters] = useState({
@@ -72,6 +75,11 @@ const DeviationModule = () => {
         setApprovalOpen(true);
     };
 
+    const handleOpenCreateNC = (deviation) => {
+        setSelectedDeviation(deviation);
+        setCreateNCOpen(true);
+    };
+
     const handleDelete = async (id) => {
         await supabase.from('deviation_approvals').delete().eq('deviation_id', id);
         await supabase.from('deviation_attachments').delete().eq('deviation_id', id);
@@ -101,6 +109,7 @@ const DeviationModule = () => {
                 <TabsList>
                     <TabsTrigger value="dashboard"><LayoutGrid className="mr-2 h-4 w-4" /> Pano</TabsTrigger>
                     <TabsTrigger value="list"><List className="mr-2 h-4 w-4" /> Liste</TabsTrigger>
+                    <TabsTrigger value="analytics"><BarChart3 className="mr-2 h-4 w-4" /> Analiz</TabsTrigger>
                 </TabsList>
                 <DeviationFilters filters={filters} setFilters={setFilters} deviations={deviations} />
                 <TabsContent value="dashboard">
@@ -114,7 +123,11 @@ const DeviationModule = () => {
                         onDelete={handleDelete}
                         onView={handleOpenDetail}
                         onApprove={handleOpenApproval}
+                        onCreateNC={handleOpenCreateNC}
                     />
+                </TabsContent>
+                <TabsContent value="analytics">
+                    <DeviationAnalytics deviations={filteredDeviations} />
                 </TabsContent>
             </Tabs>
 
@@ -141,6 +154,16 @@ const DeviationModule = () => {
                     setIsOpen={setApprovalOpen}
                     deviation={selectedDeviation}
                     onRefresh={refreshData}
+                />
+            )}
+
+            {isCreateNCOpen && selectedDeviation && (
+                <CreateNCFromDeviationModal
+                    isOpen={isCreateNCOpen}
+                    setIsOpen={setCreateNCOpen}
+                    deviation={selectedDeviation}
+                    onOpenNCForm={onOpenNCForm}
+                    refreshData={refreshData}
                 />
             )}
         </div>

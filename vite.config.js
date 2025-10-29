@@ -219,8 +219,6 @@ const addTransformIndexHtml = {
 	},
 };
 
-console.warn = () => {};
-
 const logger = createLogger()
 const loggerError = logger.error
 

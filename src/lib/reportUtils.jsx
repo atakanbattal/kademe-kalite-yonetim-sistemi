@@ -49,12 +49,11 @@ const getReportTitle = (record, type) => {
 		case 'supplier_audit':
 			return `Tedarikçi Denetim Raporu - ${record.supplier?.name || 'Bilinmiyor'}`;
 		case 'internal_audit':
-	return `İç Tetkik Raporu - ${record.report_number || 'Bilinmiyor'}`;			case 'sheet_metal_entry':
-	return `Sac Metal Giriş Raporu - ${record.delivery_note_number || 'Bilinmiyor'}`;
-
+			return `İç Tetkik Raporu - ${record.report_number || 'Bilinmiyor'}`;
+		case 'sheet_metal_entry':
+			return `Sac Metal Giriş Raporu - ${record.delivery_note_number || 'Bilinmiyor'}`;
 		case 'incoming_inspection':
 			return `Girdi Kontrol Raporu - ${record.record_no || 'Bilinmiyor'}`;
-
 		case 'deviation':
 			return `Sapma Talep Raporu - ${record.request_no || 'Bilinmiyor'}`;
 		case 'nonconformity':
@@ -73,39 +72,12 @@ const getReportTitle = (record, type) => {
 			return `Başarı Sertifikası - ${record.personnelName || ''}`;
 		case 'exam_paper':
 			return `Sınav Kağıdı - ${record.title || ''}`;
-	case 'incoming_control_plans':
-		return `
-			<tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
-			<tr><td>Parça Adı</td><td>${record.part_name || '-'}</td></tr>
-			<tr><td>Revizyon</td><td>${record.revision || '-'}</td></tr>
-			<tr><td>Muayene Türü</td><td>${record.inspection_type || '-'}</td></tr>
-			<tr><td>Örnekleme Seviyesi</td><td>${record.sampling_level || '-'}</td></tr>
-			<tr><td>Örnek Boyutu</td><td>${record.sample_size ? record.sample_size + ' Adet' : '-'}</td></tr>
-			<tr><td>AQL (Kabul Kriteri)</td><td>${record.aql || '-'}</td></tr>
-			<tr><td>Geçerli Durum</td><td>${record.is_current ? 'Evet (Güncel)' : 'Hayır (Eski)'}</td></tr>
-			<tr><td>Oluşturulma Tarihi</td><td>${formatDateHelper(record.created_at)}</td></tr>
-			<tr><td colspan="2"><h3 style="margin-top: 15px;">Plan Açıklaması</h3><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.description || 'Açıklama bulunmamaktadır.'}</pre></td></tr>
-	`;
-case 'inkr_management':
-	return `
-		<tr><td>INKR Numarası</td><td>${record.inkr_number || '-'}</td></tr>
-		<tr><td>Ürün Adı</td><td>${record.product_name || '-'}</td></tr>
-		<tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
-		<tr><td>Tarih</td><td>${formatDateHelper(record.date)}</td></tr>
-		<tr><td>Durum</td><td><strong style="font-weight: bold; color: ${record.status === 'Tamamlandı' ? '#16a34a' : record.status === 'Devam Ediyor' ? '#2563eb' : '#f59e0b'};">${record.status || 'Beklemede'}</strong></td></tr>
-		<tr><td>Sorumlu Personel</td><td>${record.responsible_person || '-'}</td></tr>
-		<tr><td>Açıklama</td><td><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.description || 'Açıklama bulunmamaktadır.'}</pre></td></tr>
-	`;
-case 'stock_risk_controls':
-	return `
-		<tr><td>Kontrol Numarası</td><td>${record.control_number || '-'}</td></tr>
-		<tr><td>Risk Türü</td><td>${record.risk_type || '-'}</td></tr>
-		<tr><td>Ürün / Lot</td><td>${record.product_lot || '-'}</td></tr>
-		<tr><td>Tespit Tarihi</td><td>${formatDateHelper(record.detection_date)}</td></tr>
-		<tr><td>Risk Seviyesi</td><td><strong style="font-weight: bold; color: ${record.risk_level === 'Yüksek' ? '#dc2626' : record.risk_level === 'Orta' ? '#f59e0b' : '#16a34a'};">${record.risk_level || 'Belirsiz'}</strong></td></tr>
-		<tr><td>Durum</td><td><strong style="font-weight: bold; color: ${record.status === 'Çözüldü' ? '#16a34a' : record.status === 'Izleme Altında' ? '#2563eb' : '#f59e0b'};">${record.status || 'Yeni'}</strong></td></tr>
-		<tr><td>İşlemler Alınanlar</td><td><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.actions_taken || 'İşlem belirtilmemiştir.'}</pre></td></tr>
-	`;
+		case 'incoming_control_plans':
+			return `Gelen Kontrol Planı - ${record.part_code || 'Bilinmiyor'}`;
+		case 'inkr_management':
+			return `INKR Raporu - ${record.inkr_number || 'Bilinmiyor'}`;
+		case 'stock_risk_controls':
+			return `Stok Risk Kontrol Raporu - ${record.control_number || 'Bilinmiyor'}`;
 		default:
 			return 'Detaylı Rapor';
 	}

@@ -53,7 +53,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             count = 1;
         }
 
-        console.log(`📐 Hesaplama: Type="${characteristicType}", Quantity=${quantity} -> ${type.split(' ')[0]}: ${count} ölçüm`);
         return count;
     };
 
@@ -151,7 +150,6 @@ setShowRiskyStockAlert(false);
             if (!isOpen) return;
             
             if (existingInspection) {
-                console.log('Loading existing inspection:', existingInspection);
                 setFormData({
                     inspection_date: existingInspection.inspection_date || new Date().toISOString().split('T')[0],
                     supplier_id: existingInspection.supplier_id || '',
@@ -170,19 +168,16 @@ setShowRiskyStockAlert(false);
                 // Load measurement results
                 if (existingInspection.results && Array.isArray(existingInspection.results)) {
                     setResults(existingInspection.results);
-                    console.log('Loaded results:', existingInspection.results);
                 }
                 
                 // Load defects
                 if (existingInspection.defects && Array.isArray(existingInspection.defects)) {
                     setDefects(existingInspection.defects);
-                    console.log('Loaded defects:', existingInspection.defects);
                 }
                 
                 // Load existing attachments
                 if (existingInspection.attachments && Array.isArray(existingInspection.attachments)) {
                     setExistingAttachments(existingInspection.attachments);
-                    console.log('Loaded attachments:', existingInspection.attachments);
                 }
             } else {
                 resetForm();
@@ -200,43 +195,29 @@ setShowRiskyStockAlert(false);
         
         useEffect(() => {
             const generateResultsFromPlan = () => {
-                console.log("========== GENERATERESULTSFROMPLAN ==========");
                 const incomingQuantity = Number(formData.quantity_received) || 0;
-                console.log("Gelen Miktar:", incomingQuantity);
-                console.log("Kontrol Planı Mevcut:", !!controlPlan);
 
                 if (!controlPlan || !controlPlan.items || controlPlan.items.length === 0 || incomingQuantity <= 0) {
                     setResults([]);
                     setMeasurementSummary([]);
-                    console.log("Hesaplama için yetersiz veri. Çıkılıyor.");
-                    console.log("==============================================");
                     return;
                 }
-                
-                console.log("Kontrol Planı Items:", controlPlan.items.length, "adet");
 
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
 
                 controlPlan.items.forEach((item, index) => {
-                    console.log(`--- ITEM ${index} ---`);
+                    
                     const characteristic = characteristics.find(c => c.value === item.characteristic_id);
                     if (!characteristic) {
-                        console.error(`❌ Karakteristik bulunamadı: ID=${item.characteristic_id}`);
                         return;
                     }
-                    console.log(`✓ Karakteristik: ${characteristic.label}`);
 
                     let characteristicType = item.characteristic_type;
-                    if (characteristicType) {
-                        console.log(`✓ characteristic_type ITEM'DEN alındı: ${characteristicType}`);
-                    } else {
+                    if (!characteristicType) {
                         characteristicType = characteristic.type;
-                        if (characteristicType) {
-                            console.warn(`⚠️ characteristic_type ITEM'de yoktu, ana tablodan alındı: ${characteristicType}`);
-                        } else {
-                            console.error(`❌ HATA: Karakteristik tipi ne item'de ne de ana tabloda bulunamadı!`);
+                        if (!characteristicType) {
                             return;
                         }
                     }
@@ -271,9 +252,6 @@ setShowRiskyStockAlert(false);
                     totalGeneratedResults += count;
                 });
                 
-                console.log("========== SONUÇ ==========");
-                console.log("Oluşturulan toplam results:", totalGeneratedResults);
-                console.log("==============================================");
                 setResults(newResults);
                 setMeasurementSummary(summary);
             };
@@ -443,6 +421,8 @@ setShowRiskyStockAlert(false);
             
             setFormData(prev => ({...prev, decision: newDecision }));
         }, [formData.quantity_accepted, formData.quantity_conditional, formData.quantity_rejected, formData.quantity_received, quantityTotal]);
+
+        // Measurement values are auto-generated server-side for accepted items
 
         const handleResultChange = (index, field, value, resultStatus) => {
             const newResults = [...results];

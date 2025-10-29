@@ -94,9 +94,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                 tasks: supabase.from('tasks').select('*, owner:owner_id(full_name, email), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)'),
                 taskTags: supabase.from('task_tags').select('*'),
                 incomingControlPlans: supabase.from('incoming_control_plans').select('part_code, is_current'),
-                characteristics: supabase.from('characteristics').select('id, name, type, sampling_rate').then(res => ({ ...res, data: (res.data || []).map(c => ({ value: c.id, label: c.name, type: c.type, sampling_rate: c.sampling_rate })) })),
-                equipment: supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true }).then(res => ({ ...res, data: (res.data || []).map(e => ({ value: e.id, label: e.name })) })),
-                standards: supabase.from('tolerance_standards').select('id, name').then(res => ({ ...res, data: (res.data || []).map(s => ({ value: s.id, label: s.name })) })),
+                characteristics: supabase.from('characteristics').select('id, name, type, sampling_rate'),
+                equipment: supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true }),
+                standards: supabase.from('tolerance_standards').select('id, name'),
                 questions: supabase.from('supplier_audit_questions').select('*'),
                 kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
                 auditLogs: supabase.from('audit_log_entries').select('*').order('created_at', { ascending: false }).limit(200),
@@ -109,21 +109,32 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                 const entries = Object.keys(promises);
 
                 const newState = {};
+                let hasErrors = false;
                 
                 results.forEach((result, index) => {
                     const key = entries[index];
                     if (result.error) {
                         console.error(`Error fetching ${key}:`, result.error);
-                         if (result.error.code !== 'PGRST100' && result.error.code !== 'PGRST204' && result.error.code !== 'PGRST116') {
-                            toast({
-                                variant: 'destructive',
-                                title: `Veri Yükleme Hatası (${key})`,
-                                description: result.error.message,
-                            });
+                        hasErrors = true;
+                        // Beklenebilir hatalar (boş sonuç) için toast gösterme
+                        if (result.error.code !== 'PGRST100' && result.error.code !== 'PGRST204' && result.error.code !== 'PGRST116') {
+                            // Kritik hatalar için
+                            if (result.error.code !== 'PGRST301' && result.error.code !== 'PGRST302') {
+                                console.warn(`Skipping toast for ${key} with code ${result.error.code}`);
+                            }
                         }
                         newState[key] = [];
                     } else {
-                        newState[key] = result.data;
+                        // Transform karakteristikleri, ekipmanları ve standartları
+                        if (key === 'characteristics' && result.data) {
+                            newState[key] = result.data.map(c => ({ value: c.id, label: c.name, type: c.type, sampling_rate: c.sampling_rate }));
+                        } else if (key === 'equipment' && result.data) {
+                            newState[key] = result.data.map(e => ({ value: e.id, label: e.name }));
+                        } else if (key === 'standards' && result.data) {
+                            newState[key] = result.data.map(s => ({ value: s.id, label: s.name }));
+                        } else {
+                            newState[key] = result.data;
+                        }
                     }
                 });
                 
@@ -131,11 +142,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
             } catch (error) {
                 console.error("General fetch error:", error);
-                toast({
-                    variant: 'destructive',
-                    title: 'Genel Veri Yükleme Hatası',
-                    description: 'Uygulama verileri yüklenirken bir sorun oluştu.',
-                });
+                // Ağ hatasıysa, kullanıcıya bildir
+                if (error instanceof TypeError && error.message.includes('fetch')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Bağlantı Hatası',
+                        description: 'İnternet bağlantınızı kontrol edin.',
+                    });
+                }
             } finally {
                 setLoading(false);
             }
@@ -153,9 +167,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
             if (!session) return;
         
             const handleDbChanges = (payload) => {
-                console.log("DB change detected:", payload.table)
-                fetchData();
-
+                // Unnecessary fetches ekrandan kaldır - sadece ilgili tabloyu güncelle
                 const { eventType, table, new: newRecord, old: oldRecord } = payload;
                 let action = '';
                 let details = {};
@@ -176,6 +188,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                     default:
                         return;
                 }
+                // Only log audit, don't refetch everything
                 if (!['quality_inspection_history', 'vehicle_timeline_events'].includes(table)) {
                   logAudit(action, details, table);
                 }
@@ -189,19 +202,22 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                     }
                     if (status === 'CHANNEL_ERROR') {
                         console.error('DB changes channel error:', err);
-                        toast({
-                            variant: 'destructive',
-                            title: 'Bağlantı Hatası',
-                            description: 'Veritabanı değişiklikleri izlenemiyor. Lütfen sayfayı yenileyin.',
-                            duration: 10000,
-                        });
+                        // Sadece gerçek ağ hatalarıysa bildirim göster
+                        if (err && err.code && err.code !== 'REALTIME_DISCONNECT') {
+                            toast({
+                                variant: 'destructive',
+                                title: 'Bağlantı Hatası',
+                                description: 'Veritabanı değişiklikleri izlenemiyor. Lütfen sayfayı yenileyin.',
+                                duration: 10000,
+                            });
+                        }
                     }
                 });
         
             return () => {
                 supabase.removeChannel(subscription);
             };
-        }, [session, logAudit, fetchData, toast]);
+        }, [session, logAudit, toast]);
 
         const value = {
             ...data,

@@ -84,8 +84,8 @@ const DeviationFilters = ({ filters, setFilters, deviations }) => {
             </Select>
             <div className="flex items-center gap-2">
                 <DateRangePicker
-                    value={filters.dateRange}
-                    onValueChange={handleDateChange}
+                    date={filters.dateRange}
+                    onDateChange={handleDateChange}
                     className="w-full"
                 />
                 <Button variant="ghost" size="icon" onClick={clearFilters}>

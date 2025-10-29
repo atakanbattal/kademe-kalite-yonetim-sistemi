@@ -22,7 +22,6 @@ import React, { useEffect, useState } from 'react';
             let queryError = null;
 
             try {
-                console.log('🔍 PrintableReport - Fetching:', { type, id, hasUrlSearch: !!location.search });
                 const urlParams = new URLSearchParams(location.search);
                 const useUrlParams = urlParams.get('useUrlParams') === 'true';
 
@@ -248,9 +247,7 @@ import React, { useEffect, useState } from 'react';
 
         useEffect(() => {
             if (data) {
-                console.log('📊 PrintableReport - Data received:', { type, dataExists: !!data, dataKeys: Object.keys(data || {}) });
                 const html = generatePrintableReportHtml(data, type);
-                console.log('📄 PrintableReport - HTML generated:', { htmlLength: html?.length, htmlPreview: html?.substring(0, 100) });
                 setReportHtml(html);
                 const timeoutId = setTimeout(() => {
                      if (window.location.search.includes('autoprint=true')) {
@@ -258,8 +255,6 @@ import React, { useEffect, useState } from 'react';
                      }
                 }, 500);
                 return () => clearTimeout(timeoutId);
-            } else {
-                console.log('⚠️ PrintableReport - No data yet');
             }
         }, [data, type]);
         

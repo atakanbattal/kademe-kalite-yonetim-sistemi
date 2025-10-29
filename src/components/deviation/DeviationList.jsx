@@ -2,12 +2,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreVertical, Edit, Eye, Trash2, CheckSquare } from 'lucide-react';
+import { MoreVertical, Edit, Eye, Trash2, CheckSquare, AlertOctagon } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 
-const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove }) => {
+const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove, onCreateNC }) => {
     
     const getStatusVariant = (status) => {
         switch (status) {
@@ -70,6 +70,12 @@ const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove }) => {
                                                 <CheckSquare className="mr-2 h-4 w-4" />
                                                 <span>Onay Süreci</span>
                                             </DropdownMenuItem>
+                                            {onCreateNC && (
+                                                <DropdownMenuItem onClick={() => onCreateNC(d)}>
+                                                    <AlertOctagon className="mr-2 h-4 w-4" />
+                                                    <span>Uygunsuzluk Oluştur</span>
+                                                </DropdownMenuItem>
+                                            )}
                                             <DropdownMenuItem onClick={() => onEdit(d)}>
                                                 <Edit className="mr-2 h-4 w-4" />
                                                 <span>Düzenle</span>
