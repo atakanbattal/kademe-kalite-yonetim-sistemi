@@ -71,9 +71,9 @@ const StockRiskDetailModal = ({
                 <DialogHeader>
                     <DialogTitle>Stok Risk Kontrolü Detayları</DialogTitle>
                     <DialogDescription>
-                        Kontrol No: {record.control_number} • Tarih:{' '}
+                        Ürün: {record.part_code || '-'} • Tarih:{' '}
                         {format(
-                            new Date(record.control_date || record.created_at),
+                            new Date(record.created_at),
                             'dd MMMM yyyy',
                             { locale: tr }
                         )}
@@ -83,7 +83,7 @@ const StockRiskDetailModal = ({
                 <Tabs defaultValue="basic" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="basic">Temel Bilgiler</TabsTrigger>
-                        <TabsTrigger value="details">Risk Detayları</TabsTrigger>
+                        <TabsTrigger value="details">Kontrol Sonuçları</TabsTrigger>
                         <TabsTrigger value="report">Rapor</TabsTrigger>
                     </TabsList>
 
@@ -96,66 +96,74 @@ const StockRiskDetailModal = ({
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label className="text-gray-600">Kontrol Numarası</Label>
-                                        <p className="font-medium">{record.control_number || '-'}</p>
+                                        <Label className="text-gray-600">Parça Kodu</Label>
+                                        <p className="font-medium">{record.part_code || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Ürün / Lot</Label>
-                                        <p className="font-medium">{record.product_lot || '-'}</p>
+                                        <Label className="text-gray-600">Parça Adı</Label>
+                                        <p className="font-medium">{record.part_name || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Risk Türü</Label>
-                                        <p className="font-medium">{record.risk_type || '-'}</p>
+                                        <Label className="text-gray-600">Tedarikçi</Label>
+                                        <p className="font-medium">{record.supplier?.name || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Risk Seviyesi</Label>
-                                        <div>{getRiskBadge(record.risk_level)}</div>
+                                        <Label className="text-gray-600">Karar</Label>
+                                        <p className="font-medium">{record.decision || '-'}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Tespit Tarihi</Label>
+                                        <Label className="text-gray-600">Kontrol Tarihi</Label>
                                         <p className="font-medium">
                                             {format(
-                                                new Date(record.control_date || record.created_at),
-                                                'dd.MM.yyyy'
+                                                new Date(record.created_at),
+                                                'dd.MM.yyyy HH:mm'
                                             )}
                                         </p>
                                     </div>
                                     <div>
-                                        <Label className="text-gray-600">Durum</Label>
-                                        <p className="font-medium">{record.status || 'Açık'}</p>
+                                        <Label className="text-gray-600">Kontrol Eden</Label>
+                                        <p className="font-medium">{record.controlled_by?.full_name || '-'}</p>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    {/* TAB 2: RİSK DETAYLARI */}
+                    {/* TAB 2: KONTROL SONUÇLARI */}
                     <TabsContent value="details" className="space-y-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Risk ve İşlemler</CardTitle>
+                                <CardTitle>Kontrol Sonuçları</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {record.risk_description && (
-                                    <div>
-                                        <Label className="text-gray-600">Risk Açıklaması</Label>
-                                        <p className="font-medium whitespace-pre-wrap">
-                                            {record.risk_description}
-                                        </p>
-                                    </div>
+                                {record.results && Array.isArray(record.results) && record.results.length > 0 ? (
+                                    <table className="w-full border-collapse border border-gray-300">
+                                        <thead>
+                                            <tr className="bg-gray-50">
+                                                <th className="border p-2 text-left">Ölçüm Türü</th>
+                                                <th className="border p-2 text-left">Değer</th>
+                                                <th className="border p-2 text-left">Sonuç</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {record.results.map((result, index) => (
+                                                <tr key={index}>
+                                                    <td className="border p-2">{result.measurement_type || '-'}</td>
+                                                    <td className="border p-2">{result.value || '-'}</td>
+                                                    <td className="border p-2">{result.result || '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p className="text-muted-foreground">Kontrol sonucu kaydı bulunamadı.</p>
                                 )}
-                                {record.actions_taken && (
+                                {record.notes && (
                                     <div>
-                                        <Label className="text-gray-600">Alınan İşlemler</Label>
+                                        <Label className="text-gray-600">Notlar</Label>
                                         <p className="font-medium whitespace-pre-wrap">
-                                            {record.actions_taken}
+                                            {record.notes}
                                         </p>
-                                    </div>
-                                )}
-                                {record.responsible_person && (
-                                    <div>
-                                        <Label className="text-gray-600">Sorumlu Personel</Label>
-                                        <p className="font-medium">{record.responsible_person}</p>
                                     </div>
                                 )}
                             </CardContent>
