@@ -113,24 +113,31 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             setUploadModalOpen(true);
         };
 
-        const handleViewPdf = (revision, title) => {
+        const handleViewPdf = async (revision, title) => {
             const filePath = revision?.attachments?.[0]?.path;
-             if (!filePath) {
-                 toast({ variant: 'destructive', title: 'Hata', description: 'Görüntülenecek dosya yolu bulunamadı.' });
+            if (!filePath) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Görüntülenecek dosya yolu bulunamadı.' });
                 return;
             }
-            // Use createSignedUrl instead of getPublicUrl for temporary access
-            supabase.storage.from(BUCKET_NAME).createSignedUrl(filePath, 3600).then(({ data, error }) => {
+            
+            try {
+                // Download file as blob
+                const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
                 if (error) {
                     toast({ variant: 'destructive', title: 'Hata', description: `PDF görüntülenemedi: ${error.message}` });
                     return;
                 }
-                if (data?.signedUrl) {
-                    setPdfViewerState({ isOpen: true, url: data.signedUrl, title });
-                } else {
-                    toast({ variant: "destructive", title: "Hata", description: "PDF URL'si oluşturulamadı." });
-                }
-            });
+                
+                // Create blob URL for viewing in modal
+                const blob = new Blob([data], { type: 'application/pdf' });
+                const blobUrl = window.URL.createObjectURL(blob);
+                
+                // Open PDF in modal
+                setPdfViewerState({ isOpen: true, url: blobUrl, title });
+            } catch (err) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'PDF açılırken bir hata oluştu.' });
+                console.error('PDF view error:', err);
+            }
         };
 
         const currentCategory = DOCUMENT_CATEGORIES.find(c => c.value === activeTab);
