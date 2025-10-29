@@ -995,7 +995,7 @@ const generateGenericReportHtml = (record, type) => {
 			bucket = 'deviation_attachments';
 		}
 
-		if (attachments.length > 0) {
+		if (attachments.length > 0 && type !== 'nonconformity') {
 			html += `<div class="section"><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
 			attachments.forEach(path => {
 				const url = getAttachmentUrl(path, bucket);
@@ -1200,13 +1200,7 @@ const generatePrintableReportHtml = (record, type) => {
 				min-height: 0;
 			}
 			.footer {
-				position: fixed;
-				bottom: 0;
-				left: 10mm;
-				right: 10mm;
-				width: calc(100% - 20mm);
-				padding-top: 5px;
-				padding-bottom: 5px;
+				display: none !important;
 			}
 			a[href]:after { content: none !important; }
 		}

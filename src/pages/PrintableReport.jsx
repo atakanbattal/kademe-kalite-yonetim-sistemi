@@ -161,11 +161,13 @@ import React, { useEffect, useState } from 'react';
                         }
                         case 'deviation':
                         case 'quarantine':
+                        case 'nonconformity':
                         case 'equipment': {
                             const tableNameMap = {
                                 incoming_inspection: 'incoming_inspections',
                                 deviation: 'deviations',
                                 quarantine: 'quarantine_records',
+                                nonconformity: 'non_conformities',
                                 equipment: 'equipments',
                             };
                             const tableName = tableNameMap[type];
@@ -178,13 +180,14 @@ import React, { useEffect, useState } from 'react';
                                 selectQuery = '*, deviation_approvals!left(*)';
                             }
                             
-                            const { data: genericData, error: genericError } = await supabase
+                            const { data: queryData, error: queryError2 } = await supabase
                                 .from(tableName)
                                 .select(selectQuery)
                                 .eq('id', id)
                                 .maybeSingle();
-                            recordData = genericData;
-                            queryError = genericError;
+                            
+                            if (queryError2) throw queryError2;
+                            recordData = queryData;
                             break;
                         }
                         case 'kaizen': {
@@ -207,16 +210,6 @@ import React, { useEffect, useState } from 'react';
                             } else if (recordData) {
                                 recordData.team_members_profiles = [];
                             }
-                            break;
-                        }
-                        case 'nonconformity': {
-                            const { data: ncData, error: ncError } = await supabase
-                                .from('non_conformities_with_details')
-                                .select('*')
-                                .eq('id', id)
-                                .maybeSingle();
-                            recordData = ncData;
-                            queryError = ncError;
                             break;
                         }
                         case 'exam_paper': {

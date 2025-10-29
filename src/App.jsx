@@ -273,7 +273,11 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
           if (ncFormState.onSaveSuccess) ncFormState.onSaveSuccess(savedRecord);
       };
 
-      const handleDownloadPDF = (record, type) => openPrintableReportUtil(record, type);
+      const handleDownloadPDF = (record, type) => {
+          // For types that need full record data, use URL params
+          const useUrlParams = ['nonconformity', 'incoming_inspection', 'deviation', 'kaizen', 'quarantine', 'sheet_metal_entry'].includes(type);
+          openPrintableReportUtil(record, type, useUrlParams);
+      };
       
       const renderModule = (modulePath) => {
           const [module] = modulePath.split('/');
