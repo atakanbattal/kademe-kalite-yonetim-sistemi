@@ -140,13 +140,10 @@ const ControlPlanDetailModal = ({
                                                         Tip
                                                     </th>
                                                     <th className="border p-2 text-left font-semibold">
-                                                        Ölçüm Yöntemi
+                                                        Tolerans Sınıfı
                                                     </th>
                                                     <th className="border p-2 text-center font-semibold">
-                                                        Örnek Boyutu
-                                                    </th>
-                                                    <th className="border p-2 text-center font-semibold">
-                                                        AQL
+                                                        Yön
                                                     </th>
                                                 </tr>
                                             </thead>
@@ -155,19 +152,16 @@ const ControlPlanDetailModal = ({
                                                     <tr key={idx} className="border hover:bg-gray-50">
                                                         <td className="border p-2">{idx + 1}</td>
                                                         <td className="border p-2">
-                                                            {item.characteristic_label || '-'}
+                                                            Nominal: {item.nominal_value || '-'} | Min: {item.min_value || '-'} | Max: {item.max_value || '-'}
                                                         </td>
                                                         <td className="border p-2">
                                                             {item.characteristic_type || '-'}
                                                         </td>
                                                         <td className="border p-2">
-                                                            {item.equipment_label || '-'}
+                                                            {item.tolerance_class || '-'}
                                                         </td>
                                                         <td className="border p-2 text-center">
-                                                            {item.sample_size || '-'}
-                                                        </td>
-                                                        <td className="border p-2 text-center">
-                                                            {item.aql || '-'}
+                                                            {item.tolerance_direction || '±'}
                                                         </td>
                                                     </tr>
                                                 ))}
