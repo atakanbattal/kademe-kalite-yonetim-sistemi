@@ -347,26 +347,16 @@ const IncomingInspectionDetailModal = ({
                         enrichedInspection.defects.length > 0 ? (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-base">
-                                        Tespit Edilen Kusurlar
-                                    </CardTitle>
+                                    <CardTitle>Tespit Edilen Hatalar</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-2">
                                         {enrichedInspection.defects.map(
                                             (defect, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="flex items-start gap-2 p-2 bg-red-50 rounded border border-red-200"
-                                                >
-                                                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                                                    <div className="flex-1">
-                                                        <p className="font-medium text-sm">
-                                                            {defect.defect_type}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {defect.description}
-                                                        </p>
+                                                <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded">
+                                                    <div>
+                                                        <div className="font-semibold">{defect.defect_type}</div>
+                                                        <div className="text-sm text-muted-foreground">{defect.description}</div>
                                                     </div>
                                                 </div>
                                             )
