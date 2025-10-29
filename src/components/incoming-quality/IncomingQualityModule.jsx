@@ -52,7 +52,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         searchTerm: '',
         dateRange: { from: null, to: null },
         decision: 'all',
-        supplierId: 'all',
+        supplier: 'all',
         controlPlanStatus: 'all',
     });
 
@@ -70,8 +70,8 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         if (currentFilters.decision !== 'all') {
             query = query.eq('decision', currentFilters.decision);
         }
-        if (currentFilters.supplierId !== 'all') {
-            query = query.eq('supplier_id', currentFilters.supplierId);
+        if (currentFilters.supplier !== 'all' && currentFilters.supplier) {
+            query = query.eq('supplier_id', currentFilters.supplier);
         }
         if (currentFilters.controlPlanStatus !== 'all') {
             const partCodesWithPlan = (incomingControlPlans || []).map(p => p.part_code);

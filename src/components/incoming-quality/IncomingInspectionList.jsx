@@ -39,24 +39,24 @@ import React from 'react';
                     <div className="space-y-4">
                         <div>
                             <Label>Tedarikçi</Label>
-                            <Select value={filters.supplier || ''} onValueChange={(val) => setFilters(prev => ({...prev, supplier: val || null}))}>
+                            <Select value={filters.supplier || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, supplier: val === 'all' ? null : val}))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Tümü" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Tümü</SelectItem>
+                                    <SelectItem value="all">Tümü</SelectItem>
                                     {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div>
                             <Label>Kontrol Planı Durumu</Label>
-                            <Select value={filters.controlPlanStatus || ''} onValueChange={(val) => setFilters(prev => ({...prev, controlPlanStatus: val || null}))}>
+                            <Select value={filters.controlPlanStatus || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, controlPlanStatus: val === 'all' ? null : val}))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Tümü" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Tümü</SelectItem>
+                                    <SelectItem value="all">Tümü</SelectItem>
                                     <SelectItem value="Mevcut">Mevcut</SelectItem>
                                     <SelectItem value="Mevcut Değil">Mevcut Değil</SelectItem>
                                 </SelectContent>
@@ -64,12 +64,12 @@ import React from 'react';
                         </div>
                         <div>
                             <Label>Karar</Label>
-                            <Select value={filters.decision || ''} onValueChange={(val) => setFilters(prev => ({...prev, decision: val || null}))}>
+                            <Select value={filters.decision || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, decision: val === 'all' ? null : val}))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Tümü" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Tümü</SelectItem>
+                                    <SelectItem value="all">Tümü</SelectItem>
                                     <SelectItem value="Kabul">Kabul</SelectItem>
                                     <SelectItem value="Şartlı Kabul">Şartlı Kabul</SelectItem>
                                     <SelectItem value="Ret">Ret</SelectItem>
