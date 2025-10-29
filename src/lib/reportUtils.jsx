@@ -459,19 +459,13 @@ const generateGenericReportHtml = (record, type) => {
 	const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 	const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
 
-	const getAttachmentUrl = async (path, bucket) => {
+	const getAttachmentUrl = (path, bucket) => {
 		if (typeof path === 'object' && path !== null && path.path) {
 			path = path.path;
 		}
 		if (typeof path !== 'string') return '';
-		try {
-			const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
-			if (error || !data?.signedUrl) return '';
-			return data.signedUrl;
-		} catch (err) {
-			console.error('Error getting signed URL:', err);
-			return '';
-		}
+		// Supabase public storage URL (CDN)
+		return `https://rqnvoatirfczpklaamhf.supabase.co/storage/v1/object/public/${bucket}/${path}`;
 	};
 
 	const getDocumentNumber = () => {
@@ -995,7 +989,7 @@ const generateGenericReportHtml = (record, type) => {
 			bucket = 'deviation_attachments';
 		}
 
-		if (attachments.length > 0 && type !== 'nonconformity') {
+		if (attachments.length > 0) {
 			html += `<div class="section"><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
 			attachments.forEach(path => {
 				const url = getAttachmentUrl(path, bucket);
@@ -1113,14 +1107,14 @@ const generatePrintableReportHtml = (record, type) => {
 			min-height: calc(297mm - 30mm - 40px); /* A4 height - padding - footer */
 		}
 		
-		.report-header { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; }
+		.report-header { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; page-break-inside: avoid; }
 		.report-logo img { height: 50px; }
 .company-title { text-align: center; }
 		.company-title h1 { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
 		.company-title p { font-size: 12px; margin: 0; color: #4b5563; }
 		.print-info { text-align: right; font-size: 9px; color: #4b5563; }
 
-		.meta-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; background-color: #f3f4f6; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e5e7eb; }
+		.meta-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; background-color: #f3f4f6; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e5e7eb; page-break-inside: avoid; }
 		.meta-item { font-size: 9px; color: #374151; }
 		.meta-item strong { color: #111827; }
 
@@ -1183,7 +1177,7 @@ const generatePrintableReportHtml = (record, type) => {
 		.attachment-file a { text-decoration: none; color: #2563eb; word-break: break-all; }
 
 		@media print {
-			* {
+aktif et			* {
 				margin: 0 !important;
 				padding: 0 !important;
 			}
