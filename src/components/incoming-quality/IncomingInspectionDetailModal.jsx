@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -36,6 +36,53 @@ const IncomingInspectionDetailModal = ({
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
     const [enrichedInspection, setEnrichedInspection] = useState(inspection);
+    const [riskyStockData, setRiskyStockData] = useState(null);
+    const [checkingRiskyStock, setCheckingRiskyStock] = useState(false);
+
+    // Check for risky stock when modal opens
+    useEffect(() => {
+        if (!isOpen || !inspection || !inspection.part_code) return;
+        
+        const checkRiskyStock = async () => {
+            setCheckingRiskyStock(true);
+            try {
+                // Bu part_code'dan daha önce kabul edilen kayıtları kontrol et
+                const { data: previousAccepted, error } = await supabase
+                    .from('incoming_inspections')
+                    .select('id, record_no, inspection_date, supplier:suppliers(name), quantity_accepted')
+                    .eq('part_code', inspection.part_code)
+                    .eq('decision', 'Kabul')
+                    .neq('id', inspection.id)
+                    .order('inspection_date', { ascending: false });
+                
+                if (error) {
+                    console.error('Risky stock check error:', error);
+                    setRiskyStockData(null);
+                } else if (previousAccepted && previousAccepted.length > 0) {
+                    // Stok riski bulundu
+                    const totalQuantity = previousAccepted.reduce((sum, item) => sum + (item.quantity_accepted || 0), 0);
+                    setRiskyStockData({
+                        previous_count: totalQuantity,
+                        previous_items: previousAccepted.map(item => ({
+                            record_no: item.record_no,
+                            supplier_name: item.supplier?.name || 'Bilinmeyen',
+                            inspection_date: item.inspection_date,
+                            quantity_accepted: item.quantity_accepted
+                        }))
+                    });
+                } else {
+                    setRiskyStockData(null);
+                }
+            } catch (err) {
+                console.error('Risky stock check exception:', err);
+                setRiskyStockData(null);
+            } finally {
+                setCheckingRiskyStock(false);
+            }
+        };
+        
+        checkRiskyStock();
+    }, [isOpen, inspection]);
 
     // Ölçüm numaralarını kontrol planından regenerate et
     React.useEffect(() => {
@@ -514,7 +561,7 @@ const IncomingInspectionDetailModal = ({
                             </CardContent>
                         </Card>
                         {/* STOK KONTROL UYARISI */}
-                        {enrichedInspection.stock_risk_alert && (
+                        {riskyStockData && (
                             <Card className="border-red-200 bg-red-50">
                                 <CardHeader>
                                     <CardTitle className="text-red-700 flex items-center gap-2">
@@ -524,12 +571,12 @@ const IncomingInspectionDetailModal = ({
                                 </CardHeader>
                                 <CardContent className="space-y-3">
                                     <p className="text-red-700 font-semibold">
-                                        Bu parça kodundan ({enrichedInspection.part_code}) daha önce {enrichedInspection.stock_risk_alert.previous_count || 0} adet stok bulunuyor!
+                                        Bu parça kodundan ({enrichedInspection.part_code}) daha önce {riskyStockData.previous_count || 0} adet stok bulunuyor!
                                     </p>
                                     <div className="bg-white border border-red-200 rounded p-3 max-h-[200px] overflow-y-auto">
                                         <h4 className="font-semibold text-sm mb-2 text-red-700">Önceki Kabul Edilen Partiler:</h4>
                                         <ul className="space-y-1 text-xs">
-                                            {enrichedInspection.stock_risk_alert.previous_items?.map((item, idx) => (
+                                            {riskyStockData.previous_items?.map((item, idx) => (
                                                 <li key={idx} className="text-gray-700">
                                                     • Kayıt No: <strong>{item.record_no}</strong> | 
                                                     Tedarikçi: <strong>{item.supplier_name || 'Bilinmeyen'}</strong> | 
