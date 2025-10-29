@@ -36,6 +36,8 @@ const StockRiskControlList = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [selectedControl, setSelectedControl] = useState(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [selectedStockRiskDetail, setSelectedStockRiskDetail] = useState(null);
 
     const filteredControls = useMemo(() => {
         if (!stockRiskControls) return [];
@@ -86,6 +88,15 @@ const StockRiskControlList = () => {
         }
         setIsDeleteDialogOpen(false);
         setSelectedControl(null);
+    };
+
+    const handleViewRecord = (record) => {
+        setSelectedStockRiskDetail(record);
+        setIsDetailModalOpen(true);
+    };
+
+    const handleDownloadDetailPDF = (enrichedData) => {
+        openPrintableReport(enrichedData, 'stock_risk_controls', true);
     };
 
 
