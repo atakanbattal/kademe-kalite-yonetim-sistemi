@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { v4 as uuidv4 } from 'uuid';
-import { useData } from '@/hooks/useData';
+import { useData } from '@/contexts/DataContext';
 
 const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) => {
     const { toast } = useToast();
