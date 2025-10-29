@@ -226,13 +226,14 @@ const InkrManagement = ({ onViewPdf }) => {
                             <tr><td colSpan="6" className="text-center py-8">INKR raporu bulunamadı.</td></tr>
                         ) : (
                             reports.map((report, index) => (
-                                <motion.tr 
+                                <tr 
                                     key={report.id} 
-                                    initial={{ opacity: 0 }} 
-                                    animate={{ opacity: 1 }} 
-                                    transition={{ delay: index * 0.05 }}
                                     onClick={() => handleViewRecord(report)}
-                                    className="cursor-pointer hover:bg-muted/50"
+                                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                    style={{
+                                        opacity: 0,
+                                        animation: `fadeIn 0.3s ease-in forwards ${index * 0.05}s`
+                                    }}
                                 >
                                     <td className="font-medium text-foreground">{report.part_code}</td>
                                     <td className="text-foreground">{report.part_name}</td>
@@ -247,7 +248,7 @@ const InkrManagement = ({ onViewPdf }) => {
                                         <Button variant="ghost" size="icon" onClick={() => handleViewRecord(report)}><FileText className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(report.id)}><Trash2 className="h-4 w-4" /></Button>
                                     </td>
-                                </motion.tr>
+                                </tr>
                             ))
                         )}
                     </tbody>

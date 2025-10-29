@@ -858,6 +858,8 @@ case 'stock_risk_controls':
                 <tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
                 <tr><td>Parça Adı</td><td>${record.part_name || '-'}</td></tr>
                 <tr><td>Tedarikçi</td><td>${record.supplier?.name || '-'}</td></tr>
+                <tr><td>Kaynak GKK No</td><td>${record.source_inspection?.record_no || '-'}</td></tr>
+                <tr><td>Kontrol Edilen GKK No</td><td>${record.controlled_inspection?.record_no || '-'}</td></tr>
                 <tr><td>Karar</td><td><strong style="color: ${color}; font-size: 1.1em;">${record.decision || '-'}</strong></td></tr>
                 <tr><td>Kontrol Tarihi</td><td>${formatDateHelper(record.created_at)}</td></tr>
                 <tr><td>Kontrol Eden</td><td>${record.controlled_by?.full_name || '-'}</td></tr>
