@@ -89,7 +89,8 @@ const StockRiskControlList = () => {
     };
 
 
-    <>
+    return (
+        <>
                 <StockRiskDetailModal
                     isOpen={isDetailModalOpen}
                     setIsOpen={setIsDetailModalOpen}
