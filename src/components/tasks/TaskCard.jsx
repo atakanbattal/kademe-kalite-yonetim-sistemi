@@ -70,7 +70,8 @@ const TaskCard = ({ task, onEditTask, onViewTask }) => {
     };
 
     const assignee = task.assignees && task.assignees.length > 0 ? task.assignees[0].personnel : null;
-    const overdue = isOverdue(task.due_date);
+    // Tamamlanan görevlerde overdue gösterme
+    const overdue = task.status === 'Tamamlandı' ? false : isOverdue(task.due_date);
     const formattedDate = formatFullDate(task.due_date);
 
     return (
