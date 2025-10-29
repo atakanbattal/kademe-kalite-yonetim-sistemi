@@ -224,13 +224,20 @@ const InkrManagement = ({ onViewPdf }) => {
                             <tr><td colSpan="6" className="text-center py-8">INKR raporu bulunamadı.</td></tr>
                         ) : (
                             reports.map((report, index) => (
-                                <motion.tr key={report.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }}>
+                                <motion.tr 
+                                    key={report.id} 
+                                    initial={{ opacity: 0 }} 
+                                    animate={{ opacity: 1 }} 
+                                    transition={{ delay: index * 0.05 }}
+                                    onClick={() => handleViewRecord(report)}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                >
                                     <td className="font-medium text-foreground">{report.part_code}</td>
                                     <td className="text-foreground">{report.part_name}</td>
                                     <td className="text-muted-foreground">{report.supplier?.name || '-'}</td>
                                     <td className="text-muted-foreground">{new Date(report.report_date).toLocaleDateString('tr-TR')}</td>
                                     <td><Badge variant={getStatusVariant(report.status)}>{report.status}</Badge></td>
-                                    <td className="flex gap-2">
+                                    <td className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                         {report.file_path && (
                                             <Button variant="ghost" size="icon" onClick={() => onViewPdf(report.file_path)}><Eye className="h-4 w-4" /></Button>
                                         )}
