@@ -513,6 +513,38 @@ const IncomingInspectionDetailModal = ({
                                 </div>
                             </CardContent>
                         </Card>
+                        {/* STOK KONTROL UYARISI */}
+                        {enrichedInspection.stock_risk_alert && (
+                            <Card className="border-red-200 bg-red-50">
+                                <CardHeader>
+                                    <CardTitle className="text-red-700 flex items-center gap-2">
+                                        <AlertCircle className="h-5 w-5" />
+                                        DIKKAT - POTANSİYEL RİSKLİ STOK KONTROLÜ GEREKLİ!
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <p className="text-red-700 font-semibold">
+                                        Bu parça kodundan ({enrichedInspection.part_code}) daha önce {enrichedInspection.stock_risk_alert.previous_count || 0} adet stok bulunuyor!
+                                    </p>
+                                    <div className="bg-white border border-red-200 rounded p-3 max-h-[200px] overflow-y-auto">
+                                        <h4 className="font-semibold text-sm mb-2 text-red-700">Önceki Kabul Edilen Partiler:</h4>
+                                        <ul className="space-y-1 text-xs">
+                                            {enrichedInspection.stock_risk_alert.previous_items?.map((item, idx) => (
+                                                <li key={idx} className="text-gray-700">
+                                                    • Kayıt No: <strong>{item.record_no}</strong> | 
+                                                    Tedarikçi: <strong>{item.supplier_name || 'Bilinmeyen'}</strong> | 
+                                                    Tarih: <strong>{format(new Date(item.inspection_date), 'dd.MM.yyyy')}</strong> | 
+                                                    Miktar: <strong>{item.quantity_accepted} adet</strong>
+                                                </li>
+                                            )) || []}
+                                        </ul>
+                                    </div>
+                                    <p className="text-yellow-700 text-sm italic">
+                                        💡 Tavsiye: Eski stokların kontrol edilip tüketilmesini veya yönetilmesini dikkate alın.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        )}
 
                         <Card>
                             <CardHeader>
