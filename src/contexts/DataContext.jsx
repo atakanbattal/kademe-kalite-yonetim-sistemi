@@ -80,7 +80,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                 materialCostSettings: supabase.from('material_costs').select('*'),
                 producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)'),
                 productionDepartments: supabase.from('production_departments').select('*'),
-                nonConformities: supabase.from('non_conformities_with_details').select('*'),
+                nonConformities: supabase.from('non_conformities').select('*'),
                 suppliers: supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)'),
                 supplierNonConformities: supabase.from('supplier_non_conformities').select('*'),
                 audits: supabase.from('audits').select('*, department:cost_settings(id, unit_name)'),

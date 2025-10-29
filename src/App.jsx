@@ -172,7 +172,45 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
         }, [toast]);
         
         const handleOpenNCForm = useCallback((record, onSaveSuccessCallback) => setNcFormState({ isOpen: true, record, onSaveSuccess: onSaveSuccessCallback }), []);
-        const handleOpenNCView = useCallback((record) => setNcViewState({ isOpen: true, record }), []);
+        const handleOpenNCView = useCallback(async (record) => {
+            try {
+                // Fetch full record with all data
+                const { data: fullRecord, error: fetchError } = await supabase
+                    .from('non_conformities')
+                    .select('*')
+                    .eq('id', record.id)
+                    .single();
+                
+                if (fetchError) {
+                    toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk detayları alınamadı.' });
+                    return;
+                }
+                
+                // Fetch related audit info if exists
+                let auditData = null;
+                if (fullRecord?.source_audit_id) {
+                    const { data: audit, error: auditError } = await supabase
+                        .from('audits')
+                        .select('id, report_number, title, audit_date')
+                        .eq('id', fullRecord.source_audit_id)
+                        .single();
+                    if (!auditError && audit) {
+                        auditData = audit;
+                    }
+                }
+                
+                // Enrich record with audit title
+                const enrichedRecord = {
+                    ...fullRecord,
+                    audit_title: auditData?.title || fullRecord.audit_title || null
+                };
+                
+                setNcViewState({ isOpen: true, record: enrichedRecord });
+            } catch (err) {
+                console.error('Error opening NC view:', err);
+                toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk açılırken hata oluştu.' });
+            }
+        }, [toast]);
 
         const handleSaveNC = async (formData, files) => {
           const isEditMode = !!formData.id;
