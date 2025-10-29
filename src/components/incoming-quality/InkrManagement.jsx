@@ -194,7 +194,7 @@ const InkrManagement = ({ onViewPdf }) => {
             <InkrFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} existingReport={selectedReport} refreshReports={fetchReports} />
             <InkrDetailModal
                 isOpen={isDetailModalOpen}
-                onClose={() => setIsDetailModalOpen(false)}
+                setIsOpen={setIsDetailModalOpen}
                 report={selectedInkrDetail}
                 onDownloadPDF={handleDownloadDetailPDF}
             />

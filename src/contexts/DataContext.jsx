@@ -99,7 +99,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                 questions: supabase.from('supplier_audit_questions').select('*'),
                 kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
                 auditLogs: supabase.from('audit_log_entries').select('*').order('created_at', { ascending: false }).limit(200),
-                stockRiskControls: supabase.from('stock_risk_controls').select('*, source_inspection:source_inspection_id(record_no, inspection_date), controlled_inspection:controlled_inspection_id(record_no, inspection_date), supplier:supplier_id(name), controlled_by:controlled_by_id(full_name)')
+                stockRiskControls: supabase.from('stock_risk_controls').select('*, source_inspection:source_inspection_id!left(record_no, inspection_date), controlled_inspection:controlled_inspection_id!left(record_no, inspection_date), supplier:supplier_id!left(name), controlled_by:controlled_by_id!left(full_name)')
             };
 
             try {
