@@ -290,7 +290,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         suppliers={suppliers}
                         filters={filters}
                         setFilters={setFilters}
-                        onOpenControlPlanForm={() => setControlPlanModalOpen(true)}
                         page={currentPage}
                         setPage={handlePageChange}
                         totalCount={totalCount}
@@ -304,7 +303,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                     />
                 </TabsContent>
                 <TabsContent value="control-plans">
-                    <ControlPlanManagement onViewPdf={(path) => handleViewPdf(path, 'incoming_control')} isOpen={isControlPlanModalOpen} setIsOpen={setControlPlanModalOpen} />
+                    <ControlPlanManagement onViewPdf={(path) => handleViewPdf(path, 'incoming_control')} />
                 </TabsContent>
                 <TabsContent value="inkr">
                     <InkrManagement onViewPdf={(path) => handleViewPdf(path, 'incoming_control')} />
