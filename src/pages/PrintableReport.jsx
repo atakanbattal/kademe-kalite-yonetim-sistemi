@@ -26,19 +26,21 @@ import React, { useEffect, useState } from 'react';
                 const storageKey = urlParams.get('storageKey');
                 const useUrlParams = urlParams.get('useUrlParams') === 'true';
 
-                // Önce sessionStorage'dan kontrol et
+                // Önce localStorage'dan kontrol et (tab'ler arası çalışır)
                 if (storageKey) {
-                    const storedData = sessionStorage.getItem(storageKey);
+                    const storedData = localStorage.getItem(storageKey);
                     if (storedData) {
                         try {
                             recordData = JSON.parse(storedData);
-                            console.log('✅ Rapor verisi sessionStorage\'dan başarıyla okundu:', storageKey);
+                            console.log('✅ Rapor verisi localStorage\'dan başarıyla okundu:', storageKey);
+                            // Veri okunduktan hemen sonra temizle (tekrar kullanılmasın)
+                            localStorage.removeItem(storageKey);
                         } catch (e) {
-                            console.error('SessionStorage verisi okunurken hata:', e);
+                            console.error('localStorage verisi okunurken hata:', e);
                             throw new Error('Rapor verisi okunamadı. Lütfen tekrar deneyin.');
                         }
                     } else {
-                        throw new Error('Rapor verisi bulunamadı. Oturum süresi dolmuş olabilir.');
+                        throw new Error('Rapor verisi bulunamadı. Lütfen sayfayı yenileyerek tekrar deneyin.');
                     }
                 } else if (useUrlParams) {
                     // Fallback: Eski URL params yöntemi (geriye dönük uyumluluk)

@@ -26,12 +26,12 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 	
 	if (useUrlParams) {
 		try {
-			// SessionStorage kullanarak URL limitini aş
+			// localStorage kullanarak URL limitini aş (tab'ler arası çalışır)
 			// Benzersiz bir key oluştur
 			const storageKey = `report_${type}_${reportId}_${Date.now()}`;
 			
-			// Veriyi sessionStorage'a kaydet
-			sessionStorage.setItem(storageKey, JSON.stringify(record));
+			// Veriyi localStorage'a kaydet
+			localStorage.setItem(storageKey, JSON.stringify(record));
 			
 			// Sadece storage key'ini URL'de gönder
 			const params = new URLSearchParams({
@@ -45,10 +45,10 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 			if (reportWindow) {
 				reportWindow.focus();
 				
-				// PDF yüklendikten sonra sessionStorage'ı temizle (5 saniye sonra)
+				// PDF yüklendikten sonra localStorage'ı temizle (10 saniye sonra)
 				setTimeout(() => {
-					sessionStorage.removeItem(storageKey);
-				}, 5000);
+					localStorage.removeItem(storageKey);
+				}, 10000);
 			}
 		} catch (error) {
 			console.error("Error storing report data:", error);
