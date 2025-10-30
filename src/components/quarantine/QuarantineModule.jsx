@@ -87,9 +87,24 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           return;
         }
         
+        // Sadece gerekli alanları seç (resim URL'leri ve gereksiz alanları çıkar)
+        const lightweightRecords = activeQuarantineRecords.map(r => ({
+          id: r.id,
+          quarantine_date: r.quarantine_date,
+          part_code: r.part_code,
+          part_name: r.part_name,
+          lot_no: r.lot_no,
+          quantity: r.quantity,
+          unit: r.unit,
+          reason: r.reason,
+          source_department: r.source_department,
+          status: r.status,
+          notes: r.notes,
+        }));
+        
         const reportData = {
           title: 'Aktif Karantina Raporu',
-          items: activeQuarantineRecords,
+          items: lightweightRecords,
           id: `quarantine-active-${new Date().toISOString()}`
         };
         // quarantine_list için useUrlParams=true (liste verilerini URL'de gönder)
