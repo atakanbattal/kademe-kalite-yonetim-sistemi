@@ -29,10 +29,28 @@ const EquipmentModule = () => {
 
         if (searchTerm) {
             const lowerSearchTerm = searchTerm.toLowerCase();
-            filtered = filtered.filter(eq => 
-                eq.name.toLowerCase().includes(lowerSearchTerm) ||
-                eq.serial_number.toLowerCase().includes(lowerSearchTerm)
-            );
+            filtered = filtered.filter(eq => {
+                // Temel ekipman bilgileri
+                const nameMatch = eq.name?.toLowerCase().includes(lowerSearchTerm);
+                const serialMatch = eq.serial_number?.toLowerCase().includes(lowerSearchTerm);
+                const brandMatch = eq.brand_model?.toLowerCase().includes(lowerSearchTerm);
+                const locationMatch = eq.location?.toLowerCase().includes(lowerSearchTerm);
+                const unitMatch = eq.responsible_unit?.toLowerCase().includes(lowerSearchTerm);
+                const categoryMatch = eq.category?.toLowerCase().includes(lowerSearchTerm);
+                
+                // Kalibrasyon bilgileri (sertifika no)
+                const calibrationMatch = eq.equipment_calibrations?.some(cal => 
+                    cal.certificate_number?.toLowerCase().includes(lowerSearchTerm)
+                );
+                
+                // Personel bilgileri (zimmetli personel)
+                const personnelMatch = eq.equipment_assignments?.some(assign => 
+                    assign.personnel?.full_name?.toLowerCase().includes(lowerSearchTerm)
+                );
+                
+                return nameMatch || serialMatch || brandMatch || locationMatch || 
+                       unitMatch || categoryMatch || calibrationMatch || personnelMatch;
+            });
         }
 
         if (statusFilter !== 'all') {
@@ -107,7 +125,7 @@ const EquipmentModule = () => {
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Ekipman adı veya seri no ile ara..."
+                            placeholder="Ekipman, seri no, sertifika no, personel, konum vb. ile ara..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-10"
