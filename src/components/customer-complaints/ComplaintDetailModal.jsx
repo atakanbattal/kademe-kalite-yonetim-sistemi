@@ -74,7 +74,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
             // Analizler
             const { data: analysesData, error: analysesError } = await supabase
                 .from('complaint_analyses')
-                .select('*, analyzed_by:analyzed_by(full_name)')
+                .select('*')
                 .eq('complaint_id', complaint.id)
                 .order('analysis_date', { ascending: false });
 
@@ -86,8 +86,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                 .select(`
                     *,
                     responsible_person:responsible_person_id(full_name),
-                    responsible_department:responsible_department_id(unit_name),
-                    verified_by:verified_by(full_name)
+                    responsible_department:responsible_department_id(unit_name)
                 `)
                 .eq('complaint_id', complaint.id)
                 .order('created_at', { ascending: false });
@@ -97,7 +96,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
             // Dokümanlar
             const { data: documentsData, error: documentsError } = await supabase
                 .from('complaint_documents')
-                .select('*, uploaded_by:uploaded_by(full_name)')
+                .select('*')
                 .eq('complaint_id', complaint.id)
                 .order('upload_date', { ascending: false });
 

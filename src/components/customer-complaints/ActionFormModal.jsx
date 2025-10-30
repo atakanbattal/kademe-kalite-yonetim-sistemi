@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ const STATUSES = ['Planlandı', 'Devam Ediyor', 'Tamamlandı', 'İptal', 'Ertele
 
 const ActionFormModal = ({ open, setOpen, complaintId, existingAction, onSuccess }) => {
     const { toast } = useToast();
+    const { user } = useAuth();
     const { personnel, unitCostSettings } = useData();
     const isEditMode = !!existingAction;
     const [formData, setFormData] = useState({});
@@ -66,7 +68,12 @@ const ActionFormModal = ({ open, setOpen, complaintId, existingAction, onSuccess
     };
 
     const handleCheckboxChange = (id, checked) => {
-        setFormData(prev => ({ ...prev, [id]: checked }));
+        const updates = { [id]: checked };
+        // Etkinlik doğrulandığında otomatik olarak current user'ı ata
+        if (id === 'effectiveness_verified' && checked) {
+            updates.verified_by = user?.id;
+        }
+        setFormData(prev => ({ ...prev, ...updates }));
     };
 
     const handleSubmit = async (e) => {
@@ -190,15 +197,9 @@ const ActionFormModal = ({ open, setOpen, complaintId, existingAction, onSuccess
                         </div>
                         {formData.effectiveness_verified && (
                             <>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="effectiveness_verification_date">Doğrulama Tarihi</Label>
-                                        <Input id="effectiveness_verification_date" type="date" value={formData.effectiveness_verification_date || ''} onChange={handleChange} />
-                                    </div>
-                                    <div>
-                                        <Label>Doğrulayan</Label>
-                                        <SearchableSelectDialog options={personnelOptions} value={formData.verified_by || ''} onChange={(v) => handleSelectChange('verified_by', v)} triggerPlaceholder="Kişi seçin..." allowClear />
-                                    </div>
+                                <div>
+                                    <Label htmlFor="effectiveness_verification_date">Doğrulama Tarihi</Label>
+                                    <Input id="effectiveness_verification_date" type="date" value={formData.effectiveness_verification_date || ''} onChange={handleChange} />
                                 </div>
                                 <div>
                                     <Label htmlFor="effectiveness_notes">Doğrulama Notları</Label>

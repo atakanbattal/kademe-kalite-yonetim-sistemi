@@ -248,14 +248,9 @@ const AnalysisTab = ({ complaintId, analyses, onRefresh }) => {
                                             >
                                                 {ANALYSIS_TYPE_LABELS[analysis.analysis_type] || analysis.analysis_type}
                                             </Badge>
-                                            {analysis.analyzed_by && (
-                                                <span className="text-sm text-muted-foreground">
-                                                    Analizci: {analysis.analyzed_by.full_name}
-                                                </span>
-                                            )}
                                             {analysis.analysis_date && (
                                                 <span className="text-sm text-muted-foreground">
-                                                    • {new Date(analysis.analysis_date).toLocaleDateString('tr-TR')}
+                                                    {new Date(analysis.analysis_date).toLocaleDateString('tr-TR')}
                                                 </span>
                                             )}
                                         </div>

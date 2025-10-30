@@ -159,7 +159,7 @@ const DocumentsTab = ({ complaintId, documents, onRefresh }) => {
                                     <p className="text-sm text-muted-foreground mb-2">{doc.document_description}</p>
                                 )}
                                 <div className="text-xs text-muted-foreground">
-                                    {doc.uploaded_by?.full_name} • {new Date(doc.upload_date).toLocaleDateString('tr-TR')}
+                                    {new Date(doc.upload_date || doc.created_at).toLocaleDateString('tr-TR')}
                                     {doc.file_size && <> • {(doc.file_size / 1024).toFixed(1)} KB</>}
                                 </div>
                             </CardContent>
