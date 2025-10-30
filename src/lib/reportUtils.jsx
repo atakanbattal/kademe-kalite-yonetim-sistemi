@@ -26,13 +26,29 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 	
 	let reportUrl;
 	if (useUrlParams) {
-		const dataStr = btoa(encodeURIComponent(JSON.stringify(record)));
-		const params = new URLSearchParams({
-			useUrlParams: 'true',
-			data: dataStr,
-			autoprint: 'true',
-		});
-		reportUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
+		try {
+			// Veriyi encode et
+			const dataStr = btoa(encodeURIComponent(JSON.stringify(record)));
+			
+			// URL uzunluk kontrolü - tarayıcılar genelde 2000 karakter destekler, güvenli sınır 1800
+			const params = new URLSearchParams({
+				useUrlParams: 'true',
+				data: dataStr,
+				autoprint: 'true',
+			});
+			const fullUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
+			
+			// URL çok uzunsa, database fetch'e fallback yap
+			if (fullUrl.length > 1800) {
+				console.warn(`URL too long (${fullUrl.length} chars), falling back to database fetch for ${type}`);
+				reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
+			} else {
+				reportUrl = fullUrl;
+			}
+		} catch (error) {
+			console.error("Error encoding record data:", error);
+			reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
+		}
 	} else {
 		reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
 	}

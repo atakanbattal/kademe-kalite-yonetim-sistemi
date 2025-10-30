@@ -194,10 +194,18 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
   const handlePrint = () => {
     setIsPrinting(true);
     try {
+      // Attachments'ları URL'den çıkar (çok uzun URL oluşturuyorlar)
+      // PDF sayfası bunları zaten record.id ile fetch edecek
+      const { attachments, closing_attachments, ...recordWithoutAttachments } = record;
+      const lightweightRecord = {
+        ...recordWithoutAttachments,
+        supplier_name: supplierName || record.supplier_name
+      };
+      
       if (onDownloadPDF) {
-        onDownloadPDF(record, 'nonconformity');
+        onDownloadPDF(lightweightRecord, 'nonconformity');
       } else {
-         openPrintableReport(record, 'nonconformity');
+         openPrintableReport(lightweightRecord, 'nonconformity');
       }
     } catch (error) {
       console.error("PDF generation failed:", error);
