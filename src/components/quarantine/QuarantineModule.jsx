@@ -6,10 +6,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { Button } from '@/components/ui/button';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+    import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import QuarantineFormModal from '@/components/quarantine/QuarantineFormModal';
     import QuarantineDecisionModal from '@/components/quarantine/QuarantineDecisionModal';
     import CreateNCFromQuarantineModal from '@/components/quarantine/CreateNCFromQuarantineModal';
     import QuarantineViewModal from '@/components/quarantine/QuarantineViewModal';
+    import QuarantineAnalytics from '@/components/quarantine/QuarantineAnalytics';
     import { useData } from '@/contexts/DataContext';
     import { openPrintableReport } from '@/lib/reportUtils';
 
@@ -133,6 +135,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             </div>
           </div>
           
+          <Tabs defaultValue="list" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="list">Kayıt Listesi</TabsTrigger>
+              <TabsTrigger value="analytics">Analiz & İstatistikler</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="list">
           <div className="dashboard-widget">
             <div className="flex justify-between items-center mb-4">
                 <div className="search-box w-full max-w-sm">
@@ -246,6 +255,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
               </table>
             </div>
           </div>
+            </TabsContent>
+
+            <TabsContent value="analytics">
+              <QuarantineAnalytics quarantineRecords={records} />
+            </TabsContent>
+          </Tabs>
         </div>
       );
     };

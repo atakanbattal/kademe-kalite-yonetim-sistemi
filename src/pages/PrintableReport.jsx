@@ -162,6 +162,15 @@ import React, { useEffect, useState } from 'react';
                         case 'quarantine':
                         case 'nonconformity':
                         case 'equipment': {
+                            // Check if data is already provided via URL params
+                            const urlParams = new URLSearchParams(location.search);
+                            const useUrlParamsForThis = urlParams.get('useUrlParams') === 'true';
+                            
+                            if (useUrlParamsForThis && urlParams.get('data')) {
+                                // Data already fetched from URL params above
+                                break;
+                            }
+                            
                             const tableNameMap = {
                                 incoming_inspection: 'incoming_inspections',
                                 deviation: 'deviations',

@@ -301,11 +301,23 @@ export const InProgressModal = ({ isOpen, setIsOpen, record, onSave }) => {
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Kaydı İşleme Al</DialogTitle>
-                    <DialogDescription>Bu kayıt üzerinde çalışmaya başladığınızı belirtin. İsteğe bağlı olarak not ekleyebilirsiniz.</DialogDescription>
+                    <DialogDescription>Bu kayıt üzerinde çalışmaya başladığınızı belirtin ve ilerleme notlarınızı ekleyin.</DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
-                    <Label htmlFor="in_progress_notes">Açıklama (Opsiyonel)</Label>
-                    <Textarea id="in_progress_notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Yapılan çalışmalar hakkında bilgi verin..." />
+                <div className="py-4 space-y-2">
+                    <Label htmlFor="in_progress_notes" className="text-base font-semibold">
+                        İlerleme Notları & Yapılan Çalışmalar
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                        📝 Birimlerden aldığınız dönüşleri, yapılan iyileştirmeleri ve ilerleme durumunu buraya ekleyin. Bu notlar görüntüleme ekranında gösterilecektir.
+                    </p>
+                    <Textarea 
+                        id="in_progress_notes" 
+                        value={notes} 
+                        onChange={e => setNotes(e.target.value)} 
+                        placeholder="Örnek: Üretim bölümü ile görüşüldü, kök neden analizi yapıldı, düzeltici faaliyet planlandı..." 
+                        rows={6}
+                        className="resize-none"
+                    />
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>İptal</Button>

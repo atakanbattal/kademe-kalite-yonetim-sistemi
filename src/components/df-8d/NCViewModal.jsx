@@ -283,16 +283,22 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                 </div>
               </div>
               
-              {record.closing_notes && (record.status === 'İşlemde' || record.status === 'Kapatıldı') && (
+              {record.closing_notes && (
                 <>
                  <Separator />
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-3">
-                      Yapılan Çalışmalar / Kapatma Notları
+                    <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      İlerleme Notları / Yapılan Çalışmalar
                     </h3>
-                    <div className="p-4 bg-secondary/50 rounded-lg text-sm text-foreground/90 whitespace-pre-wrap">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-foreground/90 whitespace-pre-wrap">
                       {record.closing_notes}
                     </div>
+                    {record.status === 'İşlemde' && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        💡 İpucu: Bu notları düzenlemek için "Düzenle" butonuna tıklayın veya uygunsuzluğu "İşlemde" olarak güncelleyin.
+                      </p>
+                    )}
                   </div>
                 </>
               )}

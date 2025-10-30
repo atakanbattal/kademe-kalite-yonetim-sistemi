@@ -194,14 +194,18 @@ const SupplierNCTab = ({ allSuppliers, loading, onOpenNCForm, onOpenNCView }) =>
                             filteredNcs.map(nc => (
                                 <TableRow key={nc.id} className={cn(nc.delay_days > 0 && nc.status !== 'Kapatıldı' && "bg-destructive/10")}>
                                     <TableCell className="font-medium">{nc.supplier_name}</TableCell>
-                                    <TableCell>
-                                        <div className="font-mono text-primary">{nc.nc_number}</div>
+                                    <TableCell 
+                                        className="cursor-pointer hover:bg-accent/50 transition-colors" 
+                                        onClick={() => handleView(nc)}
+                                        title="Detayları görüntülemek için tıklayın"
+                                    >
+                                        <div className="font-mono text-primary font-semibold underline decoration-dotted">{nc.nc_number || nc.mdi_no || '-'}</div>
                                         <div className="text-xs text-muted-foreground">{nc.type}</div>
                                     </TableCell>
                                     <TableCell className="max-w-xs truncate">{nc.title}</TableCell>
                                     <TableCell>
-                                        <div>{nc.opening_date ? format(new Date(nc.opening_date), "dd.MM.yyyy") : '-'}</div>
-                                        <div className="text-xs text-muted-foreground">{nc.due_date ? format(new Date(nc.due_date), "dd.MM.yyyy") : '-'}</div>
+                                        <div>{nc.df_opened_at ? format(new Date(nc.df_opened_at), "dd.MM.yyyy") : (nc.created_at ? format(new Date(nc.created_at), "dd.MM.yyyy") : '-')}</div>
+                                        <div className="text-xs text-muted-foreground">{nc.due_at || nc.due_date ? format(new Date(nc.due_at || nc.due_date), "dd.MM.yyyy") : '-'}</div>
                                     </TableCell>
                                     <TableCell>{getStatusBadge(nc.status, nc.delay_days)}</TableCell>
                                     <TableCell>{nc.closure_duration_days !== null ? `${nc.closure_duration_days} gün` : '-'}</TableCell>

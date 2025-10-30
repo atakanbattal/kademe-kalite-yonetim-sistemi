@@ -64,7 +64,10 @@ const TaskBoard = ({ tasks, onEditTask, onViewTask, onUpdateStatus }) => {
     };
 
     const handleRemoveStatus = (id) => {
-        updateStatusColumns(statusColumns.filter(s => s.id !== id));
+        const statusToRemove = statusColumns.find(s => s.id === id);
+        if (confirm(`"${statusToRemove?.title || id}" durumunu silmek istediğinizden emin misiniz? Bu ayar kalıcı olarak kaydedilecektir.`)) {
+            updateStatusColumns(statusColumns.filter(s => s.id !== id));
+        }
     };
 
     const handleEditStatus = (id, newName) => {
@@ -165,10 +168,23 @@ const TaskBoard = ({ tasks, onEditTask, onViewTask, onUpdateStatus }) => {
                             </Button>
                         </div>
 
-                        {/* Bilgi */}
-                        <p className="text-xs text-muted-foreground">
-                            💡 İpucu: Alan adına tıklayarak düzenleyebilirsiniz. Alanlara sürükle-bırak ile görevleri taşıyabilirsiniz.
-                        </p>
+                        {/* Bilgi ve Sıfırlama */}
+                        <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <p className="text-xs text-muted-foreground">
+                                💡 İpucu: Alan adına tıklayarak düzenleyebilirsiniz. Alanlara sürükle-bırak ile görevleri taşıyabilirsiniz.
+                            </p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    updateStatusColumns(DEFAULT_STATUS_COLUMNS);
+                                    setShowSettings(false);
+                                }}
+                                className="text-xs"
+                            >
+                                Varsayılana Sıfırla
+                            </Button>
+                        </div>
                     </div>
                 )}
 

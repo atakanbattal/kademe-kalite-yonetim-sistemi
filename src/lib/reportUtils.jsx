@@ -852,8 +852,19 @@ const generateGenericReportHtml = (record, type) => {
 	
 	const getAdditionalSections = () => {
 		let html = '';
+		
+		// İlerleme Notları / Yapılan Çalışmalar (Tüm uygunsuzluklar için)
+		if (type === 'nonconformity' && record.closing_notes) {
+			html += `<div class="section">
+				<h2 class="section-title blue">2. İLERLEME NOTLARI / YAPILAN ÇALIŞMALAR</h2>
+				<div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px; margin-top: 10px;">
+					<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: inherit; margin: 0;">${record.closing_notes}</pre>
+				</div>
+			</div>`;
+		}
+		
 		if (type === 'nonconformity' && record.eight_d_steps) {
-			html += `<div class="section"><h2 class="section-title red">2. 8D ADIMLARI</h2>`;
+			html += `<div class="section"><h2 class="section-title red">${record.closing_notes ? '3' : '2'}. 8D ADIMLARI</h2>`;
 			Object.entries(record.eight_d_steps).forEach(([key, step]) => {
 				html += `<div class="step-section">
 					<h3 class="step-title">${key}: ${step.title || ''}</h3>
