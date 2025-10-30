@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Edit, X, FileText, Users, Calendar, Package, AlertCircle,
+    Edit, X, FileText, Users, Calendar, Package, AlertCircle, AlertTriangle,
     CheckCircle2, Clock, Download, Upload, Trash2, Plus,
     BarChart3, MessageSquare, Activity, ExternalLink
 } from 'lucide-react';
