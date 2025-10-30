@@ -119,13 +119,37 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
         const { id, value } = e.target;
         const newCalData = { ...calibrationData, [id]: value };
 
-        if (id === 'calibration_date' && formData.calibration_frequency_months) {
-            const nextDate = new Date(value);
-            nextDate.setMonth(nextDate.getMonth() + parseInt(formData.calibration_frequency_months, 10));
-            newCalData.next_calibration_date = nextDate.toISOString().slice(0, 10);
+        // Her zaman kalibrasyon tarihi ve sıklığı varsa sonraki tarihi hesapla
+        if ((id === 'calibration_date' || id === 'next_calibration_date') && value) {
+            // İlk kalibrasyon tarihi değiştiğinde veya form açıldığında hesapla
+            if (id === 'calibration_date') {
+                const nextDate = new Date(value);
+                const frequency = parseInt(formData.calibration_frequency_months, 10) || 12;
+                
+                if (!isNaN(nextDate)) {
+                    nextDate.setMonth(nextDate.getMonth() + frequency);
+                    newCalData.next_calibration_date = nextDate.toISOString().slice(0, 10);
+                }
+            }
         }
         setCalibrationData(newCalData);
     };
+
+    // Kalibrasyon sıklığı veya tarihi değiştiğinde sonraki tarihi hesapla
+    useEffect(() => {
+        if (calibrationData.calibration_date && formData.calibration_frequency_months) {
+            const nextDate = new Date(calibrationData.calibration_date);
+            const frequency = parseInt(formData.calibration_frequency_months, 10) || 12;
+            
+            if (!isNaN(nextDate)) {
+                nextDate.setMonth(nextDate.getMonth() + frequency);
+                setCalibrationData(prev => ({
+                    ...prev,
+                    next_calibration_date: nextDate.toISOString().slice(0, 10)
+                }));
+            }
+        }
+    }, [calibrationData.calibration_date, formData.calibration_frequency_months]);
 
     const handlePersonnelChange = (personnelId) => {
         setAssignedPersonnelId(personnelId);
