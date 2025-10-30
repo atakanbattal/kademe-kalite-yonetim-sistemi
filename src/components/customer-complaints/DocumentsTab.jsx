@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, Trash2, Upload, FileText, Image, File } from 'lucide-react';
+import { Plus, Download, Trash2, Upload, FileText, Image, File, Eye } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -93,6 +93,17 @@ const DocumentsTab = ({ complaintId, documents, onRefresh }) => {
         }
     };
 
+    const viewDocument = async (doc) => {
+        try {
+            const { data, error } = await supabase.storage.from('complaint_attachments').download(doc.file_path);
+            if (error) throw error;
+            const url = window.URL.createObjectURL(data);
+            window.open(url, '_blank');
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Görüntüleme hatası', description: error.message });
+        }
+    };
+
     const getFileIcon = (type) => {
         if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type?.toLowerCase())) return <Image className="w-5 h-5" />;
         if (['pdf'].includes(type?.toLowerCase())) return <FileText className="w-5 h-5" />;
@@ -124,22 +135,30 @@ const DocumentsTab = ({ complaintId, documents, onRefresh }) => {
                     {documents.map(doc => (
                         <Card key={doc.id}>
                             <CardContent className="pt-6">
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center gap-2">
+                                <div className="flex items-start gap-3 mb-3">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
                                         {getFileIcon(doc.file_type)}
                                         <div className="flex-1 min-w-0">
                                             <div className="font-medium truncate">{doc.document_name}</div>
                                             <Badge variant="outline" className="mt-1">{doc.document_type}</Badge>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        <Button size="sm" variant="ghost" onClick={() => downloadDocument(doc)}>
-                                            <Download className="w-4 h-4" />
+                                </div>
+                                <div className="flex flex-col gap-2 mt-4">
+                                    <Button size="sm" variant="outline" onClick={() => viewDocument(doc)} className="w-full">
+                                        <Eye className="w-4 h-4 mr-2" />
+                                        Görüntüle
+                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => downloadDocument(doc)} className="flex-1">
+                                            <Download className="w-4 h-4 mr-2" />
+                                            İndir
                                         </Button>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button size="sm" variant="ghost" className="text-destructive">
-                                                    <Trash2 className="w-4 h-4" />
+                                                <Button size="sm" variant="destructive" className="flex-1">
+                                                    <Trash2 className="w-4 h-4 mr-2" />
+                                                    Sil
                                                 </Button>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
@@ -156,9 +175,9 @@ const DocumentsTab = ({ complaintId, documents, onRefresh }) => {
                                     </div>
                                 </div>
                                 {doc.document_description && (
-                                    <p className="text-sm text-muted-foreground mb-2">{doc.document_description}</p>
+                                    <p className="text-sm text-muted-foreground mb-3">{doc.document_description}</p>
                                 )}
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-xs text-muted-foreground mb-3">
                                     {new Date(doc.upload_date || doc.created_at).toLocaleDateString('tr-TR')}
                                     {doc.file_size && <> • {(doc.file_size / 1024).toFixed(1)} KB</>}
                                 </div>

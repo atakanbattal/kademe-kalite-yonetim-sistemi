@@ -21,6 +21,7 @@ import AnalysisTab from './AnalysisTab';
 import ActionsTab from './ActionsTab';
 import DocumentsTab from './DocumentsTab';
 import CommunicationTab from './CommunicationTab';
+import CreateNCFromComplaintModal from './CreateNCFromComplaintModal';
 
 const SEVERITY_COLORS = {
     'Kritik': 'destructive',
@@ -48,6 +49,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
     const [actions, setActions] = useState([]);
     const [documents, setDocuments] = useState([]);
     const [communications, setCommunications] = useState([]);
+    const [isNCModalOpen, setNCModalOpen] = useState(false);
 
     // Şikayet verilerini yükle
     const loadComplaintData = useCallback(async () => {
@@ -186,16 +188,25 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                             )}
                         </div>
                         {complaintData && (
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setOpen(false);
-                                    onEdit(complaintData);
-                                }}
-                            >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Düzenle
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setNCModalOpen(true)}
+                                >
+                                    <AlertTriangle className="w-4 h-4 mr-2" />
+                                    Uygunsuzluk Oluştur
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setOpen(false);
+                                        onEdit(complaintData);
+                                    }}
+                                >
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Düzenle
+                                </Button>
+                            </div>
                         )}
                     </div>
                 </DialogHeader>
@@ -531,6 +542,16 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                     </Button>
                 </DialogFooter>
             </DialogContent>
+
+            <CreateNCFromComplaintModal
+                open={isNCModalOpen}
+                setOpen={setNCModalOpen}
+                complaint={complaintData}
+                onSuccess={() => {
+                    loadComplaintData();
+                    onRefresh();
+                }}
+            />
         </Dialog>
     );
 };
