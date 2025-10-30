@@ -46,7 +46,7 @@ const CustomerFormModal = ({ open, setOpen, onSuccess, existingCustomer }) => {
     useEffect(() => {
         const initialData = {
             customer_code: '',
-            customer_name: '',
+            name: '',
             customer_type: 'OEM',
             contact_person: '',
             contact_email: '',
@@ -90,7 +90,7 @@ const CustomerFormModal = ({ open, setOpen, onSuccess, existingCustomer }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.customer_code || !formData.customer_name) {
+        if (!formData.customer_code || !formData.name) {
             toast({ 
                 variant: 'destructive', 
                 title: 'Eksik Bilgi', 
@@ -174,12 +174,12 @@ const CustomerFormModal = ({ open, setOpen, onSuccess, existingCustomer }) => {
                                     />
                                 </div>
                                 <div>
-                                    <Label htmlFor="customer_name">
+                                    <Label htmlFor="name">
                                         Müşteri Adı <span className="text-red-500">*</span>
                                     </Label>
                                     <Input 
-                                        id="customer_name" 
-                                        value={formData.customer_name || ''} 
+                                        id="name" 
+                                        value={formData.name || ''} 
                                         onChange={handleChange} 
                                         required 
                                         placeholder="Firma ünvanı"
@@ -410,7 +410,7 @@ const CustomerDetailCard = ({ customer, onEdit, onClose }) => {
                 <DialogHeader>
                     <div className="flex items-center justify-between">
                         <div>
-                            <DialogTitle className="text-2xl">{customer.customer_name}</DialogTitle>
+                            <DialogTitle className="text-2xl">{customer.name}</DialogTitle>
                             <DialogDescription>
                                 {customer.customer_code} • {customer.customer_type}
                             </DialogDescription>
@@ -619,7 +619,7 @@ const CustomerManager = () => {
         const { data, error } = await supabase
             .from('customers')
             .select('*')
-            .order('customer_name');
+            .order('name');
 
         if (error) {
             toast({ 
@@ -657,7 +657,7 @@ const CustomerManager = () => {
         if (searchTerm) {
             const lowercased = searchTerm.toLowerCase();
             filtered = filtered.filter(c =>
-                c.customer_name?.toLowerCase().includes(lowercased) ||
+                c.name?.toLowerCase().includes(lowercased) ||
                 c.customer_code?.toLowerCase().includes(lowercased) ||
                 c.contact_person?.toLowerCase().includes(lowercased) ||
                 c.city?.toLowerCase().includes(lowercased)
@@ -858,7 +858,7 @@ const CustomerManager = () => {
                                                 {customer.customer_code}
                                             </td>
                                             <td className="font-medium">
-                                                {customer.customer_name}
+                                                {customer.name}
                                             </td>
                                             <td>
                                                 <Badge variant="outline">
@@ -914,7 +914,7 @@ const CustomerManager = () => {
                                                                     Emin misiniz?
                                                                 </AlertDialogTitle>
                                                                 <AlertDialogDescription>
-                                                                    "{customer.customer_name}" adlı müşteriyi 
+                                                                    "{customer.name}" adlı müşteriyi 
                                                                     kalıcı olarak sileceksiniz. Bu işlem geri alınamaz.
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>

@@ -107,8 +107,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                 auditLogs: supabase.from('audit_log_entries').select('*').order('created_at', { ascending: false }).limit(200),
                 stockRiskControls: supabase.from('stock_risk_controls').select('*').order('created_at', { ascending: false }).limit(200),
                 inkrReports: supabase.from('inkr_reports').select('*, supplier:supplier_id(name)').order('created_at', { ascending: false }).limit(200),
-                customers: supabase.from('customers').select('*').order('customer_name'),
-                customerComplaints: supabase.from('customer_complaints').select('*, customer:customer_id(customer_name, customer_code), responsible_person:responsible_person_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }),
+                customers: supabase.from('customers').select('*').order('name'),
+                customerComplaints: supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_code), responsible_person:responsible_person_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }),
                 complaintAnalyses: supabase.from('complaint_analyses').select('*, analyzed_by:analyzed_by(full_name)'),
                 complaintActions: supabase.from('complaint_actions').select('*, responsible_person:responsible_person_id(full_name), responsible_department:responsible_department_id(unit_name), verified_by:verified_by(full_name)'),
                 complaintDocuments: supabase.from('complaint_documents').select('*, uploaded_by:uploaded_by(full_name)')
