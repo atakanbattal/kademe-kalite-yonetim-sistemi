@@ -12,6 +12,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import CreateNCFromQuarantineModal from '@/components/quarantine/CreateNCFromQuarantineModal';
     import QuarantineViewModal from '@/components/quarantine/QuarantineViewModal';
     import QuarantineAnalytics from '@/components/quarantine/QuarantineAnalytics';
+    import QuarantineReportFilterModal from '@/components/quarantine/QuarantineReportFilterModal';
     import { useData } from '@/contexts/DataContext';
     import { openPrintableReport } from '@/lib/reportUtils';
 
@@ -24,6 +25,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       const [isDecisionOpen, setIsDecisionOpen] = useState(false);
       const [isCreateNCOpen, setCreateNCOpen] = useState(false);
       const [isViewOpen, setIsViewOpen] = useState(false);
+      const [isReportFilterOpen, setIsReportFilterOpen] = useState(false);
       const [selectedRecord, setSelectedRecord] = useState(null);
       const [searchTerm, setSearchTerm] = useState('');
       const [formMode, setFormMode] = useState('new'); // 'new', 'edit', 'view'
@@ -78,17 +80,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         setCreateNCOpen(true);
       };
 
-      const handleDownloadListPDF = () => {
-        // Sadece "Karantinada" durumundaki kayıtları raporla
-        const activeQuarantineRecords = records.filter(r => r.status === 'Karantinada');
-        
-        if (activeQuarantineRecords.length === 0) {
-          alert('Şu anda karantinada bekleyen ürün bulunmamaktadır.');
-          return;
-        }
-        
+      const handleOpenReportFilter = () => {
+        setIsReportFilterOpen(true);
+      };
+
+      const handleGenerateReportFromSelection = (selectedRecords) => {
         // Sadece gerekli alanları seç (resim URL'leri ve gereksiz alanları çıkar)
-        const lightweightRecords = activeQuarantineRecords.map(r => ({
+        const lightweightRecords = selectedRecords.map(r => ({
           id: r.id,
           quarantine_date: r.quarantine_date,
           part_code: r.part_code,
@@ -107,6 +105,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           items: lightweightRecords,
           id: `quarantine-active-${new Date().toISOString()}`
         };
+        
         // quarantine_list için useUrlParams=true (liste verilerini URL'de gönder)
         openPrintableReport(reportData, 'quarantine_list', true);
       };
@@ -151,7 +150,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
               <p className="text-muted-foreground mt-1">Karantinadaki ürünleri takip edin ve yönetin.</p>
             </div>
             <div className="flex items-center gap-2 mt-4 sm:mt-0">
-               <Button variant="outline" onClick={handleDownloadListPDF} disabled={loading || records.length === 0}>
+               <Button variant="outline" onClick={handleOpenReportFilter} disabled={loading || records.length === 0}>
                   <FileText className="w-4 h-4 mr-2" />
                   Rapor Oluştur
                 </Button>
@@ -285,6 +284,40 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
               <QuarantineAnalytics quarantineRecords={records} />
             </TabsContent>
           </Tabs>
+
+        {/* Modals */}
+        <QuarantineFormModal
+          isOpen={isFormOpen}
+          setIsOpen={setIsFormOpen}
+          mode={formMode}
+          record={selectedRecord}
+        />
+
+        <QuarantineViewModal
+          isOpen={isViewOpen}
+          setIsOpen={setIsViewOpen}
+          record={selectedRecord}
+        />
+
+        <QuarantineDecisionModal
+          isOpen={isDecisionOpen}
+          setIsOpen={setIsDecisionOpen}
+          record={selectedRecord}
+        />
+
+        <CreateNCFromQuarantineModal
+          isOpen={isCreateNCOpen}
+          setIsOpen={setCreateNCOpen}
+          quarantineRecord={selectedRecord}
+          onOpenNCForm={onOpenNCForm}
+        />
+
+        <QuarantineReportFilterModal
+          isOpen={isReportFilterOpen}
+          setIsOpen={setIsReportFilterOpen}
+          records={records}
+          onGenerateReport={handleGenerateReportFromSelection}
+        />
         </div>
       );
     };
