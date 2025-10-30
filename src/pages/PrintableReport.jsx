@@ -23,9 +23,25 @@ import React, { useEffect, useState } from 'react';
 
             try {
                 const urlParams = new URLSearchParams(location.search);
+                const storageKey = urlParams.get('storageKey');
                 const useUrlParams = urlParams.get('useUrlParams') === 'true';
 
-                if (useUrlParams) {
+                // Önce sessionStorage'dan kontrol et
+                if (storageKey) {
+                    const storedData = sessionStorage.getItem(storageKey);
+                    if (storedData) {
+                        try {
+                            recordData = JSON.parse(storedData);
+                            console.log('✅ Rapor verisi sessionStorage\'dan başarıyla okundu:', storageKey);
+                        } catch (e) {
+                            console.error('SessionStorage verisi okunurken hata:', e);
+                            throw new Error('Rapor verisi okunamadı. Lütfen tekrar deneyin.');
+                        }
+                    } else {
+                        throw new Error('Rapor verisi bulunamadı. Oturum süresi dolmuş olabilir.');
+                    }
+                } else if (useUrlParams) {
+                    // Fallback: Eski URL params yöntemi (geriye dönük uyumluluk)
                     const encodedData = urlParams.get('data');
                     if (encodedData) {
                         try {

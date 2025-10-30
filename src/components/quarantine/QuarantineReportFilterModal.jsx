@@ -124,11 +124,6 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                                 {selectedIds.length} / {filteredRecords.length} kayıt seçildi
                             </Badge>
                         </div>
-                        {selectedIds.length > 0 && (
-                            <Badge variant="outline" className="text-xs">
-                                Tahmini URL: {Math.round(selectedIds.length * 400)} karakter
-                            </Badge>
-                        )}
                     </div>
 
                     {/* Kayıt Listesi */}
@@ -194,12 +189,12 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                         )}
                     </ScrollArea>
 
-                    {/* Uyarı Mesajı */}
-                    {selectedIds.length > 5 && (
-                        <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                            <p className="text-sm text-amber-800 dark:text-amber-200">
-                                <strong>Dikkat:</strong> Çok fazla kayıt seçilirse URL limiti aşılabilir. 
-                                5 kayıttan fazla seçerseniz rapor oluşturulamayabilir.
+                    {/* Bilgi Mesajı */}
+                    {selectedIds.length > 0 && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                <strong>Bilgi:</strong> Seçtiğiniz {selectedIds.length} kayıt PDF raporuna dahil edilecektir. 
+                                Herhangi bir limit bulunmamaktadır.
                             </p>
                         </div>
                     )}

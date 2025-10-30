@@ -26,46 +26,38 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 	
 	if (useUrlParams) {
 		try {
-			// Veriyi encode et
-			const dataStr = btoa(encodeURIComponent(JSON.stringify(record)));
+			// SessionStorage kullanarak URL limitini aş
+			// Benzersiz bir key oluştur
+			const storageKey = `report_${type}_${reportId}_${Date.now()}`;
 			
-			// URL uzunluk kontrolü - tarayıcılar genelde 2000 karakter destekler, güvenli sınır 1800
+			// Veriyi sessionStorage'a kaydet
+			sessionStorage.setItem(storageKey, JSON.stringify(record));
+			
+			// Sadece storage key'ini URL'de gönder
 			const params = new URLSearchParams({
-				useUrlParams: 'true',
-				data: dataStr,
+				storageKey: storageKey,
 				autoprint: 'true',
 			});
-			const fullUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
 			
-			// Liste tipleri veritabanında yok, fallback yapamayız
-			const listTypes = ['quarantine_list', 'deviation_list', 'incoming_inspection_list'];
-			const isListType = listTypes.includes(type);
+			const reportUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
+			const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
 			
-			// URL çok uzunsa ve liste tipi DEĞİLse, database fetch'e fallback yap
-			if (fullUrl.length > 1800) {
-				if (isListType) {
-					alert(`Rapor için çok fazla kayıt seçildi (URL: ${fullUrl.length} karakter). Lütfen daha az kayıt ile tekrar deneyin veya filtreleme kullanın.`);
-					return; // ERKEN ÇIKIŞ - window.open yapma
-				} else {
-					console.warn(`URL too long (${fullUrl.length} chars), falling back to database fetch for ${type}`);
-					const reportWindow = window.open(`/print/report/${type}/${reportId}?autoprint=true`, '_blank', 'noopener,noreferrer');
-					if (reportWindow) reportWindow.focus();
-					return;
-				}
-			}
-			
-			// URL uygunsa aç
-			const reportWindow = window.open(fullUrl, '_blank', 'noopener,noreferrer');
 			if (reportWindow) {
 				reportWindow.focus();
+				
+				// PDF yüklendikten sonra sessionStorage'ı temizle (5 saniye sonra)
+				setTimeout(() => {
+					sessionStorage.removeItem(storageKey);
+				}, 5000);
 			}
 		} catch (error) {
-			console.error("Error encoding record data:", error);
-			// Liste tipleri için hata göster, diğerleri için fallback yap
+			console.error("Error storing report data:", error);
+			
+			// Fallback: Liste tipleri için hata, diğerleri için database fetch
 			const isListType = ['quarantine_list', 'deviation_list', 'incoming_inspection_list'].includes(type);
 			if (isListType) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
-				return; // ERKEN ÇIKIŞ - window.open yapma
+				return;
 			}
 			// Fallback: database fetch
 			const reportWindow = window.open(`/print/report/${type}/${reportId}?autoprint=true`, '_blank', 'noopener,noreferrer');
