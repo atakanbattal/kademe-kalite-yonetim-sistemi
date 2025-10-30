@@ -392,18 +392,45 @@ const generateListReportHtml = (record, type) => {
 
 	if (type === 'quarantine_list') {
 		title = 'Genel Karantina Raporu';
-		headers = ['Tarih', 'Parça Adı/Kodu', 'Miktar', 'Birim', 'Durum', 'Sebep'];
+		headers = ['Tarih', 'Parça Bilgileri', 'Miktar', 'Birim', 'Durum', 'Sebep Olan Birim', 'Talebi Yapan', 'Açıklama'];
 		rowsHtml = record.items.map(item => `
 			<tr>
-				<td>${formatDate(item.quarantine_date)}</td>
-				<td>${item.part_name || ''}<br><small class="muted">${item.part_code || ''}</small></td>
-				<td>${item.quantity || '0'}</td>
+				<td style="white-space: nowrap;">${formatDate(item.quarantine_date)}</td>
+				<td>
+					<strong>${item.part_name || '-'}</strong><br>
+					<small class="muted">Kod: ${item.part_code || '-'}</small><br>
+					<small class="muted">Lot: ${item.lot_no || '-'}</small>
+				</td>
+				<td style="text-align: right;"><strong>${item.quantity || '0'}</strong></td>
 				<td>${item.unit || '-'}</td>
-				<td>${item.status || '-'}</td>
-				<td><pre>${item.description || '-'}</pre></td>
+				<td><span style="padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; white-space: nowrap; ${
+					item.status === 'Karantinada' ? 'background-color: #fee2e2; color: #991b1b;' :
+					item.status === 'Tamamlandı' ? 'background-color: #d1fae5; color: #065f46;' :
+					item.status === 'Serbest Bırakıldı' ? 'background-color: #dbeafe; color: #1e40af;' :
+					'background-color: #e5e7eb; color: #374151;'
+				}">${item.status || 'Bilinmiyor'}</span></td>
+				<td>${item.source_department || '-'}</td>
+				<td>
+					${item.requesting_department || '-'}<br>
+					<small class="muted">${item.requesting_person_name || '-'}</small>
+				</td>
+				<td style="max-width: 300px;"><pre style="font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; margin: 0;">${item.description || '-'}</pre></td>
 			</tr>
 		`).join('');
-		summaryHtml = `<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>`;
+		
+		// Durum bazlı özet
+		const statusCounts = record.items.reduce((acc, item) => {
+			acc[item.status] = (acc[item.status] || 0) + 1;
+			return acc;
+		}, {});
+		const statusSummary = Object.entries(statusCounts)
+			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
+			.join('');
+		
+		summaryHtml = `
+			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
+			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
+		`;
 	}
 
 	return `
@@ -565,15 +592,28 @@ const generateGenericReportHtml = (record, type) => {
 					<tr><td>Kaizen Ekibi</td><td>${teamMembers}</td></tr>
 					<tr><td>Süre</td><td>${duration}</td></tr>
 				`;
-			case 'quarantine':
-				 const deviationRef = record.deviation_approval_url ? `<tr><td>İlişkili Sapma</td><td>${getDeviationApprovalReference(record.deviation_approval_url)}</td></tr>` : '';
-				return `
-					<tr><td>Parça Adı / Kodu</td><td>${record.part_name} / ${record.part_code || '-'}</td></tr>
-					<tr><td>Miktar</td><td>${record.quantity} ${record.unit}</td></tr>
-					<tr><td>Karantina Sebebi</td><td><pre>${record.description || '-'}</pre></td></tr>
-					<tr><td>Sebep Olan Birim</td><td>${record.source_department || '-'}</td></tr>
-					${deviationRef}
-				`;
+		case 'quarantine':
+			 const deviationRef = record.deviation_approval_url ? `<tr><td>İlişkili Sapma</td><td>${getDeviationApprovalReference(record.deviation_approval_url)}</td></tr>` : '';
+			 const nonConformityRef = record.non_conformity_id ? `<tr><td>İlişkili Uygunsuzluk</td><td>${record.nc_number || 'Uygunsuzluk ID: ' + record.non_conformity_id}</td></tr>` : '';
+			return `
+				<tr><td>Parça Adı</td><td><strong>${record.part_name}</strong></td></tr>
+				<tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
+				<tr><td>Lot / Seri No</td><td>${record.lot_no || '-'}</td></tr>
+				<tr><td>Mevcut Miktar</td><td><strong>${record.quantity} ${record.unit}</strong></td></tr>
+				<tr><td>Karantina Tarihi</td><td>${formatDate(record.quarantine_date)}</td></tr>
+				<tr><td>Durum</td><td><span style="padding: 4px 12px; border-radius: 4px; font-weight: 600; ${
+					record.status === 'Karantinada' ? 'background-color: #fee2e2; color: #991b1b;' :
+					record.status === 'Tamamlandı' ? 'background-color: #d1fae5; color: #065f46;' :
+					record.status === 'Serbest Bırakıldı' ? 'background-color: #dbeafe; color: #1e40af;' :
+					'background-color: #e5e7eb; color: #374151;'
+				}">${record.status || 'Bilinmiyor'}</span></td></tr>
+				<tr><td>Sebep Olan Birim</td><td>${record.source_department || '-'}</td></tr>
+				<tr><td>Talebi Yapan Birim</td><td>${record.requesting_department || '-'}</td></tr>
+				<tr><td>Talebi Yapan Kişi</td><td>${record.requesting_person_name || '-'}</td></tr>
+				<tr><td>Karantina Sebebi / Açıklama</td><td><pre style="white-space: pre-wrap; font-family: inherit;">${record.description || '-'}</pre></td></tr>
+				${deviationRef}
+				${nonConformityRef}
+			`;
 		case 'incoming_inspection':
 			const defectsHtml = record.defects && record.defects.length > 0 
 				? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
@@ -889,6 +929,33 @@ const generateGenericReportHtml = (record, type) => {
 				<div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px; margin-top: 10px;">
 					<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: inherit; margin: 0;">${record.closing_notes}</pre>
 				</div>
+			</div>`;
+		}
+		
+		// Karantina İşlem Geçmişi
+		if (type === 'quarantine' && record.history && record.history.length > 0) {
+			html += `<div class="section">
+				<h2 class="section-title green">2. İŞLEM GEÇMİŞİ</h2>
+				<table class="results-table">
+					<thead>
+						<tr>
+							<th style="width: 15%;">Tarih</th>
+							<th style="width: 15%;">Karar</th>
+							<th style="width: 10%;">İşlenen Miktar</th>
+							<th style="width: 60%;">Notlar</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.history.map(h => `
+							<tr>
+								<td style="white-space: nowrap;">${formatDateTime(h.decision_date)}</td>
+								<td><strong>${h.decision || '-'}</strong></td>
+								<td style="text-align: right;">${h.processed_quantity || '-'}</td>
+								<td><pre style="white-space: pre-wrap; font-family: inherit; margin: 0; font-size: 9px;">${h.notes || '-'}</pre></td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
 			</div>`;
 		}
 		

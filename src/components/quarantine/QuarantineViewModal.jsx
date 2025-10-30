@@ -44,9 +44,14 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
         }, [isOpen, fetchHistory]);
 
-        const handleDownloadPDF = () => {
-            openPrintableReport(record, 'quarantine');
+    const handleDownloadPDF = async () => {
+        // İşlem geçmişini de rapor için ekle
+        const recordWithHistory = {
+            ...record,
+            history: history
         };
+        openPrintableReport(recordWithHistory, 'quarantine', true);
+    };
 
         if (!record) return null;
 
