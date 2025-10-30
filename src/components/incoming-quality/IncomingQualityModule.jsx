@@ -59,7 +59,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const buildFilterQuery = useCallback((query, currentFilters) => {
         if (currentFilters.searchTerm) {
             const searchTerm = `%${currentFilters.searchTerm}%`;
-            query = query.or(`part_name.ilike.${searchTerm},part_code.ilike.${searchTerm},record_no.ilike.${searchTerm},supplier_name.ilike.${searchTerm}`);
+            query = query.or(`part_name.ilike.${searchTerm},part_code.ilike.${searchTerm},record_no.ilike.${searchTerm}`);
         }
         if (currentFilters.dateRange.from) {
             query = query.gte('inspection_date', currentFilters.dateRange.from.toISOString());
@@ -143,8 +143,8 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         const to = from + PAGE_SIZE - 1;
 
         let query = supabase
-            .from('incoming_inspections_with_supplier')
-            .select('*', { count: 'exact' })
+            .from('incoming_inspections')
+            .select('*, supplier:suppliers(id, name)', { count: 'exact' })
             .range(from, to)
             .order('inspection_date', { ascending: false })
             .order('created_at', { ascending: false });
@@ -162,6 +162,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             const controlPlanMap = new Map((incomingControlPlans || []).map(p => [p.part_code, true]));
             const dataWithPlanStatus = data.map(inspection => ({
                 ...inspection,
+                supplier_name: inspection.supplier?.name || '-',
                 control_plan_status: controlPlanMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
             }));
             setInspections(dataWithPlanStatus);
