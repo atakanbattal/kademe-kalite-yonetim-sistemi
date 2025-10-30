@@ -38,15 +38,30 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 			});
 			const fullUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
 			
-			// URL çok uzunsa, database fetch'e fallback yap
+			// Liste tipleri veritabanında yok, fallback yapamayız
+			const listTypes = ['quarantine_list', 'deviation_list', 'incoming_inspection_list'];
+			const isListType = listTypes.includes(type);
+			
+			// URL çok uzunsa ve liste tipi DEĞİLse, database fetch'e fallback yap
 			if (fullUrl.length > 1800) {
-				console.warn(`URL too long (${fullUrl.length} chars), falling back to database fetch for ${type}`);
-				reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
+				if (isListType) {
+					alert(`Rapor için çok fazla kayıt seçildi (URL: ${fullUrl.length} karakter). Lütfen daha az kayıt ile tekrar deneyin veya filtreleme kullanın.`);
+					return;
+				} else {
+					console.warn(`URL too long (${fullUrl.length} chars), falling back to database fetch for ${type}`);
+					reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
+				}
 			} else {
 				reportUrl = fullUrl;
 			}
 		} catch (error) {
 			console.error("Error encoding record data:", error);
+			// Liste tipleri için hata göster, diğerleri için fallback yap
+			const isListType = ['quarantine_list', 'deviation_list', 'incoming_inspection_list'].includes(type);
+			if (isListType) {
+				alert(`Rapor oluşturulurken hata: ${error.message}`);
+				return;
+			}
 			reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
 		}
 	} else {
