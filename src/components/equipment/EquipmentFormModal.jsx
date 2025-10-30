@@ -229,7 +229,7 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                      <div className="grid md:grid-cols-2 gap-4">
                        <div className="space-y-1">
                            <Label htmlFor="calibration_frequency_months">Kalibrasyon Sıklığı (Ay) *</Label>
-                           <Input id="calibration_frequency_months" type="number" min="1" value={Math.max(1, formData.calibration_frequency_months || 12)} onChange={handleInputChange} required />
+                           <Input id="calibration_frequency_months" type="number" min="1" value={Math.max(1, formData.calibration_frequency_months || 12)} onChange={handleInputChange} onInput={handleInputChange} required />
                        </div>
                         <div className="space-y-1"><Label htmlFor="status">Durum *</Label>
                             <Select onValueChange={(v) => setFormData(p => ({...p, status: v}))} value={formData.status || 'Aktif'} required>
