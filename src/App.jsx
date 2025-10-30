@@ -24,6 +24,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import PrintableDashboardReport from '@/pages/PrintableDashboardReport';
     import TrainingModule from '@/components/training/TrainingModule';
     import WPSModule from '@/components/wps/WPSModule';
+    import CustomerComplaintsModule from '@/components/CustomerComplaintsModule';
     import { Menu, X } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { cn } from '@/lib/utils';
@@ -52,6 +53,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
       document: 'Doküman Yönetimi',
       'supplier-quality': 'Tedarikçi Kalite Yönetimi',
       'supplier-audit': 'Tedarikçi Denetimi',
+      'customer-complaints': 'Müşteri Şikayetleri',
       deviation: 'Sapma Yönetimi',
       equipment: 'Ekipman & Kalibrasyon',
       'produced-vehicles': 'Kaliteye Verilen Araçlar',
@@ -297,6 +299,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'internal-audit': return <InternalAuditModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
               case 'document': return <DocumentModule />;
               case 'supplier-quality': return <SupplierQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onOpenPdfViewer={handleOpenPdfViewer}/>;
+              case 'customer-complaints': return <CustomerComplaintsModule />;
               case 'supplier-audit': return <SupplierLiveAudit onOpenNCForm={handleOpenNCForm} />;
               case 'deviation': return <DeviationModule />;
               case 'equipment': return <EquipmentModule />;

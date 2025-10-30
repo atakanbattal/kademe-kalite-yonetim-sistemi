@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X } from 'lucide-react';
+import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, MessageSquareWarning } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { id: 'df-8d', icon: FileText, label: 'DF ve 8D Yönetimi' },
   { id: 'quality-cost', icon: DollarSign, label: 'Kalitesizlik Maliyetleri' },
   { id: 'supplier-quality', icon: Users, label: 'Tedarikçi Kalite' },
+  { id: 'customer-complaints', icon: MessageSquareWarning, label: 'Müşteri Şikayetleri' },
   { id: 'incoming-quality', icon: Package, label: 'Girdi Kalite Kontrol' },
   { id: 'produced-vehicles', icon: Truck, label: 'Üretilen Araçlar' },
   { id: 'internal-audit', icon: HardHat, label: 'İç Tetkik Yönetimi' },
