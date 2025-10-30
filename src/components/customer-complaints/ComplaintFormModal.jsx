@@ -164,33 +164,33 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
     };
 
     // Seçenekleri hazırla
-    const customerOptions = customers
+    const customerOptions = (customers || [])
         .filter(c => c.is_active)
         .map(c => ({ 
             value: c.id, 
-            label: `${c.customer_name} (${c.customer_code})` 
+            label: `${c.name || c.customer_name} (${c.customer_code || ''})` 
         }));
 
-    const personnelOptions = personnel
+    const personnelOptions = (personnel || [])
         .filter(p => p.is_active)
         .map(p => ({ 
             value: p.id, 
             label: p.full_name 
         }));
 
-    const departmentOptions = unitCostSettings.map(u => ({
+    const departmentOptions = (unitCostSettings || []).map(u => ({
         value: u.id,
         label: u.unit_name
     }));
 
-    const ncOptions = nonConformities
+    const ncOptions = (nonConformities || [])
         .filter(nc => nc.status !== 'Kapalı')
         .map(nc => ({
             value: nc.id,
             label: `${nc.nc_number || nc.id.substring(0, 8)} - ${nc.title}`
         }));
 
-    const deviationOptions = deviations
+    const deviationOptions = (deviations || [])
         .filter(d => d.status !== 'Kapalı')
         .map(d => ({
             value: d.id,
