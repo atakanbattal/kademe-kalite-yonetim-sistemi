@@ -20,10 +20,10 @@ import React from 'react';
         const handleClear = () => {
             setFilters({
                 searchTerm: '',
-                supplier: null,
-                controlPlanStatus: null,
-                decision: null,
-                dateRange: null,
+                supplier: 'all',
+                controlPlanStatus: 'all',
+                decision: 'all',
+                dateRange: { from: null, to: null },
             });
         };
 
@@ -39,7 +39,7 @@ import React from 'react';
                     <div className="space-y-4">
                         <div>
                             <Label>Tedarikçi</Label>
-                            <Select value={filters.supplier || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, supplier: val === 'all' ? null : val}))}>
+                            <Select value={filters.supplier || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, supplier: val}))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Tümü" />
                                 </SelectTrigger>
@@ -51,7 +51,7 @@ import React from 'react';
                         </div>
                         <div>
                             <Label>Kontrol Planı Durumu</Label>
-                            <Select value={filters.controlPlanStatus || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, controlPlanStatus: val === 'all' ? null : val}))}>
+                            <Select value={filters.controlPlanStatus || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, controlPlanStatus: val}))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Tümü" />
                                 </SelectTrigger>
@@ -64,7 +64,7 @@ import React from 'react';
                         </div>
                         <div>
                             <Label>Karar</Label>
-                            <Select value={filters.decision || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, decision: val === 'all' ? null : val}))}>
+                            <Select value={filters.decision || 'all'} onValueChange={(val) => setFilters(prev => ({...prev, decision: val}))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Tümü" />
                                 </SelectTrigger>

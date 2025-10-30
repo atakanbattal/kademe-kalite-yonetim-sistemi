@@ -650,7 +650,7 @@ const generateGenericReportHtml = (record, type) => {
 
 					return `
 			<tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
-			<tr><td>Teslimat Belgesi</td><td>${record.delivery_note_number || '-'}</td></tr>
+			<tr><td>İrsaliye Numarası</td><td>${record.delivery_note_number || '-'}</td></tr>
 			<tr><td>Parça Adı / Kodu</td><td>${record.part_name || '-'} / ${record.part_code || '-'}</td></tr>
 			<tr><td>Gelen Miktar</td><td>${record.quantity_received || 0} ${record.unit || 'Adet'}</td></tr>
 			<tr><td>Muayene Tarihi</td><td>${formatDate(record.inspection_date)}</td></tr>

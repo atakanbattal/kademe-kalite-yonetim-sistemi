@@ -237,7 +237,7 @@ const IncomingInspectionDetailModal = ({
                                 </div>
                                 <div>
                                     <Label className="text-xs font-semibold text-muted-foreground">
-                                        Teslimat Belgesi No
+                                        İrsaliye Numarası
                                     </Label>
                                     <p className="font-medium">
                                         {enrichedInspection.delivery_note_number || '-'}
