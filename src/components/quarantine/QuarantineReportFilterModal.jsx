@@ -4,16 +4,27 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Filter, CheckSquare, Square } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
 const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateReport }) => {
     const [selectedIds, setSelectedIds] = useState([]);
+    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'Karantinada', 'Tamamlandı', etc.
 
-    // Sadece "Karantinada" durumundaki kayıtları filtrele
-    const activeRecords = useMemo(() => {
-        return records.filter(r => r.status === 'Karantinada');
+    // Durum filtresine göre kayıtları filtrele
+    const filteredRecords = useMemo(() => {
+        if (statusFilter === 'all') {
+            return records;
+        }
+        return records.filter(r => r.status === statusFilter);
+    }, [records, statusFilter]);
+
+    // Mevcut durumları çıkar
+    const availableStatuses = useMemo(() => {
+        const statuses = new Set(records.map(r => r.status));
+        return Array.from(statuses).sort();
     }, [records]);
 
     const handleToggleRecord = (id) => {
@@ -27,15 +38,15 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
     };
 
     const handleSelectAll = () => {
-        if (selectedIds.length === activeRecords.length) {
+        if (selectedIds.length === filteredRecords.length) {
             setSelectedIds([]);
         } else {
-            setSelectedIds(activeRecords.map(r => r.id));
+            setSelectedIds(filteredRecords.map(r => r.id));
         }
     };
 
     const handleGenerate = () => {
-        const selectedRecords = activeRecords.filter(r => selectedIds.includes(r.id));
+        const selectedRecords = filteredRecords.filter(r => selectedIds.includes(r.id));
         if (selectedRecords.length === 0) {
             alert('Lütfen en az bir kayıt seçin.');
             return;
@@ -43,11 +54,13 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
         onGenerateReport(selectedRecords);
         setIsOpen(false);
         setSelectedIds([]); // Reset
+        setStatusFilter('all'); // Reset filter
     };
 
     const handleCancel = () => {
         setIsOpen(false);
         setSelectedIds([]); // Reset
+        setStatusFilter('all'); // Reset filter
     };
 
     return (
@@ -59,11 +72,33 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                         Karantina Raporu Oluştur
                     </DialogTitle>
                     <DialogDescription>
-                        Rapora dahil edilecek kayıtları seçin. Sadece <strong>Karantinada</strong> durumundaki kayıtlar gösterilmektedir.
+                        Rapora dahil edilecek kayıtları seçin. Durum filtresini kullanarak istediğiniz kayıtları görüntüleyebilirsiniz.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
+                    {/* Durum Filtresi */}
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                        <Filter className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Durum Filtresi:</span>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Tüm Kayıtlar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tüm Kayıtlar</SelectItem>
+                                {availableStatuses.map(status => (
+                                    <SelectItem key={status} value={status}>
+                                        {status}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Badge variant="secondary" className="text-xs ml-auto">
+                            {filteredRecords.length} kayıt
+                        </Badge>
+                    </div>
+
                     {/* Özet ve Tümünü Seç */}
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-center gap-3">
@@ -73,7 +108,7 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                                 onClick={handleSelectAll}
                                 className="gap-2"
                             >
-                                {selectedIds.length === activeRecords.length ? (
+                                {selectedIds.length === filteredRecords.length && filteredRecords.length > 0 ? (
                                     <>
                                         <CheckSquare className="w-4 h-4" />
                                         Tümünü Kaldır
@@ -86,28 +121,39 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                                 )}
                             </Button>
                             <Badge variant="secondary" className="text-sm">
-                                {selectedIds.length} / {activeRecords.length} kayıt seçildi
+                                {selectedIds.length} / {filteredRecords.length} kayıt seçildi
                             </Badge>
                         </div>
                         {selectedIds.length > 0 && (
                             <Badge variant="outline" className="text-xs">
-                                Tahmini URL: ~{Math.round(selectedIds.length * 400)} karakter
+                                Tahmini URL: {Math.round(selectedIds.length * 400)} karakter
                             </Badge>
                         )}
                     </div>
 
                     {/* Kayıt Listesi */}
                     <ScrollArea className="h-[400px] rounded-md border p-4">
-                        {activeRecords.length === 0 ? (
+                        {filteredRecords.length === 0 ? (
                             <div className="text-center py-12 text-muted-foreground">
                                 <Filter className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                <p className="font-medium">Karantinada bekleyen ürün bulunmuyor</p>
-                                <p className="text-sm mt-1">Rapor oluşturmak için en az bir kayıt "Karantinada" durumunda olmalıdır.</p>
+                                <p className="font-medium">Kayıt bulunamadı</p>
+                                <p className="text-sm mt-1">Seçili filtreye uygun kayıt bulunmamaktadır.</p>
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                {activeRecords.map((record) => {
+                                {filteredRecords.map((record) => {
                                     const isSelected = selectedIds.includes(record.id);
+                                    
+                                    // Durum rengini belirle
+                                    const getStatusVariant = (status) => {
+                                        switch (status) {
+                                            case 'Karantinada': return 'destructive';
+                                            case 'Tamamlandı': return 'default';
+                                            case 'Serbest Bırakıldı': return 'default';
+                                            default: return 'secondary';
+                                        }
+                                    };
+
                                     return (
                                         <div
                                             key={record.id}
@@ -131,14 +177,14 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                                                             Kod: {record.part_code} / Lot: {record.lot_no || '-'}
                                                         </p>
                                                     </div>
-                                                    <Badge variant="destructive" className="text-xs shrink-0">
+                                                    <Badge variant={getStatusVariant(record.status)} className="text-xs shrink-0">
                                                         {record.status}
                                                     </Badge>
                                                 </div>
                                                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                                    <span>📦 {record.quantity} {record.unit}</span>
-                                                    <span>🏢 {record.source_department || 'Belirtilmemiş'}</span>
-                                                    <span>📅 {format(new Date(record.quarantine_date), 'dd MMM yyyy', { locale: tr })}</span>
+                                                    <span>{record.quantity} {record.unit}</span>
+                                                    <span>{record.source_department || 'Belirtilmemiş'}</span>
+                                                    <span>{format(new Date(record.quarantine_date), 'dd MMM yyyy', { locale: tr })}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -152,7 +198,7 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                     {selectedIds.length > 5 && (
                         <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                             <p className="text-sm text-amber-800 dark:text-amber-200">
-                                ⚠️ <strong>Dikkat:</strong> Çok fazla kayıt seçilirse URL limiti aşılabilir. 
+                                <strong>Dikkat:</strong> Çok fazla kayıt seçilirse URL limiti aşılabilir. 
                                 5 kayıttan fazla seçerseniz rapor oluşturulamayabilir.
                             </p>
                         </div>
@@ -165,7 +211,7 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                     </Button>
                     <Button
                         onClick={handleGenerate}
-                        disabled={selectedIds.length === 0 || activeRecords.length === 0}
+                        disabled={selectedIds.length === 0 || filteredRecords.length === 0}
                         className="gap-2"
                     >
                         <FileText className="w-4 h-4" />
