@@ -80,7 +80,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
             const promises = {
                 qualityCosts: supabase.from('quality_costs').select('*, responsible_personnel:responsible_personnel_id(full_name), personnel:responsible_personnel_id(full_name)'),
-                personnel: supabase.from('personnel').select('id, full_name, email, avatar_url, department, unit_id'),
+                personnel: supabase.from('personnel').select('id, full_name, email, avatar_url, department, unit_id, is_active').order('full_name'),
                 unitCostSettings: supabase.from('cost_settings').select('*'),
                 materialCostSettings: supabase.from('material_costs').select('*'),
                 producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)'),

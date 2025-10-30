@@ -39,6 +39,19 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
     const [formData, setFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Debug: Personel verisi kontrolü
+    useEffect(() => {
+        if (open) {
+            console.log('ComplaintFormModal - Personnel Data:', {
+                personnelCount: personnel?.length || 0,
+                activeCount: personnel?.filter(p => p.is_active)?.length || 0,
+                firstThree: personnel?.slice(0, 3),
+                unitCostCount: unitCostSettings?.length || 0,
+                customersCount: customers?.length || 0
+            });
+        }
+    }, [open, personnel, unitCostSettings, customers]);
+
     useEffect(() => {
         const initialData = {
             customer_id: '',
