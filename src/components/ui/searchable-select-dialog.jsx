@@ -15,7 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -26,7 +26,8 @@ export function SearchableSelectDialog({
   triggerPlaceholder = "Seçim yapın...",
   dialogTitle = "Öğe Seçin",
   searchPlaceholder = "Ara...",
-  notFoundText = "Sonuç bulunamadı."
+  notFoundText = "Sonuç bulunamadı.",
+  allowClear = false
 }) {
   const [open, setOpen] = useState(false);
 
@@ -35,6 +36,11 @@ export function SearchableSelectDialog({
   const handleSelect = (currentValue) => {
     onChange(currentValue === value ? "" : currentValue);
     setOpen(false);
+  };
+  
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange("");
   };
   
   // A helper to get the displayable label from an option, which might be a React node.
@@ -77,7 +83,15 @@ export function SearchableSelectDialog({
           className="w-full justify-between"
         >
           {selectedOption ? getDisplayLabel(selectedOption) : triggerPlaceholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <div className="flex items-center gap-1">
+            {allowClear && selectedOption && (
+              <X 
+                className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100" 
+                onClick={handleClear}
+              />
+            )}
+            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+          </div>
         </Button>
       </DialogTrigger>
       <DialogContent className="p-0">
