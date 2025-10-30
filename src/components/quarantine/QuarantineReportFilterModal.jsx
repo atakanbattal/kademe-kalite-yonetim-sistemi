@@ -65,8 +65,8 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-3xl max-h-[80vh]">
-                <DialogHeader>
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="flex items-center gap-2">
                         <FileText className="w-5 h-5 text-primary" />
                         Karantina Raporu Oluştur
@@ -76,9 +76,9 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4">
+                <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
                     {/* Durum Filtresi */}
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg flex-shrink-0">
                         <Filter className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm font-medium">Durum Filtresi:</span>
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -100,7 +100,7 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                     </div>
 
                     {/* Özet ve Tümünü Seç */}
-                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg flex-shrink-0">
                         <div className="flex items-center gap-3">
                             <Button
                                 variant="outline"
@@ -127,7 +127,7 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                     </div>
 
                     {/* Kayıt Listesi */}
-                    <ScrollArea className="h-[400px] rounded-md border p-4">
+                    <ScrollArea className="flex-1 min-h-0 rounded-md border p-4">
                         {filteredRecords.length === 0 ? (
                             <div className="text-center py-12 text-muted-foreground">
                                 <Filter className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -191,7 +191,7 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
 
                     {/* Bilgi Mesajı */}
                     {selectedIds.length > 0 && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg flex-shrink-0">
                             <p className="text-sm text-blue-800 dark:text-blue-200">
                                 <strong>Bilgi:</strong> Seçtiğiniz {selectedIds.length} kayıt PDF raporuna dahil edilecektir. 
                                 Herhangi bir limit bulunmamaktadır.
@@ -200,7 +200,7 @@ const QuarantineReportFilterModal = ({ isOpen, setIsOpen, records, onGenerateRep
                     )}
                 </div>
 
-                <DialogFooter className="gap-2">
+                <DialogFooter className="gap-2 flex-shrink-0 mt-4">
                     <Button variant="outline" onClick={handleCancel}>
                         İptal
                     </Button>
