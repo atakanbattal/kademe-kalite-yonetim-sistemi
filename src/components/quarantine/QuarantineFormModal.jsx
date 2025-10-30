@@ -14,19 +14,37 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
     const [formData, setFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [departments, setDepartments] = useState([]);
+    const [personnel, setPersonnel] = useState([]);
     const textareaRef = useRef(null);
 
     useEffect(() => {
-        const fetchDepartments = async () => {
-            const { data, error } = await supabase.from('cost_settings').select('unit_name').order('unit_name');
-            if (error) {
-                toast({ variant: 'destructive', title: 'Hata', description: 'Birimler yüklenemedi.' });
-            } else {
-                setDepartments(data.map(d => d.unit_name));
+        const fetchSettingsData = async () => {
+            try {
+                // Fetch departments from cost_settings
+                const { data: deptData, error: deptError } = await supabase
+                    .from('cost_settings')
+                    .select('unit_name')
+                    .order('unit_name');
+                
+                if (deptError) throw deptError;
+                setDepartments(deptData.map(d => d.unit_name));
+                
+                // Fetch active personnel
+                const { data: personnelData, error: personnelError } = await supabase
+                    .from('personnel')
+                    .select('id, full_name')
+                    .eq('is_active', true)
+                    .order('full_name');
+                
+                if (personnelError) throw personnelError;
+                setPersonnel(personnelData || []);
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Ayarlar yüklenemedi.' });
             }
         };
+        
         if(isOpen) {
-            fetchDepartments();
+            fetchSettingsData();
         }
     }, [isOpen, toast]);
 
@@ -176,7 +194,24 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
                         </Select>
                     </div>
 
-                    <div><Label htmlFor="requesting_person_name">Talebi Yapan Kişi</Label><Input id="requesting_person_name" value={formData.requesting_person_name || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} /></div>
+                    <div>
+                        <Label>Talebi Yapan Kişi</Label>
+                        <Select
+                            value={formData.requesting_person_name || ''}
+                            onValueChange={(value) => handleSelectChange('requesting_person_name', value)}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Kişi seçin..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {personnel.map((person) => (
+                                    <SelectItem key={person.id} value={person.full_name}>
+                                        {person.full_name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     <div className="md:col-span-2"><Label htmlFor="description">Açıklama / Detaylar</Label><Textarea ref={textareaRef} id="description" value={formData.description || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} rows={3} className="resize-none overflow-hidden" /></div>
                 

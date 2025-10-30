@@ -25,7 +25,40 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const [vehicles, setVehicles] = useState([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
     const [files, setFiles] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [departments, setDepartments] = useState([]);
+    const [personnel, setPersonnel] = useState([]);
     
+    useEffect(() => {
+        const fetchSettingsData = async () => {
+            try {
+                // Fetch departments from cost_settings
+                const { data: deptData, error: deptError } = await supabase
+                    .from('cost_settings')
+                    .select('unit_name')
+                    .order('unit_name');
+                
+                if (deptError) throw deptError;
+                setDepartments(deptData.map(d => d.unit_name));
+                
+                // Fetch active personnel
+                const { data: personnelData, error: personnelError } = await supabase
+                    .from('personnel')
+                    .select('id, full_name')
+                    .eq('is_active', true)
+                    .order('full_name');
+                
+                if (personnelError) throw personnelError;
+                setPersonnel(personnelData || []);
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Ayarlar yüklenemedi.' });
+            }
+        };
+        
+        if (isOpen) {
+            fetchSettingsData();
+        }
+    }, [isOpen, toast]);
+
     useEffect(() => {
         const initialData = {
             request_no: '',
@@ -191,11 +224,17 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="requesting_unit">Talep Eden Birim</Label>
-                            <Input id="requesting_unit" value={formData.requesting_unit || ''} onChange={handleInputChange} />
+                            <Select onValueChange={(value) => handleSelectChange('requesting_unit', value)} value={formData.requesting_unit || ''}>
+                                <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
+                                <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="requesting_person">Talep Eden Personel</Label>
-                            <Input id="requesting_person" value={formData.requesting_person || ''} onChange={handleInputChange} />
+                            <Select onValueChange={(value) => handleSelectChange('requesting_person', value)} value={formData.requesting_person || ''}>
+                                <SelectTrigger><SelectValue placeholder="Personel seçin..." /></SelectTrigger>
+                                <SelectContent>{personnel.map(p => <SelectItem key={p.id} value={p.full_name}>{p.full_name}</SelectItem>)}</SelectContent>
+                            </Select>
                         </div>
                     </div>
 
