@@ -96,8 +96,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           unit: r.unit,
           reason: r.reason,
           source_department: r.source_department,
+          requesting_department: r.requesting_department,
+          requesting_person_name: r.requesting_person_name,
           status: r.status,
           notes: r.notes,
+          description: r.description, // Açıklama - PDF'de gösterilecek
         }));
         
         const reportData = {

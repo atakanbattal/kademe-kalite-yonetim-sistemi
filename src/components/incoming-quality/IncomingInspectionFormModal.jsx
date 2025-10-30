@@ -38,8 +38,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
      * Karakteristik özelliğe göre gerekli ölçüm sayısını hesaplar
      * - Emniyet: %100 (her parça)
      * - Kritik: ~%33 (her 3 parçada 1)
-     * - Fonksiyonel: ~%20 (her 5 parçada 1)  
-     * - Minör: ~%10 (her 10 parçada 1, min 1)
+     * - Fonksiyonel: ~%20 (her 5 parçada 1)
+     * - Minör: 1/parti (her zaman sadece 1 ölçüm)
      */
     const calculateMeasurementCount = (characteristicType, incomingQuantity) => {
         const quantity = Number(incomingQuantity) || 0;
@@ -58,8 +58,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             // Fonksiyonel: Her 5 parçada 1 ölçüm (yaklaşık %20)
             count = Math.ceil(quantity / 5);
         } else if (type.includes('minör') || type.includes('minor')) {
-            // Minör: Her 10 parçada 1 ölçüm, minimum 1 (yaklaşık %10)
-            count = Math.max(1, Math.ceil(quantity / 10));
+            // Minör: 1/parti - Her zaman sadece 1 ölçüm (miktar ne olursa olsun)
+            count = 1;
         } else {
             // Varsayılan: En az 1 ölçüm
             count = 1;
