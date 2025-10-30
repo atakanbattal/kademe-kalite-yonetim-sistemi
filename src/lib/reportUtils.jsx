@@ -24,7 +24,6 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 
 	const reportId = type === 'sheet_metal_entry' ? record.delivery_note_number : (record.id || record.delivery_note_number);
 	
-	let reportUrl;
 	if (useUrlParams) {
 		try {
 			// Veriyi encode et
@@ -46,13 +45,19 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 			if (fullUrl.length > 1800) {
 				if (isListType) {
 					alert(`Rapor için çok fazla kayıt seçildi (URL: ${fullUrl.length} karakter). Lütfen daha az kayıt ile tekrar deneyin veya filtreleme kullanın.`);
-					return;
+					return; // ERKEN ÇIKIŞ - window.open yapma
 				} else {
 					console.warn(`URL too long (${fullUrl.length} chars), falling back to database fetch for ${type}`);
-					reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
+					const reportWindow = window.open(`/print/report/${type}/${reportId}?autoprint=true`, '_blank', 'noopener,noreferrer');
+					if (reportWindow) reportWindow.focus();
+					return;
 				}
-			} else {
-				reportUrl = fullUrl;
+			}
+			
+			// URL uygunsa aç
+			const reportWindow = window.open(fullUrl, '_blank', 'noopener,noreferrer');
+			if (reportWindow) {
+				reportWindow.focus();
 			}
 		} catch (error) {
 			console.error("Error encoding record data:", error);
@@ -60,17 +65,16 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 			const isListType = ['quarantine_list', 'deviation_list', 'incoming_inspection_list'].includes(type);
 			if (isListType) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
-				return;
+				return; // ERKEN ÇIKIŞ - window.open yapma
 			}
-			reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
+			// Fallback: database fetch
+			const reportWindow = window.open(`/print/report/${type}/${reportId}?autoprint=true`, '_blank', 'noopener,noreferrer');
+			if (reportWindow) reportWindow.focus();
 		}
 	} else {
-		reportUrl = `/print/report/${type}/${reportId}?autoprint=true`;
-	}
-	
-	const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
-	if (reportWindow) {
-		reportWindow.focus();
+		// Normal database fetch
+		const reportWindow = window.open(`/print/report/${type}/${reportId}?autoprint=true`, '_blank', 'noopener,noreferrer');
+		if (reportWindow) reportWindow.focus();
 	}
 };
 
