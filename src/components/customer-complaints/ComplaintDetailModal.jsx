@@ -60,8 +60,8 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                 .from('customer_complaints')
                 .select(`
                     *,
-                    customer:customer_id(customer_name, customer_code, customer_type, contact_person, contact_email, contact_phone),
-                    responsible_person:responsible_person_id(full_name, department),
+                    customer:customer_id(name, customer_code, customer_type, contact_person, contact_email, contact_phone),
+                    responsible_person:responsible_personnel_id(full_name, department),
                     assigned_to:assigned_to_id(full_name, department),
                     responsible_department:responsible_department_id(unit_name)
                 `)
