@@ -69,7 +69,7 @@ const CalibrationModal = ({ isOpen, setIsOpen, equipment, refreshData, existingC
         if (id === "calibration_date" && equipment?.calibration_frequency_months) {
             const nextDate = new Date(value);
             if (!isNaN(nextDate)) {
-                nextDate.setMonth(nextDate.getMonth() + equipment.calibration_frequency_months);
+                nextDate.setMonth(nextDate.getMonth() + parseInt(equipment.calibration_frequency_months, 10));
                 newFormData.next_calibration_date = nextDate.toISOString().slice(0, 10);
             }
         }

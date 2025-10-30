@@ -91,6 +91,16 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
     const handleInputChange = (e) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
+
+        // Kalibrasyon sıklığı değiştiğinde sonraki tarihi yeniden hesapla
+        if (id === 'calibration_frequency_months' && calibrationData.calibration_date) {
+            const nextDate = new Date(calibrationData.calibration_date);
+            nextDate.setMonth(nextDate.getMonth() + parseInt(value, 10));
+            setCalibrationData(prev => ({
+                ...prev,
+                next_calibration_date: nextDate.toISOString().slice(0, 10)
+            }));
+        }
     };
     
     const handleCalibrationInputChange = (e) => {
@@ -207,7 +217,7 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                      <div className="grid md:grid-cols-2 gap-4">
                        <div className="space-y-1">
                            <Label htmlFor="calibration_frequency_months">Kalibrasyon Sıklığı (Ay) *</Label>
-                           <Input id="calibration_frequency_months" type="number" value={formData.calibration_frequency_months || 12} onChange={handleInputChange} required />
+                           <Input id="calibration_frequency_months" type="number" min="1" value={formData.calibration_frequency_months !== undefined ? formData.calibration_frequency_months : 12} onChange={handleInputChange} required />
                        </div>
                         <div className="space-y-1"><Label htmlFor="status">Durum *</Label>
                             <Select onValueChange={(v) => setFormData(p => ({...p, status: v}))} value={formData.status || 'Aktif'} required>
