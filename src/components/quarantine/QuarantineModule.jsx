@@ -79,10 +79,18 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       };
 
       const handleDownloadListPDF = () => {
+        // Sadece "Karantinada" durumundaki kayıtları raporla
+        const activeQuarantineRecords = records.filter(r => r.status === 'Karantinada');
+        
+        if (activeQuarantineRecords.length === 0) {
+          alert('Şu anda karantinada bekleyen ürün bulunmamaktadır.');
+          return;
+        }
+        
         const reportData = {
-          title: 'Genel Karantina Raporu',
-          items: records,
-          id: `liste-${new Date().toISOString()}`
+          title: 'Aktif Karantina Raporu',
+          items: activeQuarantineRecords,
+          id: `quarantine-active-${new Date().toISOString()}`
         };
         // quarantine_list için useUrlParams=true (liste verilerini URL'de gönder)
         openPrintableReport(reportData, 'quarantine_list', true);
