@@ -79,12 +79,16 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 if (partCodesWithPlan.length > 0) {
                     query = query.in('part_code', partCodesWithPlan);
                 } else {
+                    // Hiç kontrol planı yoksa hiçbir kayıt döndürme
                     query = query.eq('id', '00000000-0000-0000-0000-000000000000');
                 }
-            } else { 
+            } else if (currentFilters.controlPlanStatus === 'Mevcut Değil') {
+                // Kontrol planı olmayan kayıtları getir
                 if (partCodesWithPlan.length > 0) {
-                    query = query.not('part_code', 'in', `(${partCodesWithPlan.map(p => `'${p}'`).join(',')})`);
+                    // Supabase'de NOT IN için doğru syntax
+                    query = query.not('part_code', 'in', `(${partCodesWithPlan.join(',')})`);
                 }
+                // Eğer hiç kontrol planı yoksa, tüm kayıtlar "Mevcut Değil" demektir, filtre eklemeye gerek yok
             }
         }
         return query;

@@ -125,17 +125,23 @@ import React from 'react';
         };
 
         const handleViewDetail = async (inspection) => {
-            // İlk olarak incoming_inspections_with_supplier VIEW'dan temel bilgi al (supplier_name dahil)
-            const { data: inspectionWithSupplier, error: viewError } = await supabase
-                .from('incoming_inspections_with_supplier')
-                .select('*')
+            // incoming_inspections tablosundan tüm alanlar dahil veriyi çek (delivery_note_number dahil)
+            const { data: inspectionFull, error: fullError } = await supabase
+                .from('incoming_inspections')
+                .select('*, supplier:suppliers(id, name)')
                 .eq('id', inspection.id)
                 .single();
             
-            if (viewError) {
+            if (fullError) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Muayene detayları alınamadı.' });
                 return;
             }
+            
+            // supplier_name'i ekle
+            const inspectionWithSupplier = {
+                ...inspectionFull,
+                supplier_name: inspectionFull.supplier?.name || '-'
+            };
             
             // Related data'yı ayrı ayrı çek
             const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
