@@ -506,14 +506,16 @@ const generateGenericReportHtml = (record, type) => {
 					due_at: record.due_at,
 					due_date: record.due_date,
 					attachments: record.attachments,
-					closing_attachments: record.closing_attachments
+					closing_attachments: record.closing_attachments,
+					supplier_name: record.supplier_name,
+					department: record.department
 				});
 				return `
 					<tr><td>Problem Tanımı</td><td><pre>${record.description || '-'}</pre></td></tr>
 					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
 					<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
 					<tr><td>Sorumlu Kişi</td><td>${record.responsible_person || '-'}</td></tr>
-					<tr><td>Sorumlu Birim</td><td>${record.department || '-'}</td></tr>
+					<tr><td>Sorumlu Birim</td><td>${record.supplier_name || record.department || '-'}</td></tr>
 					<tr><td>Termin Tarihi</td><td>${formatDate(record.due_at || record.due_date)}</td></tr>
 				`;
 			case 'deviation':
