@@ -38,7 +38,7 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
     const resetForm = useCallback(() => {
         const today = new Date().toISOString().slice(0, 10);
         const nextCalDate = new Date();
-        const frequency = formData.calibration_frequency_months || 12;
+        const frequency = 12;
         nextCalDate.setMonth(nextCalDate.getMonth() + parseInt(frequency, 10));
 
         setCalibrationData({
@@ -48,7 +48,7 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
             notes: 'İlk kalibrasyon kaydı',
         });
         setCertificateFile(null);
-    }, [formData.calibration_frequency_months]);
+    }, []);
 
     useEffect(() => {
         const fetchPersonnel = async () => {
