@@ -80,8 +80,8 @@ import React from 'react';
                         <div>
                             <Label>Tarih Aralığı</Label>
                             <DateRangePicker
-                                value={filters.dateRange}
-                                onValueChange={(range) => setFilters(prev => ({...prev, dateRange: range}))}
+                                date={filters.dateRange}
+                                onDateChange={(range) => setFilters(prev => ({...prev, dateRange: range || { from: null, to: null }}))}
                             />
                         </div>
                         <Button onClick={handleClear} variant="outline" className="w-full">Temizle</Button>
