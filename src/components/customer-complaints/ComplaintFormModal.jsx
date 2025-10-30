@@ -69,7 +69,7 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
             quantity_affected: '',
             production_date: '',
             responsible_department_id: '',
-            responsible_person_id: '',
+            responsible_personnel_id: '',
             assigned_to_id: '',
             target_close_date: '',
             customer_impact: '',
@@ -462,11 +462,11 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
                                 </div>
 
                                 <div>
-                                    <Label htmlFor="responsible_person_id">Sorumlu Kişi</Label>
+                                    <Label htmlFor="responsible_personnel_id">Sorumlu Kişi</Label>
                                     <SearchableSelectDialog
                                         options={personnelOptions}
-                                        value={formData.responsible_person_id || ''}
-                                        onChange={(val) => handleSelectChange('responsible_person_id', val)}
+                                        value={formData.responsible_personnel_id || ''}
+                                        onChange={(val) => handleSelectChange('responsible_personnel_id', val)}
                                         triggerPlaceholder="Sorumlu seçin..."
                                         dialogTitle="Sorumlu Seç"
                                         searchPlaceholder="Personel ara..."
