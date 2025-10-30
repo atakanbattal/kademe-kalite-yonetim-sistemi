@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, MessageSquare, Phone, Mail, Video, Users } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +18,7 @@ const COMMUNICATION_TYPES = ['Email', 'Telefon', 'Toplantı', 'Ziyaret', 'Diğer
 
 const CommunicationTab = ({ complaintId, communications, onRefresh }) => {
     const { toast } = useToast();
+    const { user } = useAuth();
     const { personnel } = useData();
     const [isFormOpen, setFormOpen] = useState(false);
     const [formData, setFormData] = useState({});
@@ -29,7 +31,7 @@ const CommunicationTab = ({ complaintId, communications, onRefresh }) => {
             contact_person: '',
             subject: '',
             notes: '',
-            communicated_by: ''
+            communicated_by: user?.id || ''
         });
         setFormOpen(true);
     };
@@ -129,11 +131,6 @@ const CommunicationTab = ({ complaintId, communications, onRefresh }) => {
                                         <div className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                                             {comm.notes}
                                         </div>
-                                        {comm.communicated_by && (
-                                            <div className="text-xs text-muted-foreground mt-2">
-                                                Kaydeden: {comm.communicated_by.full_name}
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </CardContent>
@@ -172,10 +169,6 @@ const CommunicationTab = ({ complaintId, communications, onRefresh }) => {
                         <div>
                             <Label htmlFor="notes">Notlar *</Label>
                             <Textarea id="notes" value={formData.notes || ''} onChange={handleChange} rows={6} required placeholder="İletişim detayları..." />
-                        </div>
-                        <div>
-                            <Label>Kaydeden</Label>
-                            <SearchableSelectDialog options={personnelOptions} value={formData.communicated_by || ''} onChange={(v) => handleSelectChange('communicated_by', v)} triggerPlaceholder="Kişi seçin..." allowClear />
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={isSubmitting}>İptal</Button>

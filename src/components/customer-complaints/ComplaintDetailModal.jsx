@@ -105,7 +105,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
             // İletişim geçmişi
             const { data: commData, error: commError } = await supabase
                 .from('customer_communication_history')
-                .select('*, communicated_by:communicated_by(full_name)')
+                .select('*')
                 .eq('complaint_id', complaint.id)
                 .order('communication_date', { ascending: false });
 

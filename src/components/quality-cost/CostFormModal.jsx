@@ -397,6 +397,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
 
             delete submissionData.quality_control_duration;
+            delete submissionData.unit_cost;
 
             delete submissionData.personnel;
             delete submissionData.non_conformities;
