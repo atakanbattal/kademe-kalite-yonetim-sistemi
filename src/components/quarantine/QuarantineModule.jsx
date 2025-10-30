@@ -84,7 +84,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           items: records,
           id: `liste-${new Date().toISOString()}`
         };
-        openPrintableReport(reportData, 'quarantine_list');
+        // quarantine_list için useUrlParams=true (liste verilerini URL'de gönder)
+        openPrintableReport(reportData, 'quarantine_list', true);
       };
 
       const getStatusColor = (status) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -131,6 +131,30 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
   const [isRejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionNotes, setRejectionNotes] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
+  const [supplierName, setSupplierName] = useState(null);
+
+  // Tedarikçi adını fetch et
+  useEffect(() => {
+    const fetchSupplierName = async () => {
+      if (record?.supplier_id) {
+        const { data, error } = await supabase
+          .from('suppliers')
+          .select('name')
+          .eq('id', record.supplier_id)
+          .single();
+        
+        if (!error && data) {
+          setSupplierName(data.name);
+        }
+      } else {
+        setSupplierName(null);
+      }
+    };
+    
+    if (isOpen && record) {
+      fetchSupplierName();
+    }
+  }, [isOpen, record]);
 
   if (!record) return null;
 
@@ -232,7 +256,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                   <InfoItem
                     icon={Building}
                     label="İlgili Birim"
-                    value={record.department}
+                    value={supplierName || record.department}
                   />
                   <InfoItem
                     icon={User}
