@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ const FISHBONE_CATEGORIES = [
 
 const AnalysisFormModal = ({ open, setOpen, complaintId, existingAnalysis, onSuccess }) => {
     const { toast } = useToast();
+    const { user } = useAuth();
     const { personnel } = useData();
     const isEditMode = !!existingAnalysis;
 
@@ -66,7 +68,7 @@ const AnalysisFormModal = ({ open, setOpen, complaintId, existingAnalysis, onSuc
         } else {
             setFormData({
                 analysis_type: '5N1K',
-                analyzed_by: '',
+                analyzed_by: user?.id || '',
                 analysis_date: new Date().toISOString().split('T')[0]
             });
             
@@ -198,7 +200,7 @@ const AnalysisFormModal = ({ open, setOpen, complaintId, existingAnalysis, onSuc
 
                 <form onSubmit={handleSubmit} className="space-y-6 py-4">
                     {/* Genel Bilgiler */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="analysis_type">
                                 Analiz Tipi <span className="text-red-500">*</span>
@@ -219,20 +221,6 @@ const AnalysisFormModal = ({ open, setOpen, complaintId, existingAnalysis, onSuc
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
-
-                        <div>
-                            <Label htmlFor="analyzed_by">Analizci</Label>
-                            <SearchableSelectDialog
-                                options={personnelOptions}
-                                value={formData.analyzed_by || ''}
-                                onChange={(val) => handleSelectChange('analyzed_by', val)}
-                                triggerPlaceholder="Analizci seçin..."
-                                dialogTitle="Analizci Seç"
-                                searchPlaceholder="Personel ara..."
-                                notFoundText="Personel bulunamadı."
-                                allowClear
-                            />
                         </div>
 
                         <div>
