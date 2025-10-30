@@ -392,29 +392,27 @@ const generateListReportHtml = (record, type) => {
 
 	if (type === 'quarantine_list') {
 		title = 'Genel Karantina Raporu';
-		headers = ['Tarih', 'Parça Bilgileri', 'Miktar', 'Birim', 'Durum', 'Sebep Olan Birim', 'Talebi Yapan', 'Açıklama'];
+		headers = ['Tarih', 'Parça Bilgileri', 'Miktar', 'Durum', 'Sorumlu Birim', 'Açıklama'];
 		rowsHtml = record.items.map(item => `
 			<tr>
-				<td style="white-space: nowrap;">${formatDate(item.quarantine_date)}</td>
-				<td>
-					<strong>${item.part_name || '-'}</strong><br>
-					<small class="muted">Kod: ${item.part_code || '-'}</small><br>
-					<small class="muted">Lot: ${item.lot_no || '-'}</small>
+				<td style="white-space: nowrap; width: 10%;">${formatDate(item.quarantine_date)}</td>
+				<td style="width: 20%;">
+					<strong style="font-size: 0.9em;">${item.part_name || '-'}</strong><br>
+					<small class="muted" style="font-size: 0.75em;">Kod: ${item.part_code || '-'}</small><br>
+					<small class="muted" style="font-size: 0.75em;">Lot: ${item.lot_no || '-'}</small>
 				</td>
-				<td style="text-align: right;"><strong>${item.quantity || '0'}</strong></td>
-				<td>${item.unit || '-'}</td>
-				<td><span style="padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; white-space: nowrap; ${
+				<td style="text-align: center; width: 8%; white-space: nowrap;"><strong>${item.quantity || '0'}</strong> ${item.unit || 'Adet'}</td>
+				<td style="width: 10%;"><span style="padding: 3px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; white-space: nowrap; display: inline-block; ${
 					item.status === 'Karantinada' ? 'background-color: #fee2e2; color: #991b1b;' :
 					item.status === 'Tamamlandı' ? 'background-color: #d1fae5; color: #065f46;' :
 					item.status === 'Serbest Bırakıldı' ? 'background-color: #dbeafe; color: #1e40af;' :
 					'background-color: #e5e7eb; color: #374151;'
 				}">${item.status || 'Bilinmiyor'}</span></td>
-				<td>${item.source_department || '-'}</td>
-				<td>
-					${item.requesting_department || '-'}<br>
-					<small class="muted">${item.requesting_person_name || '-'}</small>
+				<td style="width: 12%; font-size: 0.85em;">
+					<strong>${item.source_department || '-'}</strong><br>
+					<small class="muted" style="font-size: 0.8em;">Talep: ${item.requesting_department || '-'}</small>
 				</td>
-				<td style="max-width: 300px;"><pre style="font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; margin: 0;">${item.description || '-'}</pre></td>
+				<td style="width: 40%; font-size: 0.8em;"><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${item.description || '-'}</pre></td>
 			</tr>
 		`).join('');
 		
