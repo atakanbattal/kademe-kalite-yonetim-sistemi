@@ -316,47 +316,40 @@ const IncomingInspectionDetailModal = ({
                         description += ` (Ölçüm ${result.measurement_number}/${result.total_measurements})`;
                     }
                     description += `:\n`;
-                    description += `   Ölçüm Tipi: ${result.characteristic_type || 'Belirtilmemiş'}\n`;
                     
-                    if (result.characteristic_type === 'Boyutsal' || result.characteristic_type === 'Ölçülebilir') {
-                        description += `   Beklenen Nominal: ${nominal !== null ? nominal : 'Belirtilmemiş'} mm\n`;
-                        description += `   Tolerans Aralığı: ${min !== null ? min : '-'} ~ ${max !== null ? max : '-'} mm\n`;
-                        description += `   Ölçülen Değer: ${measured !== null ? measured : 'Belirtilmemiş'} mm\n`;
+                    // TÜM ÖLÇÜMLER İÇİN DETAY GÖSTER (Tip bakmaksızın)
+                    if (nominal !== null || min !== null || max !== null) {
+                        description += `   Beklenen: ${nominal !== null ? nominal : '-'} mm (Tolerans: ${min !== null ? min : '-'} ~ ${max !== null ? max : '-'} mm)\n`;
+                    }
+                    description += `   Ölçülen: ${measured !== null ? measured + ' mm' : 'Ölçülmemiş'}\n`;
+                    
+                    // Detaylı sapma analizi ve açıklama
+                    if (measured !== null && nominal !== null) {
+                        const measuredNum = parseFloat(measured);
+                        const nominalNum = parseFloat(nominal);
+                        const deviation = measuredNum - nominalNum;
                         
-                        // Detaylı sapma analizi ve açıklama
-                        if (measured !== null && nominal !== null) {
-                            const measuredNum = parseFloat(measured);
-                            const nominalNum = parseFloat(nominal);
-                            const deviation = measuredNum - nominalNum;
-                            const deviationPercent = nominalNum !== 0 ? ((deviation / nominalNum) * 100).toFixed(2) : '∞';
-                            
-                            // Açıklayıcı ifade
-                            description += `   → SAPMA: ${nominal} mm olması gerekirken ${measured} mm ölçülmüştür\n`;
-                            description += `   → Fark: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm (${deviationPercent}%)\n`;
-                            
-                            // Tolerans dışına çıkma açıklaması
-                            if (min !== null && measuredNum < parseFloat(min)) {
-                                const underTolerance = parseFloat(min) - measuredNum;
-                                description += `   ⚠ ALT TOLERANS AŞILDI: ${min} mm'den ${underTolerance.toFixed(3)} mm küçük!\n`;
-                            }
-                            if (max !== null && measuredNum > parseFloat(max)) {
-                                const overTolerance = measuredNum - parseFloat(max);
-                                description += `   ⚠ ÜST TOLERANS AŞILDI: ${max} mm'den ${overTolerance.toFixed(3)} mm büyük!\n`;
-                            }
-                        } else if (measured !== null && (min !== null || max !== null)) {
-                            // Nominal yok ama toleranslar var
-                            if (min !== null && parseFloat(measured) < parseFloat(min)) {
-                                description += `   ⚠ UYGUNSUZ: ${measured} mm < ${min} mm (alt sınır)\n`;
-                            }
-                            if (max !== null && parseFloat(measured) > parseFloat(max)) {
-                                description += `   ⚠ UYGUNSUZ: ${measured} mm > ${max} mm (üst sınır)\n`;
-                            }
+                        // Açıklayıcı ifade
+                        description += `   → SAPMA: ${nominal} mm olması gerekirken ${measured} mm ölçülmüştür\n`;
+                        description += `   → Fark: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm\n`;
+                        
+                        // Tolerans dışına çıkma açıklaması
+                        if (min !== null && measuredNum < parseFloat(min)) {
+                            const underTolerance = parseFloat(min) - measuredNum;
+                            description += `   ⚠ ALT TOLERANS AŞILDI: ${min} mm'den ${underTolerance.toFixed(3)} mm küçük!\n`;
                         }
-                    } else if (result.characteristic_type === 'Görsel') {
-                        description += `   Tespit: ${result.measured_value || 'Görsel kusur tespit edildi'}\n`;
-                    } else {
-                        // Diğer tipler için measured value
-                        description += `   Ölçülen: ${measured !== null ? measured : 'Belirtilmemiş'}\n`;
+                        if (max !== null && measuredNum > parseFloat(max)) {
+                            const overTolerance = measuredNum - parseFloat(max);
+                            description += `   ⚠ ÜST TOLERANS AŞILDI: ${max} mm'den ${overTolerance.toFixed(3)} mm büyük!\n`;
+                        }
+                    } else if (measured !== null && (min !== null || max !== null)) {
+                        // Nominal yok ama toleranslar var
+                        if (min !== null && parseFloat(measured) < parseFloat(min)) {
+                            description += `   ⚠ UYGUNSUZ: ${measured} mm < ${min} mm (alt sınır)\n`;
+                        }
+                        if (max !== null && parseFloat(measured) > parseFloat(max)) {
+                            description += `   ⚠ UYGUNSUZ: ${measured} mm > ${max} mm (üst sınır)\n`;
+                        }
                     }
                     
                     // Result değerini daha okunabilir göster
@@ -423,25 +416,32 @@ const IncomingInspectionDetailModal = ({
             // Tedarikçi varsa, önce supplier_non_conformities'e kayıt oluştur
             let supplierNCId = null;
             if (enrichedInspection.supplier_id) {
+                const supplierNCData = {
+                    supplier_id: enrichedInspection.supplier_id,
+                    title: ncTitle,
+                    description: ncDescription,
+                    status: 'Açık',
+                    cost_impact: 0,
+                };
+                
+                console.log('🔍 Tedarikçi uygunsuzluğu oluşturuluyor:', supplierNCData);
+                
                 const { data: supplierNC, error: supplierNCError } = await supabase
                     .from('supplier_non_conformities')
-                    .insert({
-                        supplier_id: enrichedInspection.supplier_id,
-                        title: ncTitle,
-                        description: ncDescription,
-                        status: 'Açık',
-                        cost_impact: 0,
-                    })
+                    .insert(supplierNCData)
                     .select()
                     .single();
 
                 if (supplierNCError) {
-                    console.error('Tedarikçi uygunsuzluğu oluşturulamadı:', supplierNCError);
+                    console.error('❌ Tedarikçi uygunsuzluğu oluşturulamadı:', supplierNCError);
+                    console.error('❌ Hata detayı:', JSON.stringify(supplierNCError, null, 2));
                     toast({
-                        variant: 'warning',
-                        title: 'Uyarı',
-                        description: 'Tedarikçi uygunsuzluğu oluşturulamadı, sadece DF/8D kaydı oluşturulacak.',
+                        variant: 'destructive',
+                        title: 'Hata',
+                        description: `Tedarikçi uygunsuzluğu oluşturulamadı: ${supplierNCError.message}`,
                     });
+                    setIsCreatingNC(false);
+                    return; // İşlemi durdur
                 } else {
                     supplierNCId = supplierNC.id;
                     console.log('✅ Tedarikçi uygunsuzluğu oluşturuldu:', supplierNCId);
