@@ -1523,6 +1523,13 @@ const generatePrintableReportHtml = (record, type) => {
 			color: #2563eb; 
 			word-break: break-all; 
 		}
+		
+		/* ============================================
+		   LINK URL GİZLEME - Hem ekranda hem print'te
+		   ============================================ */
+		a[href]:after {
+			content: none !important;
+		}
 
 		/* ============================================
 		   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
@@ -1592,11 +1599,6 @@ const generatePrintableReportHtml = (record, type) => {
 			/* Footer gizle */
 			.footer {
 				display: none !important;
-			}
-			
-			/* Link sonrası URL gösterme */
-			a[href]:after { 
-				content: none !important; 
 			}
 			
 			/* Görseller yarım kesilmesin */
@@ -1755,6 +1757,11 @@ const generatePrintableReportHtml = (record, type) => {
 		.title { font-size: 9pt; color: #666; margin: 0; }
 		
 		.footer { display: none; }
+		
+		/* Link URL gizle */
+		a[href]:after {
+			content: none !important;
+		}
 
 		@media print {
 			@page { size: A4 landscape; margin: 0; }
@@ -1842,6 +1849,11 @@ const generatePrintableReportHtml = (record, type) => {
 		.exam-option-text { font-size: 11px; }
 
 		.footer { display: block !important; }
+		
+		/* Link URL gizle */
+		a[href]:after {
+			content: none !important;
+		}
 	`;
 
 	return `
