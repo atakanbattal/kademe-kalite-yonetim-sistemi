@@ -299,6 +299,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         setPage={handlePageChange}
                         totalCount={totalCount}
                         pageSize={PAGE_SIZE}
+                        onOpenStockRiskModal={handleOpenStockRiskModal}
                     />
                 </TabsContent>
                  <TabsContent value="sheet-metal">

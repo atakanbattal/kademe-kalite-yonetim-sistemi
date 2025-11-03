@@ -33,6 +33,60 @@ import React, { useEffect, useState } from 'react';
                         try {
                             recordData = JSON.parse(storedData);
                             console.log('✅ Rapor verisi localStorage\'dan başarıyla okundu:', storageKey);
+                            console.log('DEBUG: NC Report record:', {
+                                due_at: recordData.due_at,
+                                due_date: recordData.due_date,
+                                attachments: recordData.attachments,
+                                closing_attachments: recordData.closing_attachments,
+                                supplier_name: recordData.supplier_name
+                            });
+                            
+                            // ÖNEMLİ: Nonconformity için attachments ve closing_attachments kontrolü
+                            // localStorage'dan gelen veride bu alanlar undefined olabilir
+                            if (type === 'nonconformity' && id) {
+                                console.log('🔍 Nonconformity tipi tespit edildi, attachments kontrol ediliyor...');
+                                
+                                // supplier_name yoksa çek
+                                if (!recordData.supplier_name && recordData.supplier_id) {
+                                    const { data: supplierData } = await supabase
+                                        .from('suppliers')
+                                        .select('name')
+                                        .eq('id', recordData.supplier_id)
+                                        .maybeSingle();
+                                    
+                                    if (supplierData) {
+                                        recordData.supplier_name = supplierData.name;
+                                        console.log('✅ Tedarikçi adı eklendi:', supplierData.name);
+                                    }
+                                }
+                                
+                                // attachments veya closing_attachments undefined ise veritabanından çek
+                                if (recordData.attachments === undefined || recordData.closing_attachments === undefined) {
+                                    console.log('⚠️ Attachments undefined, veritabanından çekiliyor...');
+                                    const { data: freshData, error: attachError } = await supabase
+                                        .from('non_conformities')
+                                        .select('attachments, closing_attachments')
+                                        .eq('id', id)
+                                        .maybeSingle();
+                                    
+                                    if (!attachError && freshData) {
+                                        recordData.attachments = freshData.attachments || [];
+                                        recordData.closing_attachments = freshData.closing_attachments || [];
+                                        console.log('✅ Attachments veritabanından yüklendi:', {
+                                            attachments: recordData.attachments?.length || 0,
+                                            closing_attachments: recordData.closing_attachments?.length || 0
+                                        });
+                                    } else {
+                                        console.error('❌ Attachments yüklenirken hata:', attachError);
+                                    }
+                                } else {
+                                    console.log('✅ Attachments zaten mevcut:', {
+                                        attachments: recordData.attachments?.length || 0,
+                                        closing_attachments: recordData.closing_attachments?.length || 0
+                                    });
+                                }
+                            }
+                            
                             // Veri okunduktan hemen sonra temizle (tekrar kullanılmasın)
                             localStorage.removeItem(storageKey);
                         } catch (e) {
@@ -204,6 +258,9 @@ import React, { useEffect, useState } from 'react';
                                 selectQuery = '*, equipment_calibrations!left(*)';
                             } else if (type === 'deviation') {
                                 selectQuery = '*, deviation_approvals!left(*)';
+                            } else if (type === 'nonconformity') {
+                                // Nonconformity için tüm alanları dahil et (attachments ve closing_attachments JSONB olarak tabloda)
+                                selectQuery = '*';
                             }
                             
                             const { data: queryData, error: queryError2 } = await supabase
@@ -214,6 +271,36 @@ import React, { useEffect, useState } from 'react';
                             
                             if (queryError2) throw queryError2;
                             recordData = queryData;
+                            
+                            // Nonconformity için tedarikçi adını ve attachments'ları çek
+                            if (type === 'nonconformity' && recordData) {
+                                if (recordData.supplier_id) {
+                                    const { data: supplierData } = await supabase
+                                        .from('suppliers')
+                                        .select('name')
+                                        .eq('id', recordData.supplier_id)
+                                        .maybeSingle();
+                                    
+                                    if (supplierData) {
+                                        recordData.supplier_name = supplierData.name;
+                                    }
+                                }
+                                
+                                // Eğer attachments ve closing_attachments yoksa (localStorage'dan undefined gelirse),
+                                // veritabanından çek
+                                if (recordData.attachments === undefined || recordData.closing_attachments === undefined) {
+                                    const { data: freshData } = await supabase
+                                        .from('non_conformities')
+                                        .select('attachments, closing_attachments')
+                                        .eq('id', id)
+                                        .maybeSingle();
+                                    
+                                    if (freshData) {
+                                        recordData.attachments = freshData.attachments || [];
+                                        recordData.closing_attachments = freshData.closing_attachments || [];
+                                    }
+                                }
+                            }
                             break;
                         }
                         case 'kaizen': {

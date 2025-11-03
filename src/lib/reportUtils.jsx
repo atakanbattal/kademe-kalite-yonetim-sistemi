@@ -1053,7 +1053,11 @@ const generateGenericReportHtml = (record, type) => {
 		let bucket = '';
 
 		if (type === 'nonconformity') {
-			attachments = record.attachments || [];
+			// Hem attachments hem de closing_attachments'ı dahil et
+			attachments = [
+				...(record.attachments || []),
+				...(record.closing_attachments || [])
+			];
 			bucket = 'df_attachments';
 		} else if (type === 'kaizen') {
 			attachments = [...(record.attachments_before || []), ...(record.attachments_after || [])];

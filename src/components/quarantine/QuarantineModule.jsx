@@ -134,18 +134,38 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
       return (
         <div className="space-y-6">
-          <QuarantineFormModal isOpen={isFormOpen} setIsOpen={setIsFormOpen} existingRecord={selectedRecord} refreshData={refreshData} mode={formMode} />
-          <QuarantineDecisionModal isOpen={isDecisionOpen} setIsOpen={setIsDecisionOpen} record={selectedRecord} refreshData={refreshData} />
-          <QuarantineViewModal isOpen={isViewOpen} setIsOpen={setIsViewOpen} record={selectedRecord} onEdit={handleOpenEdit} />
-          {selectedRecord && (
-            <CreateNCFromQuarantineModal 
-                isOpen={isCreateNCOpen}
-                setIsOpen={setCreateNCOpen}
-                quarantineRecord={selectedRecord}
-                onOpenNCForm={onOpenNCForm}
-                refreshData={refreshData}
-            />
-          )}
+          <QuarantineFormModal 
+            isOpen={isFormOpen} 
+            setIsOpen={setIsFormOpen} 
+            existingRecord={selectedRecord} 
+            refreshData={refreshData} 
+            mode={formMode} 
+          />
+          <QuarantineDecisionModal 
+            isOpen={isDecisionOpen} 
+            setIsOpen={setIsDecisionOpen} 
+            record={selectedRecord} 
+            refreshData={refreshData} 
+          />
+          <QuarantineViewModal 
+            isOpen={isViewOpen} 
+            setIsOpen={setIsViewOpen} 
+            record={selectedRecord} 
+            onEdit={handleOpenEdit} 
+          />
+          <CreateNCFromQuarantineModal 
+            isOpen={isCreateNCOpen}
+            setIsOpen={setCreateNCOpen}
+            quarantineRecord={selectedRecord}
+            onOpenNCForm={onOpenNCForm}
+            refreshData={refreshData}
+          />
+          <QuarantineReportFilterModal
+            isOpen={isReportFilterOpen}
+            setIsOpen={setIsReportFilterOpen}
+            records={records}
+            onGenerateReport={handleGenerateReportFromSelection}
+          />
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -287,40 +307,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
               <QuarantineAnalytics quarantineRecords={records} />
             </TabsContent>
           </Tabs>
-
-        {/* Modals */}
-        <QuarantineFormModal
-          isOpen={isFormOpen}
-          setIsOpen={setIsFormOpen}
-          mode={formMode}
-          record={selectedRecord}
-        />
-
-        <QuarantineViewModal
-          isOpen={isViewOpen}
-          setIsOpen={setIsViewOpen}
-          record={selectedRecord}
-        />
-
-        <QuarantineDecisionModal
-          isOpen={isDecisionOpen}
-          setIsOpen={setIsDecisionOpen}
-          record={selectedRecord}
-        />
-
-        <CreateNCFromQuarantineModal
-          isOpen={isCreateNCOpen}
-          setIsOpen={setCreateNCOpen}
-          quarantineRecord={selectedRecord}
-          onOpenNCForm={onOpenNCForm}
-        />
-
-        <QuarantineReportFilterModal
-          isOpen={isReportFilterOpen}
-          setIsOpen={setIsReportFilterOpen}
-          records={records}
-          onGenerateReport={handleGenerateReportFromSelection}
-        />
         </div>
       );
     };

@@ -30,6 +30,7 @@ const IncomingInspectionDetailModal = ({
     setIsOpen,
     inspection,
     onDownloadPDF,
+    onOpenStockRiskModal,
 }) => {
     const { toast } = useToast();
     const [preparedBy, setPreparedBy] = useState('');
@@ -39,26 +40,40 @@ const IncomingInspectionDetailModal = ({
     const [riskyStockData, setRiskyStockData] = useState(null);
     const [checkingRiskyStock, setCheckingRiskyStock] = useState(false);
 
-    // Check for risky stock when modal opens
+    // Check for risky stock when modal opens or inspection data changes
     useEffect(() => {
-        if (!isOpen || !inspection || !inspection.part_code) return;
+        if (!isOpen || !enrichedInspection || !enrichedInspection.part_code) {
+            setRiskyStockData(null);
+            return;
+        }
+        
+        console.log('🔍 Risk kontrolü yapılıyor - Karar:', enrichedInspection.decision);
+        
+        // Sadece Ret veya Şartlı Kabul durumunda risk kontrolü yap
+        if (enrichedInspection.decision !== 'Ret' && enrichedInspection.decision !== 'Şartlı Kabul') {
+            console.log('⚠️ Karar Ret veya Şartlı Kabul değil, risk kontrolü yapılmıyor');
+            setRiskyStockData(null);
+            return;
+        }
         
         const checkRiskyStock = async () => {
             setCheckingRiskyStock(true);
             try {
+                console.log('📊 Önceki kabul edilen kayıtlar aranıyor:', enrichedInspection.part_code);
                 // Bu part_code'dan daha önce kabul edilen kayıtları kontrol et
                 const { data: previousAccepted, error } = await supabase
                     .from('incoming_inspections')
                     .select('id, record_no, inspection_date, supplier:suppliers(name), quantity_accepted')
-                    .eq('part_code', inspection.part_code)
+                    .eq('part_code', enrichedInspection.part_code)
                     .eq('decision', 'Kabul')
-                    .neq('id', inspection.id)
+                    .neq('id', enrichedInspection.id)
                     .order('inspection_date', { ascending: false });
                 
                 if (error) {
-                    console.error('Risky stock check error:', error);
+                    console.error('❌ Risky stock check error:', error);
                     setRiskyStockData(null);
                 } else if (previousAccepted && previousAccepted.length > 0) {
+                    console.log('✅ Riskli stok bulundu! Kayıt sayısı:', previousAccepted.length);
                     // Stok riski bulundu
                     const totalQuantity = previousAccepted.reduce((sum, item) => sum + (item.quantity_accepted || 0), 0);
                     setRiskyStockData({
@@ -71,10 +86,11 @@ const IncomingInspectionDetailModal = ({
                         }))
                     });
                 } else {
+                    console.log('ℹ️ Önceden kabul edilmiş kayıt bulunamadı');
                     setRiskyStockData(null);
                 }
             } catch (err) {
-                console.error('Risky stock check exception:', err);
+                console.error('❌ Risky stock check exception:', err);
                 setRiskyStockData(null);
             } finally {
                 setCheckingRiskyStock(false);
@@ -82,7 +98,7 @@ const IncomingInspectionDetailModal = ({
         };
         
         checkRiskyStock();
-    }, [isOpen, inspection]);
+    }, [isOpen, enrichedInspection]);
 
     // Ölçüm numaralarını kontrol planından regenerate et
     React.useEffect(() => {
@@ -187,6 +203,48 @@ const IncomingInspectionDetailModal = ({
                 variant: 'destructive',
                 title: 'Hata',
                 description: 'Rapor oluşturulamadı!',
+            });
+        }
+    };
+
+    const handleStartStockControl = async () => {
+        if (!riskyStockData || !riskyStockData.previous_items || riskyStockData.previous_items.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Kontrol edilecek önceki kayıt bulunamadı.',
+            });
+            return;
+        }
+
+        try {
+            // Riskli stokları tam veriyle yeniden fetch et
+            const recordNumbers = riskyStockData.previous_items.map(item => item.record_no);
+            const { data: fullRiskyStock, error } = await supabase
+                .from('incoming_inspections')
+                .select('*, supplier:suppliers!left(id, name)')
+                .in('record_no', recordNumbers);
+
+            if (error) throw error;
+
+            // StockRiskModal'ı aç - Form modal ile aynı yapı
+            if (onOpenStockRiskModal) {
+                onOpenStockRiskModal(enrichedInspection, fullRiskyStock);
+                setIsOpen(false); // Bu modalı kapat
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Stok kontrol modalı açılamadı.',
+                });
+            }
+
+        } catch (error) {
+            console.error('Stok kontrol başlatma hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: `Stok kontrolü başlatılamadı: ${error.message}`,
             });
         }
     };
@@ -550,7 +608,7 @@ const IncomingInspectionDetailModal = ({
                                 </div>
                             </CardContent>
                         </Card>
-                        {/* STOK KONTROL UYARISI */}
+                        {/* STOK KONTROL UYARISI - Sadece Ret veya Şartlı Kabul durumunda göster */}
                         {riskyStockData && (
                             <Card className="border-red-200 bg-red-50">
                                 <CardHeader>
@@ -579,6 +637,19 @@ const IncomingInspectionDetailModal = ({
                                     <p className="text-yellow-700 text-sm italic">
                                         💡 Tavsiye: Eski stokların kontrol edilip tüketilmesini veya yönetilmesini dikkate alın.
                                     </p>
+                                    <div className="pt-3 border-t border-red-200">
+                                        <Button
+                                            onClick={handleStartStockControl}
+                                            disabled={!onOpenStockRiskModal}
+                                            className="w-full bg-orange-600 hover:bg-orange-700"
+                                        >
+                                            <AlertCircle className="h-4 w-4 mr-2" />
+                                            Stok Kontrol Başlat
+                                        </Button>
+                                        <p className="text-xs text-gray-600 mt-2 text-center">
+                                            Bu buton riskli stoklar için detaylı kontrol modalını açar
+                                        </p>
+                                    </div>
                                 </CardContent>
                             </Card>
                         )}

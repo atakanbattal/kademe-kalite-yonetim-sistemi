@@ -48,29 +48,40 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
         }
     }, [isOpen, toast]);
 
-    const initialData = {
-        lot_no: '',
-        part_code: '',
-        part_name: '',
-        quantity: '',
-        unit: 'Adet',
-        source_department: '',
-        requesting_department: '',
-        requesting_person_name: '',
-        description: '',
-        quarantine_date: new Date().toISOString().slice(0, 10),
-        status: 'Karantinada'
-    };
-
     useEffect(() => {
         if (isOpen) {
             if (isEditMode && existingRecord) {
+                // Düzenleme modunda mevcut kayıt verilerini yükle
                 setFormData({
-                    ...existingRecord,
-                    quarantine_date: new Date(existingRecord.quarantine_date).toISOString().slice(0, 10),
+                    lot_no: existingRecord.lot_no || '',
+                    part_code: existingRecord.part_code || '',
+                    part_name: existingRecord.part_name || '',
+                    quantity: existingRecord.quantity || '',
+                    unit: existingRecord.unit || 'Adet',
+                    source_department: existingRecord.source_department || '',
+                    requesting_department: existingRecord.requesting_department || '',
+                    requesting_person_name: existingRecord.requesting_person_name || '',
+                    description: existingRecord.description || '',
+                    quarantine_date: existingRecord.quarantine_date 
+                        ? new Date(existingRecord.quarantine_date).toISOString().slice(0, 10)
+                        : new Date().toISOString().slice(0, 10),
+                    status: existingRecord.status || 'Karantinada'
                 });
             } else {
-                setFormData(initialData);
+                // Yeni kayıt modunda başlangıç değerleri
+                setFormData({
+                    lot_no: '',
+                    part_code: '',
+                    part_name: '',
+                    quantity: '',
+                    unit: 'Adet',
+                    source_department: '',
+                    requesting_department: '',
+                    requesting_person_name: '',
+                    description: '',
+                    quarantine_date: new Date().toISOString().slice(0, 10),
+                    status: 'Karantinada'
+                });
             }
         }
     }, [existingRecord, isEditMode, isOpen]);
