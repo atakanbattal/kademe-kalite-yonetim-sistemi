@@ -231,7 +231,7 @@ setShowRiskyStockAlert(false);
                     return;
                 }
 
-                // DÜZENLEME MODU: Mevcut results ile kontrol planı UYUMLU MU kontrol et
+                // DÜZENLEME MODU: Mevcut results ile kontrol planı SYNC kontrolü
                 if (existingInspection && results.length > 0) {
                     // KRİTİK: Kontrol planındaki beklenen toplam ölçüm sayısını hesapla
                     let expectedResultCount = 0;
@@ -247,37 +247,85 @@ setShowRiskyStockAlert(false);
                     
                     // ESKİ KAYITLARDA UYUMSUZLUK: Results sayısı kontrol planı ile eşleşmiyor
                     if (results.length !== expectedResultCount) {
-                        console.warn(`🔄 ESKİ KAYIT TESPİT EDİLDİ! Results: ${results.length}, Beklenen: ${expectedResultCount}`);
+                        console.warn(`🔄 ESKİ KAYIT TESPİT EDİLDİ (sayı uyumsuz)! Results: ${results.length}, Beklenen: ${expectedResultCount}`);
                         console.warn('🔄 Results yeniden oluşturuluyor - eski format güncellenecek');
                         // Results'ı YENİDEN oluştur - aşağıdaki "YENİ KAYIT" koduna düşecek
                     } else {
-                        console.log('⚠️ Düzenleme modu: Mevcut ölçüm değerleri korunuyor:', results.length);
-                        // Sadece summary'yi güncelle, results'a dokunma
-                        const summary = [];
-                        controlPlan.items.forEach((item) => {
-                            const characteristic = characteristics.find(c => c.value === item.characteristic_id);
-                            if (!characteristic) return;
+                        // Sayı UYUMLU ama nominal/min/max değerleri ESKİ FORMATTA olabilir!
+                        // Her result item'ın nominal/min/max değerlerini kontrol planı ile SYNC et
+                        console.log('⚠️ Düzenleme modu: Sayı uyumlu, nominal/min/max değerleri kontrol ediliyor...');
+                        
+                        let needsSync = false;
+                        let resultIndex = 0;
+                        
+                        for (const planItem of controlPlan.items) {
+                            const characteristic = characteristics.find(c => c.value === planItem.characteristic_id);
+                            if (!characteristic) continue;
                             
-                            const characteristicType = item.characteristic_type || characteristic.type;
-                            if (!characteristicType) return;
+                            const characteristicType = planItem.characteristic_type || characteristic.type;
+                            if (!characteristicType) continue;
                             
                             const count = calculateMeasurementCount(characteristicType, incomingQuantity);
-                            summary.push({
-                                name: characteristic.label,
-                                type: characteristicType,
-                                count: count,
-                                method: equipment.find(e => e.value === item.equipment_id)?.label || 'Bilinmiyor',
-                                nominal: item.nominal_value,
-                                tolerance: item.min_value !== null ? `${item.min_value} - ${item.max_value}` : 'Yok'
+                            
+                            // Bu karakteristik için tüm ölçümleri kontrol et
+                            for (let i = 0; i < count; i++) {
+                                const result = results[resultIndex];
+                                if (!result) break;
+                                
+                                // Nominal/min/max değerleri kontrol planı ile UYUMLU MU?
+                                const nominalMatch = result.nominal_value == planItem.nominal_value; // == kullan (tip kontrolü yapma)
+                                const minMatch = result.min_value == planItem.min_value;
+                                const maxMatch = result.max_value == planItem.max_value;
+                                
+                                if (!nominalMatch || !minMatch || !maxMatch) {
+                                    console.warn(`🔄 Result ${resultIndex + 1} SYNC'den düştü:`, {
+                                        result: { nominal: result.nominal_value, min: result.min_value, max: result.max_value },
+                                        plan: { nominal: planItem.nominal_value, min: planItem.min_value, max: planItem.max_value }
+                                    });
+                                    needsSync = true;
+                                    break;
+                                }
+                                
+                                resultIndex++;
+                            }
+                            
+                            if (needsSync) break;
+                        }
+                        
+                        if (needsSync) {
+                            console.warn('🔄 ESKİ KAYIT TESPİT EDİLDİ (nominal/min/max uyumsuz)! Results SYNC edilecek...');
+                            // Results'ı YENİDEN oluştur ama measured_value ve result değerlerini KORU
+                            // Aşağıdaki "YENİ KAYIT" koduna düşecek ama measured_value'ları koruyacağız
+                        } else {
+                            console.log('✅ Düzenleme modu: Tüm değerler SYNC, mevcut results korunuyor:', results.length);
+                            // Sadece summary'yi güncelle, results'a dokunma
+                            const summary = [];
+                            controlPlan.items.forEach((item) => {
+                                const characteristic = characteristics.find(c => c.value === item.characteristic_id);
+                                if (!characteristic) return;
+                                
+                                const characteristicType = item.characteristic_type || characteristic.type;
+                                if (!characteristicType) return;
+                                
+                                const count = calculateMeasurementCount(characteristicType, incomingQuantity);
+                                summary.push({
+                                    name: characteristic.label,
+                                    type: characteristicType,
+                                    count: count,
+                                    method: equipment.find(e => e.value === item.equipment_id)?.label || 'Bilinmiyor',
+                                    nominal: item.nominal_value,
+                                    tolerance: item.min_value !== null ? `${item.min_value} - ${item.max_value}` : 'Yok'
+                                });
                             });
-                        });
-                        setMeasurementSummary(summary);
-                        return; // Mevcut results'ı değiştirme!
+                            setMeasurementSummary(summary);
+                            return; // Mevcut results'ı değiştirme!
+                        }
                     }
                 }
 
-                // YENİ KAYIT MODU: Normal şekilde oluştur
-                console.log('➕ Yeni kayıt: Ölçüm sonuçları oluşturuluyor...');
+                // YENİ KAYIT MODU veya ESKİ KAYIT SYNC: Ölçüm sonuçları oluştur
+                const isOldRecordSync = existingInspection && results.length > 0;
+                console.log(isOldRecordSync ? '🔄 ESKİ KAYIT SYNC: Ölçüm sonuçları yeniden oluşturuluyor (measured_value korunacak)...' : '➕ YENİ KAYIT: Ölçüm sonuçları oluşturuluyor...');
                 console.log('📋 Kontrol Planı Items Sayısı:', controlPlan.items?.length || 0);
                 
                 if (!controlPlan.items || controlPlan.items.length === 0) {
@@ -290,6 +338,7 @@ setShowRiskyStockAlert(false);
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
+                let oldResultIndex = 0; // Eski results dizisindeki index
 
                 controlPlan.items.forEach((item, index) => {
                     console.log(`🔍 Item ${index + 1}/${controlPlan.items.length} işleniyor:`, {
@@ -327,31 +376,39 @@ setShowRiskyStockAlert(false);
                     });
 
                     for (let i = 1; i <= count; i++) {
+                        // ESKİ KAYIT SYNC: measured_value ve result değerlerini ESKİ results'tan al
+                        const oldResult = isOldRecordSync && oldResultIndex < results.length ? results[oldResultIndex] : null;
+                        
                         const resultItem = {
-                            id: uuidv4(),
+                            id: oldResult?.id || uuidv4(),
                             control_plan_item_id: item.id,
                             characteristic_name: characteristic.label,
                             characteristic_type: characteristicType,
                             measurement_method: equipment.find(e => e.value === item.equipment_id)?.label || 'Bilinmiyor',
                             measurement_number: i,
                             total_measurements: count,
-                            // KRİTİK: Nominal, min, max değerlerini KESİNLİKLE item'dan al
+                            // KRİTİK: Nominal, min, max değerlerini KESİNLİKLE GÜNCEL kontrol planından al
                             nominal_value: item.nominal_value !== undefined && item.nominal_value !== null ? item.nominal_value : '',
                             min_value: item.min_value !== undefined && item.min_value !== null ? item.min_value : null,
                             max_value: item.max_value !== undefined && item.max_value !== null ? item.max_value : null,
-                            measured_value: '',
-                            result: null,
+                            // ESKİ KAYIT ise measured_value ve result'ı KORU
+                            measured_value: oldResult?.measured_value || '',
+                            result: oldResult?.result || null,
                         };
                         
                         if (i === 1) {
                             console.log(`   📝 İlk ölçüm oluşturuldu:`, {
                                 nominal: resultItem.nominal_value,
                                 min: resultItem.min_value,
-                                max: resultItem.max_value
+                                max: resultItem.max_value,
+                                measured_value: resultItem.measured_value,
+                                result: resultItem.result,
+                                isOldValue: !!oldResult
                             });
                         }
                         
                         newResults.push(resultItem);
+                        oldResultIndex++;
                     }
                     totalGeneratedResults += count;
                 });
