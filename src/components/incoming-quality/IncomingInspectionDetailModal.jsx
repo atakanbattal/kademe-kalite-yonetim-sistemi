@@ -269,9 +269,16 @@ const IncomingInspectionDetailModal = ({
         if (enrichedInspection.results && enrichedInspection.results.length > 0) {
             description += `ÖLÇÜM SONUÇLARI VE TESPİTLER:\n\n`;
             
+            // Her result'un tüm değerlerini kabul et - sadece OK olmayanları al
             const failedResults = enrichedInspection.results.filter(r => {
-                const resultLower = (r.result || '').toString().toLowerCase();
-                return resultLower === 'nok' || resultLower === 'ret' || resultLower.includes('nok') || resultLower.includes('ret');
+                // Eğer result boolean ise: true/false
+                if (typeof r.result === 'boolean') {
+                    return !r.result; // false = NOK
+                }
+                // Eğer result string ise:
+                const resultStr = (r.result || '').toString().trim().toUpperCase();
+                // OK veya boş değilse failed sayılır
+                return resultStr !== 'OK' && resultStr !== '';
             });
             
             if (failedResults.length > 0) {
