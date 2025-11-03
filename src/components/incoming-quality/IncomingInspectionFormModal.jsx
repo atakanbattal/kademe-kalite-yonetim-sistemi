@@ -258,16 +258,14 @@ setShowRiskyStockAlert(false);
                     
                     const characteristic = characteristics.find(c => c.value === item.characteristic_id);
                     if (!characteristic) {
+                        console.warn('⚠️ Characteristic bulunamadı:', item.characteristic_id);
                         return;
                     }
 
-                    let characteristicType = item.characteristic_type;
-                    if (!characteristicType) {
-                        characteristicType = characteristic.type;
-                        if (!characteristicType) {
-                            return;
-                        }
-                    }
+                    // Characteristic type'ı bul: item'dan, characteristic'ten veya varsayılan "Minör"
+                    let characteristicType = item.characteristic_type || characteristic.type || 'Minör';
+                    
+                    console.log('📊 Özellik işleniyor:', characteristic.label, '- Tip:', characteristicType);
                     
                     const count = calculateMeasurementCount(characteristicType, incomingQuantity);
                     
