@@ -1406,10 +1406,13 @@ const generatePrintableReportHtml = (record, type) => {
 			page-break-inside: avoid !important;
 			page-break-before: auto;
 			margin-top: 30px;
+			visibility: visible !important;
+			display: block !important;
 		}
 		
 		.signature-area { 
-			display: flex; 
+			display: flex !important;
+			visibility: visible !important;
 			justify-content: space-around; 
 			text-align: center; 
 			margin-top: 30px; 
@@ -1419,27 +1422,35 @@ const generatePrintableReportHtml = (record, type) => {
 			page-break-before: auto;
 		}
 		
-		.signature-box { width: 30%; }
+		.signature-box { 
+			width: 30%;
+			visibility: visible !important;
+			display: block !important;
+		}
 		.signature-box .role { 
 			font-weight: 600; 
 			font-size: 10px; 
-			margin-bottom: 5px; 
+			margin-bottom: 5px;
+			visibility: visible !important;
 		}
 		.signature-line { 
 			border-bottom: 1px solid #9ca3af; 
 			margin-bottom: 5px; 
-			height: 20px; 
+			height: 20px;
+			visibility: visible !important;
 		}
 		.signature-box .name { 
 			font-size: 11px; 
 			font-weight: 500; 
 			margin: 0; 
-			min-height: 16px; 
+			min-height: 16px;
+			visibility: visible !important;
 		}
 		.signature-box .title { 
 			font-size: 9px; 
 			color: #6b7280; 
-			margin: 0; 
+			margin: 0;
+			visibility: visible !important;
 		}
 
 		/* ============================================
@@ -1533,20 +1544,15 @@ const generatePrintableReportHtml = (record, type) => {
 			content: none !important;
 			display: none !important;
 		}
-		
-		/* Browser'ın otomatik eklediği URL'leri gizle */
-		@page {
-			margin-bottom: 0 !important;
-		}
 
 		/* ============================================
 		   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
 		   ============================================ */
 		@media print {
-			/* Browser'ın footer'ına URL eklememesi için */
+			/* Sayfa ayarları - imza alanı için yeterli margin */
 			@page {
 				size: A4 portrait;
-				margin: 15mm;
+				margin: 15mm 15mm 20mm 15mm; /* Üst, Sağ, Alt (20mm imza için), Sol */
 			}
 			
 			/* Tüm URL gösterimlerini kapat */
