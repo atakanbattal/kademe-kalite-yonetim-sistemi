@@ -363,18 +363,38 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                         finalCharacteristicType = 'Bilinmiyor';
                     }
                 
-                    const savedItem = {
-                        id: item.id || uuidv4(),
-                        characteristic_id: item.characteristic_id,
-                        characteristic_type: finalCharacteristicType,
-                        equipment_id: item.equipment_id,
-                        standard_id: isDimensional ? item.standard_id : null,
-                        tolerance_class: isDimensional ? item.tolerance_class : null,
-                        nominal_value: item.nominal_value || null,
-                        min_value: isDimensional && item.min_value ? String(item.min_value) : null,
-                        max_value: isDimensional && item.max_value ? String(item.max_value) : null,
-                        tolerance_direction: item.tolerance_direction || '±',
-                    };
+                // KRİTİK: standard_class'ı hesapla ve kaydet
+                let standard_class_value = null;
+                if (isDimensional && item.tolerance_class) {
+                    if (item.standard_id) {
+                        // Standart seçilmişse: standard_id + tolerance_class birleştir
+                        const standard = standards.find(s => s.value === item.standard_id);
+                        if (standard) {
+                            const standardBaseName = standard.label.split(' ')[0];
+                            standard_class_value = `${standardBaseName}_${item.tolerance_class}`;
+                        }
+                    } else {
+                        // Standart seçilmemişse sadece tolerance_class'ı kaydet
+                        standard_class_value = item.tolerance_class;
+                    }
+                } else if (item.standard_class) {
+                    // Mevcut standard_class varsa koru
+                    standard_class_value = item.standard_class;
+                }
+                
+                const savedItem = {
+                    id: item.id || uuidv4(),
+                    characteristic_id: item.characteristic_id,
+                    characteristic_type: finalCharacteristicType,
+                    equipment_id: item.equipment_id,
+                    standard_id: isDimensional ? item.standard_id : null,
+                    tolerance_class: isDimensional ? item.tolerance_class : null,
+                    standard_class: standard_class_value, // KRİTİK: standard_class'ı kaydet
+                    nominal_value: item.nominal_value || null,
+                    min_value: isDimensional && item.min_value ? String(item.min_value) : null,
+                    max_value: isDimensional && item.max_value ? String(item.max_value) : null,
+                    tolerance_direction: item.tolerance_direction || '±',
+                };
                     
                     console.log(`✓ Item ${item.characteristic_id}: characteristic_type = "${finalCharacteristicType}"`);
                     return savedItem;
