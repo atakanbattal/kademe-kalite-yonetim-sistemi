@@ -1165,6 +1165,9 @@ const generatePrintableReportHtml = (record, type) => {
 	const defaultStyles = `
 		@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 		
+		/* ============================================
+		   SAYFA AYARLARI - PDF OPTİMİZASYONU
+		   ============================================ */
 		body { 
 			font-family: 'Inter', sans-serif; 
 			color: #1f2937; 
@@ -1175,123 +1178,439 @@ const generatePrintableReportHtml = (record, type) => {
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
 		}
+		
 		.page-container {
 			background-color: white;
 			box-sizing: border-box;
 			box-shadow: 0 0 10px rgba(0,0,0,0.1);
 			margin: 20px auto;
 			width: 210mm;
+			page-break-after: auto;
 		}
+		
 		.report-wrapper {
 			padding: 15mm;
 			position: relative;
-			min-height: calc(297mm - 30mm - 40px); /* A4 height - padding - footer */
+			min-height: calc(297mm - 30mm - 40px);
 		}
 		
-		.report-header { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; page-break-inside: avoid; }
+		/* ============================================
+		   BAŞLIK BÖLÜMÜ - Sayfa başında bütün kalmalı
+		   ============================================ */
+		.report-header { 
+			display: grid; 
+			grid-template-columns: auto 1fr auto; 
+			gap: 20px; 
+			align-items: center; 
+			border-bottom: 1px solid #e5e7eb; 
+			padding-bottom: 10px; 
+			margin-bottom: 15px; 
+			page-break-inside: avoid;
+			page-break-after: avoid;
+		}
+		
 		.report-logo img { height: 50px; }
-.company-title { text-align: center; }
-		.company-title h1 { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
-		.company-title p { font-size: 12px; margin: 0; color: #4b5563; }
-		.print-info { text-align: right; font-size: 9px; color: #4b5563; }
+		
+		.company-title { text-align: center; }
+		.company-title h1 { 
+			font-size: 20px; 
+			font-weight: 700; 
+			margin: 0; 
+			color: #111827; 
+		}
+		.company-title p { 
+			font-size: 12px; 
+			margin: 0; 
+			color: #4b5563; 
+		}
+		
+		.print-info { 
+			text-align: right; 
+			font-size: 9px; 
+			color: #4b5563; 
+		}
 
-		.meta-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; background-color: #f3f4f6; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e5e7eb; page-break-inside: avoid; }
+		/* ============================================
+		   META KUTUSU - Başlık ile birlikte kalmalı
+		   ============================================ */
+		.meta-box { 
+			display: grid; 
+			grid-template-columns: 1fr 1fr 1fr; 
+			gap: 8px; 
+			background-color: #f3f4f6; 
+			padding: 10px; 
+			border-radius: 8px; 
+			margin-bottom: 20px; 
+			border: 1px solid #e5e7eb; 
+			page-break-inside: avoid;
+			page-break-after: avoid;
+		}
 		.meta-item { font-size: 9px; color: #374151; }
 		.meta-item strong { color: #111827; }
 
-		.section { margin-bottom: 15px; page-break-inside: avoid; }
-		.section-title { font-size: 12px; font-weight: 700; color: white; padding: 5px 10px; border-radius: 4px; margin-bottom: 10px; text-transform: uppercase; }
+		/* ============================================
+		   SEKSİYONLAR - Başlık ve içerik birlikte
+		   ============================================ */
+		.section { 
+			margin-bottom: 15px; 
+			page-break-inside: avoid;
+		}
+		
+		.section-title { 
+			font-size: 12px; 
+			font-weight: 700; 
+			color: white; 
+			padding: 5px 10px; 
+			border-radius: 4px; 
+			margin-bottom: 10px; 
+			text-transform: uppercase;
+			page-break-after: avoid;
+			page-break-inside: avoid;
+		}
 		.section-title.blue { background-color: #2563eb; }
 		.section-title.red { background-color: #dc2626; }
 		.section-title.green { background-color: #16a34a; }
 		.section-title.gray { background-color: #6b7280; }
 		.section-title.dark { background-color: #374151; }
 		
-		.list-summary { margin-bottom: 10px; font-size: 11px; }
+		.list-summary { 
+			margin-bottom: 10px; 
+			font-size: 11px; 
+			page-break-inside: avoid;
+		}
 
-		.info-table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
-		.info-table td { border: 1px solid #e5e7eb; padding: 6px 8px; font-size: 10px; vertical-align: top; }
+		/* ============================================
+		   TABLOLAR - Akıllı sayfa bölünmesi
+		   ============================================ */
+		.info-table { 
+			width: 100%; 
+			border-collapse: collapse; 
+			page-break-inside: auto;
+		}
+		.info-table td { 
+			border: 1px solid #e5e7eb; 
+			padding: 6px 8px; 
+			font-size: 10px; 
+			vertical-align: top; 
+		}
+		.info-table tr { 
+			page-break-inside: avoid;
+			page-break-after: auto;
+		}
 		.info-table tr:nth-child(even) td { background-color: #f9fafb; }
 		.info-table tr td:first-child { font-weight: 600; width: 25%; }
-		.info-table pre { white-space: pre-wrap; font-family: 'Inter', sans-serif; margin: 0; font-size: 10px; }
-		.item-section-title { font-size: 1.1em; font-weight: 600; margin-top: 10px; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid #ccc; }
-		.item-box { border: 1px solid #eee; border-radius: 4px; padding: 8px; margin-bottom: 5px; font-size: 9px; background: #fdfdfd;}
+		.info-table pre { 
+			white-space: pre-wrap; 
+			font-family: 'Inter', sans-serif; 
+			margin: 0; 
+			font-size: 10px; 
+		}
+		
+		.item-section-title { 
+			font-size: 1.1em; 
+			font-weight: 600; 
+			margin-top: 10px; 
+			margin-bottom: 5px; 
+			padding-bottom: 3px; 
+			border-bottom: 1px solid #ccc;
+			page-break-after: avoid;
+		}
+		
+		.item-box { 
+			border: 1px solid #eee; 
+			border-radius: 4px; 
+			padding: 8px; 
+			margin-bottom: 5px; 
+			font-size: 9px; 
+			background: #fdfdfd;
+			page-break-inside: avoid;
+		}
 		.item-box p { margin: 2px 0; }
 		.item-box:last-child { margin-bottom: 0; }
 		
-		.pass-table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; page-break-inside: avoid; }
-		.pass-table th, .pass-table td { border: 1px solid #e5e7eb; padding: 6px; }
-		.pass-table thead { background-color: #f3f4f6; font-weight: 600; }
+		.pass-table { 
+			width: 100%; 
+			border-collapse: collapse; 
+			font-size: 10px; 
+			text-align: center; 
+			page-break-inside: auto;
+		}
+		.pass-table th, .pass-table td { 
+			border: 1px solid #e5e7eb; 
+			padding: 6px; 
+		}
+		.pass-table thead { 
+			background-color: #f3f4f6; 
+			font-weight: 600;
+			page-break-after: avoid;
+		}
+		.pass-table tbody tr {
+			page-break-inside: avoid;
+			page-break-after: auto;
+		}
 		
-		.results-table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
-		.results-table th, .results-table td { border: 1px solid #e5e7eb; padding: 6px 8px; font-size: 10px; vertical-align: top; text-align: left; }
-		.results-table thead { background-color: #f9fafb; font-weight: 600; }
-		.results-table pre { white-space: pre-wrap; font-family: 'Inter', sans-serif; margin: 0; font-size: 10px; }
-		.results-table small.muted { color: #6b7280; font-size: 9px; }
+		/* SONUÇ TABLOLARI - Uzun tablolar için özel ayar */
+		.results-table { 
+			width: 100%; 
+			border-collapse: collapse; 
+			page-break-inside: auto;
+		}
+		.results-table th, .results-table td { 
+			border: 1px solid #e5e7eb; 
+			padding: 6px 8px; 
+			font-size: 10px; 
+			vertical-align: top; 
+			text-align: left; 
+		}
+		.results-table thead { 
+			background-color: #f9fafb; 
+			font-weight: 600;
+			page-break-after: avoid;
+		}
+		.results-table tbody tr {
+			page-break-inside: avoid;
+			page-break-after: auto;
+		}
+		.results-table pre { 
+			white-space: pre-wrap; 
+			font-family: 'Inter', sans-serif; 
+			margin: 0; 
+			font-size: 10px; 
+		}
+		.results-table small.muted { 
+			color: #6b7280; 
+			font-size: 9px; 
+		}
 
-		.notes-box { border: 1px solid #e5e7eb; padding: 10px; border-radius: 4px; min-height: 50px; font-size: 10px; page-break-inside: avoid; }
-		.notes-box pre { white-space: pre-wrap; font-family: 'Inter', sans-serif; margin: 0; }
+		/* ============================================
+		   NOTLAR VE AÇIKLAMA KUTULARI
+		   ============================================ */
+		.notes-box { 
+			border: 1px solid #e5e7eb; 
+			padding: 10px; 
+			border-radius: 4px; 
+			min-height: 50px; 
+			font-size: 10px; 
+			page-break-inside: avoid;
+		}
+		.notes-box pre { 
+			white-space: pre-wrap; 
+			font-family: 'Inter', sans-serif; 
+			margin: 0; 
+		}
 
-		.signature-section, .signature-area { page-break-inside: avoid !important; }
-		.signature-area { display: flex; justify-content: space-around; text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb; }
+		/* ============================================
+		   İMZA ALANI - Sayfanın sonunda bütün kalmalı
+		   ============================================ */
+		.signature-section { 
+			page-break-inside: avoid !important;
+			page-break-before: auto;
+			margin-top: 30px;
+		}
+		
+		.signature-area { 
+			display: flex; 
+			justify-content: space-around; 
+			text-align: center; 
+			margin-top: 30px; 
+			padding-top: 15px; 
+			border-top: 1px solid #e5e7eb;
+			page-break-inside: avoid !important;
+			page-break-before: auto;
+		}
+		
 		.signature-box { width: 30%; }
-		.signature-box .role { font-weight: 600; font-size: 10px; margin-bottom: 5px; }
-		.signature-line { border-bottom: 1px solid #9ca3af; margin-bottom: 5px; height: 20px; }
-		.signature-box .name { font-size: 11px; font-weight: 500; margin: 0; min-height: 16px; }
-		.signature-box .title { font-size: 9px; color: #6b7280; margin: 0; }
+		.signature-box .role { 
+			font-weight: 600; 
+			font-size: 10px; 
+			margin-bottom: 5px; 
+		}
+		.signature-line { 
+			border-bottom: 1px solid #9ca3af; 
+			margin-bottom: 5px; 
+			height: 20px; 
+		}
+		.signature-box .name { 
+			font-size: 11px; 
+			font-weight: 500; 
+			margin: 0; 
+			min-height: 16px; 
+		}
+		.signature-box .title { 
+			font-size: 9px; 
+			color: #6b7280; 
+			margin: 0; 
+		}
 
-		.footer { text-align: center; font-size: 9px; color: #9ca3af; padding-top: 10px; padding-bottom: 10px; border-top: 1px solid #e5e7eb; position: relative; margin-top: 20px; }
-		.footer-content { display: flex; justify-content: space-between; align-items: center; }
+		/* ============================================
+		   FOOTER - Ekranda göster, yazdırmada gizle
+		   ============================================ */
+		.footer { 
+			text-align: center; 
+			font-size: 9px; 
+			color: #9ca3af; 
+			padding-top: 10px; 
+			padding-bottom: 10px; 
+			border-top: 1px solid #e5e7eb; 
+			position: relative; 
+			margin-top: 20px; 
+		}
+		.footer-content { 
+			display: flex; 
+			justify-content: space-between; 
+			align-items: center; 
+		}
 
-		.step-section { margin-top: 10px; padding: 10px; border-left: 3px solid #2563eb; background-color: #fafafa; border-radius: 0 4px 4px 0; page-break-inside: avoid; }
-		.step-title { font-weight: bold; color: #1e40af; }
+		/* ============================================
+		   ADIM VE ANALİZ KUTULARI
+		   ============================================ */
+		.step-section { 
+			margin-top: 10px; 
+			padding: 10px; 
+			border-left: 3px solid #2563eb; 
+			background-color: #fafafa; 
+			border-radius: 0 4px 4px 0; 
+			page-break-inside: avoid;
+		}
+		.step-title { 
+			font-weight: bold; 
+			color: #1e40af; 
+			page-break-after: avoid;
+		}
 		.step-description { white-space: pre-wrap; }
-		.step-description pre { white-space: pre-wrap; font-family: 'Inter', sans-serif; margin: 0; }
+		.step-description pre { 
+			white-space: pre-wrap; 
+			font-family: 'Inter', sans-serif; 
+			margin: 0; 
+		}
 		
-		.analysis-box { margin-top: 10px; padding: 10px; border: 1px solid #eee; border-radius: 4px; page-break-inside: avoid; }
-		.analysis-box h4 { font-weight: bold; margin-bottom: 5px; }
+		.analysis-box { 
+			margin-top: 10px; 
+			padding: 10px; 
+			border: 1px solid #eee; 
+			border-radius: 4px; 
+			page-break-inside: avoid;
+		}
+		.analysis-box h4 { 
+			font-weight: bold; 
+			margin-bottom: 5px;
+			page-break-after: avoid;
+		}
 		.analysis-box p { margin: 2px 0; }
 
-		.image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-		.image-container { page-break-inside: avoid; }
-		.attachment-image { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e5e7eb; object-fit: cover; }
-		.attachment-file a { text-decoration: none; color: #2563eb; word-break: break-all; }
+		/* ============================================
+		   GÖRSELLER - Sayfa ortasında bölünmesin
+		   ============================================ */
+		.image-grid { 
+			display: grid; 
+			grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+			gap: 10px; 
+			page-break-inside: auto;
+		}
+		.image-container { 
+			page-break-inside: avoid;
+			page-break-after: auto;
+		}
+		.attachment-image { 
+			max-width: 100%; 
+			height: auto; 
+			border-radius: 8px; 
+			border: 1px solid #e5e7eb; 
+			object-fit: cover; 
+		}
+		.attachment-file a { 
+			text-decoration: none; 
+			color: #2563eb; 
+			word-break: break-all; 
+		}
 
+		/* ============================================
+		   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
+		   ============================================ */
 		@media print {
-aktif et			* {
-				margin: 0 !important;
-				padding: 0 !important;
-			}
-			html, body {
-				width: 210mm !important;
-				height: 297mm !important;
-				background-color: white !important;
-				margin: 0 !important;
-				padding: 0 !important;
-			}
 			@page {
-				size: A4;
+				size: A4 portrait;
+				margin: 15mm;
+			}
+			
+			html, body {
+				width: 210mm;
+				height: 297mm;
+				background-color: white !important;
 				margin: 0;
 				padding: 0;
 			}
+			
 			.page-container { 
 				margin: 0 !important; 
 				box-shadow: none !important; 
 				border: none !important;
-				width: 210mm !important;
-				height: 297mm !important;
-				padding: 15mm !important;
+				width: 100% !important;
+				height: auto !important;
+				padding: 0 !important;
 				box-sizing: border-box !important;
 			}
+			
 			.report-wrapper {
 				padding: 0 !important;
 				min-height: 0 !important;
 				margin: 0 !important;
 			}
+			
+			/* Başlık ve meta her zaman sayfa başında */
+			.report-header {
+				page-break-inside: avoid;
+				page-break-after: avoid;
+			}
+			
+			.meta-box {
+				page-break-inside: avoid;
+				page-break-after: avoid;
+			}
+			
+			/* Bölüm başlıkları içerikten ayrılmasın */
+			.section-title {
+				page-break-inside: avoid;
+				page-break-after: avoid;
+			}
+			
+			/* Tablolar akıllıca bölünsün */
+			.results-table thead {
+				display: table-header-group;
+			}
+			
+			.results-table tbody tr {
+				page-break-inside: avoid;
+			}
+			
+			/* İmza alanı bütün kalsın */
+			.signature-section,
+			.signature-area {
+				page-break-inside: avoid !important;
+			}
+			
+			/* Footer gizle */
 			.footer {
 				display: none !important;
 			}
-			a[href]:after { content: none !important; }
+			
+			/* Link sonrası URL gösterme */
+			a[href]:after { 
+				content: none !important; 
+			}
+			
+			/* Görseller yarım kesilmesin */
+			.image-container {
+				page-break-inside: avoid;
+			}
+			
+			/* Kutu elementleri bölünmesin */
+			.item-box,
+			.notes-box,
+			.analysis-box,
+			.step-section {
+				page-break-inside: avoid;
+			}
 		}
 	`;
 
