@@ -54,9 +54,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         useEffect(() => {
             const initialize = async () => {
-                if (isOpen && training) {
-                    // Düzenleme modu: mevcut kaydı yükle
-                    console.log('📝 Training Düzenleme modu: kayıt yükleniyor', training.id);
+                if (training) {
                     setFormData({
                         ...training,
                         start_date: training.start_date ? new Date(training.start_date) : null,
@@ -69,15 +67,12 @@ import React, { useState, useEffect, useCallback } from 'react';
                     if (!error) {
                         setSelectedParticipants(data.map(p => p.personnel_id));
                     }
-                } else if (isOpen && !training) {
-                    // Yeni kayıt modu: form sıfırla
-                    console.log('✨ Training Yeni kayıt modu: form sıfırlanıyor');
+                } else {
                     resetForm();
                 }
-                // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
             };
-            if (isOpen || training) initialize();
-        }, [isOpen, training, resetForm]);
+            if (isOpen) initialize();
+        }, [training, isOpen, resetForm]);
 
         const handleChange = (e) => {
             const { name, value } = e.target;

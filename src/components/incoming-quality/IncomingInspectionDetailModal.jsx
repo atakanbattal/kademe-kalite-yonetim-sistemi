@@ -103,16 +103,10 @@ const IncomingInspectionDetailModal = ({
     // Ölçüm numaralarını kontrol planından regenerate et
     React.useEffect(() => {
         const enrichResults = async () => {
-            console.log('🔍 DetailModal - inspection:', inspection);
-            console.log('🔍 DetailModal - inspection.results:', inspection?.results);
-            
             if (!inspection || !inspection.results) {
-                console.log('⚠️ DetailModal - inspection veya results yok');
                 setEnrichedInspection(inspection);
                 return;
             }
-            
-            console.log('✅ DetailModal - Results bulundu, uzunluk:', inspection.results.length);
 
             // Eğer measurement_number veya total_measurements NULL ise kontrol planını çek
             const hasNullMeasurements = inspection.results.some(
