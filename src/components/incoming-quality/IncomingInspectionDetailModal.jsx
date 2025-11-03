@@ -299,6 +299,15 @@ const IncomingInspectionDetailModal = ({
             });
             
             console.log(`✅ ${failedResults.length} uygunsuz ölçüm bulundu (${enrichedInspection.results.length} toplam)`);
+            console.log('📊 İlk 5 result:', enrichedInspection.results.slice(0, 5).map((r, i) => ({
+                index: i + 1,
+                name: r.characteristic_name,
+                measured: r.measured_value,
+                nominal: r.nominal_value,
+                min: r.min_value,
+                max: r.max_value,
+                result: r.result
+            })));
             
             if (failedResults.length > 0) {
                 description += `UYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;

@@ -234,7 +234,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               uploadedFilePaths = [...(formData.attachments || []), ...newPaths];
           }
           
-          const { id, created_at, updated_at, nc_number: old_nc_number, personnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, responsible_person_details, requesting_person_details, ...dbData } = formData;
+          const { id, created_at, updated_at, nc_number: old_nc_number, personnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, responsible_person_details, requesting_person_details, supplier_name, ...dbData } = formData;
           
           dbData.attachments = uploadedFilePaths;
           const fieldsToNullify = ['cost_date', 'measurement_unit', 'part_location', 'quantity', 'scrap_weight', 'rework_duration', 'quality_control_duration'];
