@@ -231,30 +231,49 @@ setShowRiskyStockAlert(false);
                     return;
                 }
 
-                // DÜZENLEME MODU: Eğer mevcut results varsa ve boş değilse, DOKUNMA!
+                // DÜZENLEME MODU: Mevcut results ile kontrol planı UYUMLU MU kontrol et
                 if (existingInspection && results.length > 0) {
-                    console.log('⚠️ Düzenleme modu: Mevcut ölçüm değerleri korunuyor:', results.length);
-                    // Sadece summary'yi güncelle, results'a dokunma
-                    const summary = [];
+                    // KRİTİK: Kontrol planındaki beklenen toplam ölçüm sayısını hesapla
+                    let expectedResultCount = 0;
                     controlPlan.items.forEach((item) => {
                         const characteristic = characteristics.find(c => c.value === item.characteristic_id);
-                        if (!characteristic) return;
-                        
-                        const characteristicType = item.characteristic_type || characteristic.type;
-                        if (!characteristicType) return;
-                        
-                        const count = calculateMeasurementCount(characteristicType, incomingQuantity);
-                        summary.push({
-                            name: characteristic.label,
-                            type: characteristicType,
-                            count: count,
-                            method: equipment.find(e => e.value === item.equipment_id)?.label || 'Bilinmiyor',
-                            nominal: item.nominal_value,
-                            tolerance: item.min_value !== null ? `${item.min_value} - ${item.max_value}` : 'Yok'
-                        });
+                        if (characteristic) {
+                            const characteristicType = item.characteristic_type || characteristic.type;
+                            if (characteristicType) {
+                                expectedResultCount += calculateMeasurementCount(characteristicType, incomingQuantity);
+                            }
+                        }
                     });
-                    setMeasurementSummary(summary);
-                    return; // Mevcut results'ı değiştirme!
+                    
+                    // ESKİ KAYITLARDA UYUMSUZLUK: Results sayısı kontrol planı ile eşleşmiyor
+                    if (results.length !== expectedResultCount) {
+                        console.warn(`🔄 ESKİ KAYIT TESPİT EDİLDİ! Results: ${results.length}, Beklenen: ${expectedResultCount}`);
+                        console.warn('🔄 Results yeniden oluşturuluyor - eski format güncellenecek');
+                        // Results'ı YENİDEN oluştur - aşağıdaki "YENİ KAYIT" koduna düşecek
+                    } else {
+                        console.log('⚠️ Düzenleme modu: Mevcut ölçüm değerleri korunuyor:', results.length);
+                        // Sadece summary'yi güncelle, results'a dokunma
+                        const summary = [];
+                        controlPlan.items.forEach((item) => {
+                            const characteristic = characteristics.find(c => c.value === item.characteristic_id);
+                            if (!characteristic) return;
+                            
+                            const characteristicType = item.characteristic_type || characteristic.type;
+                            if (!characteristicType) return;
+                            
+                            const count = calculateMeasurementCount(characteristicType, incomingQuantity);
+                            summary.push({
+                                name: characteristic.label,
+                                type: characteristicType,
+                                count: count,
+                                method: equipment.find(e => e.value === item.equipment_id)?.label || 'Bilinmiyor',
+                                nominal: item.nominal_value,
+                                tolerance: item.min_value !== null ? `${item.min_value} - ${item.max_value}` : 'Yok'
+                            });
+                        });
+                        setMeasurementSummary(summary);
+                        return; // Mevcut results'ı değiştirme!
+                    }
                 }
 
                 // YENİ KAYIT MODU: Normal şekilde oluştur
