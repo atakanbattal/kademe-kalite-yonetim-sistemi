@@ -259,19 +259,25 @@ setShowRiskyStockAlert(false);
 
                 // YENİ KAYIT MODU: Normal şekilde oluştur
                 console.log('➕ Yeni kayıt: Ölçüm sonuçları oluşturuluyor...');
-                console.log('📋 Kontrol Planı Items:', controlPlan.items);
+                console.log('📋 Kontrol Planı Items Sayısı:', controlPlan.items?.length || 0);
+                
+                if (!controlPlan.items || controlPlan.items.length === 0) {
+                    console.error('❌ Kontrol planında hiç item yok!');
+                    setResults([]);
+                    setMeasurementSummary([]);
+                    return;
+                }
+                
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
 
                 controlPlan.items.forEach((item, index) => {
-                    console.log(`🔍 Item ${index + 1} işleniyor:`, {
+                    console.log(`🔍 Item ${index + 1}/${controlPlan.items.length} işleniyor:`, {
                         characteristic_id: item.characteristic_id,
-                        nominal_value: item.nominal_value,
-                        min_value: item.min_value,
-                        max_value: item.max_value,
-                        standard_id: item.standard_id,
-                        tolerance_class: item.tolerance_class
+                        nominal: item.nominal_value,
+                        min: item.min_value,
+                        max: item.max_value
                     });
                     
                     const characteristic = characteristics.find(c => c.value === item.characteristic_id);
@@ -290,7 +296,7 @@ setShowRiskyStockAlert(false);
                     }
                     
                     const count = calculateMeasurementCount(characteristicType, incomingQuantity);
-                    console.log(`✅ ${count} ölçüm oluşturulacak`);
+                    console.log(`✅ ${count} ölçüm oluşturulacak - Karakteristik: ${characteristic.label}`);
                     
                     summary.push({
                         name: characteristic.label,
@@ -302,7 +308,7 @@ setShowRiskyStockAlert(false);
                     });
 
                     for (let i = 1; i <= count; i++) {
-                        newResults.push({
+                        const resultItem = {
                             id: uuidv4(),
                             control_plan_item_id: item.id,
                             characteristic_name: characteristic.label,
@@ -312,17 +318,28 @@ setShowRiskyStockAlert(false);
                             total_measurements: count,
                             // KRİTİK: Nominal, min, max değerlerini KESİNLİKLE item'dan al
                             nominal_value: item.nominal_value !== undefined && item.nominal_value !== null ? item.nominal_value : '',
-                            min_value: item.min_value !== undefined ? item.min_value : null,
-                            max_value: item.max_value !== undefined ? item.max_value : null,
+                            min_value: item.min_value !== undefined && item.min_value !== null ? item.min_value : null,
+                            max_value: item.max_value !== undefined && item.max_value !== null ? item.max_value : null,
                             measured_value: '',
                             result: null,
-                        });
+                        };
+                        
+                        if (i === 1) {
+                            console.log(`   📝 İlk ölçüm oluşturuldu:`, {
+                                nominal: resultItem.nominal_value,
+                                min: resultItem.min_value,
+                                max: resultItem.max_value
+                            });
+                        }
+                        
+                        newResults.push(resultItem);
                     }
                     totalGeneratedResults += count;
                 });
                 
-                console.log(`✅ Toplam ${newResults.length} ölçüm sonucu oluşturuldu`);
-                console.log('📊 Oluşturulan ilk 2 sonuç:', newResults.slice(0, 2));
+                console.log(`✅ TOPLAM ${newResults.length} ölçüm sonucu oluşturuldu`);
+                console.log('📊 İlk ölçüm sonucu:', newResults[0]);
+                console.log('📊 Son ölçüm sonucu:', newResults[newResults.length - 1]);
                 
                 setResults(newResults);
                 setMeasurementSummary(summary);
@@ -365,17 +382,19 @@ setShowRiskyStockAlert(false);
                     console.log('🔍 Kontrol Planı Çekildi:', planRes.data);
                     console.log('📊 Kontrol Planı Items:', planRes.data.items);
                     if (planRes.data.items && planRes.data.items.length > 0) {
+                        console.log(`✅ TOPLAM ${planRes.data.items.length} KARAKTERISTIK BULUNDU`);
                         planRes.data.items.forEach((item, idx) => {
                             console.log(`📦 Item ${idx + 1}:`, {
                                 characteristic_id: item.characteristic_id,
-                                standard_id: item.standard_id,
-                                tolerance_class: item.tolerance_class,
-                                standard_class: item.standard_class,
                                 nominal: item.nominal_value,
                                 min: item.min_value,
-                                max: item.max_value
+                                max: item.max_value,
+                                // Standart alanları artık kullanılmıyor
+                                STANDART_KULLANILMIYOR: '(standard_id, tolerance_class, standard_class)'
                             });
                         });
+                    } else {
+                        console.warn('⚠️ Kontrol planında hiç karakteristik YOK!');
                     }
                 }
                 
