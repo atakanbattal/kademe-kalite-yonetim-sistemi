@@ -16,9 +16,10 @@ import React, { useState, useEffect } from 'react';
         
         useEffect(() => {
             if (isOpen) {
+                console.log('📝 NCFormModal: Form yükleniyor...', initialRecord?.id || 'yeni kayıt');
                 initializeForm(initialRecord);
             }
-        }, [isOpen, initialRecord, initializeForm]);
+        }, [isOpen, initialRecord?.id, initializeForm]);
 
         const isEditMode = !!(formData && formData.id);
         

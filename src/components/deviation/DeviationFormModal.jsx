@@ -87,7 +87,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
         }
         setFiles([]);
-    }, [existingDeviation, isOpen]);
+    }, [existingDeviation?.id, isEditMode, isOpen]);
     
     const handleVehicleChange = (index, field, value) => {
         const newVehicles = [...vehicles];

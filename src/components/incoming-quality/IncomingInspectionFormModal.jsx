@@ -157,11 +157,12 @@ setShowRiskyStockAlert(false);
             setCheckingRiskyStock(false);
         }, []);
 
-        // Load existing inspection data when modal opens
+        // Load existing inspection data when modal opens or existingInspection changes
         useEffect(() => {
             if (!isOpen) return;
             
             if (existingInspection) {
+                console.log('📝 Düzenleme modu: Mevcut muayene verisi yükleniyor...', existingInspection.id);
                 setFormData({
                     inspection_date: existingInspection.inspection_date || new Date().toISOString().split('T')[0],
                     supplier_id: existingInspection.supplier_id || '',
@@ -192,9 +193,10 @@ setShowRiskyStockAlert(false);
                     setExistingAttachments(existingInspection.attachments);
                 }
             } else {
+                console.log('✨ Yeni kayıt modu: Form sıfırlanıyor...');
                 resetForm();
             }
-        }, [isOpen, existingInspection, resetForm]);
+        }, [isOpen, existingInspection?.id, resetForm]);
 
         const quantityTotal = useMemo(() => {
             return (Number(formData.quantity_accepted) || 0) + (Number(formData.quantity_conditional) || 0) + (Number(formData.quantity_rejected) || 0);
@@ -547,8 +549,16 @@ setShowRiskyStockAlert(false);
 
         const title = isViewMode ? 'Girdi Kontrol Kaydını Görüntüle' : (existingInspection ? 'Girdi Kontrol Kaydını Düzenle' : 'Yeni Girdi Kontrol Kaydı');
         
+        // Tab/focus değişimlerinde modalın kapanmasını engelle
+        const handleOpenChange = (open) => {
+            // Sadece kullanıcı açıkça kapatma isteğinde bulunduğunda kapat
+            if (!open) {
+                setIsOpen(false);
+            }
+        };
+        
         return (
-            <Dialog open={isOpen} onOpenChange={setIsOpen}><DialogContent className="max-w-5xl xl:max-w-7xl">
+            <Dialog open={isOpen} onOpenChange={handleOpenChange}><DialogContent className="max-w-5xl xl:max-w-7xl">
                 <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>Tedarikçiden gelen malzemeler için kontrol sonuçlarını girin.</DialogDescription></DialogHeader>
                 <form onSubmit={handleSubmit}><ScrollArea className="h-[75vh] p-4"><div className="space-y-6">
                     <div className="space-y-2">

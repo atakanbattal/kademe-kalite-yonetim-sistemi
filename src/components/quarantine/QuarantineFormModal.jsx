@@ -84,7 +84,7 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
                 });
             }
         }
-    }, [existingRecord, isEditMode, isOpen]);
+    }, [existingRecord?.id, isEditMode, isOpen]);
 
     useEffect(() => {
         if (textareaRef.current) {
