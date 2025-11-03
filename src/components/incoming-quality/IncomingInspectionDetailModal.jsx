@@ -290,33 +290,40 @@ const IncomingInspectionDetailModal = ({
                         const max = result.max_value !== null && result.max_value !== undefined ? result.max_value : null;
                         const measured = result.measured_value || null;
                         
-                        description += `   Nominal Değer: ${nominal !== null ? nominal : 'Belirtilmemiş'}\n`;
-                        description += `   Tolerans Aralığı: ${min !== null ? min : '-'} / ${max !== null ? max : '-'}\n`;
-                        description += `   Ölçülen Değer: ${measured !== null ? measured : 'Ölçülmemiş'}\n`;
+                        description += `   Beklenen Nominal Değer: ${nominal !== null ? nominal : 'Belirtilmemiş'}\n`;
+                        description += `   Kabul Edilebilir Tolerans: ${min !== null ? min : '-'} ile ${max !== null ? max : '-'} arasında\n`;
+                        description += `   Gerçekte Ölçülen: ${measured !== null ? measured : 'Ölçülmemiş'}\n`;
                         
-                        // Detaylı sapma analizi
+                        // Detaylı sapma analizi ve açıklama
                         if (measured !== null && nominal !== null) {
                             const measuredNum = parseFloat(measured);
                             const nominalNum = parseFloat(nominal);
                             const deviation = measuredNum - nominalNum;
                             const deviationPercent = ((deviation / nominalNum) * 100).toFixed(2);
                             
-                            description += `   Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} (${deviationPercent}%)\n`;
+                            // Açıklayıcı ifade
+                            if (deviation > 0) {
+                                description += `   → ${nominal} olması gerekirken ${measured} ölçülmüştür (+${deviation.toFixed(3)} sapma)\n`;
+                            } else if (deviation < 0) {
+                                description += `   → ${nominal} olması gerekirken ${measured} ölçülmüştür (${deviation.toFixed(3)} sapma)\n`;
+                            }
                             
-                            // Tolerans dışına çıkma miktarı
+                            description += `   Sapma Miktarı: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} (${deviationPercent}%)\n`;
+                            
+                            // Tolerans dışına çıkma açıklaması
                             if (min !== null && measuredNum < parseFloat(min)) {
                                 const underTolerance = parseFloat(min) - measuredNum;
-                                description += `   Alt Tolerans Aşımı: ${underTolerance.toFixed(3)} (${((underTolerance / nominalNum) * 100).toFixed(2)}%)\n`;
+                                description += `   ⚠ TOLERANS DIŞI: Alt sınır ${min} olmalıydı, ${measured} ölçüldü (${underTolerance.toFixed(3)} fazla küçük)\n`;
                             }
                             if (max !== null && measuredNum > parseFloat(max)) {
                                 const overTolerance = measuredNum - parseFloat(max);
-                                description += `   Üst Tolerans Aşımı: +${overTolerance.toFixed(3)} (+${((overTolerance / nominalNum) * 100).toFixed(2)}%)\n`;
+                                description += `   ⚠ TOLERANS DIŞI: Üst sınır ${max} olmalıydı, ${measured} ölçüldü (${overTolerance.toFixed(3)} fazla büyük)\n`;
                             }
                         }
                     } else if (result.characteristic_type === 'Görsel') {
                         description += `   Tespit: ${result.measured_value || 'Görsel kusur tespit edildi'}\n`;
                     }
-                    description += `   Sonuç: ${result.result}\n`;
+                    description += `   Nihai Karar: ${result.result}\n`;
                 });
             }
 
@@ -415,7 +422,6 @@ const IncomingInspectionDetailModal = ({
                 supplier_name: enrichedInspection.supplier_name || null,
                 part_code: enrichedInspection.part_code || null,
                 part_name: enrichedInspection.part_name || null,
-                inspection_record_no: enrichedInspection.record_no || null,
                 is_supplier_nc: !!enrichedInspection.supplier_id, // Tedarikçi uygunsuzluğu flag'i
             });
 
