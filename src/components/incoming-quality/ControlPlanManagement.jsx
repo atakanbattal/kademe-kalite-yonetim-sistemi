@@ -223,10 +223,13 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                 const planItems = existingPlan.items || [];
                 setCharacteristicCount(planItems.length || 1);
                 
-                // BASİTLEŞTİRİLDİ: Sadece nominal, min, max değerlerini yükle
+                // TÜM ALANLARI YÜKLE - Standartlar dahil
                 const loadedItems = planItems.map((item, idx) => {
                     console.log(`📦 Item ${idx + 1} yükleniyor:`, {
                         characteristic_id: item.characteristic_id,
+                        standard_id: item.standard_id,
+                        tolerance_class: item.tolerance_class,
+                        standard_class: item.standard_class,
                         nominal: item.nominal_value,
                         min: item.min_value,
                         max: item.max_value
@@ -237,10 +240,10 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                         characteristic_id: item.characteristic_id || '',
                         characteristic_type: item.characteristic_type || '',
                         equipment_id: item.equipment_id || '',
-                        // STANDART ALANLARI ARTIK KULLANILMIYOR - boş bırak
-                        standard_id: null,
-                        tolerance_class: null,
-                        standard_class: '',
+                        // STANDART ALANLARINI KAYIT OLDUĞU GİBİ YÜKLE
+                        standard_id: item.standard_id || null,
+                        tolerance_class: item.tolerance_class || null,
+                        standard_class: item.standard_class || '',
                         // ÖLÇÜM DEĞERLERİ - KULLANICININ GİRDİĞİ DEĞERLERİ AYNEN YÜKLE
                         nominal_value: item.nominal_value !== undefined && item.nominal_value !== null ? item.nominal_value : '',
                         min_value: item.min_value !== undefined && item.min_value !== null ? item.min_value : null,
@@ -355,25 +358,31 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                         finalCharacteristicType = 'Bilinmiyor';
                     }
                 
-                // BASİTLEŞTİRİLDİ: Standart bağımlılığı kaldırıldı
-                // Sadece kullanıcının girdiği nominal, min, max değerleri kaydet
+                // TÜM ALANLARI KAYDET - Standartlar dahil
                 const savedItem = {
                     id: item.id || uuidv4(),
                     characteristic_id: item.characteristic_id,
                     characteristic_type: finalCharacteristicType,
                     equipment_id: item.equipment_id,
-                    // Standart alanları artık kullanılmıyor - null kaydet
-                    standard_id: null,
-                    tolerance_class: null,
-                    standard_class: null,
-                    // Kullanıcının GİRDİĞİ DEĞERLERİ AYNEN KAYDET
+                    // STANDART ALANLARINI OLDUĞU GİBİ KAYDET (varsa)
+                    standard_id: item.standard_id || null,
+                    tolerance_class: item.tolerance_class || null,
+                    standard_class: item.standard_class || null,
+                    // KULLANICININ GİRDİĞİ DEĞERLERİ AYNEN KAYDET
                     nominal_value: item.nominal_value || null,
                     min_value: item.min_value !== undefined && item.min_value !== null && item.min_value !== '' ? String(item.min_value) : null,
                     max_value: item.max_value !== undefined && item.max_value !== null && item.max_value !== '' ? String(item.max_value) : null,
                     tolerance_direction: item.tolerance_direction || '±',
                 };
                     
-                    console.log(`✓ Item ${item.characteristic_id}: characteristic_type = "${finalCharacteristicType}", nominal=${savedItem.nominal_value}, min=${savedItem.min_value}, max=${savedItem.max_value}`);
+                    console.log(`✓ Item ${item.characteristic_id}:`, {
+                        characteristic_type: finalCharacteristicType,
+                        standard_id: savedItem.standard_id,
+                        standard_class: savedItem.standard_class,
+                        nominal: savedItem.nominal_value,
+                        min: savedItem.min_value,
+                        max: savedItem.max_value
+                    });
                     return savedItem;
                 });
 
