@@ -1227,7 +1227,9 @@ const generatePrintableReportHtml = (record, type) => {
 		.print-info { 
 			text-align: right; 
 			font-size: 9px; 
-			color: #4b5563; 
+			color: #4b5563;
+			line-height: 1.4;
+			white-space: nowrap;
 		}
 
 		/* ============================================
@@ -1236,24 +1238,36 @@ const generatePrintableReportHtml = (record, type) => {
 		.meta-box { 
 			display: grid; 
 			grid-template-columns: 1fr 1fr 1fr; 
-			gap: 8px; 
+			gap: 10px; 
 			background-color: #f3f4f6; 
-			padding: 10px; 
-			border-radius: 8px; 
+			padding: 12px; 
+			border-radius: 6px; 
 			margin-bottom: 20px; 
 			border: 1px solid #e5e7eb; 
 			page-break-inside: avoid;
-			page-break-after: avoid;
+			page-break-after: auto; /* Meta'dan sonra bölünebilir */
+			box-sizing: border-box;
+			width: 100%;
 		}
-		.meta-item { font-size: 9px; color: #374151; }
-		.meta-item strong { color: #111827; }
+		.meta-item { 
+			font-size: 10px; 
+			color: #374151; 
+			padding: 4px 6px;
+			word-wrap: break-word;
+			overflow-wrap: break-word;
+		}
+		.meta-item strong { 
+			color: #111827;
+			display: inline-block;
+			min-width: 80px;
+		}
 
 		/* ============================================
 		   SEKSİYONLAR - Başlık ve içerik birlikte
 		   ============================================ */
 		.section { 
 			margin-bottom: 15px; 
-			page-break-inside: avoid;
+			page-break-inside: auto; /* Section içi bölünebilir */
 		}
 		
 		.section-title { 
@@ -1264,7 +1278,7 @@ const generatePrintableReportHtml = (record, type) => {
 			border-radius: 4px; 
 			margin-bottom: 10px; 
 			text-transform: uppercase;
-			page-break-after: avoid;
+			page-break-after: avoid; /* Başlık içerikten ayrılmasın */
 			page-break-inside: avoid;
 		}
 		.section-title.blue { background-color: #2563eb; }
@@ -1549,10 +1563,10 @@ const generatePrintableReportHtml = (record, type) => {
 		   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
 		   ============================================ */
 		@media print {
-			/* Sayfa ayarları - imza alanı için yeterli margin */
+			/* Sayfa ayarları - dengeli margin */
 			@page {
 				size: A4 portrait;
-				margin: 15mm 15mm 20mm 15mm; /* Üst, Sağ, Alt (20mm imza için), Sol */
+				margin: 12mm; /* Tüm kenarlarda eşit boşluk */
 			}
 			
 			/* Tüm URL gösterimlerini kapat */
@@ -1566,7 +1580,7 @@ const generatePrintableReportHtml = (record, type) => {
 			
 			html, body {
 				width: 210mm;
-				height: 297mm;
+				height: auto; /* Auto height - esnek sayfa */
 				background-color: white !important;
 				margin: 0;
 				padding: 0;
@@ -1579,7 +1593,6 @@ const generatePrintableReportHtml = (record, type) => {
 				width: 100% !important;
 				height: auto !important;
 				padding: 0 !important;
-				box-sizing: border-box !important;
 			}
 			
 			.report-wrapper {
@@ -1588,34 +1601,68 @@ const generatePrintableReportHtml = (record, type) => {
 				margin: 0 !important;
 			}
 			
-			/* Başlık ve meta her zaman sayfa başında */
+			/* Başlık her zaman en başta */
 			.report-header {
 				page-break-inside: avoid;
-				page-break-after: avoid;
+				page-break-after: auto; /* Sonra bölünebilir */
 			}
 			
+			/* Meta kutusu esnekliği */
 			.meta-box {
 				page-break-inside: avoid;
-				page-break-after: avoid;
+				page-break-after: auto; /* Sonra bölünebilir */
 			}
 			
 			/* Bölüm başlıkları içerikten ayrılmasın */
 			.section-title {
 				page-break-inside: avoid;
-				page-break-after: avoid;
+				page-break-after: avoid; /* Başlık altındaki içerik ile beraber */
+			}
+			
+			/* Section'lar esnekliği */
+			.section {
+				page-break-inside: auto; /* İçerik bölünebilir */
 			}
 			
 			/* Tablolar akıllıca bölünsün */
+			.results-table {
+				page-break-inside: auto; /* Tablo bölünebilir */
+			}
+			
 			.results-table thead {
-				display: table-header-group;
+				display: table-header-group; /* Her sayfada header */
 			}
 			
 			.results-table tbody tr {
-				page-break-inside: avoid;
+				page-break-inside: avoid; /* Satır bölünmez */
+				page-break-after: auto; /* Sonra bölünebilir */
 			}
 			
-			/* İmza alanı bütün kalsın */
-			.signature-section,
+			/* Pass/Info tablolar */
+			.pass-table,
+			.info-table {
+				page-break-inside: auto;
+			}
+			
+			.pass-table tr,
+			.info-table tr {
+				page-break-inside: avoid;
+				page-break-after: auto;
+			}
+			
+			/* Notes ve Analysis kutular */
+			.notes-box,
+			.analysis-box {
+				page-break-inside: auto; /* Uzunsa bölünebilir */
+			}
+			
+			/* İmza alanı - sayfanın sonunda bütün kal */
+			.signature-section {
+				page-break-inside: avoid !important;
+				page-break-before: auto; /* Gerekirse yeni sayfada başla */
+				margin-top: 20px;
+			}
+			
 			.signature-area {
 				page-break-inside: avoid !important;
 			}
