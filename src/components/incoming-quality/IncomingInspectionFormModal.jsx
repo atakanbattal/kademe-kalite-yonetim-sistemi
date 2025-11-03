@@ -216,16 +216,49 @@ setShowRiskyStockAlert(false);
             return received > 0 && quantityTotal !== received;
         }, [quantityTotal, formData.quantity_received]);
         
+        // ÖNEMLİ: Kontrol planından ölçüm sonuçları oluştur
+        // ANCAK düzenleme modunda mevcut ölçüm değerlerini KORUMAK çok önemli!
         useEffect(() => {
             const generateResultsFromPlan = () => {
                 const incomingQuantity = Number(formData.quantity_received) || 0;
 
                 if (!controlPlan || !controlPlan.items || controlPlan.items.length === 0 || incomingQuantity <= 0) {
-                    setResults([]);
-                    setMeasurementSummary([]);
+                    // Kontrol planı yoksa ve düzenleme modunda DEĞİLSEK temizle
+                    if (!existingInspection) {
+                        setResults([]);
+                        setMeasurementSummary([]);
+                    }
                     return;
                 }
 
+                // DÜZENLEME MODU: Eğer mevcut results varsa ve boş değilse, DOKUNMA!
+                if (existingInspection && results.length > 0) {
+                    console.log('⚠️ Düzenleme modu: Mevcut ölçüm değerleri korunuyor:', results.length);
+                    // Sadece summary'yi güncelle, results'a dokunma
+                    const summary = [];
+                    controlPlan.items.forEach((item) => {
+                        const characteristic = characteristics.find(c => c.value === item.characteristic_id);
+                        if (!characteristic) return;
+                        
+                        const characteristicType = item.characteristic_type || characteristic.type;
+                        if (!characteristicType) return;
+                        
+                        const count = calculateMeasurementCount(characteristicType, incomingQuantity);
+                        summary.push({
+                            name: characteristic.label,
+                            type: characteristicType,
+                            count: count,
+                            method: equipment.find(e => e.value === item.equipment_id)?.label || 'Bilinmiyor',
+                            nominal: item.nominal_value,
+                            tolerance: item.min_value !== null ? `${item.min_value} - ${item.max_value}` : 'Yok'
+                        });
+                    });
+                    setMeasurementSummary(summary);
+                    return; // Mevcut results'ı değiştirme!
+                }
+
+                // YENİ KAYIT MODU: Normal şekilde oluştur
+                console.log('➕ Yeni kayıt: Ölçüm sonuçları oluşturuluyor...');
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
@@ -280,7 +313,7 @@ setShowRiskyStockAlert(false);
             };
 
             generateResultsFromPlan();
-        }, [formData.quantity_received, controlPlan, characteristics, equipment]);
+        }, [formData.quantity_received, controlPlan, characteristics, equipment, existingInspection, results.length]);
 
         const handlePartCodeChange = useCallback(async (partCode) => {
             const trimmedPartCode = partCode?.trim();
