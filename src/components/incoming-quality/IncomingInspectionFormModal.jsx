@@ -330,6 +330,39 @@ setShowRiskyStockAlert(false);
                  toast({ variant: 'destructive', title: 'Hata', description: `Veri çekilirken hata: ${error.message}` });
             }
         }, [toast]);
+
+        // Load control plan for existing inspection's part_code (after handlePartCodeChange is defined)
+        useEffect(() => {
+            if (isOpen && existingInspection && existingInspection.part_code && !controlPlan) {
+                console.log('🔄 Kontrol planı yükleniyor:', existingInspection.part_code);
+                
+                // Kontrol planını ve ilgili verileri yükle
+                const loadControlPlan = async () => {
+                    try {
+                        const { data: planData, error } = await supabase
+                            .from('incoming_control_plans')
+                            .select('*')
+                            .eq('part_code', existingInspection.part_code)
+                            .order('revision_number', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+
+                        if (error) throw error;
+                        
+                        if (planData) {
+                            setControlPlan(planData);
+                            console.log('✅ Kontrol planı yüklendi:', planData.id);
+                        } else {
+                            console.log('⚠️ Kontrol planı bulunamadı');
+                        }
+                    } catch (error) {
+                        console.error('❌ Kontrol planı yüklenirken hata:', error);
+                    }
+                };
+
+                loadControlPlan();
+            }
+        }, [isOpen, existingInspection, controlPlan]);
         
         // NOT: Bu useEffect KALDIRILDI çünkü yukarıdaki useEffect (satır 161-200) zaten aynı işi yapıyor
         // İkinci bir useEffect resetForm() çağırarak verileri siliyordu!
