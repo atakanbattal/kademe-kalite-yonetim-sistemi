@@ -221,6 +221,13 @@ setShowRiskyStockAlert(false);
         
         useEffect(() => {
             const generateResultsFromPlan = () => {
+                // ÖNEMLI: Düzenleme modunda results'ları EZMEYELİM!
+                // existingInspection varsa ve results dolu ise, bu useEffect çalışmamalı
+                if (existingInspection && existingInspection.results && existingInspection.results.length > 0) {
+                    console.log('🔒 Düzenleme modu - results korunuyor, yeniden generate edilmiyor');
+                    return;
+                }
+                
                 const incomingQuantity = Number(formData.quantity_received) || 0;
 
                 if (!controlPlan || !controlPlan.items || controlPlan.items.length === 0 || incomingQuantity <= 0) {
@@ -229,6 +236,8 @@ setShowRiskyStockAlert(false);
                     return;
                 }
 
+                console.log('🆕 Yeni kayıt - results kontrol planından generate ediliyor');
+                
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
@@ -283,7 +292,7 @@ setShowRiskyStockAlert(false);
             };
 
             generateResultsFromPlan();
-        }, [formData.quantity_received, controlPlan, characteristics, equipment]);
+        }, [formData.quantity_received, controlPlan, characteristics, equipment, existingInspection]);
 
         const handlePartCodeChange = useCallback(async (partCode) => {
             const trimmedPartCode = partCode?.trim();
