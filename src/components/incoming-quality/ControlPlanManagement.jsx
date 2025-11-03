@@ -217,14 +217,17 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             if (existingPlan) {
                 // Düzenleme modu: Mevcut plan verilerini yükle
                 console.log('📝 Kontrol planı düzenleme modu:', existingPlan.id);
-                console.log('🔍 Gelen existingPlan:', existingPlan);
+                console.log('🔍 Gelen existingPlan TAM HALİYLE:', JSON.stringify(existingPlan, null, 2));
                 setPartCode(existingPlan.part_code || '');
                 setPartName(existingPlan.part_name || '');
                 const planItems = existingPlan.items || [];
                 setCharacteristicCount(planItems.length || 1);
                 
+                console.log('🔍 planItems array (RAW):', JSON.stringify(planItems, null, 2));
+                
                 // TÜM ALANLARI YÜKLE - Standartlar dahil
                 const loadedItems = planItems.map((item, idx) => {
+                    console.log(`📦 Item ${idx + 1} RAW data:`, JSON.stringify(item, null, 2));
                     console.log(`📦 Item ${idx + 1} yükleniyor:`, {
                         characteristic_id: item.characteristic_id,
                         standard_id: item.standard_id,
@@ -232,7 +235,13 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                         standard_class: item.standard_class,
                         nominal: item.nominal_value,
                         min: item.min_value,
-                        max: item.max_value
+                        max: item.max_value,
+                        // Değerlerin tipi
+                        standard_id_type: typeof item.standard_id,
+                        standard_class_type: typeof item.standard_class,
+                        // Undefined mu kontrol et
+                        standard_id_undefined: item.standard_id === undefined ? 'EVET' : 'HAYIR',
+                        standard_class_undefined: item.standard_class === undefined ? 'EVET' : 'HAYIR'
                     });
                     
                     return {
