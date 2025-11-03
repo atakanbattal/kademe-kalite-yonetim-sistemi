@@ -255,46 +255,68 @@ const IncomingInspectionDetailModal = ({
         if (!enrichedInspection) return '';
 
         let description = `GİRDİ KALİTE KONTROLÜ - UYGUNSUZLUK TESPİTİ\n\n`;
-        description += `📋 MUAYENE BİLGİLERİ:\n`;
-        description += `• Kayıt No: ${enrichedInspection.record_no || 'Belirtilmemiş'}\n`;
-        description += `• Muayene Tarihi: ${enrichedInspection.inspection_date ? format(new Date(enrichedInspection.inspection_date), 'dd.MM.yyyy', { locale: tr }) : 'Belirtilmemiş'}\n`;
-        description += `• Tedarikçi: ${enrichedInspection.supplier_name || 'Belirtilmemiş'}\n`;
-        description += `• Parça Adı: ${enrichedInspection.part_name || 'Belirtilmemiş'}\n`;
-        description += `• Parça Kodu: ${enrichedInspection.part_code || 'Belirtilmemiş'}\n`;
-        description += `• Gelen Miktar: ${enrichedInspection.quantity_received || 0} adet\n`;
-        description += `• Muayene Edilen: ${enrichedInspection.quantity_inspected || 0} adet\n`;
-        description += `• Nihai Karar: ${enrichedInspection.decision || 'Belirtilmemiş'}\n\n`;
+        description += `MUAYENE BİLGİLERİ:\n`;
+        description += `Kayıt No: ${enrichedInspection.record_no || 'Belirtilmemiş'}\n`;
+        description += `Muayene Tarihi: ${enrichedInspection.inspection_date ? format(new Date(enrichedInspection.inspection_date), 'dd.MM.yyyy', { locale: tr }) : 'Belirtilmemiş'}\n`;
+        description += `Tedarikçi: ${enrichedInspection.supplier_name || 'Belirtilmemiş'}\n`;
+        description += `Parça Adı: ${enrichedInspection.part_name || 'Belirtilmemiş'}\n`;
+        description += `Parça Kodu: ${enrichedInspection.part_code || 'Belirtilmemiş'}\n`;
+        description += `Gelen Miktar: ${enrichedInspection.quantity_received || 0} adet\n`;
+        description += `Kontrol Edilen Miktar: ${enrichedInspection.quantity_inspected || enrichedInspection.quantity_received || 0} adet\n`;
+        description += `Nihai Karar: ${enrichedInspection.decision || 'Belirtilmemiş'}\n\n`;
 
         // Ölçüm sonuçlarını detaylı göster
         if (enrichedInspection.results && enrichedInspection.results.length > 0) {
-            description += `📊 ÖLÇÜM SONUÇLARI VE TESPİTLER:\n\n`;
+            description += `ÖLÇÜM SONUÇLARI VE TESPİTLER:\n\n`;
             
             const failedResults = enrichedInspection.results.filter(r => 
                 r.result === 'NOK' || r.result === 'Ret'
             );
             
             if (failedResults.length > 0) {
-                description += `❌ UYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;
+                description += `UYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;
                 failedResults.forEach((result, idx) => {
-                    description += `\n${idx + 1}. ${result.characteristic_name || 'Özellik'}:\n`;
-                    description += `   • Tipi: ${result.characteristic_type || 'Belirtilmemiş'}\n`;
+                    description += `\n${idx + 1}. ${result.characteristic_name || 'Özellik'}`;
+                    if (result.measurement_number && result.total_measurements) {
+                        description += ` (Ölçüm ${result.measurement_number}/${result.total_measurements})`;
+                    }
+                    description += `:\n`;
+                    description += `   Ölçüm Tipi: ${result.characteristic_type || 'Belirtilmemiş'}\n`;
+                    description += `   Ölçüm Cihazı: ${result.equipment_name || 'Belirtilmemiş'}\n`;
                     
                     if (result.characteristic_type === 'Boyutsal') {
-                        description += `   • Nominal: ${result.nominal_value !== null && result.nominal_value !== undefined ? result.nominal_value : 'Belirtilmemiş'}\n`;
-                        description += `   • Min: ${result.min_value !== null && result.min_value !== undefined ? result.min_value : 'Belirtilmemiş'}\n`;
-                        description += `   • Max: ${result.max_value !== null && result.max_value !== undefined ? result.max_value : 'Belirtilmemiş'}\n`;
-                        description += `   • Ölçülen Değer: ${result.measured_value || 'Belirtilmemiş'}\n`;
+                        const nominal = result.nominal_value !== null && result.nominal_value !== undefined ? result.nominal_value : null;
+                        const min = result.min_value !== null && result.min_value !== undefined ? result.min_value : null;
+                        const max = result.max_value !== null && result.max_value !== undefined ? result.max_value : null;
+                        const measured = result.measured_value || null;
                         
-                        // Sapma hesaplama
-                        if (result.measured_value && result.nominal_value !== null && result.nominal_value !== undefined) {
-                            const deviation = parseFloat(result.measured_value) - parseFloat(result.nominal_value);
-                            description += `   • Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(2)}\n`;
+                        description += `   Nominal Değer: ${nominal !== null ? nominal : 'Belirtilmemiş'}\n`;
+                        description += `   Tolerans Aralığı: ${min !== null ? min : '-'} / ${max !== null ? max : '-'}\n`;
+                        description += `   Ölçülen Değer: ${measured !== null ? measured : 'Ölçülmemiş'}\n`;
+                        
+                        // Detaylı sapma analizi
+                        if (measured !== null && nominal !== null) {
+                            const measuredNum = parseFloat(measured);
+                            const nominalNum = parseFloat(nominal);
+                            const deviation = measuredNum - nominalNum;
+                            const deviationPercent = ((deviation / nominalNum) * 100).toFixed(2);
+                            
+                            description += `   Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} (${deviationPercent}%)\n`;
+                            
+                            // Tolerans dışına çıkma miktarı
+                            if (min !== null && measuredNum < parseFloat(min)) {
+                                const underTolerance = parseFloat(min) - measuredNum;
+                                description += `   Alt Tolerans Aşımı: ${underTolerance.toFixed(3)} (${((underTolerance / nominalNum) * 100).toFixed(2)}%)\n`;
+                            }
+                            if (max !== null && measuredNum > parseFloat(max)) {
+                                const overTolerance = measuredNum - parseFloat(max);
+                                description += `   Üst Tolerans Aşımı: +${overTolerance.toFixed(3)} (+${((overTolerance / nominalNum) * 100).toFixed(2)}%)\n`;
+                            }
                         }
                     } else if (result.characteristic_type === 'Görsel') {
-                        description += `   • Sonuç: ${result.result}\n`;
-                        description += `   • Tespit: ${result.measured_value || 'Görsel kusur tespit edildi'}\n`;
+                        description += `   Tespit: ${result.measured_value || 'Görsel kusur tespit edildi'}\n`;
                     }
-                    description += `   • Karar: ${result.result}\n`;
+                    description += `   Sonuç: ${result.result}\n`;
                 });
             }
 
@@ -303,23 +325,24 @@ const IncomingInspectionDetailModal = ({
             const okCount = enrichedInspection.results.filter(r => r.result === 'OK' || r.result === 'Kabul').length;
             const nokCount = totalResults - okCount;
             
-            description += `\n\n📈 ÖLÇÜM ÖZETİ:\n`;
-            description += `• Toplam Ölçüm: ${totalResults}\n`;
-            description += `• Uygun (OK): ${okCount}\n`;
-            description += `• Uygunsuz (NOK): ${nokCount}\n`;
+            description += `\n\nÖLÇÜM ÖZETİ:\n`;
+            description += `Toplam Ölçüm Sayısı: ${totalResults}\n`;
+            description += `Uygun Ölçümler: ${okCount}\n`;
+            description += `Uygunsuz Ölçümler: ${nokCount}\n`;
+            description += `Ret Oranı: ${((nokCount / totalResults) * 100).toFixed(1)}%\n`;
         }
 
         // Ret/Şartlı Kabul nedenleri
         if (enrichedInspection.decision === 'Ret') {
-            description += `\n\n🚫 RET NEDENİ:\n`;
+            description += `\n\nRET NEDENİ:\n`;
             if (enrichedInspection.rejection_reason) {
                 description += `${enrichedInspection.rejection_reason}\n`;
             }
             if (enrichedInspection.quantity_rejected > 0) {
-                description += `• ${enrichedInspection.quantity_rejected} adet ürün kalite standartlarını karşılamadığı için reddedilmiştir.\n`;
+                description += `${enrichedInspection.quantity_rejected} adet ürün kalite standartlarını karşılamadığı için reddedilmiştir.\n`;
             }
         } else if (enrichedInspection.decision === 'Şartlı Kabul') {
-            description += `\n\n⚠️ ŞARTLI KABUL NEDENİ:\n`;
+            description += `\n\nŞARTLI KABUL NEDENİ:\n`;
             if (enrichedInspection.conditional_acceptance_reason) {
                 description += `${enrichedInspection.conditional_acceptance_reason}\n`;
             }
@@ -327,10 +350,10 @@ const IncomingInspectionDetailModal = ({
 
         // Notlar varsa ekle
         if (enrichedInspection.notes) {
-            description += `\n\n📝 EK NOTLAR:\n${enrichedInspection.notes}\n`;
+            description += `\n\nEK NOTLAR:\n${enrichedInspection.notes}\n`;
         }
 
-        description += `\n\n⚡ Bu uygunsuzluk kaydı, Girdi Kalite Kontrol Modülünden otomatik olarak oluşturulmuştur.`;
+        description += `\n\nBu uygunsuzluk kaydı Girdi Kalite Kontrol Modülünden otomatik olarak oluşturulmuştur.`;
         
         return description;
     };
