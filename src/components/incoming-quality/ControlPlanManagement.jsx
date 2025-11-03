@@ -223,36 +223,28 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                 const planItems = existingPlan.items || [];
                 setCharacteristicCount(planItems.length || 1);
                 
-                // KRİTİK: Mevcut ölçüm verilerini TAM OLARAK koru ve yükle
+                // BASİTLEŞTİRİLDİ: Sadece nominal, min, max değerlerini yükle
                 const loadedItems = planItems.map((item, idx) => {
                     console.log(`📦 Item ${idx + 1} yükleniyor:`, {
                         characteristic_id: item.characteristic_id,
-                        standard_id: item.standard_id,
-                        tolerance_class: item.tolerance_class,
-                        standard_class: item.standard_class,
                         nominal: item.nominal_value,
                         min: item.min_value,
                         max: item.max_value
                     });
                     
                     return {
-                        // ÖNCE initialItemState - boş başlangıç
-                        ...initialItemState,
-                        // SONRA item'dan gelen tüm değerler - VERİTABANINDAN GELEN HER ŞEY
-                        ...item,
-                        // SON OLARAK kritik alanları açıkça belirt
                         id: item.id || uuidv4(),
                         characteristic_id: item.characteristic_id || '',
                         characteristic_type: item.characteristic_type || '',
                         equipment_id: item.equipment_id || '',
-                        // STANDART ALANLARI - KESINLIKLE KORU
-                        standard_id: item.standard_id, // null olabilir ama değeri koru
-                        tolerance_class: item.tolerance_class, // null olabilir ama değeri koru
-                        standard_class: item.standard_class || '', // string olarak koru
-                        // ÖLÇÜM DEĞERLERİ - KESINLIKLE KORU
+                        // STANDART ALANLARI ARTIK KULLANILMIYOR - boş bırak
+                        standard_id: null,
+                        tolerance_class: null,
+                        standard_class: '',
+                        // ÖLÇÜM DEĞERLERİ - KULLANICININ GİRDİĞİ DEĞERLERİ AYNEN YÜKLE
                         nominal_value: item.nominal_value !== undefined && item.nominal_value !== null ? item.nominal_value : '',
-                        min_value: item.min_value !== undefined ? item.min_value : null,
-                        max_value: item.max_value !== undefined ? item.max_value : null,
+                        min_value: item.min_value !== undefined && item.min_value !== null ? item.min_value : null,
+                        max_value: item.max_value !== undefined && item.max_value !== null ? item.max_value : null,
                         tolerance_direction: item.tolerance_direction || '±'
                     };
                 });
@@ -363,40 +355,25 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                         finalCharacteristicType = 'Bilinmiyor';
                     }
                 
-                // KRİTİK: standard_class'ı hesapla ve kaydet
-                let standard_class_value = null;
-                if (isDimensional && item.tolerance_class) {
-                    if (item.standard_id) {
-                        // Standart seçilmişse: standard_id + tolerance_class birleştir
-                        const standard = standards.find(s => s.value === item.standard_id);
-                        if (standard) {
-                            const standardBaseName = standard.label.split(' ')[0];
-                            standard_class_value = `${standardBaseName}_${item.tolerance_class}`;
-                        }
-                    } else {
-                        // Standart seçilmemişse sadece tolerance_class'ı kaydet
-                        standard_class_value = item.tolerance_class;
-                    }
-                } else if (item.standard_class) {
-                    // Mevcut standard_class varsa koru
-                    standard_class_value = item.standard_class;
-                }
-                
+                // BASİTLEŞTİRİLDİ: Standart bağımlılığı kaldırıldı
+                // Sadece kullanıcının girdiği nominal, min, max değerleri kaydet
                 const savedItem = {
                     id: item.id || uuidv4(),
                     characteristic_id: item.characteristic_id,
                     characteristic_type: finalCharacteristicType,
                     equipment_id: item.equipment_id,
-                    standard_id: isDimensional ? item.standard_id : null,
-                    tolerance_class: isDimensional ? item.tolerance_class : null,
-                    standard_class: standard_class_value, // KRİTİK: standard_class'ı kaydet
+                    // Standart alanları artık kullanılmıyor - null kaydet
+                    standard_id: null,
+                    tolerance_class: null,
+                    standard_class: null,
+                    // Kullanıcının GİRDİĞİ DEĞERLERİ AYNEN KAYDET
                     nominal_value: item.nominal_value || null,
-                    min_value: isDimensional && item.min_value ? String(item.min_value) : null,
-                    max_value: isDimensional && item.max_value ? String(item.max_value) : null,
+                    min_value: item.min_value !== undefined && item.min_value !== null && item.min_value !== '' ? String(item.min_value) : null,
+                    max_value: item.max_value !== undefined && item.max_value !== null && item.max_value !== '' ? String(item.max_value) : null,
                     tolerance_direction: item.tolerance_direction || '±',
                 };
                     
-                    console.log(`✓ Item ${item.characteristic_id}: characteristic_type = "${finalCharacteristicType}"`);
+                    console.log(`✓ Item ${item.characteristic_id}: characteristic_type = "${finalCharacteristicType}", nominal=${savedItem.nominal_value}, min=${savedItem.min_value}, max=${savedItem.max_value}`);
                     return savedItem;
                 });
 
