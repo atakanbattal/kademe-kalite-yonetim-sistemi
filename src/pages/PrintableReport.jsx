@@ -87,8 +87,8 @@ import React, { useEffect, useState } from 'react';
                                 }
                             }
                             
-                            // Veri okunduktan hemen sonra temizle (tekrar kullanılmasın)
-                            localStorage.removeItem(storageKey);
+                            // NOT: localStorage'ı temizleme - openPrintableReport fonksiyonu 30 saniye sonra temizleyecek
+                            // Burada temizlersek yavaş bağlantılarda veri kaybolur
                         } catch (e) {
                             console.error('localStorage verisi okunurken hata:', e);
                             throw new Error('Rapor verisi okunamadı. Lütfen tekrar deneyin.');

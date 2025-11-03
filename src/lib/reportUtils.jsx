@@ -45,10 +45,10 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 			if (reportWindow) {
 				reportWindow.focus();
 				
-				// PDF yüklendikten sonra localStorage'ı temizle (10 saniye sonra)
+				// PDF yüklendikten sonra localStorage'ı temizle (30 saniye sonra - yavaş bağlantılarda da çalışsın)
 				setTimeout(() => {
 					localStorage.removeItem(storageKey);
-				}, 10000);
+				}, 30000);
 			}
 		} catch (error) {
 			console.error("Error storing report data:", error);
@@ -1527,8 +1527,11 @@ const generatePrintableReportHtml = (record, type) => {
 		/* ============================================
 		   LINK URL GİZLEME - Hem ekranda hem print'te
 		   ============================================ */
-		a[href]:after {
+		a:after,
+		a[href]:after,
+		a[href]::after {
 			content: none !important;
+			display: none !important;
 		}
 
 		/* ============================================
@@ -1759,8 +1762,11 @@ const generatePrintableReportHtml = (record, type) => {
 		.footer { display: none; }
 		
 		/* Link URL gizle */
-		a[href]:after {
+		a:after,
+		a[href]:after,
+		a[href]::after {
 			content: none !important;
+			display: none !important;
 		}
 
 		@media print {
@@ -1851,8 +1857,11 @@ const generatePrintableReportHtml = (record, type) => {
 		.footer { display: block !important; }
 		
 		/* Link URL gizle */
-		a[href]:after {
+		a:after,
+		a[href]:after,
+		a[href]::after {
 			content: none !important;
+			display: none !important;
 		}
 	`;
 
