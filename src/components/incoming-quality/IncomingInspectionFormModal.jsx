@@ -159,45 +159,61 @@ setShowRiskyStockAlert(false);
 
         // Load existing inspection data when modal opens or existingInspection changes
         useEffect(() => {
-            if (isOpen && existingInspection) {
-                // Düzenleme modu: mevcut kaydı yükle
-                console.log('📝 Düzenleme modu: kayıt yükleniyor', existingInspection.id);
-                setFormData({
-                    inspection_date: existingInspection.inspection_date || new Date().toISOString().split('T')[0],
-                    supplier_id: existingInspection.supplier_id || '',
-                    delivery_note_number: existingInspection.delivery_note_number || '',
-                    part_name: existingInspection.part_name || '',
-                    part_code: existingInspection.part_code || '',
-                    quantity_received: existingInspection.quantity_received || 0,
-                    unit: existingInspection.unit || 'Adet',
-                    decision: existingInspection.decision || 'Beklemede',
-                    quantity_accepted: existingInspection.quantity_accepted || 0,
-                    quantity_conditional: existingInspection.quantity_conditional || 0,
-                    quantity_rejected: existingInspection.quantity_rejected || 0,
-                    attachments: existingInspection.attachments || [],
-                });
-                
-                // Load measurement results
-                if (existingInspection.results && Array.isArray(existingInspection.results)) {
-                    setResults(existingInspection.results);
+            const loadInspectionData = async () => {
+                if (isOpen && existingInspection) {
+                    // Düzenleme modu: mevcut kaydı yükle
+                    console.log('📝 Düzenleme modu: kayıt yükleniyor', existingInspection.id);
+                    
+                    setFormData({
+                        inspection_date: existingInspection.inspection_date || new Date().toISOString().split('T')[0],
+                        supplier_id: existingInspection.supplier_id || '',
+                        delivery_note_number: existingInspection.delivery_note_number || '',
+                        part_name: existingInspection.part_name || '',
+                        part_code: existingInspection.part_code || '',
+                        quantity_received: Number(existingInspection.quantity_received) || 0,
+                        unit: existingInspection.unit || 'Adet',
+                        decision: existingInspection.decision || 'Beklemede',
+                        quantity_accepted: Number(existingInspection.quantity_accepted) || 0,
+                        quantity_conditional: Number(existingInspection.quantity_conditional) || 0,
+                        quantity_rejected: Number(existingInspection.quantity_rejected) || 0,
+                        attachments: existingInspection.attachments || [],
+                    });
+                    
+                    // Load measurement results
+                    if (existingInspection.results && Array.isArray(existingInspection.results)) {
+                        setResults(existingInspection.results.map(r => ({
+                            ...r,
+                            id: r.id || uuidv4(),
+                            characteristic_name: r.characteristic_name || r.feature,
+                            measured_value: r.measured_value || r.actual_value,
+                        })));
+                    }
+                    
+                    // Load defects
+                    if (existingInspection.defects && Array.isArray(existingInspection.defects)) {
+                        setDefects(existingInspection.defects);
+                    }
+                    
+                    // Load existing attachments
+                    if (existingInspection.attachments && Array.isArray(existingInspection.attachments)) {
+                        setExistingAttachments(existingInspection.attachments);
+                    }
+                    
+                    // Load control plan if part_code exists
+                    if (existingInspection.part_code) {
+                        await handlePartCodeChange(existingInspection.part_code);
+                    }
+                    
+                } else if (isOpen && !existingInspection) {
+                    // Yeni kayıt modu: sadece modal ilk açıldığında sıfırla
+                    console.log('✨ Yeni kayıt modu: form sıfırlanıyor');
+                    resetForm();
                 }
-                
-                // Load defects
-                if (existingInspection.defects && Array.isArray(existingInspection.defects)) {
-                    setDefects(existingInspection.defects);
-                }
-                
-                // Load existing attachments
-                if (existingInspection.attachments && Array.isArray(existingInspection.attachments)) {
-                    setExistingAttachments(existingInspection.attachments);
-                }
-            } else if (isOpen && !existingInspection) {
-                // Yeni kayıt modu: sadece modal ilk açıldığında sıfırla
-                console.log('✨ Yeni kayıt modu: form sıfırlanıyor');
-                resetForm();
-            }
-            // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
-        }, [isOpen, existingInspection, resetForm]);
+                // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
+            };
+            
+            loadInspectionData();
+        }, [isOpen, existingInspection, resetForm, handlePartCodeChange]);
 
         const quantityTotal = useMemo(() => {
             return (Number(formData.quantity_accepted) || 0) + (Number(formData.quantity_conditional) || 0) + (Number(formData.quantity_rejected) || 0);
@@ -320,44 +336,9 @@ setShowRiskyStockAlert(false);
             }
         }, [toast]);
         
-        useEffect(() => {
-            const initializeForm = async () => {
-                resetForm();
-                if (existingInspection) {
-                    const { supplier, defects: existingDefects, attachments: existingAttachmentsData, results: existingResultsData, ...rest } = existingInspection;
-                    
-                    setFormData({
-                        ...INITIAL_FORM_STATE,
-                        ...rest,
-                        quantity_received: Number(rest.quantity_received) || 0,
-                        quantity_accepted: Number(rest.quantity_accepted) || 0,
-                        quantity_conditional: Number(rest.quantity_conditional) || 0,
-                        quantity_rejected: Number(rest.quantity_rejected) || 0,
-                        supplier_id: rest.supplier_id || '',
-                        inspection_date: new Date(rest.inspection_date).toISOString().split('T')[0],
-                    });
-
-                    if (rest.part_code) {
-                        await handlePartCodeChange(rest.part_code);
-                    }
-                    
-                    setDefects(existingDefects || []);
-                    if (existingResultsData && existingResultsData.length > 0) {
-                         setResults(existingResultsData.map(r => ({
-                            ...r,
-                            id: uuidv4(),
-                            characteristic_name: r.feature,
-                            measured_value: r.actual_value,
-                        })));
-                    }
-                    setExistingAttachments(existingAttachmentsData || []);
-                    
-                } else {
-                    setFormData(INITIAL_FORM_STATE);
-                }
-            };
-            if (isOpen) initializeForm();
-        }, [isOpen, existingInspection, resetForm, handlePartCodeChange]);
+        // NOT: Bu useEffect KALDIRILDI çünkü yukarıdaki useEffect (satır 161-200) zaten aynı işi yapıyor
+        // İkinci bir useEffect resetForm() çağırarak verileri siliyordu!
+        // Eğer part_code değiştiğinde kontrol planı çekmek gerekirse, bunu handlePartCodeChange fonksiyonu zaten yapıyor
 
         const handleRiskyStockCheck = async () => {
             const hasRejectedOrConditional = 
