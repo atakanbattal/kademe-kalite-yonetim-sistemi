@@ -180,12 +180,19 @@ setShowRiskyStockAlert(false);
                 
                 // Load measurement results
                 if (existingInspection.results && Array.isArray(existingInspection.results)) {
+                    console.log(`✅ ${existingInspection.results.length} ölçüm sonucu yükleniyor...`);
                     setResults(existingInspection.results);
+                } else {
+                    console.log('⚠️ Ölçüm sonucu bulunamadı veya array değil:', existingInspection.results);
+                    setResults([]);
                 }
                 
                 // Load defects
                 if (existingInspection.defects && Array.isArray(existingInspection.defects)) {
+                    console.log(`✅ ${existingInspection.defects.length} kusur kaydı yükleniyor...`);
                     setDefects(existingInspection.defects);
+                } else {
+                    setDefects([]);
                 }
                 
                 // Load existing attachments
@@ -208,6 +215,13 @@ setShowRiskyStockAlert(false);
         }, [quantityTotal, formData.quantity_received]);
         
         useEffect(() => {
+            // DÜZENLEME MODUNDA MEVCUT ÖLÇÜM SONUÇLARINI KORUMAK İÇİN
+            // BU useEffect SADECE YENİ KAYIT MODUNDA ÇALIŞMALI
+            if (existingInspection) {
+                console.log('⚠️ Düzenleme modu - Ölçüm sonuçları korunuyor, yeniden oluşturulmuyor');
+                return;
+            }
+            
             const generateResultsFromPlan = () => {
                 const incomingQuantity = Number(formData.quantity_received) || 0;
 
@@ -217,6 +231,7 @@ setShowRiskyStockAlert(false);
                     return;
                 }
 
+                console.log('✨ Yeni kayıt modu - Ölçüm sonuçları oluşturuluyor...');
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
@@ -271,7 +286,7 @@ setShowRiskyStockAlert(false);
             };
 
             generateResultsFromPlan();
-        }, [formData.quantity_received, controlPlan, characteristics, equipment]);
+        }, [formData.quantity_received, controlPlan, characteristics, equipment, existingInspection]);
 
         const handlePartCodeChange = useCallback(async (partCode) => {
             const trimmedPartCode = partCode?.trim();
