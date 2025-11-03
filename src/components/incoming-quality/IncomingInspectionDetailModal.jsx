@@ -251,7 +251,7 @@ const IncomingInspectionDetailModal = ({
         }
     };
 
-    const generateNCDescription = () => {
+    const generateNCDescription = async () => {
         if (!enrichedInspection) return '';
 
         let description = `GİRDİ KALİTE KONTROLÜ - UYGUNSUZLUK TESPİTİ\n\n`;
@@ -264,6 +264,23 @@ const IncomingInspectionDetailModal = ({
         description += `Gelen Miktar: ${enrichedInspection.quantity_received || 0} adet\n`;
         description += `Kontrol Edilen Miktar: ${enrichedInspection.quantity_inspected || enrichedInspection.quantity_received || 0} adet\n`;
         description += `Nihai Karar: ${enrichedInspection.decision || 'Belirtilmemiş'}\n\n`;
+
+        // Kontrol planını fetch et - nominal/min/max değerlerini almak için
+        let controlPlanItems = [];
+        try {
+            const { data: controlPlan } = await supabase
+                .from('incoming_control_plans')
+                .select('items')
+                .eq('part_code', enrichedInspection.part_code)
+                .single();
+            
+            if (controlPlan && controlPlan.items) {
+                controlPlanItems = controlPlan.items;
+                console.log('📋 Kontrol planı bulundu:', controlPlanItems.length, 'özellik');
+            }
+        } catch (error) {
+            console.warn('⚠️ Kontrol planı alınamadı:', error);
+        }
 
         // Ölçüm sonuçlarını detaylı göster
         if (enrichedInspection.results && enrichedInspection.results.length > 0) {
@@ -281,57 +298,70 @@ const IncomingInspectionDetailModal = ({
                 return resultStr !== 'OK' && resultStr !== '';
             });
             
+            console.log(`✅ ${failedResults.length} uygunsuz ölçüm bulundu (${enrichedInspection.results.length} toplam)`);
+            
             if (failedResults.length > 0) {
                 description += `UYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;
                 failedResults.forEach((result, idx) => {
+                    // Kontrol planından nominal/min/max değerlerini al
+                    const planItem = controlPlanItems.find(item => item.id === result.control_plan_item_id);
+                    
+                    const nominal = planItem?.nominal_value ?? result.nominal_value ?? null;
+                    const min = planItem?.min_value ?? result.min_value ?? null;
+                    const max = planItem?.max_value ?? result.max_value ?? null;
+                    const measured = result.measured_value !== null && result.measured_value !== undefined ? result.measured_value : null;
+                    
                     description += `\n${idx + 1}. ${result.characteristic_name || 'Özellik'}`;
                     if (result.measurement_number && result.total_measurements) {
                         description += ` (Ölçüm ${result.measurement_number}/${result.total_measurements})`;
                     }
                     description += `:\n`;
                     description += `   Ölçüm Tipi: ${result.characteristic_type || 'Belirtilmemiş'}\n`;
-                    description += `   Ölçüm Cihazı: ${result.equipment_name || 'Belirtilmemiş'}\n`;
                     
-                    if (result.characteristic_type === 'Boyutsal') {
-                        const nominal = result.nominal_value !== null && result.nominal_value !== undefined ? result.nominal_value : null;
-                        const min = result.min_value !== null && result.min_value !== undefined ? result.min_value : null;
-                        const max = result.max_value !== null && result.max_value !== undefined ? result.max_value : null;
-                        const measured = result.measured_value || null;
-                        
-                        description += `   Beklenen Nominal Değer: ${nominal !== null ? nominal : 'Belirtilmemiş'}\n`;
-                        description += `   Kabul Edilebilir Tolerans: ${min !== null ? min : '-'} ile ${max !== null ? max : '-'} arasında\n`;
-                        description += `   Gerçekte Ölçülen: ${measured !== null ? measured : 'Ölçülmemiş'}\n`;
+                    if (result.characteristic_type === 'Boyutsal' || result.characteristic_type === 'Ölçülebilir') {
+                        description += `   Beklenen Nominal: ${nominal !== null ? nominal : 'Belirtilmemiş'} mm\n`;
+                        description += `   Tolerans Aralığı: ${min !== null ? min : '-'} ~ ${max !== null ? max : '-'} mm\n`;
+                        description += `   Ölçülen Değer: ${measured !== null ? measured : 'Belirtilmemiş'} mm\n`;
                         
                         // Detaylı sapma analizi ve açıklama
                         if (measured !== null && nominal !== null) {
                             const measuredNum = parseFloat(measured);
                             const nominalNum = parseFloat(nominal);
                             const deviation = measuredNum - nominalNum;
-                            const deviationPercent = ((deviation / nominalNum) * 100).toFixed(2);
+                            const deviationPercent = nominalNum !== 0 ? ((deviation / nominalNum) * 100).toFixed(2) : '∞';
                             
                             // Açıklayıcı ifade
-                            if (deviation > 0) {
-                                description += `   → ${nominal} olması gerekirken ${measured} ölçülmüştür (+${deviation.toFixed(3)} sapma)\n`;
-                            } else if (deviation < 0) {
-                                description += `   → ${nominal} olması gerekirken ${measured} ölçülmüştür (${deviation.toFixed(3)} sapma)\n`;
-                            }
-                            
-                            description += `   Sapma Miktarı: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} (${deviationPercent}%)\n`;
+                            description += `   → SAPMA: ${nominal} mm olması gerekirken ${measured} mm ölçülmüştür\n`;
+                            description += `   → Fark: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm (${deviationPercent}%)\n`;
                             
                             // Tolerans dışına çıkma açıklaması
                             if (min !== null && measuredNum < parseFloat(min)) {
                                 const underTolerance = parseFloat(min) - measuredNum;
-                                description += `   ⚠ TOLERANS DIŞI: Alt sınır ${min} olmalıydı, ${measured} ölçüldü (${underTolerance.toFixed(3)} fazla küçük)\n`;
+                                description += `   ⚠ ALT TOLERANS AŞILDI: ${min} mm'den ${underTolerance.toFixed(3)} mm küçük!\n`;
                             }
                             if (max !== null && measuredNum > parseFloat(max)) {
                                 const overTolerance = measuredNum - parseFloat(max);
-                                description += `   ⚠ TOLERANS DIŞI: Üst sınır ${max} olmalıydı, ${measured} ölçüldü (${overTolerance.toFixed(3)} fazla büyük)\n`;
+                                description += `   ⚠ ÜST TOLERANS AŞILDI: ${max} mm'den ${overTolerance.toFixed(3)} mm büyük!\n`;
+                            }
+                        } else if (measured !== null && (min !== null || max !== null)) {
+                            // Nominal yok ama toleranslar var
+                            if (min !== null && parseFloat(measured) < parseFloat(min)) {
+                                description += `   ⚠ UYGUNSUZ: ${measured} mm < ${min} mm (alt sınır)\n`;
+                            }
+                            if (max !== null && parseFloat(measured) > parseFloat(max)) {
+                                description += `   ⚠ UYGUNSUZ: ${measured} mm > ${max} mm (üst sınır)\n`;
                             }
                         }
                     } else if (result.characteristic_type === 'Görsel') {
                         description += `   Tespit: ${result.measured_value || 'Görsel kusur tespit edildi'}\n`;
+                    } else {
+                        // Diğer tipler için measured value
+                        description += `   Ölçülen: ${measured !== null ? measured : 'Belirtilmemiş'}\n`;
                     }
-                    description += `   Nihai Karar: ${result.result}\n`;
+                    
+                    // Result değerini daha okunabilir göster
+                    const resultDisplay = typeof result.result === 'boolean' ? (result.result ? 'OK' : 'NOK') : result.result;
+                    description += `   Sonuç: ${resultDisplay}\n`;
                 });
             }
 
@@ -386,8 +416,8 @@ const IncomingInspectionDetailModal = ({
         setIsCreatingNC(true);
 
         try {
-            // Uygunsuzluk açıklamasını oluştur
-            const ncDescription = generateNCDescription();
+            // Uygunsuzluk açıklamasını oluştur (async fonksiyon - await gerekiyor)
+            const ncDescription = await generateNCDescription();
             const ncTitle = `Girdi Kalite - ${enrichedInspection.supplier_name || 'Tedarikçi'} - ${enrichedInspection.part_name || enrichedInspection.part_code}`;
 
             // Tedarikçi varsa, önce supplier_non_conformities'e kayıt oluştur
