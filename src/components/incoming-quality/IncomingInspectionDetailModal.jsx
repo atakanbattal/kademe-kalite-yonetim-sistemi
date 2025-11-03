@@ -269,9 +269,10 @@ const IncomingInspectionDetailModal = ({
         if (enrichedInspection.results && enrichedInspection.results.length > 0) {
             description += `ÖLÇÜM SONUÇLARI VE TESPİTLER:\n\n`;
             
-            const failedResults = enrichedInspection.results.filter(r => 
-                r.result === 'NOK' || r.result === 'Ret'
-            );
+            const failedResults = enrichedInspection.results.filter(r => {
+                const resultLower = (r.result || '').toString().toLowerCase();
+                return resultLower === 'nok' || resultLower === 'ret' || resultLower.includes('nok') || resultLower.includes('ret');
+            });
             
             if (failedResults.length > 0) {
                 description += `UYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;
