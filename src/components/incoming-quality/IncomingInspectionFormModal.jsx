@@ -157,58 +157,55 @@ setShowRiskyStockAlert(false);
             setCheckingRiskyStock(false);
         }, []);
 
-        // Load existing inspection data when modal opens or existingInspection changes
+        // Load existing inspection data when modal opens
+        // ÖNEMLİ: Sadece existingInspection değiştiğinde çalış, isOpen her değişiminde değil
         useEffect(() => {
-            if (isOpen && existingInspection) {
-                // Düzenleme modu: mevcut kaydı yükle
-                console.log('📝 Düzenleme modu: kayıt yükleniyor', existingInspection.id);
-                
+            if (!isOpen) {
+                // Modal kapandığında hiçbir şey yapma - veriler korunmalı
+                return;
+            }
+            
+            if (existingInspection) {
+                // Düzenleme modu: Mevcut kayıt verilerini yükle
+                console.log('📝 Düzenleme modu: Kayıt yükleniyor...', existingInspection.id);
                 setFormData({
                     inspection_date: existingInspection.inspection_date || new Date().toISOString().split('T')[0],
                     supplier_id: existingInspection.supplier_id || '',
                     delivery_note_number: existingInspection.delivery_note_number || '',
                     part_name: existingInspection.part_name || '',
                     part_code: existingInspection.part_code || '',
-                    quantity_received: Number(existingInspection.quantity_received) || 0,
+                    quantity_received: existingInspection.quantity_received || 0,
                     unit: existingInspection.unit || 'Adet',
                     decision: existingInspection.decision || 'Beklemede',
-                    quantity_accepted: Number(existingInspection.quantity_accepted) || 0,
-                    quantity_conditional: Number(existingInspection.quantity_conditional) || 0,
-                    quantity_rejected: Number(existingInspection.quantity_rejected) || 0,
+                    quantity_accepted: existingInspection.quantity_accepted || 0,
+                    quantity_conditional: existingInspection.quantity_conditional || 0,
+                    quantity_rejected: existingInspection.quantity_rejected || 0,
                     attachments: existingInspection.attachments || [],
                 });
                 
                 // Load measurement results
                 if (existingInspection.results && Array.isArray(existingInspection.results)) {
-                    setResults(existingInspection.results.map(r => ({
-                        ...r,
-                        id: r.id || uuidv4(),
-                        characteristic_name: r.characteristic_name || r.feature,
-                        measured_value: r.measured_value || r.actual_value,
-                    })));
+                    setResults(existingInspection.results);
+                    console.log('✅ Ölçüm sonuçları yüklendi:', existingInspection.results.length);
                 }
                 
                 // Load defects
                 if (existingInspection.defects && Array.isArray(existingInspection.defects)) {
                     setDefects(existingInspection.defects);
+                    console.log('✅ Hatalar yüklendi:', existingInspection.defects.length);
                 }
                 
                 // Load existing attachments
                 if (existingInspection.attachments && Array.isArray(existingInspection.attachments)) {
                     setExistingAttachments(existingInspection.attachments);
+                    console.log('✅ Ekler yüklendi:', existingInspection.attachments.length);
                 }
-                
-                // NOT: part_code için kontrol planı yüklemesi kaldırıldı
-                // Çünkü handlePartCodeChange henüz tanımlanmamış (hoisting sorunu)
-                // Kontrol planı zaten existingInspection.results içinde geliyor
-                
-            } else if (isOpen && !existingInspection) {
-                // Yeni kayıt modu: sadece modal ilk açıldığında sıfırla
-                console.log('✨ Yeni kayıt modu: form sıfırlanıyor');
+            } else if (isOpen) {
+                // Yeni kayıt modu: Sadece modal YENİ açıldığında formu sıfırla
+                console.log('➕ Yeni kayıt modu: Form sıfırlanıyor...');
                 resetForm();
             }
-            // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
-        }, [isOpen, existingInspection, resetForm]);
+        }, [existingInspection, isOpen, resetForm]);
 
         const quantityTotal = useMemo(() => {
             return (Number(formData.quantity_accepted) || 0) + (Number(formData.quantity_conditional) || 0) + (Number(formData.quantity_rejected) || 0);
@@ -221,25 +218,6 @@ setShowRiskyStockAlert(false);
         
         useEffect(() => {
             const generateResultsFromPlan = () => {
-                // ÖNEMLI: Düzenleme modunda SADECE measured_value'lar DOLUYSA koruyalım!
-                // Eğer measured_value'lar boşsa (eski kayıtlar), kontrol planından generate edelim
-                if (existingInspection && existingInspection.results && existingInspection.results.length > 0) {
-                    // Results var, ama measured_value'lar dolu mu kontrol et
-                    const hasMeasuredValues = existingInspection.results.some(r => 
-                        r.measured_value || r.actual_value
-                    );
-                    
-                    if (hasMeasuredValues) {
-                        console.log('🔒 Düzenleme modu - ölçüm değerleri DOLU, korunuyor');
-                        return; // Değerler var, koru
-                    } else {
-                        console.log('🔄 Düzenleme modu - ölçüm değerleri BOŞ, kontrol planından generate ediliyor');
-                        // Değerler boş, kontrol planından generate et (devam et)
-                    }
-                } else {
-                    console.log('🆕 Yeni kayıt - results kontrol planından generate ediliyor');
-                }
-                
                 const incomingQuantity = Number(formData.quantity_received) || 0;
 
                 if (!controlPlan || !controlPlan.items || controlPlan.items.length === 0 || incomingQuantity <= 0) {
@@ -248,8 +226,6 @@ setShowRiskyStockAlert(false);
                     return;
                 }
 
-                console.log('📊 Kontrol planından', controlPlan.items.length, 'özellik için results üretiliyor');
-                
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
@@ -258,14 +234,16 @@ setShowRiskyStockAlert(false);
                     
                     const characteristic = characteristics.find(c => c.value === item.characteristic_id);
                     if (!characteristic) {
-                        console.warn('⚠️ Characteristic bulunamadı:', item.characteristic_id);
                         return;
                     }
 
-                    // Characteristic type'ı bul: item'dan, characteristic'ten veya varsayılan "Minör"
-                    let characteristicType = item.characteristic_type || characteristic.type || 'Minör';
-                    
-                    console.log('📊 Özellik işleniyor:', characteristic.label, '- Tip:', characteristicType);
+                    let characteristicType = item.characteristic_type;
+                    if (!characteristicType) {
+                        characteristicType = characteristic.type;
+                        if (!characteristicType) {
+                            return;
+                        }
+                    }
                     
                     const count = calculateMeasurementCount(characteristicType, incomingQuantity);
                     
@@ -302,7 +280,7 @@ setShowRiskyStockAlert(false);
             };
 
             generateResultsFromPlan();
-        }, [formData.quantity_received, controlPlan, characteristics, equipment, existingInspection]);
+        }, [formData.quantity_received, controlPlan, characteristics, equipment]);
 
         const handlePartCodeChange = useCallback(async (partCode) => {
             const trimmedPartCode = partCode?.trim();
@@ -349,43 +327,45 @@ setShowRiskyStockAlert(false);
                  toast({ variant: 'destructive', title: 'Hata', description: `Veri çekilirken hata: ${error.message}` });
             }
         }, [toast]);
-
-        // Load control plan for existing inspection's part_code (after handlePartCodeChange is defined)
-        useEffect(() => {
-            if (isOpen && existingInspection && existingInspection.part_code && !controlPlan) {
-                console.log('🔄 Kontrol planı yükleniyor:', existingInspection.part_code);
-                
-                // Kontrol planını ve ilgili verileri yükle
-                const loadControlPlan = async () => {
-                    try {
-                        const { data: planData, error } = await supabase
-                            .from('incoming_control_plans')
-                            .select('*')
-                            .eq('part_code', existingInspection.part_code)
-                            .order('revision_number', { ascending: false })
-                            .limit(1)
-                            .maybeSingle();
-
-                        if (error) throw error;
-                        
-                        if (planData) {
-                            setControlPlan(planData);
-                            console.log('✅ Kontrol planı yüklendi:', planData.id);
-                        } else {
-                            console.log('⚠️ Kontrol planı bulunamadı');
-                        }
-                    } catch (error) {
-                        console.error('❌ Kontrol planı yüklenirken hata:', error);
-                    }
-                };
-
-                loadControlPlan();
-            }
-        }, [isOpen, existingInspection, controlPlan]);
         
-        // NOT: Bu useEffect KALDIRILDI çünkü yukarıdaki useEffect (satır 161-200) zaten aynı işi yapıyor
-        // İkinci bir useEffect resetForm() çağırarak verileri siliyordu!
-        // Eğer part_code değiştiğinde kontrol planı çekmek gerekirse, bunu handlePartCodeChange fonksiyonu zaten yapıyor
+        useEffect(() => {
+            const initializeForm = async () => {
+                resetForm();
+                if (existingInspection) {
+                    const { supplier, defects: existingDefects, attachments: existingAttachmentsData, results: existingResultsData, ...rest } = existingInspection;
+                    
+                    setFormData({
+                        ...INITIAL_FORM_STATE,
+                        ...rest,
+                        quantity_received: Number(rest.quantity_received) || 0,
+                        quantity_accepted: Number(rest.quantity_accepted) || 0,
+                        quantity_conditional: Number(rest.quantity_conditional) || 0,
+                        quantity_rejected: Number(rest.quantity_rejected) || 0,
+                        supplier_id: rest.supplier_id || '',
+                        inspection_date: new Date(rest.inspection_date).toISOString().split('T')[0],
+                    });
+
+                    if (rest.part_code) {
+                        await handlePartCodeChange(rest.part_code);
+                    }
+                    
+                    setDefects(existingDefects || []);
+                    if (existingResultsData && existingResultsData.length > 0) {
+                         setResults(existingResultsData.map(r => ({
+                            ...r,
+                            id: uuidv4(),
+                            characteristic_name: r.feature,
+                            measured_value: r.actual_value,
+                        })));
+                    }
+                    setExistingAttachments(existingAttachmentsData || []);
+                    
+                } else {
+                    setFormData(INITIAL_FORM_STATE);
+                }
+            };
+            if (isOpen) initializeForm();
+        }, [isOpen, existingInspection, resetForm, handlePartCodeChange]);
 
         const handleRiskyStockCheck = async () => {
             const hasRejectedOrConditional = 

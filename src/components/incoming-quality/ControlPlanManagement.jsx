@@ -207,27 +207,56 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
 
         const initialItemState = { id: uuidv4(), characteristic_id: '', characteristic_type: '', equipment_id: '', standard_id: null, tolerance_class: null, nominal_value: '', min_value: null, max_value: null, tolerance_direction: '±', standard_class: '' };
 
+        // ÖNEMLİ: Modal verilerini koru - sadece existingPlan değiştiğinde yükle
         useEffect(() => {
-            if (isOpen) {
-                if (existingPlan) {
-                    setPartCode(existingPlan.part_code || '');
-                    setPartName(existingPlan.part_name || '');
-                    const planItems = existingPlan.items || [];
-                    setCharacteristicCount(planItems.length || 1);
-                    setItems(planItems.map(item => ({...initialItemState, ...item, id: item.id || uuidv4() })));
-                    setStep(2);
-                } else {
-                    setPartCode('');
-                    setPartName('');
-                    setCharacteristicCount(5);
-                    setItems([]);
-                    setStep(1);
-                }
-                setFile(null);
-                setDuplicatePlan(null);
-                setIsSubmitting(false);
+            if (!isOpen) {
+                // Modal kapalıyken hiçbir şey yapma - veriler korunmalı
+                return;
             }
-        }, [isOpen, existingPlan]);
+            
+            if (existingPlan) {
+                // Düzenleme modu: Mevcut plan verilerini yükle
+                console.log('📝 Kontrol planı düzenleme modu:', existingPlan.id);
+                setPartCode(existingPlan.part_code || '');
+                setPartName(existingPlan.part_name || '');
+                const planItems = existingPlan.items || [];
+                setCharacteristicCount(planItems.length || 1);
+                
+                // Mevcut ölçüm verilerini koru ve yükle
+                const loadedItems = planItems.map(item => ({
+                    ...initialItemState, 
+                    ...item, 
+                    id: item.id || uuidv4(),
+                    // ÖNEMLİ: Tüm değerleri açıkça koru
+                    characteristic_id: item.characteristic_id || '',
+                    characteristic_type: item.characteristic_type || '',
+                    equipment_id: item.equipment_id || '',
+                    standard_id: item.standard_id || null,
+                    tolerance_class: item.tolerance_class || null,
+                    nominal_value: item.nominal_value || '',
+                    min_value: item.min_value !== undefined ? item.min_value : null,
+                    max_value: item.max_value !== undefined ? item.max_value : null,
+                    tolerance_direction: item.tolerance_direction || '±',
+                    standard_class: item.standard_class || ''
+                }));
+                
+                setItems(loadedItems);
+                console.log('✅ Kontrol planı yüklendi:', loadedItems.length, 'karakteristik');
+                setStep(2);
+            } else if (isOpen) {
+                // Yeni plan modu: Sadece modal YENİ açıldığında sıfırla
+                console.log('➕ Yeni kontrol planı modu');
+                setPartCode('');
+                setPartName('');
+                setCharacteristicCount(5);
+                setItems([]);
+                setStep(1);
+            }
+            
+            setFile(null);
+            setDuplicatePlan(null);
+            setIsSubmitting(false);
+        }, [existingPlan, isOpen]);
 
         const handleNextStep = async () => {
             if (!partCode || !partName) {

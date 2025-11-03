@@ -59,10 +59,27 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
     }, [isOpen, toast]);
 
+    // ÖNEMLİ: Modal verilerini koru - sadece existingDeviation değiştiğinde yükle
     useEffect(() => {
-        if (isOpen && existingDeviation) {
-            // Düzenleme modu: mevcut kaydı yükle
-            console.log('📝 Deviation Düzenleme modu: kayıt yükleniyor', existingDeviation.id);
+        const initialData = {
+            request_no: '',
+            vehicle_type: '',
+            part_code: '',
+            description: '',
+            source: '',
+            requesting_unit: '',
+            requesting_person: '',
+            created_at: new Date(),
+        };
+
+        if (!isOpen) {
+            // Modal kapalıyken hiçbir şey yapma - veriler korunmalı
+            return;
+        }
+
+        if (isEditMode && existingDeviation) {
+            // Düzenleme modu: Mevcut sapma verilerini yükle
+            console.log('📝 Sapma düzenleme modu:', existingDeviation.id);
             const { deviation_vehicles, deviation_attachments, ...rest } = existingDeviation;
             setFormData({
                 ...rest,
@@ -70,29 +87,18 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             });
             if (deviation_vehicles && deviation_vehicles.length > 0) {
                 setVehicles(deviation_vehicles.map(({ customer_name, chassis_no, vehicle_serial_no }) => ({ customer_name: customer_name || '', chassis_no: chassis_no || '', vehicle_serial_no: vehicle_serial_no || '' })));
+                console.log('✅ Araç bilgileri yüklendi:', deviation_vehicles.length);
             } else {
                 setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
             }
-            setFiles([]);
-        } else if (isOpen && !existingDeviation) {
-            // Yeni kayıt modu: form sıfırla
-            console.log('✨ Deviation Yeni kayıt modu: form sıfırlanıyor');
-            const initialData = {
-                request_no: '',
-                vehicle_type: '',
-                part_code: '',
-                description: '',
-                source: '',
-                requesting_unit: '',
-                requesting_person: '',
-                created_at: new Date(),
-            };
+        } else if (isOpen) {
+            // Yeni sapma modu: Sadece modal YENİ açıldığında sıfırla
+            console.log('➕ Yeni sapma kaydı modu');
             setFormData(initialData);
             setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
-            setFiles([]);
         }
-        // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
-    }, [isOpen, existingDeviation]);
+        setFiles([]);
+    }, [existingDeviation, isOpen, isEditMode]);
     
     const handleVehicleChange = (index, field, value) => {
         const newVehicles = [...vehicles];

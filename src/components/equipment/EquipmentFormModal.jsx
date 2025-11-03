@@ -65,10 +65,22 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
         }
     }, [isOpen, toast]);
 
+    // ÖNEMLİ: Modal verilerini koru - sadece existingEquipment değiştiğinde yükle
     useEffect(() => {
-        if (isOpen && isEditMode && existingEquipment) {
-            // Düzenleme modu: mevcut kaydı yükle
-            console.log('📝 Equipment Düzenleme modu: kayıt yükleniyor', existingEquipment.id);
+        const initialEqData = {
+            name: '', serial_number: '', brand_model: '',
+            responsible_unit: '', location: '', description: '', status: 'Aktif',
+            measurement_range: '', measurement_uncertainty: '', calibration_frequency_months: 12
+        };
+
+        if (!isOpen) {
+            // Modal kapalıyken hiçbir şey yapma - veriler korunmalı
+            return;
+        }
+
+        if (isEditMode && existingEquipment) {
+            // Düzenleme modu: Mevcut ekipman verilerini yükle
+            console.log('📝 Ekipman düzenleme modu:', existingEquipment.id);
             setFormData({
                 ...existingEquipment,
                 measurement_uncertainty: existingEquipment.measurement_uncertainty?.replace('±', '').trim() || ''
@@ -76,21 +88,16 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
             setAddInitialCalibration(false);
             const activeAssignment = existingEquipment.equipment_assignments?.find(a => a.is_active);
             setAssignedPersonnelId(activeAssignment ? activeAssignment.assigned_personnel_id : null);
-        } else if (isOpen && !existingEquipment) {
-            // Yeni kayıt modu: form sıfırla
-            console.log('✨ Equipment Yeni kayıt modu: form sıfırlanıyor');
-            const initialEqData = {
-                name: '', serial_number: '', brand_model: '',
-                responsible_unit: '', location: '', description: '', status: 'Aktif',
-                measurement_range: '', measurement_uncertainty: '', calibration_frequency_months: 12
-            };
+            console.log('✅ Ekipman verileri yüklendi');
+        } else if (isOpen) {
+            // Yeni ekipman modu: Sadece modal YENİ açıldığında sıfırla
+            console.log('➕ Yeni ekipman modu');
             setFormData(initialEqData);
             setAssignedPersonnelId(null);
             setAddInitialCalibration(false);
             resetForm();
         }
-        // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
-    }, [isOpen, existingEquipment, isEditMode, resetForm]);
+    }, [existingEquipment, isOpen, isEditMode, resetForm]);
 
     const handleInputChange = (e) => {
         const { id, value } = e.target;

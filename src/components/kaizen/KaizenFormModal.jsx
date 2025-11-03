@@ -161,10 +161,16 @@ import React, { useState, useEffect, useCallback } from 'react';
             return [];
         };
 
+        // ÖNEMLİ: Modal verilerini koru - sadece existingKaizen değiştiğinde yükle
         useEffect(() => {
-            if (isOpen && isEditMode && existingKaizen) {
-                // Düzenleme modu: mevcut kaydı yükle
-                console.log('📝 Kaizen Düzenleme modu: kayıt yükleniyor', existingKaizen.id);
+            if (!isOpen) {
+                // Modal kapalıyken hiçbir şey yapma - veriler korunmalı
+                return;
+            }
+
+            if (isEditMode) {
+                // Düzenleme modu: Mevcut kaizen verilerini yükle
+                console.log('📝 Kaizen düzenleme modu:', existingKaizen.id);
                 const gains = calculateGains(existingKaizen);
                 setFormData({
                     ...getInitialData(existingKaizen.kaizen_type),
@@ -180,15 +186,15 @@ import React, { useState, useEffect, useCallback } from 'react';
                 });
                 setAttachmentsBefore(existingKaizen.attachments_before || []);
                 setAttachmentsAfter(existingKaizen.attachments_after || []);
-            } else if (isOpen && !existingKaizen) {
-                // Yeni kayıt modu: form sıfırla
-                console.log('✨ Kaizen Yeni kayıt modu: form sıfırlanıyor');
+                console.log('✅ Kaizen verileri yüklendi');
+            } else if (isOpen) {
+                // Yeni kaizen modu: Sadece modal YENİ açıldığında sıfırla
+                console.log('➕ Yeni kaizen modu');
                 setFormData(getInitialData(kaizenType));
                 setAttachmentsBefore([]);
                 setAttachmentsAfter([]);
             }
-            // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
-        }, [isOpen, existingKaizen, isEditMode, kaizenType, calculateGains]);
+        }, [existingKaizen, isEditMode, isOpen, kaizenType, calculateGains]);
 
         const updateFormData = useCallback((newData) => {
             const gains = calculateGains(newData);
