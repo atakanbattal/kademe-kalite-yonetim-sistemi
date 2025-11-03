@@ -60,18 +60,9 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     }, [isOpen, toast]);
 
     useEffect(() => {
-        const initialData = {
-            request_no: '',
-            vehicle_type: '',
-            part_code: '',
-            description: '',
-            source: '',
-            requesting_unit: '',
-            requesting_person: '',
-            created_at: new Date(),
-        };
-
-        if (isEditMode && existingDeviation) {
+        if (isOpen && existingDeviation) {
+            // Düzenleme modu: mevcut kaydı yükle
+            console.log('📝 Deviation Düzenleme modu: kayıt yükleniyor', existingDeviation.id);
             const { deviation_vehicles, deviation_attachments, ...rest } = existingDeviation;
             setFormData({
                 ...rest,
@@ -82,12 +73,26 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             } else {
                 setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
             }
-        } else {
+            setFiles([]);
+        } else if (isOpen && !existingDeviation) {
+            // Yeni kayıt modu: form sıfırla
+            console.log('✨ Deviation Yeni kayıt modu: form sıfırlanıyor');
+            const initialData = {
+                request_no: '',
+                vehicle_type: '',
+                part_code: '',
+                description: '',
+                source: '',
+                requesting_unit: '',
+                requesting_person: '',
+                created_at: new Date(),
+            };
             setFormData(initialData);
             setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
+            setFiles([]);
         }
-        setFiles([]);
-    }, [existingDeviation?.id, isEditMode, isOpen]);
+        // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
+    }, [isOpen, existingDeviation]);
     
     const handleVehicleChange = (index, field, value) => {
         const newVehicles = [...vehicles];

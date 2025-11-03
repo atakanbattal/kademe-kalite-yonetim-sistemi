@@ -153,20 +153,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             setPartHistory([]);
             setMeasurementSummary([]);
             setRiskyStockData(null);
-            setShowRiskyStockAlert(false);
+setShowRiskyStockAlert(false);
             setCheckingRiskyStock(false);
-            setResultsLoadedFromExisting(false); // Reset the flag
         }, []);
-
-        // Track if we've already loaded results from existingInspection
-        const [resultsLoadedFromExisting, setResultsLoadedFromExisting] = useState(false);
 
         // Load existing inspection data when modal opens or existingInspection changes
         useEffect(() => {
-            if (!isOpen) return;
-            
-            if (existingInspection) {
-                console.log('📝 Düzenleme modu: Mevcut muayene verisi yükleniyor...', existingInspection.id);
+            if (isOpen && existingInspection) {
+                // Düzenleme modu: mevcut kaydı yükle
+                console.log('📝 Düzenleme modu: kayıt yükleniyor', existingInspection.id);
                 setFormData({
                     inspection_date: existingInspection.inspection_date || new Date().toISOString().split('T')[0],
                     supplier_id: existingInspection.supplier_id || '',
@@ -184,33 +179,25 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 
                 // Load measurement results
                 if (existingInspection.results && Array.isArray(existingInspection.results)) {
-                    console.log(`✅ ${existingInspection.results.length} ölçüm sonucu yükleniyor...`);
                     setResults(existingInspection.results);
-                    setResultsLoadedFromExisting(true); // Mark that we loaded from existing
-                } else {
-                    console.log('⚠️ Ölçüm sonucu bulunamadı veya array değil:', existingInspection.results);
-                    setResults([]);
-                    setResultsLoadedFromExisting(false);
                 }
                 
                 // Load defects
                 if (existingInspection.defects && Array.isArray(existingInspection.defects)) {
-                    console.log(`✅ ${existingInspection.defects.length} kusur kaydı yükleniyor...`);
                     setDefects(existingInspection.defects);
-                } else {
-                    setDefects([]);
                 }
                 
                 // Load existing attachments
                 if (existingInspection.attachments && Array.isArray(existingInspection.attachments)) {
                     setExistingAttachments(existingInspection.attachments);
                 }
-            } else {
-                console.log('✨ Yeni kayıt modu: Form sıfırlanıyor...');
-                setResultsLoadedFromExisting(false);
+            } else if (isOpen && !existingInspection) {
+                // Yeni kayıt modu: sadece modal ilk açıldığında sıfırla
+                console.log('✨ Yeni kayıt modu: form sıfırlanıyor');
                 resetForm();
             }
-        }, [isOpen, existingInspection?.id, resetForm]);
+            // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
+        }, [isOpen, existingInspection, resetForm]);
 
         const quantityTotal = useMemo(() => {
             return (Number(formData.quantity_accepted) || 0) + (Number(formData.quantity_conditional) || 0) + (Number(formData.quantity_rejected) || 0);
@@ -222,13 +209,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         }, [quantityTotal, formData.quantity_received]);
         
         useEffect(() => {
-            // DÜZENLEME MODUNDA MEVCUT ÖLÇÜM SONUÇLARINI KORUMAK İÇİN
-            // Eğer existingInspection'dan results yüklenmişse, yeniden oluşturma
-            if (resultsLoadedFromExisting) {
-                console.log('⚠️ Düzenleme modu - Mevcut ölçüm sonuçları korunuyor, yeniden oluşturulmuyor');
-                return;
-            }
-            
             const generateResultsFromPlan = () => {
                 const incomingQuantity = Number(formData.quantity_received) || 0;
 
@@ -238,7 +218,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                     return;
                 }
 
-                console.log('✨ Yeni kayıt modu - Ölçüm sonuçları oluşturuluyor...');
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
@@ -288,13 +267,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                     totalGeneratedResults += count;
                 });
                 
-                console.log(`📊 Toplam ${newResults.length} ölçüm satırı oluşturuldu`);
                 setResults(newResults);
                 setMeasurementSummary(summary);
             };
 
             generateResultsFromPlan();
-        }, [formData.quantity_received, controlPlan, characteristics, equipment, resultsLoadedFromExisting]);
+        }, [formData.quantity_received, controlPlan, characteristics, equipment]);
 
         const handlePartCodeChange = useCallback(async (partCode) => {
             const trimmedPartCode = partCode?.trim();
@@ -572,16 +550,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
         const title = isViewMode ? 'Girdi Kontrol Kaydını Görüntüle' : (existingInspection ? 'Girdi Kontrol Kaydını Düzenle' : 'Yeni Girdi Kontrol Kaydı');
         
-        // Tab/focus değişimlerinde modalın kapanmasını engelle
-        const handleOpenChange = (open) => {
-            // Sadece kullanıcı açıkça kapatma isteğinde bulunduğunda kapat
-            if (!open) {
-                setIsOpen(false);
-            }
-        };
-        
         return (
-            <Dialog open={isOpen} onOpenChange={handleOpenChange}><DialogContent className="max-w-5xl xl:max-w-7xl">
+            <Dialog open={isOpen} onOpenChange={setIsOpen}><DialogContent className="max-w-5xl xl:max-w-7xl">
                 <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>Tedarikçiden gelen malzemeler için kontrol sonuçlarını girin.</DialogDescription></DialogHeader>
                 <form onSubmit={handleSubmit}><ScrollArea className="h-[75vh] p-4"><div className="space-y-6">
                     <div className="space-y-2">

@@ -26,15 +26,22 @@ import React, { useState, useEffect } from 'react';
         };
 
         useEffect(() => {
-            if (isOpen) {
+            if (isOpen && (isEditMode || isNewAlternative) && supplier) {
+                // Düzenleme veya alternatif oluşturma modu: mevcut kaydı yükle
+                console.log('📝 Supplier Düzenleme/Alternatif modu: kayıt yükleniyor', supplier.id);
                 const dataToSet = isEditMode ? {
                   ...initialData,
                   ...supplier,
                   contact_info: supplier.contact_info || { name: '', email: '', phone: '' }
-                } : (isNewAlternative ? { ...initialData, ...supplier } : initialData);
+                } : { ...initialData, ...supplier };
                 setFormData(dataToSet);
+            } else if (isOpen && !supplier) {
+                // Yeni kayıt modu: form sıfırla
+                console.log('✨ Supplier Yeni kayıt modu: form sıfırlanıyor');
+                setFormData(initialData);
             }
-        }, [supplier, isEditMode, isOpen, isNewAlternative]);
+            // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
+        }, [isOpen, supplier, isEditMode, isNewAlternative]);
         
         const handleInputChange = (e) => {
             const { id, value } = e.target;

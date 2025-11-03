@@ -53,42 +53,46 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
     }, [open, personnel, unitCostSettings, customers]);
 
     useEffect(() => {
-        const initialData = {
-            customer_id: '',
-            complaint_date: new Date().toISOString().split('T')[0],
-            title: '',
-            description: '',
-            complaint_source: 'Email',
-            complaint_category: 'Ürün Kalitesi',
-            severity: 'Orta',
-            priority: 'Normal',
-            status: 'Açık',
-            product_code: '',
-            product_name: '',
-            batch_number: '',
-            quantity_affected: '',
-            production_date: '',
-            responsible_department_id: '',
-            responsible_personnel_id: '',
-            assigned_to_id: '',
-            target_close_date: '',
-            customer_impact: '',
-            financial_impact: '',
-            related_nc_id: '',
-            related_deviation_id: ''
-        };
-
-        if (isEditMode) {
+        if (open && isEditMode && existingComplaint) {
+            // Düzenleme modu: mevcut kaydı yükle
+            console.log('📝 Complaint Düzenleme modu: kayıt yükleniyor', existingComplaint.id);
             setFormData({
                 ...existingComplaint,
                 complaint_date: existingComplaint.complaint_date?.split('T')[0] || '',
                 production_date: existingComplaint.production_date || '',
                 target_close_date: existingComplaint.target_close_date || '',
             });
-        } else {
+        } else if (open && !existingComplaint) {
+            // Yeni kayıt modu: form sıfırla
+            console.log('✨ Complaint Yeni kayıt modu: form sıfırlanıyor');
+            const initialData = {
+                customer_id: '',
+                complaint_date: new Date().toISOString().split('T')[0],
+                title: '',
+                description: '',
+                complaint_source: 'Email',
+                complaint_category: 'Ürün Kalitesi',
+                severity: 'Orta',
+                priority: 'Normal',
+                status: 'Açık',
+                product_code: '',
+                product_name: '',
+                batch_number: '',
+                quantity_affected: '',
+                production_date: '',
+                responsible_department_id: '',
+                responsible_personnel_id: '',
+                assigned_to_id: '',
+                target_close_date: '',
+                customer_impact: '',
+                financial_impact: '',
+                related_nc_id: '',
+                related_deviation_id: ''
+            };
             setFormData(initialData);
         }
-    }, [existingComplaint, isEditMode, open]);
+        // NOT: Modal kapandığında (open=false) hiçbir şey yapma - verileri koru!
+    }, [open, existingComplaint, isEditMode]);
 
     const handleChange = (e) => {
         const { id, value } = e.target;

@@ -70,21 +70,21 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
             } else {
                 // Yeni kayıt modunda başlangıç değerleri
                 setFormData({
-                    lot_no: '',
-                    part_code: '',
-                    part_name: '',
-                    quantity: '',
-                    unit: 'Adet',
-                    source_department: '',
-                    requesting_department: '',
-                    requesting_person_name: '',
-                    description: '',
-                    quarantine_date: new Date().toISOString().slice(0, 10),
-                    status: 'Karantinada'
+        lot_no: '',
+        part_code: '',
+        part_name: '',
+        quantity: '',
+        unit: 'Adet',
+        source_department: '',
+        requesting_department: '',
+        requesting_person_name: '',
+        description: '',
+        quarantine_date: new Date().toISOString().slice(0, 10),
+        status: 'Karantinada'
                 });
             }
         }
-    }, [existingRecord?.id, isEditMode, isOpen]);
+    }, [existingRecord, isEditMode, isOpen]);
 
     useEffect(() => {
         if (textareaRef.current) {

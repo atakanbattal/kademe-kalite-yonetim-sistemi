@@ -162,30 +162,33 @@ import React, { useState, useEffect, useCallback } from 'react';
         };
 
         useEffect(() => {
-            if (isOpen) {
-                if (isEditMode) {
-                    const gains = calculateGains(existingKaizen);
-                    setFormData({
-                        ...getInitialData(existingKaizen.kaizen_type),
-                        ...existingKaizen,
-                        analysis_5n1k: existingKaizen.analysis_5n1k || getInitialData().analysis_5n1k,
-                        analysis_5_whys: existingKaizen.analysis_5_whys || getInitialData().analysis_5_whys,
-                        analysis_fishbone: existingKaizen.analysis_fishbone || getInitialData().analysis_fishbone,
-                        kaizen_topic: normalizeMultiSelect(existingKaizen.kaizen_topic),
-                        isg_effect: normalizeMultiSelect(existingKaizen.isg_effect),
-                        environmental_effect: normalizeMultiSelect(existingKaizen.environmental_effect),
-                        team_members: normalizeMultiSelect(existingKaizen.team_members),
-                        ...gains
-                    });
-                    setAttachmentsBefore(existingKaizen.attachments_before || []);
-                    setAttachmentsAfter(existingKaizen.attachments_after || []);
-                } else {
-                    setFormData(getInitialData(kaizenType));
-                    setAttachmentsBefore([]);
-                    setAttachmentsAfter([]);
-                }
+            if (isOpen && isEditMode && existingKaizen) {
+                // Düzenleme modu: mevcut kaydı yükle
+                console.log('📝 Kaizen Düzenleme modu: kayıt yükleniyor', existingKaizen.id);
+                const gains = calculateGains(existingKaizen);
+                setFormData({
+                    ...getInitialData(existingKaizen.kaizen_type),
+                    ...existingKaizen,
+                    analysis_5n1k: existingKaizen.analysis_5n1k || getInitialData().analysis_5n1k,
+                    analysis_5_whys: existingKaizen.analysis_5_whys || getInitialData().analysis_5_whys,
+                    analysis_fishbone: existingKaizen.analysis_fishbone || getInitialData().analysis_fishbone,
+                    kaizen_topic: normalizeMultiSelect(existingKaizen.kaizen_topic),
+                    isg_effect: normalizeMultiSelect(existingKaizen.isg_effect),
+                    environmental_effect: normalizeMultiSelect(existingKaizen.environmental_effect),
+                    team_members: normalizeMultiSelect(existingKaizen.team_members),
+                    ...gains
+                });
+                setAttachmentsBefore(existingKaizen.attachments_before || []);
+                setAttachmentsAfter(existingKaizen.attachments_after || []);
+            } else if (isOpen && !existingKaizen) {
+                // Yeni kayıt modu: form sıfırla
+                console.log('✨ Kaizen Yeni kayıt modu: form sıfırlanıyor');
+                setFormData(getInitialData(kaizenType));
+                setAttachmentsBefore([]);
+                setAttachmentsAfter([]);
             }
-        }, [existingKaizen, isEditMode, isOpen, kaizenType, calculateGains]);
+            // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
+        }, [isOpen, existingKaizen, isEditMode, kaizenType, calculateGains]);
 
         const updateFormData = useCallback((newData) => {
             const gains = calculateGains(newData);

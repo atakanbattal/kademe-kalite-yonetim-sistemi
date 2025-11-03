@@ -66,9 +66,17 @@ import React, { useState, useEffect } from 'react';
 
         useEffect(() => {
             if (isOpen && user && personnel.length > 0) {
+                if (task) {
+                    // Düzenleme modu: mevcut kaydı yükle
+                    console.log('📝 Task Düzenleme modu: kayıt yükleniyor', task.id);
+                } else {
+                    // Yeni kayıt modu: form sıfırla
+                    console.log('✨ Task Yeni kayıt modu: form sıfırlanıyor');
+                }
                 setFormData(initializeFormData(task));
             }
-        }, [task, isOpen, user, personnel]);
+            // NOT: Modal kapandığında (isOpen=false) hiçbir şey yapma - verileri koru!
+        }, [isOpen, task, user, personnel]);
 
         const handleInputChange = (e) => {
             const { name, value } = e.target;

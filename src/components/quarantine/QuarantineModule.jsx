@@ -153,13 +153,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             record={selectedRecord} 
             onEdit={handleOpenEdit} 
           />
-          <CreateNCFromQuarantineModal 
-            isOpen={isCreateNCOpen}
-            setIsOpen={setCreateNCOpen}
-            quarantineRecord={selectedRecord}
-            onOpenNCForm={onOpenNCForm}
-            refreshData={refreshData}
-          />
+            <CreateNCFromQuarantineModal 
+                isOpen={isCreateNCOpen}
+                setIsOpen={setCreateNCOpen}
+                quarantineRecord={selectedRecord}
+                onOpenNCForm={onOpenNCForm}
+                refreshData={refreshData}
+            />
           <QuarantineReportFilterModal
             isOpen={isReportFilterOpen}
             setIsOpen={setIsReportFilterOpen}
