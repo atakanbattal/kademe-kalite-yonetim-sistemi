@@ -221,11 +221,23 @@ setShowRiskyStockAlert(false);
         
         useEffect(() => {
             const generateResultsFromPlan = () => {
-                // ÖNEMLI: Düzenleme modunda results'ları EZMEYELİM!
-                // existingInspection varsa ve results dolu ise, bu useEffect çalışmamalı
+                // ÖNEMLI: Düzenleme modunda SADECE measured_value'lar DOLUYSA koruyalım!
+                // Eğer measured_value'lar boşsa (eski kayıtlar), kontrol planından generate edelim
                 if (existingInspection && existingInspection.results && existingInspection.results.length > 0) {
-                    console.log('🔒 Düzenleme modu - results korunuyor, yeniden generate edilmiyor');
-                    return;
+                    // Results var, ama measured_value'lar dolu mu kontrol et
+                    const hasMeasuredValues = existingInspection.results.some(r => 
+                        r.measured_value || r.actual_value
+                    );
+                    
+                    if (hasMeasuredValues) {
+                        console.log('🔒 Düzenleme modu - ölçüm değerleri DOLU, korunuyor');
+                        return; // Değerler var, koru
+                    } else {
+                        console.log('🔄 Düzenleme modu - ölçüm değerleri BOŞ, kontrol planından generate ediliyor');
+                        // Değerler boş, kontrol planından generate et (devam et)
+                    }
+                } else {
+                    console.log('🆕 Yeni kayıt - results kontrol planından generate ediliyor');
                 }
                 
                 const incomingQuantity = Number(formData.quantity_received) || 0;
@@ -236,7 +248,7 @@ setShowRiskyStockAlert(false);
                     return;
                 }
 
-                console.log('🆕 Yeni kayıt - results kontrol planından generate ediliyor');
+                console.log('📊 Kontrol planından', controlPlan.items.length, 'özellik için results üretiliyor');
                 
                 const newResults = [];
                 const summary = [];
