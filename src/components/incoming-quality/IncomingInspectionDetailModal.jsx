@@ -309,7 +309,15 @@ const IncomingInspectionDetailModal = ({
                     const nominal = planItem?.nominal_value ?? result.nominal_value ?? null;
                     const min = planItem?.min_value ?? result.min_value ?? null;
                     const max = planItem?.max_value ?? result.max_value ?? null;
-                    const measured = result.measured_value !== null && result.measured_value !== undefined ? result.measured_value : null;
+                    
+                    // measured_value: null, undefined, boş string kontrolü (0 geçerli bir ölçüm!)
+                    const measured = (result.measured_value !== null && 
+                                     result.measured_value !== undefined && 
+                                     result.measured_value !== '') 
+                                    ? result.measured_value 
+                                    : null;
+                    
+                    console.log(`🔍 Ölçüm ${idx + 1} - raw measured_value:`, result.measured_value, 'parsed:', measured);
                     
                     description += `\n${idx + 1}. ${result.characteristic_name || 'Özellik'}`;
                     if (result.measurement_number && result.total_measurements) {
@@ -321,7 +329,7 @@ const IncomingInspectionDetailModal = ({
                     if (nominal !== null || min !== null || max !== null) {
                         description += `   Beklenen: ${nominal !== null ? nominal : '-'} mm (Tolerans: ${min !== null ? min : '-'} ~ ${max !== null ? max : '-'} mm)\n`;
                     }
-                    description += `   Ölçülen: ${measured !== null ? measured + ' mm' : 'Ölçülmemiş'}\n`;
+                    description += `   Ölçülen: ${measured !== null && measured !== '' ? measured + ' mm' : 'Ölçülmemiş'}\n`;
                     
                     // Detaylı sapma analizi ve açıklama
                     if (measured !== null && nominal !== null) {
