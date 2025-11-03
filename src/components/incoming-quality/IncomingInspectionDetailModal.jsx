@@ -380,8 +380,9 @@ const IncomingInspectionDetailModal = ({
                 }
             }
 
-            // DF veya 8D form modalını aç
-            onOpenNCForm(ncType, {
+            // DF veya 8D form modalını aç - ncType ile diğer parametreleri birleştir
+            onOpenNCForm({
+                type: ncType, // DF veya 8D
                 source: 'incoming_inspection',
                 source_inspection_id: enrichedInspection.id,
                 source_supplier_nc_id: supplierNCId, // Tedarikçi uygunsuzluğu ile link
