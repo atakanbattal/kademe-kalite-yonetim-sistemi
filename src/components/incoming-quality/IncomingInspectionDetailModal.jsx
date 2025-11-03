@@ -32,6 +32,7 @@ const IncomingInspectionDetailModal = ({
     onDownloadPDF,
     onOpenStockRiskModal,
     onOpenNCForm,
+    onOpenNCView,
 }) => {
     const { toast } = useToast();
     const [preparedBy, setPreparedBy] = useState('');
@@ -41,6 +42,8 @@ const IncomingInspectionDetailModal = ({
     const [riskyStockData, setRiskyStockData] = useState(null);
     const [checkingRiskyStock, setCheckingRiskyStock] = useState(false);
     const [isCreatingNC, setIsCreatingNC] = useState(false);
+    const [linkedNonConformities, setLinkedNonConformities] = useState([]);
+    const [loadingNCs, setLoadingNCs] = useState(false);
 
     // Check for risky stock when modal opens or inspection data changes
     useEffect(() => {
@@ -169,6 +172,41 @@ const IncomingInspectionDetailModal = ({
 
         enrichResults();
     }, [inspection]);
+
+    // İlişkili uygunsuzlukları fetch et
+    useEffect(() => {
+        const fetchLinkedNonConformities = async () => {
+            if (!isOpen || !enrichedInspection?.id) {
+                setLinkedNonConformities([]);
+                return;
+            }
+
+            setLoadingNCs(true);
+            try {
+                // Bu muayene kaydına bağlı tüm uygunsuzlukları çek
+                const { data, error } = await supabase
+                    .from('non_conformities')
+                    .select('id, nc_number, type, title, status, created_at, responsible_person_id')
+                    .eq('source_inspection_id', enrichedInspection.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Uygunsuzluklar yüklenirken hata:', error);
+                    setLinkedNonConformities([]);
+                } else {
+                    setLinkedNonConformities(data || []);
+                    console.log(`✅ ${data?.length || 0} ilişkili uygunsuzluk bulundu`);
+                }
+            } catch (err) {
+                console.error('Uygunsuzluk fetch hatası:', err);
+                setLinkedNonConformities([]);
+            } finally {
+                setLoadingNCs(false);
+            }
+        };
+
+        fetchLinkedNonConformities();
+    }, [isOpen, enrichedInspection?.id]);
 
     const getDecisionBadge = (decision) => {
         switch (decision) {
@@ -480,8 +518,24 @@ const IncomingInspectionDetailModal = ({
                 is_supplier_nc: !!enrichedInspection.supplier_id, // Tedarikçi uygunsuzluğu flag'i
             });
 
-            // Modal'ı kapat
-            setIsOpen(false);
+            // Uygunsuzlukları yeniden fetch et (modal açık kalacak)
+            // useEffect otomatik olarak tekrar çalışacak çünkü yeni kayıt oluşturuldu
+            setTimeout(async () => {
+                try {
+                    const { data, error } = await supabase
+                        .from('non_conformities')
+                        .select('id, nc_number, type, title, status, created_at, responsible_person_id')
+                        .eq('source_inspection_id', enrichedInspection.id)
+                        .order('created_at', { ascending: false });
+
+                    if (!error && data) {
+                        setLinkedNonConformities(data);
+                        console.log(`✅ Uygunsuzluklar güncellendi: ${data.length} kayıt`);
+                    }
+                } catch (err) {
+                    console.error('Uygunsuzluk yenileme hatası:', err);
+                }
+            }, 1000); // 1 saniye bekle (database'in güncellenmesi için)
 
             toast({
                 title: 'Başarılı',
@@ -950,25 +1004,102 @@ const IncomingInspectionDetailModal = ({
                                         UYGUNSUZLUK YÖNETİMİ
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={() => handleCreateNonConformity('DF')}
-                                            disabled={isCreatingNC || !onOpenNCForm}
-                                            className="flex-1 bg-blue-600 hover:bg-blue-700"
-                                        >
-                                            <FileDown className="h-4 w-4 mr-2" />
-                                            DF Uygunsuzluk Oluştur
-                                        </Button>
-                                        <Button
-                                            onClick={() => handleCreateNonConformity('8D')}
-                                            disabled={isCreatingNC || !onOpenNCForm}
-                                            className="flex-1 bg-purple-600 hover:bg-purple-700"
-                                        >
-                                            <FileDown className="h-4 w-4 mr-2" />
-                                            8D Uygunsuzluk Oluştur
-                                        </Button>
-                                    </div>
+                                <CardContent className="space-y-4">
+                                    {/* İlişkili Uygunsuzluklar Listesi */}
+                                    {loadingNCs ? (
+                                        <div className="text-sm text-gray-500 text-center py-2">
+                                            Uygunsuzluklar yükleniyor...
+                                        </div>
+                                    ) : linkedNonConformities.length > 0 ? (
+                                        <div className="space-y-2">
+                                            <div className="text-sm font-medium text-gray-700">
+                                                İlişkili Uygunsuzluklar ({linkedNonConformities.length}):
+                                            </div>
+                                            {linkedNonConformities.map((nc) => (
+                                                <div
+                                                    key={nc.id}
+                                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                                                >
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge className={nc.type === 'DF' ? 'bg-blue-600' : 'bg-purple-600'}>
+                                                                {nc.type}
+                                                            </Badge>
+                                                            <span className="font-medium text-sm">
+                                                                {nc.nc_number || 'NC-' + nc.id.slice(0, 8)}
+                                                            </span>
+                                                            <Badge variant={
+                                                                nc.status === 'Kapalı' ? 'success' : 
+                                                                nc.status === 'Açık' ? 'destructive' : 
+                                                                'secondary'
+                                                            }>
+                                                                {nc.status}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 mt-1">
+                                                            {nc.title}
+                                                        </div>
+                                                        {nc.created_at && (
+                                                            <div className="text-xs text-gray-400 mt-1">
+                                                                Oluşturulma: {format(new Date(nc.created_at), 'dd.MM.yyyy HH:mm', { locale: tr })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            if (onOpenNCView) {
+                                                                onOpenNCView(nc.id);
+                                                            }
+                                                        }}
+                                                        className="ml-2"
+                                                    >
+                                                        <Eye className="h-4 w-4 mr-1" />
+                                                        Görüntüle
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+
+                                    {/* Yeni Uygunsuzluk Oluştur Butonları - Sadece henüz uygunsuzluk yoksa göster */}
+                                    {linkedNonConformities.length === 0 && (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                onClick={() => handleCreateNonConformity('DF')}
+                                                disabled={isCreatingNC || !onOpenNCForm}
+                                                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                            >
+                                                <FileDown className="h-4 w-4 mr-2" />
+                                                DF Uygunsuzluk Oluştur
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleCreateNonConformity('8D')}
+                                                disabled={isCreatingNC || !onOpenNCForm}
+                                                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                                            >
+                                                <FileDown className="h-4 w-4 mr-2" />
+                                                8D Uygunsuzluk Oluştur
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {/* Ek Uygunsuzluk Oluştur Butonu - Zaten uygunsuzluk varsa küçük buton */}
+                                    {linkedNonConformities.length > 0 && (
+                                        <div className="pt-2 border-t">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleCreateNonConformity('DF')}
+                                                disabled={isCreatingNC || !onOpenNCForm}
+                                                className="w-full"
+                                            >
+                                                <FileDown className="h-3 w-3 mr-2" />
+                                                Yeni Uygunsuzluk Ekle
+                                            </Button>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         )}

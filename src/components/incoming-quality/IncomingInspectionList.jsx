@@ -92,7 +92,7 @@ import React from 'react';
     };
 
 
-    const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, onDecide, onOpenNCForm, onDownloadPDF, refreshData, suppliers, filters, setFilters, onOpenControlPlanForm, page, setPage, totalCount, pageSize, onOpenStockRiskModal }) => {
+    const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, onDecide, onOpenNCForm, onOpenNCView, onDownloadPDF, refreshData, suppliers, filters, setFilters, onOpenControlPlanForm, page, setPage, totalCount, pageSize, onOpenStockRiskModal }) => {
         const { toast } = useToast();
         const totalPages = Math.ceil(totalCount / pageSize);
         const [selectedInspection, setSelectedInspection] = React.useState(null);
@@ -320,6 +320,7 @@ import React from 'react';
                     onDownloadPDF={onDownloadPDF}
                     onOpenStockRiskModal={onOpenStockRiskModal}
                     onOpenNCForm={onOpenNCForm}
+                    onOpenNCView={onOpenNCView}
                 />
             </div>
         );
