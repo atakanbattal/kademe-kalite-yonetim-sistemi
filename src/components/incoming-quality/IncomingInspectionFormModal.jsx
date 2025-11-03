@@ -153,9 +153,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             setPartHistory([]);
             setMeasurementSummary([]);
             setRiskyStockData(null);
-setShowRiskyStockAlert(false);
+            setShowRiskyStockAlert(false);
             setCheckingRiskyStock(false);
+            setResultsLoadedFromExisting(false); // Reset the flag
         }, []);
+
+        // Track if we've already loaded results from existingInspection
+        const [resultsLoadedFromExisting, setResultsLoadedFromExisting] = useState(false);
 
         // Load existing inspection data when modal opens or existingInspection changes
         useEffect(() => {
@@ -182,9 +186,11 @@ setShowRiskyStockAlert(false);
                 if (existingInspection.results && Array.isArray(existingInspection.results)) {
                     console.log(`✅ ${existingInspection.results.length} ölçüm sonucu yükleniyor...`);
                     setResults(existingInspection.results);
+                    setResultsLoadedFromExisting(true); // Mark that we loaded from existing
                 } else {
                     console.log('⚠️ Ölçüm sonucu bulunamadı veya array değil:', existingInspection.results);
                     setResults([]);
+                    setResultsLoadedFromExisting(false);
                 }
                 
                 // Load defects
@@ -201,6 +207,7 @@ setShowRiskyStockAlert(false);
                 }
             } else {
                 console.log('✨ Yeni kayıt modu: Form sıfırlanıyor...');
+                setResultsLoadedFromExisting(false);
                 resetForm();
             }
         }, [isOpen, existingInspection?.id, resetForm]);
@@ -216,9 +223,9 @@ setShowRiskyStockAlert(false);
         
         useEffect(() => {
             // DÜZENLEME MODUNDA MEVCUT ÖLÇÜM SONUÇLARINI KORUMAK İÇİN
-            // BU useEffect SADECE YENİ KAYIT MODUNDA ÇALIŞMALI
-            if (existingInspection) {
-                console.log('⚠️ Düzenleme modu - Ölçüm sonuçları korunuyor, yeniden oluşturulmuyor');
+            // Eğer existingInspection'dan results yüklenmişse, yeniden oluşturma
+            if (resultsLoadedFromExisting) {
+                console.log('⚠️ Düzenleme modu - Mevcut ölçüm sonuçları korunuyor, yeniden oluşturulmuyor');
                 return;
             }
             
@@ -281,12 +288,13 @@ setShowRiskyStockAlert(false);
                     totalGeneratedResults += count;
                 });
                 
+                console.log(`📊 Toplam ${newResults.length} ölçüm satırı oluşturuldu`);
                 setResults(newResults);
                 setMeasurementSummary(summary);
             };
 
             generateResultsFromPlan();
-        }, [formData.quantity_received, controlPlan, characteristics, equipment, existingInspection]);
+        }, [formData.quantity_received, controlPlan, characteristics, equipment, resultsLoadedFromExisting]);
 
         const handlePartCodeChange = useCallback(async (partCode) => {
             const trimmedPartCode = partCode?.trim();
