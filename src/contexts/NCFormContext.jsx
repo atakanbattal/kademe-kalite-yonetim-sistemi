@@ -111,9 +111,16 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 generatedDescription = `Karantina Kaynağı: ${initialRecord.source_department}\nAçıklama: ${initialRecord.description || ''}`;
                 sourceData = { source_quarantine_id: initialRecord.id, department: initialRecord.source_department, requesting_unit: 'Karantina', part_name: initialRecord.part_name, part_code: initialRecord.part_code };
             } else if (initialRecord?.source_supplier_nc_id || initialRecord?.source === 'supplier') {
-                generatedTitle = `Tedarikçi Uygunsuzluğu: ${initialRecord.title}`;
-                generatedDescription = `Tedarikçi: ${initialRecord.supplier_name}\nAçıklama: ${initialRecord.description || ''}`;
-                sourceData = { source_supplier_nc_id: initialRecord.source_id, department: 'Tedarikçi', requesting_unit: 'Tedarikçi Kalite' };
+                generatedTitle = initialRecord.title || `Tedarikçi Uygunsuzluğu`;
+                generatedDescription = initialRecord.description || `Tedarikçi: ${initialRecord.supplier_name}\nAçıklama: ${initialRecord.description || ''}`;
+                sourceData = { 
+                    source_supplier_nc_id: initialRecord.source_supplier_nc_id || initialRecord.source_id, 
+                    department: 'Tedarikçi', 
+                    requesting_unit: 'Tedarikçi Kalite',
+                    requesting_person: profile?.full_name || '',
+                    supplier_id: initialRecord.supplier_id || null,
+                    supplier_name: initialRecord.supplier_name || null,
+                };
             } else if (initialRecord?.source_inspection_id || initialRecord?.source === 'inspection' || initialRecord?.source === 'incoming_inspection') {
                 generatedTitle = initialRecord.title || `Girdi Kontrol: ${initialRecord.part_name} (${initialRecord.part_code})`;
                 

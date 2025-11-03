@@ -352,10 +352,39 @@ const IncomingInspectionDetailModal = ({
             const ncDescription = generateNCDescription();
             const ncTitle = `Girdi Kalite - ${enrichedInspection.supplier_name || 'Tedarikçi'} - ${enrichedInspection.part_name || enrichedInspection.part_code}`;
 
+            // Tedarikçi varsa, önce supplier_non_conformities'e kayıt oluştur
+            let supplierNCId = null;
+            if (enrichedInspection.supplier_id) {
+                const { data: supplierNC, error: supplierNCError } = await supabase
+                    .from('supplier_non_conformities')
+                    .insert({
+                        supplier_id: enrichedInspection.supplier_id,
+                        title: ncTitle,
+                        description: ncDescription,
+                        status: 'Açık',
+                        cost_impact: 0,
+                    })
+                    .select()
+                    .single();
+
+                if (supplierNCError) {
+                    console.error('Tedarikçi uygunsuzluğu oluşturulamadı:', supplierNCError);
+                    toast({
+                        variant: 'warning',
+                        title: 'Uyarı',
+                        description: 'Tedarikçi uygunsuzluğu oluşturulamadı, sadece DF/8D kaydı oluşturulacak.',
+                    });
+                } else {
+                    supplierNCId = supplierNC.id;
+                    console.log('✅ Tedarikçi uygunsuzluğu oluşturuldu:', supplierNCId);
+                }
+            }
+
             // DF veya 8D form modalını aç
             onOpenNCForm(ncType, {
                 source: 'incoming_inspection',
                 source_inspection_id: enrichedInspection.id,
+                source_supplier_nc_id: supplierNCId, // Tedarikçi uygunsuzluğu ile link
                 title: ncTitle,
                 description: ncDescription,
                 supplier_id: enrichedInspection.supplier_id || null,
@@ -363,6 +392,7 @@ const IncomingInspectionDetailModal = ({
                 part_code: enrichedInspection.part_code || null,
                 part_name: enrichedInspection.part_name || null,
                 inspection_record_no: enrichedInspection.record_no || null,
+                is_supplier_nc: !!enrichedInspection.supplier_id, // Tedarikçi uygunsuzluğu flag'i
             });
 
             // Modal'ı kapat
@@ -370,7 +400,9 @@ const IncomingInspectionDetailModal = ({
 
             toast({
                 title: 'Başarılı',
-                description: `${ncType} uygunsuzluk formu hazırlandı. Lütfen formu doldurup kaydedin.`,
+                description: supplierNCId 
+                    ? `${ncType} uygunsuzluk formu ve tedarikçi uygunsuzluğu oluşturuldu.`
+                    : `${ncType} uygunsuzluk formu hazırlandı.`,
             });
 
         } catch (error) {
@@ -770,9 +802,6 @@ const IncomingInspectionDetailModal = ({
                                             )) || []}
                                         </ul>
                                     </div>
-                                    <p className="text-yellow-700 text-sm italic">
-                                        💡 Tavsiye: Eski stokların kontrol edilip tüketilmesini veya yönetilmesini dikkate alın.
-                                    </p>
                                     <div className="pt-3 border-t border-red-200">
                                         <Button
                                             onClick={handleStartStockControl}
@@ -782,9 +811,6 @@ const IncomingInspectionDetailModal = ({
                                             <AlertCircle className="h-4 w-4 mr-2" />
                                             Stok Kontrol Başlat
                                         </Button>
-                                        <p className="text-xs text-gray-600 mt-2 text-center">
-                                            Bu buton riskli stoklar için detaylı kontrol modalını açar
-                                        </p>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -840,10 +866,6 @@ const IncomingInspectionDetailModal = ({
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
-                                    <p className="text-orange-700 text-sm">
-                                        Bu muayene kaydı için uygunsuzluk raporu oluşturabilirsiniz. 
-                                        Tüm ölçüm verileri ve ret nedenleri otomatik olarak aktarılacaktır.
-                                    </p>
                                     <div className="flex gap-2">
                                         <Button
                                             onClick={() => handleCreateNonConformity('DF')}
@@ -862,9 +884,6 @@ const IncomingInspectionDetailModal = ({
                                             8D Uygunsuzluk Oluştur
                                         </Button>
                                     </div>
-                                    <p className="text-xs text-gray-600 text-center">
-                                        💡 DF: Hızlı çözüm için | 8D: Detaylı kök neden analizi için
-                                    </p>
                                 </CardContent>
                             </Card>
                         )}
