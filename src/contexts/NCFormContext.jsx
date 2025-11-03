@@ -114,11 +114,27 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 generatedTitle = `Tedarikçi Uygunsuzluğu: ${initialRecord.title}`;
                 generatedDescription = `Tedarikçi: ${initialRecord.supplier_name}\nAçıklama: ${initialRecord.description || ''}`;
                 sourceData = { source_supplier_nc_id: initialRecord.source_id, department: 'Tedarikçi', requesting_unit: 'Tedarikçi Kalite' };
-            } else if (initialRecord?.source_inspection_id || initialRecord?.source === 'inspection') {
-                generatedTitle = `Girdi Kontrol: ${initialRecord.part_name} (${initialRecord.part_code})`;
-                const defectsDescription = (initialRecord.defects || []).map(d => `- ${d.defect_description} (Miktar: ${d.quantity})`).join('\n');
-                generatedDescription = `Tedarikçi: ${initialRecord.supplier_name}\nTeslimat No: ${initialRecord.record_no}\nUygunsuzluklar:\n${defectsDescription}`;
-                sourceData = { source_inspection_id: initialRecord.id, department: 'Girdi Kalite', requesting_unit: 'Girdi Kalite', part_name: initialRecord.part_name, part_code: initialRecord.part_code };
+            } else if (initialRecord?.source_inspection_id || initialRecord?.source === 'inspection' || initialRecord?.source === 'incoming_inspection') {
+                generatedTitle = initialRecord.title || `Girdi Kontrol: ${initialRecord.part_name} (${initialRecord.part_code})`;
+                
+                // Eğer description verilmişse onu kullan, yoksa eski formatı kullan
+                if (initialRecord.description) {
+                    generatedDescription = initialRecord.description;
+                } else {
+                    const defectsDescription = (initialRecord.defects || []).map(d => `- ${d.defect_description} (Miktar: ${d.quantity})`).join('\n');
+                    generatedDescription = `Tedarikçi: ${initialRecord.supplier_name}\nTeslimat No: ${initialRecord.inspection_record_no || initialRecord.record_no}\nUygunsuzluklar:\n${defectsDescription}`;
+                }
+                
+                sourceData = { 
+                    source_inspection_id: initialRecord.source_inspection_id || initialRecord.id, 
+                    department: 'Girdi Kalite', 
+                    requesting_unit: 'Girdi Kalite', 
+                    requesting_person: profile?.full_name || '',
+                    part_name: initialRecord.part_name, 
+                    part_code: initialRecord.part_code,
+                    supplier_id: initialRecord.supplier_id || null,
+                    supplier_name: initialRecord.supplier_name || null,
+                };
             } else if (initialRecord?.source_finding_id || initialRecord?.source === 'audit') {
                 generatedTitle = initialRecord.title || '';
                 generatedDescription = `Bulgu: ${initialRecord.description || ''}`;

@@ -31,6 +31,7 @@ const IncomingInspectionDetailModal = ({
     inspection,
     onDownloadPDF,
     onOpenStockRiskModal,
+    onOpenNCForm,
 }) => {
     const { toast } = useToast();
     const [preparedBy, setPreparedBy] = useState('');
@@ -39,6 +40,7 @@ const IncomingInspectionDetailModal = ({
     const [enrichedInspection, setEnrichedInspection] = useState(inspection);
     const [riskyStockData, setRiskyStockData] = useState(null);
     const [checkingRiskyStock, setCheckingRiskyStock] = useState(false);
+    const [isCreatingNC, setIsCreatingNC] = useState(false);
 
     // Check for risky stock when modal opens or inspection data changes
     useEffect(() => {
@@ -246,6 +248,140 @@ const IncomingInspectionDetailModal = ({
                 title: 'Hata',
                 description: `Stok kontrolü başlatılamadı: ${error.message}`,
             });
+        }
+    };
+
+    const generateNCDescription = () => {
+        if (!enrichedInspection) return '';
+
+        let description = `GİRDİ KALİTE KONTROLÜ - UYGUNSUZLUK TESPİTİ\n\n`;
+        description += `📋 MUAYENE BİLGİLERİ:\n`;
+        description += `• Kayıt No: ${enrichedInspection.record_no || 'Belirtilmemiş'}\n`;
+        description += `• Muayene Tarihi: ${enrichedInspection.inspection_date ? format(new Date(enrichedInspection.inspection_date), 'dd.MM.yyyy', { locale: tr }) : 'Belirtilmemiş'}\n`;
+        description += `• Tedarikçi: ${enrichedInspection.supplier_name || 'Belirtilmemiş'}\n`;
+        description += `• Parça Adı: ${enrichedInspection.part_name || 'Belirtilmemiş'}\n`;
+        description += `• Parça Kodu: ${enrichedInspection.part_code || 'Belirtilmemiş'}\n`;
+        description += `• Gelen Miktar: ${enrichedInspection.quantity_received || 0} adet\n`;
+        description += `• Muayene Edilen: ${enrichedInspection.quantity_inspected || 0} adet\n`;
+        description += `• Nihai Karar: ${enrichedInspection.decision || 'Belirtilmemiş'}\n\n`;
+
+        // Ölçüm sonuçlarını detaylı göster
+        if (enrichedInspection.results && enrichedInspection.results.length > 0) {
+            description += `📊 ÖLÇÜM SONUÇLARI VE TESPİTLER:\n\n`;
+            
+            const failedResults = enrichedInspection.results.filter(r => 
+                r.result === 'NOK' || r.result === 'Ret'
+            );
+            
+            if (failedResults.length > 0) {
+                description += `❌ UYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;
+                failedResults.forEach((result, idx) => {
+                    description += `\n${idx + 1}. ${result.characteristic_name || 'Özellik'}:\n`;
+                    description += `   • Tipi: ${result.characteristic_type || 'Belirtilmemiş'}\n`;
+                    
+                    if (result.characteristic_type === 'Boyutsal') {
+                        description += `   • Nominal: ${result.nominal_value !== null && result.nominal_value !== undefined ? result.nominal_value : 'Belirtilmemiş'}\n`;
+                        description += `   • Min: ${result.min_value !== null && result.min_value !== undefined ? result.min_value : 'Belirtilmemiş'}\n`;
+                        description += `   • Max: ${result.max_value !== null && result.max_value !== undefined ? result.max_value : 'Belirtilmemiş'}\n`;
+                        description += `   • Ölçülen Değer: ${result.measured_value || 'Belirtilmemiş'}\n`;
+                        
+                        // Sapma hesaplama
+                        if (result.measured_value && result.nominal_value !== null && result.nominal_value !== undefined) {
+                            const deviation = parseFloat(result.measured_value) - parseFloat(result.nominal_value);
+                            description += `   • Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(2)}\n`;
+                        }
+                    } else if (result.characteristic_type === 'Görsel') {
+                        description += `   • Sonuç: ${result.result}\n`;
+                        description += `   • Tespit: ${result.measured_value || 'Görsel kusur tespit edildi'}\n`;
+                    }
+                    description += `   • Karar: ${result.result}\n`;
+                });
+            }
+
+            // Tüm sonuçların özeti
+            const totalResults = enrichedInspection.results.length;
+            const okCount = enrichedInspection.results.filter(r => r.result === 'OK' || r.result === 'Kabul').length;
+            const nokCount = totalResults - okCount;
+            
+            description += `\n\n📈 ÖLÇÜM ÖZETİ:\n`;
+            description += `• Toplam Ölçüm: ${totalResults}\n`;
+            description += `• Uygun (OK): ${okCount}\n`;
+            description += `• Uygunsuz (NOK): ${nokCount}\n`;
+        }
+
+        // Ret/Şartlı Kabul nedenleri
+        if (enrichedInspection.decision === 'Ret') {
+            description += `\n\n🚫 RET NEDENİ:\n`;
+            if (enrichedInspection.rejection_reason) {
+                description += `${enrichedInspection.rejection_reason}\n`;
+            }
+            if (enrichedInspection.quantity_rejected > 0) {
+                description += `• ${enrichedInspection.quantity_rejected} adet ürün kalite standartlarını karşılamadığı için reddedilmiştir.\n`;
+            }
+        } else if (enrichedInspection.decision === 'Şartlı Kabul') {
+            description += `\n\n⚠️ ŞARTLI KABUL NEDENİ:\n`;
+            if (enrichedInspection.conditional_acceptance_reason) {
+                description += `${enrichedInspection.conditional_acceptance_reason}\n`;
+            }
+        }
+
+        // Notlar varsa ekle
+        if (enrichedInspection.notes) {
+            description += `\n\n📝 EK NOTLAR:\n${enrichedInspection.notes}\n`;
+        }
+
+        description += `\n\n⚡ Bu uygunsuzluk kaydı, Girdi Kalite Kontrol Modülünden otomatik olarak oluşturulmuştur.`;
+        
+        return description;
+    };
+
+    const handleCreateNonConformity = async (ncType) => {
+        if (!onOpenNCForm) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Uygunsuzluk form modalı açılamadı.',
+            });
+            return;
+        }
+
+        setIsCreatingNC(true);
+
+        try {
+            // Uygunsuzluk açıklamasını oluştur
+            const ncDescription = generateNCDescription();
+            const ncTitle = `Girdi Kalite - ${enrichedInspection.supplier_name || 'Tedarikçi'} - ${enrichedInspection.part_name || enrichedInspection.part_code}`;
+
+            // DF veya 8D form modalını aç
+            onOpenNCForm(ncType, {
+                source: 'incoming_inspection',
+                source_inspection_id: enrichedInspection.id,
+                title: ncTitle,
+                description: ncDescription,
+                supplier_id: enrichedInspection.supplier_id || null,
+                supplier_name: enrichedInspection.supplier_name || null,
+                part_code: enrichedInspection.part_code || null,
+                part_name: enrichedInspection.part_name || null,
+                inspection_record_no: enrichedInspection.record_no || null,
+            });
+
+            // Modal'ı kapat
+            setIsOpen(false);
+
+            toast({
+                title: 'Başarılı',
+                description: `${ncType} uygunsuzluk formu hazırlandı. Lütfen formu doldurup kaydedin.`,
+            });
+
+        } catch (error) {
+            console.error('Uygunsuzluk oluşturma hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: `Uygunsuzluk formu oluşturulamadı: ${error.message}`,
+            });
+        } finally {
+            setIsCreatingNC(false);
         }
     };
 
@@ -693,6 +829,45 @@ const IncomingInspectionDetailModal = ({
                                 </div>
                             </CardContent>
                         </Card>
+                        
+                        {/* UYGUNSUZLUK OLUŞTURMA BUTONU - Sadece Ret veya Şartlı Kabul durumunda göster */}
+                        {(enrichedInspection.decision === 'Ret' || enrichedInspection.decision === 'Şartlı Kabul') && (
+                            <Card className="border-orange-200 bg-orange-50">
+                                <CardHeader>
+                                    <CardTitle className="text-orange-700 flex items-center gap-2">
+                                        <AlertCircle className="h-5 w-5" />
+                                        UYGUNSUZLUK YÖNETİMİ
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <p className="text-orange-700 text-sm">
+                                        Bu muayene kaydı için uygunsuzluk raporu oluşturabilirsiniz. 
+                                        Tüm ölçüm verileri ve ret nedenleri otomatik olarak aktarılacaktır.
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => handleCreateNonConformity('DF')}
+                                            disabled={isCreatingNC || !onOpenNCForm}
+                                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                        >
+                                            <FileDown className="h-4 w-4 mr-2" />
+                                            DF Uygunsuzluk Oluştur
+                                        </Button>
+                                        <Button
+                                            onClick={() => handleCreateNonConformity('8D')}
+                                            disabled={isCreatingNC || !onOpenNCForm}
+                                            className="flex-1 bg-purple-600 hover:bg-purple-700"
+                                        >
+                                            <FileDown className="h-4 w-4 mr-2" />
+                                            8D Uygunsuzluk Oluştur
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-gray-600 text-center">
+                                        💡 DF: Hızlı çözüm için | 8D: Detaylı kök neden analizi için
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        )}
                     </TabsContent>
                 </Tabs>
 

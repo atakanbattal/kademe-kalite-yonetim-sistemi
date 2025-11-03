@@ -319,6 +319,7 @@ import React from 'react';
                     inspection={selectedInspection}
                     onDownloadPDF={onDownloadPDF}
                     onOpenStockRiskModal={onOpenStockRiskModal}
+                    onOpenNCForm={onOpenNCForm}
                 />
             </div>
         );
