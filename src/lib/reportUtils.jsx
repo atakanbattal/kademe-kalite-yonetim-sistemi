@@ -1533,14 +1533,29 @@ const generatePrintableReportHtml = (record, type) => {
 			content: none !important;
 			display: none !important;
 		}
+		
+		/* Browser'ın otomatik eklediği URL'leri gizle */
+		@page {
+			margin-bottom: 0 !important;
+		}
 
 		/* ============================================
 		   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
 		   ============================================ */
 		@media print {
+			/* Browser'ın footer'ına URL eklememesi için */
 			@page {
 				size: A4 portrait;
 				margin: 15mm;
+			}
+			
+			/* Tüm URL gösterimlerini kapat */
+			a:link:after,
+			a:visited:after,
+			a[href]:after,
+			a[href]::after {
+				content: "" !important;
+				display: none !important;
 			}
 			
 			html, body {
