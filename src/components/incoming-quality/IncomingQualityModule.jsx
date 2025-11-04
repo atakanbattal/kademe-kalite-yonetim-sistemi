@@ -287,6 +287,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         onView={(record) => handleOpenForm(record, true)}
                         onDecide={handleOpenDecisionModal}
                         onOpenNCForm={onOpenNCForm}
+                        onOpenNCView={onOpenNCView}
                         onDownloadPDF={(record) => handleDownloadPDF(record, 'incoming_inspection')}
                         refreshData={() => {
                             fetchInspections(currentPage, filters);
