@@ -81,8 +81,10 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
         if (isEditMode && existingEquipment) {
             // Düzenleme modu: Mevcut ekipman verilerini yükle
             console.log('📝 Ekipman düzenleme modu:', existingEquipment.id);
+            // equipment_calibrations ve equipment_assignments'ı hariç tut - bunlar veritabanı kolonları değil
+            const { equipment_calibrations, equipment_assignments, ...cleanEquipmentData } = existingEquipment;
             setFormData({
-                ...existingEquipment,
+                ...cleanEquipmentData,
                 measurement_uncertainty: existingEquipment.measurement_uncertainty?.replace('±', '').trim() || ''
             });
             setAddInitialCalibration(false);

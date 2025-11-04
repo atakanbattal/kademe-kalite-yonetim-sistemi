@@ -150,6 +150,9 @@ const PersonnelManager = () => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [editingPersonnel, setEditingPersonnel] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [transferModalOpen, setTransferModalOpen] = useState(false);
+    const [personnelToDelete, setPersonnelToDelete] = useState(null);
+    const [targetPersonnelId, setTargetPersonnelId] = useState(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -190,6 +193,114 @@ const PersonnelManager = () => {
         closeModal();
     }
     
+    const transferDataAndDelete = async (fromPersonnelId, toPersonnelId) => {
+        try {
+            // 1. Tüm equipment_assignments'ı aktar
+            const { data: assignments } = await supabase
+                .from('equipment_assignments')
+                .select('id')
+                .eq('assigned_personnel_id', fromPersonnelId);
+            
+            if (assignments && assignments.length > 0) {
+                const { error: assignError } = await supabase
+                    .from('equipment_assignments')
+                    .update({ assigned_personnel_id: toPersonnelId })
+                    .eq('assigned_personnel_id', fromPersonnelId);
+                if (assignError) throw assignError;
+            }
+
+            // 2. Tüm quality_costs'ı aktar
+            const { data: costs } = await supabase
+                .from('quality_costs')
+                .select('id')
+                .eq('responsible_personnel_id', fromPersonnelId);
+            
+            if (costs && costs.length > 0) {
+                const { error: costError } = await supabase
+                    .from('quality_costs')
+                    .update({ responsible_personnel_id: toPersonnelId })
+                    .eq('responsible_personnel_id', fromPersonnelId);
+                if (costError) throw costError;
+            }
+
+            // 3. Personnel_skills'i aktar
+            const { data: skills } = await supabase
+                .from('personnel_skills')
+                .select('*')
+                .eq('personnel_id', fromPersonnelId);
+            
+            if (skills && skills.length > 0) {
+                // Önce hedef personelin mevcut yeteneklerini kontrol et
+                for (const skill of skills) {
+                    const { data: existing } = await supabase
+                        .from('personnel_skills')
+                        .select('id')
+                        .eq('personnel_id', toPersonnelId)
+                        .eq('skill_id', skill.skill_id)
+                        .single();
+                    
+                    if (!existing) {
+                        // Yeni yetenek ekle
+                        await supabase.from('personnel_skills').insert({
+                            personnel_id: toPersonnelId,
+                            skill_id: skill.skill_id,
+                            current_level: skill.current_level,
+                            target_level: skill.target_level,
+                            training_required: skill.training_required,
+                            certification_date: skill.certification_date,
+                            certification_expiry_date: skill.certification_expiry_date,
+                            last_assessment_date: skill.last_assessment_date,
+                            last_training_date: skill.last_training_date,
+                            next_training_date: skill.next_training_date,
+                            notes: skill.notes
+                        });
+                    }
+                }
+                // Eski kayıtları sil
+                await supabase.from('personnel_skills').delete().eq('personnel_id', fromPersonnelId);
+            }
+
+            // 4. Skill_assessments'ı aktar
+            const { data: assessments } = await supabase
+                .from('skill_assessments')
+                .select('id')
+                .eq('personnel_id', fromPersonnelId);
+            
+            if (assessments && assessments.length > 0) {
+                await supabase
+                    .from('skill_assessments')
+                    .update({ personnel_id: toPersonnelId })
+                    .eq('personnel_id', fromPersonnelId);
+            }
+
+            // 5. Diğer tüm foreign key ilişkilerini kontrol et ve aktar
+            const tablesToUpdate = [
+                { table: 'nonconformities', column: 'requester_personnel_id' },
+                { table: 'nonconformities', column: 'responsible_personnel_id' },
+                { table: 'kaizen_suggestions', column: 'requester_personnel_id' },
+                { table: 'kaizen_suggestions', column: 'responsible_personnel_id' },
+                { table: 'deviations', column: 'detected_by_personnel_id' },
+                { table: 'deviations', column: 'responsible_personnel_id' },
+                { table: 'internal_audits', column: 'auditor_id' },
+                { table: 'customer_complaints', column: 'responsible_personnel_id' },
+                { table: 'trainings', column: 'trainer_id' }
+            ];
+
+            for (const { table, column } of tablesToUpdate) {
+                await supabase.from(table).update({ [column]: toPersonnelId }).eq(column, fromPersonnelId);
+            }
+
+            // 6. Son olarak personeli sil
+            const { error: deleteError } = await supabase.from('personnel').delete().eq('id', fromPersonnelId);
+            if (deleteError) throw deleteError;
+
+            toast({ title: 'Başarılı!', description: 'Tüm veriler aktarıldı ve personel silindi.' });
+            fetchData();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Hata!', description: `Transfer işlemi başarısız: ${error.message}` });
+        }
+    };
+
     const deletePersonnel = async (id) => {
         const { data: assignments, error: assignmentError } = await supabase.from('equipment_assignments').select('id').eq('assigned_personnel_id', id).limit(1);
         if(assignmentError || (assignments && assignments.length > 0)) {
@@ -255,27 +366,75 @@ const PersonnelManager = () => {
                                 <td><Badge variant={p.is_active ? "success" : "destructive"}>{p.is_active ? 'Aktif' : 'Pasif'}</Badge></td>
                                 <td className="flex gap-2">
                                     <Button size="sm" variant="outline" onClick={() => openModal(p)}><Edit className="w-4 h-4 mr-1" /> Düzenle</Button>
-                                     <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="sm"><Trash2 className="w-4 h-4" /></Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                                <AlertDialogDescription>"{p.full_name}" adlı personeli kalıcı olarak sileceksiniz.</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => deletePersonnel(p.id)}>Sil</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                    <Button 
+                                        variant="destructive" 
+                                        size="sm" 
+                                        onClick={() => { setPersonnelToDelete(p); setTransferModalOpen(true); }}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+
+            {/* Transfer Modal */}
+            <Dialog open={transferModalOpen} onOpenChange={setTransferModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Personel Verisini Aktar ve Sil</DialogTitle>
+                        <DialogDescription>
+                            {personnelToDelete && `"${personnelToDelete.full_name}" adlı personelin tüm verilerini başka bir personele aktarabilir ve sonra silebilirsiniz.`}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Hedef Personel (Verilerin Aktarılacağı Kişi)</Label>
+                            <SearchableSelectDialog
+                                options={personnel.filter(p => p.id !== personnelToDelete?.id).map(p => ({ value: p.id, label: p.full_name }))}
+                                value={targetPersonnelId}
+                                onValueChange={setTargetPersonnelId}
+                                placeholder="Personel seçin..."
+                                searchPlaceholder="Personel ara..."
+                            />
+                        </div>
+                        <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800">
+                            <strong>⚠️ Uyarı:</strong> Bu işlem geri alınamaz! Aşağıdaki veriler aktarılacak:
+                            <ul className="list-disc ml-5 mt-2 space-y-1">
+                                <li>Ekipman zimmetleri</li>
+                                <li>Kalite maliyetleri</li>
+                                <li>Yetkinlik kayıtları</li>
+                                <li>Değerlendirmeler</li>
+                                <li>DF, Kaizen, Sapma kayıtları</li>
+                                <li>İç tetkikler, şikayetler, eğitimler</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setTransferModalOpen(false); setTargetPersonnelId(null); }}>
+                            İptal
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={() => {
+                                if (targetPersonnelId && personnelToDelete) {
+                                    transferDataAndDelete(personnelToDelete.id, targetPersonnelId);
+                                    setTransferModalOpen(false);
+                                    setTargetPersonnelId(null);
+                                    setPersonnelToDelete(null);
+                                } else {
+                                    toast({ variant: 'destructive', title: 'Hata', description: 'Lütfen hedef personel seçin.' });
+                                }
+                            }}
+                            disabled={!targetPersonnelId}
+                        >
+                            Aktar ve Sil
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </motion.div>
     );
 };
