@@ -25,6 +25,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import TrainingModule from '@/components/training/TrainingModule';
     import WPSModule from '@/components/wps/WPSModule';
     import CustomerComplaintsModule from '@/components/CustomerComplaintsModule';
+    import PolyvalenceModule from '@/components/PolyvalenceModule';
     import { Menu, X } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { cn } from '@/lib/utils';
@@ -62,6 +63,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
       'wps': 'WPS Yönetimi',
       'audit-logs': 'Denetim Kayıtları',
       'training': 'Eğitim Yönetimi',
+      'polyvalence': 'Polivalans Matrisi',
     };
 
     const ALL_MODULES = Object.keys(moduleTitles);
@@ -309,6 +311,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'wps': return <WPSModule />;
               case 'audit-logs': return <AuditLogModule />;
               case 'training': return <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />;
+              case 'polyvalence': return <PolyvalenceModule />;
               default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
           }
       };

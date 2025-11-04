@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle } from 'lucide-react';
+import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 const navItems = [
@@ -18,6 +18,7 @@ const navItems = [
   { id: 'equipment', icon: FlaskConical, label: 'Ekipman & Kalibrasyon' },
   { id: 'quarantine', icon: Archive, label: 'Karantina Yönetimi' },
   { id: 'training', icon: ShieldCheck, label: 'Eğitim Yönetimi' },
+  { id: 'polyvalence', icon: GraduationCap, label: 'Polivalans Matrisi' },
   { id: 'document', icon: BookOpen, label: 'Doküman Yönetimi' },
   { id: 'wps', icon: FileSignature, label: 'WPS Yönetimi' },
   { id: 'tasks', icon: ClipboardList, label: 'Görev Yönetimi' },

@@ -764,30 +764,36 @@ const generateGenericReportHtml = (record, type) => {
 			break;
 		}
 	case 'supplier_audit': {
-					const getGradeInfo = (score) => {
-						if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış', color: '#6b7280' };
-						if (score >= 90) return { grade: 'A', description: 'Stratejik İş Ortağı', color: '#16a34a' };
-						if (score >= 75) return { grade: 'B', description: 'Güvenilir Tedarikçi', color: '#2563eb' };
-						if (score >= 60) return { grade: 'C', description: 'İzlemeye Alınacak', color: '#f59e0b' };
-						return { grade: 'D', description: 'İş Birliği Sonlandırılacak', color: '#dc2626' };
-					};
-					const gradeInfo = getGradeInfo(record.score);
-					return `
-						<tr><td>Tedarikçi</td><td>${record.supplier?.name || '-'}</td></tr>
-						<tr><td>Denetim Tarihi</td><td>${formatDate(record.actual_date || record.planned_date)}</td></tr>
-						<tr><td>Denetçi(ler)</td><td>${formatArray(record.participants)}</td></tr>
-						<tr>
-							<td>Alınan Puan / Sınıf</td>
-							<td>
-								<strong style="font-size: 1.1em; color: ${gradeInfo.color};">${record.score ?? 'N/A'}</strong> 
-								<span style="font-weight: bold; background-color: ${gradeInfo.color}; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 10px;">${gradeInfo.grade}</span>
-								<span style="margin-left: 10px; color: #4b5563;">(${gradeInfo.description})</span>
-							</td>
-						</tr>
-						<tr><td>Denetim Notları</td><td><pre>${record.notes || '-'}</pre></td></tr>
-					`;
-			break;
-			}
+				const getGradeInfo = (score) => {
+					if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış', color: '#6b7280' };
+					if (score >= 90) return { grade: 'A', description: 'Stratejik İş Ortağı', color: '#16a34a' };
+					if (score >= 75) return { grade: 'B', description: 'Güvenilir Tedarikçi', color: '#2563eb' };
+					if (score >= 60) return { grade: 'C', description: 'İzlemeye Alınacak', color: '#f59e0b' };
+					return { grade: 'D', description: 'İş Birliği Sonlandırılacak', color: '#dc2626' };
+				};
+				const gradeInfo = getGradeInfo(record.score);
+				
+				// Denetçiler ve tedarikçi temsilcileri formatla
+				const auditorsText = formatArray(record.participants);
+				const supplierAttendeesText = formatArray(record.supplier_attendees);
+				
+				return `
+					<tr><td>Tedarikçi</td><td>${record.supplier?.name || '-'}</td></tr>
+					<tr><td>Denetim Tarihi</td><td>${formatDate(record.actual_date || record.planned_date)}</td></tr>
+					<tr><td>Denetçi(ler)</td><td>${auditorsText}</td></tr>
+					<tr><td>Denetlenen Firmadan Katılanlar</td><td>${supplierAttendeesText}</td></tr>
+					<tr>
+						<td>Alınan Puan / Sınıf</td>
+						<td>
+							<strong style="font-size: 1.1em; color: ${gradeInfo.color};">${record.score ?? 'N/A'}</strong> 
+							<span style="font-weight: bold; background-color: ${gradeInfo.color}; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 10px;">${gradeInfo.grade}</span>
+							<span style="margin-left: 10px; color: #4b5563;">(${gradeInfo.description})</span>
+						</td>
+					</tr>
+					<tr><td>Denetim Notları</td><td><pre>${record.notes || '-'}</pre></td></tr>
+				`;
+		break;
+		}
 		case 'internal_audit': {
 					return `
 						<tr><td>Tetkik Başlığı</td><td>${record.title || '-'}</td></tr>

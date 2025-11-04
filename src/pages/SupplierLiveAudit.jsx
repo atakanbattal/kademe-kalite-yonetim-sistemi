@@ -24,6 +24,7 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
     const [questions, setQuestions] = useState([]);
     const [results, setResults] = useState({});
     const [participants, setParticipants] = useState(['']);
+    const [supplierAttendees, setSupplierAttendees] = useState(['']);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isCompleteModalOpen, setCompleteModalOpen] = useState(false);
@@ -45,6 +46,7 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
         setAuditPlan(planData);
         setSupplier(planData.supplier);
         setParticipants(planData.participants || ['']);
+        setSupplierAttendees(planData.supplier_attendees || ['']);
 
         const { data: questionData, error: questionError } = await supabase
             .from('supplier_audit_questions')
@@ -91,6 +93,15 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
     const addParticipant = () => setParticipants([...participants, '']);
     const removeParticipant = (index) => setParticipants(participants.filter((_, i) => i !== index));
 
+    const handleSupplierAttendeeChange = (index, value) => {
+        const newAttendees = [...supplierAttendees];
+        newAttendees[index] = value;
+        setSupplierAttendees(newAttendees);
+    };
+
+    const addSupplierAttendee = () => setSupplierAttendees([...supplierAttendees, '']);
+    const removeSupplierAttendee = (index) => setSupplierAttendees(supplierAttendees.filter((_, i) => i !== index));
+
     const calculateScore = useCallback(() => {
         let totalScore = 0;
         let totalPossible = 0;
@@ -114,6 +125,7 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
         const updateData = {
             results,
             participants: participants.filter(p => p.trim() !== ''),
+            supplier_attendees: supplierAttendees.filter(p => p.trim() !== ''),
             score: finalScore,
             status: isCompleting ? 'Tamamlandı' : auditPlan.status,
             actual_date: isCompleting ? new Date().toISOString() : auditPlan.actual_date,
@@ -199,15 +211,34 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
                     <p className="text-muted-foreground">Planlanan Tarih: {format(new Date(auditPlan.planned_date), 'dd.MM.yyyy')}</p>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
-                        <Label>Denetime Katılanlar</Label>
-                        {participants.map((p, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                                <Input value={p} onChange={(e) => handleParticipantChange(index, e.target.value)} placeholder="Katılımcı adı ve soyadı..." />
-                                <Button variant="destructive" size="icon" onClick={() => removeParticipant(index)}><Trash2 className="w-4 h-4" /></Button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <div>
+                                <Label className="text-lg font-semibold text-primary">Denetçiler (Bizim Firma)</Label>
+                                <p className="text-sm text-muted-foreground mb-3">Denetimi yapan kişiler</p>
                             </div>
-                        ))}
-                         <Button variant="outline" onClick={addParticipant}><PlusCircle className="w-4 h-4 mr-2" /> Katılımcı Ekle</Button>
+                            {participants.map((p, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                    <Input value={p} onChange={(e) => handleParticipantChange(index, e.target.value)} placeholder="Denetçi adı ve soyadı..." />
+                                    <Button variant="destructive" size="icon" onClick={() => removeParticipant(index)}><Trash2 className="w-4 h-4" /></Button>
+                                </div>
+                            ))}
+                            <Button variant="outline" onClick={addParticipant}><PlusCircle className="w-4 h-4 mr-2" /> Denetçi Ekle</Button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <Label className="text-lg font-semibold text-green-600">Denetlenen Firmadan Katılanlar</Label>
+                                <p className="text-sm text-muted-foreground mb-3">{supplier?.name} firmasından denetime katılanlar</p>
+                            </div>
+                            {supplierAttendees.map((p, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                    <Input value={p} onChange={(e) => handleSupplierAttendeeChange(index, e.target.value)} placeholder="Tedarikçi temsilcisi adı ve soyadı..." />
+                                    <Button variant="destructive" size="icon" onClick={() => removeSupplierAttendee(index)}><Trash2 className="w-4 h-4" /></Button>
+                                </div>
+                            ))}
+                            <Button variant="outline" onClick={addSupplierAttendee}><PlusCircle className="w-4 h-4 mr-2" /> Tedarikçi Temsilcisi Ekle</Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
