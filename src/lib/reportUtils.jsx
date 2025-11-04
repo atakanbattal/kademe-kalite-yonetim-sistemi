@@ -2223,11 +2223,11 @@ const generatePrintableReportHtml = (record, type) => {
 				padding: 0 !important;
 			}
 			
-			.report-wrapper {
-				padding: 0 !important;
-				/* min-height already removed from default styles */
-				margin: 0 !important;
-			}
+		.report-wrapper {
+			padding: 0 !important;
+			min-height: 0 !important; /* Force remove min-height for PDF */
+			margin: 0 !important;
+		}
 			
 			/* Başlık her zaman en başta */
 			.report-header {
