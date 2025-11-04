@@ -1794,7 +1794,7 @@ const generatePrintableReportHtml = (record, type) => {
 		.report-wrapper {
 			padding: 15mm;
 			position: relative;
-			min-height: calc(297mm - 30mm - 40px);
+			/* min-height removed - footer should be right after content */
 		}
 		
 		/* ============================================
@@ -2225,7 +2225,7 @@ const generatePrintableReportHtml = (record, type) => {
 			
 			.report-wrapper {
 				padding: 0 !important;
-				min-height: 0 !important;
+				/* min-height already removed from default styles */
 				margin: 0 !important;
 			}
 			
