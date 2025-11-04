@@ -8,13 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, File as FileIcon, X as XIcon, PlusCircle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { UploadCloud, File as FileIcon, X as XIcon, PlusCircle, Trash2, Calendar as CalendarIcon, FileText, Link2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEPARTMENTS } from '@/lib/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import SourceRecordSelector from './SourceRecordSelector';
 
 const VEHICLE_TYPES = ["FTH-240", "Çelik-2000", "AGA2100", "AGA3000", "AGA6000", "Kompost Makinesi", "Çay Toplama Makinesi", "KDM 35", "KDM 70", "KDM 80", "Rusya Motor Odası", "Ural", "HSCK", "Traktör Kabin", "Diğer"];
 
@@ -27,6 +30,9 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [departments, setDepartments] = useState([]);
     const [personnel, setPersonnel] = useState([]);
+    const [suppliers, setSuppliers] = useState([]);
+    const [creationMode, setCreationMode] = useState('manual'); // 'manual' veya 'from_record'
+    const [selectedSourceRecord, setSelectedSourceRecord] = useState(null);
     
     useEffect(() => {
         const fetchSettingsData = async () => {
@@ -49,6 +55,21 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 
                 if (personnelError) throw personnelError;
                 setPersonnel(personnelData || []);
+
+                // Fetch suppliers (tüm aktif tedarikçiler)
+                const { data: supplierData, error: supplierError } = await supabase
+                    .from('suppliers')
+                    .select('id, name')
+                    .order('name');
+                
+                if (supplierError) throw supplierError;
+                console.log('📦 Tedarikçiler yüklendi:', supplierData);
+                setSuppliers(supplierData || []);
+
+                // Yeni sapma için otomatik talep numarası oluştur
+                if (!isEditMode) {
+                    await generateRequestNumber();
+                }
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Ayarlar yüklenemedi.' });
             }
@@ -57,7 +78,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         if (isOpen) {
             fetchSettingsData();
         }
-    }, [isOpen, toast]);
+    }, [isOpen, toast, isEditMode]);
 
     // ÖNEMLİ: Modal verilerini koru - sadece existingDeviation değiştiğinde yükle
     useEffect(() => {
@@ -128,6 +149,97 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
 
     const handleDateChange = (date) => {
         setFormData(prev => ({ ...prev, created_at: date }));
+    };
+
+    const generateRequestNumber = async () => {
+        try {
+            // Son sapma kaydının numarasını al
+            const { data, error } = await supabase
+                .from('deviations')
+                .select('request_no')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error) throw error;
+
+            let newNumber = 1;
+            if (data && data.length > 0 && data[0].request_no) {
+                // Mevcut numaradan sonraki numarayı al
+                const lastNo = data[0].request_no;
+                const match = lastNo.match(/SAP-(\d+)/);
+                if (match) {
+                    newNumber = parseInt(match[1]) + 1;
+                }
+            }
+
+            // Yeni talep numarasını oluştur (SAP-0001 formatında)
+            const requestNo = `SAP-${String(newNumber).padStart(4, '0')}`;
+            setFormData(prev => ({ ...prev, request_no: requestNo }));
+        } catch (error) {
+            console.error('Talep numarası oluşturulamadı:', error);
+            // Hata durumunda rastgele numara
+            const fallbackNo = `SAP-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
+            setFormData(prev => ({ ...prev, request_no: fallbackNo }));
+        }
+    };
+
+    const handleSourceRecordSelect = (autoFillData, record) => {
+        if (!autoFillData) {
+            // Temizleme
+            setSelectedSourceRecord(null);
+            setFormData(prev => ({
+                ...prev,
+                source_type: null,
+                source_record_id: null,
+                source_record_details: null
+            }));
+            return;
+        }
+
+        setSelectedSourceRecord(record);
+        
+        // Detaylı açıklama oluştur
+        let detailedDescription = '';
+        const details = autoFillData.source_record_details;
+        
+        if (record._source_type === 'incoming_inspection') {
+            detailedDescription = `Girdi Kalite Kontrol Kaydı (${details.inspection_number || 'N/A'})\n\n`;
+            detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
+            detailedDescription += `Miktar: ${details.quantity || 'N/A'} adet\n`;
+            detailedDescription += `Tedarikçi: ${details.supplier || 'Belirtilmemiş'}\n`;
+            detailedDescription += `Durum: ${details.status || 'N/A'}\n`;
+            if (details.defect_type) {
+                detailedDescription += `Hata Tipi: ${details.defect_type}\n`;
+            }
+            detailedDescription += `\nBu parça için sapma onayı talep edilmektedir.`;
+        } else if (record._source_type === 'quarantine') {
+            detailedDescription = `Karantina Kaydı (${details.quarantine_number || 'N/A'})\n\n`;
+            detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
+            detailedDescription += `Miktar: ${details.quantity || 'N/A'} adet\n`;
+            detailedDescription += `Tedarikçi: ${details.supplier || 'Belirtilmemiş'}\n`;
+            if (details.reason) {
+                detailedDescription += `Karantina Nedeni: ${details.reason}\n`;
+            }
+            if (details.location) {
+                detailedDescription += `Konum: ${details.location}\n`;
+            }
+            detailedDescription += `\nKarantinadaki bu parça için sapma onayı talep edilmektedir.`;
+        } else if (record._source_type === 'quality_cost') {
+            detailedDescription = `Kalitesizlik Maliyeti Kaydı\n\n`;
+            detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
+            detailedDescription += `Maliyet Türü: ${details.cost_type || 'N/A'}\n`;
+            detailedDescription += `Tutar: ₺${details.amount || '0,00'}\n`;
+            detailedDescription += `Birim/Tedarikçi: ${details.unit || details.supplier || 'Belirtilmemiş'}\n`;
+            detailedDescription += `\nBu maliyet kaydı için sapma onayı talep edilmektedir.`;
+        }
+        
+        // Otomatik doldur
+        setFormData(prev => ({
+            ...prev,
+            ...autoFillData,
+            part_code: autoFillData.part_code || prev.part_code,
+            description: detailedDescription,
+        }));
     };
 
     const onDrop = useCallback(acceptedFiles => {
@@ -228,6 +340,30 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4 max-h-[80vh] overflow-y-auto pr-4">
+                    {/* Oluşturma Modu Seçimi - Sadece yeni kayıt için */}
+                    {!isEditMode && (
+                        <Tabs value={creationMode} onValueChange={setCreationMode} className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="manual" className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    Manuel Oluştur
+                                </TabsTrigger>
+                                <TabsTrigger value="from_record" className="flex items-center gap-2">
+                                    <Link2 className="h-4 w-4" />
+                                    Mevcut Kayıttan
+                                </TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="from_record" className="mt-4">
+                                <SourceRecordSelector
+                                    onSelect={handleSourceRecordSelect}
+                                    initialSourceType={formData.source_type}
+                                    initialSourceId={formData.source_record_id}
+                                />
+                            </TabsContent>
+                        </Tabs>
+                    )}
+
                     <div className="grid md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="request_no">Talep Numarası <span className="text-red-500">*</span></Label>
@@ -270,7 +406,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                         className={cn("w-full justify-start text-left font-normal", !formData.created_at && "text-muted-foreground")}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {formData.created_at ? format(formData.created_at, "PPP") : <span>Tarih seçin</span>}
+                                        {formData.created_at ? format(formData.created_at, "d MMMM yyyy", { locale: tr }) : <span>Tarih seçin</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
@@ -315,7 +451,12 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         <Label htmlFor="source">Sapma Kaynağı <span className="text-red-500">*</span></Label>
                          <Select onValueChange={(value) => handleSelectChange('source', value)} value={formData.source || ''} required>
                             <SelectTrigger><SelectValue placeholder="Sapma kaynağını seçin..." /></SelectTrigger>
-                            <SelectContent>{DEPARTMENTS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                            <SelectContent>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Birimler</div>
+                                {departments.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                {suppliers.length > 0 && <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">Tedarikçiler</div>}
+                                {suppliers.map(s => <SelectItem key={s.id} value={`TEDARİKÇİ: ${s.name}`}>🏭 {s.name}</SelectItem>)}
+                            </SelectContent>
                         </Select>
                     </div>
 

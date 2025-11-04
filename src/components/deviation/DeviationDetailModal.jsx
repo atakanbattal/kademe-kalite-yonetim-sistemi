@@ -6,8 +6,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Printer, Loader2, Hourglass, CheckCircle, XCircle, FileText, Truck, Download } from 'lucide-react';
+import { Printer, Loader2, Hourglass, CheckCircle, XCircle, FileText, Truck, Download, Package, AlertTriangle, DollarSign, Link2 } from 'lucide-react';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { Card, CardContent } from '@/components/ui/card';
 
 const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
     const [isPrinting, setIsPrinting] = useState(false);
@@ -66,6 +67,58 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                     </div>
                 </DialogHeader>
                 <ScrollArea className="max-h-[60vh] p-1">
+                    {/* Kaynak Kayıt Bilgisi */}
+                    {deviation.source_type && deviation.source_type !== 'manual' && (
+                        <Card className="mb-4 border-2 border-primary">
+                            <CardContent className="pt-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Link2 className="h-5 w-5 text-primary" />
+                                    <span className="font-semibold text-primary">Kaynak Kayıt Bilgisi</span>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    {deviation.source_type === 'incoming_inspection' && (
+                                        <Package className="h-5 w-5 text-blue-500 mt-1" />
+                                    )}
+                                    {deviation.source_type === 'quarantine' && (
+                                        <AlertTriangle className="h-5 w-5 text-yellow-500 mt-1" />
+                                    )}
+                                    {deviation.source_type === 'quality_cost' && (
+                                        <DollarSign className="h-5 w-5 text-green-500 mt-1" />
+                                    )}
+                                    <div className="flex-1">
+                                        <Badge variant="outline" className="mb-2">
+                                            {deviation.source_type === 'incoming_inspection' && 'Girdi Kalite Kontrol'}
+                                            {deviation.source_type === 'quarantine' && 'Karantina'}
+                                            {deviation.source_type === 'quality_cost' && 'Kalitesizlik Maliyeti'}
+                                        </Badge>
+                                        {deviation.source_record_details && (
+                                            <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                                                {deviation.source_record_details.part_code && (
+                                                    <div>
+                                                        <span className="text-muted-foreground">Parça Kodu:</span>
+                                                        <span className="ml-2 font-medium">{deviation.source_record_details.part_code}</span>
+                                                    </div>
+                                                )}
+                                                {deviation.source_record_details.quantity && (
+                                                    <div>
+                                                        <span className="text-muted-foreground">Miktar:</span>
+                                                        <span className="ml-2 font-medium">{deviation.source_record_details.quantity}</span>
+                                                    </div>
+                                                )}
+                                                {deviation.source_record_details.supplier && (
+                                                    <div className="col-span-2">
+                                                        <span className="text-muted-foreground">Tedarikçi:</span>
+                                                        <span className="ml-2 font-medium">{deviation.source_record_details.supplier}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
                         <div><p className="text-sm text-muted-foreground">Parça Kodu</p><p className="font-semibold">{deviation.part_code || '-'}</p></div>
                         <div><p className="text-sm text-muted-foreground">Kaynak</p><p className="font-semibold">{deviation.source || '-'}</p></div>

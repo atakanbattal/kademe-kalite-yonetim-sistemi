@@ -200,7 +200,9 @@ import React, { useState, useMemo, useCallback } from 'react';
                                                             <td>{index + 1}</td>
                                                             <td className="text-foreground">{new Date(cost.cost_date).toLocaleDateString('tr-TR')}</td>
                                                             <td className="text-foreground">{cost.cost_type}</td>
-                                                            <td className="text-foreground">{cost.unit}</td>
+                                                            <td className="text-foreground">
+                                                                {cost.is_supplier_nc && cost.supplier?.name ? cost.supplier.name : cost.unit}
+                                                            </td>
                                                             <td className="font-semibold text-foreground">{formatCurrency(cost.amount)}</td>
                                                             <td>
                                                                 <AlertDialog>

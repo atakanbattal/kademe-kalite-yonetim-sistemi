@@ -1,14 +1,13 @@
 import React, { useMemo, useState } from 'react';
     import { useData } from '@/contexts/DataContext';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-    import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { Badge } from '@/components/ui/badge';
-    import { formatDistanceToNow } from 'date-fns';
+    import { formatDistanceToNow, format } from 'date-fns';
     import { tr } from 'date-fns/locale';
-    import { motion } from 'framer-motion';
+    import { motion, AnimatePresence } from 'framer-motion';
     import { Skeleton } from '@/components/ui/skeleton';
     import { Input } from '@/components/ui/input';
-    import { Search, Filter } from 'lucide-react';
+    import { Search, Filter, Clock, User, FileText, Plus, Edit, Trash2, ChevronRight } from 'lucide-react';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -19,6 +18,11 @@ import React, { useMemo, useState } from 'react';
 
       const filteredLogs = useMemo(() => {
         let logs = auditLogs;
+        
+        // Debug: İlk 3 kaydın table_name'ini logla
+        if (logs.length > 0) {
+          console.log('🔍 İlk 3 Audit Log:', logs.slice(0, 3).map(l => ({ id: l.id, action: l.action, table_name: l.table_name })));
+        }
         
         // Tablo filtresi
         if (tableFilter !== 'all') {
@@ -39,14 +43,92 @@ import React, { useMemo, useState } from 'react';
         return logs;
       }, [auditLogs, searchTerm, tableFilter]);
 
-      const renderDetails = (details) => {
-        if (!details) return 'N/A';
-        try {
-            const formattedJson = JSON.stringify(details, null, 2);
-            return <pre className="whitespace-pre-wrap max-w-md text-xs bg-muted/50 p-2 rounded-md">{formattedJson}</pre>;
-        } catch (e) {
-            return <span className="break-all">{String(details)}</span>;
+      // Kullanıcı dostu mesaj oluştur
+      const getHumanReadableMessage = (log) => {
+        const action = log.action;
+        const tableName = getReadableTableName(log.table_name);
+        const details = log.details;
+        
+        // İşlem türünü belirle
+        let actionType = 'değiştirildi';
+        let actionIcon = <Edit className="h-4 w-4" />;
+        
+        if (action.startsWith('EKLEME')) {
+          actionType = 'oluşturuldu';
+          actionIcon = <Plus className="h-4 w-4" />;
+        } else if (action.startsWith('SİLME')) {
+          actionType = 'silindi';
+          actionIcon = <Trash2 className="h-4 w-4" />;
+        } else if (action.startsWith('GÜNCELLEME')) {
+          actionType = 'güncellendi';
+          actionIcon = <Edit className="h-4 w-4" />;
         }
+        
+        // Detaylardan önemli bilgileri çıkar
+        let extraInfo = '';
+        
+        try {
+          if (details) {
+            // Yeni kayıt için bilgi
+            if (details.new && typeof details.new === 'object') {
+              const newData = details.new;
+              if (newData.part_code) extraInfo = `Parça: ${newData.part_code}`;
+              else if (newData.nc_number) extraInfo = `Uygunsuzluk No: ${newData.nc_number}`;
+              else if (newData.request_number) extraInfo = `Talep No: ${newData.request_number}`;
+              else if (newData.record_no) extraInfo = `Kayıt No: ${newData.record_no}`;
+              else if (newData.inspection_number) extraInfo = `Muayene No: ${newData.inspection_number}`;
+              else if (newData.title) extraInfo = `Başlık: ${newData.title}`;
+              else if (newData.name) extraInfo = `Ad: ${newData.name}`;
+            }
+            
+            // Değişen alanlar varsa göster
+            if (details.changed_fields && Array.isArray(details.changed_fields) && details.changed_fields.length > 0) {
+              const fieldNames = {
+                'status': 'Durum',
+                'decision': 'Karar',
+                'part_code': 'Parça Kodu',
+                'quantity': 'Miktar',
+                'unit': 'Birim',
+                'amount': 'Tutar',
+                'name': 'Ad',
+                'title': 'Başlık',
+                'description': 'Açıklama',
+                'assigned_to': 'Atanan',
+                'priority': 'Öncelik',
+                'due_date': 'Bitiş Tarihi'
+              };
+              
+              const changedFieldsStr = details.changed_fields
+                .map(f => fieldNames[f] || f)
+                .slice(0, 3)
+                .join(', ');
+              
+              extraInfo = `Değişiklik: ${changedFieldsStr}`;
+              if (details.changed_fields.length > 3) {
+                extraInfo += ` (+${details.changed_fields.length - 3} alan daha)`;
+              }
+            }
+            
+            // Doğrudan ekleme için
+            if (!details.new && !details.changed_fields) {
+              if (details.part_code) extraInfo = `Parça: ${details.part_code}`;
+              else if (details.nc_number) extraInfo = `Uygunsuzluk No: ${details.nc_number}`;
+              else if (details.request_number) extraInfo = `Talep No: ${details.request_number}`;
+              else if (details.record_no) extraInfo = `Kayıt No: ${details.record_no}`;
+              else if (details.inspection_number) extraInfo = `Muayene No: ${details.inspection_number}`;
+              else if (details.title) extraInfo = `Başlık: ${details.title}`;
+              else if (details.name) extraInfo = `Ad: ${details.name}`;
+            }
+          }
+        } catch (e) {
+          console.error('Detay parse hatası:', e);
+        }
+        
+        return {
+          message: `${tableName} kaydı ${actionType}`,
+          extraInfo,
+          actionIcon
+        };
       };
 
       const getActionBadge = (action) => {
@@ -136,54 +218,93 @@ import React, { useMemo, useState } from 'react';
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[70vh]">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>İşlem</TableHead>
-                        <TableHead>Tablo</TableHead>
-                        <TableHead>Yapan Kişi</TableHead>
-                        <TableHead>Detaylar</TableHead>
-                        <TableHead className="text-right">Zaman</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loading ? (
-                        Array.from({ length: 10 }).map((_, i) => (
-                          <TableRow key={i}>
-                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-4 w-28 ml-auto" /></TableCell>
-                          </TableRow>
-                        ))
-                      ) : filteredLogs.length > 0 ? (
-                        filteredLogs.map((log) => (
-                            <TableRow key={log.id}>
-                              <TableCell>{getActionBadge(log.action)}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="font-medium">
+                <div className="space-y-3">
+                  {loading ? (
+                    Array.from({ length: 10 }).map((_, i) => (
+                      <div key={i} className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+                        <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                    ))
+                  ) : filteredLogs.length > 0 ? (
+                    <AnimatePresence>
+                      {filteredLogs.map((log, index) => {
+                        const humanMessage = getHumanReadableMessage(log);
+                        
+                        return (
+                          <motion.div
+                            key={log.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ delay: index * 0.02 }}
+                            className="flex gap-4 p-4 bg-card border rounded-lg hover:shadow-md transition-all duration-200 group"
+                          >
+                            {/* İşlem İkonu */}
+                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                              log.action.startsWith('EKLEME') ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                              log.action.startsWith('GÜNCELLEME') ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                              log.action.startsWith('SİLME') ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                              'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            }`}>
+                              {humanMessage.actionIcon}
+                            </div>
+                            
+                            {/* Ana İçerik */}
+                            <div className="flex-1 min-w-0">
+                              {/* Başlık ve Badge */}
+                              <div className="flex items-start gap-2 mb-1">
+                                <p className="font-medium text-foreground group-hover:text-primary transition-colors">
+                                  {humanMessage.message}
+                                </p>
+                                <Badge variant="outline" className="text-xs">
                                   {getReadableTableName(log.table_name)}
                                 </Badge>
-                                <div className="text-xs text-muted-foreground mt-1">{log.table_name}</div>
-                              </TableCell>
-                              <TableCell className="font-medium">{log.user_full_name || 'Sistem'}</TableCell>
-                              <TableCell>{renderDetails(log.details)}</TableCell>
-                              <TableCell className="text-right text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: tr })}
-                              </TableCell>
-                            </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center">
-                            Henüz denetim kaydı bulunmamaktadır.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                              </div>
+                              
+                              {/* Ek Bilgi */}
+                              {humanMessage.extraInfo && (
+                                <p className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                                  <ChevronRight className="h-3 w-3" />
+                                  {humanMessage.extraInfo}
+                                </p>
+                              )}
+                              
+                              {/* Kullanıcı ve Zaman */}
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  {log.user_full_name || 'Sistem'}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: tr })}
+                                </span>
+                                <span className="text-muted-foreground/60">
+                                  {format(new Date(log.created_at), 'dd.MM.yyyy HH:mm', { locale: tr })}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Sağ taraf - İşlem Badge'i */}
+                            <div className="flex-shrink-0 self-start">
+                              {getActionBadge(log.action)}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">Henüz denetim kaydı bulunmamaktadır.</p>
+                      <p className="text-sm mt-2">Sistem işlemleri otomatik olarak burada listelenecektir.</p>
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>

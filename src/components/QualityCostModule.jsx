@@ -36,9 +36,10 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        // Tedarikçi kaynaklı maliyetler için suppliers tablosu da dahil edildi - FORCE RELOAD
         const costsPromise = supabase
             .from('quality_costs')
-            .select('*, personnel(full_name), non_conformities(nc_number, id)')
+            .select('*, responsible_personnel:personnel!responsible_personnel_id(full_name), non_conformities(nc_number, id), supplier:suppliers!supplier_id(name)')
             .order('cost_date', { ascending: false });
 
         const unitSettingsPromise = supabase.from('cost_settings').select('*');
@@ -85,7 +86,16 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     };
 
     const handleOpenNCModal = (cost, type) => {
-        const recordForNC = { ...cost, source: 'cost' };
+        const recordForNC = { 
+            ...cost, 
+            source: 'quality_cost',
+            source_id: cost.id,
+            title: `Kalite Maliyeti - ${cost.supplier?.name || 'Tedarikçi'} - ${cost.cost_type}`,
+            description: `Maliyet Türü: ${cost.cost_type}\nBirim: ${cost.unit}\nTutar: ${formatCurrency(cost.amount)}\n\nAçıklama: ${cost.description || 'Belirtilmemiş'}`,
+            is_supplier_nc: cost.is_supplier_nc,
+            supplier_id: cost.supplier_id,
+            supplier_name: cost.supplier?.name,
+        };
         onOpenNCForm(type, recordForNC);
     };
 
@@ -165,6 +175,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                 <th>Tarih</th>
                                                 <th>Maliyet Türü</th>
                                                 <th>Birim</th>
+                                                <th>Tedarikçi</th>
                                                 <th>Tutar</th>
                                                 <th>İlişkili Uygunsuzluk</th>
                                                 <th>İşlemler</th>
@@ -172,16 +183,29 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                         </thead>
                                         <tbody>
                                             {loading ? (
-                                                <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                                <tr><td colSpan="8" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
                                             ) : filteredCosts.length === 0 ? (
-                                                <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Seçili dönem için maliyet kaydı bulunamadı.</td></tr>
+                                                <tr><td colSpan="8" className="text-center p-8 text-muted-foreground">Seçili dönem için maliyet kaydı bulunamadı.</td></tr>
                                             ) : (
                                                 filteredCosts.map((cost, index) => (
                                                     <tr key={cost.id}>
                                                         <td>{index + 1}</td>
                                                         <td className="text-foreground">{new Date(cost.cost_date).toLocaleDateString('tr-TR')}</td>
                                                         <td className="text-foreground">{cost.cost_type}</td>
-                                                        <td className="text-foreground">{cost.unit}</td>
+                                                        <td className="text-foreground">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                                                                {cost.unit || '-'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-foreground">
+                                                            {cost.is_supplier_nc && cost.supplier?.name ? (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-orange-500 text-white text-xs font-medium">
+                                                                    <span className="text-lg">🏭</span> {cost.supplier.name}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-muted-foreground text-xs">-</span>
+                                                            )}
+                                                        </td>
                                                         <td className="font-semibold text-foreground">{formatCurrency(cost.amount)}</td>
                                                         <td>
                                                             {cost.non_conformities?.nc_number ? (
@@ -209,15 +233,27 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                                             <Edit className="mr-2 h-4 w-4" />
                                                                             <span>Düzenle</span>
                                                                         </DropdownMenuItem>
-                                                                        <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem onClick={() => handleOpenNCModal(cost, 'DF')} disabled={!!cost.non_conformities}>
-                                                                            <GitBranch className="mr-2 h-4 w-4" />
-                                                                            <span>DF Oluştur</span>
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleOpenNCModal(cost, '8D')} disabled={!!cost.non_conformities}>
-                                                                            <GitBranch className="mr-2 h-4 w-4" />
-                                                                            <span>8D Oluştur</span>
-                                                                        </DropdownMenuItem>
+                                                                        {cost.is_supplier_nc && cost.supplier_id && (
+                                                                            <>
+                                                                                <DropdownMenuSeparator />
+                                                                                <DropdownMenuItem 
+                                                                                    onClick={() => handleOpenNCModal(cost, 'DF')} 
+                                                                                    disabled={!!cost.non_conformities}
+                                                                                    className="text-blue-600"
+                                                                                >
+                                                                                    <GitBranch className="mr-2 h-4 w-4" />
+                                                                                    <span>Tedarikçiye DF Oluştur</span>
+                                                                                </DropdownMenuItem>
+                                                                                <DropdownMenuItem 
+                                                                                    onClick={() => handleOpenNCModal(cost, '8D')} 
+                                                                                    disabled={!!cost.non_conformities}
+                                                                                    className="text-purple-600"
+                                                                                >
+                                                                                    <GitBranch className="mr-2 h-4 w-4" />
+                                                                                    <span>Tedarikçiye 8D Oluştur</span>
+                                                                                </DropdownMenuItem>
+                                                                            </>
+                                                                        )}
                                                                         <DropdownMenuSeparator />
                                                                         <AlertDialogTrigger asChild>
                                                                             <DropdownMenuItem className="text-destructive focus:text-destructive">

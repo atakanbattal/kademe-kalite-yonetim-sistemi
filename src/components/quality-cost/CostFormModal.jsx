@@ -9,8 +9,11 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Textarea } from '@/components/ui/textarea';
     import { Switch } from '@/components/ui/switch';
     import { COST_TYPES, VEHICLE_TYPES, MEASUREMENT_UNITS } from './constants';
-    import { Zap, Trash2, Plus, Wrench } from 'lucide-react';
+    import { Zap, Trash2, Plus, Wrench, Briefcase, AlertCircle } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
+    import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
+    import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+    import { Badge } from '@/components/ui/badge';
 
     const formatCurrency = (value) => {
         if (typeof value !== 'number' || isNaN(value)) return '0,00 ₺';
@@ -180,6 +183,15 @@ import React, { useState, useEffect, useCallback } from 'react';
         );
     };
 
+    const getStatusBadgeVariant = (status) => {
+        switch (status) {
+            case 'Onaylı': return 'success';
+            case 'Askıya Alınmış': return 'warning';
+            case 'Red': return 'destructive';
+            default: return 'secondary';
+        }
+    };
+
     export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost }) => {
         const { toast } = useToast();
         const isEditMode = !!existingCost;
@@ -189,6 +201,9 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [addLaborToScrap, setAddLaborToScrap] = useState(false);
         const [totalReworkCost, setTotalReworkCost] = useState(0);
         const [affectedUnits, setAffectedUnits] = useState([]);
+        const [isSupplierNC, setIsSupplierNC] = useState(false);
+        const [suppliers, setSuppliers] = useState([]);
+        const [selectedSupplierStatus, setSelectedSupplierStatus] = useState(null);
 
         const materialTypes = materialCostSettings.map(m => m.material_name);
         const departments = unitCostSettings.map(u => u.unit_name);
@@ -200,7 +215,41 @@ import React, { useState, useEffect, useCallback } from 'react';
             quantity: '', measurement_unit: '', affected_units: [],
             additional_labor_cost: 0,
             unit_cost: 0, // Birim başına maliyet
+            supplier_id: null,
+            is_supplier_nc: false,
         }), []);
+
+        // Tedarikçileri yükle
+        useEffect(() => {
+            const fetchSuppliers = async () => {
+                const { data, error } = await supabase
+                    .from('suppliers')
+                    .select('id, name, status');
+                if (!error) {
+                    setSuppliers(data.map(s => ({ value: s.id, label: s.name, status: s.status })));
+                }
+            };
+            if (open) {
+                fetchSuppliers();
+            }
+        }, [open]);
+
+        // Tedarikçi durumunu kontrol et
+        useEffect(() => {
+            if (formData.supplier_id) {
+                const supplier = suppliers.find(s => s.value === formData.supplier_id);
+                if (supplier) {
+                    setSelectedSupplierStatus(supplier.status);
+                }
+            } else {
+                setSelectedSupplierStatus(null);
+            }
+        }, [formData.supplier_id, suppliers]);
+
+        // Tedarikçi toggle durumunu senkronize et
+        useEffect(() => {
+            setIsSupplierNC(!!formData.is_supplier_nc);
+        }, [formData.is_supplier_nc]);
 
         useEffect(() => {
             const initialData = getInitialFormData();
@@ -213,6 +262,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             setFormData(costData);
             setAffectedUnits(costData.affected_units || []);
             setAddLaborToScrap(!!costData.additional_labor_cost && costData.additional_labor_cost > 0);
+            setIsSupplierNC(!!costData.is_supplier_nc);
 
             if (isEditMode) {
               setAutoCalculate(true);
@@ -242,6 +292,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         const removeAffectedUnit = (id) => {
             setAffectedUnits(units => units.filter(u => u.id !== id));
+        };
+
+        const handleSupplierToggle = (checked) => {
+            setIsSupplierNC(checked);
+            setFormData(prev => ({
+                ...prev,
+                is_supplier_nc: checked,
+                supplier_id: checked ? prev.supplier_id : null,
+            }));
         };
 
         const calculateScrapOrWasteCost = useCallback((data) => {
@@ -330,6 +389,12 @@ import React, { useState, useEffect, useCallback } from 'react';
         const handleSubmit = async (e) => {
             e.preventDefault();
             
+            // Tedarikçi doğrulama
+            if (isSupplierNC && !formData.supplier_id) {
+                toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Tedarikçi kaynaklı maliyet için tedarikçi seçmelisiniz.' });
+                return;
+            }
+            
             const isRework = formData.cost_type === 'Yeniden İşlem Maliyeti';
             const isScrap = formData.cost_type === 'Hurda Maliyeti';
             const isWaste = formData.cost_type === 'Fire Maliyeti';
@@ -340,6 +405,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'En az bir yeniden işlem süresi veya etkilenen birim girmelisiniz.' });
                     return;
                 }
+                // Birim kontrolü: Ana işlem süresi girildiğinde zorunlu
                 if(hasMainRework && !formData.unit) {
                      toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Ana işlem süresi girildiğinde "Birim (Kaynak)" seçimi zorunludur.' });
                      return;
@@ -355,12 +421,22 @@ import React, { useState, useEffect, useCallback } from 'react';
                     toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Hurda/Fire maliyeti için adet girmek zorunludur.' });
                     return;
                 }
-                 if (!formData.cost_type || !formData.unit || !formData.vehicle_type || formData.amount === '' || !formData.cost_date) {
+                // Birim kontrolü: Her durumda zorunlu (maliyet hesaplaması için)
+                if (!formData.unit) {
+                    toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Maliyet hesaplaması için Birim (Kaynak) alanı zorunludur.' });
+                    return;
+                }
+                if (!formData.cost_type || !formData.vehicle_type || formData.amount === '' || !formData.cost_date) {
                     toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen yıldızlı zorunlu alanları doldurun.' });
                     return;
                 }
             } else {
-                 if (!formData.cost_type || !formData.unit || !formData.vehicle_type || formData.amount === '' || !formData.cost_date) {
+                // Diğer maliyet türleri için birim kontrolü: Her durumda zorunlu
+                if (!formData.unit) {
+                    toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Maliyet hesaplaması için Birim (Kaynak) alanı zorunludur.' });
+                    return;
+                }
+                if (!formData.cost_type || !formData.vehicle_type || formData.amount === '' || !formData.cost_date) {
                     toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen yıldızlı zorunlu alanları doldurun.' });
                     return;
                 }
@@ -392,6 +468,12 @@ import React, { useState, useEffect, useCallback } from 'react';
                 submissionData.additional_labor_cost = 0;
             }
             
+            // Tedarikçi değilse tedarikçi bilgilerini temizle
+            if (!submissionData.is_supplier_nc) {
+                submissionData.supplier_id = null;
+            }
+            
+            // Sorumlu personel boşsa null yap
             if (submissionData.responsible_personnel_id === '') {
                 submissionData.responsible_personnel_id = null;
             }
@@ -399,8 +481,10 @@ import React, { useState, useEffect, useCallback } from 'react';
             delete submissionData.quality_control_duration;
             delete submissionData.unit_cost;
 
-            delete submissionData.personnel;
+            // İlişkili verileri temizle (sadece ID'ler gönderilmeli)
+            delete submissionData.responsible_personnel;
             delete submissionData.non_conformities;
+            delete submissionData.suppliers;
             
             if (isEditMode) {
                 const { error } = await supabase.from('quality_costs').update(submissionData).eq('id', existingCost.id);
@@ -433,6 +517,16 @@ import React, { useState, useEffect, useCallback } from 'react';
         const isAmountReadOnly = (isScrapCost || isReworkCost || isWasteCost) && autoCalculate;
         const isVehicleTypeRequired = !(isWasteCost);
 
+        const supplierOptions = suppliers.map(s => ({
+            ...s,
+            label: (
+                <div className="flex items-center justify-between w-full">
+                    <span>{s.label}</span>
+                    <Badge variant={getStatusBadgeVariant(s.status)}>{s.status}</Badge>
+                </div>
+            )
+        }));
+
         return (
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="sm:max-w-4xl">
@@ -464,6 +558,47 @@ import React, { useState, useEffect, useCallback } from 'react';
                     
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 pt-4 max-h-[65vh] overflow-y-auto pr-2">
                         
+                        <div className="md:col-span-3 flex items-center space-x-2 bg-muted/50 p-3 rounded-lg">
+                            <Switch id="is_supplier_nc" checked={isSupplierNC} onCheckedChange={handleSupplierToggle} />
+                            <Label htmlFor="is_supplier_nc" className="flex items-center gap-2 cursor-pointer text-md font-semibold">
+                                <Briefcase className="w-5 h-5 text-primary" /> Tedarikçi Kaynaklı Maliyet
+                            </Label>
+                        </div>
+
+                        {isSupplierNC && (
+                            <div className="md:col-span-3 space-y-2">
+                                <Alert>
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertTitle>Tedarikçi Modu Aktif</AlertTitle>
+                                    <AlertDescription>
+                                        <strong>Maliyet hesaplaması:</strong> Birim, süre ve malzeme bilgilerine göre normal şekilde yapılacak.<br/>
+                                        <strong>Sorumluluk:</strong> Bu maliyet seçilen tedarikçiye atanacak ve DF/8D uygunsuzluğu oluşturulabilir.
+                                    </AlertDescription>
+                                </Alert>
+
+                                {selectedSupplierStatus && selectedSupplierStatus !== 'Onaylı' && (
+                                    <Alert variant="warning" className="mt-2">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertTitle>Uyarı: Tedarikçi Statüsü</AlertTitle>
+                                        <AlertDescription>
+                                            Bu tedarikçi "{selectedSupplierStatus}" statüsündedir. Maliyet kaydedilebilir ancak dikkatli olunmalıdır.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
+                                <Label htmlFor="supplier_id">Tedarikçi <span className="text-red-500">*</span></Label>
+                                <SearchableSelectDialog
+                                    options={supplierOptions}
+                                    value={formData.supplier_id}
+                                    onChange={(value) => handleSelectChange('supplier_id', value)}
+                                    triggerPlaceholder="Tedarikçi seçin..."
+                                    dialogTitle="Tedarikçi Seç"
+                                    searchPlaceholder="Tedarikçi ara..."
+                                    notFoundText="Tedarikçi bulunamadı."
+                                />
+                            </div>
+                        )}
+
                         <div><Label>Maliyet Türü <span className="text-red-500">*</span></Label><SearchableSelect value={formData.cost_type || ''} onValueChange={(v) => handleSelectChange('cost_type', v)} placeholder="Seçiniz..." items={COST_TYPES} searchPlaceholder="Maliyet türü ara..." /></div>
                         
                         {isReworkCost && (
@@ -523,9 +658,12 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <div className="md:col-span-3"><hr className="my-2 border-border"/></div>
 
                         <div>
-                            <Label>Birim (Kaynak) <span className={!isReworkCost ? "text-red-500" : (parseFloat(formData.rework_duration) > 0 ? "text-red-500" : "")}>
-                                {!isReworkCost || (parseFloat(formData.rework_duration) > 0) ? '*' : ''}
-                            </span></Label>
+                            <Label>Birim (Kaynak) 
+                                <span className={!isReworkCost ? "text-red-500" : (parseFloat(formData.rework_duration) > 0 ? "text-red-500" : "")}>
+                                    {!isReworkCost || (parseFloat(formData.rework_duration) > 0) ? ' *' : ''}
+                                </span>
+                                {isSupplierNC && <span className="text-xs text-muted-foreground ml-2">(Maliyet bu birime, sorumluluk tedarikçiye)</span>}
+                            </Label>
                             <SearchableSelect value={formData.unit || ''} onValueChange={(v) => handleSelectChange('unit', v)} placeholder="Birim seçin..." items={departments} searchPlaceholder="Birim ara..." />
                         </div>
                         <div><Label>Araç Türü {isVehicleTypeRequired && <span className="text-red-500">*</span>}</Label><SearchableSelect value={formData.vehicle_type || ''} onValueChange={(v) => handleSelectChange('vehicle_type', v)} placeholder="Seçiniz..." items={VEHICLE_TYPES} searchPlaceholder="Araç türü ara..." /></div>

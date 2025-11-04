@@ -17,7 +17,8 @@ import React, { useState, useEffect, useMemo } from 'react';
         "Üretim Planlama",
         "Ar-Ge",
         "Kalite Kontrol",
-        "Fabrika Müdürü"
+        "Fabrika Müdürü",
+        "Genel Müdür (Opsiyonel)"
     ];
 
     const DeviationApprovalModal = ({ isOpen, setIsOpen, deviation, onRefresh }) => {
@@ -135,7 +136,10 @@ import React, { useState, useEffect, useMemo } from 'react';
                 return;
             }
 
-            const allApproved = APPROVAL_STAGES.every(stage =>
+            // Zorunlu onay aşamaları (Genel Müdür opsiyonel)
+            const requiredStages = APPROVAL_STAGES.filter(stage => !stage.includes('Opsiyonel'));
+            
+            const allRequiredApproved = requiredStages.every(stage =>
                 allApprovals.some(a => a.approval_stage === stage && a.status === 'Onaylandı')
             );
             
@@ -144,7 +148,7 @@ import React, { useState, useEffect, useMemo } from 'react';
             let finalStatus = 'Onay Bekliyor';
             if (anyRejected) {
                 finalStatus = 'Reddedildi';
-            } else if (allApproved) {
+            } else if (allRequiredApproved) {
                 finalStatus = 'Onaylandı';
             }
 

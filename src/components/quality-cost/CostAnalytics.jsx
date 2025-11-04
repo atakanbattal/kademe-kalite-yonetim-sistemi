@@ -88,7 +88,7 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
         }
 
         const internalCostTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti'];
-        const externalCostTypes = ['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti'];
+        const externalCostTypes = ['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti'];
 
         let totalCost = 0;
         let internalCost = 0;
@@ -98,18 +98,28 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
 
         costs.forEach(cost => {
             totalCost += cost.amount;
-            if (internalCostTypes.includes(cost.cost_type)) {
-                internalCost += cost.amount;
-                internalCosts.push(cost);
-            } else if (externalCostTypes.includes(cost.cost_type)) {
+            // Tedarikçi kaynaklı maliyetler otomatik olarak Dış Hata Maliyeti
+            const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
+            
+            if (isSupplierCost || externalCostTypes.includes(cost.cost_type)) {
                 externalCost += cost.amount;
                 externalCosts.push(cost);
+            } else if (internalCostTypes.includes(cost.cost_type)) {
+                internalCost += cost.amount;
+                internalCosts.push(cost);
             }
         });
 
         const aggregate = (key, filterFn = () => true) => {
             const aggregatedData = costs.filter(filterFn).reduce((acc, cost) => {
-                const itemKey = cost[key];
+                // Tedarikçi kaynaklı maliyetlerde, birim yerine tedarikçi adını kullan
+                let itemKey;
+                if (key === 'unit' && cost.is_supplier_nc && cost.supplier?.name) {
+                    itemKey = cost.supplier.name;
+                } else {
+                    itemKey = cost[key];
+                }
+                
                 if (!itemKey) return acc;
 
                 if (!acc[itemKey]) {
@@ -142,7 +152,19 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
 
     const handleBarClick = (dataKey, data) => {
         if (data && data.name) {
-            const relatedCosts = costs.filter(c => c[dataKey] === data.name || (c.part_code === data.name && dataKey === 'part_code'));
+            // Tedarikçi kaynaklı maliyetler için özel filtreleme
+            let relatedCosts;
+            if (dataKey === 'unit') {
+                // Tedarikçi veya birim maliyeti
+                relatedCosts = costs.filter(c => {
+                    if (c.is_supplier_nc && c.supplier?.name) {
+                        return c.supplier.name === data.name;
+                    }
+                    return c.unit === data.name;
+                });
+            } else {
+                relatedCosts = costs.filter(c => c[dataKey] === data.name || (c.part_code === data.name && dataKey === 'part_code'));
+            }
             onBarClick(`Detay: ${data.name}`, relatedCosts);
         }
     };
@@ -184,7 +206,7 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
                 transition={{ staggerChildren: 0.1, delay: 0.2 }}
             >
                 {renderTop5Chart("En Maliyetli 5 Parça", analyticsData.parts, (data) => handleBarClick('part_code', data))}
-                {renderTop5Chart("En Maliyetli 5 Birim", analyticsData.units, (data) => handleBarClick('unit', data))}
+                {renderTop5Chart("En Maliyetli 5 Kaynak (Birim/Tedarikçi)", analyticsData.units, (data) => handleBarClick('unit', data))}
                 {renderTop5Chart("En Maliyetli 5 Tür", analyticsData.costTypes, (data) => handleBarClick('cost_type', data))}
                 {renderTop5Chart("En Maliyetli 5 Araç Türü", analyticsData.vehicleTypes, (data) => handleBarClick('vehicle_type', data))}
             </motion.div>

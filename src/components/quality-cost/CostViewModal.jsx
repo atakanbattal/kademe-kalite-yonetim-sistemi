@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 const DetailItem = ({ label, value, isCurrency = false }) => (
     <div className="grid grid-cols-3 gap-2 py-2 border-b border-border">
@@ -37,6 +38,16 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                 </DialogHeader>
                 <ScrollArea className="max-h-[60vh] pr-4 mt-4">
                     <div className="space-y-2">
+                        {cost.is_supplier_nc && (
+                            <div className="grid grid-cols-3 gap-2 py-3 border-b border-border bg-orange-50 dark:bg-orange-950/20 p-3 rounded-md">
+                                <Label className="font-semibold text-muted-foreground col-span-1">Tedarikçi</Label>
+                                <div className="col-span-2">
+                                    <Badge variant="default" className="bg-orange-500">
+                                        {cost.supplier?.name || 'Tedarikçi Bilgisi Yok'}
+                                    </Badge>
+                                </div>
+                            </div>
+                        )}
                         <DetailItem label="Maliyet Türü" value={cost.cost_type} />
                         <DetailItem label="Tutar" value={cost.amount} isCurrency={true} />
                         <DetailItem label="Tarih" value={new Date(cost.cost_date).toLocaleDateString('tr-TR')} />
@@ -44,7 +55,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                         <DetailItem label="Araç Türü" value={cost.vehicle_type} />
                         <DetailItem label="Parça Kodu" value={cost.part_code} />
                         <DetailItem label="Parça Adı" value={cost.part_name} />
-                        <DetailItem label="Sorumlu Personel" value={cost.personnel?.full_name} />
+                        <DetailItem label="Sorumlu Personel" value={cost.responsible_personnel?.full_name} />
                         <DetailItem label="Durum" value={cost.status} />
 
                         {cost.cost_type === 'Yeniden İşlem Maliyeti' && (

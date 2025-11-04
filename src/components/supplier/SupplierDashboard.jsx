@@ -243,18 +243,18 @@ import React, { useMemo, useState } from 'react';
                     </Select>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="dashboard-widget lg:col-span-2">
+                <div className="space-y-6">
+                    <Card className="dashboard-widget">
                         <CardHeader><CardTitle className="flex items-center gap-2"><ArrowDownCircle className="w-5 h-5 text-destructive"/>Tedarikçi Bazlı PPM</CardTitle></CardHeader>
                         <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
+                            <ResponsiveContainer width="100%" height={400}>
                                 {dashboardData.supplierPPM.length > 0 ? (
                                 <BarChart data={dashboardData.supplierPPM} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                     <XAxis type="number" hide />
-                                    <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} width={120} interval={0} />
+                                    <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={14} tickLine={false} axisLine={false} width={200} interval={0} />
                                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--accent))' }} />
                                     <Bar dataKey="ppm" name="PPM" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]}>
-                                       <LabelList dataKey="ppm" position="right" formatter={(value) => value.toLocaleString()} style={{ fill: 'hsl(var(--foreground))', fontSize: 12 }} />
+                                       <LabelList dataKey="ppm" position="right" formatter={(value) => value.toLocaleString()} style={{ fill: 'hsl(var(--foreground))', fontSize: 14 }} />
                                     </Bar>
                                 </BarChart>
                                 ) : (
@@ -263,40 +263,39 @@ import React, { useMemo, useState } from 'react';
                             </ResponsiveContainer>
                         </CardContent>
                     </Card>
-                    <div className="space-y-6">
-                       <Card className="dashboard-widget">
-                            <CardHeader><CardTitle>Tedarikçi Puan Dağılımı</CardTitle></CardHeader>
-                            <CardContent>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <BarChart data={dashboardData.gradeDistribution} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" allowDecimals={false} />
-                                        <YAxis type="category" dataKey="label" width={120} />
-                                        <Tooltip />
-                                        <Bar dataKey="value" name="Tedarikçi Sayısı">
-                                            {dashboardData.gradeDistribution.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[entry.name]} />
-                                            ))}
-                                            <LabelList dataKey="value" position="right" />
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                    </div>
-                    <Card className="dashboard-widget lg:col-span-3">
+                    
+                    <Card className="dashboard-widget">
+                        <CardHeader><CardTitle>Tedarikçi Puan Dağılımı</CardTitle></CardHeader>
+                        <CardContent>
+                            <ResponsiveContainer width="100%" height={350}>
+                                <BarChart data={dashboardData.gradeDistribution} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis type="number" allowDecimals={false} />
+                                    <YAxis type="category" dataKey="label" width={180} fontSize={14} />
+                                    <Tooltip />
+                                    <Bar dataKey="value" name="Tedarikçi Sayısı">
+                                        {dashboardData.gradeDistribution.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[entry.name]} />
+                                        ))}
+                                        <LabelList dataKey="value" position="right" style={{ fontSize: 14 }} />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                    <Card className="dashboard-widget">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Lightbulb className="w-5 h-5 text-yellow-400" />Akıllı Tavsiyeler: Denetim Gereken Tedarikçiler</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ScrollArea className="h-48">
+                            <ScrollArea className="h-56">
                                 {dashboardData.auditRecommendations.length > 0 ? (
                                     <ul className="space-y-3">
                                         {dashboardData.auditRecommendations.map(rec => (
-                                            <li key={rec.id} className="flex items-center justify-between text-sm p-2 rounded-md hover:bg-muted/50">
+                                            <li key={rec.id} className="flex items-center justify-between text-sm p-3 rounded-md hover:bg-muted/50 border border-border">
                                                 <div>
-                                                    <span className="font-medium text-foreground">{rec.name}</span>
-                                                    <p className="text-xs text-destructive">PPM: {rec.ppm.toLocaleString()}</p>
+                                                    <span className="font-medium text-foreground text-base">{rec.name}</span>
+                                                    <p className="text-sm text-destructive mt-1">PPM: {rec.ppm.toLocaleString()}</p>
                                                 </div>
                                                 <Button size="sm" onClick={() => handleOpenPlanModal(rec.supplier)}>
                                                     <FilePlus className="w-4 h-4 mr-2" /> Denetim Planla
@@ -310,18 +309,19 @@ import React, { useMemo, useState } from 'react';
                             </ScrollArea>
                         </CardContent>
                     </Card>
-                    <Card className="dashboard-widget lg:col-span-3">
+                    
+                    <Card className="dashboard-widget">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><CalendarClock className="w-5 h-5 text-primary" />Yaklaşan Denetimler (30 Gün)</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ScrollArea className="h-48">
+                            <ScrollArea className="h-56">
                                 {dashboardData.upcomingAudits.length > 0 ? (
                                     <ul className="space-y-3">
                                         {dashboardData.upcomingAudits.map(audit => (
-                                            <li key={audit.id} className="flex items-center justify-between text-sm p-2 rounded-md hover:bg-muted/50">
-                                                <span className="font-medium text-foreground">{audit.supplierName}</span>
-                                                <Badge variant="secondary">{new Date(audit.planned_date).toLocaleDateString('tr-TR')}</Badge>
+                                            <li key={audit.id} className="flex items-center justify-between text-sm p-3 rounded-md hover:bg-muted/50 border border-border">
+                                                <span className="font-medium text-foreground text-base">{audit.supplierName}</span>
+                                                <Badge variant="secondary" className="text-sm">{new Date(audit.planned_date).toLocaleDateString('tr-TR')}</Badge>
                                             </li>
                                         ))}
                                     </ul>
