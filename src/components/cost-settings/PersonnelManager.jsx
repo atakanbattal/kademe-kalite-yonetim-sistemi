@@ -283,7 +283,9 @@ const PersonnelManager = () => {
                 { table: 'deviations', column: 'responsible_personnel_id' },
                 { table: 'internal_audits', column: 'auditor_id' },
                 { table: 'customer_complaints', column: 'responsible_personnel_id' },
-                { table: 'trainings', column: 'trainer_id' }
+                { table: 'trainings', column: 'trainer_id' },
+                { table: 'tasks', column: 'owner_id' },
+                { table: 'tasks', column: 'assigned_to' }
             ];
 
             for (const { table, column } of tablesToUpdate) {
