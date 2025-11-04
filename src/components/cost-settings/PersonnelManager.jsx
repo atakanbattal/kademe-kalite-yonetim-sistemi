@@ -395,8 +395,8 @@ const PersonnelManager = () => {
                             <SearchableSelectDialog
                                 options={personnel.filter(p => p.id !== personnelToDelete?.id).map(p => ({ value: p.id, label: p.full_name }))}
                                 value={targetPersonnelId}
-                                onValueChange={setTargetPersonnelId}
-                                placeholder="Personel seçin..."
+                                onChange={setTargetPersonnelId}
+                                triggerPlaceholder="Personel seçin..."
                                 searchPlaceholder="Personel ara..."
                             />
                         </div>
