@@ -1545,54 +1545,115 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generatePolyvalenceMatrixHtml(record);
 		// Override page style for landscape
 		cssOverrides = `
-			/* Landscape format */
+			/* Landscape format - TAM GENİŞLİK */
 			@page {
 				size: A4 landscape;
-				margin: 8mm;
+				margin: 5mm;
+			}
+			
+			* {
+				box-sizing: border-box;
 			}
 			
 			body {
-				max-width: 100%;
+				max-width: 100% !important;
+				width: 100% !important;
+				margin: 0 !important;
+				padding: 0 !important;
+			}
+			
+			.page-container {
+				max-width: 100% !important;
+				width: 100% !important;
+				margin: 0 !important;
+				padding: 0 !important;
 			}
 			
 			.report-wrapper {
-				padding: 5mm !important;
+				padding: 8px !important;
 				max-width: 100% !important;
+				width: 100% !important;
+				margin: 0 !important;
 			}
 			
 			.report-header {
-				padding: 8px 0 !important;
+				padding: 5px 0 !important;
+				margin-bottom: 8px !important;
+			}
+			
+			.report-header h1 {
+				font-size: 16px !important;
+				margin: 0 !important;
+			}
+			
+			.report-header p {
+				font-size: 10px !important;
 			}
 			
 			.meta-box {
-				padding: 8px 12px !important;
+				padding: 6px 10px !important;
+				margin-bottom: 8px !important;
+			}
+			
+			.meta-box .meta-item {
+				font-size: 8px !important;
 			}
 			
 			.section {
-				margin-bottom: 15px !important;
+				margin-bottom: 10px !important;
+			}
+			
+			.section-title {
+				font-size: 11px !important;
+				padding: 5px 10px !important;
+				margin-bottom: 8px !important;
 			}
 			
 			table {
-				font-size: 7px !important;
+				font-size: 6.5px !important;
+				width: 100% !important;
 			}
 			
 			table th,
 			table td {
-				padding: 4px 6px !important;
+				padding: 3px 4px !important;
+				line-height: 1.2 !important;
+			}
+			
+			table th {
+				font-size: 6px !important;
+			}
+			
+			.signature-area {
+				margin-top: 15px !important;
+			}
+			
+			.signature-box {
+				padding: 8px !important;
+			}
+			
+			.signature-box .role {
+				font-size: 8px !important;
 			}
 			
 			@media print {
 				@page {
 					size: A4 landscape;
-					margin: 8mm;
+					margin: 5mm;
 				}
 				
 				body {
-					max-width: 100%;
+					max-width: 100% !important;
+					width: 100% !important;
+				}
+				
+				.page-container {
+					max-width: 100% !important;
+					width: 100% !important;
 				}
 				
 				.report-wrapper {
-					padding: 0 !important;
+					padding: 5px !important;
 				}
 			}
 		`;
