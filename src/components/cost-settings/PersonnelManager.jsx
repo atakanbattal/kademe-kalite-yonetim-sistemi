@@ -274,22 +274,32 @@ const PersonnelManager = () => {
             }
 
             // 5. Diğer tüm foreign key ilişkilerini kontrol et ve aktar
+            // NOT: Sadece gerçek tablo ve kolon isimlerini kullan
             const tablesToUpdate = [
-                { table: 'nonconformities', column: 'requester_personnel_id' },
-                { table: 'nonconformities', column: 'responsible_personnel_id' },
-                { table: 'kaizen_suggestions', column: 'requester_personnel_id' },
-                { table: 'kaizen_suggestions', column: 'responsible_personnel_id' },
-                { table: 'deviations', column: 'detected_by_personnel_id' },
-                { table: 'deviations', column: 'responsible_personnel_id' },
-                { table: 'internal_audits', column: 'auditor_id' },
+                // DF modülü - non_conformities (nonconformities değil!)
+                { table: 'non_conformities', column: 'requester_id' },
+                { table: 'non_conformities', column: 'responsible_id' },
+                // Kaizen - kaizen_entries (kaizen_suggestions değil!)
+                { table: 'kaizen_entries', column: 'owner_id' },
+                { table: 'kaizen_entries', column: 'responsible_id' },
+                // Deviations - detected_by ve responsible_person_id kullanıyor
+                { table: 'deviations', column: 'detected_by' },
+                { table: 'deviations', column: 'responsible_person_id' },
+                // Customer complaints
                 { table: 'customer_complaints', column: 'responsible_personnel_id' },
-                { table: 'trainings', column: 'trainer_id' },
-                { table: 'tasks', column: 'owner_id' },
-                { table: 'tasks', column: 'assigned_to' }
+                // Trainings - responsible_id kullanıyor (trainer_id değil!)
+                { table: 'trainings', column: 'responsible_id' },
+                // Tasks - owner_id var ama assigned_to yok!
+                { table: 'tasks', column: 'owner_id' }
             ];
 
             for (const { table, column } of tablesToUpdate) {
-                await supabase.from(table).update({ [column]: toPersonnelId }).eq(column, fromPersonnelId);
+                // Hata alırsak devam et, tüm tabloları dene
+                try {
+                    await supabase.from(table).update({ [column]: toPersonnelId }).eq(column, fromPersonnelId);
+                } catch (err) {
+                    console.warn(`${table}.${column} güncellenemedi:`, err);
+                }
             }
 
             // 6. Son olarak personeli sil
