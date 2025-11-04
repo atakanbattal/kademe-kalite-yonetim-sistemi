@@ -1546,68 +1546,19 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateExamPaperHtml(record);
 	} else if (type === 'polyvalence_matrix') {
 		reportContentHtml = generatePolyvalenceMatrixHtml(record);
-		// Override page style for landscape - both screen and print
+		// Override page style for landscape
 		cssOverrides = `
-			/* Landscape for both screen and print */
+			/* Landscape format */
 			@page {
 				size: A4 landscape;
-				margin: 10mm 8mm;
-			}
-			
-			body {
-				width: 297mm;
-				height: 210mm;
-			}
-			
-			.page-container {
-				width: 297mm;
-				min-height: 210mm;
+				margin: 10mm;
 			}
 			
 			@media print {
 				@page {
 					size: A4 landscape;
-					margin: 10mm 8mm;
+					margin: 10mm;
 				}
-				
-				body {
-					width: 297mm;
-					height: 210mm;
-				}
-			}
-			
-			.report-footer {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				padding: 8px 15px;
-				background-color: #f9fafb;
-				border-top: 2px solid #3b82f6;
-				font-size: 8px;
-				color: #6b7280;
-				position: fixed;
-				bottom: 0;
-				left: 0;
-				right: 0;
-			}
-			
-			.report-footer .footer-left {
-				display: flex;
-				flex-direction: column;
-				gap: 3px;
-			}
-			
-			.report-footer .footer-center {
-				text-align: center;
-				font-weight: 600;
-				color: #1f2937;
-			}
-			
-			.report-footer .footer-right {
-				display: flex;
-				flex-direction: column;
-				gap: 3px;
-				align-items: flex-end;
 			}
 		`;
 	} else {
@@ -2006,20 +1957,42 @@ const generatePrintableReportHtml = (record, type) => {
 			word-break: break-all; 
 		}
 		
-		/* ============================================
-		   LINK URL GİZLEME - Hem ekranda hem print'te
-		   ============================================ */
-		a:after,
-		a[href]:after,
-		a[href]::after {
-			content: none !important;
-			display: none !important;
-		}
+	/* ============================================
+	   LINK URL GİZLEME - Hem ekranda hem print'te
+	   ============================================ */
+	a:after,
+	a[href]:after,
+	a[href]::after {
+		content: none !important;
+		display: none !important;
+	}
 
-		/* ============================================
-		   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
-		   ============================================ */
-		@media print {
+	/* ============================================
+	   FOOTER - Profesyonel ve ince yapı
+	   ============================================ */
+	.report-footer {
+		margin-top: 30px;
+		padding: 8px 15px;
+		border-top: 1px solid #e5e7eb;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 10px;
+		font-size: 7px;
+		color: #9ca3af;
+		text-transform: none;
+	}
+	
+	.report-footer span {
+		white-space: nowrap;
+		opacity: 0.8;
+	}
+
+	/* ============================================
+	   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
+	   ============================================ */
+	@media print {
 			/* Sayfa ayarları - dengeli margin */
 			@page {
 				size: A4 portrait;
@@ -2410,17 +2383,11 @@ const generatePrintableReportHtml = (record, type) => {
 		</div>
 		${!isCertificate ? `
 			<div class="report-footer">
-				<div class="footer-left">
-					<span>Bu belge, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.</span>
-					<span>Belge Tarihi: ${format(new Date(), 'dd.MM.yyyy HH:mm')}</span>
-				</div>
-				<div class="footer-center">
-					<span>Form No: ${formNumber}</span>
-				</div>
-				<div class="footer-right">
-					<span>Sayfa ${type === 'polyvalence_matrix' ? '1/2+' : '1/1'}</span>
-					<span>Rev: 01</span>
-				</div>
+				<span>Bu belge, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.</span>
+				<span>Belge Tarihi: ${format(new Date(), 'dd.MM.yyyy HH:mm')}</span>
+				<span>Form No: ${formNumber}</span>
+				<span>Sayfa 1/1</span>
+				<span>Rev: 01</span>
 			</div>
 		` : ''}
 		</div>
