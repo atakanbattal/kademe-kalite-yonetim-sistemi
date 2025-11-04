@@ -139,10 +139,9 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <ScrollArea className="w-full h-[calc(100vh-400px)] rounded-md border">
-                        <div className="min-w-max">
-                            <table className="w-full border-collapse">
+                <CardContent className="p-0">
+                    <div className="overflow-auto w-full h-[calc(100vh-400px)] border rounded-md">
+                        <table className="w-full border-collapse min-w-max">
                                 <thead>
                                     <tr className="bg-muted/50">
                                         <th className="sticky left-0 z-20 bg-muted/50 p-3 text-left font-semibold min-w-[200px] border-r border-b">
@@ -303,8 +302,7 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                                     })}
                                 </tbody>
                             </table>
-                        </div>
-                    </ScrollArea>
+                    </div>
                 </CardContent>
             </Card>
 
