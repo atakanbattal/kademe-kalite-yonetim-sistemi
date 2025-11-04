@@ -1782,19 +1782,23 @@ const generatePrintableReportHtml = (record, type) => {
 			print-color-adjust: exact;
 		}
 		
-		.page-container {
-			background-color: white;
-			box-sizing: border-box;
-			box-shadow: 0 0 10px rgba(0,0,0,0.1);
-			margin: 20px auto;
-			width: 210mm;
-			page-break-after: auto;
-		}
-		
+	.page-container {
+		background-color: white;
+		box-sizing: border-box;
+		box-shadow: 0 0 10px rgba(0,0,0,0.1);
+		margin: 20px auto;
+		width: 210mm;
+		page-break-after: auto;
+		min-height: calc(297mm - 40px); /* Full page height */
+		display: flex;
+		flex-direction: column;
+	}
+	
 	.report-wrapper {
 		padding: 15mm;
-		position: relative;
-		min-height: calc(297mm - 30mm - 40px); /* Footer always at page bottom */
+		flex: 1; /* Take remaining space */
+		display: flex;
+		flex-direction: column;
 	}
 		
 		/* ============================================
@@ -2164,13 +2168,10 @@ const generatePrintableReportHtml = (record, type) => {
 	}
 
 	/* ============================================
-	   FOOTER - Sayfanın en altında sabit
+	   FOOTER - Flexbox ile sayfanın altında
 	   ============================================ */
 	.report-footer {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
+		margin-top: auto; /* Push to bottom with flexbox */
 		padding: 8px 15px;
 		border-top: 1px solid #e5e7eb;
 		display: flex;
@@ -2182,7 +2183,7 @@ const generatePrintableReportHtml = (record, type) => {
 		color: #9ca3af;
 		text-transform: none;
 		page-break-inside: avoid;
-		background-color: white;
+		flex-shrink: 0; /* Don't shrink */
 	}
 	
 	.report-footer span {
@@ -2217,19 +2218,28 @@ const generatePrintableReportHtml = (record, type) => {
 				padding: 0;
 			}
 			
-			.page-container { 
-				margin: 0 !important; 
-				box-shadow: none !important; 
-				border: none !important;
-				width: 100% !important;
-				height: auto !important;
-				padding: 0 !important;
-			}
-			
+		.page-container { 
+			margin: 0 !important; 
+			box-shadow: none !important; 
+			border: none !important;
+			width: 100% !important;
+			min-height: 297mm !important; /* Full page height in print */
+			padding: 0 !important;
+			display: flex !important;
+			flex-direction: column !important;
+		}
+		
 		.report-wrapper {
 			padding: 0 !important;
-			min-height: calc(297mm - 20mm - 40px) !important; /* Keep footer at bottom in PDF */
+			flex: 1 !important; /* Take remaining space */
 			margin: 0 !important;
+			display: flex !important;
+			flex-direction: column !important;
+		}
+		
+		.report-footer {
+			margin-top: auto !important; /* Push to bottom */
+			flex-shrink: 0 !important;
 		}
 			
 			/* Başlık her zaman en başta */
