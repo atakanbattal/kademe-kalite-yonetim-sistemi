@@ -600,7 +600,6 @@ const generatePolyvalenceMatrixHtml = (record) => {
 		<div class="section">
 			<h2 class="section-title green">POLİVALANS MATRİSİ</h2>
 			${matrixTableHtml}
-			${legendHtml}
 		</div>
 		
 		${(record.certificationAlerts && record.certificationAlerts.length > 0) ? `
@@ -1547,12 +1546,33 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateExamPaperHtml(record);
 	} else if (type === 'polyvalence_matrix') {
 		reportContentHtml = generatePolyvalenceMatrixHtml(record);
-		// Override page style for landscape
+		// Override page style for landscape - both screen and print
 		cssOverrides = `
+			/* Landscape for both screen and print */
+			@page {
+				size: A4 landscape;
+				margin: 10mm 8mm;
+			}
+			
+			body {
+				width: 297mm;
+				height: 210mm;
+			}
+			
+			.page-container {
+				width: 297mm;
+				min-height: 210mm;
+			}
+			
 			@media print {
 				@page {
 					size: A4 landscape;
 					margin: 10mm 8mm;
+				}
+				
+				body {
+					width: 297mm;
+					height: 210mm;
 				}
 			}
 			
