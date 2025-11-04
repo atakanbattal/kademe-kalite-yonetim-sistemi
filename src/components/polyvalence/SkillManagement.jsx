@@ -2,21 +2,30 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Award, AlertCircle } from 'lucide-react';
+import { Plus, Award, AlertCircle, FolderPlus, Edit2 } from 'lucide-react';
 import SkillFormModal from './SkillFormModal';
+import CategoryFormModal from './CategoryFormModal';
 
 const SkillManagement = ({ skills, skillCategories, onRefresh }) => {
     const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
     const [editingSkill, setEditingSkill] = useState(null);
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState(null);
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Yetkinlik Tanımları</h3>
-                <Button onClick={() => setIsSkillModalOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Yeni Yetkinlik
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setIsCategoryModalOpen(true)}>
+                        <FolderPlus className="mr-2 h-4 w-4" />
+                        Yeni Kategori
+                    </Button>
+                    <Button onClick={() => setIsSkillModalOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Yeni Yetkinlik
+                    </Button>
+                </div>
             </div>
 
             {skillCategories.map(category => {
@@ -25,13 +34,25 @@ const SkillManagement = ({ skills, skillCategories, onRefresh }) => {
                 return (
                     <Card key={category.id}>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <div 
-                                    className="w-4 h-4 rounded"
-                                    style={{ backgroundColor: category.color }}
-                                />
-                                {category.name}
-                                <Badge variant="secondary">{categorySkills.length} yetkinlik</Badge>
+                            <CardTitle className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div 
+                                        className="w-4 h-4 rounded"
+                                        style={{ backgroundColor: category.color }}
+                                    />
+                                    {category.name}
+                                    <Badge variant="secondary">{categorySkills.length} yetkinlik</Badge>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setEditingCategory(category);
+                                        setIsCategoryModalOpen(true);
+                                    }}
+                                >
+                                    <Edit2 className="h-4 w-4" />
+                                </Button>
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -79,6 +100,16 @@ const SkillManagement = ({ skills, skillCategories, onRefresh }) => {
                 }}
                 skill={editingSkill}
                 skillCategories={skillCategories}
+                onRefresh={onRefresh}
+            />
+
+            <CategoryFormModal
+                isOpen={isCategoryModalOpen}
+                onClose={() => {
+                    setIsCategoryModalOpen(false);
+                    setEditingCategory(null);
+                }}
+                category={editingCategory}
                 onRefresh={onRefresh}
             />
         </div>
