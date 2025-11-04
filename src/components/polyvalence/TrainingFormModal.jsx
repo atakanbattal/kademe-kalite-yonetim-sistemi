@@ -49,14 +49,14 @@ const TrainingFormModal = ({ isOpen, onClose, personnel, skills, onRefresh }) =>
             }
 
             const updateData = {
-                last_training_date: formData.training_date,
+                last_training_date: formData.training_date || null,
                 training_required: false
             };
 
             // Eğer yeni seviye belirlendiyse ekle
             if (formData.new_level) {
                 updateData.current_level = parseInt(formData.new_level);
-                updateData.last_assessment_date = formData.training_date;
+                updateData.last_assessment_date = formData.training_date || null;
             }
 
             if (existingSkill) {
@@ -87,11 +87,11 @@ const TrainingFormModal = ({ isOpen, onClose, personnel, skills, onRefresh }) =>
             try {
                 await supabase.from('trainings').insert([{
                     title: `${skills.find(s => s.id === formData.skill_id)?.name} Eğitimi`,
-                    training_date: formData.training_date,
-                    training_type: formData.training_type,
-                    trainer_name: formData.trainer_name,
+                    training_date: formData.training_date || null,
+                    training_type: formData.training_type || null,
+                    trainer_name: formData.trainer_name || null,
                     duration_hours: formData.duration_hours ? parseFloat(formData.duration_hours) : null,
-                    description: formData.notes,
+                    description: formData.notes || null,
                     status: 'Tamamlandı'
                 }]);
             } catch (err) {

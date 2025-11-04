@@ -77,8 +77,20 @@ const PersonnelSkillModal = ({ isOpen, onClose, person, skill, personnelSkill, o
             const dataToSave = {
                 personnel_id: person.id,
                 skill_id: skill.id,
-                ...formData,
-                last_assessment_score: formData.last_assessment_score ? parseFloat(formData.last_assessment_score) : null
+                current_level: formData.current_level,
+                target_level: formData.target_level,
+                is_certified: formData.is_certified,
+                certification_date: formData.certification_date || null,
+                certification_expiry_date: formData.certification_expiry_date || null,
+                certification_number: formData.certification_number || null,
+                certification_authority: formData.certification_authority || null,
+                last_assessment_date: formData.last_assessment_date || null,
+                last_assessment_score: formData.last_assessment_score ? parseFloat(formData.last_assessment_score) : null,
+                assessment_notes: formData.assessment_notes || null,
+                training_required: formData.training_required,
+                training_priority: formData.training_priority || null,
+                last_training_date: formData.last_training_date || null,
+                next_training_date: formData.next_training_date || null
             };
 
             if (personnelSkill) {
