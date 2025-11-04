@@ -1791,11 +1791,11 @@ const generatePrintableReportHtml = (record, type) => {
 			page-break-after: auto;
 		}
 		
-		.report-wrapper {
-			padding: 15mm;
-			position: relative;
-			/* min-height removed - footer should be right after content */
-		}
+	.report-wrapper {
+		padding: 15mm;
+		position: relative;
+		min-height: calc(297mm - 30mm - 40px); /* Footer always at page bottom */
+	}
 		
 		/* ============================================
 		   BAŞLIK BÖLÜMÜ - Sayfa başında bütün kalmalı
@@ -2164,10 +2164,13 @@ const generatePrintableReportHtml = (record, type) => {
 	}
 
 	/* ============================================
-	   FOOTER - Profesyonel ve ince yapı
+	   FOOTER - Sayfanın en altında sabit
 	   ============================================ */
 	.report-footer {
-		margin-top: 30px;
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
 		padding: 8px 15px;
 		border-top: 1px solid #e5e7eb;
 		display: flex;
@@ -2179,7 +2182,7 @@ const generatePrintableReportHtml = (record, type) => {
 		color: #9ca3af;
 		text-transform: none;
 		page-break-inside: avoid;
-		page-break-before: auto;
+		background-color: white;
 	}
 	
 	.report-footer span {
@@ -2225,7 +2228,7 @@ const generatePrintableReportHtml = (record, type) => {
 			
 		.report-wrapper {
 			padding: 0 !important;
-			min-height: 0 !important; /* Force remove min-height for PDF */
+			min-height: calc(297mm - 20mm - 40px) !important; /* Keep footer at bottom in PDF */
 			margin: 0 !important;
 		}
 			
