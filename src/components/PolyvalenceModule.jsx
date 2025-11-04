@@ -13,7 +13,7 @@ import {
     Search, Plus, Filter, Download, BarChart3,
     Award, Target, BookOpen, Clock
 } from 'lucide-react';
-import { openPrintableReport } from '@/lib/reportUtils';
+import { generatePrintableReportHtml } from '@/lib/reportUtils';
 import PolyvalenceMatrix from './polyvalence/PolyvalenceMatrix';
 import PolyvalenceAnalytics from './polyvalence/PolyvalenceAnalytics';
 import SkillManagement from './polyvalence/SkillManagement';
@@ -68,8 +68,30 @@ const PolyvalenceModule = () => {
             }
         };
 
-        // Open printable report with localStorage
-        openPrintableReport(reportData, 'polyvalence_matrix', true);
+        // Direct HTML print for polyvalence (no route needed)
+        try {
+            const htmlContent = generatePrintableReportHtml(reportData, 'polyvalence_matrix');
+            
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                
+                // Wait for content to load then trigger print
+                printWindow.onload = () => {
+                    setTimeout(() => {
+                        printWindow.print();
+                    }, 500);
+                };
+            }
+        } catch (error) {
+            console.error('Rapor oluşturma hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata!',
+                description: 'Rapor oluşturulamadı: ' + error.message
+            });
+        }
     };
 
     const fetchData = async () => {
