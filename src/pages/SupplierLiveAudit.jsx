@@ -3,12 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowLeft, Save, FileText, PlusCircle, Trash2, AlertTriangle, ListPlus } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, FileText, PlusCircle, Trash2, AlertTriangle, ListPlus, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
@@ -127,8 +128,8 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
             participants: participants.filter(p => p.trim() !== ''),
             supplier_attendees: supplierAttendees.filter(p => p.trim() !== ''),
             score: finalScore,
-            status: isCompleting ? 'Tamamlandı' : auditPlan.status,
-            actual_date: isCompleting ? new Date().toISOString() : auditPlan.actual_date,
+            status: isCompleting ? 'Tamamlandı' : (auditPlan.status === 'Tamamlandı' ? 'Tamamlandı' : auditPlan.status),
+            actual_date: isCompleting ? new Date().toISOString() : (auditPlan.actual_date || (isCompleting ? new Date().toISOString() : null)),
         };
 
         const { error } = await supabase
@@ -139,10 +140,14 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Denetim kaydedilemedi: ' + error.message });
         } else {
-            toast({ title: 'Başarılı', description: `Denetim başarıyla ${isCompleting ? 'tamamlandı' : 'kaydedildi'}.` });
-            if (isCompleting) {
+            const actionText = isCompleting ? 'tamamlandı' : (auditPlan.status === 'Tamamlandı' ? 'güncellendi' : 'kaydedildi');
+            toast({ title: 'Başarılı', description: `Denetim başarıyla ${actionText}.` });
+            if (isCompleting && auditPlan.status !== 'Tamamlandı') {
                 await refreshData();
                 navigate('/supplier-quality', { state: { defaultTab: 'audits' } });
+            } else {
+                // Sadece refresh et, sayfayı kapatma
+                await refreshData();
             }
         }
         setIsSaving(false);
@@ -197,18 +202,33 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
                 </Button>
                 <div className="flex gap-2">
                     <Button onClick={() => handleSave(false)} disabled={isSaving}>
-                        <Save className="w-4 h-4 mr-2" /> {isSaving ? 'Kaydediliyor...' : 'Taslağı Kaydet'}
+                        <Save className="w-4 h-4 mr-2" /> {isSaving ? 'Kaydediliyor...' : (auditPlan.status === 'Tamamlandı' ? 'Değişiklikleri Kaydet' : 'Taslağı Kaydet')}
                     </Button>
-                    <Button onClick={() => setCompleteModalOpen(true)} disabled={isSaving}>
-                        <FileText className="w-4 h-4 mr-2" /> Denetimi Tamamla
-                    </Button>
+                    {auditPlan.status !== 'Tamamlandı' && (
+                        <Button onClick={() => setCompleteModalOpen(true)} disabled={isSaving}>
+                            <FileText className="w-4 h-4 mr-2" /> Denetimi Tamamla
+                        </Button>
+                    )}
                 </div>
             </div>
 
             <Card className="mb-8">
                 <CardHeader>
-                    <CardTitle className="text-2xl">Tedarikçi Denetimi: {supplier?.name}</CardTitle>
-                    <p className="text-muted-foreground">Planlanan Tarih: {format(new Date(auditPlan.planned_date), 'dd.MM.yyyy')}</p>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle className="text-2xl">Tedarikçi Denetimi: {supplier?.name}</CardTitle>
+                            <p className="text-muted-foreground">
+                                Planlanan Tarih: {format(new Date(auditPlan.planned_date), 'dd.MM.yyyy')}
+                                {auditPlan.actual_date && ` | Gerçekleşen: ${format(new Date(auditPlan.actual_date), 'dd.MM.yyyy')}`}
+                            </p>
+                        </div>
+                        {auditPlan.status === 'Tamamlandı' && (
+                            <Badge className="bg-green-600 text-white">
+                                <Check className="w-4 h-4 mr-1" />
+                                Tamamlandı - Düzenleme Modu
+                            </Badge>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

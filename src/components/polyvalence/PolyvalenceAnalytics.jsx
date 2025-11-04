@@ -125,7 +125,7 @@ const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceS
             {/* En Yüksek Performans Gösteren Personel */}
             <Card>
                 <CardHeader>
-                    <CardTitle>🏆 En Yüksek Polivalans Skorları</CardTitle>
+                    <CardTitle>En Yüksek Polivalans Skorları</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3">

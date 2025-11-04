@@ -130,7 +130,21 @@ import React, { useEffect, useState } from 'react';
                                 .select('*, supplier:supplier_id!left(name)')
                                 .eq('id', id)
                                 .maybeSingle();
-                            recordData = auditData;
+                            
+                            // Soruları da çek
+                            const { data: questionsData, error: questionsError } = await supabase
+                                .from('supplier_audit_questions')
+                                .select('*')
+                                .order('created_at', { ascending: true });
+                            
+                            if (questionsError) {
+                                console.error('Sorular yüklenirken hata:', questionsError);
+                            }
+                            
+                            recordData = {
+                                ...auditData,
+                                questions: questionsData || []
+                            };
                             queryError = auditError;
                             break;
                         }

@@ -17,6 +17,8 @@ import PolyvalenceMatrix from './polyvalence/PolyvalenceMatrix';
 import PolyvalenceAnalytics from './polyvalence/PolyvalenceAnalytics';
 import SkillManagement from './polyvalence/SkillManagement';
 import TrainingNeedsAnalysis from './polyvalence/TrainingNeedsAnalysis';
+import PersonnelFormModal from './polyvalence/PersonnelFormModal';
+import TrainingFormModal from './polyvalence/TrainingFormModal';
 
 const PolyvalenceModule = () => {
     const { toast } = useToast();
@@ -35,6 +37,11 @@ const PolyvalenceModule = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDepartment, setSelectedDepartment] = useState('all');
     const [selectedCategory, setSelectedCategory] = useState('all');
+    
+    // Modal states
+    const [isPersonnelModalOpen, setIsPersonnelModalOpen] = useState(false);
+    const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
+    const [editingPersonnel, setEditingPersonnel] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -163,6 +170,14 @@ const PolyvalenceModule = () => {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <Button onClick={() => setIsPersonnelModalOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Personel Ekle
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsTrainingModalOpen(true)}>
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Eğitim Ekle
+                    </Button>
                     <Button variant="outline" onClick={fetchData}>
                         <TrendingUp className="mr-2 h-4 w-4" />
                         Yenile
@@ -346,6 +361,25 @@ const PolyvalenceModule = () => {
                     />
                 </TabsContent>
             </Tabs>
+
+            {/* Modals */}
+            <PersonnelFormModal
+                isOpen={isPersonnelModalOpen}
+                onClose={() => {
+                    setIsPersonnelModalOpen(false);
+                    setEditingPersonnel(null);
+                }}
+                personnel={editingPersonnel}
+                onRefresh={fetchData}
+            />
+
+            <TrainingFormModal
+                isOpen={isTrainingModalOpen}
+                onClose={() => setIsTrainingModalOpen(false)}
+                personnel={personnel}
+                skills={skills}
+                onRefresh={fetchData}
+            />
         </motion.div>
     );
 };

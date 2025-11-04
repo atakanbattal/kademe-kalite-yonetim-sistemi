@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Plus, Award, AlertCircle } from 'lucide-react';
+import SkillFormModal from './SkillFormModal';
 
 const SkillManagement = ({ skills, skillCategories, onRefresh }) => {
+    const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
+    const [editingSkill, setEditingSkill] = useState(null);
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Yetkinlik Tanımları</h3>
-                <Button>
+                <Button onClick={() => setIsSkillModalOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Yeni Yetkinlik
                 </Button>
@@ -66,6 +70,17 @@ const SkillManagement = ({ skills, skillCategories, onRefresh }) => {
                     </Card>
                 );
             })}
+
+            <SkillFormModal
+                isOpen={isSkillModalOpen}
+                onClose={() => {
+                    setIsSkillModalOpen(false);
+                    setEditingSkill(null);
+                }}
+                skill={editingSkill}
+                skillCategories={skillCategories}
+                onRefresh={onRefresh}
+            />
         </div>
     );
 };

@@ -54,6 +54,11 @@ import React, { useMemo, useState } from 'react';
             setPlanModalOpen(true);
         };
         
+        const handleEditAudit = (plan) => {
+            // Tamamlanmış olsa bile denetimi düzenleme sayfasında aç
+            navigate(`/supplier-audit/${plan.id}`);
+        };
+        
         const handleViewPdf = async (files) => {
             if (!files || files.length === 0) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Görüntülenecek dosya bulunamadı.' });
@@ -214,7 +219,7 @@ import React, { useMemo, useState } from 'react';
                                                         <Eye className="h-4 w-4" />
                                                     </Button>
                                                 )}
-                                                <Button size="icon" variant="ghost" onClick={() => handleOpenModal(plan, suppliers.find(s => s.id === plan.supplier_id))}>
+                                                <Button size="icon" variant="ghost" onClick={() => handleEditAudit(plan)} title={plan.status === 'Tamamlandı' ? 'Tüm denetim verilerini düzenle' : 'Denetim planını düzenle'}>
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
                                                 <AlertDialog>

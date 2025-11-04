@@ -23,31 +23,26 @@ const SKILL_LEVELS = {
     0: { 
         label: 'Bilgi Yok', 
         color: 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400', 
-        icon: '⚫',
         description: 'Eğitim almamış / Bilgi yok'
     },
     1: { 
         label: 'Temel', 
         color: 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400', 
-        icon: '🔴',
         description: 'Temel bilgi sahibi / Gözlemci'
     },
     2: { 
         label: 'Gözetimli', 
         color: 'bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400', 
-        icon: '🟡',
         description: 'Gözetim altında çalışabilir'
     },
     3: { 
         label: 'Bağımsız', 
         color: 'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400', 
-        icon: '🟢',
         description: 'Bağımsız çalışabilir'
     },
     4: { 
         label: 'Eğitmen', 
         color: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400', 
-        icon: '🔵',
         description: 'Eğitmen / Mentor seviyesi'
     }
 };
@@ -132,7 +127,7 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                                     <Tooltip>
                                         <TooltipTrigger>
                                             <Badge variant="outline" className={config.color}>
-                                                {config.icon} {config.label}
+                                                Seviye {level}: {config.label}
                                             </Badge>
                                         </TooltipTrigger>
                                         <TooltipContent>
@@ -246,15 +241,16 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                                                             <TooltipProvider>
                                                                 <Tooltip>
                                                                     <TooltipTrigger className="w-full">
-                                                                        <div className={`rounded p-2 ${levelConfig.color} flex items-center justify-center gap-1 min-h-[50px]`}>
-                                                                            <span className="text-lg">{levelConfig.icon}</span>
-                                                                            <span className="font-bold text-sm">{level}</span>
-                                                                            {isCertified && (
-                                                                                <Award className="h-3 w-3" />
-                                                                            )}
-                                                                            {needsTraining && (
-                                                                                <AlertCircle className="h-3 w-3 text-orange-500" />
-                                                                            )}
+                                                                        <div className={`rounded p-2 ${levelConfig.color} flex flex-col items-center justify-center gap-1 min-h-[50px]`}>
+                                                                            <span className="font-bold text-xl">{level}</span>
+                                                                            <div className="flex items-center gap-1">
+                                                                                {isCertified && (
+                                                                                    <Award className="h-3 w-3" />
+                                                                                )}
+                                                                                {needsTraining && (
+                                                                                    <AlertCircle className="h-3 w-3 text-orange-500" />
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent>
