@@ -228,71 +228,71 @@ const PolyvalenceModule = () => {
                 </div>
             </div>
 
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                <Card className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Toplam Personel</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
+            {/* Statistics Cards - Compact */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+                        <CardTitle className="text-xs font-medium">Toplam Personel</CardTitle>
+                        <Users className="h-3 w-3 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">{stats.totalPersonnel}</div>
-                        <p className="text-xs text-muted-foreground">Aktif personel sayısı</p>
+                    <CardContent className="pb-3">
+                        <div className="text-xl font-bold text-blue-600">{stats.totalPersonnel}</div>
+                        <p className="text-[10px] text-muted-foreground">Aktif personel</p>
                     </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Yetkinlik</CardTitle>
-                        <Target className="h-4 w-4 text-muted-foreground" />
+                <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+                        <CardTitle className="text-xs font-medium">Yetkinlik</CardTitle>
+                        <Target className="h-3 w-3 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">{stats.totalSkills}</div>
-                        <p className="text-xs text-muted-foreground">Tanımlı yetkinlik</p>
+                    <CardContent className="pb-3">
+                        <div className="text-xl font-bold text-green-600">{stats.totalSkills}</div>
+                        <p className="text-[10px] text-muted-foreground">Tanımlı</p>
                     </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Sertifikalar</CardTitle>
-                        <Award className="h-4 w-4 text-muted-foreground" />
+                <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+                        <CardTitle className="text-xs font-medium">Sertifikalar</CardTitle>
+                        <Award className="h-3 w-3 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-purple-600">{stats.totalCertifications}</div>
-                        <p className="text-xs text-muted-foreground">Geçerli sertifika</p>
+                    <CardContent className="pb-3">
+                        <div className="text-xl font-bold text-purple-600">{stats.totalCertifications}</div>
+                        <p className="text-[10px] text-muted-foreground">Geçerli</p>
                     </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow border-red-200 dark:border-red-900">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Kritik Uyarı</CardTitle>
-                        <AlertTriangle className="h-4 w-4 text-red-500" />
+                <Card className="hover:shadow-md transition-shadow border-red-200 dark:border-red-900">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+                        <CardTitle className="text-xs font-medium">Kritik Uyarı</CardTitle>
+                        <AlertTriangle className="h-3 w-3 text-red-500" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-600">{stats.criticalAlerts}</div>
-                        <p className="text-xs text-muted-foreground">Sertifika uyarısı</p>
+                    <CardContent className="pb-3">
+                        <div className="text-xl font-bold text-red-600">{stats.criticalAlerts}</div>
+                        <p className="text-[10px] text-muted-foreground">Uyarı</p>
                     </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Eğitim İhtiyacı</CardTitle>
-                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+                        <CardTitle className="text-xs font-medium">Eğitim İhtiyacı</CardTitle>
+                        <BookOpen className="h-3 w-3 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-orange-600">{stats.trainingNeeds}</div>
-                        <p className="text-xs text-muted-foreground">Eğitim gereksinimi</p>
+                    <CardContent className="pb-3">
+                        <div className="text-xl font-bold text-orange-600">{stats.trainingNeeds}</div>
+                        <p className="text-[10px] text-muted-foreground">Gereksinim</p>
                     </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Polivalans Skoru</CardTitle>
-                        <BarChart3 className="h-4 w-4 text-blue-600" />
+                <Card className="hover:shadow-md transition-shadow bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+                        <CardTitle className="text-xs font-medium">Polivalans Skoru</CardTitle>
+                        <BarChart3 className="h-3 w-3 text-blue-600" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">{stats.avgPolyvalence}%</div>
-                        <p className="text-xs text-muted-foreground">Ortalama yeterlilik</p>
+                    <CardContent className="pb-3">
+                        <div className="text-xl font-bold text-blue-600">{stats.avgPolyvalence}%</div>
+                        <p className="text-[10px] text-muted-foreground">Ortalama</p>
                     </CardContent>
                 </Card>
             </div>
@@ -322,44 +322,40 @@ const PolyvalenceModule = () => {
                     </TabsTrigger>
                 </TabsList>
 
-                {/* Filters */}
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="flex-1">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Personel veya departman ara..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10"
-                                    />
-                                </div>
-                            </div>
-                            <select
-                                value={selectedDepartment}
-                                onChange={(e) => setSelectedDepartment(e.target.value)}
-                                className="px-3 py-2 border rounded-md bg-background"
-                            >
-                                <option value="all">Tüm Departmanlar</option>
-                                {departments.map(dept => (
-                                    <option key={dept} value={dept}>{dept}</option>
-                                ))}
-                            </select>
-                            <select
-                                value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="px-3 py-2 border rounded-md bg-background"
-                            >
-                                <option value="all">Tüm Kategoriler</option>
-                                {skillCategories.map(cat => (
-                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                ))}
-                            </select>
+                {/* Filters - Compact */}
+                <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/30 rounded-lg border">
+                    <div className="flex-1">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                            <Input
+                                placeholder="Personel veya departman ara..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-8 h-8 text-sm"
+                            />
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                    <select
+                        value={selectedDepartment}
+                        onChange={(e) => setSelectedDepartment(e.target.value)}
+                        className="px-2 py-1 border rounded-md bg-background h-8 text-sm"
+                    >
+                        <option value="all">Tüm Departmanlar</option>
+                        {departments.map(dept => (
+                            <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="px-2 py-1 border rounded-md bg-background h-8 text-sm"
+                    >
+                        <option value="all">Tüm Kategoriler</option>
+                        {skillCategories.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                    </select>
+                </div>
 
                 {/* Tab Contents */}
                 <TabsContent value="matrix" className="space-y-4">

@@ -388,11 +388,11 @@ const generatePolyvalenceMatrixHtml = (record) => {
 	
 	// Seviye renk konfigürasyonu
 	const SKILL_LEVELS = {
-		0: { label: 'Bilgi Yok', color: '#e5e7eb', textColor: '#6b7280' },
-		1: { label: 'Temel', color: '#fecaca', textColor: '#991b1b' },
-		2: { label: 'Gözetimli', color: '#fef08a', textColor: '#854d0e' },
-		3: { label: 'Bağımsız', color: '#bbf7d0', textColor: '#166534' },
-		4: { label: 'Eğitmen', color: '#bfdbfe', textColor: '#1e40af' }
+		0: { label: 'Bilgi Yok', color: '#e5e7eb', textColor: '#6b7280', description: 'Eğitim almamış / Bilgi yok' },
+		1: { label: 'Temel', color: '#fecaca', textColor: '#991b1b', description: 'Temel bilgi sahibi / Gözlemci' },
+		2: { label: 'Gözetimli', color: '#fef08a', textColor: '#854d0e', description: 'Gözetim altında çalışabilir' },
+		3: { label: 'Bağımsız', color: '#bbf7d0', textColor: '#166534', description: 'Bağımsız çalışabilir' },
+		4: { label: 'Eğitmen', color: '#bfdbfe', textColor: '#1e40af', description: 'Eğitmen / Mentor seviyesi' }
 	};
 	
 	// Skill'leri kategoriye göre grupla
@@ -440,8 +440,8 @@ const generatePolyvalenceMatrixHtml = (record) => {
 					${(record.skills || []).map(skill => `
 						<th style="border: 1px solid #d1d5db; padding: 4px; text-align: center; font-size: 8px; max-width: 60px; word-wrap: break-word;">
 							${skill.code || skill.name}
-							${skill.requires_certification ? '<br>🏅' : ''}
-							${skill.is_critical ? '<br>⚠️' : ''}
+							${skill.requires_certification ? '<br><small style="font-size: 7px;">SERT.</small>' : ''}
+							${skill.is_critical ? '<br><small style="font-size: 7px;">KRİT.</small>' : ''}
 						</th>
 					`).join('')}
 				</tr>
@@ -465,8 +465,8 @@ const generatePolyvalenceMatrixHtml = (record) => {
 								return `
 									<td style="border: 1px solid #d1d5db; padding: 4px; text-align: center; background-color: ${levelConfig.color}; color: ${levelConfig.textColor};">
 										<strong style="font-size: 14px;">${level}</strong>
-										${isCertified ? '<br>✓' : ''}
-										${needsTraining ? '<br>⚡' : ''}
+										${isCertified ? '<br><small style="font-size: 7px;">S</small>' : ''}
+										${needsTraining ? '<br><small style="font-size: 7px;">E</small>' : ''}
 									</td>
 								`;
 							}).join('')}
@@ -493,25 +493,78 @@ const generatePolyvalenceMatrixHtml = (record) => {
 				`).join('')}
 			</div>
 			<div style="margin-top: 10px; font-size: 9px; color: #6b7280;">
-				<strong>Simgeler:</strong> 🏅 Sertifika Gerekli | ⚠️ Kritik Yetkinlik | ✓ Sertifikalı | ⚡ Eğitim Gerekli
+				<strong>Simgeler:</strong> SERT. = Sertifika Gerekli | KRİT. = Kritik Yetkinlik | S = Sertifikalı | E = Eğitim Gerekli
 			</div>
 		</div>
 	`;
 	
 	// Özet istatistikler
 	const summaryHtml = `
-		<div style="margin-top: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-			<div style="padding: 15px; background-color: #eff6ff; border-radius: 8px; border: 1px solid: #bfdbfe;">
-				<div style="font-size: 24px; font-weight: 700; color: #1e40af; margin-bottom: 5px;">${record.personnel?.length || 0}</div>
-				<div style="font-size: 10px; color: #1e40af;">Toplam Personel</div>
+		<div style="margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+			<div style="padding: 12px; background-color: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe;">
+				<div style="font-size: 20px; font-weight: 700; color: #1e40af; margin-bottom: 3px;">${record.personnel?.length || 0}</div>
+				<div style="font-size: 9px; color: #1e40af;">Toplam Personel</div>
 			</div>
-			<div style="padding: 15px; background-color: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
-				<div style="font-size: 24px; font-weight: 700; color: #166534; margin-bottom: 5px;">${record.skills?.length || 0}</div>
-				<div style="font-size: 10px; color: #166534;">Toplam Yetkinlik</div>
+			<div style="padding: 12px; background-color: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0;">
+				<div style="font-size: 20px; font-weight: 700; color: #166534; margin-bottom: 3px;">${record.skills?.length || 0}</div>
+				<div style="font-size: 9px; color: #166534;">Toplam Yetkinlik</div>
 			</div>
-			<div style="padding: 15px; background-color: #fef3c7; border-radius: 8px; border: 1px solid #fde047;">
-				<div style="font-size: 24px; font-weight: 700; color: #854d0e; margin-bottom: 5px;">${record.summary?.avgPolyvalence || 0}%</div>
-				<div style="font-size: 10px; color: #854d0e;">Ortalama Polivalans</div>
+			<div style="padding: 12px; background-color: #fef3c7; border-radius: 6px; border: 1px solid #fde047;">
+				<div style="font-size: 20px; font-weight: 700; color: #854d0e; margin-bottom: 3px;">${record.summary?.avgPolyvalence || 0}%</div>
+				<div style="font-size: 9px; color: #854d0e;">Ortalama Polivalans</div>
+			</div>
+		</div>
+	`;
+	
+	// Yetkinlik Tanımları Tablosu (Son sayfa için)
+	const skillDefinitionsHtml = `
+		<div class="section" style="page-break-before: always;">
+			<h2 class="section-title blue">YETKİNLİK TANIMLARI</h2>
+			<table class="info-table" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+				<thead>
+					<tr style="background-color: #f3f4f6;">
+						<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; width: 15%;">Kod</th>
+						<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; width: 25%;">Yetkinlik Adı</th>
+						<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; width: 20%;">Kategori</th>
+						<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; width: 40%;">Açıklama</th>
+					</tr>
+				</thead>
+				<tbody>
+					${(record.skills || []).map(skill => `
+						<tr>
+							<td style="border: 1px solid #d1d5db; padding: 6px; font-weight: 600; font-family: monospace;">${skill.code || '-'}</td>
+							<td style="border: 1px solid #d1d5db; padding: 6px;">
+								${skill.name}
+								${skill.requires_certification ? '<br><small style="color: #7c3aed; font-weight: 600;">Sertifika Gerekli</small>' : ''}
+								${skill.is_critical ? '<br><small style="color: #dc2626; font-weight: 600;">Kritik Yetkinlik</small>' : ''}
+							</td>
+							<td style="border: 1px solid #d1d5db; padding: 6px; font-size: 9px;">${skill.category?.name || 'Diğer'}</td>
+							<td style="border: 1px solid #d1d5db; padding: 6px; font-size: 9px;">${skill.description || '-'}</td>
+						</tr>
+					`).join('')}
+				</tbody>
+			</table>
+			
+			<div style="margin-top: 20px; padding: 12px; background-color: #f9fafb; border-radius: 6px; border-left: 4px solid #3b82f6;">
+				<h3 style="margin: 0 0 10px 0; font-size: 11px; font-weight: 700; color: #1f2937;">Seviye Tanımları</h3>
+				<table style="width: 100%; border-collapse: collapse;">
+					<thead>
+						<tr style="background-color: #e5e7eb;">
+							<th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 10%;">Seviye</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; width: 20%;">Tanım</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; width: 70%;">Açıklama</th>
+						</tr>
+					</thead>
+					<tbody>
+						${Object.entries(SKILL_LEVELS).map(([level, config]) => `
+							<tr>
+								<td style="border: 1px solid #d1d5db; padding: 6px; text-align: center; background-color: ${config.color}; color: ${config.textColor}; font-weight: 700; font-size: 14px;">${level}</td>
+								<td style="border: 1px solid #d1d5db; padding: 6px; font-weight: 600; font-size: 10px;">${config.label}</td>
+								<td style="border: 1px solid #d1d5db; padding: 6px; font-size: 9px;">${config.description}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
 			</div>
 		</div>
 	`;
@@ -576,6 +629,8 @@ const generatePolyvalenceMatrixHtml = (record) => {
 			</div>
 		` : ''}
 
+		${skillDefinitionsHtml}
+		
 		<div class="section signature-section">
 			<h2 class="section-title dark">İMZA VE ONAY</h2>
 			<div class="signature-area">
@@ -1490,6 +1545,49 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateExamPaperHtml(record);
 	} else if (type === 'polyvalence_matrix') {
 		reportContentHtml = generatePolyvalenceMatrixHtml(record);
+		// Override page style for landscape
+		cssOverrides = `
+			@media print {
+				@page {
+					size: A4 landscape;
+					margin: 10mm 8mm;
+				}
+			}
+			
+			.report-footer {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 8px 15px;
+				background-color: #f9fafb;
+				border-top: 2px solid #3b82f6;
+				font-size: 8px;
+				color: #6b7280;
+				position: fixed;
+				bottom: 0;
+				left: 0;
+				right: 0;
+			}
+			
+			.report-footer .footer-left {
+				display: flex;
+				flex-direction: column;
+				gap: 3px;
+			}
+			
+			.report-footer .footer-center {
+				text-align: center;
+				font-weight: 600;
+				color: #1f2937;
+			}
+			
+			.report-footer .footer-right {
+				display: flex;
+				flex-direction: column;
+				gap: 3px;
+				align-items: flex-end;
+			}
+		`;
 	} else {
 		reportContentHtml = generateGenericReportHtml(record, type);
 	}
@@ -2284,15 +2382,24 @@ const generatePrintableReportHtml = (record, type) => {
 	</head>
 	<body>
 		<div class="page-container">
-			<div class="report-wrapper">
-				${reportContentHtml}
-			</div>
-			<div class="footer ${isCertificate ? 'footer-hidden' : ''}">
-				<div class="footer-content">
+		<div class="report-wrapper">
+			${reportContentHtml}
+		</div>
+		${!isCertificate ? `
+			<div class="report-footer">
+				<div class="footer-left">
 					<span>Bu belge, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.</span>
+					<span>Belge Tarihi: ${format(new Date(), 'dd.MM.yyyy HH:mm')}</span>
+				</div>
+				<div class="footer-center">
 					<span>Form No: ${formNumber}</span>
 				</div>
+				<div class="footer-right">
+					<span>Sayfa ${type === 'polyvalence_matrix' ? '1/2+' : '1/1'}</span>
+					<span>Rev: 01</span>
+				</div>
 			</div>
+		` : ''}
 		</div>
 	</body>
 	</html>
