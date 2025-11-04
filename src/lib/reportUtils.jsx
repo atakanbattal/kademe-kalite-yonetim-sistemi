@@ -1545,14 +1545,21 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generatePolyvalenceMatrixHtml(record);
 		// Override page style for landscape
 		cssOverrides = `
-			/* Landscape format - TAM GENİŞLİK */
+			/* Landscape format - TAM GENİŞLİK - HEM EKRAN HEM PRINT */
 			@page {
-				size: A4 landscape;
-				margin: 5mm;
+				size: A4 landscape !important;
+				margin: 5mm !important;
 			}
 			
 			* {
-				box-sizing: border-box;
+				box-sizing: border-box !important;
+			}
+			
+			html {
+				max-width: 100% !important;
+				width: 100% !important;
+				margin: 0 !important;
+				padding: 0 !important;
 			}
 			
 			body {
@@ -1560,6 +1567,8 @@ const generatePrintableReportHtml = (record, type) => {
 				width: 100% !important;
 				margin: 0 !important;
 				padding: 0 !important;
+				print-color-adjust: exact !important;
+				-webkit-print-color-adjust: exact !important;
 			}
 			
 			.page-container {
@@ -1567,6 +1576,7 @@ const generatePrintableReportHtml = (record, type) => {
 				width: 100% !important;
 				margin: 0 !important;
 				padding: 0 !important;
+				box-shadow: none !important;
 			}
 			
 			.report-wrapper {
@@ -1612,6 +1622,7 @@ const generatePrintableReportHtml = (record, type) => {
 			table {
 				font-size: 6.5px !important;
 				width: 100% !important;
+				table-layout: auto !important;
 			}
 			
 			table th,
@@ -1636,24 +1647,113 @@ const generatePrintableReportHtml = (record, type) => {
 				font-size: 8px !important;
 			}
 			
+			/* PRINT - AYNI AYARLAR */
 			@media print {
 				@page {
-					size: A4 landscape;
-					margin: 5mm;
+					size: A4 landscape !important;
+					margin: 5mm !important;
+				}
+				
+				* {
+					box-sizing: border-box !important;
+				}
+				
+				html {
+					max-width: 100% !important;
+					width: 100% !important;
+					margin: 0 !important;
+					padding: 0 !important;
 				}
 				
 				body {
 					max-width: 100% !important;
 					width: 100% !important;
+					margin: 0 !important;
+					padding: 0 !important;
+					print-color-adjust: exact !important;
+					-webkit-print-color-adjust: exact !important;
 				}
 				
 				.page-container {
 					max-width: 100% !important;
 					width: 100% !important;
+					margin: 0 !important;
+					padding: 0 !important;
+					box-shadow: none !important;
 				}
 				
 				.report-wrapper {
-					padding: 5px !important;
+					padding: 8px !important;
+					max-width: 100% !important;
+					width: 100% !important;
+					margin: 0 !important;
+				}
+				
+				.report-header {
+					padding: 5px 0 !important;
+					margin-bottom: 8px !important;
+				}
+				
+				.report-header h1 {
+					font-size: 16px !important;
+					margin: 0 !important;
+				}
+				
+				.report-header p {
+					font-size: 10px !important;
+				}
+				
+				.meta-box {
+					padding: 6px 10px !important;
+					margin-bottom: 8px !important;
+				}
+				
+				.meta-box .meta-item {
+					font-size: 8px !important;
+				}
+				
+				.section {
+					margin-bottom: 10px !important;
+				}
+				
+				.section-title {
+					font-size: 11px !important;
+					padding: 5px 10px !important;
+					margin-bottom: 8px !important;
+				}
+				
+				table {
+					font-size: 6.5px !important;
+					width: 100% !important;
+					table-layout: auto !important;
+				}
+				
+				table th,
+				table td {
+					padding: 3px 4px !important;
+					line-height: 1.2 !important;
+				}
+				
+				table th {
+					font-size: 6px !important;
+				}
+				
+				.signature-area {
+					margin-top: 15px !important;
+					page-break-inside: avoid !important;
+				}
+				
+				.signature-box {
+					padding: 8px !important;
+				}
+				
+				.signature-box .role {
+					font-size: 8px !important;
+				}
+				
+				/* Footer print için */
+				.report-footer {
+					page-break-inside: avoid !important;
 				}
 			}
 		`;
