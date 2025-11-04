@@ -97,7 +97,7 @@ const SupplierAuditPlanModal = ({ isOpen, setIsOpen, supplier, refreshData, exis
             }
         }
 
-        const { id, supplierName, ...planData } = formData;
+        const { id, supplierName, supplier, ...planData } = formData;
 
         const dataToSubmit = { 
             ...planData, 
