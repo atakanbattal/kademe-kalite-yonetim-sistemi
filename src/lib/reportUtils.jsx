@@ -1353,10 +1353,10 @@ const generatePrintableReportHtml = (record, type) => {
 		.meta-box { 
 			display: grid; 
 			grid-template-columns: 1fr 1fr 1fr; 
-			gap: 10px; 
-			background-color: #f3f4f6; 
-			padding: 12px; 
-			border-radius: 6px; 
+			gap: 12px 15px; 
+			background-color: #f9fafb; 
+			padding: 16px; 
+			border-radius: 8px; 
 			margin-bottom: 20px; 
 			border: 1px solid #e5e7eb; 
 			page-break-inside: avoid;
@@ -1367,14 +1367,15 @@ const generatePrintableReportHtml = (record, type) => {
 		.meta-item { 
 			font-size: 10px; 
 			color: #374151; 
-			padding: 4px 6px;
+			padding: 0;
 			word-wrap: break-word;
 			overflow-wrap: break-word;
+			line-height: 1.6;
 		}
 		.meta-item strong { 
-			color: #111827;
-			display: inline-block;
-			min-width: 80px;
+			color: #1f2937;
+			font-weight: 600;
+			margin-right: 6px;
 		}
 
 		/* ============================================

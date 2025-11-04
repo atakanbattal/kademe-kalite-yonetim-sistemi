@@ -27,7 +27,7 @@ const PersonnelSelectionModal = ({ isOpen, onClose, onRefresh, existingPersonnel
         try {
             const { data, error } = await supabase
                 .from('personnel')
-                .select('id, full_name, department, position, registration_number')
+                .select('id, full_name, department, job_title, registration_number')
                 .eq('is_active', true)
                 .order('full_name');
 
@@ -99,7 +99,7 @@ const PersonnelSelectionModal = ({ isOpen, onClose, onRefresh, existingPersonnel
             <div className="flex flex-col">
                 <span className="font-medium">{p.full_name}</span>
                 <span className="text-xs text-muted-foreground">
-                    {p.department} {p.position && `• ${p.position}`} {p.registration_number && `• ${p.registration_number}`}
+                    {p.department} {p.job_title && `• ${p.job_title}`} {p.registration_number && `• ${p.registration_number}`}
                 </span>
             </div>
         )

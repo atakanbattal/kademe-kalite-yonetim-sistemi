@@ -62,7 +62,7 @@ const PolyvalenceModule = () => {
                 supabase.from('skill_categories').select('*').eq('is_active', true).order('order_index'),
                 supabase.from('personnel_skills').select(`
                     *,
-                    personnel:personnel(id, full_name, department, position),
+                    personnel:personnel!personnel_skills_personnel_id_fkey(id, full_name, department, job_title),
                     skill:skills(id, name, code, requires_certification, is_critical)
                 `),
                 supabase.from('certification_expiry_alerts').select('*'),
