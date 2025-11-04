@@ -13,17 +13,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const ALL_MODULES = [
     'dashboard', 'kpi', 'kaizen', 'df-8d', 'quality-cost', 
-    'supplier-quality', 'incoming-quality', 'produced-vehicles', 
+    'supplier-quality', 'customer-complaints', 'incoming-quality', 'produced-vehicles', 
     'internal-audit', 'deviation', 'equipment', 'quarantine', 
-    'training', 'document', 'wps', 'tasks', 'settings', 'audit-logs'
+    'training', 'polyvalence', 'document', 'wps', 'tasks', 'settings', 'audit-logs'
 ];
 
 const moduleLabels = {
     dashboard: 'Ana Panel', kpi: 'KPI', kaizen: 'Kaizen', 'df-8d': 'DF/8D', 
-    'quality-cost': 'Maliyet', 'supplier-quality': 'Tedarikçi', 'incoming-quality': 'Girdi Kalite',
-    'produced-vehicles': 'Üretilen Araçlar', 'internal-audit': 'İç Tetkik', deviation: 'Sapma',
-    equipment: 'Ekipman', quarantine: 'Karantina', training: 'Eğitim', document: 'Doküman',
-    wps: 'WPS', tasks: 'Görevler', settings: 'Ayarlar', 'audit-logs': 'Denetim Kayıtları'
+    'quality-cost': 'Maliyet', 'supplier-quality': 'Tedarikçi', 'customer-complaints': 'Müşteri Şikayetleri',
+    'incoming-quality': 'Girdi Kalite', 'produced-vehicles': 'Üretilen Araçlar', 
+    'internal-audit': 'İç Tetkik', deviation: 'Sapma', equipment: 'Ekipman', 
+    quarantine: 'Karantina', training: 'Eğitim', polyvalence: 'Polivalans',
+    document: 'Doküman', wps: 'WPS', tasks: 'Görevler', settings: 'Ayarlar', 'audit-logs': 'Denetim Kayıtları'
 };
 
 const NewUserModal = ({ open, setOpen, onUserAdded }) => {
