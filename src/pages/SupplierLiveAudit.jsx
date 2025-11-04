@@ -47,6 +47,7 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
         setAuditPlan(planData);
         setSupplier(planData.supplier);
         setParticipants(planData.participants || ['']);
+        // supplier_attendees alanı henüz veritabanında yoksa boş array kullan
         setSupplierAttendees(planData.supplier_attendees || ['']);
 
         const { data: questionData, error: questionError } = await supabase
@@ -123,14 +124,22 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
         setIsSaving(true);
         const finalScore = calculateScore();
 
+        // Temel veri (her zaman var olan alanlar)
         const updateData = {
             results,
             participants: participants.filter(p => p.trim() !== ''),
-            supplier_attendees: supplierAttendees.filter(p => p.trim() !== ''),
             score: finalScore,
             status: isCompleting ? 'Tamamlandı' : (auditPlan.status === 'Tamamlandı' ? 'Tamamlandı' : auditPlan.status),
             actual_date: isCompleting ? new Date().toISOString() : (auditPlan.actual_date || (isCompleting ? new Date().toISOString() : null)),
         };
+
+        // supplier_attendees alanı eklenmişse ekle (migration sonrası)
+        // Eğer kolon yoksa bu alan göz ardı edilecek
+        try {
+            updateData.supplier_attendees = supplierAttendees.filter(p => p.trim() !== '');
+        } catch (e) {
+            console.warn('supplier_attendees alanı henüz veritabanında yok, atlanıyor...');
+        }
 
         const { error } = await supabase
             .from('supplier_audit_plans')
@@ -138,17 +147,28 @@ const SupplierLiveAudit = ({ onOpenNCForm }) => {
             .eq('id', auditId);
 
         if (error) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'Denetim kaydedilemedi: ' + error.message });
+            // Eğer hata supplier_attendees ile ilgiliyse kullanıcıya uyarı göster
+            if (error.message.includes('supplier_attendees')) {
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Veritabanı Güncelleme Gerekli!', 
+                    description: 'Lütfen migration scriptini çalıştırın. Detaylar için TEDARIKCI_DENETIM_GUNCELLEME.md dosyasına bakın.' 
+                });
+            } else {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Denetim kaydedilemedi: ' + error.message });
+            }
         } else {
             const actionText = isCompleting ? 'tamamlandı' : (auditPlan.status === 'Tamamlandı' ? 'güncellendi' : 'kaydedildi');
             toast({ title: 'Başarılı', description: `Denetim başarıyla ${actionText}.` });
-            if (isCompleting && auditPlan.status !== 'Tamamlandı') {
-                await refreshData();
+            
+            // Veriyi refresh et
+            await refreshData();
+            
+            // Pencereyi kapat ve denetim listesine dön
+            // 500ms sonra yönlendir (toast mesajını görmek için)
+            setTimeout(() => {
                 navigate('/supplier-quality', { state: { defaultTab: 'audits' } });
-            } else {
-                // Sadece refresh et, sayfayı kapatma
-                await refreshData();
-            }
+            }, 500);
         }
         setIsSaving(false);
         setCompleteModalOpen(false);

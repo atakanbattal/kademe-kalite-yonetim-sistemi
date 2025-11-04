@@ -778,19 +778,36 @@ const generateGenericReportHtml = (record, type) => {
 				const supplierAttendeesText = formatArray(record.supplier_attendees);
 				
 				return `
-					<tr><td>Tedarikçi</td><td>${record.supplier?.name || '-'}</td></tr>
-					<tr><td>Denetim Tarihi</td><td>${formatDate(record.actual_date || record.planned_date)}</td></tr>
-					<tr><td>Denetçi(ler)</td><td>${auditorsText}</td></tr>
-					<tr><td>Denetlenen Firmadan Katılanlar</td><td>${supplierAttendeesText}</td></tr>
 					<tr>
-						<td>Alınan Puan / Sınıf</td>
-						<td>
-							<strong style="font-size: 1.1em; color: ${gradeInfo.color};">${record.score ?? 'N/A'}</strong> 
-							<span style="font-weight: bold; background-color: ${gradeInfo.color}; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 10px;">${gradeInfo.grade}</span>
-							<span style="margin-left: 10px; color: #4b5563;">(${gradeInfo.description})</span>
+						<td style="width: 25%; vertical-align: top; font-weight: 600; padding: 10px 8px; background-color: #f9fafb;">Tedarikçi</td>
+						<td style="padding: 10px 8px;"><strong style="font-size: 1.05em; color: #111827;">${record.supplier?.name || '-'}</strong></td>
+					</tr>
+					<tr>
+						<td style="vertical-align: top; font-weight: 600; padding: 10px 8px; background-color: #f9fafb;">Denetim Tarihi</td>
+						<td style="padding: 10px 8px;">${formatDate(record.actual_date || record.planned_date)}</td>
+					</tr>
+					<tr>
+						<td style="vertical-align: top; font-weight: 600; padding: 10px 8px; background-color: #f9fafb;">Denetçiler</td>
+						<td style="padding: 10px 8px;">${auditorsText}</td>
+					</tr>
+					<tr>
+						<td style="vertical-align: top; font-weight: 600; padding: 10px 8px; background-color: #f9fafb;">Denetlenen Firmadan Katılanlar</td>
+						<td style="padding: 10px 8px;">${supplierAttendeesText}</td>
+					</tr>
+					<tr>
+						<td style="vertical-align: top; font-weight: 600; padding: 10px 8px; background-color: #f9fafb;">Alınan Puan / Sınıf</td>
+						<td style="padding: 10px 8px;">
+							<div style="display: flex; align-items: center; gap: 15px;">
+								<strong style="font-size: 1.3em; color: ${gradeInfo.color}; font-weight: 700;">${record.score ?? 'N/A'} Puan</strong>
+								<span style="font-weight: 700; background-color: ${gradeInfo.color}; color: white; padding: 6px 14px; border-radius: 6px; font-size: 1.1em;">${gradeInfo.grade}</span>
+								<span style="color: #4b5563; font-style: italic;">(${gradeInfo.description})</span>
+							</div>
 						</td>
 					</tr>
-					<tr><td>Denetim Notları</td><td><pre>${record.notes || '-'}</pre></td></tr>
+					${record.notes && record.notes !== '-' ? `<tr>
+						<td style="vertical-align: top; font-weight: 600; padding: 10px 8px; background-color: #f9fafb;">Denetim Notları</td>
+						<td style="padding: 10px 8px;"><pre style="white-space: pre-wrap; margin: 0; font-family: inherit; background-color: #f3f4f6; padding: 10px; border-radius: 4px; border-left: 3px solid #3b82f6;">${record.notes}</pre></td>
+					</tr>` : ''}
 				`;
 		break;
 		}

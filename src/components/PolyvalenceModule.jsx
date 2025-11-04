@@ -17,7 +17,7 @@ import PolyvalenceMatrix from './polyvalence/PolyvalenceMatrix';
 import PolyvalenceAnalytics from './polyvalence/PolyvalenceAnalytics';
 import SkillManagement from './polyvalence/SkillManagement';
 import TrainingNeedsAnalysis from './polyvalence/TrainingNeedsAnalysis';
-import PersonnelFormModal from './polyvalence/PersonnelFormModal';
+import PersonnelSelectionModal from './polyvalence/PersonnelSelectionModal';
 import TrainingFormModal from './polyvalence/TrainingFormModal';
 
 const PolyvalenceModule = () => {
@@ -41,7 +41,6 @@ const PolyvalenceModule = () => {
     // Modal states
     const [isPersonnelModalOpen, setIsPersonnelModalOpen] = useState(false);
     const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
-    const [editingPersonnel, setEditingPersonnel] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -363,14 +362,11 @@ const PolyvalenceModule = () => {
             </Tabs>
 
             {/* Modals */}
-            <PersonnelFormModal
+            <PersonnelSelectionModal
                 isOpen={isPersonnelModalOpen}
-                onClose={() => {
-                    setIsPersonnelModalOpen(false);
-                    setEditingPersonnel(null);
-                }}
-                personnel={editingPersonnel}
+                onClose={() => setIsPersonnelModalOpen(false)}
                 onRefresh={fetchData}
+                existingPersonnelIds={personnel.map(p => p.id)}
             />
 
             <TrainingFormModal
