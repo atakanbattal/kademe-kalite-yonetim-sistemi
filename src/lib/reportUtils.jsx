@@ -631,25 +631,22 @@ const generatePolyvalenceMatrixHtml = (record) => {
 		${skillDefinitionsHtml}
 		
 		<div class="section signature-section">
-			<h2 class="section-title dark">İMZA VE ONAY</h2>
-			<div class="signature-area">
-				<div class="signature-box">
-					<p class="role">HAZIRLAYAN</p>
-					<div class="signature-line"></div>
-					<p class="name">İK Müdürü</p>
-				</div>
-				<div class="signature-box">
-					<p class="role">KONTROL EDEN</p>
-					<div class="signature-line"></div>
-					<p class="name">Eğitim Sorumlusu</p>
-				</div>
-				<div class="signature-box">
-					<p class="role">ONAYLAYAN</p>
-					<div class="signature-line"></div>
-					<p class="name">Genel Müdür</p>
-				</div>
+		<h2 class="section-title dark">İMZA VE ONAY</h2>
+		<div class="signature-area">
+			<div class="signature-box">
+				<p class="role">HAZIRLAYAN</p>
+				<div class="signature-line"></div>
+			</div>
+			<div class="signature-box">
+				<p class="role">KONTROL EDEN</p>
+				<div class="signature-line"></div>
+			</div>
+			<div class="signature-box">
+				<p class="role">ONAYLAYAN</p>
+				<div class="signature-line"></div>
 			</div>
 		</div>
+	</div>
 	`;
 };
 
@@ -1551,13 +1548,51 @@ const generatePrintableReportHtml = (record, type) => {
 			/* Landscape format */
 			@page {
 				size: A4 landscape;
-				margin: 10mm;
+				margin: 8mm;
+			}
+			
+			body {
+				max-width: 100%;
+			}
+			
+			.report-wrapper {
+				padding: 5mm !important;
+				max-width: 100% !important;
+			}
+			
+			.report-header {
+				padding: 8px 0 !important;
+			}
+			
+			.meta-box {
+				padding: 8px 12px !important;
+			}
+			
+			.section {
+				margin-bottom: 15px !important;
+			}
+			
+			table {
+				font-size: 7px !important;
+			}
+			
+			table th,
+			table td {
+				padding: 4px 6px !important;
 			}
 			
 			@media print {
 				@page {
 					size: A4 landscape;
-					margin: 10mm;
+					margin: 8mm;
+				}
+				
+				body {
+					max-width: 100%;
+				}
+				
+				.report-wrapper {
+					padding: 0 !important;
 				}
 			}
 		`;
@@ -1982,6 +2017,8 @@ const generatePrintableReportHtml = (record, type) => {
 		font-size: 7px;
 		color: #9ca3af;
 		text-transform: none;
+		page-break-inside: avoid;
+		page-break-before: auto;
 	}
 	
 	.report-footer span {
