@@ -1050,7 +1050,7 @@ const IncomingInspectionDetailModal = ({
                                                         variant="outline"
                                                         onClick={() => {
                                                             if (onOpenNCView) {
-                                                                onOpenNCView(nc.id);
+                                                                onOpenNCView(nc);
                                                             }
                                                         }}
                                                         className="ml-2"
