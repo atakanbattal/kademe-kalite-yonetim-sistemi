@@ -59,8 +59,9 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const buildFilterQuery = useCallback((query, currentFilters) => {
         if (currentFilters.searchTerm) {
             const searchTerm = `%${currentFilters.searchTerm}%`;
-            // Kapsamlı arama: parça adı, parça kodu, kayıt no, tedarikçi adı, irsaliye no, notlar, ret nedeni, şartlı kabul nedeni
-            query = query.or(`part_name.ilike.${searchTerm},part_code.ilike.${searchTerm},record_no.ilike.${searchTerm},supplier_name.ilike.${searchTerm},delivery_note.ilike.${searchTerm},notes.ilike.${searchTerm},rejection_reason.ilike.${searchTerm},conditional_acceptance_reason.ilike.${searchTerm}`);
+            // Kapsamlı arama: sadece view'de mevcut olduğunu bildiğimiz kolonlar
+            // View kolonları: id, record_no, inspection_date, part_code, part_name, supplier_id, supplier_name, decision, quantity_received, quantity_rejected, vb.
+            query = query.or(`part_name.ilike.${searchTerm},part_code.ilike.${searchTerm},record_no.ilike.${searchTerm},supplier_name.ilike.${searchTerm}`);
         }
         if (currentFilters.dateRange.from) {
             query = query.gte('inspection_date', currentFilters.dateRange.from.toISOString());
