@@ -105,6 +105,8 @@ const getReportTitle = (record, type) => {
 			return `INKR Raporu - ${record.inkr_number || 'Bilinmiyor'}`;
 		case 'stock_risk_controls':
 			return `Stok Risk Kontrol Raporu - ${record.control_number || 'Bilinmiyor'}`;
+		case 'polyvalence_matrix':
+			return 'Polivalans Matrisi Raporu';
 		default:
 			return 'Detaylı Rapor';
 	}
@@ -125,6 +127,7 @@ const getFormNumber = (type) => {
 		equipment: 'FR-KAL-030',
 		certificate: 'FR-EGT-001',
 		exam_paper: 'FR-EGT-002',
+		polyvalence_matrix: 'FR-EGT-003',
 	};
 	return formNumbers[type] || 'FR-GEN-000';
 };
@@ -374,6 +377,219 @@ const generateWPSReportHtml = (record) => {
 					<div class="signature-line"></div>
 					<p class="name">&nbsp;</p>
 					<p class="title">Kalite Müdürü</p>
+				</div>
+			</div>
+		</div>
+	`;
+};
+
+const generatePolyvalenceMatrixHtml = (record) => {
+	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
+	
+	// Seviye renk konfigürasyonu
+	const SKILL_LEVELS = {
+		0: { label: 'Bilgi Yok', color: '#e5e7eb', textColor: '#6b7280' },
+		1: { label: 'Temel', color: '#fecaca', textColor: '#991b1b' },
+		2: { label: 'Gözetimli', color: '#fef08a', textColor: '#854d0e' },
+		3: { label: 'Bağımsız', color: '#bbf7d0', textColor: '#166534' },
+		4: { label: 'Eğitmen', color: '#bfdbfe', textColor: '#1e40af' }
+	};
+	
+	// Skill'leri kategoriye göre grupla
+	const skillsByCategory = {};
+	(record.skills || []).forEach(skill => {
+		const categoryName = skill.category?.name || 'Diğer';
+		if (!skillsByCategory[categoryName]) {
+			skillsByCategory[categoryName] = [];
+		}
+		skillsByCategory[categoryName].push(skill);
+	});
+	
+	// Polivalans skoru hesaplama
+	const calculatePolyvalenceScore = (personnelId) => {
+		const personSkills = (record.personnelSkills || []).filter(ps => ps.personnel_id === personnelId);
+		if (personSkills.length === 0 || !record.skills || record.skills.length === 0) return 0;
+		const proficientSkills = personSkills.filter(ps => ps.current_level >= 3).length;
+		return Math.round((proficientSkills / record.skills.length) * 100);
+	};
+	
+	// Personel-Skill mapping
+	const getPersonnelSkill = (personnelId, skillId) => {
+		return (record.personnelSkills || []).find(ps => ps.personnel_id === personnelId && ps.skill_id === skillId);
+	};
+	
+	// Matris tablosu oluştur
+	const matrixTableHtml = `
+		<table class="matrix-table" style="width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 15px;">
+			<thead>
+				<tr style="background-color: #f3f4f6;">
+					<th rowspan="2" style="border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: middle; min-width: 120px; position: sticky; left: 0; background-color: #f3f4f6; z-index: 10;">
+						<strong>Personel</strong>
+					</th>
+					${Object.keys(skillsByCategory).map(categoryName => {
+						const categorySkills = skillsByCategory[categoryName];
+						return `<th colspan="${categorySkills.length}" style="border: 1px solid #d1d5db; padding: 6px; text-align: center; background-color: #dbeafe; color: #1e40af; font-weight: 600;">
+							${categoryName}
+						</th>`;
+					}).join('')}
+					<th rowspan="2" style="border: 1px solid #d1d5db; padding: 6px; text-align: center; background-color: #dbeafe; min-width: 60px;">
+						<strong>Polivalans<br>Skoru</strong>
+					</th>
+				</tr>
+				<tr style="background-color: #f9fafb;">
+					${(record.skills || []).map(skill => `
+						<th style="border: 1px solid #d1d5db; padding: 4px; text-align: center; font-size: 8px; max-width: 60px; word-wrap: break-word;">
+							${skill.code || skill.name}
+							${skill.requires_certification ? '<br>🏅' : ''}
+							${skill.is_critical ? '<br>⚠️' : ''}
+						</th>
+					`).join('')}
+				</tr>
+			</thead>
+			<tbody>
+				${(record.personnel || []).map((person, idx) => {
+					const polyvalenceScore = calculatePolyvalenceScore(person.id);
+					return `
+						<tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#fafafa'};">
+							<td style="border: 1px solid #d1d5db; padding: 6px; font-weight: 600; position: sticky; left: 0; background-color: ${idx % 2 === 0 ? '#ffffff' : '#fafafa'}; z-index: 5;">
+								${person.full_name}<br>
+								<small style="color: #6b7280; font-weight: normal;">${person.department || ''} ${person.job_title ? '• ' + person.job_title : ''}</small>
+							</td>
+							${(record.skills || []).map(skill => {
+								const personnelSkill = getPersonnelSkill(person.id, skill.id);
+								const level = personnelSkill?.current_level || 0;
+								const levelConfig = SKILL_LEVELS[level];
+								const isCertified = personnelSkill?.is_certified;
+								const needsTraining = personnelSkill?.training_required;
+								
+								return `
+									<td style="border: 1px solid #d1d5db; padding: 4px; text-align: center; background-color: ${levelConfig.color}; color: ${levelConfig.textColor};">
+										<strong style="font-size: 14px;">${level}</strong>
+										${isCertified ? '<br>✓' : ''}
+										${needsTraining ? '<br>⚡' : ''}
+									</td>
+								`;
+							}).join('')}
+							<td style="border: 1px solid #d1d5db; padding: 6px; text-align: center; background-color: #dbeafe; font-weight: 700; color: #1e40af; font-size: 11px;">
+								${polyvalenceScore}%
+							</td>
+						</tr>
+					`;
+				}).join('')}
+			</tbody>
+		</table>
+	`;
+	
+	// Seviye legend
+	const legendHtml = `
+		<div style="margin-top: 20px; padding: 15px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+			<h4 style="margin: 0 0 10px 0; font-size: 11px; font-weight: 700;">Yetkinlik Seviyeleri</h4>
+			<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+				${Object.entries(SKILL_LEVELS).map(([level, config]) => `
+					<div style="padding: 8px; border-radius: 4px; background-color: ${config.color}; color: ${config.textColor}; text-align: center;">
+						<div style="font-size: 16px; font-weight: 700;">${level}</div>
+						<div style="font-size: 9px;">${config.label}</div>
+					</div>
+				`).join('')}
+			</div>
+			<div style="margin-top: 10px; font-size: 9px; color: #6b7280;">
+				<strong>Simgeler:</strong> 🏅 Sertifika Gerekli | ⚠️ Kritik Yetkinlik | ✓ Sertifikalı | ⚡ Eğitim Gerekli
+			</div>
+		</div>
+	`;
+	
+	// Özet istatistikler
+	const summaryHtml = `
+		<div style="margin-top: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+			<div style="padding: 15px; background-color: #eff6ff; border-radius: 8px; border: 1px solid: #bfdbfe;">
+				<div style="font-size: 24px; font-weight: 700; color: #1e40af; margin-bottom: 5px;">${record.personnel?.length || 0}</div>
+				<div style="font-size: 10px; color: #1e40af;">Toplam Personel</div>
+			</div>
+			<div style="padding: 15px; background-color: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+				<div style="font-size: 24px; font-weight: 700; color: #166534; margin-bottom: 5px;">${record.skills?.length || 0}</div>
+				<div style="font-size: 10px; color: #166534;">Toplam Yetkinlik</div>
+			</div>
+			<div style="padding: 15px; background-color: #fef3c7; border-radius: 8px; border: 1px solid #fde047;">
+				<div style="font-size: 24px; font-weight: 700; color: #854d0e; margin-bottom: 5px;">${record.summary?.avgPolyvalence || 0}%</div>
+				<div style="font-size: 10px; color: #854d0e;">Ortalama Polivalans</div>
+			</div>
+		</div>
+	`;
+	
+	return `
+		<div class="report-header">
+			<div class="report-logo">
+				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+			</div>
+			<div class="company-title">
+				<h1>KADEME A.Ş.</h1>
+				<p>Polivalans Matrisi Raporu</p>
+			</div>
+			<div class="print-info">
+				Rapor Tarihi: ${formatDate(new Date())}
+			</div>
+		</div>
+
+		<div class="meta-box">
+			<div class="meta-item"><strong>Belge Türü:</strong> Polivalans Matrisi</div>
+			<div class="meta-item"><strong>Form No:</strong> FR-EGT-003</div>
+			<div class="meta-item"><strong>Rapor Tarihi:</strong> ${formatDate(new Date())}</div>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">ÖZET İSTATİSTİKLER</h2>
+			${summaryHtml}
+		</div>
+
+		<div class="section">
+			<h2 class="section-title green">POLİVALANS MATRİSİ</h2>
+			${matrixTableHtml}
+			${legendHtml}
+		</div>
+		
+		${(record.certificationAlerts && record.certificationAlerts.length > 0) ? `
+			<div class="section" style="page-break-before: auto;">
+				<h2 class="section-title red">SERTİFİKA UYARILARI</h2>
+				<table class="info-table">
+					<thead>
+						<tr style="background-color: #f3f4f6;">
+							<th style="border: 1px solid #d1d5db; padding: 6px;">Personel</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px;">Yetkinlik</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px;">Son Geçerlilik</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px;">Durum</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.certificationAlerts.map(alert => `
+							<tr>
+								<td style="border: 1px solid #d1d5db; padding: 6px;">${alert.personnel_name || '-'}</td>
+								<td style="border: 1px solid #d1d5db; padding: 6px;">${alert.skill_name || '-'}</td>
+								<td style="border: 1px solid #d1d5db; padding: 6px;">${alert.expiry_date ? format(new Date(alert.expiry_date), 'dd.MM.yyyy') : '-'}</td>
+								<td style="border: 1px solid #d1d5db; padding: 6px; color: #dc2626; font-weight: 600;">${alert.alert_type || 'Dikkat'}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			</div>
+		` : ''}
+
+		<div class="section signature-section">
+			<h2 class="section-title dark">İMZA VE ONAY</h2>
+			<div class="signature-area">
+				<div class="signature-box">
+					<p class="role">HAZIRLAYAN</p>
+					<div class="signature-line"></div>
+					<p class="name">İK Müdürü</p>
+				</div>
+				<div class="signature-box">
+					<p class="role">KONTROL EDEN</p>
+					<div class="signature-line"></div>
+					<p class="name">Eğitim Sorumlusu</p>
+				</div>
+				<div class="signature-box">
+					<p class="role">ONAYLAYAN</p>
+					<div class="signature-line"></div>
+					<p class="name">Genel Müdür</p>
 				</div>
 			</div>
 		</div>
@@ -1269,6 +1485,8 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateCertificateReportHtml(record);
 	} else if (type === 'exam_paper') {
 		reportContentHtml = generateExamPaperHtml(record);
+	} else if (type === 'polyvalence_matrix') {
+		reportContentHtml = generatePolyvalenceMatrixHtml(record);
 	} else {
 		reportContentHtml = generateGenericReportHtml(record, type);
 	}

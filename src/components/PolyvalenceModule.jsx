@@ -13,6 +13,7 @@ import {
     Search, Plus, Filter, Download, BarChart3,
     Award, Target, BookOpen, Clock
 } from 'lucide-react';
+import { openPrintableReport } from '@/lib/reportUtils';
 import PolyvalenceMatrix from './polyvalence/PolyvalenceMatrix';
 import PolyvalenceAnalytics from './polyvalence/PolyvalenceAnalytics';
 import SkillManagement from './polyvalence/SkillManagement';
@@ -45,6 +46,23 @@ const PolyvalenceModule = () => {
     useEffect(() => {
         fetchData();
     }, []);
+
+    const handleDownloadReport = () => {
+        // Prepare polivalance matrix data for printing
+        const reportData = {
+            id: 'polyvalence-' + Date.now(),
+            personnel: personnel,
+            skills: skills,
+            skillCategories: skillCategories,
+            personnelSkills: personnelSkills,
+            certificationAlerts: certificationAlerts,
+            summary: stats,
+            generated_at: new Date().toISOString()
+        };
+
+        // Open printable report with localStorage
+        openPrintableReport(reportData, 'polyvalence_matrix', true);
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -181,7 +199,7 @@ const PolyvalenceModule = () => {
                         <TrendingUp className="mr-2 h-4 w-4" />
                         Yenile
                     </Button>
-                    <Button variant="outline">
+                    <Button variant="outline" onClick={handleDownloadReport}>
                         <Download className="mr-2 h-4 w-4" />
                         Rapor İndir
                     </Button>
