@@ -163,41 +163,45 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                                     </tr>
                                     <tr className="bg-muted/50">
                                         <th className="sticky left-0 z-30 bg-background p-2 border-r border-b shadow-sm"></th>
-                                        {skills.map(skill => (
-                                            <th 
-                                                key={skill.id}
-                                                className="p-2 text-xs border-r border-b min-w-[80px] max-w-[100px]"
-                                            >
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger className="cursor-help">
-                                                            <div className="flex flex-col items-center gap-1">
-                                                                <span className="font-medium truncate w-full">{skill.code || skill.name}</span>
-                                                                {skill.requires_certification && (
-                                                                    <Award className="h-3 w-3 text-purple-500" />
-                                                                )}
-                                                                {skill.is_critical && (
-                                                                    <AlertCircle className="h-3 w-3 text-red-500" />
-                                                                )}
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <div className="space-y-1">
-                                                                <p className="font-semibold">{skill.name}</p>
-                                                                {skill.description && (
-                                                                    <p className="text-xs text-muted-foreground">{skill.description}</p>
-                                                                )}
-                                                                {skill.requires_certification && (
-                                                                    <p className="text-xs text-purple-600">Sertifika gerekli</p>
-                                                                )}
-                                                                {skill.is_critical && (
-                                                                    <p className="text-xs text-red-600">Kritik yetkinlik</p>
-                                                                )}
-                                                            </div>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </th>
+                                        {Object.entries(skillsByCategory).map(([categoryName, categorySkills]) => (
+                                            <React.Fragment key={`${categoryName}-skills`}>
+                                                {categorySkills.map(skill => (
+                                                    <th 
+                                                        key={skill.id}
+                                                        className="p-2 text-xs border-r border-b min-w-[80px] max-w-[100px]"
+                                                    >
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger className="cursor-help">
+                                                                    <div className="flex flex-col items-center gap-1">
+                                                                        <span className="font-medium truncate w-full">{skill.code || skill.name}</span>
+                                                                        {skill.requires_certification && (
+                                                                            <Award className="h-3 w-3 text-purple-500" />
+                                                                        )}
+                                                                        {skill.is_critical && (
+                                                                            <AlertCircle className="h-3 w-3 text-red-500" />
+                                                                        )}
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <div className="space-y-1">
+                                                                        <p className="font-semibold">{skill.name}</p>
+                                                                        {skill.description && (
+                                                                            <p className="text-xs text-muted-foreground">{skill.description}</p>
+                                                                        )}
+                                                                        {skill.requires_certification && (
+                                                                            <p className="text-xs text-purple-600">Sertifika gerekli</p>
+                                                                        )}
+                                                                        {skill.is_critical && (
+                                                                            <p className="text-xs text-red-600">Kritik yetkinlik</p>
+                                                                        )}
+                                                                    </div>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </th>
+                                                ))}
+                                            </React.Fragment>
                                         ))}
                                         <th className="p-2 text-xs border-b bg-blue-50 dark:bg-blue-950">
                                             Skor
@@ -224,66 +228,70 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                                                         </div>
                                                     </div>
                                                 </td>
-                                                {skills.map(skill => {
-                                                    const personnelSkill = getPersonnelSkill(person.id, skill.id);
-                                                    const level = personnelSkill?.current_level || 0;
-                                                    const levelConfig = SKILL_LEVELS[level];
-                                                    const isCertified = personnelSkill?.is_certified;
-                                                    const needsTraining = personnelSkill?.training_required;
+                                                {Object.entries(skillsByCategory).map(([categoryName, categorySkills]) => (
+                                                    <React.Fragment key={`${categoryName}-${person.id}`}>
+                                                        {categorySkills.map(skill => {
+                                                            const personnelSkill = getPersonnelSkill(person.id, skill.id);
+                                                            const level = personnelSkill?.current_level || 0;
+                                                            const levelConfig = SKILL_LEVELS[level];
+                                                            const isCertified = personnelSkill?.is_certified;
+                                                            const needsTraining = personnelSkill?.training_required;
 
-                                                    return (
-                                                        <td 
-                                                            key={skill.id}
-                                                            className="p-1 border-r border-b text-center cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                                                            onClick={() => handleCellClick(person, skill)}
-                                                        >
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger className="w-full">
-                                                                        <div className={`rounded p-2 ${levelConfig.color} flex flex-col items-center justify-center gap-1 min-h-[50px]`}>
-                                                                            <span className="font-bold text-xl">{level}</span>
-                                                                            <div className="flex items-center gap-1">
-                                                                                {isCertified && (
-                                                                                    <Award className="h-3 w-3" />
-                                                                                )}
-                                                                                {needsTraining && (
-                                                                                    <AlertCircle className="h-3 w-3 text-orange-500" />
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <div className="space-y-1">
-                                                                            <p className="font-semibold">Seviye {level}: {levelConfig.label}</p>
-                                                                            {personnelSkill && (
-                                                                                <>
-                                                                                    {isCertified && (
-                                                                                        <p className="text-xs text-green-600 flex items-center gap-1">
-                                                                                            <CheckCircle className="h-3 w-3" /> Sertifikalı
-                                                                                        </p>
+                                                            return (
+                                                                <td 
+                                                                    key={skill.id}
+                                                                    className="p-1 border-r border-b text-center cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                                                                    onClick={() => handleCellClick(person, skill)}
+                                                                >
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger className="w-full">
+                                                                                <div className={`rounded p-2 ${levelConfig.color} flex flex-col items-center justify-center gap-1 min-h-[50px]`}>
+                                                                                    <span className="font-bold text-xl">{level}</span>
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        {isCertified && (
+                                                                                            <Award className="h-3 w-3" />
+                                                                                        )}
+                                                                                        {needsTraining && (
+                                                                                            <AlertCircle className="h-3 w-3 text-orange-500" />
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <div className="space-y-1">
+                                                                                    <p className="font-semibold">Seviye {level}: {levelConfig.label}</p>
+                                                                                    {personnelSkill && (
+                                                                                        <>
+                                                                                            {isCertified && (
+                                                                                                <p className="text-xs text-green-600 flex items-center gap-1">
+                                                                                                    <CheckCircle className="h-3 w-3" /> Sertifikalı
+                                                                                                </p>
+                                                                                            )}
+                                                                                            {needsTraining && (
+                                                                                                <p className="text-xs text-orange-600 flex items-center gap-1">
+                                                                                                    <TrendingUp className="h-3 w-3" /> Eğitim gerekli
+                                                                                                </p>
+                                                                                            )}
+                                                                                            {personnelSkill.target_level && (
+                                                                                                <p className="text-xs text-blue-600 flex items-center gap-1">
+                                                                                                    <Target className="h-3 w-3" /> Hedef: {personnelSkill.target_level}
+                                                                                                </p>
+                                                                                            )}
+                                                                                        </>
                                                                                     )}
-                                                                                    {needsTraining && (
-                                                                                        <p className="text-xs text-orange-600 flex items-center gap-1">
-                                                                                            <TrendingUp className="h-3 w-3" /> Eğitim gerekli
-                                                                                        </p>
-                                                                                    )}
-                                                                                    {personnelSkill.target_level && (
-                                                                                        <p className="text-xs text-blue-600 flex items-center gap-1">
-                                                                                            <Target className="h-3 w-3" /> Hedef: {personnelSkill.target_level}
-                                                                                        </p>
-                                                                                    )}
-                                                                                </>
-                                                                            )}
-                                                                            <p className="text-xs text-muted-foreground mt-2">
-                                                                                Detay için tıklayın
-                                                                            </p>
-                                                                        </div>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        </td>
-                                                    );
-                                                })}
+                                                                                    <p className="text-xs text-muted-foreground mt-2">
+                                                                                        Detay için tıklayın
+                                                                                    </p>
+                                                                                </div>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </React.Fragment>
+                                                ))}
                                                 <td className="p-2 border-b text-center bg-blue-50 dark:bg-blue-950">
                                                     <div className="flex flex-col items-center gap-1">
                                                         <span className="text-xl font-bold text-blue-600">
