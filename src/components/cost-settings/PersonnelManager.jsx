@@ -290,7 +290,9 @@ const PersonnelManager = () => {
                 // Trainings - responsible_id kullanıyor (trainer_id değil!)
                 { table: 'trainings', column: 'responsible_id' },
                 // Tasks - owner_id var ama assigned_to yok!
-                { table: 'tasks', column: 'owner_id' }
+                { table: 'tasks', column: 'owner_id' },
+                // Document revisions - prepared_by_id
+                { table: 'document_revisions', column: 'prepared_by_id' }
             ];
 
             for (const { table, column } of tablesToUpdate) {
