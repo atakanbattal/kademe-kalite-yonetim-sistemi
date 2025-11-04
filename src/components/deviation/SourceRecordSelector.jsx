@@ -48,7 +48,7 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                     break;
                 case 'quarantine':
                     table = 'quarantine_records';
-                    query = supabase.from(table).select('*, supplier:suppliers(name)').eq('id', sourceId).single();
+                    query = supabase.from(table).select('*').eq('id', sourceId).single();
                     break;
                 case 'quality_cost':
                     table = 'quality_costs';
@@ -107,7 +107,7 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
     const loadQuarantineRecords = async () => {
         const { data, error } = await supabase
             .from('quarantine_records')
-            .select('*, supplier:suppliers(name)')
+            .select('*')
             .in('status', ['Karantinada', 'Beklemede'])
             .order('created_at', { ascending: false })
             .limit(100);
