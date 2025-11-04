@@ -598,7 +598,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 />
                             </div>
                         )}
-
+                        
                         <div><Label>Maliyet Türü <span className="text-red-500">*</span></Label><SearchableSelect value={formData.cost_type || ''} onValueChange={(v) => handleSelectChange('cost_type', v)} placeholder="Seçiniz..." items={COST_TYPES} searchPlaceholder="Maliyet türü ara..." /></div>
                         
                         {isReworkCost && (

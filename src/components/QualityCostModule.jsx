@@ -110,7 +110,10 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         if (error) {
             toast({ variant: 'destructive', title: 'Hata!', description: `Maliyet kaydı silinemedi: ${error.message}` });
         } else {
+            // Optimistic UI update - state'i hemen güncelle
+            setAllCosts(prevCosts => prevCosts.filter(cost => cost.id !== costId));
             toast({ title: 'Başarılı!', description: 'Maliyet kaydı başarıyla silindi.' });
+            // Veritabanından güncel veriyi çek (background'da)
             fetchData();
         }
     };
