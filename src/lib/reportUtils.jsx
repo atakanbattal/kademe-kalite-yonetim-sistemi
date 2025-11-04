@@ -534,6 +534,9 @@ const generatePolyvalenceMatrixHtml = (record) => {
 			<div class="meta-item"><strong>Belge Türü:</strong> Polivalans Matrisi</div>
 			<div class="meta-item"><strong>Form No:</strong> FR-EGT-003</div>
 			<div class="meta-item"><strong>Rapor Tarihi:</strong> ${formatDate(new Date())}</div>
+			${record.filters?.department ? `<div class="meta-item"><strong>Departman Filtresi:</strong> ${record.filters.department}</div>` : ''}
+			${record.filters?.category ? `<div class="meta-item"><strong>Kategori Filtresi:</strong> ${record.filters.category}</div>` : ''}
+			${record.filters?.searchTerm ? `<div class="meta-item"><strong>Arama:</strong> "${record.filters.searchTerm}"</div>` : ''}
 		</div>
 
 		<div class="section">

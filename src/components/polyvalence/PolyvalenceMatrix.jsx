@@ -143,8 +143,8 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                     <div className="overflow-auto w-full h-[calc(100vh-400px)] border rounded-md">
                         <table className="w-full border-collapse min-w-max">
                                 <thead>
-                                    <tr className="bg-muted/50">
-                                        <th className="sticky left-0 z-20 bg-muted/50 p-3 text-left font-semibold min-w-[200px] border-r border-b">
+                                    <tr className="bg-muted">
+                                        <th className="sticky left-0 z-30 bg-background p-3 text-left font-semibold min-w-[200px] border-r border-b shadow-sm">
                                             Personel / Yetkinlik
                                         </th>
                                         {Object.entries(skillsByCategory).map(([categoryName, categorySkills]) => (
@@ -161,8 +161,8 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                                             Polivalans
                                         </th>
                                     </tr>
-                                    <tr className="bg-muted/30">
-                                        <th className="sticky left-0 z-20 bg-muted/30 p-2 border-r border-b"></th>
+                                    <tr className="bg-muted/50">
+                                        <th className="sticky left-0 z-30 bg-background p-2 border-r border-b shadow-sm"></th>
                                         {skills.map(skill => (
                                             <th 
                                                 key={skill.id}
@@ -216,7 +216,7 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
                                                 transition={{ delay: personIndex * 0.02 }}
                                                 className="hover:bg-muted/30 transition-colors"
                                             >
-                                                <td className="sticky left-0 z-10 bg-background p-3 border-r border-b font-medium">
+                                                <td className="sticky left-0 z-20 bg-background p-3 border-r border-b font-medium shadow-sm">
                                                     <div>
                                                         <div className="font-semibold">{person.full_name}</div>
                                                         <div className="text-xs text-muted-foreground">

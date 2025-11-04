@@ -48,16 +48,24 @@ const PolyvalenceModule = () => {
     }, []);
 
     const handleDownloadReport = () => {
-        // Prepare polivalance matrix data for printing
+        // Prepare polivalance matrix data for printing - WITH FILTERS
         const reportData = {
             id: 'polyvalence-' + Date.now(),
-            personnel: personnel,
-            skills: skills,
+            personnel: filteredPersonnel, // FILTERED
+            skills: filteredSkills, // FILTERED
             skillCategories: skillCategories,
-            personnelSkills: personnelSkills,
-            certificationAlerts: certificationAlerts,
-            summary: stats,
-            generated_at: new Date().toISOString()
+            personnelSkills: filteredPersonnelSkills, // FILTERED
+            certificationAlerts: certificationAlerts.filter(a => 
+                filteredPersonnel.some(p => p.id === a.personnel_id)
+            ), // FILTERED
+            summary: stats, // Already filtered
+            generated_at: new Date().toISOString(),
+            // Add filter info to report
+            filters: {
+                department: selectedDepartment !== 'all' ? selectedDepartment : null,
+                category: selectedCategory !== 'all' ? skillCategories.find(c => c.id === selectedCategory)?.name : null,
+                searchTerm: searchTerm || null
+            }
         };
 
         // Open printable report with localStorage
@@ -133,18 +141,32 @@ const PolyvalenceModule = () => {
         return skills.filter(s => s.category_id === selectedCategory);
     }, [skills, selectedCategory]);
 
-    // Statistics
+    // Filtered personnel skills
+    const filteredPersonnelSkills = useMemo(() => {
+        const filteredPersonnelIds = filteredPersonnel.map(p => p.id);
+        const filteredSkillIds = filteredSkills.map(s => s.id);
+        return personnelSkills.filter(ps => 
+            filteredPersonnelIds.includes(ps.personnel_id) && 
+            filteredSkillIds.includes(ps.skill_id)
+        );
+    }, [personnelSkills, filteredPersonnel, filteredSkills]);
+
+    // Statistics - FILTERED
     const stats = useMemo(() => {
-        const totalPersonnel = personnel.length;
-        const totalSkills = skills.length;
-        const totalCertifications = personnelSkills.filter(ps => ps.is_certified).length;
-        const criticalAlerts = certificationAlerts.filter(a => 
-            a.status === 'Süresi Dolmuş' || a.status === 'Kritik (30 gün içinde)'
-        ).length;
-        const trainingNeeds = personnelSkills.filter(ps => ps.training_required).length;
+        const totalPersonnel = filteredPersonnel.length;
+        const totalSkills = filteredSkills.length;
+        const totalCertifications = filteredPersonnelSkills.filter(ps => ps.is_certified).length;
+        const criticalAlerts = certificationAlerts.filter(a => {
+            const matchesStatus = a.status === 'Süresi Dolmuş' || a.status === 'Kritik (30 gün içinde)';
+            const isInFilteredPersonnel = filteredPersonnel.some(p => p.id === a.personnel_id);
+            return matchesStatus && isInFilteredPersonnel;
+        }).length;
+        const trainingNeeds = filteredPersonnelSkills.filter(ps => ps.training_required).length;
         
-        const avgPolyvalence = polyvalenceSummary.length > 0
-            ? (polyvalenceSummary.reduce((sum, p) => sum + (parseFloat(p.polyvalence_score) || 0), 0) / polyvalenceSummary.length).toFixed(1)
+        const filteredPersonnelIds = filteredPersonnel.map(p => p.id);
+        const filteredSummary = polyvalenceSummary.filter(ps => filteredPersonnelIds.includes(ps.personnel_id));
+        const avgPolyvalence = filteredSummary.length > 0
+            ? (filteredSummary.reduce((sum, p) => sum + (parseFloat(p.polyvalence_score) || 0), 0) / filteredSummary.length).toFixed(1)
             : 0;
 
         return {
@@ -155,7 +177,7 @@ const PolyvalenceModule = () => {
             trainingNeeds,
             avgPolyvalence
         };
-    }, [personnel, skills, personnelSkills, certificationAlerts, polyvalenceSummary]);
+    }, [filteredPersonnel, filteredSkills, filteredPersonnelSkills, certificationAlerts, polyvalenceSummary]);
 
     if (loading) {
         return (
@@ -344,7 +366,7 @@ const PolyvalenceModule = () => {
                     <PolyvalenceMatrix
                         personnel={filteredPersonnel}
                         skills={filteredSkills}
-                        personnelSkills={personnelSkills}
+                        personnelSkills={filteredPersonnelSkills}
                         skillCategories={skillCategories}
                         onRefresh={fetchData}
                     />
@@ -352,9 +374,9 @@ const PolyvalenceModule = () => {
 
                 <TabsContent value="analytics">
                     <PolyvalenceAnalytics
-                        personnel={personnel}
-                        skills={skills}
-                        personnelSkills={personnelSkills}
+                        personnel={filteredPersonnel}
+                        skills={filteredSkills}
+                        personnelSkills={filteredPersonnelSkills}
                         polyvalenceSummary={polyvalenceSummary}
                         certificationAlerts={certificationAlerts}
                     />
@@ -370,9 +392,9 @@ const PolyvalenceModule = () => {
 
                 <TabsContent value="training">
                     <TrainingNeedsAnalysis
-                        personnel={personnel}
-                        skills={skills}
-                        personnelSkills={personnelSkills}
+                        personnel={filteredPersonnel}
+                        skills={filteredSkills}
+                        personnelSkills={filteredPersonnelSkills}
                         certificationAlerts={certificationAlerts}
                         onRefresh={fetchData}
                     />
