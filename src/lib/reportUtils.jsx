@@ -1032,26 +1032,118 @@ const generateGenericReportHtml = (record, type) => {
 		}
 		
 		 if (type === 'supplier_audit' || type === 'internal_audit') {
+			// Denetim sonuçlarını doğru formatta işle
 			const results = record.audit_results || record.results || [];
 			
-			if (results.length > 0) {
-				html += `<div class="section"><h2 class="section-title red">2. DENETİM SONUÇLARI</h2><table class="info-table results-table"><thead><tr><th>Soru</th><th>Cevap</th><th>Notlar</th></tr></thead><tbody>`;
-				results.forEach((result) => {
-					if (result) {
-						const answerValue = result.answer;
-						let answerColor = '#6b7280';
-						if (answerValue === 'Evet' || answerValue === 'Uygun') answerColor = '#16a34a';
-						else if (answerValue === 'Hayır' || answerValue === 'Uygunsuz') answerColor = '#dc2626';
-						else if (answerValue === 'Kısmen' || answerValue === 'Gözlem') answerColor = '#f59e0b';
-						
-						html += `<tr>
-							<td>${result.question_text}</td>
-							<td><strong style="color: ${answerColor};">${answerValue || '-'}</strong></td>
-							<td><pre>${result.notes || '-'}</pre></td>
-						</tr>`;
+			// Eğer results bir obje ise (question_id: {answer, notes} formatında), array'e çevir
+			let resultsArray = [];
+			if (results && typeof results === 'object' && !Array.isArray(results)) {
+				// Object formatındaysa, questions ile birleştir
+				const questionsFromContext = record.questions || [];
+				Object.entries(results).forEach(([questionId, resultData]) => {
+					const question = questionsFromContext.find(q => q.id === questionId);
+					if (question && resultData) {
+						resultsArray.push({
+							question_text: question.question_text || 'Soru metni bulunamadı',
+							answer: resultData.answer,
+							notes: resultData.notes,
+							points: question.points || 0,
+							category: question.category || ''
+						});
 					}
 				});
-				html += `</tbody></table></div>`;
+			} else if (Array.isArray(results)) {
+				resultsArray = results;
+			}
+			
+			if (resultsArray.length > 0) {
+				html += `<div class="section"><h2 class="section-title red">2. DENETİM SONUÇLARI VE BULGULAR</h2>`;
+				
+				// Kategori bazlı gruplama
+				const categorizedResults = {};
+				resultsArray.forEach((result) => {
+					if (result) {
+						const category = result.category || 'Genel';
+						if (!categorizedResults[category]) {
+							categorizedResults[category] = [];
+						}
+						categorizedResults[category].push(result);
+					}
+				});
+				
+				// Her kategori için tablo oluştur
+				Object.entries(categorizedResults).forEach(([category, categoryResults]) => {
+					html += `<h3 style="font-size: 1.1em; font-weight: 700; color: #1f2937; margin-top: 15px; margin-bottom: 10px; padding: 8px; background-color: #f3f4f6; border-left: 4px solid #2563eb;">${category}</h3>`;
+					html += `<table class="info-table results-table" style="margin-bottom: 20px;"><thead><tr><th style="width: 10%;">Puan</th><th style="width: 40%;">Soru</th><th style="width: 15%;">Cevap</th><th style="width: 35%;">Denetçi Notları / Bulgular</th></tr></thead><tbody>`;
+					
+					categoryResults.forEach((result) => {
+						const answerValue = result.answer;
+						let answerColor = '#6b7280';
+						let answerBg = '#f3f4f6';
+						if (answerValue === 'Evet' || answerValue === 'Uygun') {
+							answerColor = '#16a34a';
+							answerBg = '#d1fae5';
+						} else if (answerValue === 'Hayır' || answerValue === 'Uygunsuz') {
+							answerColor = '#dc2626';
+							answerBg = '#fee2e2';
+						} else if (answerValue === 'Kısmen' || answerValue === 'Gözlem') {
+							answerColor = '#f59e0b';
+							answerBg = '#fef3c7';
+						} else if (answerValue === 'Uygulanamaz') {
+							answerColor = '#6b7280';
+							answerBg = '#e5e7eb';
+						}
+						
+						html += `<tr style="vertical-align: top;">
+							<td style="text-align: center; font-weight: bold; color: #2563eb;">${result.points || 0}</td>
+							<td style="line-height: 1.5;">${result.question_text || '-'}</td>
+							<td style="text-align: center;">
+								<span style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.9em; background-color: ${answerBg}; color: ${answerColor};">
+									${answerValue || '-'}
+								</span>
+							</td>
+							<td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.4; font-size: 9px; background-color: #fafafa; padding: 8px; border-radius: 4px; border-left: 3px solid ${answerColor};">${result.notes || 'Not bulunmuyor.'}</pre></td>
+						</tr>`;
+					});
+					html += `</tbody></table>`;
+				});
+				
+				// Özet İstatistikler
+				const totalQuestions = resultsArray.length;
+				const yesCount = resultsArray.filter(r => r.answer === 'Evet').length;
+				const noCount = resultsArray.filter(r => r.answer === 'Hayır').length;
+				const partialCount = resultsArray.filter(r => r.answer === 'Kısmen').length;
+				const naCount = resultsArray.filter(r => r.answer === 'Uygulanamaz').length;
+				
+				html += `<div style="margin-top: 20px; padding: 15px; background-color: #eff6ff; border-radius: 8px; border: 2px solid #3b82f6;">
+					<h4 style="margin: 0 0 10px 0; color: #1e40af; font-size: 1.1em;">Denetim Özeti</h4>
+					<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center;">
+						<div style="padding: 10px; background: white; border-radius: 6px;">
+							<div style="font-size: 1.5em; font-weight: 700; color: #2563eb;">${totalQuestions}</div>
+							<div style="font-size: 0.85em; color: #6b7280;">Toplam Soru</div>
+						</div>
+						<div style="padding: 10px; background: #d1fae5; border-radius: 6px;">
+							<div style="font-size: 1.5em; font-weight: 700; color: #16a34a;">${yesCount}</div>
+							<div style="font-size: 0.85em; color: #065f46;">Uygun</div>
+						</div>
+						<div style="padding: 10px; background: #fee2e2; border-radius: 6px;">
+							<div style="font-size: 1.5em; font-weight: 700; color: #dc2626;">${noCount}</div>
+							<div style="font-size: 0.85em; color: #991b1b;">Uygunsuz</div>
+						</div>
+						<div style="padding: 10px; background: #fef3c7; border-radius: 6px;">
+							<div style="font-size: 1.5em; font-weight: 700; color: #f59e0b;">${partialCount}</div>
+							<div style="font-size: 0.85em; color: #92400e;">Kısmen</div>
+						</div>
+						<div style="padding: 10px; background: #e5e7eb; border-radius: 6px;">
+							<div style="font-size: 1.5em; font-weight: 700; color: #6b7280;">${naCount}</div>
+							<div style="font-size: 0.85em; color: #374151;">Uygulanamaz</div>
+						</div>
+					</div>
+				</div>`;
+				
+				html += `</div>`;
+			} else {
+				html += `<div class="section"><h2 class="section-title red">2. DENETİM SONUÇLARI</h2><p style="color: #6b7280; padding: 20px; text-align: center;">Denetim sonucu bulunamadı.</p></div>`;
 			}
 		}
 		

@@ -82,13 +82,24 @@ import React, { useMemo, useState } from 'react';
             navigate(`/supplier-audit/${plan.id}`);
         };
 
-        const handleDownloadReport = (plan) => {
-            const fullPlanData = {
-                ...plan,
-                questions: allQuestions,
-            }
-            openPrintableReport(fullPlanData, 'supplier_audit');
+    const handleDownloadReport = async (plan) => {
+        // Soruları veritabanından çek
+        const { data: questionsData, error: questionsError } = await supabase
+            .from('supplier_audit_questions')
+            .select('*')
+            .order('created_at', { ascending: true });
+        
+        if (questionsError) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Sorular yüklenemedi: ' + questionsError.message });
+            return;
+        }
+        
+        const fullPlanData = {
+            ...plan,
+            questions: questionsData || [],
         };
+        openPrintableReport(fullPlanData, 'supplier_audit');
+    };
 
         const getStatusBadge = (plan) => {
             const { status, planned_date, reason_for_delay } = plan;
