@@ -14,11 +14,20 @@ const KaizenList = ({ type, data, loading, onEdit, onDelete, onAdd, onView }) =>
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
 
-    const filteredData = data.filter(item => 
-        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.kaizen_no && item.kaizen_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (item.proposer?.full_name && item.proposer.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    // Kapsamlı arama: başlık, kaizen no, öneren, açıklama, kategori, durum, departman
+    const filteredData = data.filter(item => {
+        const term = searchTerm.toLowerCase();
+        return (
+            item.title?.toLowerCase().includes(term) ||
+            item.kaizen_no?.toLowerCase().includes(term) ||
+            item.proposer?.full_name?.toLowerCase().includes(term) ||
+            item.description?.toLowerCase().includes(term) ||
+            item.category?.toLowerCase().includes(term) ||
+            item.status?.toLowerCase().includes(term) ||
+            item.department?.toLowerCase().includes(term) ||
+            item.expected_benefit?.toLowerCase().includes(term)
+        );
+    });
 
     const handleDelete = async (id) => {
         const { error } = await supabase.from('kaizen_entries').delete().eq('id', id);

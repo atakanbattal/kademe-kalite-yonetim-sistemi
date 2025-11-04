@@ -33,7 +33,8 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
             .order('created_at', { ascending: false });
 
         if (searchTerm) {
-            query = query.or(`name.ilike.%${searchTerm}%,serial_number.ilike.%${searchTerm}%,responsible_unit.ilike.%${searchTerm}%`);
+            // Kapsamlı arama: ad, seri no, birim, üretici, model, lokasyon, not
+            query = query.or(`name.ilike.%${searchTerm}%,serial_number.ilike.%${searchTerm}%,responsible_unit.ilike.%${searchTerm}%,manufacturer.ilike.%${searchTerm}%,model.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
         }
         
         const { data, error } = await query;

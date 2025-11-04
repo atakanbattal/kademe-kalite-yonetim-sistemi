@@ -37,10 +37,16 @@ const DeviationModule = ({ onOpenNCForm }) => {
     const filteredDeviations = useMemo(() => {
         return deviations.filter(d => {
             const searchTermLower = filters.searchTerm.toLowerCase();
+            // Kapsamlı arama: talep no, açıklama, talep eden, birim, kaynak, onaylayan, parça/ürün bilgisi
             const matchesSearch =
                 (d.request_no && d.request_no.toLowerCase().includes(searchTermLower)) ||
                 (d.description && d.description.toLowerCase().includes(searchTermLower)) ||
-                (d.requesting_person && d.requesting_person.toLowerCase().includes(searchTermLower));
+                (d.requesting_person && d.requesting_person.toLowerCase().includes(searchTermLower)) ||
+                (d.requesting_unit && d.requesting_unit.toLowerCase().includes(searchTermLower)) ||
+                (d.source && d.source.toLowerCase().includes(searchTermLower)) ||
+                (d.approving_person && d.approving_person.toLowerCase().includes(searchTermLower)) ||
+                (d.product_part && d.product_part.toLowerCase().includes(searchTermLower)) ||
+                (d.justification && d.justification.toLowerCase().includes(searchTermLower));
 
             const matchesStatus = filters.status === 'all' || d.status === filters.status;
             const matchesUnit = filters.requestingUnit === 'all' || d.requesting_unit === filters.requestingUnit;

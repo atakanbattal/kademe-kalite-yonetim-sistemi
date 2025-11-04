@@ -35,10 +35,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         
         if (searchTerm) {
             const lowercasedFilter = searchTerm.toLowerCase();
+            // Kapsamlı arama: parça kodu, adı, lot no, tedarikçi, uygunsuzluk nedeni, aksiyon
             filtered = filtered.filter(record => 
                 record.part_code?.toLowerCase().includes(lowercasedFilter) ||
                 record.part_name?.toLowerCase().includes(lowercasedFilter) ||
-                record.lot_no?.toLowerCase().includes(lowercasedFilter)
+                record.lot_no?.toLowerCase().includes(lowercasedFilter) ||
+                record.supplier_name?.toLowerCase().includes(lowercasedFilter) ||
+                record.nonconformity_reason?.toLowerCase().includes(lowercasedFilter) ||
+                record.action_taken?.toLowerCase().includes(lowercasedFilter) ||
+                record.inspector?.toLowerCase().includes(lowercasedFilter)
             );
         }
         setRecords(filtered);

@@ -42,7 +42,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         let tempSuppliers = [...mergedSuppliers];
         if (filters.searchTerm) {
             const term = filters.searchTerm.toLowerCase();
-            tempSuppliers = tempSuppliers.filter(s => s.name.toLowerCase().includes(term) || s.product_group?.toLowerCase().includes(term));
+            // Kapsamlı arama: tedarikçi adı, ürün grubu, kod, adres, iletişim bilgileri, uygunsuzluk başlıkları
+            tempSuppliers = tempSuppliers.filter(s => 
+                s.name.toLowerCase().includes(term) || 
+                s.product_group?.toLowerCase().includes(term) ||
+                s.code?.toLowerCase().includes(term) ||
+                s.address?.toLowerCase().includes(term) ||
+                s.contact_person?.toLowerCase().includes(term) ||
+                s.email?.toLowerCase().includes(term) ||
+                s.phone?.toLowerCase().includes(term) ||
+                s.supplier_non_conformities?.some(nc => nc.title?.toLowerCase().includes(term) || nc.description?.toLowerCase().includes(term))
+            );
         }
         if (filters.status !== 'all') {
             tempSuppliers = tempSuppliers.filter(s => s.status === filters.status);

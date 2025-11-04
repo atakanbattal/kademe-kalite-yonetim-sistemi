@@ -180,12 +180,18 @@ const ComplaintList = ({
 
         if (searchTerm) {
             const lowercased = searchTerm.toLowerCase();
+            // Kapsamlı arama: şikayet no, başlık, açıklama, ürün, müşteri, çözüm, root cause
             filtered = filtered.filter(c =>
                 c.complaint_number?.toLowerCase().includes(lowercased) ||
                 c.title?.toLowerCase().includes(lowercased) ||
                 c.description?.toLowerCase().includes(lowercased) ||
                 c.product_name?.toLowerCase().includes(lowercased) ||
-                c.customer?.customer_name?.toLowerCase().includes(lowercased)
+                c.product_code?.toLowerCase().includes(lowercased) ||
+                c.batch_number?.toLowerCase().includes(lowercased) ||
+                c.customer?.customer_name?.toLowerCase().includes(lowercased) ||
+                c.root_cause?.toLowerCase().includes(lowercased) ||
+                c.solution?.toLowerCase().includes(lowercased) ||
+                c.assigned_to?.toLowerCase().includes(lowercased)
             );
         }
 

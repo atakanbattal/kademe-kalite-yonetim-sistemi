@@ -50,13 +50,19 @@ import React, { useState, useMemo, useCallback } from 'react';
         const filteredRecords = useMemo(() => {
             const filtered = nonConformities.filter(record => {
                 const searchTermLower = filters.searchTerm.toLowerCase();
+                // Kapsamlı arama: NC no, MDI no, başlık, açıklama, departman, sorumlu, tedarikçi, parça kodu, parça adı, kaynak bilgisi
                 const matchesSearch =
                     (record.nc_number && record.nc_number.toLowerCase().includes(searchTermLower)) ||
                     (record.mdi_no && record.mdi_no.toLowerCase().includes(searchTermLower)) ||
                     (record.title && record.title.toLowerCase().includes(searchTermLower)) ||
                     (record.description && record.description.toLowerCase().includes(searchTermLower)) ||
                     (record.department && record.department.toLowerCase().includes(searchTermLower)) ||
-                    (record.responsible_person && record.responsible_person.toLowerCase().includes(searchTermLower));
+                    (record.responsible_person && record.responsible_person.toLowerCase().includes(searchTermLower)) ||
+                    (record.supplier_name && record.supplier_name.toLowerCase().includes(searchTermLower)) ||
+                    (record.part_code && record.part_code.toLowerCase().includes(searchTermLower)) ||
+                    (record.part_name && record.part_name.toLowerCase().includes(searchTermLower)) ||
+                    (record.source && record.source.toLowerCase().includes(searchTermLower)) ||
+                    (record.requesting_person && record.requesting_person.toLowerCase().includes(searchTermLower));
 
                 let matchesStatus = true;
                 if (filters.status !== 'all') {
