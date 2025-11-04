@@ -147,9 +147,10 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
+        // incoming_inspections_with_supplier view kullanarak supplier_name'e direkt erişim sağla
         let query = supabase
-            .from('incoming_inspections')
-            .select('*, supplier:suppliers(id, name)', { count: 'exact' })
+            .from('incoming_inspections_with_supplier')
+            .select('*', { count: 'exact' })
             .range(from, to)
             .order('inspection_date', { ascending: false })
             .order('created_at', { ascending: false });
