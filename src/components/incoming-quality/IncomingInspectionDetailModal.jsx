@@ -186,7 +186,7 @@ const IncomingInspectionDetailModal = ({
                 // Bu muayene kaydına bağlı tüm uygunsuzlukları çek
                 const { data, error } = await supabase
                     .from('non_conformities')
-                    .select('id, nc_number, type, title, status, created_at, responsible_person_id')
+                    .select('id, nc_number, type, title, status, created_at, responsible_person')
                     .eq('source_inspection_id', enrichedInspection.id)
                     .order('created_at', { ascending: false });
 
