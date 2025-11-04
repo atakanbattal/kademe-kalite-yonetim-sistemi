@@ -1535,6 +1535,8 @@ const generateGenericReportHtml = (record, type) => {
 
 const generatePrintableReportHtml = (record, type) => {
 	let reportContentHtml = '';
+	let cssOverrides = ''; // CSS overrides for specific report types
+	
 	if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'wps') {
@@ -2378,6 +2380,7 @@ const generatePrintableReportHtml = (record, type) => {
 		<title>${getReportTitle(record, type)}</title>
 		<style>
 			${isCertificate ? certificateStyles : (isExam ? `${defaultStyles} ${examPaperStyles}` : defaultStyles)}
+			${cssOverrides}
 		</style>
 	</head>
 	<body>
