@@ -233,14 +233,14 @@ const TrainingFormModal = ({ isOpen, onClose, personnel, skills, onRefresh }) =>
                         <div className="space-y-2">
                             <Label>Eğitim Sonrası Yeni Seviye</Label>
                             <Select
-                                value={formData.new_level}
-                                onValueChange={(val) => setFormData({ ...formData, new_level: val })}
+                                value={formData.new_level || "no_change"}
+                                onValueChange={(val) => setFormData({ ...formData, new_level: val === "no_change" ? '' : val })}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Değişiklik yok" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Değişiklik yok</SelectItem>
+                                    <SelectItem value="no_change">Değişiklik yok</SelectItem>
                                     <SelectItem value="1">Seviye 1 - Temel</SelectItem>
                                     <SelectItem value="2">Seviye 2 - Gözetimli</SelectItem>
                                     <SelectItem value="3">Seviye 3 - Bağımsız</SelectItem>
