@@ -104,11 +104,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                 // Core data - Her zaman gerekli
                 personnel: supabase.from('personnel').select('id, full_name, email, avatar_url, department, unit_id, is_active').eq('is_active', true).order('full_name'),
                 unitCostSettings: supabase.from('cost_settings').select('*'),
-                suppliers: supabase.from('suppliers').select('id, name, status, category').order('name'),
+                suppliers: supabase.from('suppliers').select('id, name, status').order('name'),
                 productionDepartments: supabase.from('production_departments').select('*'),
                 
                 // Frequently accessed data
-                nonConformities: supabase.from('non_conformities').select('id, nc_number, title, status, type, severity').order('created_at', { ascending: false }).limit(100),
+                nonConformities: supabase.from('non_conformities').select('id, nc_number, title, status, type').order('created_at', { ascending: false }).limit(100),
                 tasks: supabase.from('tasks').select('id, title, status, priority, due_date, owner_id').order('created_at', { ascending: false }).limit(50),
                 
                 // Dropdown data
