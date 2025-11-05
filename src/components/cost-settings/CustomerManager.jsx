@@ -808,7 +808,6 @@ const CustomerManager = () => {
                             <thead>
                                 <tr>
                                     <th className="w-12">S.No</th>
-                                    <th>Müşteri Kodu</th>
                                     <th>Müşteri Adı</th>
                                     <th>Tip</th>
                                     <th>Yetkili Kişi</th>
@@ -821,13 +820,13 @@ const CustomerManager = () => {
                             <tbody>
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="9" className="text-center py-8">
+                                        <td colSpan="8" className="text-center py-8">
                                             Yükleniyor...
                                         </td>
                                     </tr>
                                 ) : filteredCustomers.length === 0 ? (
                                     <tr>
-                                        <td colSpan="9" className="text-center py-8 text-muted-foreground">
+                                        <td colSpan="8" className="text-center py-8 text-muted-foreground">
                                             {searchTerm || filterType !== 'all' || filterActive !== 'all' 
                                                 ? 'Arama kriterlerine uygun müşteri bulunamadı.' 
                                                 : 'Henüz müşteri eklenmemiş.'}
@@ -841,9 +840,6 @@ const CustomerManager = () => {
                                             onClick={() => viewCustomer(customer)}
                                         >
                                             <td>{index + 1}</td>
-                                            <td className="font-mono text-sm">
-                                                {customer.customer_code}
-                                            </td>
                                             <td className="font-medium">
                                                 {customer.name}
                                             </td>

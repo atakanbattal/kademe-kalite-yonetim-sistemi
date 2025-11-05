@@ -301,3 +301,319 @@ export const generateDFPDF = (record) => {
 export const generate8DPDF = (record) => {
     generatePrintableReport(record);
 };
+
+export const generateVehicleReport = (vehicle, timeline, faults) => {
+    const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    }) : '-';
+
+    const eventTypeLabels = {
+        quality_entry: 'Kaliteye Giriş',
+        control_start: 'Kontrol Başladı',
+        control_end: 'Kontrol Bitti',
+        rework_start: 'Yeniden İşlem Başladı',
+        rework_end: 'Yeniden İşlem Bitti',
+        ready_to_ship: 'Sevke Hazır',
+        shipped: 'Sevk Edildi'
+    };
+
+    const timelineHtml = timeline && timeline.length > 0 ? `
+        <div class="section">
+            <h2 class="section-title">İşlem Geçmişi</h2>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="background-color: #1e40af; color: white;">
+                        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">İşlem Tipi</th>
+                        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Tarih-Saat</th>
+                        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Notlar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${timeline.map((event, index) => `
+                        <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : 'white'};">
+                            <td style="padding: 8px; border: 1px solid #ddd;">${eventTypeLabels[event.event_type] || event.event_type}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${formatDate(event.event_timestamp)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${event.notes || '-'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    ` : '';
+
+    const faultsHtml = faults && faults.length > 0 ? `
+        <div class="section">
+            <h2 class="section-title" style="color: #dc2626;">Tespit Edilen Hatalar</h2>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <thead>
+                    <tr style="background-color: #dc2626; color: white;">
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Hata Tipi</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Departman</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Açıklama</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Durum</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Tarih</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${faults.map((fault, index) => `
+                        <tr style="background-color: ${index % 2 === 0 ? '#fef2f2' : 'white'};">
+                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fault.fault_type || '-'}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${fault.department || '-'}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${fault.description || '-'}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">
+                                <span style="background-color: ${fault.status === 'Çözüldü' ? '#86efac' : '#fde047'}; color: ${fault.status === 'Çözüldü' ? '#15803d' : '#713f12'}; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600;">
+                                    ${fault.status || 'Bekliyor'}
+                                </span>
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${formatDate(fault.reported_at)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    ` : '<div class="section"><p style="color: #10b981; font-weight: 600;">✓ Bu araçta hiç hata kaydı bulunmamaktadır.</p></div>';
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="tr">
+        <head>
+            <meta charset="UTF-8">
+            <title>Araç Raporu - ${vehicle.chassis_no}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+                
+                body {
+                    font-family: 'Inter', sans-serif;
+                    color: #1f2937;
+                    margin: 0;
+                    padding: 0;
+                    background-color: #f3f4f6;
+                }
+                .page {
+                    background-color: white;
+                    width: 210mm;
+                    min-height: 297mm;
+                    margin: 20px auto;
+                    padding: 20mm;
+                    box-sizing: border-box;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 3px solid #1e40af;
+                    padding-bottom: 15px;
+                    margin-bottom: 20px;
+                }
+                .header h1 {
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #1e40af;
+                    margin: 0;
+                }
+                .header p {
+                    font-size: 14px;
+                    color: #6b7280;
+                    margin: 5px 0 0;
+                }
+                .report-title-section {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 25px;
+                    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+                    padding: 15px 20px;
+                    border-radius: 10px;
+                    color: white;
+                }
+                .report-title h2 {
+                    font-size: 22px;
+                    font-weight: 600;
+                    margin: 0;
+                }
+                .report-title p {
+                    font-size: 13px;
+                    margin: 5px 0 0;
+                    opacity: 0.9;
+                }
+                .section {
+                    margin-bottom: 25px;
+                    page-break-inside: avoid;
+                }
+                .section-title {
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #1e40af;
+                    border-bottom: 2px solid #bfdbfe;
+                    padding-bottom: 8px;
+                    margin-bottom: 15px;
+                }
+                .info-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 15px;
+                }
+                .info-item {
+                    background-color: #f9fafb;
+                    border-radius: 8px;
+                    padding: 15px;
+                    border-left: 4px solid #3b82f6;
+                }
+                .info-item .label {
+                    display: block;
+                    font-size: 12px;
+                    color: #6b7280;
+                    margin-bottom: 5px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+                .info-item .value {
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: #111827;
+                }
+                .full-width {
+                   grid-column: 1 / -1;
+                }
+                .notes-box {
+                    background-color: #fffbeb;
+                    border: 1px solid #fbbf24;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-top: 15px;
+                }
+                .notes-box .label {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #92400e;
+                    margin-bottom: 8px;
+                }
+                .notes-box .value {
+                    font-size: 13px;
+                    color: #451a03;
+                    white-space: pre-wrap;
+                    line-height: 1.6;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 2px solid #e5e7eb;
+                    font-size: 12px;
+                    color: #9ca3af;
+                }
+                .status-badge {
+                    display: inline-block;
+                    padding: 6px 12px;
+                    border-radius: 20px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    background-color: #dbeafe;
+                    color: #1e40af;
+                }
+                @media print {
+                    body { background-color: white; margin: 0; padding: 0; }
+                    .page { margin: 0; box-shadow: none; border: none; }
+                    @page {
+                        size: A4;
+                        margin: 15mm;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="page">
+                <div class="header">
+                    <h1>KADEME A.Ş.</h1>
+                    <p>Kalite Yönetim Sistemi - Araç Takip Raporu</p>
+                </div>
+                
+                <div class="report-title-section">
+                    <div class="report-title">
+                        <h2>ARAÇ RAPORU</h2>
+                        <p>Şasi No: ${vehicle.chassis_no}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="margin: 0; font-size: 12px;">Rapor Tarihi</p>
+                        <p style="margin: 5px 0 0; font-size: 14px; font-weight: 600;">${formatDate(new Date())}</p>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">Temel Bilgiler</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="label">Şasi Numarası</span>
+                            <span class="value">${vehicle.chassis_no || '-'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Seri Numarası</span>
+                            <span class="value">${vehicle.serial_no || '-'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Araç Tipi</span>
+                            <span class="value">${vehicle.vehicle_type || '-'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Müşteri</span>
+                            <span class="value">${vehicle.customer_name || '-'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Durum</span>
+                            <span class="value">
+                                <span class="status-badge">${vehicle.status || '-'}</span>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">DMO Durumu</span>
+                            <span class="value">${vehicle.dmo_status || '-'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Oluşturulma Tarihi</span>
+                            <span class="value">${formatDate(vehicle.created_at)}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Son Güncelleme</span>
+                            <span class="value">${formatDate(vehicle.updated_at)}</span>
+                        </div>
+                    </div>
+                    
+                    ${vehicle.notes ? `
+                        <div class="notes-box">
+                            <div class="label">📝 Notlar</div>
+                            <div class="value">${vehicle.notes}</div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                ${timelineHtml}
+                
+                ${faultsHtml}
+                
+                <div class="footer">
+                    Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.<br>
+                    <strong>KADEME A.Ş.</strong> - ${new Date().getFullYear()}
+                </div>
+            </div>
+            <script>
+                window.onload = () => {
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                };
+            </script>
+        </body>
+        </html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+        printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+    }
+};

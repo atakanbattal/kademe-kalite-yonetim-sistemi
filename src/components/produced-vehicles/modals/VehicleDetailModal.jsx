@@ -11,10 +11,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { formatDuration } from '@/lib/formatDuration.js';
-    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, Download, FileText } from 'lucide-react';
+    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText } from 'lucide-react';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
-    import jsPDF from 'jspdf';
-    import 'jspdf-autotable';
+    import { generateVehicleReport } from '@/lib/pdfGenerator';
 
     const eventTypes = {
       quality_entry: { label: 'Kaliteye Giriş', icon: <Play className="h-4 w-4 text-blue-500" /> },
@@ -181,184 +180,54 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     const VehicleDetailModal = ({ isOpen, setIsOpen, vehicle, onUpdate }) => {
         const { toast } = useToast();
         const [faults, setFaults] = useState([]);
+        const [timeline, setTimeline] = useState([]);
         const [loadingFaults, setLoadingFaults] = useState(false);
 
         useEffect(() => {
-            const fetchFaults = async () => {
+            const fetchData = async () => {
                 if (!vehicle?.id) return;
                 setLoadingFaults(true);
                 try {
-                    const { data, error } = await supabase
+                    // Hataları al
+                    const { data: faultsData, error: faultsError } = await supabase
                         .from('vehicle_faults')
                         .select('*')
                         .eq('vehicle_id', vehicle.id)
                         .order('reported_at', { ascending: false });
                     
-                    if (error) throw error;
-                    setFaults(data || []);
+                    if (faultsError) throw faultsError;
+                    setFaults(faultsData || []);
+
+                    // Timeline verilerini al
+                    const { data: timelineData, error: timelineError } = await supabase
+                        .from('vehicle_timeline_events')
+                        .select('*')
+                        .eq('inspection_id', vehicle.id)
+                        .order('event_timestamp', { ascending: true });
+                    
+                    if (timelineError) throw timelineError;
+                    setTimeline(timelineData || []);
                 } catch (error) {
-                    console.error('Error fetching faults:', error);
+                    console.error('Error fetching data:', error);
                 } finally {
                     setLoadingFaults(false);
                 }
             };
 
             if (isOpen && vehicle?.id) {
-                fetchFaults();
+                fetchData();
             }
         }, [isOpen, vehicle?.id]);
 
-        const generateReport = async () => {
+        const generateReport = () => {
             if (!vehicle) return;
-
+            
             try {
-                // Zaman çizelgesi verilerini al
-                const { data: timelineData } = await supabase
-                    .from('vehicle_timeline_events')
-                    .select('*')
-                    .eq('inspection_id', vehicle.id)
-                    .order('event_timestamp', { ascending: true });
-
-                const doc = new jsPDF();
-                
-                // Font ayarları
-                doc.setFont('helvetica');
-                
-                // Başlık
-                doc.setFontSize(20);
-                doc.setTextColor(30, 58, 138); // Blue-900
-                doc.text('ARAÇ RAPORU', 105, 20, { align: 'center' });
-                
-                // Tarih
-                doc.setFontSize(10);
-                doc.setTextColor(100, 100, 100);
-                doc.text(`Rapor Tarihi: ${format(new Date(), 'dd.MM.yyyy HH:mm', { locale: tr })}`, 105, 28, { align: 'center' });
-                
-                // Çizgi
-                doc.setDrawColor(200, 200, 200);
-                doc.line(20, 32, 190, 32);
-                
-                let yPos = 40;
-                
-                // Temel Bilgiler
-                doc.setFontSize(14);
-                doc.setTextColor(0, 0, 0);
-                doc.text('TEMEL BILGILER', 20, yPos);
-                yPos += 8;
-                
-                doc.setFontSize(10);
-                const basicInfo = [
-                    ['Şasi Numarası', vehicle.chassis_no || '-'],
-                    ['Seri Numarası', vehicle.serial_no || '-'],
-                    ['Araç Tipi', vehicle.vehicle_type || '-'],
-                    ['Müşteri', vehicle.customer_name || '-'],
-                    ['Durum', vehicle.status || '-'],
-                    ['DMO Durumu', vehicle.dmo_status || '-'],
-                    ['Oluşturulma Tarihi', format(parseISO(vehicle.created_at), 'dd.MM.yyyy HH:mm', { locale: tr })],
-                    ['Son Güncelleme', format(parseISO(vehicle.updated_at), 'dd.MM.yyyy HH:mm', { locale: tr })]
-                ];
-                
-                doc.autoTable({
-                    startY: yPos,
-                    head: [],
-                    body: basicInfo,
-                    theme: 'grid',
-                    styles: { fontSize: 9, cellPadding: 3 },
-                    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 60 }, 1: { cellWidth: 'auto' } }
-                });
-                
-                yPos = doc.lastAutoTable.finalY + 10;
-                
-                // Notlar
-                if (vehicle.notes) {
-                    doc.setFontSize(12);
-                    doc.text('NOTLAR', 20, yPos);
-                    yPos += 6;
-                    
-                    doc.setFontSize(9);
-                    const splitNotes = doc.splitTextToSize(vehicle.notes, 170);
-                    doc.text(splitNotes, 20, yPos);
-                    yPos += (splitNotes.length * 5) + 10;
-                }
-                
-                // İşlem Geçmişi
-                if (timelineData && timelineData.length > 0) {
-                    if (yPos > 250) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                    
-                    doc.setFontSize(14);
-                    doc.text('İŞLEM GEÇMİŞİ', 20, yPos);
-                    yPos += 8;
-                    
-                    const timelineRows = timelineData.map(event => [
-                        eventTypes[event.event_type]?.label || event.event_type,
-                        format(parseISO(event.event_timestamp), 'dd.MM.yyyy HH:mm', { locale: tr }),
-                        event.notes || '-'
-                    ]);
-                    
-                    doc.autoTable({
-                        startY: yPos,
-                        head: [['İşlem Tipi', 'Tarih-Saat', 'Notlar']],
-                        body: timelineRows,
-                        theme: 'striped',
-                        styles: { fontSize: 8, cellPadding: 2 },
-                        headStyles: { fillColor: [30, 58, 138], textColor: 255 }
-                    });
-                    
-                    yPos = doc.lastAutoTable.finalY + 10;
-                }
-                
-                // Hatalar
-                if (faults && faults.length > 0) {
-                    if (yPos > 240) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                    
-                    doc.setFontSize(14);
-                    doc.text('TESPIT EDİLEN HATALAR', 20, yPos);
-                    yPos += 8;
-                    
-                    const faultRows = faults.map(fault => [
-                        fault.fault_type || '-',
-                        fault.department || '-',
-                        fault.description || '-',
-                        fault.status || '-',
-                        format(parseISO(fault.reported_at), 'dd.MM.yyyy', { locale: tr })
-                    ]);
-                    
-                    doc.autoTable({
-                        startY: yPos,
-                        head: [['Hata Tipi', 'Departman', 'Açıklama', 'Durum', 'Tarih']],
-                        body: faultRows,
-                        theme: 'striped',
-                        styles: { fontSize: 8, cellPadding: 2 },
-                        headStyles: { fillColor: [220, 38, 38], textColor: 255 }
-                    });
-                }
-                
-                // Alt bilgi
-                const pageCount = doc.internal.getNumberOfPages();
-                for (let i = 1; i <= pageCount; i++) {
-                    doc.setPage(i);
-                    doc.setFontSize(8);
-                    doc.setTextColor(150, 150, 150);
-                    doc.text(
-                        `Sayfa ${i} / ${pageCount}`,
-                        105,
-                        doc.internal.pageSize.height - 10,
-                        { align: 'center' }
-                    );
-                }
-                
-                // PDF'i kaydet
-                doc.save(`Arac_Raporu_${vehicle.chassis_no}_${format(new Date(), 'yyyyMMdd_HHmmss')}.pdf`);
+                generateVehicleReport(vehicle, timeline, faults);
                 
                 toast({
-                    title: 'Başarılı',
-                    description: 'Araç raporu başarıyla oluşturuldu.'
+                    title: 'Rapor Oluşturuluyor',
+                    description: 'Yazdırma penceresi açılıyor...'
                 });
             } catch (error) {
                 console.error('Error generating report:', error);
