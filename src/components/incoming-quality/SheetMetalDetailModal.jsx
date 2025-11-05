@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -12,10 +12,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileDown } from 'lucide-react';
+import { FileDown, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
 
 const SheetMetalDetailModal = ({
     isOpen,
@@ -27,6 +28,41 @@ const SheetMetalDetailModal = ({
     const [preparedBy, setPreparedBy] = useState('');
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
+    const [signedUrls, setSignedUrls] = useState({});
+
+    // Sertifika signed URL'lerini oluştur
+    useEffect(() => {
+        const generateSignedUrls = async () => {
+            if (!record || !record.sheet_metal_items) return;
+            
+            const urls = {};
+            for (const item of record.sheet_metal_items) {
+                if (item.certificates && Array.isArray(item.certificates)) {
+                    for (const cert of item.certificates) {
+                        const certPath = typeof cert === 'string' ? cert : cert.path;
+                        if (certPath && !urls[certPath]) {
+                            try {
+                                const { data, error } = await supabase.storage
+                                    .from('incoming_control')
+                                    .createSignedUrl(certPath, 3600);
+                                
+                                if (!error && data?.signedUrl) {
+                                    urls[certPath] = data.signedUrl;
+                                }
+                            } catch (err) {
+                                console.error('Sertifika URL oluşturma hatası:', err);
+                            }
+                        }
+                    }
+                }
+            }
+            setSignedUrls(urls);
+        };
+
+        if (isOpen && record) {
+            generateSignedUrls();
+        }
+    }, [isOpen, record]);
 
     const getDecisionBadge = (decision) => {
         switch (decision) {
@@ -214,8 +250,31 @@ const SheetMetalDetailModal = ({
                                             <CardContent>
                                                 <div className="space-y-2">
                                                     {item.certificates.map((cert, cidx) => {
+                                                        const certPath = typeof cert === 'string' ? cert : cert.path;
                                                         const certName = typeof cert === 'string' ? cert.split('/').pop() : cert.name || cert.path?.split('/').pop() || `Sertifika ${cidx + 1}`;
-                                                        return <p key={cidx} className="text-sm p-2 border rounded bg-gray-50">{certName}</p>;
+                                                        const signedUrl = certPath ? signedUrls[certPath] : null;
+                                                        
+                                                        return (
+                                                            <div key={cidx} className="flex items-center justify-between p-2 border rounded bg-gray-50 hover:bg-gray-100 transition-colors">
+                                                                <div className="flex items-center gap-2 flex-1">
+                                                                    <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                                                    <span className="text-sm font-medium text-gray-700 truncate">{certName}</span>
+                                                                </div>
+                                                                {signedUrl ? (
+                                                                    <a
+                                                                        href={signedUrl}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                                    >
+                                                                        Görüntüle
+                                                                        <ExternalLink className="h-3 w-3" />
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="text-xs text-gray-400">Yükleniyor...</span>
+                                                                )}
+                                                            </div>
+                                                        );
                                                     })}
                                                 </div>
                                             </CardContent>
