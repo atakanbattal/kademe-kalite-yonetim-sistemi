@@ -16,17 +16,29 @@ const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceS
         count: personnelSkills.filter(ps => ps.current_level === level).length
     }));
 
-    // Department averages - FIX: polyvalenceSummary'den personnel bilgisini al
+    // Department averages - İki yöntemli hesaplama (view yoksa manuel)
     const deptStats = personnel.reduce((acc, p) => {
         if (!p.department) return acc;
         if (!acc[p.department]) {
             acc[p.department] = { personnel: 0, totalScore: 0 };
         }
         acc[p.department].personnel++;
+        
+        // Önce view'den dene
         const summary = polyvalenceSummary.find(ps => ps.personnel_id === p.id);
         if (summary && summary.polyvalence_score) {
             const score = parseFloat(summary.polyvalence_score);
             if (!isNaN(score)) {
+                acc[p.department].totalScore += score;
+            }
+        } else {
+            // View yoksa manuel hesapla
+            const personSkills = personnelSkills.filter(ps => ps.personnel_id === p.id);
+            const totalSkillsCount = personSkills.length;
+            
+            if (totalSkillsCount > 0) {
+                const proficientCount = personSkills.filter(ps => ps.current_level >= 3).length;
+                const score = (proficientCount / totalSkillsCount) * 100;
                 acc[p.department].totalScore += score;
             }
         }
@@ -39,34 +51,64 @@ const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceS
         .filter(([_, data]) => data.personnel > 0)
         .map(([dept, data]) => ({
             name: dept,
-            score: data.personnel > 0 ? parseFloat((data.totalScore / data.personnel).toFixed(1)) : 0
+            score: data.personnel > 0 ? parseFloat((data.totalScore / data.personnel).toFixed(1)) : 0,
+            count: data.personnel
         }))
         .filter(d => d.score > 0)
         .sort((a, b) => b.score - a.score);
 
     console.log('departmentData:', departmentData);
 
-    // Top performers - FIX: personnel bilgisini ekle
-    const topPerformers = polyvalenceSummary
-        .map(summary => {
-            const person = personnel.find(p => p.id === summary.personnel_id);
-            return {
-                ...summary,
-                full_name: person?.full_name || 'Bilinmeyen',
-                department: person?.department || '-',
-                personnel_id: summary.personnel_id
-            };
-        })
-        .filter(p => {
-            const score = parseFloat(p.polyvalence_score);
-            return p.polyvalence_score && !isNaN(score) && score > 0;
-        })
-        .sort((a, b) => {
-            const scoreA = parseFloat(a.polyvalence_score);
-            const scoreB = parseFloat(b.polyvalence_score);
-            return scoreB - scoreA;
-        })
-        .slice(0, 10);
+    // Top performers - İki yöntemli hesaplama
+    let topPerformers = [];
+    
+    if (polyvalenceSummary && polyvalenceSummary.length > 0) {
+        // View'den veri varsa kullan
+        topPerformers = polyvalenceSummary
+            .map(summary => {
+                const person = personnel.find(p => p.id === summary.personnel_id);
+                return {
+                    ...summary,
+                    full_name: person?.full_name || 'Bilinmeyen',
+                    department: person?.department || '-',
+                    personnel_id: summary.personnel_id
+                };
+            })
+            .filter(p => {
+                const score = parseFloat(p.polyvalence_score);
+                return p.polyvalence_score && !isNaN(score) && score > 0;
+            })
+            .sort((a, b) => {
+                const scoreA = parseFloat(a.polyvalence_score);
+                const scoreB = parseFloat(b.polyvalence_score);
+                return scoreB - scoreA;
+            })
+            .slice(0, 10);
+    } else {
+        // View yoksa manuel hesapla
+        topPerformers = personnel
+            .map(person => {
+                const personSkills = personnelSkills.filter(ps => ps.personnel_id === person.id);
+                const totalSkillsCount = personSkills.length;
+                
+                if (totalSkillsCount === 0) return null;
+                
+                const proficientCount = personSkills.filter(ps => ps.current_level >= 3).length;
+                const score = (proficientCount / totalSkillsCount) * 100;
+                
+                return {
+                    personnel_id: person.id,
+                    full_name: person.full_name,
+                    department: person.department || '-',
+                    polyvalence_score: score.toFixed(1),
+                    total_skills: totalSkillsCount,
+                    proficient_skills: proficientCount
+                };
+            })
+            .filter(p => p !== null && parseFloat(p.polyvalence_score) > 0)
+            .sort((a, b) => parseFloat(b.polyvalence_score) - parseFloat(a.polyvalence_score))
+            .slice(0, 10);
+    }
 
     console.log('topPerformers:', topPerformers);
 
@@ -101,59 +143,114 @@ const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceS
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Departman Performansı */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Users className="h-5 w-5" />
-                            Departman Polivalans Skorları
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={departmentData} layout="vertical">
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis type="number" domain={[0, 100]} />
-                                <YAxis dataKey="name" type="category" width={120} />
-                                <Tooltip />
-                                <Bar dataKey="score" fill="#10B981" />
+            {/* Departman Performansı - TEK ALAN */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Departman Polivalans Skorları
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Her departmanın ortalama polivalans skoru (Seviye 3+ yetkinlik oranı)
+                    </p>
+                </CardHeader>
+                <CardContent>
+                    {departmentData.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>Departman verisi bulunmuyor.</p>
+                            <p className="text-xs mt-2">Personellere departman atayın ve yetkinlik seviyelerini belirleyin.</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={Math.max(400, departmentData.length * 60)}>
+                            <BarChart 
+                                data={departmentData} 
+                                layout="vertical"
+                                margin={{ top: 20, right: 40, left: 20, bottom: 20 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis 
+                                    type="number" 
+                                    domain={[0, 100]} 
+                                    label={{ value: 'Polivalans Skoru (%)', position: 'insideBottom', offset: -10 }}
+                                    stroke="hsl(var(--muted-foreground))"
+                                    fontSize={13}
+                                />
+                                <YAxis 
+                                    dataKey="name" 
+                                    type="category" 
+                                    width={150}
+                                    stroke="hsl(var(--muted-foreground))"
+                                    fontSize={13}
+                                />
+                                <Tooltip 
+                                    content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                            const data = payload[0].payload;
+                                            return (
+                                                <div className="p-3 bg-background/95 backdrop-blur-sm border rounded-lg shadow-xl">
+                                                    <p className="font-bold mb-2">{data.name}</p>
+                                                    <p className="text-sm">
+                                                        <span className="text-muted-foreground">Polivalans Skoru:</span>
+                                                        <span className="ml-2 font-semibold text-green-600">{data.score}%</span>
+                                                    </p>
+                                                    <p className="text-sm">
+                                                        <span className="text-muted-foreground">Personel Sayısı:</span>
+                                                        <span className="ml-2 font-semibold">{data.count}</span>
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    }}
+                                />
+                                <Bar 
+                                    dataKey="score" 
+                                    fill="#10B981" 
+                                    radius={[0, 8, 8, 0]}
+                                    label={{ 
+                                        position: 'right', 
+                                        formatter: (value) => `${value}%`,
+                                        fill: 'hsl(var(--foreground))',
+                                        fontSize: 12
+                                    }}
+                                />
                             </BarChart>
                         </ResponsiveContainer>
-                    </CardContent>
-                </Card>
+                    )}
+                </CardContent>
+            </Card>
 
-                {/* Sertifika Durumu */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Award className="h-5 w-5" />
-                            Sertifika Geçerlilik Durumu
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie
-                                    data={certStats}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    label={({ name, value }) => `${name}: ${value}`}
-                                    outerRadius={80}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                >
-                                    {certStats.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
-            </div>
+            {/* Sertifika Durumu */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Award className="h-5 w-5" />
+                        Sertifika Geçerlilik Durumu
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                            <Pie
+                                data={certStats}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, value }) => `${name}: ${value}`}
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                            >
+                                {certStats.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
 
             {/* En Yüksek Performans Gösteren Personel */}
             <Card>
