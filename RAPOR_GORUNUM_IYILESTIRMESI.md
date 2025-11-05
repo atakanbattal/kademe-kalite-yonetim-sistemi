@@ -221,3 +221,4 @@ Artık başlık ve değer arasında sadece 6px boşluk var, çok daha doğal ve 
 
 
 
+

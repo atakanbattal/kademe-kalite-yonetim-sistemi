@@ -1,647 +1,1045 @@
 [
   {
     "id": "TC001",
-    "title": "User login with valid credentials",
-    "description": "Verify that a user can log in successfully using valid username and password combinations and access the main dashboard.",
+    "title": "User Authentication Success",
+    "description": "Verify that users can successfully authenticate with valid credentials and appropriate roles are assigned.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to the login page."
+        "description": "Navigate to login page"
       },
       {
         "type": "action",
-        "description": "Enter valid username and password."
+        "description": "Enter valid username/email and password"
       },
       {
         "type": "action",
-        "description": "Click on the login button."
+        "description": "Click login button"
       },
       {
         "type": "assertion",
-        "description": "Verify the user is redirected to the main dashboard page."
+        "description": "Verify successful login and redirection to dashboard page"
       },
       {
         "type": "assertion",
-        "description": "Verify the dashboard displays real-time quality KPIs and summary cards."
+        "description": "Verify user has correct role-based access to authorized modules"
       }
     ]
   },
   {
     "id": "TC002",
-    "title": "User login with invalid credentials",
-    "description": "Ensure that login fails when incorrect username or password is entered with appropriate error messages shown.",
+    "title": "User Authentication Failure with Invalid Credentials",
+    "description": "Verify the system prevents login with invalid credentials and returns proper error messages.",
     "category": "error handling",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to the login page."
+        "description": "Navigate to login page"
       },
       {
         "type": "action",
-        "description": "Enter invalid username and/or password."
+        "description": "Enter invalid username/email and/or password"
       },
       {
         "type": "action",
-        "description": "Click on the login button."
+        "description": "Click login button"
       },
       {
         "type": "assertion",
-        "description": "Verify login fails."
+        "description": "Verify login is rejected with appropriate error message"
       },
       {
         "type": "assertion",
-        "description": "Verify that a clear error message indicating invalid credentials is displayed."
+        "description": "Verify no access to any protected resource without login"
       }
     ]
   },
   {
     "id": "TC003",
-    "title": "Role-based access control enforcement",
-    "description": "Verify that users can only access modules and features permitted by their roles with denied access elsewhere.",
-    "category": "security",
+    "title": "Dashboard KPI Display and Trend Analysis",
+    "description": "Verify KPIs are correctly calculated, displayed, and trend charts update according to data changes on the dashboard.",
+    "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Log in with a user having restricted permissions."
+        "description": "Login with authorized user"
       },
       {
         "type": "action",
-        "description": "Attempt to navigate to an unauthorized module or feature."
+        "description": "Navigate to dashboard page"
       },
       {
         "type": "assertion",
-        "description": "Verify access is denied and appropriate error or redirect is performed."
+        "description": "Verify KPIs are accurately displayed with correct values"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify KPI trend charts render correctly and reflect data changes"
+      },
+      {
+        "type": "action",
+        "description": "Update KPI data in KPI module"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dashboard refreshes and KPIs/trends update accordingly"
       }
     ]
   },
   {
     "id": "TC004",
-    "title": "Dashboard chart interactive drill-down",
-    "description": "Verify that charts on the main dashboard render correctly, update in real-time, and support interactive drill-down functionality.",
+    "title": "KPI Module - Define, Update and Analyze KPIs",
+    "description": "Validate the process of creating, editing, and analyzing KPIs with target goals and correct trend calculations.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Log in and navigate to the main dashboard."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify charts load with correct quality metrics and KPIs."
+        "description": "Login with KPI manager role"
       },
       {
         "type": "action",
-        "description": "Click on specific chart segments or elements to drill down."
+        "description": "Open KPI module"
+      },
+      {
+        "type": "action",
+        "description": "Create new KPI with valid data including targets"
       },
       {
         "type": "assertion",
-        "description": "Verify detailed data related to the selected segment is displayed."
+        "description": "Verify new KPI is saved and listed with correct values"
+      },
+      {
+        "type": "action",
+        "description": "Edit existing KPI to update values and target"
       },
       {
         "type": "assertion",
-        "description": "Verify charts update in real-time when data changes."
+        "description": "Verify KPI updates are saved and trend/analysis data is recalculated"
+      },
+      {
+        "type": "action",
+        "description": "View KPI details and trend analytics"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify trends accurately reflect historical data"
       }
     ]
   },
   {
     "id": "TC005",
-    "title": "Deviation creation and filtering",
-    "description": "Test creating a new deviation record and verify that filtering and analytics of deviations work correctly.",
+    "title": "Quality Cost Management - Entry and Categorization",
+    "description": "Test recording of quality cost entries with correct classification of internal failure, external failure, prevention and appraisal costs.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Deviation Management module."
+        "description": "Login with quality cost manager role"
       },
       {
         "type": "action",
-        "description": "Create a new deviation with all required fields filled correctly."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the new deviation appears in the deviation list."
+        "description": "Navigate to Quality Cost Management module"
       },
       {
         "type": "action",
-        "description": "Apply filters to the deviation list (by date, severity, status, etc.)."
+        "description": "Add new quality cost entry specifying category and cost details"
       },
       {
         "type": "assertion",
-        "description": "Verify the deviation list updates to match the filter criteria."
+        "description": "Verify entry is saved and reflected in cost lists and summary"
       },
       {
         "type": "action",
-        "description": "View deviation analytics charts and verify drill-down functionality."
+        "description": "Filter and sort cost entries by category and date"
       },
       {
         "type": "assertion",
-        "description": "Verify analytics accurately reflect the filtered deviation data."
+        "description": "Verify filtering returns correct sets of records"
       }
     ]
   },
   {
     "id": "TC006",
-    "title": "Create Non-Conformity (DF and 8D) from a deviation",
-    "description": "Ensure that a user can successfully create DF and 8D non-conformity forms from an existing deviation and progress them through workflow steps.",
+    "title": "8D Problem Solving Workflow and Closure",
+    "description": "Verify recording of non-conformities, stepwise 8D problem-solving process tracking and closure processes.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Open an existing deviation detail modal."
+        "description": "Login as quality engineer"
       },
       {
         "type": "action",
-        "description": "Initiate creating a Non-Conformity form (DF or 8D) from the deviation."
+        "description": "Open DF & 8D Management module"
       },
       {
         "type": "action",
-        "description": "Fill out all required form fields with valid data."
-      },
-      {
-        "type": "action",
-        "description": "Submit the form to create the Non-Conformity record."
+        "description": "Register a new non-conformity with required details"
       },
       {
         "type": "assertion",
-        "description": "Verify the Non-Conformity appears in the NC list with correct data."
+        "description": "Verify non-conformity is created and visible in non-conformity list"
       },
       {
         "type": "action",
-        "description": "Progress the Non-Conformity through approval and workflow steps."
+        "description": "Progress through all 8D steps entering necessary data and updating status"
       },
       {
         "type": "assertion",
-        "description": "Verify workflow status updates and approver assignments are handled correctly."
+        "description": "Verify each 8D step data is saved and visible"
+      },
+      {
+        "type": "action",
+        "description": "Close non-conformity after completing all problem-solving steps"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify non-conformity status changes to closed and appears in closure reports"
       }
     ]
   },
   {
     "id": "TC007",
-    "title": "Quarantine management workflow and analytics",
-    "description": "Test adding quarantine records, decision making (release, scrap, rework), and verify quarantine analytics update accordingly.",
+    "title": "Quarantine Management Flow",
+    "description": "Test quarantine material/product registration, tracking and release with correct status updates.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Quarantine Management module."
+        "description": "Login with quarantine coordinator role"
       },
       {
         "type": "action",
-        "description": "Log a new quarantine entry with all required details."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the quarantine record appears correctly."
+        "description": "Navigate to Quarantine Management module"
       },
       {
         "type": "action",
-        "description": "Record decisions such as release, scrap, or rework for quarantined parts."
+        "description": "Register a new quarantine item with material/product details"
       },
       {
         "type": "assertion",
-        "description": "Verify the quarantine status and analytics charts reflect the decision."
+        "description": "Verify quarantine item appears in quarantine list with correct status"
       },
       {
         "type": "action",
-        "description": "Apply intelligent filtering on quarantine records."
+        "description": "Update quarantine status to hold, testing or release states accordingly"
       },
       {
         "type": "assertion",
-        "description": "Verify filters update the quarantine list and analytics properly."
+        "description": "Verify status updates reflect correctly in quarantine detail view"
       }
     ]
   },
   {
     "id": "TC008",
-    "title": "Equipment calibration and maintenance tracking",
-    "description": "Verify equipment can be added, calibration and maintenance history recorded, and alerts for upcoming maintenance are visible.",
+    "title": "Internal Audit Planning, Execution and Reporting",
+    "description": "Validate audit creation, scheduling, performing, finding logging, corrective action linkage and report generation workflows.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to the Equipment Calibration module."
+        "description": "Login as internal audit team member"
       },
       {
         "type": "action",
-        "description": "Add a new equipment entry with required details."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the new equipment is listed."
+        "description": "Open Internal Audit Management module"
       },
       {
         "type": "action",
-        "description": "Record calibration or maintenance events for equipment."
+        "description": "Create and schedule a new audit plan"
       },
       {
         "type": "assertion",
-        "description": "Verify history records are accurate and displayed correctly."
+        "description": "Verify audit plan is saved and listed in schedule"
+      },
+      {
+        "type": "action",
+        "description": "Execute audit, logging findings via audit findings interface"
       },
       {
         "type": "assertion",
-        "description": "Verify alerts or notifications for upcoming calibration events are shown."
+        "description": "Verify findings are recorded and linked to audit"
+      },
+      {
+        "type": "action",
+        "description": "Generate audit report from findings"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify audit reports accurately reflect findings and corrective actions"
       }
     ]
   },
   {
     "id": "TC009",
-    "title": "Supplier audit creation and performance tracking",
-    "description": "Test the creation of supplier quality audits, input of audit findings, corrective action tracking, and performance metrics visualization.",
+    "title": "Supplier Quality Evaluations and Performance Tracking",
+    "description": "Test supplier evaluation creation, audit record keeping and monitoring supplier performance metrics.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Supplier Quality module."
+        "description": "Login as supplier quality manager"
       },
       {
         "type": "action",
-        "description": "Create a new supplier audit with necessary details."
+        "description": "Access Supplier Quality Management module"
       },
       {
         "type": "action",
-        "description": "Add findings and assign corrective actions."
+        "description": "Add a new supplier evaluation record with scores"
       },
       {
         "type": "assertion",
-        "description": "Verify the audit and findings are saved and displayed."
+        "description": "Verify new evaluation is saved and visible"
+      },
+      {
+        "type": "action",
+        "description": "Log supplier audit findings and non-conformities"
       },
       {
         "type": "assertion",
-        "description": "Verify supplier performance metrics update accordingly."
+        "description": "Verify audit records and NCs link correctly to supplier profile"
+      },
+      {
+        "type": "action",
+        "description": "Review supplier performance dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify performance metrics reflect evaluations and audit data"
       }
     ]
   },
   {
     "id": "TC010",
-    "title": "Internal audit planning and execution",
-    "description": "Verify users can plan internal audits, document execution details and findings, and generate audit reports.",
+    "title": "Customer Complaint Lifecycle Management",
+    "description": "Verify complete lifecycle of customer complaints including logging, analysis, communications, actions and document management.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Internal Audit module."
+        "description": "Log in as customer service representative"
       },
       {
         "type": "action",
-        "description": "Create and schedule a new internal audit."
+        "description": "Navigate to Customer Complaints Management module"
       },
       {
         "type": "action",
-        "description": "Execute the audit and document findings."
+        "description": "Create a new customer complaint with associated details"
       },
       {
         "type": "assertion",
-        "description": "Verify the audit details and findings are saved accurately."
+        "description": "Verify complaint is listed in complaints dashboard"
       },
       {
         "type": "action",
-        "description": "Generate and view the audit report as a PDF."
+        "description": "Perform complaint analysis and add corrective actions"
       },
       {
         "type": "assertion",
-        "description": "Verify the PDF report contains correct and complete information."
+        "description": "Verify actions are linked to complaint and status is updated"
+      },
+      {
+        "type": "action",
+        "description": "Send and log complaint related communications"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify communication entries are saved correctly"
+      },
+      {
+        "type": "action",
+        "description": "Upload and view complaint related documents"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify documents are stored, versioned and previewable as PDFs"
       }
     ]
   },
   {
     "id": "TC011",
-    "title": "Kaizen continuous improvement initiative tracking",
-    "description": "Ensure that Kaizen improvement suggestions can be logged, status tracked, owners assigned, and progress monitored.",
+    "title": "Deviation Reporting, Approval and Source Integration",
+    "description": "Validate that production/process deviations are reported, reviewed, approved and integrated with source records correctly.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Kaizen Management module."
+        "description": "Login as deviation manager"
       },
       {
         "type": "action",
-        "description": "Log a new Kaizen suggestion with required details."
+        "description": "Open Deviation Management module"
       },
       {
         "type": "action",
-        "description": "Assign owners and update the status of the initiative."
+        "description": "Create a new deviation record describing the issue and affected process"
       },
       {
         "type": "assertion",
-        "description": "Verify the Kaizen list and dashboard reflect the new initiative and its current status."
+        "description": "Verify deviation is listed and detailed correctly"
+      },
+      {
+        "type": "action",
+        "description": "Submit deviation for approval workflow"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify approval status changes and notifications are triggered"
+      },
+      {
+        "type": "action",
+        "description": "Select and link appropriate source records to deviation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify source record integration is saved and displayed"
       }
     ]
   },
   {
     "id": "TC012",
-    "title": "Quality cost tracking and analysis",
-    "description": "Validate input of quality-related material, personnel, and unit costs and review cost analytics and reports.",
+    "title": "Incoming Quality Inspection and Risk Stock Alerts",
+    "description": "Test incoming material inspections, control plan management, INKR records, and risk stock alert functionality.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Quality Cost Management module."
+        "description": "Login as incoming quality inspector"
       },
       {
         "type": "action",
-        "description": "Input new cost records for material, personnel, and unit costs."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify cost entries are reflected in dashboards and analytical charts."
+        "description": "Access Incoming Quality Control module"
       },
       {
         "type": "action",
-        "description": "Generate cost reports and export as PDFs."
+        "description": "Create new inspection record with results"
       },
       {
         "type": "assertion",
-        "description": "Verify the generated PDFs include correct cost data and analyses."
+        "description": "Verify inspection record is saved and appears in inspection lists"
+      },
+      {
+        "type": "action",
+        "description": "Configure or update control plans for materials"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify control plans reflect properly in material inspection workflow"
+      },
+      {
+        "type": "action",
+        "description": "Check INKR records for inspection"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify INKR data consistency"
+      },
+      {
+        "type": "action",
+        "description": "Trigger risk stock alerts via stock level modifications"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify risk stock alerts appear on dashboard or stock control views"
       }
     ]
   },
   {
     "id": "TC013",
-    "title": "Incoming quality control inspection handling",
-    "description": "Test creation and updating of incoming inspection records, acceptance/rejection handling, and defect tracking.",
+    "title": "Equipment and Calibration Scheduling with History Tracking",
+    "description": "Verify equipment and calibration record creation, scheduling, assignment history and maintenance plan accuracy.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Incoming Quality Control module."
+        "description": "Login as equipment manager"
       },
       {
         "type": "action",
-        "description": "Create an incoming inspection record for material received."
+        "description": "Open Equipment & Calibration Management module"
       },
       {
         "type": "action",
-        "description": "Record defects and decide acceptance or rejection."
+        "description": "Add new equipment record with relevant details"
       },
       {
         "type": "assertion",
-        "description": "Verify the record and status are saved and displayed correctly."
+        "description": "Verify equipment appears in equipment list and dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Schedule calibration and maintenance tasks for equipment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify calibration schedules appear correctly and notifications are generated"
+      },
+      {
+        "type": "action",
+        "description": "Assign equipment to personnel and view assignment history"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify assignment history is recorded and shown correctly"
+      },
+      {
+        "type": "action",
+        "description": "Review calibration history for equipment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify calibration records and dates are accurately maintained"
       }
     ]
   },
   {
     "id": "TC014",
-    "title": "Vehicle production and quality tracking",
-    "description": "Verify that vehicle production records can be created, updated with quality data, and monitored via dashboard.",
+    "title": "Produced Vehicles Quality Tracking and Defect Reporting",
+    "description": "Test vehicle quality record creation, defect tracking and report generation related to produced vehicles.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Vehicle Tracking module."
+        "description": "Login as vehicle quality inspector"
       },
       {
         "type": "action",
-        "description": "Add a new vehicle production record."
+        "description": "Open Produced Vehicles Management module"
       },
       {
         "type": "action",
-        "description": "Input quality metrics related to the vehicle."
+        "description": "Create a new vehicle quality record"
       },
       {
         "type": "assertion",
-        "description": "Verify vehicle list and quality data are displayed correctly."
+        "description": "Verify vehicle record is saved and appears in vehicle list"
+      },
+      {
+        "type": "action",
+        "description": "Log vehicle defects and link them to vehicle record"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify defects are tracked accurately and linked"
+      },
+      {
+        "type": "action",
+        "description": "Generate vehicle quality reports"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify reports display accurate defect and quality data"
       }
     ]
   },
   {
     "id": "TC015",
-    "title": "Document management with PDF upload and viewing",
-    "description": "Validate document upload functionality, version control, and embedded PDF viewer capabilities.",
+    "title": "Document Upload, Version Control and PDF Viewing",
+    "description": "Validate quality document upload, version management, and in-app PDF viewing functionality.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to Document Management module."
+        "description": "Login with document management rights"
       },
       {
         "type": "action",
-        "description": "Upload a new quality document in PDF format."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify document appears in the list with correct metadata and versioning."
+        "description": "Open Document Management module"
       },
       {
         "type": "action",
-        "description": "Open the document using the integrated PDF viewer."
+        "description": "Upload a new quality document"
       },
       {
         "type": "assertion",
-        "description": "Verify the PDF renders correctly and supports navigation."
+        "description": "Verify document appears in document list with metadata"
+      },
+      {
+        "type": "action",
+        "description": "Upload a new version of an existing document"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify version increment and version history are stored"
+      },
+      {
+        "type": "action",
+        "description": "Open document in PDF viewer modal"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify PDF renders correctly without errors"
       }
     ]
   },
   {
     "id": "TC016",
-    "title": "Report generation and PDF export for different modules",
-    "description": "Ensure reports can be generated dynamically with correct data for various modules and exported correctly as PDFs.",
+    "title": "Training Records and Certification Tracking",
+    "description": "Test adding training sessions, linking personnel, and managing certifications with expiry dates.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to reporting features from various modules (Dashboard, Audit, Kaizen, etc.)."
+        "description": "Login as HR/training coordinator"
       },
       {
         "type": "action",
-        "description": "Generate reports with selected filters and parameters."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the report data matches expected content accurately."
+        "description": "Open Training Management module"
       },
       {
         "type": "action",
-        "description": "Export the report as a PDF file."
+        "description": "Create a new training session with details"
       },
       {
         "type": "assertion",
-        "description": "Verify the exported PDF file is accurate, complete, and formatted correctly."
+        "description": "Verify training session is saved and visible"
+      },
+      {
+        "type": "action",
+        "description": "Assign training to personnel"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify personnel training records updated accordingly"
+      },
+      {
+        "type": "action",
+        "description": "Add and track certification details including expiry dates"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify certifications are linked and upcoming expirations are flagged"
       }
     ]
   },
   {
     "id": "TC017",
-    "title": "UI responsiveness and accessibility",
-    "description": "Verify that the UI components including dashboards and forms render properly across different device sizes and are accessible.",
-    "category": "ui",
-    "priority": "High",
+    "title": "Polyvalence Matrix Skill and Competence Management",
+    "description": "Verify skill entries, competence levels, and personnel skill matrices can be created and viewed accurately.",
+    "category": "functional",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Open the application on various device resolutions (mobile, tablet, desktop)."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify no layout breakage, all components are usable and visible."
+        "description": "Login as skill matrix manager"
       },
       {
         "type": "action",
-        "description": "Test keyboard navigation and screen reader support on critical UI components."
+        "description": "Open Polyvalence Matrix module"
+      },
+      {
+        "type": "action",
+        "description": "Add new skill definitions with levels"
       },
       {
         "type": "assertion",
-        "description": "Verify accessibility standards are met (focus outlines, ARIA labels, etc.)."
+        "description": "Verify skills appear in skill management list"
+      },
+      {
+        "type": "action",
+        "description": "Assign skill levels to personnel"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify personnel skill matrix updates accordingly"
+      },
+      {
+        "type": "action",
+        "description": "View polyvalence dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify skill and competence visualizations display correct data"
       }
     ]
   },
   {
     "id": "TC018",
-    "title": "Toast notifications for success, error, and information",
-    "description": "Verify that toast notifications show up correctly with appropriate messages during success, error, or info events.",
-    "category": "ui",
+    "title": "Benchmark Management and Industry Comparison",
+    "description": "Validate addition of benchmark data, comparison against industry standards, filtering and report generation.",
+    "category": "functional",
     "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Perform actions that trigger success notifications (e.g., form submission)."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify success toast notification appears with correct message."
+        "description": "Login as benchmark manager"
       },
       {
         "type": "action",
-        "description": "Perform invalid or error actions to trigger error notifications."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify error toast notification appears with accurate message."
+        "description": "Open Benchmark Management module"
       },
       {
         "type": "action",
-        "description": "Trigger informational notifications (e.g., data synchronization)."
+        "description": "Create new benchmark record with relevant metrics"
       },
       {
         "type": "assertion",
-        "description": "Verify info toast notification appears correctly."
+        "description": "Verify benchmark saved and appears in list"
+      },
+      {
+        "type": "action",
+        "description": "Filter and sort benchmark records"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify correct filtered data is returned"
+      },
+      {
+        "type": "action",
+        "description": "Perform industry comparison analysis"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify analysis results reflect accurate comparative insights"
       }
     ]
   },
   {
     "id": "TC019",
-    "title": "Network error handling and user feedback",
-    "description": "Verify the system manages network errors gracefully by providing informative feedback and retry options.",
-    "category": "error handling",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Simulate network disruption during data fetch or form submission."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the UI shows an appropriate error message or notification."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify options to retry the action or save data offline if applicable."
-      }
-    ]
-  },
-  {
-    "id": "TC020",
-    "title": "Form validation for required fields and data formats",
-    "description": "Verify all forms enforce validations for required fields, valid data formats, and prevent duplicate entries.",
-    "category": "functional",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Open any module form (e.g., Deviation, Non-Conformity, Equipment, Audit)."
-      },
-      {
-        "type": "action",
-        "description": "Attempt to submit with missing required fields."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify validation messages prevent submission and identify missing fields."
-      },
-      {
-        "type": "action",
-        "description": "Enter invalid data formats (e.g., text in numeric fields, invalid dates)."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify validation errors appear as expected."
-      },
-      {
-        "type": "action",
-        "description": "Attempt to create duplicate records where prevented."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify duplicate entry errors or warnings are shown."
-      }
-    ]
-  },
-  {
-    "id": "TC021",
-    "title": "Real-time data synchronization and update notification",
-    "description": "Ensure that data changes made by one user reflect in other users' dashboards and modules in real-time with notification.",
-    "category": "functional",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Log in with two different users on separate browsers/devices."
-      },
-      {
-        "type": "action",
-        "description": "Perform an update in one user's session (e.g., add deviation or update Kaizen status)."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the other user's interface updates automatically without refresh."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify a toast or notification indicating data update is shown."
-      }
-    ]
-  },
-  {
-    "id": "TC022",
-    "title": "Pagination and performance on large datasets",
-    "description": "Verify the system efficiently handles large datasets with pagination, caching and maintains acceptable load and response times.",
+    "title": "WPS Management - Procedures and Qualifications",
+    "description": "Test creation and management of Welding Procedure Specifications and qualification records.",
     "category": "functional",
     "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Load modules with extensive data records (e.g., deviation list, audit list)."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify data is paginated and only a subset is shown at a time."
+        "description": "Login as welding manager"
       },
       {
         "type": "action",
-        "description": "Navigate between pages and apply filters."
+        "description": "Access WPS Management module"
+      },
+      {
+        "type": "action",
+        "description": "Add new welding procedure specification"
       },
       {
         "type": "assertion",
-        "description": "Verify response time stays within acceptable benchmarks."
+        "description": "Verify WPS is saved and visible in list"
+      },
+      {
+        "type": "action",
+        "description": "Add qualification records linked to procedures"
       },
       {
         "type": "assertion",
-        "description": "Verify no data duplication or missing entries occur across pages."
+        "description": "Verify qualifications are correctly stored and linked"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Kaizen Management - Submission, Evaluation and Closure",
+    "description": "Validate submitting improvement proposals, evaluation workflow and tracking implementation completion.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as improvement team member"
+      },
+      {
+        "type": "action",
+        "description": "Open Kaizen Management module"
+      },
+      {
+        "type": "action",
+        "description": "Submit a new Kaizen proposal with description and expected benefits"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify proposal is saved and visible in list"
+      },
+      {
+        "type": "action",
+        "description": "Perform evaluation and update status"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify evaluation data saved and displayed"
+      },
+      {
+        "type": "action",
+        "description": "Mark proposal as implemented and close"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify status reflects successful implementation closure"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Task Management - Creation, Assignment and Completion Tracking",
+    "description": "Verify tasks can be created, assigned to users, status updated and tracked through completion.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as task manager"
+      },
+      {
+        "type": "action",
+        "description": "Open Task Management module"
+      },
+      {
+        "type": "action",
+        "description": "Create a new task with title, description and priority"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify task appears in task board"
+      },
+      {
+        "type": "action",
+        "description": "Assign task to user(s)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify assigned users appear correctly"
+      },
+      {
+        "type": "action",
+        "description": "Update task status step by step to completion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify status changes and completion reflected in UI and reports"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Audit Log System - User Activity Recording and Retrieval",
+    "description": "Test audit log recording for user actions, changes and verify logs can be retrieved and filtered securely.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin or security officer"
+      },
+      {
+        "type": "action",
+        "description": "Perform various system actions (create, update, delete records)"
+      },
+      {
+        "type": "action",
+        "description": "Access Audit Log System module"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user activities are correctly logged with timestamp and details"
+      },
+      {
+        "type": "action",
+        "description": "Filter audit logs by user, date range and action type"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify filtering returns accurate subset of logs"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Settings & Configuration Management",
+    "description": "Verify adding, updating and deleting system configurations including cost settings, personnel, customers and accounts.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as system administrator"
+      },
+      {
+        "type": "action",
+        "description": "Open Settings & Configuration modules for cost, personnel, customer and account management"
+      },
+      {
+        "type": "action",
+        "description": "Add new configuration entries such as cost categories, personnel or customers"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify new entries are saved and listed"
+      },
+      {
+        "type": "action",
+        "description": "Update existing configuration entries"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify updates persist and are reflected in dependent modules"
+      },
+      {
+        "type": "action",
+        "description": "Delete configuration entries and confirm removal"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify deletion is successful and does not break system functionality"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Reporting & PDF Generation Accuracy and Export",
+    "description": "Validate reports accurate data display and successful PDF generation and export from dashboards and lists.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login with report viewing rights"
+      },
+      {
+        "type": "action",
+        "description": "Generate various standard reports from dashboard and respective modules"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify report data is correct and matches underlying source data"
+      },
+      {
+        "type": "action",
+        "description": "Export reports and dashboards to PDF format"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify generated PDF files open correctly and data is formatted as per requirements"
+      },
+      {
+        "type": "action",
+        "description": "Test printing reports from PDF output"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify print views are correctly formatted without data truncation"
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "Global Data Context and State Consistency",
+    "description": "Verify that shared data context maintains consistent data flow and state updates reflect across modules correctly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login and open multiple modules simultaneously"
+      },
+      {
+        "type": "action",
+        "description": "Update shared data (e.g., user info, KPIs) in one module"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify data updates are reflected correctly across other modules in real time"
+      },
+      {
+        "type": "action",
+        "description": "Perform state changes and navigations"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no state desynchronization or stale data issues occur"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "UI Component Reusability and Consistency",
+    "description": "Test core UI components (buttons, forms, modals, dropdowns) for functionality and visual consistency across the system.",
+    "category": "ui",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Load various screens featuring shared UI components"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify components function correctly including input, selection, and modal opening/closing"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify consistent styling, responsiveness and accessibility compliance"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "Input Validation and Error Handling Across Forms",
+    "description": "Verify input validation rules work, error messages display properly and invalid data is rejected on all data entry forms.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to submit empty or invalid inputs on key forms like login, KPI, quality cost, audit and complaints"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation errors appear near inputs and form submission prevented"
+      },
+      {
+        "type": "action",
+        "description": "Enter inputs exceeding length limits or invalid formats"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify error messages prevent acceptance of invalid data"
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Role-Based Permission Enforcement",
+    "description": "Ensure users cannot access modules or actions outside of their role permissions and unauthorized requests are blocked.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as user with limited role"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to access restricted modules or perform unauthorized actions"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify system denies access and shows appropriate error or redirects"
+      },
+      {
+        "type": "action",
+        "description": "Perform authorized actions"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify permitted actions succeed without permission errors"
       }
     ]
   }
