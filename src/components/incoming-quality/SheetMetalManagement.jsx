@@ -262,6 +262,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                             <div><Label>Genişlik (mm)</Label><Input type="number" value={item.genislik || ''} onChange={(e) => handleItemChange(index, 'genislik', e.target.value)} disabled={isViewMode} /></div>
                                             <div><Label>Kalınlık (mm)</Label><Input type="number" value={item.kalinlik || ''} onChange={(e) => handleItemChange(index, 'kalinlik', e.target.value)} disabled={isViewMode} /></div>
                                             <div><Label>Sertifika Türü</Label><Select value={item.sertifika_turu || '3.1'} onValueChange={(v) => handleItemChange(index, 'sertifika_turu', v)} disabled={isViewMode}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="2.1">2.1</SelectItem><SelectItem value="2.2">2.2</SelectItem><SelectItem value="3.1">3.1</SelectItem><SelectItem value="3.2">3.2</SelectItem></SelectContent></Select></div>
+                                            <div><Label>Lot No</Label><Input value={item.lot_no || ''} onChange={(e) => handleItemChange(index, 'lot_no', e.target.value)} disabled={isViewMode} /></div>
                                             <div><Label>Heat No (Şarj)</Label><Input value={item.heat_number || ''} onChange={(e) => handleItemChange(index, 'heat_number', e.target.value)} disabled={isViewMode} /></div>
                                             <div><Label>Coil No (Bobin)</Label><Input value={item.coil_no || ''} onChange={(e) => handleItemChange(index, 'coil_no', e.target.value)} disabled={isViewMode} /></div>
                                             <div><Label>Adet</Label><Input type="number" value={item.quantity || ''} onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} disabled={isViewMode} /></div>
@@ -378,10 +379,10 @@ import React, { useState, useEffect, useCallback } from 'react';
                 </div>
                 <div className="overflow-x-auto">
                     <table className="data-table w-full">
-                        <thead><tr><th>İrsaliye No</th><th>Tedarikçi</th><th>Giriş Tarihi</th><th>Kalite</th><th>Heat No</th><th>Coil No</th><th>Karar</th><th>Sertifika</th><th>İşlemler</th></tr></thead>
+                        <thead><tr><th>İrsaliye No</th><th>Tedarikçi</th><th>Giriş Tarihi</th><th>Kalite</th><th>Lot No</th><th>Heat No</th><th>Coil No</th><th>Karar</th><th>Sertifika</th><th>İşlemler</th></tr></thead>
                         <tbody>
-                            {loading ? (<tr><td colSpan="9" className="text-center py-8">Yükleniyor...</td></tr>) 
-                            : items.length === 0 ? (<tr><td colSpan="9" className="text-center py-8">Kayıt bulunamadı.</td></tr>) 
+                            {loading ? (<tr><td colSpan="10" className="text-center py-8">Yükleniyor...</td></tr>) 
+                            : items.length === 0 ? (<tr><td colSpan="10" className="text-center py-8">Kayıt bulunamadı.</td></tr>) 
                             : (items.flatMap((entry) => {
                                 const kalemler = entry.sheet_metal_items || [];
                                 // Eski veri check: Tüm kalemler aynı özellikleri mi? (Eski buglu veri)
@@ -401,6 +402,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                         <td>{entry.supplier?.name || '-'}</td>
                                         <td>{new Date(entry.entry_date).toLocaleDateString('tr-TR')}</td>
                                         <td>{item.material_quality || '-'}</td>
+                                        <td>{item.lot_no || '-'}</td>
                                         <td>{item.heat_number || '-'}</td>
                                         <td>{item.coil_no || '-'}</td>
                                         <td>{getDecisionBadge(item.decision)}</td>
