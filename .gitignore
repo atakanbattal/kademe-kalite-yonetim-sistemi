@@ -38,9 +38,6 @@ Thumbs.db
 # Testing
 coverage
 .nyc_output
-testsprite_tests/*.py
-testsprite_tests/tmp/
-testsprite_tests/__pycache__/
 
 # Logs
 logs

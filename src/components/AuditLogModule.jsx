@@ -144,23 +144,72 @@ import React, { useMemo, useState } from 'react';
           'task_assignees': 'Görev Atamaları',
           'task_comments': 'Görev Yorumları',
           'task_checklists': 'Görev Kontrol Listeleri',
+          'task_tags': 'Görev Etiketleri',
           'non_conformities': 'Uygunsuzluklar',
           'deviations': 'Sapmalar',
+          'deviation_approvals': 'Sapma Onayları',
+          'deviation_attachments': 'Sapma Ekleri',
+          'deviation_vehicles': 'Sapma Araçları',
           'audits': 'Tetkikler',
           'audit_findings': 'Tetkik Bulguları',
           'quarantine_records': 'Karantina Kayıtları',
           'quality_costs': 'Kalite Maliyetleri',
           'equipments': 'Ekipmanlar',
           'equipment_calibrations': 'Kalibrasyon Kayıtları',
+          'equipment_assignments': 'Ekipman Atamaları',
           'suppliers': 'Tedarikçiler',
           'supplier_non_conformities': 'Tedarikçi Uygunsuzlukları',
+          'supplier_audits': 'Tedarikçi Denetimleri',
+          'supplier_certificates': 'Tedarikçi Sertifikaları',
+          'supplier_scores': 'Tedarikçi Skorları',
+          'supplier_audit_plans': 'Tedarikçi Denetim Planları',
+          'supplier_audit_attendees': 'Tedarikçi Denetim Katılımcıları',
+          'supplier_audit_questions': 'Tedarikçi Denetim Soruları',
           'incoming_inspections': 'Girdi Muayeneleri',
+          'incoming_control_plans': 'Kontrol Planları',
+          'incoming_inspection_results': 'Muayene Sonuçları',
+          'incoming_inspection_defects': 'Muayene Hataları',
+          'incoming_inspection_attachments': 'Muayene Ekleri',
+          'sheet_metal_items': 'Sac Malzemeleri',
+          'stock_risk_controls': 'Stok Risk Kontrolleri',
+          'inkr_reports': 'İNKR Raporları',
           'kaizen_entries': 'Kaizen Kayıtları',
           'documents': 'Dokümanlar',
+          'document_revisions': 'Doküman Revizyonları',
           'personnel': 'Personel',
           'kpis': 'KPI Kayıtları',
           'produced_vehicles': 'Üretilen Araçlar',
           'quality_inspections': 'Kalite Kontrolleri',
+          'quality_inspection_faults': 'Kalite Hataları',
+          'fault_categories': 'Hata Kategorileri',
+          'customer_complaints': 'Müşteri Şikayetleri',
+          'complaint_analyses': 'Şikayet Analizleri',
+          'complaint_actions': 'Şikayet Aksiyonları',
+          'complaint_documents': 'Şikayet Dokümanları',
+          'customers': 'Müşteriler',
+          'benchmarks': 'Benchmark Kayıtları',
+          'benchmark_categories': 'Benchmark Kategorileri',
+          'benchmark_items': 'Benchmark Alternatifleri',
+          'benchmark_pros_cons': 'Avantaj/Dezavantajlar',
+          'benchmark_criteria': 'Benchmark Kriterleri',
+          'benchmark_scores': 'Benchmark Skorları',
+          'benchmark_cost_analysis': 'Maliyet Analizleri',
+          'benchmark_risk_analysis': 'Risk Analizleri',
+          'benchmark_approvals': 'Benchmark Onayları',
+          'benchmark_reports': 'Benchmark Raporları',
+          'skill_categories': 'Yetkinlik Kategorileri',
+          'skills': 'Yetkinlikler',
+          'personnel_skills': 'Personel Yetkinlikleri',
+          'skill_training_records': 'Eğitim Kayıtları',
+          'skill_certification_records': 'Sertifika Kayıtları',
+          'trainings': 'Eğitimler',
+          'training_participants': 'Eğitim Katılımcıları',
+          'wps_procedures': 'WPS Prosedürleri',
+          'cost_settings': 'Maliyet Ayarları',
+          'material_costs': 'Malzeme Maliyetleri',
+          'characteristics': 'Karakteristikler',
+          'measurement_equipment': 'Ölçüm Ekipmanları',
+          'tolerance_standards': 'Tolerans Standartları',
         };
         return tableMap[tableName] || tableName;
       };
@@ -201,12 +250,21 @@ import React, { useMemo, useState } from 'react';
                       <SelectItem value="audits">Tetkik Yönetimi</SelectItem>
                       <SelectItem value="quarantine_records">Karantina Yönetimi</SelectItem>
                       <SelectItem value="incoming_inspections">Girdi Kalite Kontrol</SelectItem>
+                      <SelectItem value="sheet_metal_items">Sac Malzemeleri</SelectItem>
+                      <SelectItem value="stock_risk_controls">Stok Risk Kontrol</SelectItem>
+                      <SelectItem value="inkr_reports">İNKR Raporları</SelectItem>
                       <SelectItem value="kaizen_entries">Kaizen Yönetimi</SelectItem>
                       <SelectItem value="equipments">Ekipman & Kalibrasyon</SelectItem>
                       <SelectItem value="suppliers">Tedarikçi Yönetimi</SelectItem>
                       <SelectItem value="quality_costs">Kalite Maliyetleri</SelectItem>
                       <SelectItem value="documents">Doküman Yönetimi</SelectItem>
                       <SelectItem value="kpis">KPI Yönetimi</SelectItem>
+                      <SelectItem value="customer_complaints">Müşteri Şikayetleri</SelectItem>
+                      <SelectItem value="benchmarks">Benchmark Yönetimi</SelectItem>
+                      <SelectItem value="skills">Polivalans Yönetimi</SelectItem>
+                      <SelectItem value="wps_procedures">WPS Yönetimi</SelectItem>
+                      <SelectItem value="personnel">Personel</SelectItem>
+                      <SelectItem value="cost_settings">Maliyet Ayarları</SelectItem>
                     </SelectContent>
                   </Select>
                   {(searchTerm || tableFilter !== 'all') && (

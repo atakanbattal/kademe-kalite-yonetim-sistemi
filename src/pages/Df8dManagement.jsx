@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
     import { useData } from '@/contexts/DataContext';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
@@ -16,14 +16,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
     import { parseISO, isAfter } from 'date-fns';
 
     const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
-        const { nonConformities, refreshData, loading, loadModuleData } = useData();
-        
-        // Lazy load DF/8D verilerini
-        useEffect(() => {
-            if (!nonConformities || nonConformities.length === 0) {
-                loadModuleData('df-8d');
-            }
-        }, [nonConformities, loadModuleData]);
+        const { nonConformities, refreshData, loading } = useData();
         const { toast } = useToast();
         const [activeTab, setActiveTab] = useState('dashboard');
         const [filters, setFilters] = useState({
@@ -74,7 +67,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
                 let matchesStatus = true;
                 if (filters.status !== 'all') {
                     if (filters.status === 'Gecikmiş') {
-                        const isOverdue = record.status !== 'Kapatıldı' && record.status !== 'Reddedildi' && record.due_at && record.due_at.trim() !== '' && isAfter(new Date(), parseISO(record.due_at));
+                        const isOverdue = record.status !== 'Kapatıldı' && record.status !== 'Reddedildi' && record.due_at && isAfter(new Date(), parseISO(record.due_at));
                         matchesStatus = isOverdue;
                     } else {
                         matchesStatus = record.status === filters.status;
@@ -88,8 +81,8 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
             });
 
             return filtered.sort((a, b) => {
-                const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : (a.created_at ? parseISO(a.created_at) : new Date(0));
-                const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : (b.created_at ? parseISO(b.created_at) : new Date(0));
+                const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
+                const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
                 
                 if (dateB - dateA !== 0) {
                     return dateB - dateA;
