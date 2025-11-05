@@ -70,69 +70,89 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
         }, [profile]);
 
 
-        const fetchData = useCallback(async () => {
+        const fetchData = useCallback(async (forceFetch = false) => {
             if (!session) {
                 setLoading(false);
                 return;
             }
 
-            setLoading(true);
+            // Cache kontrolü - 5 dakika cache
+            const cacheKey = 'app_data_cache';
+            const cacheTimeKey = 'app_data_cache_time';
+            const cacheExpiry = 5 * 60 * 1000; // 5 dakika
+            
+            if (!forceFetch) {
+                const cachedTime = sessionStorage.getItem(cacheTimeKey);
+                const cachedData = sessionStorage.getItem(cacheKey);
+                
+                if (cachedTime && cachedData) {
+                    const timeDiff = Date.now() - parseInt(cachedTime);
+                    if (timeDiff < cacheExpiry) {
+                        console.log('📦 Cache\'den veri yüklendi (', Math.round(timeDiff / 1000), 'saniye önce)');
+                        setData(JSON.parse(cachedData));
+                        setLoading(false);
+                        return;
+                    }
+                }
+            }
 
+            setLoading(true);
+            console.log('🔄 Veritabanından yeni veri çekiliyor...');
+
+            // SADECE KRİTİK VERİLERİ ÇEK - Diğerleri lazy load edilecek
             const promises = {
-                qualityCosts: supabase.from('quality_costs').select('*, responsible_personnel:personnel!responsible_personnel_id(full_name), non_conformities(nc_number, id), supplier:suppliers!supplier_id(name)'),
-                personnel: supabase.from('personnel').select('id, full_name, email, avatar_url, department, unit_id, is_active').order('full_name'),
+                // Core data - Her zaman gerekli
+                personnel: supabase.from('personnel').select('id, full_name, email, avatar_url, department, unit_id, is_active').eq('is_active', true).order('full_name'),
                 unitCostSettings: supabase.from('cost_settings').select('*'),
-                materialCostSettings: supabase.from('material_costs').select('*'),
-                producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)'),
+                suppliers: supabase.from('suppliers').select('id, name, status, category').order('name'),
                 productionDepartments: supabase.from('production_departments').select('*'),
-                nonConformities: supabase.from('non_conformities').select('*'),
-                suppliers: supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)'),
-                supplierNonConformities: supabase.from('supplier_non_conformities').select('*'),
-                audits: supabase.from('audits').select('*, department:cost_settings(id, unit_name)'),
-                auditFindings: supabase.from('audit_findings').select('*, audits(report_number), non_conformities!source_finding_id(id, nc_number, status)'),
-                documents: supabase.from('documents').select('*, personnel(id, full_name), document_revisions:current_revision_id(*), valid_until'),
-                equipments: supabase.from('equipments').select('*, equipment_calibrations(*), equipment_assignments(*, personnel(full_name))'),
-                deviations: supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)'),
-                quarantineRecords: supabase.from('quarantine_records_api').select('*'),
-                incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*'),
-                kpis: supabase.from('kpis').select('*'),
-                tasks: supabase.from('tasks').select('*, owner:owner_id(full_name, email), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)'),
-                taskTags: supabase.from('task_tags').select('*'),
-                incomingControlPlans: supabase.from('incoming_control_plans').select('part_code, is_current'),
+                
+                // Frequently accessed data
+                nonConformities: supabase.from('non_conformities').select('id, nc_number, title, status, type, severity').order('created_at', { ascending: false }).limit(100),
+                tasks: supabase.from('tasks').select('id, title, status, priority, due_date, owner_id').order('created_at', { ascending: false }).limit(50),
+                
+                // Dropdown data
                 characteristics: supabase.from('characteristics').select('id, name, type, sampling_rate'),
                 equipment: supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true }),
                 standards: supabase.from('tolerance_standards').select('id, name'),
-                questions: supabase.from('supplier_audit_questions').select('*'),
-                kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
-                auditLogs: supabase.from('audit_log_entries').select('*').order('created_at', { ascending: false }).limit(200),
-                stockRiskControls: supabase.from('stock_risk_controls').select('*').order('created_at', { ascending: false }).limit(200),
-                inkrReports: supabase.from('inkr_reports').select('*, supplier:supplier_id(name)').order('created_at', { ascending: false }).limit(200),
-                customers: supabase.from('customers').select('*').order('name'),
-                customerComplaints: supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }),
-                complaintAnalyses: supabase.from('complaint_analyses').select('*'),
-                complaintActions: supabase.from('complaint_actions').select('*, responsible_person:responsible_person_id(full_name), responsible_department:responsible_department_id(unit_name)'),
-                complaintDocuments: supabase.from('complaint_documents').select('*')
+                taskTags: supabase.from('task_tags').select('*'),
+                customers: supabase.from('customers').select('*').order('customer_name'),
             };
 
             try {
                 const results = await Promise.all(Object.values(promises));
                 const entries = Object.keys(promises);
 
-                const newState = {};
-                let hasErrors = false;
+                const newState = {
+                    // Initialize lazy-loaded data as empty arrays
+                    qualityCosts: [],
+                    materialCostSettings: [],
+                    producedVehicles: [],
+                    supplierNonConformities: [],
+                    audits: [],
+                    auditFindings: [],
+                    documents: [],
+                    equipments: [],
+                    deviations: [],
+                    quarantineRecords: [],
+                    incomingInspections: [],
+                    kpis: [],
+                    incomingControlPlans: [],
+                    questions: [],
+                    kaizenEntries: [],
+                    auditLogs: [],
+                    stockRiskControls: [],
+                    inkrReports: [],
+                    customerComplaints: [],
+                    complaintAnalyses: [],
+                    complaintActions: [],
+                    complaintDocuments: [],
+                };
                 
                 results.forEach((result, index) => {
                     const key = entries[index];
                     if (result.error) {
                         console.error(`Error fetching ${key}:`, result.error);
-                        hasErrors = true;
-                        // Beklenebilir hatalar (boş sonuç) için toast gösterme
-                        if (result.error.code !== 'PGRST100' && result.error.code !== 'PGRST204' && result.error.code !== 'PGRST116') {
-                            // Kritik hatalar için
-                            if (result.error.code !== 'PGRST301' && result.error.code !== 'PGRST302') {
-                                console.warn(`Skipping toast for ${key} with code ${result.error.code}`);
-                            }
-                        }
                         newState[key] = [];
                     } else {
                         // Transform karakteristikleri, ekipmanları ve standartları
@@ -143,16 +163,20 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                         } else if (key === 'standards' && result.data) {
                             newState[key] = result.data.map(s => ({ value: s.id, label: s.name }));
                         } else {
-                            newState[key] = result.data;
+                            newState[key] = result.data || [];
                         }
                     }
                 });
                 
                 setData(newState);
+                
+                // Cache'e kaydet
+                sessionStorage.setItem(cacheKey, JSON.stringify(newState));
+                sessionStorage.setItem(cacheTimeKey, Date.now().toString());
+                console.log('✅ Veri cache\'e kaydedildi');
 
             } catch (error) {
                 console.error("General fetch error:", error);
-                // Ağ hatasıysa, kullanıcıya bildir
                 if (error instanceof TypeError && error.message.includes('fetch')) {
                     toast({
                         variant: 'destructive',
@@ -229,10 +253,104 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
             };
         }, [session, logAudit, toast]);
 
+        // Lazy load fonksiyonu - Belirli bir modülün verilerini on-demand çekme
+        const loadModuleData = useCallback(async (moduleName) => {
+            console.log(`🔄 ${moduleName} modül verisi yükleniyor...`);
+            
+            const moduleDataLoaders = {
+                'quality-cost': async () => {
+                    const [costsRes, materialsRes] = await Promise.all([
+                        supabase.from('quality_costs').select('*, responsible_personnel:personnel!responsible_personnel_id(full_name), non_conformities(nc_number, id), supplier:suppliers!supplier_id(name)').order('cost_date', { ascending: false }).limit(200),
+                        supabase.from('material_costs').select('*')
+                    ]);
+                    return { qualityCosts: costsRes.data || [], materialCostSettings: materialsRes.data || [] };
+                },
+                'produced-vehicles': async () => {
+                    const res = await supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').order('created_at', { ascending: false }).limit(100);
+                    return { producedVehicles: res.data || [] };
+                },
+                'supplier-quality': async () => {
+                    const [suppliersRes, sncsRes] = await Promise.all([
+                        supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)'),
+                        supabase.from('supplier_non_conformities').select('*')
+                    ]);
+                    return { suppliers: suppliersRes.data || [], supplierNonConformities: sncsRes.data || [] };
+                },
+                'internal-audit': async () => {
+                    const [auditsRes, findingsRes] = await Promise.all([
+                        supabase.from('audits').select('*, department:cost_settings(id, unit_name)'),
+                        supabase.from('audit_findings').select('*, audits(report_number), non_conformities!source_finding_id(id, nc_number, status)')
+                    ]);
+                    return { audits: auditsRes.data || [], auditFindings: findingsRes.data || [] };
+                },
+                'document': async () => {
+                    const res = await supabase.from('documents').select('*, personnel(id, full_name), document_revisions:current_revision_id(*), valid_until');
+                    return { documents: res.data || [] };
+                },
+                'equipment': async () => {
+                    const res = await supabase.from('equipments').select('*, equipment_calibrations(*), equipment_assignments(*, personnel(full_name))');
+                    return { equipments: res.data || [] };
+                },
+                'deviation': async () => {
+                    const res = await supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)');
+                    return { deviations: res.data || [] };
+                },
+                'quarantine': async () => {
+                    const res = await supabase.from('quarantine_records_api').select('*');
+                    return { quarantineRecords: res.data || [] };
+                },
+                'incoming-quality': async () => {
+                    const [inspectionsRes, plansRes] = await Promise.all([
+                        supabase.from('incoming_inspections_with_supplier').select('*'),
+                        supabase.from('incoming_control_plans').select('part_code, is_current')
+                    ]);
+                    return { incomingInspections: inspectionsRes.data || [], incomingControlPlans: plansRes.data || [] };
+                },
+                'kaizen': async () => {
+                    const res = await supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)');
+                    return { kaizenEntries: res.data || [] };
+                },
+                'kpi': async () => {
+                    const res = await supabase.from('kpis').select('*');
+                    return { kpis: res.data || [] };
+                },
+                'audit-logs': async () => {
+                    const res = await supabase.from('audit_log_entries').select('*').order('created_at', { ascending: false }).limit(200);
+                    return { auditLogs: res.data || [] };
+                },
+                'customer-complaints': async () => {
+                    const [complaintsRes, analysesRes, actionsRes, docsRes] = await Promise.all([
+                        supabase.from('customer_complaints').select('*, customer:customer_id(customer_name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }),
+                        supabase.from('complaint_analyses').select('*'),
+                        supabase.from('complaint_actions').select('*, responsible_person:responsible_person_id(full_name), responsible_department:responsible_department_id(unit_name)'),
+                        supabase.from('complaint_documents').select('*')
+                    ]);
+                    return { 
+                        customerComplaints: complaintsRes.data || [], 
+                        complaintAnalyses: analysesRes.data || [],
+                        complaintActions: actionsRes.data || [],
+                        complaintDocuments: docsRes.data || []
+                    };
+                },
+            };
+            
+            const loader = moduleDataLoaders[moduleName];
+            if (loader) {
+                try {
+                    const moduleData = await loader();
+                    setData(prev => ({ ...prev, ...moduleData }));
+                    console.log(`✅ ${moduleName} modül verisi yüklendi`);
+                } catch (error) {
+                    console.error(`❌ ${moduleName} modül verisi yüklenemedi:`, error);
+                }
+            }
+        }, []);
+
         const value = {
             ...data,
             loading,
             refreshData: fetchData,
+            loadModuleData,
             logAudit,
         };
 

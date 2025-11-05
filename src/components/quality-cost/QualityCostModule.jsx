@@ -28,7 +28,14 @@ import React, { useState, useMemo, useCallback } from 'react';
     const QualityCostModule = ({ onOpenNCForm }) => {
         const { toast } = useToast();
         const { profile } = useAuth();
-        const { qualityCosts, personnel, unitCostSettings, materialCostSettings, loading, refreshData } = useData();
+        const { qualityCosts, personnel, unitCostSettings, materialCostSettings, loading, refreshData, loadModuleData } = useData();
+        
+        // Modül verilerini lazy load et
+        React.useEffect(() => {
+            if (qualityCosts.length === 0) {
+                loadModuleData('quality-cost');
+            }
+        }, [qualityCosts.length, loadModuleData]);
 
         const [isFormModalOpen, setFormModalOpen] = useState(false);
         const [isViewModalOpen, setIsViewModalOpen] = useState(false);

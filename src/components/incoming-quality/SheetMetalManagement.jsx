@@ -75,9 +75,10 @@ import React, { useState, useEffect, useCallback } from 'react';
                         entry_date: new Date(existingRecord.entry_date).toISOString().split('T')[0],
                     });
                     // Entry içindeki TÜM kalemleri yükle
+                    // NOT: item.id'yi koruyoruz, temp_id ayrı bir UUID olacak
                     const allItems = (existingRecord.sheet_metal_items || []).map(item => ({
                         ...item,
-                        temp_id: item.id,
+                        temp_id: uuidv4(), // Yeni bir temp_id oluştur, item.id'yi kullanma!
                         new_certificates: []
                     }));
                     setItems(allItems.length > 0 ? allItems : [getInitialItemState()]);
@@ -166,7 +167,8 @@ import React, { useState, useEffect, useCallback } from 'react';
             e.preventDefault();
             setIsSubmitting(true);
         
-            const itemsToUpsert = [];
+            const itemsToInsert = [];
+            const itemsToUpdate = [];
             
             for (const item of items) {
                 let uploadedFilePaths = item.certificates || [];
@@ -188,25 +190,84 @@ import React, { useState, useEffect, useCallback } from 'react';
                     uploadedFilePaths = [...(item.certificates || []), ...newPaths];
                 }
                 
-                const { temp_id, new_certificates, supplier, ...itemData } = item;
+                // item'dan gereksiz alanları çıkar
+                const { temp_id, new_certificates, supplier, id: itemId, ...itemData } = item;
+                
+                // formData'dan da id'yi çıkar
+                const { id: formId, ...cleanFormData } = formData;
                 
                 const dbItem = {
-                    ...formData,
+                    ...cleanFormData,
                     ...itemData,
                     certificates: uploadedFilePaths,
                 };
-                itemsToUpsert.push(dbItem);
+                
+                // Mevcut kayıt mı yoksa yeni kayıt mı kontrol et
+                // item.id varsa VE veritabanından gelen UUID ise (temp_id değilse), mevcut kayıttır
+                const isExistingRecord = itemId && 
+                    typeof itemId === 'string' && 
+                    itemId.length === 36 && 
+                    itemId.includes('-') &&
+                    itemId !== temp_id;
+                
+                console.log('Item ID:', itemId, 'Temp ID:', temp_id, 'Is Existing:', isExistingRecord);
+                
+                if (isExistingRecord) {
+                    // Mevcut kayıt - update
+                    dbItem.id = itemId;
+                    itemsToUpdate.push(dbItem);
+                    console.log('Updating item:', dbItem.id);
+                } else {
+                    // Yeni kayıt - insert (Supabase otomatik UUID oluşturacak)
+                    // id alanını tamamen kaldır
+                    delete dbItem.id;
+                    itemsToInsert.push(dbItem);
+                    console.log('Inserting new item (no ID)');
+                }
             }
         
-            const { error: itemsError } = await supabase.from('sheet_metal_items').upsert(itemsToUpsert, { onConflict: 'id' });
-        
-            if (itemsError) {
-                toast({ variant: 'destructive', title: 'Hata!', description: `Sac kalemleri kaydedilemedi: ${itemsError.message}` });
-            } else {
-                toast({ title: 'Başarılı!', description: 'Sac giriş kaydı başarıyla kaydedildi.' });
-                refreshData();
-                setIsOpen(false);
+            // Yeni kayıtları insert et
+            if (itemsToInsert.length > 0) {
+                console.log('Inserting items:', itemsToInsert);
+                console.log('First item to insert:', JSON.stringify(itemsToInsert[0], null, 2));
+                
+                // Son kontrol: Hiçbir item'da id olmamalı
+                itemsToInsert.forEach((item, idx) => {
+                    if (item.id !== undefined) {
+                        console.error(`HATA: Item ${idx} hala id içeriyor:`, item.id);
+                        delete item.id;
+                    }
+                });
+                
+                const { error: insertError } = await supabase
+                    .from('sheet_metal_items')
+                    .insert(itemsToInsert);
+                
+                if (insertError) {
+                    console.error('Insert error:', insertError);
+                    toast({ variant: 'destructive', title: 'Hata!', description: `Yeni kayıtlar eklenemedi: ${insertError.message}` });
+                    setIsSubmitting(false);
+                    return;
+                }
             }
+            
+            // Mevcut kayıtları update et
+            for (const item of itemsToUpdate) {
+                const { error: updateError } = await supabase
+                    .from('sheet_metal_items')
+                    .update(item)
+                    .eq('id', item.id);
+                
+                if (updateError) {
+                    toast({ variant: 'destructive', title: 'Hata!', description: `Kayıt güncellenemedi: ${updateError.message}` });
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+        
+            toast({ title: 'Başarılı!', description: 'Sac giriş kaydı başarıyla kaydedildi.' });
+            refreshData();
+            setIsOpen(false);
             setIsSubmitting(false);
         };
         

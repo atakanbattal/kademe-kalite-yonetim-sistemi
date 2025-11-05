@@ -15,4 +15,25 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('   Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Optimize edilmiş Supabase client konfigürasyonu
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+  },
+  db: {
+    schema: 'public',
+  },
+  global: {
+    headers: {
+      'x-client-info': 'kademe-quality-app',
+    },
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 5, // Rate limiting için
+    },
+  },
+});
