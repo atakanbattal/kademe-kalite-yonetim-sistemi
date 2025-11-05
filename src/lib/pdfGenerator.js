@@ -303,13 +303,7 @@ export const generate8DPDF = (record) => {
 };
 
 export const generateVehicleReport = (vehicle, timeline, faults) => {
-    const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    }) : '-';
+    const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
 
     const eventTypeLabels = {
         quality_entry: 'Kaliteye Giriş',
@@ -324,58 +318,45 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
     const timelineHtml = timeline && timeline.length > 0 ? `
         <div class="section">
             <h2 class="section-title">İşlem Geçmişi</h2>
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                <thead>
-                    <tr style="background-color: #1e40af; color: white;">
-                        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">İşlem Tipi</th>
-                        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Tarih-Saat</th>
-                        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Notlar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${timeline.map((event, index) => `
-                        <tr style="background-color: ${index % 2 === 0 ? '#f9fafb' : 'white'};">
-                            <td style="padding: 8px; border: 1px solid #ddd;">${eventTypeLabels[event.event_type] || event.event_type}</td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${formatDate(event.event_timestamp)}</td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${event.notes || '-'}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            <div style="background-color: #f9fafb; border-radius: 8px; padding: 15px; border-left: 3px solid #60a5fa;">
+                ${timeline.map((event, index) => `
+                    <div style="margin-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; padding-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; border-bottom: ${index < timeline.length - 1 ? '1px dashed #d1d5db' : 'none'};">
+                        <p style="margin: 0 0 4px 0; font-size: 13px;"><strong>${eventTypeLabels[event.event_type] || event.event_type}</strong></p>
+                        <p style="margin: 0 0 4px 0; font-size: 12px; color: #6b7280;">📅 ${formatDate(event.event_timestamp)}</p>
+                        ${event.notes ? `<p style="margin: 0; font-size: 12px; color: #4b5563;">📝 ${event.notes}</p>` : ''}
+                    </div>
+                `).join('')}
+            </div>
         </div>
     ` : '';
 
     const faultsHtml = faults && faults.length > 0 ? `
         <div class="section">
-            <h2 class="section-title" style="color: #dc2626;">Tespit Edilen Hatalar</h2>
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                <thead>
-                    <tr style="background-color: #dc2626; color: white;">
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Hata Tipi</th>
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Departman</th>
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Açıklama</th>
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Durum</th>
-                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Tarih</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${faults.map((fault, index) => `
-                        <tr style="background-color: ${index % 2 === 0 ? '#fef2f2' : 'white'};">
-                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fault.fault_type || '-'}</td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${fault.department || '-'}</td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${fault.description || '-'}</td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">
-                                <span style="background-color: ${fault.status === 'Çözüldü' ? '#86efac' : '#fde047'}; color: ${fault.status === 'Çözüldü' ? '#15803d' : '#713f12'}; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600;">
-                                    ${fault.status || 'Bekliyor'}
-                                </span>
-                            </td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${formatDate(fault.reported_at)}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            <h2 class="section-title">Tespit Edilen Hatalar (${faults.length} Adet)</h2>
+            ${faults.map((fault, index) => `
+                <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; padding: 15px; margin-bottom: ${index < faults.length - 1 ? '12px' : '0'};">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #991b1b;">${fault.category?.name || 'Kategori Belirtilmemiş'}</p>
+                        <span style="background-color: ${fault.is_resolved ? '#86efac' : '#fde047'}; color: ${fault.is_resolved ? '#15803d' : '#713f12'}; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600;">
+                            ${fault.is_resolved ? 'Çözüldü' : 'Bekliyor'}
+                        </span>
+                    </div>
+                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;">🏢 <strong>Departman:</strong> ${fault.department?.name || '-'}</p>
+                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;">📊 <strong>Miktar:</strong> ${fault.quantity || '-'}</p>
+                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;">📅 <strong>Tarih:</strong> ${formatDate(fault.fault_date)}</p>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #fecaca;">
+                        <p style="margin: 0; font-size: 13px; color: #4b5563;"><strong>Açıklama:</strong></p>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #1f2937; white-space: pre-wrap;">${fault.description || '-'}</p>
+                    </div>
+                </div>
+            `).join('')}
         </div>
-    ` : '<div class="section"><p style="color: #10b981; font-weight: 600;">✓ Bu araçta hiç hata kaydı bulunmamaktadır.</p></div>';
+    ` : `<div class="section">
+            <h2 class="section-title">Tespit Edilen Hatalar</h2>
+            <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 8px; padding: 15px;">
+                <p style="margin: 0; color: #15803d; font-weight: 600; font-size: 14px;">✅ Bu araçta hiç hata kaydı bulunmamaktadır.</p>
+            </div>
+        </div>`;
 
     const htmlContent = `
         <!DOCTYPE html>
@@ -404,14 +385,14 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 }
                 .header {
                     text-align: center;
-                    border-bottom: 3px solid #1e40af;
+                    border-bottom: 2px solid #e5e7eb;
                     padding-bottom: 15px;
                     margin-bottom: 20px;
                 }
                 .header h1 {
-                    font-size: 28px;
+                    font-size: 24px;
                     font-weight: 700;
-                    color: #1e40af;
+                    color: #111827;
                     margin: 0;
                 }
                 .header p {
@@ -422,33 +403,29 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 .report-title-section {
                     display: flex;
                     justify-content: space-between;
-                    align-items: center;
+                    align-items: flex-start;
                     margin-bottom: 25px;
-                    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-                    padding: 15px 20px;
-                    border-radius: 10px;
-                    color: white;
                 }
                 .report-title h2 {
-                    font-size: 22px;
+                    font-size: 20px;
                     font-weight: 600;
                     margin: 0;
                 }
                 .report-title p {
-                    font-size: 13px;
+                    font-size: 14px;
+                    color: #4b5563;
                     margin: 5px 0 0;
-                    opacity: 0.9;
                 }
                 .section {
                     margin-bottom: 25px;
                     page-break-inside: avoid;
                 }
                 .section-title {
-                    font-size: 18px;
+                    font-size: 16px;
                     font-weight: 600;
                     color: #1e40af;
                     border-bottom: 2px solid #bfdbfe;
-                    padding-bottom: 8px;
+                    padding-bottom: 5px;
                     margin-bottom: 15px;
                 }
                 .info-grid {
@@ -459,68 +436,36 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 .info-item {
                     background-color: #f9fafb;
                     border-radius: 8px;
-                    padding: 15px;
-                    border-left: 4px solid #3b82f6;
+                    padding: 12px;
+                    border: 1px solid #e5e7eb;
                 }
                 .info-item .label {
                     display: block;
                     font-size: 12px;
                     color: #6b7280;
-                    margin-bottom: 5px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
+                    margin-bottom: 4px;
                 }
                 .info-item .value {
-                    font-size: 15px;
+                    font-size: 14px;
                     font-weight: 600;
-                    color: #111827;
                 }
                 .full-width {
                    grid-column: 1 / -1;
                 }
-                .notes-box {
-                    background-color: #fffbeb;
-                    border: 1px solid #fbbf24;
-                    border-radius: 8px;
-                    padding: 15px;
-                    margin-top: 15px;
-                }
-                .notes-box .label {
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: #92400e;
-                    margin-bottom: 8px;
-                }
-                .notes-box .value {
-                    font-size: 13px;
-                    color: #451a03;
-                    white-space: pre-wrap;
-                    line-height: 1.6;
-                }
                 .footer {
                     text-align: center;
-                    margin-top: 40px;
-                    padding-top: 20px;
-                    border-top: 2px solid #e5e7eb;
+                    margin-top: 30px;
+                    padding-top: 15px;
+                    border-top: 1px solid #e5e7eb;
                     font-size: 12px;
                     color: #9ca3af;
-                }
-                .status-badge {
-                    display: inline-block;
-                    padding: 6px 12px;
-                    border-radius: 20px;
-                    font-size: 13px;
-                    font-weight: 600;
-                    background-color: #dbeafe;
-                    color: #1e40af;
                 }
                 @media print {
                     body { background-color: white; margin: 0; padding: 0; }
                     .page { margin: 0; box-shadow: none; border: none; }
                     @page {
                         size: A4;
-                        margin: 15mm;
+                        margin: 20mm;
                     }
                 }
             </style>
@@ -529,22 +474,21 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
             <div class="page">
                 <div class="header">
                     <h1>KADEME A.Ş.</h1>
-                    <p>Kalite Yönetim Sistemi - Araç Takip Raporu</p>
+                    <p>Kalite Yönetim Sistemi</p>
                 </div>
-                
                 <div class="report-title-section">
                     <div class="report-title">
-                        <h2>ARAÇ RAPORU</h2>
-                        <p>Şasi No: ${vehicle.chassis_no}</p>
+                        <h2>Araç Kalite Raporu</h2>
+                        <p>${vehicle.chassis_no} - ${vehicle.serial_no || '-'}</p>
                     </div>
                     <div style="text-align: right;">
-                        <p style="margin: 0; font-size: 12px;">Rapor Tarihi</p>
-                        <p style="margin: 5px 0 0; font-size: 14px; font-weight: 600;">${formatDate(new Date())}</p>
+                        <p style="margin: 0; font-size: 12px; color: #6b7280;">Rapor Tarihi</p>
+                        <p style="margin: 2px 0 0; font-size: 13px; font-weight: 600;">${formatDate(new Date())}</p>
                     </div>
                 </div>
 
                 <div class="section">
-                    <h2 class="section-title">Temel Bilgiler</h2>
+                    <h2 class="section-title">Araç Bilgileri</h2>
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="label">Şasi Numarası</span>
@@ -564,30 +508,27 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                         </div>
                         <div class="info-item">
                             <span class="label">Durum</span>
-                            <span class="value">
-                                <span class="status-badge">${vehicle.status || '-'}</span>
-                            </span>
+                            <span class="value">${vehicle.status || '-'}</span>
                         </div>
                         <div class="info-item">
                             <span class="label">DMO Durumu</span>
                             <span class="value">${vehicle.dmo_status || '-'}</span>
                         </div>
                         <div class="info-item">
-                            <span class="label">Oluşturulma Tarihi</span>
+                            <span class="label">Oluşturulma</span>
                             <span class="value">${formatDate(vehicle.created_at)}</span>
                         </div>
                         <div class="info-item">
                             <span class="label">Son Güncelleme</span>
                             <span class="value">${formatDate(vehicle.updated_at)}</span>
                         </div>
+                        ${vehicle.notes ? `
+                            <div class="info-item full-width">
+                                <span class="label">Notlar</span>
+                                <span class="value" style="white-space: pre-wrap;">${vehicle.notes}</span>
+                            </div>
+                        ` : ''}
                     </div>
-                    
-                    ${vehicle.notes ? `
-                        <div class="notes-box">
-                            <div class="label">📝 Notlar</div>
-                            <div class="value">${vehicle.notes}</div>
-                        </div>
-                    ` : ''}
                 </div>
 
                 ${timelineHtml}
@@ -595,8 +536,7 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 ${faultsHtml}
                 
                 <div class="footer">
-                    Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.<br>
-                    <strong>KADEME A.Ş.</strong> - ${new Date().getFullYear()}
+                    Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
                 </div>
             </div>
             <script>

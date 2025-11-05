@@ -188,14 +188,23 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 if (!vehicle?.id) return;
                 setLoadingFaults(true);
                 try {
-                    // Hataları al
+                    // Hataları al (doğru tablo: quality_inspection_faults)
                     const { data: faultsData, error: faultsError } = await supabase
-                        .from('vehicle_faults')
-                        .select('*')
-                        .eq('vehicle_id', vehicle.id)
-                        .order('reported_at', { ascending: false });
+                        .from('quality_inspection_faults')
+                        .select(`
+                            *,
+                            department:production_departments(id, name),
+                            category:fault_categories(id, name)
+                        `)
+                        .eq('inspection_id', vehicle.id)
+                        .order('fault_date', { ascending: false });
                     
-                    if (faultsError) throw faultsError;
+                    if (faultsError) {
+                        console.error('Fault fetch error:', faultsError);
+                        throw faultsError;
+                    }
+                    
+                    console.log('✅ Hatalar yüklendi:', faultsData);
                     setFaults(faultsData || []);
 
                     // Timeline verilerini al
@@ -205,10 +214,20 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         .eq('inspection_id', vehicle.id)
                         .order('event_timestamp', { ascending: true });
                     
-                    if (timelineError) throw timelineError;
+                    if (timelineError) {
+                        console.error('Timeline fetch error:', timelineError);
+                        throw timelineError;
+                    }
+                    
+                    console.log('✅ Timeline yüklendi:', timelineData);
                     setTimeline(timelineData || []);
                 } catch (error) {
-                    console.error('Error fetching data:', error);
+                    console.error('❌ Veri yükleme hatası:', error);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Hata',
+                        description: 'Araç verileri yüklenirken hata oluştu.'
+                    });
                 } finally {
                     setLoadingFaults(false);
                 }
@@ -217,7 +236,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             if (isOpen && vehicle?.id) {
                 fetchData();
             }
-        }, [isOpen, vehicle?.id]);
+        }, [isOpen, vehicle?.id, toast]);
 
         const generateReport = () => {
             if (!vehicle) return;
