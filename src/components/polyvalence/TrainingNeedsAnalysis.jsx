@@ -2,13 +2,17 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BookOpen, AlertTriangle, TrendingUp, Calendar, Download, GraduationCap } from 'lucide-react';
+import { BookOpen, AlertTriangle, TrendingUp, Calendar, Download, GraduationCap, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
 
 const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificationAlerts, onRefresh }) => {
     const navigate = useNavigate();
+    const { toast } = useToast();
+    
     // Eğitim gerektiren kayıtlar
     const trainingNeeds = useMemo(() => {
         return personnelSkills
@@ -28,6 +32,35 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
                 return (priorityOrder[a.training_priority] || 999) - (priorityOrder[b.training_priority] || 999);
             });
     }, [personnelSkills, personnel, skills]);
+
+    // Yetkinlik bazlı gruplandırılmış eğitim ihtiyaçları
+    const trainingNeedsBySkill = useMemo(() => {
+        const grouped = {};
+        trainingNeeds.forEach(need => {
+            const skillId = need.skill_id;
+            if (!grouped[skillId]) {
+                grouped[skillId] = {
+                    skill: need.skill,
+                    personnel: [],
+                    highestPriority: need.training_priority,
+                    count: 0
+                };
+            }
+            grouped[skillId].personnel.push(need.person);
+            grouped[skillId].count++;
+            
+            // En yüksek önceliği belirle
+            const priorityOrder = { 'Kritik': 0, 'Yüksek': 1, 'Orta': 2, 'Düşük': 3 };
+            if (priorityOrder[need.training_priority] < priorityOrder[grouped[skillId].highestPriority]) {
+                grouped[skillId].highestPriority = need.training_priority;
+            }
+        });
+        
+        return Object.values(grouped).sort((a, b) => {
+            const priorityOrder = { 'Kritik': 0, 'Yüksek': 1, 'Orta': 2, 'Düşük': 3 };
+            return (priorityOrder[a.highestPriority] || 999) - (priorityOrder[b.highestPriority] || 999);
+        });
+    }, [trainingNeeds]);
 
     // Sertifika yenileme gerektiren kayıtlar
     const expiringCerts = useMemo(() => {
@@ -57,7 +90,7 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
     };
 
     const handleCreateTraining = (personnelId, skillId) => {
-        // Eğitim modülüne yönlendir ve parametreleri state ile geç
+        // Tekil eğitim oluştur
         navigate('/training', {
             state: {
                 autoOpenModal: true,
@@ -66,6 +99,50 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
                 fromPolyvalence: true
             }
         });
+    };
+
+    const handleCreateBulkTraining = async (skill, personnelList) => {
+        // Toplu eğitim oluştur ve personnel_skills'i güncelle
+        try {
+            const personnelIds = personnelList.map(p => p.id);
+            
+            // Eğitim modülüne yönlendir
+            navigate('/training', {
+                state: {
+                    autoOpenModal: true,
+                    selectedPersonnel: personnelIds,
+                    selectedSkillId: skill.id,
+                    fromPolyvalence: true,
+                    bulkTraining: true
+                }
+            });
+
+            // personnel_skills'de training_required'ı false yap
+            const { error } = await supabase
+                .from('personnel_skills')
+                .update({ 
+                    training_required: false,
+                    next_training_date: new Date().toISOString()
+                })
+                .in('personnel_id', personnelIds)
+                .eq('skill_id', skill.id);
+
+            if (error) throw error;
+
+            toast({
+                title: 'Toplu Eğitim Planlandı',
+                description: `${skill.name} için ${personnelIds.length} personel eğitime alındı.`,
+            });
+
+            onRefresh();
+        } catch (error) {
+            console.error('Toplu eğitim oluşturma hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Toplu eğitim oluşturulamadı: ' + error.message
+            });
+        }
     };
 
     return (
@@ -117,12 +194,79 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
                 </Card>
             </div>
 
-            {/* Eğitim İhtiyaçları */}
+            {/* Yetkinlik Bazlı Toplu Eğitim */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Yetkinlik Bazlı Toplu Eğitim Planı
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {trainingNeedsBySkill.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                            Yetkinlik bazlı toplu eğitim ihtiyacı bulunmamaktadır.
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {trainingNeedsBySkill.map((group) => (
+                                <div 
+                                    key={group.skill.id}
+                                    className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-lg border-2 border-blue-200 dark:border-blue-800 hover:shadow-lg transition-all"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <h4 className="font-bold text-lg">{group.skill.name}</h4>
+                                                {group.skill.code && (
+                                                    <Badge variant="outline">{group.skill.code}</Badge>
+                                                )}
+                                                {getPriorityBadge(group.highestPriority)}
+                                            </div>
+                                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                                                <span className="flex items-center gap-1">
+                                                    <Users className="h-4 w-4" />
+                                                    {group.count} personel
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {group.personnel.slice(0, 5).map(person => (
+                                                    <Badge key={person.id} variant="secondary" className="text-xs">
+                                                        {person.full_name}
+                                                    </Badge>
+                                                ))}
+                                                {group.count > 5 && (
+                                                    <Badge variant="secondary" className="text-xs">
+                                                        +{group.count - 5} kişi daha
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <Button
+                                            size="lg"
+                                            onClick={() => handleCreateBulkTraining(group.skill, group.personnel)}
+                                            className="ml-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                                        >
+                                            <GraduationCap className="h-5 w-5 mr-2" />
+                                            Toplu Eğitim Oluştur
+                                            <span className="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs">
+                                                {group.count}
+                                            </span>
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Eğitim İhtiyaçları (Detaylı Liste) */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <TrendingUp className="h-5 w-5" />
-                        Eğitim Gerektiren Yetkinlikler
+                        Detaylı Eğitim İhtiyaçları (Personel Bazlı)
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
