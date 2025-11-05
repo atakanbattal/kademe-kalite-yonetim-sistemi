@@ -7,6 +7,9 @@ import { TrendingUp, Users, Award, AlertTriangle } from 'lucide-react';
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceSummary, certificationAlerts }) => {
+    console.log('PolyvalenceAnalytics - personnel:', personnel.length);
+    console.log('PolyvalenceAnalytics - polyvalenceSummary:', polyvalenceSummary.length);
+    
     // Level distribution
     const levelDistribution = [0, 1, 2, 3, 4].map(level => ({
         name: `Seviye ${level}`,
@@ -22,18 +25,26 @@ const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceS
         acc[p.department].personnel++;
         const summary = polyvalenceSummary.find(ps => ps.personnel_id === p.id);
         if (summary && summary.polyvalence_score) {
-            acc[p.department].totalScore += parseFloat(summary.polyvalence_score);
+            const score = parseFloat(summary.polyvalence_score);
+            if (!isNaN(score)) {
+                acc[p.department].totalScore += score;
+            }
         }
         return acc;
     }, {});
+
+    console.log('deptStats:', deptStats);
 
     const departmentData = Object.entries(deptStats)
         .filter(([_, data]) => data.personnel > 0)
         .map(([dept, data]) => ({
             name: dept,
-            score: parseFloat((data.totalScore / data.personnel).toFixed(1))
+            score: data.personnel > 0 ? parseFloat((data.totalScore / data.personnel).toFixed(1)) : 0
         }))
+        .filter(d => d.score > 0)
         .sort((a, b) => b.score - a.score);
+
+    console.log('departmentData:', departmentData);
 
     // Top performers - FIX: personnel bilgisini ekle
     const topPerformers = polyvalenceSummary
@@ -42,12 +53,22 @@ const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceS
             return {
                 ...summary,
                 full_name: person?.full_name || 'Bilinmeyen',
-                department: person?.department || '-'
+                department: person?.department || '-',
+                personnel_id: summary.personnel_id
             };
         })
-        .filter(p => p.polyvalence_score && parseFloat(p.polyvalence_score) > 0)
-        .sort((a, b) => parseFloat(b.polyvalence_score) - parseFloat(a.polyvalence_score))
+        .filter(p => {
+            const score = parseFloat(p.polyvalence_score);
+            return p.polyvalence_score && !isNaN(score) && score > 0;
+        })
+        .sort((a, b) => {
+            const scoreA = parseFloat(a.polyvalence_score);
+            const scoreB = parseFloat(b.polyvalence_score);
+            return scoreB - scoreA;
+        })
         .slice(0, 10);
+
+    console.log('topPerformers:', topPerformers);
 
     // Certification status
     const certStats = [

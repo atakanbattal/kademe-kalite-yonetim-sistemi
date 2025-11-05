@@ -80,11 +80,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
         const handleAddTraining = () => {
             setSelectedTraining(null);
+            setPolyvalenceData(null);
             setIsModalOpen(true);
         };
 
         const handleEditTraining = (training) => {
             setSelectedTraining(training);
+            setPolyvalenceData(null);
             setIsModalOpen(true);
         };
 
