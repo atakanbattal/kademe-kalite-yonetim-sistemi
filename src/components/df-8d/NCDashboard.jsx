@@ -72,7 +72,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
             if (isRejected) counts.rejected++;
             if (rec.type in counts) counts[rec.type]++;
             
-            const dueAt = rec.due_at ? parseISO(rec.due_at) : null;
+            const dueAt = (rec.due_at && rec.due_at.trim() !== '') ? parseISO(rec.due_at) : null;
             const isOverdue = isOpen && dueAt && isValid(dueAt) && now > dueAt;
             
             const responsibleDept = rec.department || 'Belirtilmemiş';
@@ -89,9 +89,9 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
             }
             if (isClosed) {
                 deptPerf[responsibleDept].closed++;
-                const openedAtDate = rec.df_opened_at ? parseISO(rec.df_opened_at) : null;
-                const closedAtDate = parseISO(rec.closed_at);
-                if (openedAtDate && isValid(openedAtDate) && isValid(closedAtDate)) {
+                const openedAtDate = (rec.df_opened_at && rec.df_opened_at.trim() !== '') ? parseISO(rec.df_opened_at) : null;
+                const closedAtDate = (rec.closed_at && rec.closed_at.trim() !== '') ? parseISO(rec.closed_at) : null;
+                if (openedAtDate && closedAtDate && isValid(openedAtDate) && isValid(closedAtDate)) {
                     const closureDays = differenceInDays(closedAtDate, openedAtDate);
                     if (closureDays >= 0) {
                         deptPerf[responsibleDept].totalClosureDays += closureDays;
@@ -106,22 +106,22 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
             requesterContrib[requesterUnit].total++;
             if(rec.type in requesterContrib[requesterUnit]) requesterContrib[requesterUnit][rec.type]++;
 
-            if (rec.df_opened_at) {
+            if (rec.df_opened_at && rec.df_opened_at.trim() !== '') {
                 const openedDate = parseISO(rec.df_opened_at);
                 if(isValid(openedDate)) allDates.push(openedDate);
             }
-            if (rec.closed_at) {
+            if (rec.closed_at && rec.closed_at.trim() !== '') {
                 const closedDate = parseISO(rec.closed_at);
                 if(isValid(closedDate)) allDates.push(closedDate);
             }
         });
 
         const overdueRecords = records.filter(r => {
-            const dueAt = r.due_at ? parseISO(r.due_at) : null;
+            const dueAt = (r.due_at && r.due_at.trim() !== '') ? parseISO(r.due_at) : null;
             return r.status !== 'Kapatıldı' && r.status !== 'Reddedildi' && dueAt && isValid(dueAt) && new Date() > dueAt;
         }).sort((a,b) => {
-             const dueA = a.due_at ? parseISO(a.due_at) : null;
-             const dueB = b.due_at ? parseISO(b.due_at) : null;
+             const dueA = (a.due_at && a.due_at.trim() !== '') ? parseISO(a.due_at) : null;
+             const dueB = (b.due_at && b.due_at.trim() !== '') ? parseISO(b.due_at) : null;
              if (!dueA || !dueB || !isValid(dueA) || !isValid(dueB)) return 0;
              return differenceInDays(new Date(), dueB) - differenceInDays(new Date(), dueA);
         });
@@ -172,14 +172,14 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
             }, {});
 
             records.forEach(rec => {
-                if (rec.df_opened_at) {
+                if (rec.df_opened_at && rec.df_opened_at.trim() !== '') {
                     const openedDate = parseISO(rec.df_opened_at);
                     if(isValid(openedDate)) {
                         const monthKey = format(openedDate, 'yyyy-MM');
                         if (monthlyData[monthKey]) monthlyData[monthKey].opened++;
                     }
                 }
-                if (rec.closed_at) {
+                if (rec.closed_at && rec.closed_at.trim() !== '') {
                     const closedDate = parseISO(rec.closed_at);
                     if(isValid(closedDate)) {
                         const monthKey = format(closedDate, 'yyyy-MM');
@@ -314,7 +314,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
                                 </TableHeader>
                                 <TableBody>
                                     {analytics.overdueRecords.map(rec => {
-                                        const dueAt = rec.due_at ? parseISO(rec.due_at) : null;
+                                        const dueAt = (rec.due_at && rec.due_at.trim() !== '') ? parseISO(rec.due_at) : null;
                                         return (
                                             <TableRow key={rec.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleCardClick("Geciken", [rec])}>
                                                 <TableCell><Badge variant="secondary">{rec.nc_number || rec.mdi_no}</Badge></TableCell>

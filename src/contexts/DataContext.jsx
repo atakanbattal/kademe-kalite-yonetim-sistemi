@@ -265,6 +265,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
                     ]);
                     return { qualityCosts: costsRes.data || [], materialCostSettings: materialsRes.data || [] };
                 },
+                'df-8d': async () => {
+                    const res = await supabase.from('non_conformities').select('*').order('created_at', { ascending: false }).limit(200);
+                    return { nonConformities: res.data || [] };
+                },
                 'produced-vehicles': async () => {
                     const res = await supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').order('created_at', { ascending: false }).limit(100);
                     return { producedVehicles: res.data || [] };
