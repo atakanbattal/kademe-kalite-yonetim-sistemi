@@ -206,6 +206,38 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                     <Edit className="w-4 h-4 mr-2" />
                                     Düzenle
                                 </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={async () => {
+                                        if (window.confirm('Bu şikayeti silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+                                            try {
+                                                const { error } = await supabase
+                                                    .from('customer_complaints')
+                                                    .delete()
+                                                    .eq('id', complaintData.id);
+                                                
+                                                if (error) throw error;
+                                                
+                                                toast({
+                                                    title: 'Başarılı',
+                                                    description: 'Şikayet başarıyla silindi.'
+                                                });
+                                                setOpen(false);
+                                                onRefresh();
+                                            } catch (error) {
+                                                console.error('Error deleting complaint:', error);
+                                                toast({
+                                                    variant: 'destructive',
+                                                    title: 'Hata',
+                                                    description: 'Şikayet silinirken hata oluştu.'
+                                                });
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Sil
+                                </Button>
                             </div>
                         )}
                     </div>

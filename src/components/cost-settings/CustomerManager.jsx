@@ -45,7 +45,6 @@ const CustomerFormModal = ({ open, setOpen, onSuccess, existingCustomer }) => {
 
     useEffect(() => {
         const initialData = {
-            customer_code: '',
             name: '',
             customer_type: 'OEM',
             contact_person: '',
@@ -90,11 +89,11 @@ const CustomerFormModal = ({ open, setOpen, onSuccess, existingCustomer }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.customer_code || !formData.name) {
+        if (!formData.name) {
             toast({ 
                 variant: 'destructive', 
                 title: 'Eksik Bilgi', 
-                description: 'Müşteri kodu ve adı zorunludur.' 
+                description: 'Müşteri adı zorunludur.' 
             });
             return;
         }
@@ -161,18 +160,6 @@ const CustomerFormModal = ({ open, setOpen, onSuccess, existingCustomer }) => {
 
                         <TabsContent value="basic" className="space-y-4 mt-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="customer_code">
-                                        Müşteri Kodu <span className="text-red-500">*</span>
-                                    </Label>
-                                    <Input 
-                                        id="customer_code" 
-                                        value={formData.customer_code || ''} 
-                                        onChange={handleChange} 
-                                        required 
-                                        placeholder="Örn: CUST-001"
-                                    />
-                                </div>
                                 <div>
                                     <Label htmlFor="name">
                                         Müşteri Adı <span className="text-red-500">*</span>
