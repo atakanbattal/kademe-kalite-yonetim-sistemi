@@ -74,9 +74,14 @@ import React, { useState, useEffect, useCallback } from 'react';
                         delivery_note_number: existingRecord.delivery_note_number,
                         entry_date: new Date(existingRecord.entry_date).toISOString().split('T')[0],
                     });
-                    const recordItem = { ...existingRecord, temp_id: existingRecord.id, new_certificates: [] };
-                    setItems([recordItem]);
-                    generateSignedUrls([recordItem]);
+                    // Entry içindeki TÜM kalemleri yükle
+                    const allItems = (existingRecord.sheet_metal_items || []).map(item => ({
+                        ...item,
+                        temp_id: item.id,
+                        new_certificates: []
+                    }));
+                    setItems(allItems.length > 0 ? allItems : [getInitialItemState()]);
+                    generateSignedUrls(allItems);
                 } else {
                     setFormData({
                         entry_date: new Date().toISOString().split('T')[0],
@@ -249,7 +254,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 const standardOptions = materialStandards[item.material_quality] || allStandardOptions;
                                 return (
                                     <div key={item.temp_id} className="p-4 border rounded-lg space-y-2 relative">
-                                        {!isViewMode && items.length > 1 && !isEditMode && <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => removeItem(index)}><X className="h-4 w-4" /></Button>}
+                                        {!isViewMode && items.length > 1 && <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => removeItem(index)}><X className="h-4 w-4" /></Button>}
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                             <div><Label>Kalite</Label><Select value={item.material_quality || ''} onValueChange={(v) => handleItemChange(index, 'material_quality', v)} disabled={isViewMode}><SelectTrigger><SelectValue placeholder="Kalite seçin..."/></SelectTrigger><SelectContent><ScrollArea className="h-60">{materialQualityOptions.map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}</ScrollArea></SelectContent></Select></div>
                                             <div><Label>Standart</Label><Select value={item.malzeme_standarti || ''} onValueChange={(v) => handleItemChange(index, 'malzeme_standarti', v)} disabled={isViewMode}><SelectTrigger><SelectValue placeholder="Standart seçin..."/></SelectTrigger><SelectContent><ScrollArea className="h-60">{standardOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</ScrollArea></SelectContent></Select></div>
@@ -268,7 +273,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                     </div>
                                 )
                             })}
-                             {!isViewMode && !isEditMode && <Button type="button" variant="outline" onClick={addItem}><Plus className="w-4 h-4 mr-2" /> Kalem Ekle</Button>}
+                             {!isViewMode && <Button type="button" variant="outline" onClick={addItem}><Plus className="w-4 h-4 mr-2" /> Kalem Ekle</Button>}
                         </div>
                     </ScrollArea>
                     <DialogFooter className="mt-4"><DialogClose asChild><Button type="button" variant="outline">İptal</Button></DialogClose>
