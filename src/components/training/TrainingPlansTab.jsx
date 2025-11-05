@@ -20,9 +20,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     } from "@/components/ui/alert-dialog";
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
+    import { useLocation } from 'react-router-dom';
 
     const TrainingPlansTab = () => {
         const { toast } = useToast();
+        const location = useLocation();
         const [trainings, setTrainings] = useState([]);
         const [loading, setLoading] = useState(true);
         const [searchTerm, setSearchTerm] = useState('');
@@ -30,6 +32,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [selectedTraining, setSelectedTraining] = useState(null);
         const [isAlertOpen, setIsAlertOpen] = useState(false);
         const [trainingToDelete, setTrainingToDelete] = useState(null);
+        const [polyvalenceData, setPolyvalenceData] = useState(null);
 
         const fetchTrainings = useCallback(async () => {
             setLoading(true);
@@ -49,6 +52,21 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         useEffect(() => {
             fetchTrainings();
         }, [fetchTrainings]);
+
+        // Polivalans modülünden gelen durumu kontrol et
+        useEffect(() => {
+            if (location.state?.autoOpenModal && location.state?.fromPolyvalence) {
+                setPolyvalenceData({
+                    selectedPersonnel: location.state.selectedPersonnel || [],
+                    selectedSkillId: location.state.selectedSkillId || null
+                });
+                setSelectedTraining(null);
+                setIsModalOpen(true);
+                
+                // State'i temizle (bir kere kullanıldıktan sonra)
+                window.history.replaceState({}, document.title);
+            }
+        }, [location]);
 
         const filteredTrainings = useMemo(() => {
             return trainings.filter(training =>
@@ -207,6 +225,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     setIsOpen={setIsModalOpen}
                     training={selectedTraining}
                     onSave={handleSave}
+                    polyvalenceData={polyvalenceData}
                 />
                 <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
                     <AlertDialogContent>

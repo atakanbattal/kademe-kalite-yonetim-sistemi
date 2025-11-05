@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import SkillFormModal from './SkillFormModal';
 import CategoryFormModal from './CategoryFormModal';
 
-const SkillManagement = ({ skills, skillCategories, onRefresh }) => {
+const SkillManagement = ({ skills, skillCategories, onRefresh, departments = [] }) => {
     const { toast } = useToast();
     const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
     const [editingSkill, setEditingSkill] = useState(null);
@@ -231,6 +231,7 @@ const SkillManagement = ({ skills, skillCategories, onRefresh }) => {
                 }}
                 skill={editingSkill}
                 skillCategories={skillCategories}
+                departments={departments}
                 onRefresh={onRefresh}
             />
 
@@ -241,6 +242,7 @@ const SkillManagement = ({ skills, skillCategories, onRefresh }) => {
                     setEditingCategory(null);
                 }}
                 category={editingCategory}
+                departments={departments}
                 onRefresh={onRefresh}
             />
         </div>

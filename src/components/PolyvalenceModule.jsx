@@ -147,6 +147,14 @@ const PolyvalenceModule = () => {
         return depts.sort();
     }, [personnel]);
 
+    // Filtered categories - departman bazlı
+    const filteredCategories = useMemo(() => {
+        if (selectedDepartment === 'all') return skillCategories;
+        return skillCategories.filter(cat => 
+            !cat.department || cat.department === selectedDepartment
+        );
+    }, [skillCategories, selectedDepartment]);
+
     // Filtered personnel
     const filteredPersonnel = useMemo(() => {
         return personnel.filter(p => {
@@ -157,11 +165,24 @@ const PolyvalenceModule = () => {
         });
     }, [personnel, searchTerm, selectedDepartment]);
 
-    // Filtered skills
+    // Filtered skills - departman bazlı filtreleme eklendi
     const filteredSkills = useMemo(() => {
-        if (selectedCategory === 'all') return skills;
-        return skills.filter(s => s.category_id === selectedCategory);
-    }, [skills, selectedCategory]);
+        let result = skills;
+        
+        // Kategori filtresi
+        if (selectedCategory !== 'all') {
+            result = result.filter(s => s.category_id === selectedCategory);
+        }
+        
+        // Departman filtresi - seçili departman varsa
+        if (selectedDepartment !== 'all') {
+            result = result.filter(s => 
+                !s.department || s.department === selectedDepartment
+            );
+        }
+        
+        return result;
+    }, [skills, selectedCategory, selectedDepartment]);
 
     // Filtered personnel skills
     const filteredPersonnelSkills = useMemo(() => {
@@ -373,7 +394,7 @@ const PolyvalenceModule = () => {
                         className="px-2 py-1 border rounded-md bg-background h-8 text-sm"
                     >
                         <option value="all">Tüm Kategoriler</option>
-                        {skillCategories.map(cat => (
+                        {filteredCategories.map(cat => (
                             <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                     </select>
@@ -404,6 +425,7 @@ const PolyvalenceModule = () => {
                     <SkillManagement
                         skills={skills}
                         skillCategories={skillCategories}
+                        departments={departments}
                         onRefresh={fetchData}
                     />
                 </TabsContent>

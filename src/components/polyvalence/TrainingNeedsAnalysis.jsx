@@ -1,12 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BookOpen, AlertTriangle, TrendingUp, Calendar, Download } from 'lucide-react';
+import { BookOpen, AlertTriangle, TrendingUp, Calendar, Download, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 
 const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificationAlerts, onRefresh }) => {
+    const navigate = useNavigate();
     // Eğitim gerektiren kayıtlar
     const trainingNeeds = useMemo(() => {
         return personnelSkills
@@ -52,6 +54,18 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
             'Geçerli': 'default'
         };
         return <Badge variant={colors[status] || 'secondary'}>{status}</Badge>;
+    };
+
+    const handleCreateTraining = (personnelId, skillId) => {
+        // Eğitim modülüne yönlendir ve parametreleri state ile geç
+        navigate('/training', {
+            state: {
+                autoOpenModal: true,
+                selectedPersonnel: [personnelId],
+                selectedSkillId: skillId,
+                fromPolyvalence: true
+            }
+        });
     };
 
     return (
@@ -137,6 +151,14 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
                                     <div className="flex items-center gap-2">
                                         {getPriorityBadge(item.training_priority)}
                                         <Badge variant="outline">Seviye {item.current_level}</Badge>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => handleCreateTraining(item.personnel_id, item.skill_id)}
+                                            className="ml-2"
+                                        >
+                                            <GraduationCap className="h-4 w-4 mr-1" />
+                                            Eğitim Oluştur
+                                        </Button>
                                     </div>
                                 </div>
                             ))}
@@ -176,15 +198,25 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex flex-col items-end gap-2">
-                                        {getStatusBadge(alert.status)}
-                                        {alert.days_remaining !== null && (
-                                            <span className="text-xs text-muted-foreground">
-                                                {alert.days_remaining > 0 
-                                                    ? `${alert.days_remaining} gün kaldı` 
-                                                    : `${Math.abs(alert.days_remaining)} gün geçti`}
-                                            </span>
-                                        )}
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex flex-col items-end gap-2">
+                                            {getStatusBadge(alert.status)}
+                                            {alert.days_remaining !== null && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    {alert.days_remaining > 0 
+                                                        ? `${alert.days_remaining} gün kaldı` 
+                                                        : `${Math.abs(alert.days_remaining)} gün geçti`}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleCreateTraining(alert.personnel_id, alert.skill_id)}
+                                        >
+                                            <GraduationCap className="h-4 w-4 mr-1" />
+                                            Yenileme Eğitimi
+                                        </Button>
                                     </div>
                                 </div>
                             ))}

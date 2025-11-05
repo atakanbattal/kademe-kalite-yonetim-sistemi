@@ -13,7 +13,7 @@ const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceS
         count: personnelSkills.filter(ps => ps.current_level === level).length
     }));
 
-    // Department averages
+    // Department averages - FIX: polyvalenceSummary'den personnel bilgisini al
     const deptStats = personnel.reduce((acc, p) => {
         if (!p.department) return acc;
         if (!acc[p.department]) {
@@ -21,20 +21,32 @@ const PolyvalenceAnalytics = ({ personnel, skills, personnelSkills, polyvalenceS
         }
         acc[p.department].personnel++;
         const summary = polyvalenceSummary.find(ps => ps.personnel_id === p.id);
-        if (summary) {
-            acc[p.department].totalScore += parseFloat(summary.polyvalence_score || 0);
+        if (summary && summary.polyvalence_score) {
+            acc[p.department].totalScore += parseFloat(summary.polyvalence_score);
         }
         return acc;
     }, {});
 
-    const departmentData = Object.entries(deptStats).map(([dept, data]) => ({
-        name: dept,
-        score: (data.totalScore / data.personnel).toFixed(1)
-    }));
+    const departmentData = Object.entries(deptStats)
+        .filter(([_, data]) => data.personnel > 0)
+        .map(([dept, data]) => ({
+            name: dept,
+            score: parseFloat((data.totalScore / data.personnel).toFixed(1))
+        }))
+        .sort((a, b) => b.score - a.score);
 
-    // Top performers
-    const topPerformers = [...polyvalenceSummary]
-        .sort((a, b) => parseFloat(b.polyvalence_score || 0) - parseFloat(a.polyvalence_score || 0))
+    // Top performers - FIX: personnel bilgisini ekle
+    const topPerformers = polyvalenceSummary
+        .map(summary => {
+            const person = personnel.find(p => p.id === summary.personnel_id);
+            return {
+                ...summary,
+                full_name: person?.full_name || 'Bilinmeyen',
+                department: person?.department || '-'
+            };
+        })
+        .filter(p => p.polyvalence_score && parseFloat(p.polyvalence_score) > 0)
+        .sort((a, b) => parseFloat(b.polyvalence_score) - parseFloat(a.polyvalence_score))
         .slice(0, 10);
 
     // Certification status

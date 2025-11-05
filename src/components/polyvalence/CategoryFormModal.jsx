@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save, FolderPlus } from 'lucide-react';
 
 const COLORS = [
@@ -19,14 +20,15 @@ const COLORS = [
     { name: 'Gri', value: '#6b7280' }
 ];
 
-const CategoryFormModal = ({ isOpen, onClose, category, onRefresh }) => {
+const CategoryFormModal = ({ isOpen, onClose, category, onRefresh, departments = [] }) => {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
         color: '#3b82f6',
-        icon: 'Target'
+        icon: 'Target',
+        department: null
     });
 
     useEffect(() => {
@@ -35,14 +37,16 @@ const CategoryFormModal = ({ isOpen, onClose, category, onRefresh }) => {
                 name: category.name || '',
                 description: category.description || '',
                 color: category.color || '#3b82f6',
-                icon: category.icon || 'Target'
+                icon: category.icon || 'Target',
+                department: category.department || null
             });
         } else {
             setFormData({
                 name: '',
                 description: '',
                 color: '#3b82f6',
-                icon: 'Target'
+                icon: 'Target',
+                department: null
             });
         }
     }, [category, isOpen]);
@@ -68,6 +72,7 @@ const CategoryFormModal = ({ isOpen, onClose, category, onRefresh }) => {
                         description: formData.description,
                         color: formData.color,
                         icon: formData.icon,
+                        department: formData.department || null,
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', category.id);
@@ -96,6 +101,7 @@ const CategoryFormModal = ({ isOpen, onClose, category, onRefresh }) => {
                         description: formData.description,
                         color: formData.color,
                         icon: formData.icon,
+                        department: formData.department || null,
                         order_index: newOrderIndex,
                         is_active: true
                     }]);
@@ -140,6 +146,27 @@ const CategoryFormModal = ({ isOpen, onClose, category, onRefresh }) => {
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             placeholder="Örn: İş Güvenliği, Teknik Yetkinlikler..."
                         />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Departman</Label>
+                        <Select
+                            value={formData.department || 'all'}
+                            onValueChange={(val) => setFormData({ ...formData, department: val === 'all' ? null : val })}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Tüm departmanlar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tüm Departmanlar (Genel)</SelectItem>
+                                {departments.map(dept => (
+                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            Tüm departmanlar seçilirse bu kategori herkese görünür
+                        </p>
                     </div>
 
                     <div className="space-y-2">

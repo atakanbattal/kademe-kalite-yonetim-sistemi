@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save, Target } from 'lucide-react';
 
-const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh }) => {
+const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, departments = [] }) => {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -20,7 +20,8 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh }) 
         requires_certification: false,
         certification_validity_days: '',
         is_critical: false,
-        target_level: 3
+        target_level: 3,
+        department: null
     });
 
     useEffect(() => {
@@ -33,7 +34,8 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh }) 
                 requires_certification: skill.requires_certification || false,
                 certification_validity_days: skill.certification_validity_days || '',
                 is_critical: skill.is_critical || false,
-                target_level: skill.target_level || 3
+                target_level: skill.target_level || 3,
+                department: skill.department || null
             });
         } else {
             setFormData({
@@ -44,7 +46,8 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh }) 
                 requires_certification: false,
                 certification_validity_days: '',
                 is_critical: false,
-                target_level: 3
+                target_level: 3,
+                department: null
             });
         }
     }, [skill, skillCategories, isOpen]);
@@ -65,7 +68,8 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh }) 
                 ...formData,
                 certification_validity_days: formData.certification_validity_days 
                     ? parseInt(formData.certification_validity_days) 
-                    : null
+                    : null,
+                department: formData.department || null
             };
 
             if (skill) {
@@ -140,23 +144,43 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh }) 
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Kategori <span className="text-red-500">*</span></Label>
-                        <Select
-                            value={formData.category_id}
-                            onValueChange={(val) => setFormData({ ...formData, category_id: val })}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Kategori seçin..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {skillCategories.map(cat => (
-                                    <SelectItem key={cat.id} value={cat.id}>
-                                        {cat.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Kategori <span className="text-red-500">*</span></Label>
+                            <Select
+                                value={formData.category_id}
+                                onValueChange={(val) => setFormData({ ...formData, category_id: val })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Kategori seçin..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {skillCategories.map(cat => (
+                                        <SelectItem key={cat.id} value={cat.id}>
+                                            {cat.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Departman</Label>
+                            <Select
+                                value={formData.department || 'all'}
+                                onValueChange={(val) => setFormData({ ...formData, department: val === 'all' ? null : val })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Tüm departmanlar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tüm Departmanlar (Genel)</SelectItem>
+                                    {departments.map(dept => (
+                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <div className="space-y-2">

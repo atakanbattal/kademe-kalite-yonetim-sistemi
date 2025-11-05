@@ -19,16 +19,17 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { ScrollArea } from '@/components/ui/scroll-area';
 
-    const TRAINING_CATEGORIES = ['Oryantasyon', 'Teknik', 'İSG', 'Kalite', 'Yönetim', 'Diğer'];
+    const TRAINING_CATEGORIES = ['Oryantasyon', 'Teknik', 'İSG', 'Kalite', 'Yönetim', 'Polivalans', 'Diğer'];
     const TRAINING_TYPES = ['İç', 'Dış', 'Online', 'Hibrit'];
     const TRAINING_STATUSES = ['Planlandı', 'Aktif', 'Onay Bekliyor', 'Onaylandı', 'Tamamlandı', 'İptal'];
 
-    const TrainingFormModal = ({ isOpen, setIsOpen, training, onSave }) => {
+    const TrainingFormModal = ({ isOpen, setIsOpen, training, onSave, polyvalenceData = null }) => {
         const { toast } = useToast();
         const { personnel } = useData();
         const [formData, setFormData] = useState({});
         const [selectedParticipants, setSelectedParticipants] = useState([]);
         const [isSubmitting, setIsSubmitting] = useState(false);
+        const [skills, setSkills] = useState([]);
 
         const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
 
@@ -48,8 +49,23 @@ import React, { useState, useEffect, useCallback } from 'react';
                 objectives: '',
                 prerequisites: '',
                 status: 'Planlandı',
+                polyvalence_skill_id: null
             });
             setSelectedParticipants([]);
+        }, []);
+
+        useEffect(() => {
+            const fetchSkills = async () => {
+                const { data, error } = await supabase
+                    .from('skills')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('name');
+                if (!error && data) {
+                    setSkills(data);
+                }
+            };
+            fetchSkills();
         }, []);
 
         useEffect(() => {
@@ -59,6 +75,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         ...training,
                         start_date: training.start_date ? new Date(training.start_date) : null,
                         end_date: training.end_date ? new Date(training.end_date) : null,
+                        polyvalence_skill_id: training.polyvalence_skill_id || null
                     });
                     const { data, error } = await supabase
                         .from('training_participants')
@@ -67,12 +84,24 @@ import React, { useState, useEffect, useCallback } from 'react';
                     if (!error) {
                         setSelectedParticipants(data.map(p => p.personnel_id));
                     }
+                } else if (polyvalenceData) {
+                    // Polivalans modülünden geldiyse
+                    const selectedSkill = skills.find(s => s.id === polyvalenceData.selectedSkillId);
+                    resetForm();
+                    setFormData(prev => ({
+                        ...prev,
+                        title: selectedSkill ? `${selectedSkill.name} Eğitimi` : '',
+                        category: 'Polivalans',
+                        polyvalence_skill_id: polyvalenceData.selectedSkillId,
+                        objectives: selectedSkill ? `${selectedSkill.name} yetkinliğinin geliştirilmesi` : ''
+                    }));
+                    setSelectedParticipants(polyvalenceData.selectedPersonnel);
                 } else {
                     resetForm();
                 }
             };
             if (isOpen) initialize();
-        }, [training, isOpen, resetForm]);
+        }, [training, isOpen, resetForm, polyvalenceData, skills]);
 
         const handleChange = (e) => {
             const { name, value } = e.target;
@@ -144,6 +173,27 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 <div className="space-y-2"><Label>Eğitim Adı *</Label><Input name="title" value={formData.title || ''} onChange={handleChange} required /></div>
                                 <div className="space-y-2"><Label>Kategori</Label><Select name="category" value={formData.category || ''} onValueChange={(v) => handleSelectChange('category', v)}><SelectTrigger><SelectValue placeholder="Kategori seçin" /></SelectTrigger><SelectContent>{TRAINING_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
                                 <div className="space-y-2"><Label>Eğitim Türü</Label><Select name="training_type" value={formData.training_type || ''} onValueChange={(v) => handleSelectChange('training_type', v)}><SelectTrigger><SelectValue placeholder="Tür seçin" /></SelectTrigger><SelectContent>{TRAINING_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
+                                {formData.category === 'Polivalans' && (
+                                    <div className="space-y-2 col-span-full">
+                                        <Label>İlgili Yetkinlik (Opsiyonel)</Label>
+                                        <Select name="polyvalence_skill_id" value={formData.polyvalence_skill_id || ''} onValueChange={(v) => handleSelectChange('polyvalence_skill_id', v || null)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Yetkinlik seçin (opsiyonel)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="">Seçim yapma</SelectItem>
+                                                {skills.map(s => (
+                                                    <SelectItem key={s.id} value={s.id}>
+                                                        {s.code ? `${s.code} - ` : ''}{s.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground">
+                                            Bu eğitim bir polivalans yetkinliği için ise, yetkinliği seçin
+                                        </p>
+                                    </div>
+                                )}
                                 <div className="space-y-2"><Label>Eğitmen</Label><Input name="instructor" value={formData.instructor || ''} onChange={handleChange} /></div>
                                 <div className="space-y-2"><Label>Başlangıç Tarihi</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.start_date && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{formData.start_date ? format(formData.start_date, "PPP", { locale: tr }) : <span>Tarih seçin</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.start_date} onSelect={(d) => setFormData(p => ({ ...p, start_date: d }))} initialFocus locale={tr} /></PopoverContent></Popover></div>
                                 <div className="space-y-2"><Label>Bitiş Tarihi</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.end_date && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{formData.end_date ? format(formData.end_date, "PPP", { locale: tr }) : <span>Tarih seçin</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.end_date} onSelect={(d) => setFormData(p => ({ ...p, end_date: d }))} initialFocus locale={tr} /></PopoverContent></Popover></div>
