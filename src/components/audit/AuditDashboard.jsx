@@ -24,22 +24,22 @@ import React, { useMemo, useState } from 'react';
             to: endOfMonth(new Date()),
         });
 
-        const analytics = useMemo(() => {
-            const filteredAudits = audits.filter(audit => {
-                const auditDate = new Date(audit.audit_date);
-                return auditDate >= dateRange.from && auditDate <= addDays(dateRange.to, 1);
-            });
+    const analytics = useMemo(() => {
+        const filteredAudits = !dateRange || !dateRange.from ? audits : audits.filter(audit => {
+            const auditDate = new Date(audit.audit_date);
+            return auditDate >= dateRange.from && auditDate <= addDays(dateRange.to, 1);
+        });
 
-            const filteredFindings = findings.filter(finding => {
-                const findingDate = new Date(finding.created_at);
-                return findingDate >= dateRange.from && findingDate <= addDays(dateRange.to, 1);
-            });
+        const filteredFindings = !dateRange || !dateRange.from ? findings : findings.filter(finding => {
+            const findingDate = new Date(finding.created_at);
+            return findingDate >= dateRange.from && findingDate <= addDays(dateRange.to, 1);
+        });
 
-            const totalAuditsInRange = filteredAudits.length;
-            const openedFindingsInRange = filteredFindings.length;
-            const closedFindingsInRange = filteredFindings.filter(f => f.non_conformity?.status === 'Kapatıldı').length;
+        const totalAuditsInRange = filteredAudits.length;
+        const openedFindingsInRange = filteredFindings.length;
+        const closedFindingsInRange = filteredFindings.filter(f => f.non_conformity?.status === 'Kapatıldı').length;
 
-            const allTimeOpenFindings = findings.filter(f => !f.non_conformity || f.non_conformity.status !== 'Kapatıldı');
+        const allTimeOpenFindings = findings.filter(f => !f.non_conformity || f.non_conformity.status !== 'Kapatıldı');
             
             const departmentFindings = {};
             allTimeOpenFindings.forEach(finding => {

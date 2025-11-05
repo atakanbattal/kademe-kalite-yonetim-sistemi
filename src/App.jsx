@@ -22,6 +22,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import SupplierLiveAudit from '@/pages/SupplierLiveAudit';
     import PrintableReport from '@/pages/PrintableReport';
     import PrintableDashboardReport from '@/pages/PrintableDashboardReport';
+    import PrintableInternalAuditDashboard from '@/pages/PrintableInternalAuditDashboard';
     import TrainingModule from '@/components/training/TrainingModule';
     import WPSModule from '@/components/wps/WPSModule';
     import CustomerComplaintsModule from '@/components/CustomerComplaintsModule';
@@ -78,6 +79,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
                   <Route path="/login" element={<Login />} />
                    <Route path="/print/report/:type/:id" element={<AuthProtected><PrintableReport /></AuthProtected>} />
                   <Route path="/print/dashboard-report" element={<AuthProtected><PrintableDashboardReport /></AuthProtected>} />
+                  <Route path="/print/internal-audit-dashboard" element={<AuthProtected><PrintableInternalAuditDashboard /></AuthProtected>} />
                   <Route path="/*" element={
                       <AuthProtected>
                           <MainLayout />

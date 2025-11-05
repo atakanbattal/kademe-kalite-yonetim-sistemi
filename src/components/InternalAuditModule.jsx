@@ -87,7 +87,7 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
                         <Plus className="w-4 h-4 mr-2" />
                         Yeni Tetkik Planı
                     </Button>
-                    <Button onClick={() => openPrintableReport({ id: 'dashboard' }, 'internal_audit_dashboard')}>
+                    <Button onClick={() => window.open('/print/internal-audit-dashboard?autoprint=true', '_blank')}>
                         <Printer className="w-4 h-4 mr-2" />
                         Genel Rapor
                     </Button>

@@ -13,22 +13,43 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
     const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#10b981', '#f59e0b'];
 
-    const CustomTooltip = ({ active, payload, label }) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="p-3 bg-background/95 backdrop-blur-sm border rounded-lg shadow-xl text-sm transition-all">
-                    <p className="label font-bold text-foreground mb-2">{`${label}`}</p>
-                    {payload.map(pld => (
-                        <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex justify-between items-center">
-                            <span className='mr-4'>{pld.name}:</span>
-                            <span className="font-semibold">{pld.value}{pld.unit || ''}</span>
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="p-3 bg-background/95 backdrop-blur-sm border rounded-lg shadow-xl text-sm transition-all">
+                <p className="label font-bold text-foreground mb-2">{`${label}`}</p>
+                {payload.map(pld => (
+                    <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex justify-between items-center">
+                        <span className='mr-4'>{pld.name}:</span>
+                        <span className="font-semibold">{pld.value}{pld.unit || ''}</span>
+                    </p>
+                ))}
+            </div>
+        );
+    }
+    return null;
+};
+
+const DurationTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="p-3 bg-background/95 backdrop-blur-sm border rounded-lg shadow-xl text-sm transition-all">
+                <p className="label font-bold text-foreground mb-2">{`${label}`}</p>
+                {payload.map(pld => {
+                    const durationInMillis = pld.value * 60000;
+                    const formattedDuration = formatDuration(durationInMillis);
+                    return (
+                        <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex justify-between items-center gap-4">
+                            <span>{pld.name}:</span>
+                            <span className="font-semibold">{formattedDuration}</span>
                         </p>
-                    ))}
-                </div>
-            );
-        }
-        return null;
-    };
+                    );
+                })}
+            </div>
+        );
+    }
+    return null;
+};
 
 
     const StatCard = ({ title, value, icon, description, loading }) => (
@@ -357,8 +378,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                      <StatCard title="Hatalı Araç Başına Hata" value={analyticsData.avgFaultsPerFaultyVehicle} description="Hatalı araç başına düşen ortalama" icon={<GitCommitVertical className="h-4 w-4 text-muted-foreground" />} loading={loading} />
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card className="col-span-1">
+                <div className="space-y-6">
+                    <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <BarChart className="h-5 w-5" />
@@ -366,23 +387,23 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {loading ? <Skeleton className="h-[300px] w-full" /> : (
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <LineChart data={analyticsData.monthlyTrendData}>
+                            {loading ? <Skeleton className="h-[400px] w-full" /> : (
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <LineChart data={analyticsData.monthlyTrendData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" />
-                                        <YAxis label={{ value: 'Adet', angle: -90, position: 'insideLeft' }} />
+                                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={13} />
+                                        <YAxis label={{ value: 'Adet', angle: -90, position: 'insideLeft' }} stroke="hsl(var(--muted-foreground))" fontSize={13} />
                                         <Tooltip content={<CustomTooltip />} />
-                                        <Legend />
-                                        <Line type="monotone" dataKey="Hata Sayısı" name="Hata Sayısı" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                                        <Line type="monotone" dataKey="Araç Sayısı" name="Araç Sayısı" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                        <Line type="monotone" dataKey="Hata Sayısı" name="Hata Sayısı" stroke="#ef4444" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 7 }} />
+                                        <Line type="monotone" dataKey="Araç Sayısı" name="Araç Sayısı" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 7 }} />
                                     </LineChart>
                                 </ResponsiveContainer>
                             )}
                         </CardContent>
                     </Card>
 
-                    <Card className="col-span-1">
+                    <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Clock className="h-5 w-5" />
@@ -390,16 +411,16 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {loading ? <Skeleton className="h-[300px] w-full" /> : (
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <LineChart data={analyticsData.monthlyTrendData}>
+                            {loading ? <Skeleton className="h-[400px] w-full" /> : (
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <LineChart data={analyticsData.monthlyTrendData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" />
-                                        <YAxis label={{ value: 'Süre (dk)', angle: -90, position: 'insideLeft' }} unit=" dk" />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Legend />
-                                        <Line type="monotone" dataKey="Ort. Kontrol Süresi" name="Ort. Kontrol Süresi" stroke="#8b5cf6" strokeWidth={2.5} unit=" dk" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                                        <Line type="monotone" dataKey="Ort. Yeniden İşlem Süresi" name="Ort. Yeniden İşlem Süresi" stroke="#f97316" strokeWidth={2.5} unit=" dk" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={13} />
+                                        <YAxis label={{ value: 'Süre (dk)', angle: -90, position: 'insideLeft' }} unit=" dk" stroke="hsl(var(--muted-foreground))" fontSize={13} />
+                                        <Tooltip content={<DurationTooltip />} />
+                                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                        <Line type="monotone" dataKey="Ort. Kontrol Süresi" name="Ort. Kontrol Süresi" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 7 }} />
+                                        <Line type="monotone" dataKey="Ort. Yeniden İşlem Süresi" name="Ort. Yeniden İşlem Süresi" stroke="#f97316" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 7 }} />
                                     </LineChart>
                                 </ResponsiveContainer>
                             )}

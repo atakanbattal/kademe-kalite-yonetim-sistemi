@@ -218,3 +218,5 @@ Artık başlık ve değer arasında sadece 6px boşluk var, çok daha doğal ve 
 
 **Not**: Bu iyileştirme tüm rapor tiplerinde (tedarikçi denetim, iç tetkik, karantina, vb.) otomatik olarak aktif!
 
+
+
