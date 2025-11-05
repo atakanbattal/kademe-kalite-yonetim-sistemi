@@ -176,12 +176,12 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 {formData.category === 'Polivalans' && (
                                     <div className="space-y-2 col-span-full">
                                         <Label>İlgili Yetkinlik (Opsiyonel)</Label>
-                                        <Select name="polyvalence_skill_id" value={formData.polyvalence_skill_id || ''} onValueChange={(v) => handleSelectChange('polyvalence_skill_id', v || null)}>
+                                        <Select name="polyvalence_skill_id" value={formData.polyvalence_skill_id || 'none'} onValueChange={(v) => handleSelectChange('polyvalence_skill_id', v === 'none' ? null : v)}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Yetkinlik seçin (opsiyonel)" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="">Seçim yapma</SelectItem>
+                                                <SelectItem value="none">Seçim yapma</SelectItem>
                                                 {skills.map(s => (
                                                     <SelectItem key={s.id} value={s.id}>
                                                         {s.code ? `${s.code} - ` : ''}{s.name}
