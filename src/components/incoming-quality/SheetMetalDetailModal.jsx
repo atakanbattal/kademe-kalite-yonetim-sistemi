@@ -248,32 +248,28 @@ const SheetMetalDetailModal = ({
                                                 <CardTitle className="text-base">Sertifika Bilgileri</CardTitle>
                                             </CardHeader>
                                             <CardContent>
-                                                <div className="space-y-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     {item.certificates.map((cert, cidx) => {
                                                         const certPath = typeof cert === 'string' ? cert : cert.path;
-                                                        const certName = typeof cert === 'string' ? cert.split('/').pop() : cert.name || cert.path?.split('/').pop() || `Sertifika ${cidx + 1}`;
                                                         const signedUrl = certPath ? signedUrls[certPath] : null;
                                                         
-                                                        return (
-                                                            <div key={cidx} className="flex items-center justify-between p-2 border rounded bg-gray-50 hover:bg-gray-100 transition-colors">
-                                                                <div className="flex items-center gap-2 flex-1">
-                                                                    <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                                                                    <span className="text-sm font-medium text-gray-700 truncate">{certName}</span>
-                                                                </div>
-                                                                {signedUrl ? (
-                                                                    <a
-                                                                        href={signedUrl}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                                                    >
-                                                                        Görüntüle
-                                                                        <ExternalLink className="h-3 w-3" />
-                                                                    </a>
-                                                                ) : (
-                                                                    <span className="text-xs text-gray-400">Yükleniyor...</span>
-                                                                )}
-                                                            </div>
+                                                        return signedUrl ? (
+                                                            <a
+                                                                key={cidx}
+                                                                href={signedUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium text-sm"
+                                                            >
+                                                                <FileText className="h-4 w-4" />
+                                                                Sertifika Görüntüle {item.certificates.length > 1 ? `(${cidx + 1})` : ''}
+                                                                <ExternalLink className="h-3 w-3" />
+                                                            </a>
+                                                        ) : (
+                                                            <Button key={cidx} disabled variant="outline" className="inline-flex items-center gap-2">
+                                                                <FileText className="h-4 w-4" />
+                                                                Yükleniyor...
+                                                            </Button>
                                                         );
                                                     })}
                                                 </div>
