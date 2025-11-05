@@ -322,8 +322,8 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 ${timeline.map((event, index) => `
                     <div style="margin-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; padding-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; border-bottom: ${index < timeline.length - 1 ? '1px dashed #d1d5db' : 'none'};">
                         <p style="margin: 0 0 4px 0; font-size: 13px;"><strong>${eventTypeLabels[event.event_type] || event.event_type}</strong></p>
-                        <p style="margin: 0 0 4px 0; font-size: 12px; color: #6b7280;">📅 ${formatDate(event.event_timestamp)}</p>
-                        ${event.notes ? `<p style="margin: 0; font-size: 12px; color: #4b5563;">📝 ${event.notes}</p>` : ''}
+                        <p style="margin: 0 0 4px 0; font-size: 12px; color: #6b7280;">Tarih: ${formatDate(event.event_timestamp)}</p>
+                        ${event.notes ? `<p style="margin: 0; font-size: 12px; color: #4b5563;">Not: ${event.notes}</p>` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -341,9 +341,9 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                             ${fault.is_resolved ? 'Çözüldü' : 'Bekliyor'}
                         </span>
                     </div>
-                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;">🏢 <strong>Departman:</strong> ${fault.department?.name || '-'}</p>
-                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;">📊 <strong>Miktar:</strong> ${fault.quantity || '-'}</p>
-                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;">📅 <strong>Tarih:</strong> ${formatDate(fault.fault_date)}</p>
+                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Departman:</strong> ${fault.department?.name || '-'}</p>
+                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Miktar:</strong> ${fault.quantity || '-'}</p>
+                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Tarih:</strong> ${formatDate(fault.fault_date)}</p>
                     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #fecaca;">
                         <p style="margin: 0; font-size: 13px; color: #4b5563;"><strong>Açıklama:</strong></p>
                         <p style="margin: 4px 0 0 0; font-size: 12px; color: #1f2937; white-space: pre-wrap;">${fault.description || '-'}</p>
@@ -354,7 +354,7 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
     ` : `<div class="section">
             <h2 class="section-title">Tespit Edilen Hatalar</h2>
             <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 8px; padding: 15px;">
-                <p style="margin: 0; color: #15803d; font-weight: 600; font-size: 14px;">✅ Bu araçta hiç hata kaydı bulunmamaktadır.</p>
+                <p style="margin: 0; color: #15803d; font-weight: 600; font-size: 14px;">Bu araçta hiç hata kaydı bulunmamaktadır.</p>
             </div>
         </div>`;
 
