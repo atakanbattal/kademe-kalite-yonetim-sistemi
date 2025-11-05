@@ -63,9 +63,6 @@ const BenchmarkForm = ({
     useEffect(() => {
         fetchDepartments();
         
-        // Debug: Kategorileri konsola yazdır
-        console.log('Mevcut kategoriler:', categories);
-        
         if (benchmark) {
             setFormData({
                 category_id: benchmark.category_id || '',
@@ -86,16 +83,23 @@ const BenchmarkForm = ({
                 notes: benchmark.notes || ''
             });
         }
+    }, [benchmark]);
+    
+    // Kategorileri kontrol et ve uyar
+    useEffect(() => {
+        console.log('📊 Kategoriler yüklendi:', categories);
         
-        // Eğer kategoriler boşsa uyarı göster
-        if (categories.length === 0) {
+        if (isOpen && categories.length === 0) {
+            console.error('❌ Kategoriler boş!');
             toast({
                 variant: 'destructive',
-                title: 'Uyarı',
-                description: 'Kategoriler yüklenemedi. Lütfen veritabanında benchmark_categories tablosunu kontrol edin.'
+                title: 'Kategoriler Yüklenemedi',
+                description: 'Lütfen Supabase SQL Editor\'de create-benchmark-module.sql dosyasını çalıştırın.'
             });
+        } else if (isOpen && categories.length > 0) {
+            console.log('✅ Kategoriler hazır:', categories.length);
         }
-    }, [benchmark, categories]);
+    }, [categories, isOpen, toast]);
 
     const fetchDepartments = async () => {
         try {

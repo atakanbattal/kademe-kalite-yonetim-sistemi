@@ -54,7 +54,31 @@ const BenchmarkModule = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [benchmarksRes, categoriesRes, personnelRes] = await Promise.all([
+            // Önce kategorileri yükle (en önemli)
+            console.log('🔄 Kategoriler yükleniyor...');
+            const categoriesRes = await supabase
+                .from('benchmark_categories')
+                .select('*')
+                .order('order_index');
+
+            if (categoriesRes.error) {
+                console.error('❌ Kategori hatası:', categoriesRes.error);
+                throw categoriesRes.error;
+            }
+
+            console.log('✅ Kategoriler yüklendi:', categoriesRes.data);
+            setCategories(categoriesRes.data || []);
+
+            if (!categoriesRes.data || categoriesRes.data.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Kategoriler Bulunamadı',
+                    description: 'Lütfen Supabase SQL Editor\'de benchmark kategorilerini oluşturun.'
+                });
+            }
+
+            // Sonra diğer verileri yükle
+            const [benchmarksRes, personnelRes] = await Promise.all([
                 supabase
                     .from('benchmarks')
                     .select(`
@@ -66,29 +90,22 @@ const BenchmarkModule = () => {
                     `)
                     .order('created_at', { ascending: false }),
                 supabase
-                    .from('benchmark_categories')
-                    .select('*')
-                    .eq('is_active', true)
-                    .order('order_index'),
-                supabase
                     .from('personnel')
                     .select('id, name, department')
                     .order('name')
             ]);
 
-            if (benchmarksRes.error) throw benchmarksRes.error;
-            if (categoriesRes.error) throw categoriesRes.error;
-            if (personnelRes.error) throw personnelRes.error;
+            if (benchmarksRes.error) console.error('Benchmark hatası:', benchmarksRes.error);
+            if (personnelRes.error) console.error('Personel hatası:', personnelRes.error);
 
             setBenchmarks(benchmarksRes.data || []);
-            setCategories(categoriesRes.data || []);
             setPersonnel(personnelRes.data || []);
         } catch (error) {
-            console.error('Veriler yüklenirken hata:', error);
+            console.error('❌ Veriler yüklenirken hata:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Veriler yüklenirken bir hata oluştu.'
+                description: `Veriler yüklenirken bir hata oluştu: ${error.message}`
             });
         } finally {
             setLoading(false);
