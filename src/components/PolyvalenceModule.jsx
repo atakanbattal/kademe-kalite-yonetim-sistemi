@@ -19,7 +19,7 @@ import PolyvalenceAnalytics from './polyvalence/PolyvalenceAnalytics';
 import SkillManagement from './polyvalence/SkillManagement';
 import TrainingNeedsAnalysis from './polyvalence/TrainingNeedsAnalysis';
 import PersonnelSelectionModal from './polyvalence/PersonnelSelectionModal';
-import TrainingFormModal from './polyvalence/TrainingFormModal';
+import TrainingFormModal from './training/TrainingFormModal'; // ✅ Değişti: Gelişmiş training modal
 
 const PolyvalenceModule = () => {
     const { toast } = useToast();
@@ -42,6 +42,7 @@ const PolyvalenceModule = () => {
     // Modal states
     const [isPersonnelModalOpen, setIsPersonnelModalOpen] = useState(false);
     const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
+    const [trainingModalData, setTrainingModalData] = useState(null); // ✅ YENİ: Eğitim modal verisi
 
     useEffect(() => {
         fetchData();
@@ -437,6 +438,10 @@ const PolyvalenceModule = () => {
                         personnelSkills={filteredPersonnelSkills}
                         certificationAlerts={certificationAlerts}
                         onRefresh={fetchData}
+                        onCreateTraining={(data) => {
+                            setTrainingModalData(data);
+                            setIsTrainingModalOpen(true);
+                        }}
                     />
                 </TabsContent>
             </Tabs>
@@ -451,10 +456,21 @@ const PolyvalenceModule = () => {
 
             <TrainingFormModal
                 isOpen={isTrainingModalOpen}
-                onClose={() => setIsTrainingModalOpen(false)}
-                personnel={personnel}
-                skills={skills}
-                onRefresh={fetchData}
+                setIsOpen={(open) => {
+                    setIsTrainingModalOpen(open);
+                    if (!open) setTrainingModalData(null);
+                }}
+                training={null}
+                onSave={async () => {
+                    await fetchData();
+                    setIsTrainingModalOpen(false);
+                    setTrainingModalData(null);
+                    toast({
+                        title: 'Eğitim Kaydedildi',
+                        description: 'Eğitim başarıyla oluşturuldu.',
+                    });
+                }}
+                polyvalenceData={trainingModalData} // ✅ Otomatik doldurma için
             />
         </motion.div>
     );

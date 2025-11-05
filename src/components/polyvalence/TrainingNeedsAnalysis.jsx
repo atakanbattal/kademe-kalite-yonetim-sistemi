@@ -5,12 +5,17 @@ import { Button } from '@/components/ui/button';
 import { BookOpen, AlertTriangle, TrendingUp, Calendar, Download, GraduationCap, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 
-const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificationAlerts, onRefresh }) => {
-    const navigate = useNavigate();
+const TrainingNeedsAnalysis = ({ 
+    personnel, 
+    skills, 
+    personnelSkills, 
+    certificationAlerts, 
+    onRefresh,
+    onCreateTraining // ✅ YENİ: Modal açmak için callback
+}) => {
     const { toast } = useToast();
     
     // Eğitim gerektiren kayıtlar
@@ -90,32 +95,29 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
     };
 
     const handleCreateTraining = (personnelId, skillId) => {
-        // Tekil eğitim oluştur
-        navigate('/training', {
-            state: {
-                autoOpenModal: true,
+        // ✅ Modal'ı polivalans içinde aç (route etme!)
+        if (onCreateTraining) {
+            onCreateTraining({
                 selectedPersonnel: [personnelId],
                 selectedSkillId: skillId,
-                fromPolyvalence: true
-            }
-        });
+                isBulk: false
+            });
+        }
     };
 
     const handleCreateBulkTraining = async (skill, personnelList) => {
-        // Toplu eğitim oluştur ve personnel_skills'i güncelle
+        // ✅ Toplu eğitim: Modal'ı aç ve training_required'ı güncelle
         try {
             const personnelIds = personnelList.map(p => p.id);
             
-            // Eğitim modülüne yönlendir
-            navigate('/training', {
-                state: {
-                    autoOpenModal: true,
+            // Modal'ı aç (route etme!)
+            if (onCreateTraining) {
+                onCreateTraining({
                     selectedPersonnel: personnelIds,
                     selectedSkillId: skill.id,
-                    fromPolyvalence: true,
-                    bulkTraining: true
-                }
-            });
+                    isBulk: true
+                });
+            }
 
             // personnel_skills'de training_required'ı false yap
             const { error } = await supabase
@@ -130,17 +132,18 @@ const TrainingNeedsAnalysis = ({ personnel, skills, personnelSkills, certificati
             if (error) throw error;
 
             toast({
-                title: 'Toplu Eğitim Planlandı',
-                description: `${skill.name} için ${personnelIds.length} personel eğitime alındı.`,
+                title: 'Toplu Eğitim Modalı Açıldı',
+                description: `${skill.name} için ${personnelIds.length} personel seçildi.`,
             });
 
-            onRefresh();
+            // Eğitim kaydedildikten sonra refresh için callback
+            // onRefresh(); // Modal kapandıktan sonra çağrılacak
         } catch (error) {
-            console.error('Toplu eğitim oluşturma hatası:', error);
+            console.error('Toplu eğitim hazırlama hatası:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Toplu eğitim oluşturulamadı: ' + error.message
+                description: 'Toplu eğitim hazırlanamadı: ' + error.message
             });
         }
     };
