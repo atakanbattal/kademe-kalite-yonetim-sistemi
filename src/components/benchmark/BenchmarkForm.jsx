@@ -62,6 +62,10 @@ const BenchmarkForm = ({
 
     useEffect(() => {
         fetchDepartments();
+        
+        // Debug: Kategorileri konsola yazdır
+        console.log('Mevcut kategoriler:', categories);
+        
         if (benchmark) {
             setFormData({
                 category_id: benchmark.category_id || '',
@@ -82,7 +86,16 @@ const BenchmarkForm = ({
                 notes: benchmark.notes || ''
             });
         }
-    }, [benchmark]);
+        
+        // Eğer kategoriler boşsa uyarı göster
+        if (categories.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Uyarı',
+                description: 'Kategoriler yüklenemedi. Lütfen veritabanında benchmark_categories tablosunu kontrol edin.'
+            });
+        }
+    }, [benchmark, categories]);
 
     const fetchDepartments = async () => {
         try {
@@ -285,21 +298,34 @@ const BenchmarkForm = ({
                                         <Label htmlFor="category_id">
                                             Kategori <span className="text-red-500">*</span>
                                         </Label>
-                                        <Select
-                                            value={formData.category_id}
-                                            onValueChange={(value) => handleChange('category_id', value)}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Kategori seçin" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {categories.map((cat) => (
-                                                    <SelectItem key={cat.id} value={cat.id}>
-                                                        {cat.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        {categories.length === 0 ? (
+                                            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                                <p className="text-sm text-yellow-800">
+                                                    ⚠️ Kategoriler yüklenemedi. Lütfen veritabanında 
+                                                    <code className="mx-1 px-2 py-1 bg-yellow-100 rounded">benchmark_categories</code> 
+                                                    tablosunu kontrol edin.
+                                                </p>
+                                                <p className="text-xs text-yellow-700 mt-2">
+                                                    SQL: <code>scripts/fix-benchmark-categories.sql</code> dosyasını çalıştırın.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <Select
+                                                value={formData.category_id}
+                                                onValueChange={(value) => handleChange('category_id', value)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Kategori seçin" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {categories.map((cat) => (
+                                                        <SelectItem key={cat.id} value={cat.id}>
+                                                            {cat.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">

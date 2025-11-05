@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import {
     X, Edit, Trash2, TrendingUp, FileText, User, Calendar,
     Clock, Tag, DollarSign, CheckCircle, AlertCircle,
-    Download, Eye, Plus, Upload, File, Image as ImageIcon
+    Download, Eye, Plus, Upload, File, Image as ImageIcon,
+    ExternalLink, Printer
 } from 'lucide-react';
+import BenchmarkDocumentUpload from './BenchmarkDocumentUpload';
 import {
     Dialog,
     DialogContent,
@@ -36,6 +38,7 @@ const BenchmarkDetail = ({
     const [documents, setDocuments] = useState([]);
     const [activityLog, setActivityLog] = useState([]);
     const [approvals, setApprovals] = useState([]);
+    const [showDocumentUpload, setShowDocumentUpload] = useState(false);
 
     useEffect(() => {
         if (benchmark?.id) {
@@ -131,6 +134,54 @@ const BenchmarkDetail = ({
         return colors[status] || 'bg-gray-100 text-gray-800';
     };
 
+    const handleDownloadDocument = async (doc) => {
+        try {
+            const { data, error } = await supabase.storage
+                .from('benchmark_documents')
+                .download(doc.file_path);
+
+            if (error) throw error;
+
+            const url = URL.createObjectURL(data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = doc.file_name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast({
+                title: 'Başarılı',
+                description: 'Doküman indirildi.'
+            });
+        } catch (error) {
+            console.error('İndirme hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Doküman indirilirken bir hata oluştu.'
+            });
+        }
+    };
+
+    const handleDocumentUploadSuccess = () => {
+        setShowDocumentUpload(false);
+        fetchDetails();
+        toast({
+            title: 'Başarılı',
+            description: 'Dokümanlar başarıyla yüklendi.'
+        });
+    };
+
+    const handleGenerateReport = () => {
+        // Rapor oluşturma - PDF veya print sayfası
+        toast({
+            title: 'Bilgi',
+            description: 'Rapor oluşturma özelliği yakında eklenecek.'
+        });
+    };
+
     if (!benchmark) return null;
 
     return (
@@ -155,6 +206,14 @@ const BenchmarkDetail = ({
                             </div>
                         </div>
                         <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleGenerateReport}
+                            >
+                                <Printer className="h-4 w-4 mr-2" />
+                                Rapor
+                            </Button>
                             <Button
                                 size="sm"
                                 variant="outline"
@@ -458,51 +517,134 @@ const BenchmarkDetail = ({
 
                         {/* Dokümanlar */}
                         <TabsContent value="documents" className="mt-4">
-                            <div className="space-y-3">
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-lg font-semibold">
+                                        Kanıt Dokümanları ({documents.length})
+                                    </h3>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => setShowDocumentUpload(!showDocumentUpload)}
+                                    >
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Doküman Yükle
+                                    </Button>
+                                </div>
+
+                                {showDocumentUpload && (
+                                    <Card className="border-2 border-primary">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Yeni Doküman Yükle</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <BenchmarkDocumentUpload
+                                                benchmarkId={benchmark.id}
+                                                onUploadSuccess={handleDocumentUploadSuccess}
+                                            />
+                                        </CardContent>
+                                    </Card>
+                                )}
+
                                 {documents.length === 0 ? (
                                     <Card>
-                                        <CardContent className="flex flex-col items-center justify-center py-8">
-                                            <FileText className="h-12 w-12 text-muted-foreground mb-3" />
-                                            <p className="text-muted-foreground">
-                                                Henüz doküman eklenmemiş.
+                                        <CardContent className="flex flex-col items-center justify-center py-12">
+                                            <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                                            <h3 className="text-lg font-semibold mb-2">
+                                                Henüz Doküman Yok
+                                            </h3>
+                                            <p className="text-muted-foreground text-center mb-4">
+                                                Benchmark çalışmanıza kanıt dokümanlar ekleyerek<br />
+                                                karşılaştırmanızı güçlendirin.
                                             </p>
+                                            <Button onClick={() => setShowDocumentUpload(true)}>
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                İlk Dokümanı Yükle
+                                            </Button>
                                         </CardContent>
                                     </Card>
                                 ) : (
-                                    documents.map((doc) => (
-                                        <Card key={doc.id}>
-                                            <CardContent className="py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex-shrink-0">
-                                                        {doc.file_type?.includes('image') ? (
-                                                            <ImageIcon className="h-8 w-8 text-blue-500" />
-                                                        ) : (
-                                                            <File className="h-8 w-8 text-gray-500" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-medium truncate">
-                                                            {doc.document_title}
-                                                        </p>
-                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {doc.document_type}
-                                                            </Badge>
-                                                            <span>{doc.file_name}</span>
-                                                            {doc.file_size && (
-                                                                <span>
-                                                                    ({(doc.file_size / 1024).toFixed(1)} KB)
-                                                                </span>
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        {documents.map((doc) => (
+                                            <Card key={doc.id} className="hover:shadow-md transition-shadow">
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex-shrink-0 mt-1">
+                                                            {doc.file_type?.includes('image') ? (
+                                                                <ImageIcon className="h-10 w-10 text-blue-500" />
+                                                            ) : doc.file_type?.includes('pdf') ? (
+                                                                <FileText className="h-10 w-10 text-red-500" />
+                                                            ) : (
+                                                                <File className="h-10 w-10 text-gray-500" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-semibold truncate mb-1">
+                                                                {doc.document_title}
+                                                            </h4>
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <Badge variant="secondary" className="text-xs">
+                                                                    {doc.document_type}
+                                                                </Badge>
+                                                                {doc.file_size && (
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        {(doc.file_size / 1024 / 1024).toFixed(2)} MB
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {doc.description && (
+                                                                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                                                                    {doc.description}
+                                                                </p>
+                                                            )}
+                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                <span>{doc.file_name}</span>
+                                                            </div>
+                                                            {doc.tags && doc.tags.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mt-2">
+                                                                    {doc.tags.slice(0, 3).map((tag, idx) => (
+                                                                        <Badge key={idx} variant="outline" className="text-xs">
+                                                                            {tag}
+                                                                        </Badge>
+                                                                    ))}
+                                                                    {doc.tags.length > 3 && (
+                                                                        <Badge variant="outline" className="text-xs">
+                                                                            +{doc.tags.length - 3}
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <Button size="sm" variant="outline">
-                                                        <Download className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))
+                                                    <div className="flex gap-2 mt-3">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleDownloadDocument(doc)}
+                                                            className="flex-1"
+                                                        >
+                                                            <Download className="h-4 w-4 mr-2" />
+                                                            İndir
+                                                        </Button>
+                                                        {doc.file_type?.includes('image') && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => {
+                                                                    // Görüntüleme için yeni sekme aç
+                                                                    const url = supabase.storage
+                                                                        .from('benchmark_documents')
+                                                                        .getPublicUrl(doc.file_path).data.publicUrl;
+                                                                    window.open(url, '_blank');
+                                                                }}
+                                                            >
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
                         </TabsContent>
