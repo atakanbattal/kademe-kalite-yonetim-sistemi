@@ -413,9 +413,9 @@ const PolyvalenceModule = () => {
 
                 <TabsContent value="analytics">
                     <PolyvalenceAnalytics
-                        personnel={filteredPersonnel}
-                        skills={filteredSkills}
-                        personnelSkills={filteredPersonnelSkills}
+                        personnel={personnel}
+                        skills={skills}
+                        personnelSkills={personnelSkills}
                         polyvalenceSummary={polyvalenceSummary}
                         certificationAlerts={certificationAlerts}
                     />

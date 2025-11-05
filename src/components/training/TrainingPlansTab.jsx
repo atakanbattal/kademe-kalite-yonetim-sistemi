@@ -56,17 +56,20 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         // Polivalans modülünden gelen durumu kontrol et
         useEffect(() => {
             if (location.state?.autoOpenModal && location.state?.fromPolyvalence) {
-                setPolyvalenceData({
+                const polyData = {
                     selectedPersonnel: location.state.selectedPersonnel || [],
                     selectedSkillId: location.state.selectedSkillId || null
-                });
+                };
+                
+                setPolyvalenceData(polyData);
                 setSelectedTraining(null);
                 setIsModalOpen(true);
                 
                 // State'i temizle (bir kere kullanıldıktan sonra)
-                window.history.replaceState({}, document.title);
+                // replaceState yerine navigate ile temizle
+                window.history.replaceState(null, '');
             }
-        }, [location]);
+        }, [location.state]);
 
         const filteredTrainings = useMemo(() => {
             return trainings.filter(training =>
@@ -117,6 +120,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
         const handleSave = () => {
             setIsModalOpen(false);
+            setPolyvalenceData(null);
             fetchTrainings();
         };
         
@@ -222,7 +226,10 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 </div>
                 <TrainingFormModal
                     isOpen={isModalOpen}
-                    setIsOpen={setIsModalOpen}
+                    setIsOpen={(open) => {
+                        setIsModalOpen(open);
+                        if (!open) setPolyvalenceData(null);
+                    }}
                     training={selectedTraining}
                     onSave={handleSave}
                     polyvalenceData={polyvalenceData}
