@@ -94,11 +94,58 @@ import React, { useState, useMemo, useCallback } from 'react';
         }, []);
         
         const handleCreateNC = (cost) => {
+            console.log('🔍 ORIJINAL COST OBJESİ:', cost);
+            
+            // affected_units array ise string'e çevir
+            let affectedUnitsText = null;
+            if (Array.isArray(cost.affected_units) && cost.affected_units.length > 0) {
+                affectedUnitsText = cost.affected_units.map(u => `${u.unit} (${u.duration} dk)`).join(', ');
+            } else if (typeof cost.affected_units === 'string') {
+                affectedUnitsText = cost.affected_units;
+            } else if (typeof cost.affected_units === 'number') {
+                affectedUnitsText = cost.affected_units.toString();
+            }
+            
+            // TÜM bilgileri içeren comprehensive record
             const ncRecord = {
-                ...cost,
-                source: 'cost' // Add a source identifier
+                // Temel Bilgiler
+                id: cost.id,
+                source: 'cost',
+                source_cost_id: cost.id,
+                
+                // Parça/Ürün Bilgileri
+                part_name: cost.part_name || '',
+                part_code: cost.part_code || '',
+                vehicle_type: cost.vehicle_type || '',
+                part_location: cost.part_location || '',
+                
+                // Maliyet Bilgileri
+                cost_type: cost.cost_type || '',
+                amount: cost.amount || 0,
+                unit: cost.unit || '',
+                cost_date: cost.cost_date || '',
+                
+                // Miktar Bilgileri
+                quantity: cost.quantity || null,
+                measurement_unit: cost.measurement_unit || '',
+                scrap_weight: cost.scrap_weight || null,
+                material_type: cost.material_type || '',
+                affected_units: affectedUnitsText, // Array yerine string
+                
+                // Süre Bilgileri (ÖNEMLI!)
+                rework_duration: cost.rework_duration || null,
+                quality_control_duration: cost.quality_control_duration || null,
+                
+                // Açıklama ve Sorumlu
+                description: cost.description || '',
+                responsible_personnel_id: cost.responsible_personnel_id || null,
             };
-            onOpenNCForm('DF', ncRecord);
+            
+            console.log('📋 NC Record oluşturuldu:', ncRecord);
+            
+            onOpenNCForm(ncRecord, () => {
+                refreshData();
+            });
         };
 
         const uniqueUnits = useMemo(() => {
@@ -115,6 +162,7 @@ import React, { useState, useMemo, useCallback } from 'react';
                     materialCostSettings={materialCostSettings}
                     personnelList={personnel}
                     existingCost={selectedCost}
+                    onOpenNCForm={onOpenNCForm}
                 />
                 {selectedCost && (
                     <CostViewModal 

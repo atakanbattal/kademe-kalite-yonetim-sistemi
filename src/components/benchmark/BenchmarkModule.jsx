@@ -84,15 +84,15 @@ const BenchmarkModule = () => {
                     .select(`
                         *,
                         category:benchmark_categories(id, name, color, icon),
-                        owner:personnel!benchmarks_owner_id_fkey(id, name),
+                        owner:personnel!benchmarks_owner_id_fkey(id, full_name),
                         department:cost_settings!benchmarks_department_id_fkey(id, department_name),
-                        approved_by_person:personnel!benchmarks_approved_by_fkey(id, name)
+                        approved_by_person:personnel!benchmarks_approved_by_fkey(id, full_name)
                     `)
                     .order('created_at', { ascending: false }),
                 supabase
                     .from('personnel')
-                    .select('id, name, department')
-                    .order('name')
+                    .select('id, full_name, department')
+                    .order('full_name')
             ]);
 
             if (benchmarksRes.error) console.error('Benchmark hatası:', benchmarksRes.error);

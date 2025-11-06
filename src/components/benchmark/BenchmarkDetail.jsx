@@ -175,11 +175,272 @@ const BenchmarkDetail = ({
     };
 
     const handleGenerateReport = () => {
-        // Rapor oluşturma - PDF veya print sayfası
-        toast({
-            title: 'Bilgi',
-            description: 'Rapor oluşturma özelliği yakında eklenecek.'
-        });
+        // Yazdırma sayfasını aç
+        const printContent = generatePrintableReport();
+        const printWindow = window.open('', '_blank');
+        
+        if (!printWindow) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Rapor penceresi açılamadı. Pop-up engelleyiciyi kontrol edin.'
+            });
+            return;
+        }
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        
+        // Sayfayı yazdır
+        setTimeout(() => {
+            printWindow.print();
+        }, 250);
+    };
+
+    const generatePrintableReport = () => {
+        const today = format(new Date(), 'dd MMMM yyyy', { locale: tr });
+        
+        return `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Raporu - ${benchmark.title}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #1e40af;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+        .header .meta {
+            color: #666;
+            font-size: 14px;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section-title {
+            background: #2563eb;
+            color: white;
+            padding: 10px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            border-left: 3px solid #2563eb;
+            padding-left: 12px;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 3px;
+        }
+        .info-value {
+            font-size: 15px;
+            color: #000;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .badge-status {
+            background: #3b82f6;
+            color: white;
+        }
+        .badge-priority {
+            background: #f59e0b;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background: #f3f4f6;
+            font-weight: 600;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .description {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        @media print {
+            body {
+                padding: 0;
+            }
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Benchmark Analiz Raporu</h1>
+        <div class="meta">
+            <strong>${benchmark.benchmark_number}</strong> | ${today}
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Genel Bilgiler</div>
+        <h2 style="margin-top: 0;">${benchmark.title}</h2>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Durum</div>
+                <div class="info-value"><span class="badge badge-status">${benchmark.status}</span></div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Öncelik</div>
+                <div class="info-value"><span class="badge badge-priority">${benchmark.priority}</span></div>
+            </div>
+            ${benchmark.category ? `
+            <div class="info-item">
+                <div class="info-label">Kategori</div>
+                <div class="info-value">${benchmark.category.name}</div>
+            </div>
+            ` : ''}
+            ${benchmark.owner ? `
+            <div class="info-item">
+                <div class="info-label">Sorumlu</div>
+                <div class="info-value">${benchmark.owner.name}</div>
+            </div>
+            ` : ''}
+            ${benchmark.department ? `
+            <div class="info-item">
+                <div class="info-label">Departman</div>
+                <div class="info-value">${benchmark.department.department_name}</div>
+            </div>
+            ` : ''}
+            ${benchmark.estimated_budget ? `
+            <div class="info-item">
+                <div class="info-label">Tahmini Bütçe</div>
+                <div class="info-value">${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: benchmark.currency || 'TRY' }).format(benchmark.estimated_budget)}</div>
+            </div>
+            ` : ''}
+        </div>
+
+        ${benchmark.description ? `
+        <div class="description">
+            <strong>Açıklama:</strong><br>
+            ${benchmark.description.replace(/\n/g, '<br>')}
+        </div>
+        ` : ''}
+        
+        ${benchmark.objective ? `
+        <div class="description">
+            <strong>Amaç:</strong><br>
+            ${benchmark.objective.replace(/\n/g, '<br>')}
+        </div>
+        ` : ''}
+    </div>
+
+    ${items.length > 0 ? `
+    <div class="section">
+        <div class="section-title">Karşılaştırılan Alternatifler (${items.length})</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Sıra</th>
+                    <th>Alternatif</th>
+                    <th>Açıklama</th>
+                    ${items[0].unit_price ? '<th>Fiyat</th>' : ''}
+                    ${items[0].quality_score ? '<th>Kalite Skoru</th>' : ''}
+                </tr>
+            </thead>
+            <tbody>
+                ${items.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><strong>${item.item_name}</strong>${item.item_code ? `<br><small>${item.item_code}</small>` : ''}</td>
+                    <td>${item.description || '-'}</td>
+                    ${item.unit_price ? `<td>${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: item.currency || 'TRY' }).format(item.unit_price)}</td>` : ''}
+                    ${item.quality_score ? `<td>${item.quality_score}/100</td>` : ''}
+                </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+
+    ${documents.length > 0 ? `
+    <div class="section">
+        <div class="section-title">Ekli Dokümanlar (${documents.length})</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Doküman Başlığı</th>
+                    <th>Tür</th>
+                    <th>Tarih</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${documents.slice(0, 10).map(doc => `
+                <tr>
+                    <td>${doc.document_title}</td>
+                    <td>${doc.document_type}</td>
+                    <td>${doc.document_date ? format(new Date(doc.document_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
+                </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+
+    <div class="footer">
+        <p>Bu rapor Kademe QMS sistemi tarafından otomatik olarak oluşturulmuştur.</p>
+        <p>Oluşturulma Tarihi: ${today}</p>
+    </div>
+</body>
+</html>
+        `;
     };
 
     if (!benchmark) return null;

@@ -83,28 +83,88 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
             let sourceData = {};
 
             if (initialRecord?.source_cost_id || initialRecord?.source === 'cost') {
-                generatedTitle = `${initialRecord.part_name || initialRecord.vehicle_type || 'Genel'} - ${initialRecord.cost_type}`;
-                generatedDescription = `Kaynak Maliyet Kaydı Açıklaması: ${initialRecord.description || ''}`;
+                console.log('💡 NCFormContext - initializeForm çağrıldı');
+                console.log('💡 initialRecord:', initialRecord);
+                console.log('💡 Koşul kontrolü:', {
+                    source_cost_id: initialRecord?.source_cost_id,
+                    source: initialRecord?.source,
+                    cost_type: initialRecord?.cost_type,
+                    amount: initialRecord?.amount,
+                    description: initialRecord?.description
+                });
+                
+                // Detaylı başlık oluştur
+                generatedTitle = `Kalitesizlik Maliyeti: ${initialRecord.cost_type}${initialRecord.part_name ? ` - ${initialRecord.part_name}` : ''}${initialRecord.vehicle_type ? ` - ${initialRecord.vehicle_type}` : ''}`;
+                
+                // Tüm bilgileri içeren şeffaf açıklama oluştur
+                let descParts = [];
+                descParts.push('=== MALIYET KAYDI DETAYLARI ===\n');
+                
+                // Temel Bilgiler
+                if (initialRecord.cost_type) descParts.push(`Maliyet Türü: ${initialRecord.cost_type}`);
+                if (initialRecord.cost_date) descParts.push(`Tarih: ${new Date(initialRecord.cost_date).toLocaleDateString('tr-TR')}`);
+                if (initialRecord.unit) descParts.push(`Birim: ${initialRecord.unit}`);
+                
+                // Parça/Ürün Bilgileri
+                if (initialRecord.part_name) descParts.push(`Parça Adı: ${initialRecord.part_name}`);
+                if (initialRecord.part_code) descParts.push(`Parça Kodu: ${initialRecord.part_code}`);
+                if (initialRecord.vehicle_type) descParts.push(`Araç Tipi: ${initialRecord.vehicle_type}`);
+                if (initialRecord.part_location) descParts.push(`Parça Lokasyonu: ${initialRecord.part_location}`);
+                
+                // Maliyet Bilgileri
+                descParts.push('\n=== MALİYET BİLGİLERİ ===');
+                if (initialRecord.amount) descParts.push(`Tutar: ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(initialRecord.amount)}`);
+                if (initialRecord.quantity) descParts.push(`Miktar: ${initialRecord.quantity}${initialRecord.measurement_unit ? ` ${initialRecord.measurement_unit}` : ''}`);
+                if (initialRecord.scrap_weight) descParts.push(`Hurda Ağırlığı: ${initialRecord.scrap_weight} kg`);
+                if (initialRecord.material_type) descParts.push(`Malzeme Tipi: ${initialRecord.material_type}`);
+                if (initialRecord.affected_units) descParts.push(`Etkilenen Birimler: ${initialRecord.affected_units}`);
+                
+                // Süre Bilgileri
+                if (initialRecord.rework_duration || initialRecord.quality_control_duration) {
+                    descParts.push('\n=== SÜRE BİLGİLERİ ===');
+                    if (initialRecord.rework_duration) {
+                        const hours = Math.floor(initialRecord.rework_duration / 60);
+                        const minutes = initialRecord.rework_duration % 60;
+                        descParts.push(`Yeniden İşlem Süresi: ${hours > 0 ? `${hours} saat ` : ''}${minutes} dakika (Toplam: ${initialRecord.rework_duration} dakika)`);
+                    }
+                    if (initialRecord.quality_control_duration) {
+                        const hours = Math.floor(initialRecord.quality_control_duration / 60);
+                        const minutes = initialRecord.quality_control_duration % 60;
+                        descParts.push(`Kalite Kontrol Süresi: ${hours > 0 ? `${hours} saat ` : ''}${minutes} dakika (Toplam: ${initialRecord.quality_control_duration} dakika)`);
+                    }
+                }
+                
+                // Açıklama
+                if (initialRecord.description) {
+                    descParts.push('\n=== AÇIKLAMA ===');
+                    descParts.push(initialRecord.description);
+                }
+                
+                generatedDescription = descParts.join('\n');
+                
+                console.log('💡 Oluşturulan descParts:', descParts);
+                console.log('💡 Oluşturulan generatedDescription:', generatedDescription);
+                
                 sourceData = { 
                     source_cost_id: initialRecord.id, 
-                    department: initialRecord.unit, 
+                    department: initialRecord.unit || '', 
                     requesting_unit: 'Kalitesizlik Maliyetleri',
                     requesting_person: profile?.full_name || '',
-                    part_name: initialRecord.part_name, 
-                    part_code: initialRecord.part_code, 
-                    vehicle_type: initialRecord.vehicle_type, 
-                    amount: initialRecord.amount, 
-                    affected_units: initialRecord.affected_units, 
-                    cost_date: initialRecord.cost_date, 
-                    cost_type: initialRecord.cost_type, 
-                    material_type: initialRecord.material_type, 
-                    measurement_unit: initialRecord.measurement_unit,
-                    part_location: initialRecord.part_location,
-                    quantity: initialRecord.quantity,
-                    scrap_weight: initialRecord.scrap_weight,
-                    rework_duration: initialRecord.rework_duration,
-                    quality_control_duration: initialRecord.quality_control_duration,
-                    responsible_personnel_id: initialRecord.responsible_personnel_id
+                    part_name: initialRecord.part_name || '', 
+                    part_code: initialRecord.part_code || '', 
+                    vehicle_type: initialRecord.vehicle_type || '', 
+                    amount: initialRecord.amount || null, 
+                    affected_units: initialRecord.affected_units || null, 
+                    cost_date: initialRecord.cost_date || null, 
+                    cost_type: initialRecord.cost_type || '', 
+                    material_type: initialRecord.material_type || '', 
+                    measurement_unit: initialRecord.measurement_unit || '',
+                    part_location: initialRecord.part_location || '',
+                    quantity: initialRecord.quantity || null,
+                    scrap_weight: initialRecord.scrap_weight || null,
+                    rework_duration: initialRecord.rework_duration || null,
+                    quality_control_duration: initialRecord.quality_control_duration || null,
+                    responsible_personnel_id: initialRecord.responsible_personnel_id || null
                 };
             } else if (initialRecord?.source_quarantine_id || initialRecord?.source === 'quarantine') {
                 generatedTitle = `Karantina: ${initialRecord.part_name || ''} (${initialRecord.part_code || 'Kodsuz'})`;
@@ -197,8 +257,14 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
             let finalData;
             if (initialRecord) {
                 const mergedRecord = { ...baseData, ...initialRecord, ...sourceData };
-                mergedRecord.description = initialRecord.description || generatedDescription;
-                mergedRecord.title = initialRecord.title || generatedTitle;
+                // Kaynak "cost" ise, her zaman generatedDescription kullan (detaylı bilgi için)
+                if (initialRecord?.source === 'cost' || initialRecord?.source_cost_id) {
+                    mergedRecord.description = generatedDescription;
+                    mergedRecord.title = generatedTitle;
+                } else {
+                    mergedRecord.description = initialRecord.description || generatedDescription;
+                    mergedRecord.title = initialRecord.title || generatedTitle;
+                }
 
                 const initialEightD = initialRecord.eight_d_steps || {};
                 const mergedEightD = Object.keys(defaultEightDSteps).reduce((acc, key) => {

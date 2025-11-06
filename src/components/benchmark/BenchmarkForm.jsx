@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Save, Loader2, Plus, Trash2, Upload, File, Search, UserPlus } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -24,6 +24,19 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 
 const BenchmarkForm = ({ 
     isOpen, 
@@ -37,6 +50,13 @@ const BenchmarkForm = ({
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [departments, setDepartments] = useState([]);
+    const [uploadedFiles, setUploadedFiles] = useState([]);
+    const [uploading, setUploading] = useState(false);
+    
+    // Personel arama için state'ler
+    const [ownerSearchOpen, setOwnerSearchOpen] = useState(false);
+    const [ownerSearchValue, setOwnerSearchValue] = useState('');
+    const [teamSearchValue, setTeamSearchValue] = useState('');
     
     // Form state
     const [formData, setFormData] = useState({
@@ -103,15 +123,49 @@ const BenchmarkForm = ({
 
     const fetchDepartments = async () => {
         try {
-            const { data, error } = await supabase
+            // Önce cost_settings'den dene
+            const { data: costDepts, error: costError } = await supabase
                 .from('cost_settings')
                 .select('id, department_name')
                 .order('department_name');
 
-            if (error) throw error;
-            setDepartments(data || []);
+            if (costError) console.warn('cost_settings hatası:', costError);
+            
+            const formattedCostDepts = (costDepts || []).map(d => ({
+                id: d.id,
+                name: d.department_name
+            }));
+
+            // Eğer cost_settings boşsa, personnel tablosundan departmanları çek
+            if (!formattedCostDepts || formattedCostDepts.length === 0) {
+                console.log('📋 cost_settings boş, personnel\'den departmanlar çekiliyor...');
+                const { data: personnelDepts, error: personnelError } = await supabase
+                    .from('personnel')
+                    .select('department')
+                    .not('department', 'is', null);
+
+                if (personnelError) {
+                    console.error('personnel departman hatası:', personnelError);
+                    setDepartments([]);
+                    return;
+                }
+
+                // Unique departmanları al
+                const uniqueDepts = [...new Set(personnelDepts.map(p => p.department).filter(Boolean))].sort();
+                const deptList = uniqueDepts.map((name, index) => ({
+                    id: `dept_${index}`,
+                    name: name
+                }));
+                
+                console.log('✅ Personnel\'den departmanlar yüklendi:', deptList);
+                setDepartments(deptList);
+            } else {
+                console.log('✅ cost_settings\'den departmanlar yüklendi:', formattedCostDepts);
+                setDepartments(formattedCostDepts);
+            }
         } catch (error) {
             console.error('Departman yüklenirken hata:', error);
+            setDepartments([]);
         }
     };
 
@@ -152,6 +206,85 @@ const BenchmarkForm = ({
                     : [...prev.team_members, personId]
             };
         });
+    };
+
+    const handleFileSelect = async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        // Dosya boyutu kontrolü (10MB)
+        const maxSize = 10 * 1024 * 1024;
+        const oversizedFiles = files.filter(f => f.size > maxSize);
+        
+        if (oversizedFiles.length > 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Dosya Çok Büyük',
+                description: `Maksimum dosya boyutu 10MB. Lütfen daha küçük dosyalar seçin.`
+            });
+            return;
+        }
+
+        setUploading(true);
+        const newFiles = [];
+
+        try {
+            for (const file of files) {
+                // Dosya metadata'sını kaydet
+                newFiles.push({
+                    file: file,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    uploaded: false
+                });
+            }
+            
+            setUploadedFiles(prev => [...prev, ...newFiles]);
+            
+            toast({
+                title: 'Dosyalar Hazır',
+                description: `${files.length} dosya benchmark'a eklenmeye hazır. Formu kaydettiğinizde yüklenecek.`
+            });
+        } catch (error) {
+            console.error('Dosya hazırlama hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Dosyalar hazırlanırken bir hata oluştu.'
+            });
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleRemoveFile = (index) => {
+        setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Filtrelenmiş personel listeleri
+    const filteredPersonnelForTeam = useMemo(() => {
+        if (!teamSearchValue) return personnel;
+        const search = teamSearchValue.toLowerCase();
+        return personnel.filter(p => 
+            p.full_name?.toLowerCase().includes(search) ||
+            p.department?.toLowerCase().includes(search)
+        );
+    }, [personnel, teamSearchValue]);
+
+    const selectedOwner = useMemo(() => {
+        return personnel.find(p => p.id === formData.owner_id);
+    }, [personnel, formData.owner_id]);
+
+    const selectedTeamMembers = useMemo(() => {
+        return personnel.filter(p => formData.team_members.includes(p.id));
+    }, [personnel, formData.team_members]);
+
+    const handleRemoveTeamMember = (personId) => {
+        setFormData(prev => ({
+            ...prev,
+            team_members: prev.team_members.filter(id => id !== personId)
+        }));
     };
 
     const handleSubmit = async (e) => {
@@ -245,11 +378,71 @@ const BenchmarkForm = ({
                 });
             }
 
+            // Dosyaları yükle
+            if (uploadedFiles.length > 0) {
+                console.log(`📤 ${uploadedFiles.length} dosya yükleniyor...`);
+                
+                for (const fileData of uploadedFiles) {
+                    try {
+                        const fileExt = fileData.name.split('.').pop();
+                        const fileName = `${result.id}/${Date.now()}_${fileData.name}`;
+                        const filePath = `benchmark-documents/${fileName}`;
+
+                        // Dosyayı storage'a yükle
+                        const { error: uploadError } = await supabase.storage
+                            .from('documents')
+                            .upload(filePath, fileData.file, {
+                                cacheControl: '3600',
+                                upsert: false
+                            });
+
+                        if (uploadError) throw uploadError;
+
+                        // Public URL al
+                        const { data: { publicUrl } } = supabase.storage
+                            .from('documents')
+                            .getPublicUrl(filePath);
+
+                        // Metadata kaydet
+                        const { error: metaError } = await supabase
+                            .from('benchmark_documents')
+                            .insert({
+                                benchmark_id: result.id,
+                                title: fileData.name,
+                                file_path: filePath,
+                                file_url: publicUrl,
+                                file_type: fileData.type || 'application/octet-stream',
+                                file_size: fileData.size,
+                                uploaded_by: user?.id
+                            });
+
+                        if (metaError) throw metaError;
+                        
+                        console.log(`✅ Dosya yüklendi: ${fileData.name}`);
+                    } catch (fileError) {
+                        console.error(`❌ Dosya yükleme hatası (${fileData.name}):`, fileError);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Dosya Yükleme Hatası',
+                            description: `${fileData.name} yüklenemedi: ${fileError.message}`
+                        });
+                    }
+                }
+                
+                // Activity log
+                await supabase.from('benchmark_activity_log').insert({
+                    benchmark_id: result.id,
+                    activity_type: 'Doküman Eklendi',
+                    description: `${uploadedFiles.length} dosya yüklendi`,
+                    performed_by: user?.id
+                });
+            }
+
             toast({
                 title: 'Başarılı',
                 description: benchmark?.id 
                     ? 'Benchmark başarıyla güncellendi.' 
-                    : 'Yeni benchmark başarıyla oluşturuldu.'
+                    : `Yeni benchmark oluşturuldu${uploadedFiles.length > 0 ? ` ve ${uploadedFiles.length} dosya yüklendi` : ''}.`
             });
 
             onSuccess(result);
@@ -457,16 +650,34 @@ const BenchmarkForm = ({
                                             onValueChange={(value) => handleChange('department_id', value)}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Departman seçin" />
+                                                <SelectValue placeholder="Departman seçin">
+                                                    {formData.department_id && departments.length > 0 ? 
+                                                        departments.find(d => d.id === formData.department_id)?.name || 
+                                                        departments.find(d => d.id === formData.department_id)?.department_name || 
+                                                        'Departman seçin' 
+                                                        : 'Departman seçin'}
+                                                </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {departments.map((dept) => (
-                                                    <SelectItem key={dept.id} value={dept.id}>
-                                                        {dept.department_name}
-                                                    </SelectItem>
-                                                ))}
+                                                {departments.length === 0 ? (
+                                                    <div className="p-3 text-sm text-muted-foreground">
+                                                        <p className="font-medium mb-1">⚠️ Departman bulunamadı</p>
+                                                        <p className="text-xs">Lütfen önce cost_settings veya personnel tablosuna departman ekleyin.</p>
+                                                    </div>
+                                                ) : (
+                                                    departments.map((dept) => (
+                                                        <SelectItem key={dept.id} value={dept.id}>
+                                                            {dept.name || dept.department_name}
+                                                        </SelectItem>
+                                                    ))
+                                                )}
                                             </SelectContent>
                                         </Select>
+                                        {departments.length === 0 && (
+                                            <p className="text-xs text-yellow-600 mt-1">
+                                                Debug: Departman listesi yüklenemedi. Console loglarını kontrol edin.
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
@@ -516,53 +727,215 @@ const BenchmarkForm = ({
                             <TabsContent value="team" className="space-y-4 mt-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="owner_id">Benchmark Sorumlusu</Label>
-                                    <Select
-                                        value={formData.owner_id}
-                                        onValueChange={(value) => handleChange('owner_id', value)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Sorumlu seçin" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {personnel.map((person) => (
-                                                <SelectItem key={person.id} value={person.id}>
-                                                    {person.name}
-                                                    {person.department && ` - ${person.department}`}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    {personnel.length === 0 ? (
+                                        <div className="border rounded-lg p-4 text-center text-sm text-muted-foreground">
+                                            <p className="font-medium mb-1">⚠️ Personel bulunamadı</p>
+                                            <p className="text-xs">Lütfen personnel tablosuna personel ekleyin.</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Popover open={ownerSearchOpen} onOpenChange={setOwnerSearchOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        role="combobox"
+                                                        aria-expanded={ownerSearchOpen}
+                                                        className="w-full justify-between"
+                                                    >
+                                                        {selectedOwner ? (
+                                                            <span className="flex items-center gap-2">
+                                                                <UserPlus className="h-4 w-4 text-muted-foreground" />
+                                                                {selectedOwner.full_name}
+                                                                {selectedOwner.department && (
+                                                                    <span className="text-muted-foreground text-sm">
+                                                                        ({selectedOwner.department})
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground">Sorumlu ara ve seç...</span>
+                                                        )}
+                                                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[400px] p-0">
+                                                    <Command>
+                                                        <CommandInput 
+                                                            placeholder="İsim veya departman ara..." 
+                                                            value={ownerSearchValue}
+                                                            onValueChange={setOwnerSearchValue}
+                                                        />
+                                                        <CommandList>
+                                                            <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {personnel
+                                                                    .filter(p => {
+                                                                        if (!ownerSearchValue) return true;
+                                                                        const search = ownerSearchValue.toLowerCase();
+                                                                        return p.full_name?.toLowerCase().includes(search) ||
+                                                                               p.department?.toLowerCase().includes(search);
+                                                                    })
+                                                                    .map((person) => (
+                                                                        <CommandItem
+                                                                            key={person.id}
+                                                                            value={person.full_name}
+                                                                            onSelect={() => {
+                                                                                handleChange('owner_id', person.id);
+                                                                                setOwnerSearchOpen(false);
+                                                                                setOwnerSearchValue('');
+                                                                            }}
+                                                                        >
+                                                                            <div className="flex flex-col">
+                                                                                <span className="font-medium">{person.full_name}</span>
+                                                                                {person.department && (
+                                                                                    <span className="text-xs text-muted-foreground">
+                                                                                        {person.department}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </CommandItem>
+                                                                    ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                            {selectedOwner && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleChange('owner_id', '')}
+                                                    className="mt-1"
+                                                >
+                                                    <X className="h-3 w-3 mr-1" />
+                                                    Temizle
+                                                </Button>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
                                     <Label>Ekip Üyeleri</Label>
-                                    <div className="border rounded-lg p-4 max-h-48 overflow-y-auto">
-                                        {personnel.map((person) => (
-                                            <div
-                                                key={person.id}
-                                                className="flex items-center space-x-2 py-2 hover:bg-muted/50 px-2 rounded cursor-pointer"
-                                                onClick={() => handleToggleTeamMember(person.id)}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.team_members.includes(person.id)}
-                                                    onChange={() => handleToggleTeamMember(person.id)}
-                                                    className="cursor-pointer"
+                                    {personnel.length === 0 ? (
+                                        <div className="border rounded-lg p-4 text-center text-sm text-muted-foreground">
+                                            <p className="font-medium mb-1">⚠️ Personel bulunamadı</p>
+                                            <p className="text-xs">Lütfen önce personnel tablosuna personel ekleyin.</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Arama Input'u */}
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input
+                                                    placeholder="İsim veya departman ara..."
+                                                    value={teamSearchValue}
+                                                    onChange={(e) => setTeamSearchValue(e.target.value)}
+                                                    className="pl-9"
                                                 />
-                                                <span className="text-sm">
-                                                    {person.name}
-                                                    {person.department && (
-                                                        <span className="text-muted-foreground ml-1">
-                                                            ({person.department})
-                                                        </span>
-                                                    )}
-                                                </span>
                                             </div>
-                                        ))}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        {formData.team_members.length} kişi seçildi
-                                    </p>
+
+                                            {/* Seçili Ekip Üyeleri */}
+                                            {selectedTeamMembers.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <p className="text-sm font-medium text-muted-foreground">
+                                                        Seçili Üyeler ({selectedTeamMembers.length}):
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {selectedTeamMembers.map((person) => (
+                                                            <Badge
+                                                                key={person.id}
+                                                                variant="secondary"
+                                                                className="pl-3 pr-1 py-1 flex items-center gap-1"
+                                                            >
+                                                                <span className="text-sm">
+                                                                    {person.full_name}
+                                                                    {person.department && (
+                                                                        <span className="text-xs text-muted-foreground ml-1">
+                                                                            ({person.department})
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-4 w-4 p-0 hover:bg-transparent"
+                                                                    onClick={() => handleRemoveTeamMember(person.id)}
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </Button>
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Personel Listesi */}
+                                            <ScrollArea className="border rounded-lg h-48">
+                                                <div className="p-2 space-y-1">
+                                                    {filteredPersonnelForTeam.length === 0 ? (
+                                                        <div className="p-4 text-center text-sm text-muted-foreground">
+                                                            <p>Sonuç bulunamadı.</p>
+                                                            <p className="text-xs mt-1">Farklı bir arama terimi deneyin.</p>
+                                                        </div>
+                                                    ) : (
+                                                        filteredPersonnelForTeam.map((person) => {
+                                                            const isSelected = formData.team_members.includes(person.id);
+                                                            return (
+                                                                <div
+                                                                    key={person.id}
+                                                                    className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                                                                        isSelected 
+                                                                            ? 'bg-primary/10 border border-primary/20' 
+                                                                            : 'hover:bg-muted/50'
+                                                                    }`}
+                                                                    onClick={() => handleToggleTeamMember(person.id)}
+                                                                >
+                                                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                                                        isSelected 
+                                                                            ? 'bg-primary border-primary' 
+                                                                            : 'border-muted-foreground'
+                                                                    }`}>
+                                                                        {isSelected && (
+                                                                            <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                                            </svg>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex-1">
+                                                                        <p className="text-sm font-medium">{person.full_name}</p>
+                                                                        {person.department && (
+                                                                            <p className="text-xs text-muted-foreground">{person.department}</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </ScrollArea>
+
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                <span>
+                                                    {filteredPersonnelForTeam.length} personel gösteriliyor
+                                                </span>
+                                                {formData.team_members.length > 0 && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleChange('team_members', [])}
+                                                        className="h-7"
+                                                    >
+                                                        <X className="h-3 w-3 mr-1" />
+                                                        Tümünü Temizle
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className="grid gap-4 md:grid-cols-2">
@@ -587,6 +960,64 @@ const BenchmarkForm = ({
                                             onChange={(e) => handleChange('target_completion_date', e.target.value)}
                                         />
                                     </div>
+                                </div>
+
+                                {/* Dosya Yükleme Bölümü */}
+                                <div className="space-y-2">
+                                    <Label>Dokümanlar</Label>
+                                    <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                                        <input
+                                            type="file"
+                                            id="file-upload"
+                                            className="hidden"
+                                            multiple
+                                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif"
+                                            onChange={handleFileSelect}
+                                            disabled={uploading}
+                                        />
+                                        <label
+                                            htmlFor="file-upload"
+                                            className="cursor-pointer flex flex-col items-center gap-2"
+                                        >
+                                            <Upload className="h-8 w-8 text-muted-foreground" />
+                                            <p className="text-sm text-muted-foreground">
+                                                {uploading ? 'Dosyalar hazırlanıyor...' : 'Dosya seçmek için tıklayın'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                PDF, Word, Excel, PowerPoint, Resim (Max 10MB)
+                                            </p>
+                                        </label>
+                                    </div>
+                                    
+                                    {uploadedFiles.length > 0 && (
+                                        <div className="space-y-2 mt-3">
+                                            <p className="text-sm font-medium">{uploadedFiles.length} dosya seçildi:</p>
+                                            {uploadedFiles.map((file, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <File className="h-4 w-4 text-muted-foreground" />
+                                                        <div>
+                                                            <p className="text-sm font-medium">{file.name}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {(file.size / 1024).toFixed(2)} KB
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleRemoveFile(index)}
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </TabsContent>
                         </Tabs>

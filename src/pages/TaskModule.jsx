@@ -150,7 +150,7 @@ const TaskModule = () => {
         }).map((_, j) => <Skeleton key={j} className="h-32 w-full" />)}
                           </div>)}
                     </div> : <>
-                        {viewMode === 'board' ? <TaskBoard tasks={filteredTasks} onEditTask={handleEditTask} onViewTask={handleViewTask} onUpdateStatus={handleUpdateStatus} /> : <TaskList tasks={filteredTasks} onEditTask={handleEditTask} onViewTask={handleViewTask} />}
+                        {viewMode === 'board' ? <TaskBoard tasks={filteredTasks} onEditTask={handleEditTask} onViewTask={handleViewTask} onUpdateStatus={handleUpdateStatus} /> : <TaskList tasks={filteredTasks} onEditTask={handleEditTask} onViewTask={handleViewTask} onDeleteTask={confirmDeleteTask} />}
                     </>}
 
                 <TaskFormModal isOpen={isFormModalOpen} setIsOpen={setFormModalOpen} task={selectedTask} onSaveSuccess={handleSaveSuccess} />

@@ -192,7 +192,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         }
     };
 
-    export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost }) => {
+    export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost, onOpenNCForm }) => {
         const { toast } = useToast();
         const isEditMode = !!existingCost;
         const [formData, setFormData] = useState({});
@@ -204,6 +204,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [isSupplierNC, setIsSupplierNC] = useState(false);
         const [suppliers, setSuppliers] = useState([]);
         const [selectedSupplierStatus, setSelectedSupplierStatus] = useState(null);
+        const [createNC, setCreateNC] = useState(false);
 
         const materialTypes = materialCostSettings.map(m => m.material_name);
         const departments = unitCostSettings.map(u => u.unit_name);
@@ -478,6 +479,9 @@ import React, { useState, useEffect, useCallback } from 'react';
                 submissionData.responsible_personnel_id = null;
             }
 
+            // quality_control_duration'ı yedekle (NC için gerekli)
+            const quality_control_duration_backup = submissionData.quality_control_duration;
+            
             delete submissionData.quality_control_duration;
             delete submissionData.unit_cost;
 
@@ -497,13 +501,64 @@ import React, { useState, useEffect, useCallback } from 'react';
                 }
             } else {
                 delete submissionData.id;
-                const { error } = await supabase.from('quality_costs').insert([submissionData]);
+                const { data: insertedCost, error } = await supabase
+                    .from('quality_costs')
+                    .insert([submissionData])
+                    .select()
+                    .single();
+                    
                  if (error) {
                     toast({ variant: 'destructive', title: 'Hata!', description: `Maliyet eklenemedi: ${error.message}` });
                 } else {
                     toast({ title: 'Başarılı!', description: 'Maliyet kaydı eklendi.' });
                     refreshCosts();
                     setOpen(false);
+                    
+                    // Uygunsuzluk oluştur checkbox'ı işaretliyse
+                    if (createNC && onOpenNCForm && insertedCost) {
+                        console.log('📋 Kayıt sonrası uygunsuzluk oluşturuluyor:', insertedCost);
+                        
+                        // Comprehensive record oluştur
+                        const ncRecord = {
+                            id: insertedCost.id,
+                            source: 'cost',
+                            source_cost_id: insertedCost.id,
+                            
+                            // Parça/Ürün Bilgileri
+                            part_name: insertedCost.part_name || '',
+                            part_code: insertedCost.part_code || '',
+                            vehicle_type: insertedCost.vehicle_type || '',
+                            part_location: insertedCost.part_location || '',
+                            
+                            // Maliyet Bilgileri
+                            cost_type: insertedCost.cost_type || '',
+                            amount: insertedCost.amount || 0,
+                            unit: insertedCost.unit || '',
+                            cost_date: insertedCost.cost_date || '',
+                            
+                            // Miktar Bilgileri
+                            quantity: insertedCost.quantity || null,
+                            measurement_unit: insertedCost.measurement_unit || '',
+                            scrap_weight: insertedCost.scrap_weight || null,
+                            material_type: insertedCost.material_type || '',
+                            affected_units: insertedCost.affected_units || null,
+                            
+                            // Süre Bilgileri (Yedekten al)
+                            rework_duration: insertedCost.rework_duration || null,
+                            quality_control_duration: quality_control_duration_backup || null,
+                            
+                            // Açıklama ve Sorumlu
+                            description: insertedCost.description || '',
+                            responsible_personnel_id: insertedCost.responsible_personnel_id || null,
+                        };
+                        
+                        // Uygunsuzluk formunu aç
+                        setTimeout(() => {
+                            onOpenNCForm(ncRecord, () => {
+                                refreshCosts();
+                            });
+                        }, 300);
+                    }
                 }
             }
             setIsSubmitting(false);
@@ -671,11 +726,31 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <div><Label htmlFor="part_name">Parça Adı</Label><Input id="part_name" value={formData.part_name || ''} onChange={handleInputChange} /></div>
                         <div><Label htmlFor="cost_date">Tarih <span className="text-red-500">*</span></Label><Input id="cost_date" type="date" value={formData.cost_date || ''} onChange={handleInputChange} required /></div>
                         <div><Label>Durum</Label><SearchableSelect value={formData.status || 'Aktif'} onValueChange={(v) => handleSelectChange('status', v)} placeholder="Seçiniz..." items={['Aktif', 'Kapatıldı']} searchPlaceholder="Durum ara..." /></div>
-                        <div className="md:col-span-3"><Label htmlFor="description">Açıklama</Label><Textarea id="description" value={formData.description || ''} onChange={handleInputChange} rows={3} /></div>
+                        <div className="md:col-span-3"><Label htmlFor="description">Açıklama</Label><Textarea id="description" value={formData.description || ''} onChange={handleInputChange} rows={3} placeholder="Maliyet kaydı ile ilgili detaylı açıklama yazın. Bu bilgiler uygunsuzluk kaydına otomatik aktarılacaktır." /></div>
+
+                        {!isEditMode && onOpenNCForm && (
+                            <div className="md:col-span-3 flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <Switch
+                                    id="create-nc"
+                                    checked={createNC}
+                                    onCheckedChange={setCreateNC}
+                                />
+                                <div className="flex-1">
+                                    <Label htmlFor="create-nc" className="cursor-pointer font-medium text-blue-900">
+                                        Kayıt sonrası uygunsuzluk oluştur
+                                    </Label>
+                                    <p className="text-xs text-blue-700 mt-1">
+                                        İşaretlerseniz, maliyet kaydı kaydedildikten sonra tüm bilgiler uygunsuzluk formuna otomatik aktarılır.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         <DialogFooter className="col-span-1 md:col-span-3 mt-4">
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>İptal</Button>
-                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Değişiklikleri Kaydet' : 'Maliyet Kaydet')}</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Değişiklikleri Kaydet' : (createNC ? 'Kaydet ve Uygunsuzluk Oluştur' : 'Maliyet Kaydet'))}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>

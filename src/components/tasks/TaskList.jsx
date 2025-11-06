@@ -2,10 +2,11 @@ import React from 'react';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { Badge } from '@/components/ui/badge';
     import { Button } from '@/components/ui/button';
-    import { Edit, Eye, Flag, AlertCircle, Sparkles } from 'lucide-react';
+    import { Edit, Eye, Flag, AlertCircle, Sparkles, Trash2 } from 'lucide-react';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { ScrollArea } from '@/components/ui/scroll-area';
+    import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
     const priorityIcons = {
         'Kritik': { icon: <Flag className="h-3 w-3 mr-1" />, color: 'bg-red-500 hover:bg-red-600' },
@@ -19,9 +20,10 @@ import React from 'react';
         'Devam Ediyor': 'bg-blue-500',
         'Tamamlandı': 'bg-green-500',
         'Engellendi': 'bg-red-500',
+        'İptal': 'bg-orange-500',
     };
 
-    const TaskList = ({ tasks, onEditTask, onViewTask }) => {
+    const TaskList = ({ tasks, onEditTask, onViewTask, onDeleteTask }) => {
         const handleActionClick = (e, action, task) => {
             e.stopPropagation();
             action(task);
@@ -73,14 +75,32 @@ import React from 'react';
                                         {task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: tr }) : '-'}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" size="icon" onClick={(e) => handleActionClick(e, onViewTask, task)}>
-                                                <Eye className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" onClick={(e) => handleActionClick(e, onEditTask, task)}>
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={(e) => handleActionClick(e, onViewTask, task)}>
+                                                    <Eye className="mr-2 h-4 w-4" />
+                                                    Görüntüle
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => handleActionClick(e, onEditTask, task)}>
+                                                    <Edit className="mr-2 h-4 w-4" />
+                                                    Düzenle
+                                                </DropdownMenuItem>
+                                                {onDeleteTask && (
+                                                    <DropdownMenuItem 
+                                                        onClick={(e) => handleActionClick(e, onDeleteTask, task)}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Sil
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
                             ))}

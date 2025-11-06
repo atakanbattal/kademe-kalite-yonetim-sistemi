@@ -431,6 +431,167 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         }
     };
 
+    const handleDownloadReport = () => {
+        const printContent = generateComparisonReport();
+        const printWindow = window.open('', '_blank');
+        
+        if (!printWindow) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Rapor penceresi açılamadı. Pop-up engelleyiciyi kontrol edin.'
+            });
+            return;
+        }
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        
+        setTimeout(() => {
+            printWindow.print();
+        }, 250);
+    };
+
+    const generateComparisonReport = () => {
+        const sortedItems = [...items].sort((a, b) => {
+            const scoreA = itemScores[a.id]?.average || 0;
+            const scoreB = itemScores[b.id]?.average || 0;
+            return scoreB - scoreA;
+        });
+
+        return `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Karşılaştırma Raporu - ${benchmark.title}</title>
+    <style>
+        @page { size: A4 landscape; margin: 15mm; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #333; }
+        .header { text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 25px; }
+        .header h1 { color: #1e40af; margin: 0 0 8px 0; font-size: 24px; }
+        .section { margin-bottom: 25px; page-break-inside: avoid; }
+        .section-title { background: #2563eb; color: white; padding: 8px 12px; font-size: 16px; font-weight: bold; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f3f4f6; font-weight: 600; }
+        .rank-1 { background: #fef3c7; }
+        .rank-2 { background: #dbeafe; }
+        .rank-3 { background: #fce7f3; }
+        .score-high { color: #059669; font-weight: bold; }
+        .score-medium { color: #d97706; font-weight: bold; }
+        .score-low { color: #dc2626; font-weight: bold; }
+        .footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center; color: #666; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Benchmark Karşılaştırma Raporu</h1>
+        <p><strong>${benchmark.title}</strong> | ${benchmark.benchmark_number}</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Genel Sıralama</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Sıra</th>
+                    <th>Alternatif</th>
+                    <th>Açıklama</th>
+                    <th style="width: 120px; text-align: center;">Toplam Skor</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${sortedItems.map((item, index) => {
+                    const avgScore = itemScores[item.id]?.average || 0;
+                    const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+                    const scoreClass = avgScore >= 80 ? 'score-high' : avgScore >= 60 ? 'score-medium' : 'score-low';
+                    return `
+                    <tr class="${rankClass}">
+                        <td style="text-align: center; font-size: 18px; font-weight: bold;">${index + 1}</td>
+                        <td><strong>${item.item_name}</strong>${item.item_code ? `<br><small>${item.item_code}</small>` : ''}</td>
+                        <td>${item.description || '-'}</td>
+                        <td style="text-align: center;" class="${scoreClass}">${avgScore.toFixed(1)}</td>
+                    </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>
+
+    ${criteria.length > 0 ? `
+    <div class="section">
+        <div class="section-title">Detaylı Karşılaştırma Matrisi</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Alternatif</th>
+                    ${criteria.map(c => `<th style="text-align: center;">${c.criterion_name}<br><small>(${c.weight}%)</small></th>`).join('')}
+                    <th style="text-align: center; background: #dbeafe;">Toplam</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${sortedItems.map(item => {
+                    const criteriaScores = criteria.map(criterion => {
+                        const key = `${item.id}_${criterion.id}`;
+                        const score = scores[key];
+                        const normalized = score?.normalized_score || 0;
+                        return `<td style="text-align: center;">${normalized.toFixed(1)}</td>`;
+                    }).join('');
+                    
+                    return `
+                    <tr>
+                        <td><strong>${item.item_name}</strong></td>
+                        ${criteriaScores}
+                        <td style="text-align: center; background: #dbeafe; font-weight: bold;">
+                            ${(itemScores[item.id]?.average || 0).toFixed(1)}
+                        </td>
+                    </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+
+    ${Object.keys(prosConsData).length > 0 ? `
+    <div class="section">
+        <div class="section-title">Avantaj & Dezavantaj Analizi</div>
+        ${sortedItems.map(item => {
+            const itemData = prosConsData[item.id];
+            if (!itemData || (itemData.pros.length === 0 && itemData.cons.length === 0)) return '';
+            return `
+            <div style="margin-bottom: 20px; border: 1px solid #ddd; padding: 12px; border-radius: 6px;">
+                <h3 style="margin: 0 0 10px 0; color: #1e40af;">${item.item_name}</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <h4 style="color: #059669; margin: 0 0 8px 0;">✓ Avantajlar</h4>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            ${(itemData.pros || []).map(pro => `<li style="margin-bottom: 5px;">${pro.description}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="color: #dc2626; margin: 0 0 8px 0;">✗ Dezavantajlar</h4>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            ${(itemData.cons || []).map(con => `<li style="margin-bottom: 5px;">${con.description}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('')}
+    </div>
+    ` : ''}
+
+    <div class="footer">
+        <p>Bu rapor Kademe QMS Benchmark Modülü tarafından otomatik olarak oluşturulmuştur.</p>
+    </div>
+</body>
+</html>
+        `;
+    };
+
     if (!benchmark) return null;
 
     return (
@@ -442,7 +603,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                             <TrendingUp className="inline-block mr-2 h-6 w-6" />
                             Benchmark Karşılaştırma
                         </DialogTitle>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={handleDownloadReport}>
                             <Download className="mr-2 h-4 w-4" />
                             Rapor İndir
                         </Button>
