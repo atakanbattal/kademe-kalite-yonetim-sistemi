@@ -85,7 +85,7 @@ const BenchmarkModule = () => {
                         *,
                         category:benchmark_categories(id, name, color, icon),
                         owner:personnel!benchmarks_owner_id_fkey(id, full_name),
-                        department:cost_settings!benchmarks_department_id_fkey(id, department_name),
+                        department:cost_settings!benchmarks_department_id_fkey(id, unit_name),
                         approved_by_person:personnel!benchmarks_approved_by_fkey(id, full_name)
                     `)
                     .order('created_at', { ascending: false }),

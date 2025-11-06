@@ -123,42 +123,23 @@ const BenchmarkForm = ({
 
     const fetchDepartments = async () => {
         try {
-            // Önce cost_settings'den dene
+            // Önce cost_settings'den dene (unit_name kolonu kullanılıyor)
             const { data: costDepts, error: costError } = await supabase
                 .from('cost_settings')
-                .select('id, department_name')
-                .order('department_name');
+                .select('id, unit_name')
+                .order('unit_name');
 
             if (costError) console.warn('cost_settings hatası:', costError);
             
             const formattedCostDepts = (costDepts || []).map(d => ({
                 id: d.id,
-                name: d.department_name
+                name: d.unit_name
             }));
 
-            // Eğer cost_settings boşsa, personnel tablosundan departmanları çek
+            // Eğer cost_settings boşsa, boş liste kullan (personnel'den çekme)
             if (!formattedCostDepts || formattedCostDepts.length === 0) {
-                console.log('📋 cost_settings boş, personnel\'den departmanlar çekiliyor...');
-                const { data: personnelDepts, error: personnelError } = await supabase
-                    .from('personnel')
-                    .select('department')
-                    .not('department', 'is', null);
-
-                if (personnelError) {
-                    console.error('personnel departman hatası:', personnelError);
-                    setDepartments([]);
-                    return;
-                }
-
-                // Unique departmanları al
-                const uniqueDepts = [...new Set(personnelDepts.map(p => p.department).filter(Boolean))].sort();
-                const deptList = uniqueDepts.map((name, index) => ({
-                    id: `dept_${index}`,
-                    name: name
-                }));
-                
-                console.log('✅ Personnel\'den departmanlar yüklendi:', deptList);
-                setDepartments(deptList);
+                console.log('⚠️ cost_settings boş - departman seçimi devre dışı');
+                setDepartments([]);
             } else {
                 console.log('✅ cost_settings\'den departmanlar yüklendi:', formattedCostDepts);
                 setDepartments(formattedCostDepts);
@@ -321,8 +302,15 @@ const BenchmarkForm = ({
         setLoading(true);
 
         try {
+            // department_id'yi temizle - eğer "dept_" ile başlıyorsa null yap
+            const cleanDepartmentId = formData.department_id && 
+                                     !formData.department_id.startsWith('dept_') 
+                                     ? formData.department_id 
+                                     : null;
+            
             const dataToSave = {
                 ...formData,
+                department_id: cleanDepartmentId,
                 estimated_budget: formData.estimated_budget 
                     ? parseFloat(formData.estimated_budget) 
                     : null,
@@ -408,9 +396,11 @@ const BenchmarkForm = ({
                             .from('benchmark_documents')
                             .insert({
                                 benchmark_id: result.id,
-                                title: fileData.name,
+                                document_title: fileData.name,
+                                title: fileData.name, // Alternatif alan
                                 file_path: filePath,
                                 file_url: publicUrl,
+                                file_name: fileData.name,
                                 file_type: fileData.type || 'application/octet-stream',
                                 file_size: fileData.size,
                                 uploaded_by: user?.id
@@ -650,32 +640,27 @@ const BenchmarkForm = ({
                                             onValueChange={(value) => handleChange('department_id', value)}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Departman seçin">
-                                                    {formData.department_id && departments.length > 0 ? 
-                                                        departments.find(d => d.id === formData.department_id)?.name || 
-                                                        departments.find(d => d.id === formData.department_id)?.department_name || 
-                                                        'Departman seçin' 
-                                                        : 'Departman seçin'}
-                                                </SelectValue>
+                                                <SelectValue placeholder="Birim/Departman seçin" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {departments.length === 0 ? (
                                                     <div className="p-3 text-sm text-muted-foreground">
-                                                        <p className="font-medium mb-1">⚠️ Departman bulunamadı</p>
-                                                        <p className="text-xs">Lütfen önce cost_settings veya personnel tablosuna departman ekleyin.</p>
+                                                        <p className="font-medium mb-1">ℹ️ Birim listesi boş</p>
+                                                        <p className="text-xs">cost_settings tablosunda birim/departman tanımlı değil.</p>
                                                     </div>
                                                 ) : (
                                                     departments.map((dept) => (
                                                         <SelectItem key={dept.id} value={dept.id}>
-                                                            {dept.name || dept.department_name}
+                                                            {dept.name}
                                                         </SelectItem>
                                                     ))
                                                 )}
                                             </SelectContent>
                                         </Select>
                                         {departments.length === 0 && (
-                                            <p className="text-xs text-yellow-600 mt-1">
-                                                Debug: Departman listesi yüklenemedi. Console loglarını kontrol edin.
+                                            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                                <span>ℹ️</span>
+                                                <span>Departman listesi boş. cost_settings tablosuna departman eklerseniz burada görünür.</span>
                                             </p>
                                         )}
                                     </div>

@@ -114,13 +114,19 @@ const BenchmarkDocumentUpload = ({ benchmarkId, benchmarkItemId = null, onUpload
                 const filePath = `${benchmarkId}/${fileName}`;
 
                 const { error: uploadError } = await supabase.storage
-                    .from('benchmark_documents')
-                    .upload(filePath, file, {
+                    .from('documents')
+                    .upload(`benchmark-documents/${filePath}`, file, {
                         contentType: file.type,
                         upsert: false
                     });
 
                 if (uploadError) throw uploadError;
+
+                // Get public URL
+                const fullFilePath = `benchmark-documents/${filePath}`;
+                const { data: { publicUrl } } = supabase.storage
+                    .from('documents')
+                    .getPublicUrl(fullFilePath);
 
                 // Save metadata to database
                 const { data, error: dbError } = await supabase
@@ -131,7 +137,8 @@ const BenchmarkDocumentUpload = ({ benchmarkId, benchmarkItemId = null, onUpload
                         document_type: documentData.document_type,
                         document_title: documentData.document_title,
                         description: documentData.description,
-                        file_path: filePath,
+                        file_path: fullFilePath,
+                        file_url: publicUrl,
                         file_name: file.name,
                         file_type: file.type,
                         file_size: file.size,

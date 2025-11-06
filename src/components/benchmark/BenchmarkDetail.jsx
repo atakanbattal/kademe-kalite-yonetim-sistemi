@@ -137,7 +137,7 @@ const BenchmarkDetail = ({
     const handleDownloadDocument = async (doc) => {
         try {
             const { data, error } = await supabase.storage
-                .from('benchmark_documents')
+                .from('documents')
                 .download(doc.file_path);
 
             if (error) throw error;
@@ -356,7 +356,7 @@ const BenchmarkDetail = ({
             ${benchmark.department ? `
             <div class="info-item">
                 <div class="info-label">Departman</div>
-                <div class="info-value">${benchmark.department.department_name}</div>
+                <div class="info-value">${benchmark.department.unit_name}</div>
             </div>
             ` : ''}
             ${benchmark.estimated_budget ? `
@@ -546,7 +546,7 @@ const BenchmarkDetail = ({
                                                 <p className="text-sm font-medium text-muted-foreground mb-1">
                                                     Departman
                                                 </p>
-                                                <span>{benchmark.department.department_name}</span>
+                                                <span>{benchmark.department.unit_name}</span>
                                             </div>
                                         )}
 
@@ -891,9 +891,9 @@ const BenchmarkDetail = ({
                                                                 size="sm"
                                                                 variant="outline"
                                                                 onClick={() => {
-                                                                    // Görüntüleme için yeni sekme aç
-                                                                    const url = supabase.storage
-                                                                        .from('benchmark_documents')
+                                                                    // Görüntüleme için yeni sekme aç (önce file_url kullan, yoksa oluştur)
+                                                                    const url = doc.file_url || supabase.storage
+                                                                        .from('documents')
                                                                         .getPublicUrl(doc.file_path).data.publicUrl;
                                                                     window.open(url, '_blank');
                                                                 }}
