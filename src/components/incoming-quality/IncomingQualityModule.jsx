@@ -169,7 +169,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             const controlPlanMap = new Map((incomingControlPlans || []).map(p => [p.part_code, true]));
             const dataWithPlanStatus = data.map(inspection => ({
                 ...inspection,
-                supplier_name: inspection.supplier?.name || '-',
+                supplier_name: inspection.supplier_name || '-',
                 control_plan_status: controlPlanMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
             }));
             setInspections(dataWithPlanStatus);
