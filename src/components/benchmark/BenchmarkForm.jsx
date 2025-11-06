@@ -435,6 +435,9 @@ const BenchmarkForm = ({
                     : `Yeni benchmark oluşturuldu${uploadedFiles.length > 0 ? ` ve ${uploadedFiles.length} dosya yüklendi` : ''}.`
             });
 
+            // Formu temizle
+            setUploadedFiles([]);
+            
             onSuccess(result);
         } catch (error) {
             console.error('Kaydetme hatası:', error);
