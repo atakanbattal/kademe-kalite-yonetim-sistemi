@@ -292,73 +292,72 @@ import React, { useState, useCallback } from 'react';
                     </motion.div>
                 </div>
                 
-                {/* Geçici olarak yeni componentler devre dışı - sorun tespiti için */}
                 {/* Gerçek Zamanlı Uyarılar */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <DashboardAlerts onAlertClick={(type, data) => {
                         if (type === 'overdue-nc') handleCardClick('df-8d');
                         else if (type === 'overdue-calibration' || type === 'expiring-docs') handleCardClick('equipment');
                         else if (type === 'cost-anomaly') handleCardClick('quality-cost');
                     }} />
-                </motion.div> */}
+                </motion.div>
 
                 {/* Bu Ayın Trendleri */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <DashboardTrends />
-                </motion.div> */}
+                </motion.div>
 
                 {/* Bugünün Görevleri */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <TodayTasks onTaskClick={(type, data) => {
                         if (type === 'overdue-8d') handleCardClick('df-8d');
                         else if (type === 'due-calibration') handleCardClick('equipment');
                     }} />
-                </motion.div> */}
+                </motion.div>
 
                 {/* 5 En Kritik Uygunsuzluk */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <CriticalNonConformities onViewDetails={(nc) => handleCardClick('df-8d')} />
-                </motion.div> */}
+                </motion.div>
 
                 {/* Kalite Duvarı */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <QualityWall />
-                </motion.div> */}
+                </motion.div>
 
                 {/* Kök Neden Isı Haritası */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <RootCauseHeatmap />
-                </motion.div> */}
+                </motion.div>
 
                 {/* Kalite Hedefleri Paneli */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <QualityGoalsPanel />
-                </motion.div> */}
+                </motion.div>
 
                 {/* Benchmark Analizi */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <BenchmarkAnalysis />
-                </motion.div> */}
+                </motion.div>
 
                 {/* Risk Bazlı Göstergeler */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <RiskBasedIndicators />
-                </motion.div> */}
+                </motion.div>
 
                 {/* AI Destekli Kök Neden Tahmin */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <AIRootCausePrediction />
-                </motion.div> */}
+                </motion.div>
 
                 {/* 5S - İş Güvenliği - OEE */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <FiveSSafetyOEE />
-                </motion.div> */}
+                </motion.div>
 
                 {/* Bildirim Merkezi */}
-                {/* <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants}>
                     <NotificationCenter />
-                </motion.div> */}
+                </motion.div>
 
                 <motion.div 
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
