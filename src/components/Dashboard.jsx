@@ -15,6 +15,13 @@ import React, { useState, useCallback } from 'react';
     import DFDrillDownAnalysis from '@/components/dashboard/DFDrillDownAnalysis';
     import QuarantineDrillDownAnalysis from '@/components/dashboard/QuarantineDrillDownAnalysis';
     import CostDrillDownAnalysis from '@/components/dashboard/CostDrillDownAnalysis';
+    import DashboardAlerts from '@/components/dashboard/DashboardAlerts';
+    import DashboardTrends from '@/components/dashboard/DashboardTrends';
+    import TodayTasks from '@/components/dashboard/TodayTasks';
+    import CriticalNonConformities from '@/components/dashboard/CriticalNonConformities';
+    import QualityWall from '@/components/dashboard/QualityWall';
+    import RootCauseHeatmap from '@/components/dashboard/RootCauseHeatmap';
+    import QualityGoalsPanel from '@/components/dashboard/QualityGoalsPanel';
     import { Dialog, DialogContent } from '@/components/ui/dialog';
 
     const CHART_COLORS = ['#3B82F6', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#60A5FA'];
@@ -266,6 +273,48 @@ import React, { useState, useCallback } from 'react';
                     </motion.div>
                 </div>
                 
+                {/* Gerçek Zamanlı Uyarılar */}
+                <motion.div variants={itemVariants}>
+                    <DashboardAlerts onAlertClick={(type, data) => {
+                        if (type === 'overdue-nc') handleCardClick('df-8d');
+                        else if (type === 'overdue-calibration' || type === 'expiring-docs') handleCardClick('equipment');
+                        else if (type === 'cost-anomaly') handleCardClick('quality-cost');
+                    }} />
+                </motion.div>
+
+                {/* Bu Ayın Trendleri */}
+                <motion.div variants={itemVariants}>
+                    <DashboardTrends />
+                </motion.div>
+
+                {/* Bugünün Görevleri */}
+                <motion.div variants={itemVariants}>
+                    <TodayTasks onTaskClick={(type, data) => {
+                        if (type === 'overdue-8d') handleCardClick('df-8d');
+                        else if (type === 'due-calibration') handleCardClick('equipment');
+                    }} />
+                </motion.div>
+
+                {/* 5 En Kritik Uygunsuzluk */}
+                <motion.div variants={itemVariants}>
+                    <CriticalNonConformities onViewDetails={(nc) => handleCardClick('df-8d')} />
+                </motion.div>
+
+                {/* Kalite Duvarı */}
+                <motion.div variants={itemVariants}>
+                    <QualityWall />
+                </motion.div>
+
+                {/* Kök Neden Isı Haritası */}
+                <motion.div variants={itemVariants}>
+                    <RootCauseHeatmap />
+                </motion.div>
+
+                {/* Kalite Hedefleri Paneli */}
+                <motion.div variants={itemVariants}>
+                    <QualityGoalsPanel />
+                </motion.div>
+
                 <motion.div 
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
                     variants={containerVariants}
