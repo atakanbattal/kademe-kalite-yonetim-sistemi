@@ -10,6 +10,7 @@ import React, { useState, useMemo } from 'react';
     import VehicleDashboard from '@/components/produced-vehicles/VehicleDashboard';
     import VehicleTable from '@/components/produced-vehicles/VehicleTable';
     import VehicleFaultAnalytics from '@/components/produced-vehicles/VehicleFaultAnalytics';
+    import VehicleQualityAnalytics from '@/components/produced-vehicles/VehicleQualityAnalytics';
     import { AddVehicleModal, EditVehicleModal, VehicleFaultsModal } from '@/components/produced-vehicles/modals';
     import VehicleDetailModal from '@/components/produced-vehicles/modals/VehicleDetailModal';
     import VehicleStatusDetailModal from '@/components/produced-vehicles/VehicleStatusDetailModal';
@@ -144,7 +145,8 @@ import React, { useState, useMemo } from 'react';
                     <div className="flex justify-between items-end">
                         <TabsList>
                             <TabsTrigger value="operations"><List className="w-4 h-4 mr-2" />Araç İşlemleri</TabsTrigger>
-                            <TabsTrigger value="analytics"><BarChart2 className="w-4 h-4 mr-2" />Performans Analizi</TabsTrigger>
+                            <TabsTrigger value="analytics"><BarChart2 className="w-4 h-4 mr-2" />Hata Analizi</TabsTrigger>
+                            <TabsTrigger value="quality"><BarChart2 className="w-4 h-4 mr-2" />Kalite Analizi</TabsTrigger>
                         </TabsList>
                         {activeTab === 'operations' && (
                             <Button onClick={() => handleOpenModal(setAddModalOpen, null)}>
@@ -197,6 +199,9 @@ import React, { useState, useMemo } from 'react';
                     </TabsContent>
                     <TabsContent value="analytics" className="mt-6">
                         <VehicleFaultAnalytics />
+                    </TabsContent>
+                    <TabsContent value="quality" className="mt-6">
+                        <VehicleQualityAnalytics />
                     </TabsContent>
                 </Tabs>
             </div>
