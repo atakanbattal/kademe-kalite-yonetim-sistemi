@@ -39,20 +39,29 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
 
     const loadInitialRecord = async (sourceType, sourceId) => {
         try {
-            let query, table;
+            let query;
             
             switch (sourceType) {
                 case 'incoming_inspection':
-                    table = 'incoming_inspections';
-                    query = supabase.from(table).select('*, supplier:suppliers(name)').eq('id', sourceId).single();
+                    query = supabase
+                        .from('incoming_inspections')
+                        .select('*, supplier:suppliers(name), defects:incoming_inspection_defects(defect_description, quantity, part_code, part_name)')
+                        .eq('id', sourceId)
+                        .single();
                     break;
                 case 'quarantine':
-                    table = 'quarantine_records';
-                    query = supabase.from(table).select('*').eq('id', sourceId).single();
+                    query = supabase
+                        .from('quarantine_records')
+                        .select('*')
+                        .eq('id', sourceId)
+                        .single();
                     break;
                 case 'quality_cost':
-                    table = 'quality_costs';
-                    query = supabase.from(table).select('*, supplier:suppliers!supplier_id(name)').eq('id', sourceId).single();
+                    query = supabase
+                        .from('quality_costs')
+                        .select('*, supplier:suppliers!supplier_id(name)')
+                        .eq('id', sourceId)
+                        .single();
                     break;
                 default:
                     return;
@@ -61,6 +70,8 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
             const { data, error } = await query;
             if (!error && data) {
                 setSelectedRecord({ ...data, _source_type: sourceType });
+                // Otomatik seçim yap
+                handleSelectRecord(data, sourceType);
             }
         } catch (error) {
             console.error('İlk kayıt yüklenemedi:', error);
@@ -95,7 +106,11 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
     const loadIncomingInspections = async () => {
         const { data, error } = await supabase
             .from('incoming_inspections')
-            .select('*, supplier:suppliers(name)')
+            .select(`
+                *,
+                supplier:suppliers(name),
+                defects:incoming_inspection_defects(defect_description, quantity, part_code, part_name)
+            `)
             .in('decision', ['Şartlı Kabul', 'Red'])
             .order('inspection_date', { ascending: false })
             .limit(100);
@@ -133,8 +148,13 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
         const search = searchTerm.toLowerCase();
         return incomingInspections.filter(r => 
             r.part_code?.toLowerCase().includes(search) ||
+            r.part_name?.toLowerCase().includes(search) ||
             r.supplier_name?.toLowerCase().includes(search) ||
-            r.inspection_number?.toLowerCase().includes(search)
+            r.supplier?.name?.toLowerCase().includes(search) ||
+            r.record_no?.toLowerCase().includes(search) ||
+            r.delivery_note_number?.toLowerCase().includes(search) ||
+            r.description?.toLowerCase().includes(search) ||
+            r.notes?.toLowerCase().includes(search)
         );
     }, [incomingInspections, searchTerm]);
 
@@ -143,8 +163,11 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
         const search = searchTerm.toLowerCase();
         return quarantineRecords.filter(r => 
             r.part_code?.toLowerCase().includes(search) ||
-            r.quarantine_number?.toLowerCase().includes(search) ||
-            r.reason?.toLowerCase().includes(search)
+            r.part_name?.toLowerCase().includes(search) ||
+            r.lot_no?.toLowerCase().includes(search) ||
+            r.description?.toLowerCase().includes(search) ||
+            r.source_department?.toLowerCase().includes(search) ||
+            r.requesting_department?.toLowerCase().includes(search)
         );
     }, [quarantineRecords, searchTerm]);
 
@@ -170,7 +193,8 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
             part_code: record.part_code || '',
             source_record_details: {
                 part_code: record.part_code,
-                quantity: record.quantity || record.non_conforming_qty || record.affected_quantity,
+                part_name: record.part_name,
+                quantity: record.quantity || record.quantity_rejected || record.affected_quantity || record.non_conforming_qty,
                 supplier: record.supplier_name || record.supplier?.name,
                 ...getAdditionalDetails(record, sourceType)
             }
@@ -185,15 +209,27 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
         switch (sourceType) {
             case 'incoming_inspection':
                 return {
-                    inspection_number: record.inspection_number,
-                    status: record.status,
-                    defect_type: record.defect_type
+                    record_no: record.record_no,
+                    inspection_number: record.record_no,
+                    decision: record.decision,
+                    part_name: record.part_name,
+                    quantity_rejected: record.quantity_rejected,
+                    quantity_conditional: record.quantity_conditional,
+                    defects: record.defects || [],
+                    description: record.description,
+                    notes: record.notes,
+                    delivery_note_number: record.delivery_note_number
                 };
             case 'quarantine':
                 return {
-                    quarantine_number: record.quarantine_number,
-                    reason: record.reason,
-                    location: record.location
+                    lot_no: record.lot_no,
+                    quarantine_number: record.lot_no,
+                    part_name: record.part_name,
+                    description: record.description,
+                    source_department: record.source_department,
+                    requesting_department: record.requesting_department,
+                    requesting_person_name: record.requesting_person_name,
+                    decision: record.decision
                 };
             case 'quality_cost':
                 return {
@@ -211,7 +247,9 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
             'Şartlı Kabul': { variant: 'warning', icon: AlertTriangle },
             'Red': { variant: 'destructive', icon: AlertTriangle },
             'Karantinada': { variant: 'warning', icon: Package },
-            'Beklemede': { variant: 'secondary', icon: Package }
+            'Beklemede': { variant: 'secondary', icon: Package },
+            'Kabul': { variant: 'success', icon: CheckCircle2 },
+            'İade': { variant: 'destructive', icon: AlertTriangle }
         };
 
         const config = statusConfig[status] || { variant: 'default', icon: Package };
@@ -262,10 +300,47 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                             </Button>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div><strong>Parça Kodu:</strong> {selectedRecord.part_code}</div>
-                            <div><strong>Miktar:</strong> {selectedRecord.quantity || selectedRecord.non_conforming_qty || selectedRecord.affected_quantity}</div>
+                            <div><strong>Parça Kodu:</strong> {selectedRecord.part_code || '-'}</div>
+                            <div><strong>Parça Adı:</strong> {selectedRecord.part_name || '-'}</div>
+                            <div><strong>Miktar:</strong> {selectedRecord.quantity || selectedRecord.quantity_rejected || selectedRecord.affected_quantity || '-'}</div>
                             {selectedRecord.supplier_name && <div><strong>Tedarikçi:</strong> {selectedRecord.supplier_name}</div>}
                             {selectedRecord.supplier?.name && <div><strong>Tedarikçi:</strong> {selectedRecord.supplier.name}</div>}
+                            {selectedRecord._source_type === 'incoming_inspection' && (
+                                <>
+                                    <div><strong>Kayıt No:</strong> {selectedRecord.record_no || '-'}</div>
+                                    <div><strong>Karar:</strong> {selectedRecord.decision || '-'}</div>
+                                    {selectedRecord.defects && selectedRecord.defects.length > 0 && (
+                                        <div className="col-span-2">
+                                            <strong>Hatalar:</strong>
+                                            <ul className="list-disc list-inside mt-1">
+                                                {selectedRecord.defects.map((defect, idx) => (
+                                                    <li key={idx} className="text-xs">
+                                                        {defect.defect_description} (Miktar: {defect.quantity})
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {selectedRecord.description && (
+                                        <div className="col-span-2"><strong>Açıklama:</strong> {selectedRecord.description}</div>
+                                    )}
+                                </>
+                            )}
+                            {selectedRecord._source_type === 'quarantine' && (
+                                <>
+                                    <div><strong>Lot No:</strong> {selectedRecord.lot_no || '-'}</div>
+                                    <div><strong>Durum:</strong> {selectedRecord.status || '-'}</div>
+                                    {selectedRecord.description && (
+                                        <div className="col-span-2"><strong>Açıklama/Sebep:</strong> {selectedRecord.description}</div>
+                                    )}
+                                    {selectedRecord.source_department && (
+                                        <div><strong>Kaynak Birim:</strong> {selectedRecord.source_department}</div>
+                                    )}
+                                    {selectedRecord.requesting_department && (
+                                        <div><strong>Talep Eden Birim:</strong> {selectedRecord.requesting_department}</div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -305,19 +380,54 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                             >
                                 <CardContent className="p-3">
                                     <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <div className="font-semibold">{record.part_code}</div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {record.inspection_number} • {record.supplier_name}
+                                        <div className="flex-1">
+                                            <div className="font-semibold">{record.part_code || '-'}</div>
+                                            {record.part_name && (
+                                                <div className="text-xs text-muted-foreground mt-0.5">{record.part_name}</div>
+                                            )}
+                                            <div className="text-sm text-muted-foreground mt-1">
+                                                {record.record_no || '-'} • {record.supplier_name || record.supplier?.name || 'Tedarikçi yok'}
                                             </div>
                                         </div>
-                                        {getStatusBadge(record.status)}
+                                        {getStatusBadge(record.decision)}
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2 text-xs">
-                                        <div><strong>Hatalı:</strong> {record.non_conforming_qty}</div>
-                                        <div><strong>Hata Tipi:</strong> {record.defect_type || '-'}</div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                                        <div><strong>Red Edilen:</strong> {record.quantity_rejected || 0}</div>
+                                        <div><strong>Şartlı Kabul:</strong> {record.quantity_conditional || 0}</div>
                                         <div><strong>Tarih:</strong> {new Date(record.inspection_date).toLocaleDateString('tr-TR')}</div>
+                                        {record.delivery_note_number && (
+                                            <div><strong>Teslimat No:</strong> {record.delivery_note_number}</div>
+                                        )}
                                     </div>
+                                    {record.defects && record.defects.length > 0 && (
+                                        <div className="mt-2 pt-2 border-t border-border">
+                                            <div className="text-xs font-semibold mb-1">Hata Detayları:</div>
+                                            <div className="space-y-1">
+                                                {record.defects.slice(0, 2).map((defect, idx) => (
+                                                    <div key={idx} className="text-xs text-muted-foreground">
+                                                        • {defect.defect_description} ({defect.quantity} adet)
+                                                    </div>
+                                                ))}
+                                                {record.defects.length > 2 && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        +{record.defects.length - 2} hata daha...
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {(record.description || record.notes) && (
+                                        <div className="mt-2 pt-2 border-t border-border">
+                                            <div className="text-xs">
+                                                {record.description && (
+                                                    <div><strong>Açıklama:</strong> {record.description.substring(0, 100)}{record.description.length > 100 ? '...' : ''}</div>
+                                                )}
+                                                {record.notes && (
+                                                    <div className="mt-1"><strong>Notlar:</strong> {record.notes.substring(0, 100)}{record.notes.length > 100 ? '...' : ''}</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         ))
@@ -342,19 +452,45 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                             >
                                 <CardContent className="p-3">
                                     <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <div className="font-semibold">{record.part_code}</div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {record.quarantine_number}
+                                        <div className="flex-1">
+                                            <div className="font-semibold">{record.part_code || '-'}</div>
+                                            {record.part_name && (
+                                                <div className="text-xs text-muted-foreground mt-0.5">{record.part_name}</div>
+                                            )}
+                                            <div className="text-sm text-muted-foreground mt-1">
+                                                Lot No: {record.lot_no || '-'}
                                             </div>
                                         </div>
                                         {getStatusBadge(record.status)}
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2 text-xs">
-                                        <div><strong>Miktar:</strong> {record.quantity}</div>
-                                        <div><strong>Sebep:</strong> {record.reason || '-'}</div>
-                                        <div><strong>Konum:</strong> {record.location || '-'}</div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                                        <div><strong>Miktar:</strong> {record.quantity || 0} {record.unit || 'Adet'}</div>
+                                        <div><strong>Tarih:</strong> {new Date(record.quarantine_date || record.created_at).toLocaleDateString('tr-TR')}</div>
+                                        {record.source_department && (
+                                            <div><strong>Kaynak Birim:</strong> {record.source_department}</div>
+                                        )}
+                                        {record.requesting_department && (
+                                            <div><strong>Talep Eden:</strong> {record.requesting_department}</div>
+                                        )}
+                                        {record.requesting_person_name && (
+                                            <div className="col-span-2"><strong>Talep Eden Kişi:</strong> {record.requesting_person_name}</div>
+                                        )}
                                     </div>
+                                    {record.description && (
+                                        <div className="mt-2 pt-2 border-t border-border">
+                                            <div className="text-xs">
+                                                <div><strong>Sebep/Açıklama:</strong></div>
+                                                <div className="text-muted-foreground mt-1">
+                                                    {record.description.substring(0, 150)}{record.description.length > 150 ? '...' : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {record.decision && (
+                                        <div className="mt-1 text-xs">
+                                            <strong>Karar:</strong> {record.decision}
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         ))
