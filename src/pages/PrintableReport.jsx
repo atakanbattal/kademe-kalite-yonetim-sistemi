@@ -120,7 +120,8 @@ import React, { useEffect, useState } from 'react';
                                 trainingInstructor: urlParams.get('trainingInstructor') || '',
                                 score: urlParams.get('score') || '',
                                 completedAt: urlParams.get('completedAt') || '',
-                                status: urlParams.get('status') || ''
+                                status: urlParams.get('status') || '',
+                                certificateType: urlParams.get('certificateType') || 'success' // 'success' veya 'participation'
                             };
                             break;
                         }

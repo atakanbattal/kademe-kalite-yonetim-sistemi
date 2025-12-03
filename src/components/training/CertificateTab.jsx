@@ -18,6 +18,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [trainingList, setTrainingList] = useState([]);
         const [selectedPersonnel, setSelectedPersonnel] = useState('');
         const [selectedTraining, setSelectedTraining] = useState('');
+        const [certificateType, setCertificateType] = useState('success'); // 'success' veya 'participation'
         const [isSubmitting, setIsSubmitting] = useState(false);
         const { toast } = useToast();
 
@@ -93,6 +94,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     trainingInstructor: trainingData?.instructor || '',
                     score: '100',
                     completedAt: new Date().toISOString(),
+                    certificateType: certificateType, // 'success' veya 'participation'
                 });
 
                 const url = `/print/report/certificate/${participantId}?${params.toString()}`;
@@ -143,6 +145,18 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                     {trainingList.map(t => (
                                         <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
                                     ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="certificateType" className="text-right">Sertifika Türü</Label>
+                            <Select onValueChange={setCertificateType} value={certificateType}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Sertifika türü seçin..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="success">Başarı Sertifikası</SelectItem>
+                                    <SelectItem value="participation">Katılım Sertifikası</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -212,7 +226,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             fetchEligibleParticipants();
         }, [fetchEligibleParticipants]);
 
-        const handleGenerateCertificate = async (participant) => {
+        const handleGenerateCertificate = async (participant, certType = 'success') => {
             if (!participant?.personnel_id || !participant.training_id) {
                 toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Katılımcı veya eğitim bilgisi bulunamadı.' });
                 return;
@@ -241,7 +255,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 trainingInstructor: trainingData?.instructor || '',
                 score: participant.score || '',
                 completedAt: participant.completed_at || '',
-                status: participant.status || ''
+                status: participant.status || '',
+                certificateType: certType || 'success'
             });
             
             window.open(`/print/report/certificate/${participant.id}?${params.toString()}&autoprint=true`, '_blank');
@@ -320,10 +335,26 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                                             <TableCell>{p.personnel?.full_name}</TableCell>
                                                             <TableCell>{p.completed_at ? format(new Date(p.completed_at), 'dd.MM.yyyy') : '-'}</TableCell>
                                                             <TableCell className="text-right">
-                                                                <Button variant="outline" size="sm" onClick={() => handleGenerateCertificate(p)}>
-                                                                    <Award className="mr-2 h-4 w-4" />
-                                                                    Sertifika Oluştur
-                                                                </Button>
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <Button 
+                                                                        variant="outline" 
+                                                                        size="sm" 
+                                                                        onClick={() => handleGenerateCertificate(p, 'success')}
+                                                                        title="Başarı Sertifikası"
+                                                                    >
+                                                                        <Award className="mr-2 h-4 w-4" />
+                                                                        Başarı
+                                                                    </Button>
+                                                                    <Button 
+                                                                        variant="outline" 
+                                                                        size="sm" 
+                                                                        onClick={() => handleGenerateCertificate(p, 'participation')}
+                                                                        title="Katılım Sertifikası"
+                                                                    >
+                                                                        <Award className="mr-2 h-4 w-4" />
+                                                                        Katılım
+                                                                    </Button>
+                                                                </div>
                                                             </TableCell>
                                                         </TableRow>
                                                     ))}

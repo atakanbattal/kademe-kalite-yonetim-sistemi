@@ -135,6 +135,17 @@ const getFormNumber = (type) => {
 const generateCertificateReportHtml = (record) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd MMMM yyyy', { locale: tr }) : '-';
 	const participantName = record?.personnelName || 'VERİ YOK';
+	const certificateType = record?.certificateType || 'success'; // 'success' veya 'participation'
+	
+	// Sertifika tipine göre başlık ve metinler
+	const certificateTitle = certificateType === 'success' ? 'BAŞARI SERTİFİKASI' : 'KATILIM SERTİFİKASI';
+	const subtitleText = certificateType === 'success' 
+		? 'Bu sertifika, aşağıdaki eğitimi başarıyla tamamlayan'
+		: 'Bu sertifika, aşağıdaki eğitime katılan';
+	const descriptionText = certificateType === 'success'
+		? `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimini başarıyla tamamladığı için verilmiştir.`
+		: `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimine katıldığı için verilmiştir.`;
+	
 	return `
 		<div class="certificate-container">
 			<div class="certificate-content">
@@ -148,13 +159,13 @@ const generateCertificateReportHtml = (record) => {
 
 		<div class="header-section">
 			<p class="company-name">KADEME AKADEMİ</p>
-			<h1 class="main-title">BAŞARI SERTİFİKASI</h1>
-			<p class="subtitle">Bu sertifika, aşağıdaki eğitimi başarıyla tamamlayan</p>
+			<h1 class="main-title">${certificateTitle}</h1>
+			<p class="subtitle">${subtitleText}</p>
 		</div>
 
 		<p class="participant-name">${participantName}</p>
 		
-		<p class="training-title">adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimini başarıyla tamamladığı için verilmiştir.</p>
+		<p class="training-title">${descriptionText}</p>
 
 		<div class="details-section">
 			<div class="detail-item">
