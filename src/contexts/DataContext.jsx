@@ -126,7 +126,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             // DÜŞÜK ÖNCELİKLİ TABLOLAR (Son dalga - limit ile)
             const lowPriorityPromises = {
                 supplierNonConformities: supabase.from('supplier_non_conformities').select('*'),
-                audits: supabase.from('audits').select('*, department:cost_settings(id, unit_name)'),
+                audits: supabase.from('audits').select('*, department:cost_settings(id, unit_name)').order('report_number', { ascending: false }),
                 auditFindings: supabase.from('audit_findings').select('*, audits(report_number), non_conformities!source_finding_id(id, nc_number, status)'),
                 quarantineRecords: supabase.from('quarantine_records_api').select('*').limit(500),
                 incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*').limit(500),
