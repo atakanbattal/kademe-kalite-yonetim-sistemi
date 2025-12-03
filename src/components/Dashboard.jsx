@@ -11,7 +11,7 @@ import React, { useState, useCallback } from 'react';
     import { cn } from '@/lib/utils';
     import useDashboardData from '@/hooks/useDashboardData';
     import DashboardDetailModal, { renderNCItem, renderCostItem } from '@/components/dashboard/DashboardDetailModal';
-    import ReportGenerationModal from '@/components/dashboard/ReportGenerationModal';
+    import ReportGenerationModalEnhanced from '@/components/dashboard/ReportGenerationModalEnhanced';
     import DFDrillDownAnalysis from '@/components/dashboard/DFDrillDownAnalysis';
     import QuarantineDrillDownAnalysis from '@/components/dashboard/QuarantineDrillDownAnalysis';
     import CostDrillDownAnalysis from '@/components/dashboard/CostDrillDownAnalysis';
