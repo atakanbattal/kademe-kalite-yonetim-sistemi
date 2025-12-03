@@ -58,11 +58,11 @@ const RootCauseHeatmap = () => {
 
     const getHeatmapColor = (value, max) => {
         const intensity = value / max;
-        if (intensity >= 0.8) return 'bg-red-600';
-        if (intensity >= 0.6) return 'bg-orange-500';
-        if (intensity >= 0.4) return 'bg-yellow-400';
-        if (intensity >= 0.2) return 'bg-yellow-200';
-        return 'bg-green-100';
+        if (intensity >= 0.8) return 'bg-red-600 text-white';
+        if (intensity >= 0.6) return 'bg-orange-500 text-white';
+        if (intensity >= 0.4) return 'bg-yellow-400 text-gray-900';
+        if (intensity >= 0.2) return 'bg-yellow-200 text-gray-900';
+        return 'bg-green-100 text-gray-900';
     };
 
     const maxDeptCount = Math.max(...heatmapData.byDepartment.map(d => d.count), 1);
@@ -89,8 +89,9 @@ const RootCauseHeatmap = () => {
             {/* Birim Bazında Isı Haritası */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Birim Bazında Hata Yoğunluğu</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <CardTitle className="text-lg font-bold">Birim Bazında Hata Yoğunluğu</CardTitle>
+                    <p className="text-sm font-medium text-muted-foreground mt-2">
+                        <span className="inline-block w-3 h-3 bg-red-600 rounded mr-1"></span>
                         Koyu renk = Daha fazla hata
                     </p>
                 </CardHeader>
@@ -101,22 +102,33 @@ const RootCauseHeatmap = () => {
                                 Veri bulunamadı.
                             </div>
                         ) : (
-                            heatmapData.byDepartment.map((dept, idx) => (
-                                <div 
-                                    key={idx}
-                                    className={`p-3 rounded-lg text-white transition-all ${getHeatmapColor(dept.count, maxDeptCount)}`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="font-semibold">{dept.name}</p>
-                                            <p className="text-xs opacity-90">{dept.count} uygunsuzluk</p>
+                            heatmapData.byDepartment.map((dept, idx) => {
+                                const colorClass = getHeatmapColor(dept.count, maxDeptCount);
+                                const isDark = colorClass.includes('text-white');
+                                return (
+                                    <div 
+                                        key={idx}
+                                        className={`p-4 rounded-lg transition-all ${colorClass} shadow-sm hover:shadow-md cursor-pointer`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex-1">
+                                                <p className={`font-bold text-base mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                                    {dept.name}
+                                                </p>
+                                                <p className={`text-sm font-medium ${isDark ? 'text-white/90' : 'text-gray-700'}`}>
+                                                    {dept.count} uygunsuzluk
+                                                </p>
+                                            </div>
+                                            <Badge 
+                                                variant={isDark ? "secondary" : "default"} 
+                                                className={`ml-3 ${isDark ? 'bg-white/30 text-white border-white/50' : 'bg-white/80 text-gray-900'}`}
+                                            >
+                                                Ort. Şiddet: {dept.avgSeverity}
+                                            </Badge>
                                         </div>
-                                        <Badge variant="secondary" className="bg-white/20 text-white">
-                                            Ort. Şiddet: {dept.avgSeverity}
-                                        </Badge>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </CardContent>
@@ -125,8 +137,8 @@ const RootCauseHeatmap = () => {
             {/* Kök Neden Bazında Isı Haritası */}
             <Card>
                 <CardHeader>
-                    <CardTitle>En Çok Tekrarlayan Kök Nedenler</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <CardTitle className="text-lg font-bold">En Çok Tekrarlayan Kök Nedenler</CardTitle>
+                    <p className="text-sm font-medium text-muted-foreground mt-2">
                         Top 10 kök neden
                     </p>
                 </CardHeader>
@@ -137,24 +149,33 @@ const RootCauseHeatmap = () => {
                                 Kök neden verisi bulunamadı.
                             </div>
                         ) : (
-                            heatmapData.byRootCause.map((rc, idx) => (
-                                <div 
-                                    key={idx}
-                                    className={`p-3 rounded-lg text-white transition-all ${getHeatmapColor(rc.count, maxRootCauseCount)}`}
-                                >
-                                    <div className="flex items-center justify-between mb-1">
-                                        <p className="font-semibold text-sm">{rc.name}</p>
-                                        <Badge variant="secondary" className="bg-white/20 text-white">
-                                            {rc.count} kez
-                                        </Badge>
+                            heatmapData.byRootCause.map((rc, idx) => {
+                                const colorClass = getHeatmapColor(rc.count, maxRootCauseCount);
+                                const isDark = colorClass.includes('text-white');
+                                return (
+                                    <div 
+                                        key={idx}
+                                        className={`p-4 rounded-lg transition-all ${colorClass} shadow-sm hover:shadow-md cursor-pointer`}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <p className={`font-bold text-base flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                                {rc.name}
+                                            </p>
+                                            <Badge 
+                                                variant={isDark ? "secondary" : "default"} 
+                                                className={`ml-3 ${isDark ? 'bg-white/30 text-white border-white/50' : 'bg-white/80 text-gray-900'}`}
+                                            >
+                                                {rc.count} kez
+                                            </Badge>
+                                        </div>
+                                        {rc.departments && (
+                                            <p className={`text-sm font-medium ${isDark ? 'text-white/90' : 'text-gray-700'}`}>
+                                                <span className="font-semibold">Etkilenen birimler:</span> {rc.departments || 'Belirtilmemiş'}
+                                            </p>
+                                        )}
                                     </div>
-                                    {rc.departments && (
-                                        <p className="text-xs opacity-90">
-                                            Etkilenen birimler: {rc.departments || 'Belirtilmemiş'}
-                                        </p>
-                                    )}
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </CardContent>
