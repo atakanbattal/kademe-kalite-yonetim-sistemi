@@ -22,6 +22,11 @@ import React, { useState, useCallback } from 'react';
     import QualityWall from '@/components/dashboard/QualityWall';
     import RootCauseHeatmap from '@/components/dashboard/RootCauseHeatmap';
     import QualityGoalsPanel from '@/components/dashboard/QualityGoalsPanel';
+    import BenchmarkAnalysis from '@/components/dashboard/BenchmarkAnalysis';
+    import RiskBasedIndicators from '@/components/dashboard/RiskBasedIndicators';
+    import AIRootCausePrediction from '@/components/dashboard/AIRootCausePrediction';
+    import NotificationCenter from '@/components/dashboard/NotificationCenter';
+    import FiveSSafetyOEE from '@/components/dashboard/FiveSSafetyOEE';
     import { Dialog, DialogContent } from '@/components/ui/dialog';
 
     const CHART_COLORS = ['#3B82F6', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#60A5FA'];
