@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import AddKpiModal from '@/components/kpi/AddKpiModal';
-import KPIDetailModal from '@/components/kpi/KPIDetailModal';
+import KPIDetailModalEnhanced from '@/components/kpi/KPIDetailModalEnhanced';
 import KPICard from '@/components/kpi/KPICard';
 import { useData } from '@/contexts/DataContext';
 
@@ -27,7 +27,7 @@ const KPIModule = () => {
     return (
         <div className="space-y-6">
             <AddKpiModal open={isAddModalOpen} setOpen={setAddModalOpen} refreshKpis={refreshData} existingKpis={kpis} />
-            {selectedKpi && <KPIDetailModal kpi={selectedKpi} open={isDetailModalOpen} setOpen={setDetailModalOpen} refreshKpis={refreshData} />}
+            {selectedKpi && <KPIDetailModalEnhanced kpi={selectedKpi} open={isDetailModalOpen} setOpen={setDetailModalOpen} refreshKpis={refreshData} />}
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div>
