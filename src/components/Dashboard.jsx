@@ -28,6 +28,7 @@ import React, { useState, useCallback } from 'react';
     import NotificationCenter from '@/components/dashboard/NotificationCenter';
     import FiveSSafetyOEE from '@/components/dashboard/FiveSSafetyOEE';
     import { Dialog, DialogContent } from '@/components/ui/dialog';
+    import ErrorBoundary from '@/components/dashboard/ErrorBoundary';
 
     const CHART_COLORS = ['#3B82F6', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#60A5FA'];
     const PIE_COLORS = {
@@ -294,69 +295,93 @@ import React, { useState, useCallback } from 'react';
                 
                 {/* Gerçek Zamanlı Uyarılar */}
                 <motion.div variants={itemVariants}>
-                    <DashboardAlerts onAlertClick={(type, data) => {
-                        if (type === 'overdue-nc') handleCardClick('df-8d');
-                        else if (type === 'overdue-calibration' || type === 'expiring-docs') handleCardClick('equipment');
-                        else if (type === 'cost-anomaly') handleCardClick('quality-cost');
-                    }} />
+                    <ErrorBoundary componentName="Gerçek Zamanlı Uyarılar">
+                        <DashboardAlerts onAlertClick={(type, data) => {
+                            if (type === 'overdue-nc') handleCardClick('df-8d');
+                            else if (type === 'overdue-calibration' || type === 'expiring-docs') handleCardClick('equipment');
+                            else if (type === 'cost-anomaly') handleCardClick('quality-cost');
+                        }} />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* Bu Ayın Trendleri */}
                 <motion.div variants={itemVariants}>
-                    <DashboardTrends />
+                    <ErrorBoundary componentName="Bu Ayın Trendleri">
+                        <DashboardTrends />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* Bugünün Görevleri */}
                 <motion.div variants={itemVariants}>
-                    <TodayTasks onTaskClick={(type, data) => {
-                        if (type === 'overdue-8d') handleCardClick('df-8d');
-                        else if (type === 'due-calibration') handleCardClick('equipment');
-                    }} />
+                    <ErrorBoundary componentName="Bugünün Görevleri">
+                        <TodayTasks onTaskClick={(type, data) => {
+                            if (type === 'overdue-8d') handleCardClick('df-8d');
+                            else if (type === 'due-calibration') handleCardClick('equipment');
+                        }} />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* 5 En Kritik Uygunsuzluk */}
                 <motion.div variants={itemVariants}>
-                    <CriticalNonConformities onViewDetails={(nc) => handleCardClick('df-8d')} />
+                    <ErrorBoundary componentName="Kritik Uygunsuzluklar">
+                        <CriticalNonConformities onViewDetails={(nc) => handleCardClick('df-8d')} />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* Kalite Duvarı */}
                 <motion.div variants={itemVariants}>
-                    <QualityWall />
+                    <ErrorBoundary componentName="Kalite Duvarı">
+                        <QualityWall />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* Kök Neden Isı Haritası */}
                 <motion.div variants={itemVariants}>
-                    <RootCauseHeatmap />
+                    <ErrorBoundary componentName="Kök Neden Isı Haritası">
+                        <RootCauseHeatmap />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* Kalite Hedefleri Paneli */}
                 <motion.div variants={itemVariants}>
-                    <QualityGoalsPanel />
+                    <ErrorBoundary componentName="Kalite Hedefleri">
+                        <QualityGoalsPanel />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* Benchmark Analizi */}
                 <motion.div variants={itemVariants}>
-                    <BenchmarkAnalysis />
+                    <ErrorBoundary componentName="Benchmark Analizi">
+                        <BenchmarkAnalysis />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* Risk Bazlı Göstergeler */}
                 <motion.div variants={itemVariants}>
-                    <RiskBasedIndicators />
+                    <ErrorBoundary componentName="Risk Göstergeleri">
+                        <RiskBasedIndicators />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* AI Destekli Kök Neden Tahmin */}
                 <motion.div variants={itemVariants}>
-                    <AIRootCausePrediction />
+                    <ErrorBoundary componentName="AI Kök Neden Tahmin">
+                        <AIRootCausePrediction />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* 5S - İş Güvenliği - OEE */}
                 <motion.div variants={itemVariants}>
-                    <FiveSSafetyOEE />
+                    <ErrorBoundary componentName="5S - İş Güvenliği - OEE">
+                        <FiveSSafetyOEE />
+                    </ErrorBoundary>
                 </motion.div>
 
                 {/* Bildirim Merkezi */}
                 <motion.div variants={itemVariants}>
-                    <NotificationCenter />
+                    <ErrorBoundary componentName="Bildirim Merkezi">
+                        <NotificationCenter />
+                    </ErrorBoundary>
                 </motion.div>
 
                 <motion.div 
