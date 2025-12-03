@@ -203,25 +203,54 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         const details = autoFillData.source_record_details;
         
         if (record._source_type === 'incoming_inspection') {
-            detailedDescription = `Girdi Kalite Kontrol Kaydı (${details.inspection_number || 'N/A'})\n\n`;
+            detailedDescription = `Girdi Kalite Kontrol Kaydı (${details.record_no || details.inspection_number || 'N/A'})\n\n`;
             detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
-            detailedDescription += `Miktar: ${details.quantity || 'N/A'} adet\n`;
+            if (details.part_name) {
+                detailedDescription += `Parça Adı: ${details.part_name}\n`;
+            }
+            detailedDescription += `Red Edilen Miktar: ${details.quantity_rejected || details.quantity || 'N/A'} adet\n`;
+            if (details.quantity_conditional) {
+                detailedDescription += `Şartlı Kabul Miktarı: ${details.quantity_conditional} adet\n`;
+            }
             detailedDescription += `Tedarikçi: ${details.supplier || 'Belirtilmemiş'}\n`;
-            detailedDescription += `Durum: ${details.status || 'N/A'}\n`;
-            if (details.defect_type) {
-                detailedDescription += `Hata Tipi: ${details.defect_type}\n`;
+            detailedDescription += `Karar: ${details.decision || 'N/A'}\n`;
+            if (details.delivery_note_number) {
+                detailedDescription += `Teslimat No: ${details.delivery_note_number}\n`;
+            }
+            if (details.defects && details.defects.length > 0) {
+                detailedDescription += `\nHata Detayları:\n`;
+                details.defects.forEach((defect, idx) => {
+                    detailedDescription += `${idx + 1}. ${defect.defect_description} (Miktar: ${defect.quantity})\n`;
+                });
+            }
+            if (details.description) {
+                detailedDescription += `\nAçıklama: ${details.description}\n`;
+            }
+            if (details.notes) {
+                detailedDescription += `Notlar: ${details.notes}\n`;
             }
             detailedDescription += `\nBu parça için sapma onayı talep edilmektedir.`;
         } else if (record._source_type === 'quarantine') {
-            detailedDescription = `Karantina Kaydı (${details.quarantine_number || 'N/A'})\n\n`;
+            detailedDescription = `Karantina Kaydı (${details.lot_no || details.quarantine_number || 'N/A'})\n\n`;
             detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
-            detailedDescription += `Miktar: ${details.quantity || 'N/A'} adet\n`;
-            detailedDescription += `Tedarikçi: ${details.supplier || 'Belirtilmemiş'}\n`;
-            if (details.reason) {
-                detailedDescription += `Karantina Nedeni: ${details.reason}\n`;
+            if (details.part_name) {
+                detailedDescription += `Parça Adı: ${details.part_name}\n`;
             }
-            if (details.location) {
-                detailedDescription += `Konum: ${details.location}\n`;
+            detailedDescription += `Miktar: ${details.quantity || 'N/A'} adet\n`;
+            if (details.source_department) {
+                detailedDescription += `Kaynak Birim: ${details.source_department}\n`;
+            }
+            if (details.requesting_department) {
+                detailedDescription += `Talep Eden Birim: ${details.requesting_department}\n`;
+            }
+            if (details.requesting_person_name) {
+                detailedDescription += `Talep Eden Kişi: ${details.requesting_person_name}\n`;
+            }
+            if (details.description) {
+                detailedDescription += `\nSebep/Açıklama: ${details.description}\n`;
+            }
+            if (details.decision) {
+                detailedDescription += `Karar: ${details.decision}\n`;
             }
             detailedDescription += `\nKarantinadaki bu parça için sapma onayı talep edilmektedir.`;
         } else if (record._source_type === 'quality_cost') {
