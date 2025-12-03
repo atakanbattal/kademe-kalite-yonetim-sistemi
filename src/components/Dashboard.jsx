@@ -12,6 +12,10 @@ import React, { useState, useCallback } from 'react';
     import useDashboardData from '@/hooks/useDashboardData';
     import DashboardDetailModal, { renderNCItem, renderCostItem } from '@/components/dashboard/DashboardDetailModal';
     import ReportGenerationModal from '@/components/dashboard/ReportGenerationModal';
+    import DFDrillDownAnalysis from '@/components/dashboard/DFDrillDownAnalysis';
+    import QuarantineDrillDownAnalysis from '@/components/dashboard/QuarantineDrillDownAnalysis';
+    import CostDrillDownAnalysis from '@/components/dashboard/CostDrillDownAnalysis';
+    import { Dialog, DialogContent } from '@/components/ui/dialog';
 
     const CHART_COLORS = ['#3B82F6', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#60A5FA'];
     const PIE_COLORS = {
@@ -91,8 +95,24 @@ import React, { useState, useCallback } from 'react';
         const [isDetailModalOpen, setDetailModalOpen] = useState(false);
         const [detailModalContent, setDetailModalContent] = useState({ title: '', records: [], renderItem: () => null });
         const [isReportModalOpen, setReportModalOpen] = useState(false);
+        const [drillDownType, setDrillDownType] = useState(null); // 'df', 'quarantine', 'cost', null
 
-        const handleCardClick = useCallback((module) => {
+        const handleCardClick = useCallback((module, kpiTitle) => {
+            // KPI kartlarına özel drill-down analizleri
+            if (kpiTitle) {
+                if (kpiTitle.includes('DF')) {
+                    setDrillDownType('df');
+                    return;
+                } else if (kpiTitle.includes('Karantina')) {
+                    setDrillDownType('quarantine');
+                    return;
+                } else if (kpiTitle.includes('Maliyet')) {
+                    setDrillDownType('cost');
+                    return;
+                }
+            }
+            
+            // Diğer modüller için normal yönlendirme
             if (module) {
                 setActiveModule(module);
             } else {
@@ -139,6 +159,25 @@ import React, { useState, useCallback } from 'react';
 
         return (
             <div className="space-y-6 sm:space-y-8">
+                {/* Drill-Down Analiz Modalleri */}
+                <Dialog open={drillDownType === 'df'} onOpenChange={(open) => !open && setDrillDownType(null)}>
+                    <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+                        <DFDrillDownAnalysis onClose={() => setDrillDownType(null)} />
+                    </DialogContent>
+                </Dialog>
+                
+                <Dialog open={drillDownType === 'quarantine'} onOpenChange={(open) => !open && setDrillDownType(null)}>
+                    <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+                        <QuarantineDrillDownAnalysis onClose={() => setDrillDownType(null)} />
+                    </DialogContent>
+                </Dialog>
+                
+                <Dialog open={drillDownType === 'cost'} onOpenChange={(open) => !open && setDrillDownType(null)}>
+                    <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+                        <CostDrillDownAnalysis onClose={() => setDrillDownType(null)} />
+                    </DialogContent>
+                </Dialog>
+
                 <DashboardDetailModal 
                     isOpen={isDetailModalOpen} 
                     setIsOpen={setDetailModalOpen}
@@ -172,7 +211,7 @@ import React, { useState, useCallback } from 'react';
                                 value={item.value} 
                                 color={item.title.includes('Maliyet') ? 'text-red-500' : 'text-primary'}
                                 loading={loading}
-                                onClick={() => handleCardClick(item.module)}
+                                onClick={() => handleCardClick(item.module, item.title)}
                             />
                         </motion.div>
                     ))}
