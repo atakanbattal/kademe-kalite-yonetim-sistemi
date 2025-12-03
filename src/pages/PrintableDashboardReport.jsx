@@ -66,29 +66,47 @@ const PrintableDashboardReport = () => {
             <div className="report-container">
                 <style>{`
                     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-                    body { font-family: 'Roboto', sans-serif; background-color: #f0f2f5; color: #333; }
-                    .report-container { max-width: 1000px; margin: 20px auto; background: white; padding: 40px; box-shadow: 0 0 15px rgba(0,0,0,0.1); }
-                    .report-header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #1F3A5F; padding-bottom: 20px; }
-                    .report-header h1 { font-size: 28px; color: #1F3A5F; margin: 0; }
-                    .report-header p { font-size: 16px; color: #666; margin-top: 5px; }
-                    .report-section { margin-bottom: 40px; page-break-inside: avoid; }
-                    .section-title { font-size: 22px; font-weight: 700; color: #1F3A5F; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 20px; }
-                    .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-                    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; }
-                    .kpi-card { padding: 15px; border: 1px solid #e0e0e0; border-left: 5px solid #1F3A5F; border-radius: 5px; }
-                    .kpi-title { font-size: 14px; color: #666; margin-bottom: 5px; }
-                    .kpi-value { font-size: 24px; font-weight: 700; color: #1F3A5F; }
-                    .kpi-subtext { font-size: 12px; color: #888; margin-top: 5px; }
-                    .chart-container { height: 300px; margin-top: 20px; }
-                    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                    .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                    .data-table th { background-color: #f2f2f2; font-weight: bold; }
+                    * { box-sizing: border-box; }
+                    body { font-family: 'Roboto', sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 0; }
+                    .report-container { max-width: 100%; margin: 0 auto; background: white; padding: 20px; }
+                    .report-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1F3A5F; padding-bottom: 15px; }
+                    .report-header h1 { font-size: 24px; color: #1F3A5F; margin: 0; font-weight: 700; }
+                    .report-header p { font-size: 13px; color: #666; margin-top: 5px; }
+                    .report-section { margin-bottom: 30px; page-break-inside: avoid; }
+                    .section-title { font-size: 18px; font-weight: 700; color: #1F3A5F; border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 15px; }
+                    .section-subtitle { font-size: 14px; font-weight: 600; color: #555; margin-bottom: 10px; margin-top: 15px; }
+                    .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+                    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+                    .kpi-card { padding: 12px; border: 1px solid #e0e0e0; border-left: 4px solid #1F3A5F; border-radius: 4px; min-height: 80px; }
+                    .kpi-title { font-size: 11px; color: #666; margin-bottom: 5px; line-height: 1.3; }
+                    .kpi-value { font-size: 20px; font-weight: 700; color: #1F3A5F; line-height: 1.2; }
+                    .kpi-subtext { font-size: 10px; color: #888; margin-top: 3px; }
+                    .chart-container { height: 250px; margin-top: 15px; page-break-inside: avoid; }
+                    .data-table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; word-wrap: break-word; }
+                    .data-table th, .data-table td { border: 1px solid #ddd; padding: 6px 4px; text-align: left; vertical-align: top; }
+                    .data-table th { background-color: #f2f2f2; font-weight: bold; font-size: 10px; }
+                    .data-table td { font-size: 9px; line-height: 1.3; }
                     .data-table tr:nth-child(even) { background-color: #f9f9f9; }
+                    .data-table .col-no { width: 8%; }
+                    .data-table .col-title { width: 50%; word-break: break-word; }
+                    .data-table .col-dept { width: 22%; }
+                    .data-table .col-days { width: 10%; text-align: center; }
+                    .data-table .col-status { width: 10%; text-align: center; }
                     .page-break-before { page-break-before: always; }
+                    .text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+                    .text-wrap { word-wrap: break-word; word-break: break-word; white-space: normal; }
                     @media print {
-                        body { background-color: white; }
-                        .report-container { margin: 0; padding: 0; box-shadow: none; border: none; }
-                        @page { size: A4; margin: 20mm; }
+                        body { background-color: white; margin: 0; padding: 0; }
+                        .report-container { margin: 0; padding: 15mm; box-shadow: none; border: none; max-width: 100%; }
+                        @page { size: A4; margin: 15mm; }
+                        .report-section { page-break-inside: avoid; }
+                        .data-table { font-size: 8px; }
+                        .data-table th, .data-table td { padding: 4px 3px; }
+                        .kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+                        .kpi-card { padding: 8px; }
+                        .kpi-title { font-size: 10px; }
+                        .kpi-value { font-size: 18px; }
+                        .chart-container { height: 200px; page-break-inside: avoid; }
                     }
                 `}</style>
 
@@ -182,13 +200,99 @@ const PrintableDashboardReport = () => {
                 <ReportSection title="Ekler: Geciken Kayıtlar" className="page-break-before">
                     <h3 className="section-subtitle">Geciken DF/8D Kayıtları</h3>
                     <table className="data-table">
-                        <thead><tr><th>No</th><th>Başlık</th><th>Sorumlu Birim</th><th>Gecikme (Gün)</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th className="col-no">No</th>
+                                <th className="col-title">Başlık</th>
+                                <th className="col-dept">Sorumlu Birim</th>
+                                <th className="col-days">Gecikme (Gün)</th>
+                                <th className="col-status">Durum</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            {df8d.overdueRecords.length > 0 ? df8d.overdueRecords.map(r => (
-                                <tr key={r.id}><td>{r.nc_number}</td><td>{r.title}</td><td>{r.department}</td><td>{r.delay_days}</td></tr>
-                            )) : <tr><td colSpan="4">Geciken kayıt bulunmuyor.</td></tr>}
+                            {df8d.overdueRecords && df8d.overdueRecords.length > 0 ? df8d.overdueRecords.map((r, idx) => {
+                                const title = r.title || r.nc_number || '-';
+                                const truncatedTitle = title.length > 60 ? title.substring(0, 57) + '...' : title;
+                                return (
+                                    <tr key={r.id || idx}>
+                                        <td className="col-no">{r.nc_number || '-'}</td>
+                                        <td className="col-title text-wrap" title={title}>{truncatedTitle}</td>
+                                        <td className="col-dept">{r.department || r.requesting_unit || 'Belirtilmemiş'}</td>
+                                        <td className="col-days">{r.delay_days || r.daysOverdue || '-'}</td>
+                                        <td className="col-status">{r.status || 'Açık'}</td>
+                                    </tr>
+                                );
+                            }) : (
+                                <tr>
+                                    <td colSpan="5" style={{textAlign: 'center', padding: '15px', color: '#888'}}>
+                                        Geciken kayıt bulunmuyor.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
+                    
+                    {df8d.overdueRecords && df8d.overdueRecords.length > 0 && (
+                        <div style={{marginTop: '15px', fontSize: '10px', color: '#666'}}>
+                            <strong>Toplam Geciken Kayıt:</strong> {df8d.overdueRecords.length} | 
+                            <strong> Ortalama Gecikme:</strong> {Math.round(df8d.overdueRecords.reduce((sum, r) => sum + (r.delay_days || r.daysOverdue || 0), 0) / df8d.overdueRecords.length)} gün
+                        </div>
+                    )}
+                </ReportSection>
+
+                <ReportSection title="Detaylı İstatistikler">
+                    <div className="grid-container">
+                        <div>
+                            <h3 className="section-subtitle">Birim Bazında Dağılım</h3>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th className="col-dept">Birim</th>
+                                        <th className="col-days">Açık DF</th>
+                                        <th className="col-days">Kapatılan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {df8d.departmentDistribution && df8d.departmentDistribution.length > 0 ? (
+                                        df8d.departmentDistribution.slice(0, 10).map((dept, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-dept">{dept.name || '-'}</td>
+                                                <td className="col-days">{dept.count || 0}</td>
+                                                <td className="col-days">{dept.closed || 0}</td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan="3" style={{textAlign: 'center', padding: '10px'}}>Veri bulunamadı.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <h3 className="section-subtitle">Aylık Trend Özeti</h3>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th className="col-dept">Ay</th>
+                                        <th className="col-days">Açılan</th>
+                                        <th className="col-days">Kapatılan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {df8d.monthlyTrend && df8d.monthlyTrend.length > 0 ? (
+                                        df8d.monthlyTrend.slice(-6).map((month, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-dept">{month.name || '-'}</td>
+                                                <td className="col-days">{month.opened || 0}</td>
+                                                <td className="col-days">{month.closed || 0}</td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan="3" style={{textAlign: 'center', padding: '10px'}}>Veri bulunamadı.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </ReportSection>
             </div>
         </>
