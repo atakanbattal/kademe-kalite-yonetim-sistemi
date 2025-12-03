@@ -102,28 +102,7 @@ import React, { useState, useCallback } from 'react';
 
     const Dashboard = ({ setActiveModule }) => {
         const { toast } = useToast();
-        const [componentError, setComponentError] = useState(null);
-        
-        let dashboardData;
-        try {
-            dashboardData = useDashboardData();
-        } catch (error) {
-            console.error('Dashboard data hook hatası:', error);
-            setComponentError(error.message);
-            dashboardData = { 
-                kpiData: [], 
-                nonconformityData: [], 
-                costData: [], 
-                pendingApprovals: [], 
-                upcomingCalibrations: [], 
-                expiringDocs: [], 
-                completedAudits: [], 
-                loading: false, 
-                error: error.message 
-            };
-        }
-        
-        const { kpiData, nonconformityData, costData, pendingApprovals, upcomingCalibrations, expiringDocs, completedAudits, loading, error } = dashboardData;
+        const { kpiData, nonconformityData, costData, pendingApprovals, upcomingCalibrations, expiringDocs, completedAudits, loading, error } = useDashboardData();
         
         const [isDetailModalOpen, setDetailModalOpen] = useState(false);
         const [detailModalContent, setDetailModalContent] = useState({ title: '', records: [], renderItem: () => null });
@@ -186,12 +165,12 @@ import React, { useState, useCallback } from 'react';
             visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 100 } }
         };
 
-        if (error || componentError) {
+        if (error) {
             return (
                 <div className="p-6">
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                         <h2 className="text-lg font-semibold text-red-800 mb-2">Dashboard Yüklenirken Hata Oluştu</h2>
-                        <p className="text-red-700">{error || componentError}</p>
+                        <p className="text-red-700">{error}</p>
                         <Button 
                             onClick={() => window.location.reload()} 
                             className="mt-4"
@@ -204,8 +183,7 @@ import React, { useState, useCallback } from 'react';
             );
         }
 
-        try {
-            return (
+        return (
             <div className="space-y-6 sm:space-y-8">
                 {/* Drill-Down Analiz Modalleri */}
                 <Dialog open={drillDownType === 'df'} onOpenChange={(open) => !open && setDrillDownType(null)}>
@@ -314,156 +292,73 @@ import React, { useState, useCallback } from 'react';
                     </motion.div>
                 </div>
                 
+                {/* Geçici olarak yeni componentler devre dışı - sorun tespiti için */}
                 {/* Gerçek Zamanlı Uyarılar */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <DashboardAlerts onAlertClick={(type, data) => {
-                                if (type === 'overdue-nc') handleCardClick('df-8d');
-                                else if (type === 'overdue-calibration' || type === 'expiring-docs') handleCardClick('equipment');
-                                else if (type === 'cost-anomaly') handleCardClick('quality-cost');
-                            }} />;
-                        } catch (e) {
-                            console.error('DashboardAlerts render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <DashboardAlerts onAlertClick={(type, data) => {
+                        if (type === 'overdue-nc') handleCardClick('df-8d');
+                        else if (type === 'overdue-calibration' || type === 'expiring-docs') handleCardClick('equipment');
+                        else if (type === 'cost-anomaly') handleCardClick('quality-cost');
+                    }} />
+                </motion.div> */}
 
                 {/* Bu Ayın Trendleri */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <DashboardTrends />;
-                        } catch (e) {
-                            console.error('DashboardTrends render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <DashboardTrends />
+                </motion.div> */}
 
                 {/* Bugünün Görevleri */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <TodayTasks onTaskClick={(type, data) => {
-                                if (type === 'overdue-8d') handleCardClick('df-8d');
-                                else if (type === 'due-calibration') handleCardClick('equipment');
-                            }} />;
-                        } catch (e) {
-                            console.error('TodayTasks render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <TodayTasks onTaskClick={(type, data) => {
+                        if (type === 'overdue-8d') handleCardClick('df-8d');
+                        else if (type === 'due-calibration') handleCardClick('equipment');
+                    }} />
+                </motion.div> */}
 
                 {/* 5 En Kritik Uygunsuzluk */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <CriticalNonConformities onViewDetails={(nc) => handleCardClick('df-8d')} />;
-                        } catch (e) {
-                            console.error('CriticalNonConformities render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <CriticalNonConformities onViewDetails={(nc) => handleCardClick('df-8d')} />
+                </motion.div> */}
 
                 {/* Kalite Duvarı */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <QualityWall />;
-                        } catch (e) {
-                            console.error('QualityWall render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <QualityWall />
+                </motion.div> */}
 
                 {/* Kök Neden Isı Haritası */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <RootCauseHeatmap />;
-                        } catch (e) {
-                            console.error('RootCauseHeatmap render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <RootCauseHeatmap />
+                </motion.div> */}
 
                 {/* Kalite Hedefleri Paneli */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <QualityGoalsPanel />;
-                        } catch (e) {
-                            console.error('QualityGoalsPanel render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <QualityGoalsPanel />
+                </motion.div> */}
 
                 {/* Benchmark Analizi */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <BenchmarkAnalysis />;
-                        } catch (e) {
-                            console.error('BenchmarkAnalysis render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <BenchmarkAnalysis />
+                </motion.div> */}
 
                 {/* Risk Bazlı Göstergeler */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <RiskBasedIndicators />;
-                        } catch (e) {
-                            console.error('RiskBasedIndicators render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <RiskBasedIndicators />
+                </motion.div> */}
 
                 {/* AI Destekli Kök Neden Tahmin */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <AIRootCausePrediction />;
-                        } catch (e) {
-                            console.error('AIRootCausePrediction render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <AIRootCausePrediction />
+                </motion.div> */}
 
                 {/* 5S - İş Güvenliği - OEE */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <FiveSSafetyOEE />;
-                        } catch (e) {
-                            console.error('FiveSSafetyOEE render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <FiveSSafetyOEE />
+                </motion.div> */}
 
                 {/* Bildirim Merkezi */}
-                <motion.div variants={itemVariants}>
-                    {(() => {
-                        try {
-                            return <NotificationCenter />;
-                        } catch (e) {
-                            console.error('NotificationCenter render hatası:', e);
-                            return null;
-                        }
-                    })()}
-                </motion.div>
+                {/* <motion.div variants={itemVariants}>
+                    <NotificationCenter />
+                </motion.div> */}
 
                 <motion.div 
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
@@ -517,28 +412,7 @@ import React, { useState, useCallback } from 'react';
                     </motion.div>
                 </motion.div>
             </div>
-            );
-        } catch (renderError) {
-            console.error('Dashboard render hatası:', renderError);
-            return (
-                <div className="p-6">
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <h2 className="text-lg font-semibold text-red-800 mb-2">Dashboard Render Hatası</h2>
-                        <p className="text-red-700">{renderError.message}</p>
-                        <pre className="text-xs mt-2 bg-red-100 p-2 rounded overflow-auto">
-                            {renderError.stack}
-                        </pre>
-                        <Button 
-                            onClick={() => window.location.reload()} 
-                            className="mt-4"
-                            variant="destructive"
-                        >
-                            Sayfayı Yenile
-                        </Button>
-                    </div>
-                </div>
-            );
-        }
+        );
     };
 
     export default Dashboard;
