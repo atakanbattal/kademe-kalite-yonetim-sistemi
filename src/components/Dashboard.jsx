@@ -193,7 +193,7 @@ import React, { useState, useCallback } from 'react';
                     renderItem={detailModalContent.renderItem}
                     onRowClick={(item) => handleCardClick(item.module)}
                 />
-                <ReportGenerationModal isOpen={isReportModalOpen} setIsOpen={setReportModalOpen} />
+                <ReportGenerationModalEnhanced isOpen={isReportModalOpen} setIsOpen={setReportModalOpen} />
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight text-foreground">Ana Panel</h1>
@@ -313,6 +313,31 @@ import React, { useState, useCallback } from 'react';
                 {/* Kalite Hedefleri Paneli */}
                 <motion.div variants={itemVariants}>
                     <QualityGoalsPanel />
+                </motion.div>
+
+                {/* Benchmark Analizi */}
+                <motion.div variants={itemVariants}>
+                    <BenchmarkAnalysis />
+                </motion.div>
+
+                {/* Risk Bazlı Göstergeler */}
+                <motion.div variants={itemVariants}>
+                    <RiskBasedIndicators />
+                </motion.div>
+
+                {/* AI Destekli Kök Neden Tahmin */}
+                <motion.div variants={itemVariants}>
+                    <AIRootCausePrediction />
+                </motion.div>
+
+                {/* 5S - İş Güvenliği - OEE */}
+                <motion.div variants={itemVariants}>
+                    <FiveSSafetyOEE />
+                </motion.div>
+
+                {/* Bildirim Merkezi */}
+                <motion.div variants={itemVariants}>
+                    <NotificationCenter />
                 </motion.div>
 
                 <motion.div 
