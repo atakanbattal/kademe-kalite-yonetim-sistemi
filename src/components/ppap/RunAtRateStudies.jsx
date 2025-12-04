@@ -139,8 +139,8 @@ const RunAtRateStudies = ({ projects }) => {
                                                 <h4 className="font-semibold">
                                                     {new Date(study.study_date).toLocaleDateString('tr-TR')}
                                                 </h4>
-                                                <Badge variant={study.status === 'Completed' ? 'success' : 
-                                                               study.status === 'Failed' ? 'destructive' : 
+                                                <Badge variant={study.status === 'Tamamlanan' ? 'success' : 
+                                                               study.status === 'Başarısız' ? 'destructive' : 
                                                                'default'}>
                                                     {study.status}
                                                 </Badge>

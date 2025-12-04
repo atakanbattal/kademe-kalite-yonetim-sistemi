@@ -9,7 +9,12 @@ import { useToast } from '@/components/ui/use-toast';
 import ValidationProtocolFormModal from './ValidationProtocolFormModal';
 
 const PROTOCOL_TYPES = ['IQ', 'OQ', 'PQ'];
-const PROTOCOL_STATUSES = ['Not Started', 'In Progress', 'Completed', 'Failed'];
+const PROTOCOL_STATUSES = [
+    { value: 'Başlanmadı', label: 'Başlanmadı' },
+    { value: 'Devam Eden', label: 'Devam Eden' },
+    { value: 'Tamamlanan', label: 'Tamamlanan' },
+    { value: 'Başarısız', label: 'Başarısız' }
+];
 
 const ValidationProtocols = ({ plans }) => {
     const { toast } = useToast();
@@ -82,7 +87,7 @@ const ValidationProtocols = ({ plans }) => {
     };
 
     const activePlans = plans.filter(p => 
-        ['Planned', 'In Progress'].includes(p.status)
+        ['Planlanan', 'Devam Eden'].includes(p.status)
     );
 
     return (
@@ -143,9 +148,9 @@ const ValidationProtocols = ({ plans }) => {
                                                     {protocol.protocol_type} - Protokol #{protocol.protocol_number}
                                                 </h4>
                                                 <Badge variant={
-                                                    protocol.status === 'Completed' ? 'success' :
-                                                    protocol.status === 'Failed' ? 'destructive' :
-                                                    protocol.status === 'In Progress' ? 'default' :
+                                                    protocol.status === 'Tamamlanan' ? 'success' :
+                                                    protocol.status === 'Başarısız' ? 'destructive' :
+                                                    protocol.status === 'Devam Eden' ? 'default' :
                                                     'secondary'
                                                 }>
                                                     {protocol.status}
