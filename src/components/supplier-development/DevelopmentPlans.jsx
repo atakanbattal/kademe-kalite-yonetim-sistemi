@@ -100,7 +100,13 @@ const DevelopmentPlans = () => {
                                                 {plan.suppliers?.name} | {plan.plan_type}
                                             </p>
                                         </div>
-                                        <Badge>{plan.current_status}</Badge>
+                                        <Badge variant={
+                                            plan.current_status === 'Tamamlanan' ? 'success' :
+                                            plan.current_status === 'Devam Eden' ? 'warning' :
+                                            plan.current_status === 'Beklemede' ? 'secondary' : 'default'
+                                        }>
+                                            {plan.current_status}
+                                        </Badge>
                                     </div>
                                     <p className="text-sm">{plan.objectives}</p>
                                     <div className="flex gap-2 mt-2">
