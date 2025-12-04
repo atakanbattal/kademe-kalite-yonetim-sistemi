@@ -62,15 +62,27 @@ const PPAPDocuments = ({ projects }) => {
                 .eq('project_id', projectId)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'ppap_documents tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-ppap-apqp-module.sql script\'ini çalıştırın.'
+                    });
+                    setDocuments([]);
+                    return;
+                }
+                throw error;
+            }
             setDocuments(data || []);
         } catch (error) {
             console.error('Documents loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Dokümanlar yüklenirken hata oluştu.'
+                description: 'Dokümanlar yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setDocuments([]);
         } finally {
             setLoading(false);
         }

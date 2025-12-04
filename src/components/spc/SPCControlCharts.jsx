@@ -27,7 +27,19 @@ const SPCControlCharts = ({ characteristics }) => {
                 .order('measurement_date', { ascending: true })
                 .limit(100);
 
-            if (measError) throw measError;
+            if (measError) {
+                if (measError.code === '42P01' || measError.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'spc_measurements tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-spc-module.sql script\'ini çalıştırın.'
+                    });
+                    setChartData([]);
+                    setLoading(false);
+                    return;
+                }
+                throw measError;
+            }
 
             // Kontrol limitlerini hesapla (RPC fonksiyonu kullanılabilir)
             const { data: limits, error: limitsError } = await supabase
@@ -37,6 +49,7 @@ const SPCControlCharts = ({ characteristics }) => {
                 });
 
             if (limitsError) {
+                // Fonksiyon yoksa sessizce devam et
                 console.warn('Control limits calculation error:', limitsError);
             }
 

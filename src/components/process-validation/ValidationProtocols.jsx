@@ -31,20 +31,32 @@ const ValidationProtocols = ({ plans }) => {
                 .from('validation_protocols')
                 .select(`
                     *,
-                    approved_by_user:approved_by(email)
+                    personnel!approved_by(id, full_name, email)
                 `)
                 .eq('validation_plan_id', planId)
                 .order('protocol_number', { ascending: true });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'validation_protocols tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-process-validation-module.sql script\'ini çalıştırın.'
+                    });
+                    setProtocols([]);
+                    return;
+                }
+                throw error;
+            }
             setProtocols(data || []);
         } catch (error) {
             console.error('Protocols loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Protokoller yüklenirken hata oluştu.'
+                description: 'Protokoller yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setProtocols([]);
         } finally {
             setLoading(false);
         }
@@ -144,9 +156,9 @@ const ValidationProtocols = ({ plans }) => {
                                                     Kabul Kriterleri: {protocol.acceptance_criteria}
                                                 </p>
                                             )}
-                                            {protocol.approved_by_user && (
+                                            {protocol.personnel && (
                                                 <p className="text-xs text-muted-foreground mt-1">
-                                                    Onaylayan: {protocol.approved_by_user.email} | 
+                                                    Onaylayan: {protocol.personnel.email || protocol.personnel.full_name} | 
                                                     {protocol.approved_at && ` ${new Date(protocol.approved_at).toLocaleDateString('tr-TR')}`}
                                                 </p>
                                             )}

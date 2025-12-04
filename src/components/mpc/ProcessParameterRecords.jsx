@@ -140,7 +140,7 @@ const ProcessParameterRecords = ({ parameterId, onClose }) => {
                                                 <div className="text-sm text-muted-foreground mt-1">
                                                     {new Date(record.record_date).toLocaleString('tr-TR')} | 
                                                     {record.shift && ` Shift: ${record.shift} |`}
-                                                    {record.operator && ` Operatör: ${record.operator.full_name}`}
+                                                    {record.personnel && ` Operatör: ${record.personnel.full_name}`}
                                                 </div>
                                             </div>
                                             <Button

@@ -23,15 +23,27 @@ const SPCCapabilityAnalysis = ({ characteristics }) => {
                     p_characteristic_id: charId
                 });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42883' || error.message.includes('does not exist') || error.message.includes('function')) {
+                    toast({
+                        variant: 'default',
+                        title: 'Fonksiyon Bulunamadı',
+                        description: 'calculate_capability_indices fonksiyonu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-spc-module.sql script\'ini çalıştırın.'
+                    });
+                    setCapabilityData(null);
+                    return;
+                }
+                throw error;
+            }
             setCapabilityData(data?.[0] || null);
         } catch (error) {
             console.error('Capability data loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Yetenek analizi verileri yüklenirken hata oluştu.'
+                description: 'Yetenek analizi verileri yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setCapabilityData(null);
         } finally {
             setLoading(false);
         }

@@ -83,10 +83,10 @@ const PPAPProjectsList = ({ projects, loading, onRefresh }) => {
                                 </div>
 
                                 <div className="space-y-2 text-sm">
-                                    {project.customer && (
+                                    {project.customers && (
                                         <div>
                                             <span className="text-muted-foreground">Müşteri: </span>
-                                            <span className="font-medium">{project.customer.customer_name}</span>
+                                            <span className="font-medium">{project.customers.customer_name}</span>
                                         </div>
                                     )}
                                     {project.part_name && (
@@ -95,10 +95,10 @@ const PPAPProjectsList = ({ projects, loading, onRefresh }) => {
                                             <span className="font-medium">{project.part_name}</span>
                                         </div>
                                     )}
-                                    {project.project_manager && (
+                                    {project.personnel && (
                                         <div>
                                             <span className="text-muted-foreground">Proje Yöneticisi: </span>
-                                            <span className="font-medium">{project.project_manager.full_name}</span>
+                                            <span className="font-medium">{project.personnel.full_name}</span>
                                         </div>
                                     )}
                                     {project.target_completion_date && (

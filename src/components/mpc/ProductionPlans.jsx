@@ -123,9 +123,11 @@ const ProductionPlans = () => {
                                                 {plan.plan_number}
                                             </p>
                                         </div>
-                                        <Badge variant={plan.status === 'Completed' ? 'success' : 
-                                                       plan.status === 'In Progress' ? 'default' : 
-                                                       'secondary'}>
+                                        <Badge variant={
+                                            plan.status === 'Tamamlanan' ? 'success' : 
+                                            plan.status === 'Devam Eden' ? 'default' : 
+                                            plan.status === 'Planlanan' ? 'secondary' : 'secondary'
+                                        }>
                                             {plan.status}
                                         </Badge>
                                     </div>

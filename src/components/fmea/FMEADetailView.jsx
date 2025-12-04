@@ -29,7 +29,19 @@ const FMEADetailView = ({ project, onBack }) => {
                 .eq('fmea_project_id', project.id)
                 .order('function_number', { ascending: true });
 
-            if (funcsError) throw funcsError;
+            if (funcsError) {
+                if (funcsError.code === '42P01' || funcsError.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'fmea_functions tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-fmea-module.sql script\'ini çalıştırın.'
+                    });
+                    setFunctions([]);
+                    setLoading(false);
+                    return;
+                }
+                throw funcsError;
+            }
 
             // Hata modlarını yükle
             const { data: failures, error: failuresError } = await supabase
@@ -38,7 +50,18 @@ const FMEADetailView = ({ project, onBack }) => {
                 .in('function_id', funcs?.map(f => f.id) || [])
                 .order('failure_mode_number', { ascending: true });
 
-            if (failuresError) throw failuresError;
+            if (failuresError) {
+                if (failuresError.code === '42P01' || failuresError.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'fmea_failure_modes tablosu henüz oluşturulmamış.'
+                    });
+                    setFailureModes([]);
+                } else {
+                    throw failuresError;
+                }
+            }
 
             // Kök nedenleri ve kontrolleri yükle
             const { data: causes, error: causesError } = await supabase
@@ -47,7 +70,18 @@ const FMEADetailView = ({ project, onBack }) => {
                 .in('failure_mode_id', failures?.map(f => f.id) || [])
                 .order('cause_number', { ascending: true });
 
-            if (causesError) throw causesError;
+            if (causesError) {
+                if (causesError.code === '42P01' || causesError.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'fmea_causes_controls tablosu henüz oluşturulmamış.'
+                    });
+                    setCausesControls([]);
+                } else {
+                    throw causesError;
+                }
+            }
 
             // Aksiyon planlarını yükle
             const { data: actions, error: actionsError } = await supabase

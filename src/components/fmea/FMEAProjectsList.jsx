@@ -109,10 +109,10 @@ const FMEAProjectsList = ({ projects, loading, onRefresh, onSelectProject }) => 
                                             <span className="font-medium">{project.process_name}</span>
                                         </div>
                                     )}
-                                    {project.team_leader && (
+                                    {project.personnel && (
                                         <div>
                                             <span className="text-muted-foreground">Takım Lideri: </span>
-                                            <span className="font-medium">{project.team_leader.full_name}</span>
+                                            <span className="font-medium">{project.personnel.full_name}</span>
                                         </div>
                                     )}
                                     <div>

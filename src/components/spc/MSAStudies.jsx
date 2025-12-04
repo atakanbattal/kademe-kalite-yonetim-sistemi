@@ -18,12 +18,23 @@ const MSAStudies = () => {
                 .from('spc_msa_studies')
                 .select(`
                     *,
-                    characteristic:characteristic_id(characteristic_name, characteristic_code),
-                    equipment:measurement_equipment_id(equipment_name, equipment_code)
+                    spc_characteristics!characteristic_id(id, characteristic_name, characteristic_code),
+                    measurement_equipment!measurement_equipment_id(id, name)
                 `)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'spc_msa_studies tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-spc-module.sql script\'ini çalıştırın.'
+                    });
+                    setStudies([]);
+                    return;
+                }
+                throw error;
+            }
             setStudies(data || []);
         } catch (error) {
             console.error('MSA studies loading error:', error);
@@ -104,13 +115,13 @@ const MSAStudies = () => {
                                             {study.characteristic && (
                                                 <div>
                                                     <span className="text-muted-foreground">Karakteristik: </span>
-                                                    <span className="font-medium">{study.characteristic.characteristic_name}</span>
+                                                    <span className="font-medium">{study.spc_characteristics?.characteristic_name}</span>
                                                 </div>
                                             )}
                                             {study.equipment && (
                                                 <div>
                                                     <span className="text-muted-foreground">Ekipman: </span>
-                                                    <span className="font-medium">{study.equipment.equipment_name}</span>
+                                                    <span className="font-medium">{study.measurement_equipment?.name}</span>
                                                 </div>
                                             )}
                                         </div>

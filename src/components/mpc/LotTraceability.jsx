@@ -73,9 +73,9 @@ const LotTraceability = () => {
     };
 
     const getStatusColor = (status) => {
-        if (status === 'Shipped') return 'success';
-        if (status === 'Recalled') return 'destructive';
-        if (status === 'Quarantined') return 'warning';
+        if (status === 'Sevk Edildi') return 'success';
+        if (status === 'Geri Çağrıldı') return 'destructive';
+        if (status === 'Karantinada') return 'warning';
         return 'default';
     };
 

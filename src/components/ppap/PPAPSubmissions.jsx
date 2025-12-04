@@ -38,15 +38,27 @@ const PPAPSubmissions = ({ projects }) => {
                 .eq('project_id', projectId)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'ppap_submissions tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-ppap-apqp-module.sql script\'ini çalıştırın.'
+                    });
+                    setSubmissions([]);
+                    return;
+                }
+                throw error;
+            }
             setSubmissions(data || []);
         } catch (error) {
             console.error('Submissions loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Submissions yüklenirken hata oluştu.'
+                description: 'Submissions yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setSubmissions([]);
         } finally {
             setLoading(false);
         }

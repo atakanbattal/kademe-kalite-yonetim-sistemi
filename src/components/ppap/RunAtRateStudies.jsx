@@ -28,20 +28,32 @@ const RunAtRateStudies = ({ projects }) => {
                 .from('run_at_rate_studies')
                 .select(`
                     *,
-                    conducted_by_person:conducted_by(full_name)
+                    personnel!conducted_by(id, full_name)
                 `)
                 .eq('project_id', projectId)
                 .order('study_date', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'run_at_rate_studies tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-ppap-apqp-module.sql script\'ini çalıştırın.'
+                    });
+                    setStudies([]);
+                    return;
+                }
+                throw error;
+            }
             setStudies(data || []);
         } catch (error) {
             console.error('Run-at-Rate studies loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Run-at-Rate çalışmaları yüklenirken hata oluştu.'
+                description: 'Run-at-Rate çalışmaları yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setStudies([]);
         } finally {
             setLoading(false);
         }
