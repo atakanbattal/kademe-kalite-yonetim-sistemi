@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, BarChart3, FileCheck, AlertTriangle, Factory, CheckSquare } from 'lucide-react';
+import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, BarChart3, FileCheck, AlertTriangle, Factory, CheckSquare, Smile, Target } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 const navItems = [
@@ -16,6 +16,10 @@ const navItems = [
   { id: 'fmea', icon: AlertTriangle, label: 'FMEA Yönetimi' },
   { id: 'mpc', icon: Factory, label: 'Üretim Planlama' },
   { id: 'process-validation', icon: CheckSquare, label: 'Proses Validasyonu' },
+  { id: 'advanced-analytics', icon: BarChart3, label: 'Gelişmiş Analiz' },
+  { id: 'customer-satisfaction', icon: Smile, label: 'Müşteri Memnuniyeti' },
+  { id: 'supplier-development', icon: TrendingUp, label: 'Tedarikçi Geliştirme' },
+  { id: 'dmaic', icon: Target, label: 'DMAIC Projeleri' },
   { id: 'incoming-quality', icon: Package, label: 'Girdi Kalite Kontrol' },
   { id: 'produced-vehicles', icon: Truck, label: 'Üretilen Araçlar' },
   { id: 'internal-audit', icon: HardHat, label: 'İç Tetkik Yönetimi' },
