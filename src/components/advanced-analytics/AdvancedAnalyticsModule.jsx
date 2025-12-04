@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, FileText, Compare } from 'lucide-react';
+import { BarChart3, TrendingUp, FileText, GitCompare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import TrendAnalysis from './TrendAnalysis';
 import ForecastAnalysis from './ForecastAnalysis';
@@ -39,7 +39,7 @@ const AdvancedAnalyticsModule = () => {
                         Tahminleme
                     </TabsTrigger>
                     <TabsTrigger value="comparison">
-                        <Compare className="w-4 h-4 mr-2" />
+                        <GitCompare className="w-4 h-4 mr-2" />
                         Karşılaştırma
                     </TabsTrigger>
                     <TabsTrigger value="reports">
