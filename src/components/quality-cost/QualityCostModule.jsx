@@ -13,6 +13,7 @@ import React, { useState, useMemo, useCallback } from 'react';
     import VehicleCostBreakdown from '@/components/quality-cost/VehicleCostBreakdown';
     import { CostDetailModal } from '@/components/quality-cost/CostDetailModal';
     import { CostViewModal } from '@/components/quality-cost/CostViewModal';
+    import COPQCalculator from '@/components/quality-cost/COPQCalculator';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -190,8 +191,9 @@ import React, { useState, useMemo, useCallback } from 'react';
                 </div>
 
                 <Tabs defaultValue="overview" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="overview">Genel Bakış</TabsTrigger>
+                        <TabsTrigger value="copq">COPQ Analizi</TabsTrigger>
                         <TabsTrigger value="details">Detaylı Analiz</TabsTrigger>
                     </TabsList>
                     <TabsContent value="overview" className="mt-6">
