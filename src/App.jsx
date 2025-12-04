@@ -20,7 +20,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import TaskModule from '@/pages/TaskModule';
     import AuditLogModule from '@/components/AuditLogModule';
     import SupplierLiveAudit from '@/pages/SupplierLiveAudit';
-    import SupplierPortalPage from '@/pages/SupplierPortalPage';
     import PrintableReport from '@/pages/PrintableReport';
     import PrintableDashboardReport from '@/pages/PrintableDashboardReport';
     import PrintableInternalAuditDashboard from '@/pages/PrintableInternalAuditDashboard';
@@ -90,7 +89,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               <NCFormProvider>
                 <Routes>
                   <Route path="/login" element={<Login />} />
-                  <Route path="/supplier-portal" element={<SupplierPortalPage />} />
                    <Route path="/print/report/:type/:id" element={<AuthProtected><PrintableReport /></AuthProtected>} />
                   <Route path="/print/dashboard-report" element={<AuthProtected><PrintableDashboardReport /></AuthProtected>} />
                   <Route path="/print/internal-audit-dashboard" element={<AuthProtected><PrintableInternalAuditDashboard /></AuthProtected>} />
