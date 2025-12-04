@@ -5,9 +5,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 
 const ComparisonAnalysis = () => {
     const [comparisonData, setComparisonData] = useState([
-        { name: 'Ocak', Tedarikçi A: 120, Tedarikçi B: 150, Tedarikçi C: 180 },
-        { name: 'Şubat', Tedarikçi A: 110, Tedarikçi B: 140, Tedarikçi C: 170 },
-        { name: 'Mart', Tedarikçi A: 105, Tedarikçi B: 135, Tedarikçi C: 165 },
+        { name: 'Ocak', 'Tedarikçi A': 120, 'Tedarikçi B': 150, 'Tedarikçi C': 180 },
+        { name: 'Şubat', 'Tedarikçi A': 110, 'Tedarikçi B': 140, 'Tedarikçi C': 170 },
+        { name: 'Mart', 'Tedarikçi A': 105, 'Tedarikçi B': 135, 'Tedarikçi C': 165 },
     ]);
 
     return (
