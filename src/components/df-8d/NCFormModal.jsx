@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
     import { useNCForm } from '@/hooks/useNCForm';
     import NCFormGeneral from '@/components/df-8d/NCFormGeneral';
     import { ScrollArea } from '@/components/ui/scroll-area';
+    import FiveN1KTemplate from '@/components/df-8d/analysis-templates/FiveN1KTemplate';
 
     const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initialRecord }) => {
         const { toast } = useToast();
@@ -72,6 +73,7 @@ import React, { useState, useEffect } from 'react';
                                 <TabsList>
                                     <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
                                     {formData.type === '8D' && <TabsTrigger value="8d_steps">8D Adımları</TabsTrigger>}
+                                    <TabsTrigger value="analysis">Kök Neden Analizi</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="general" className="mt-4">
                                     <NCFormGeneral
@@ -99,6 +101,12 @@ import React, { useState, useEffect } from 'react';
                                         />
                                     </TabsContent>
                                 )}
+                                <TabsContent value="analysis" className="mt-4">
+                                    <FiveN1KTemplate
+                                        analysisData={formData.five_n1k_analysis || {}}
+                                        onAnalysisChange={(data) => setFormData(prev => ({...prev, five_n1k_analysis: data}))}
+                                    />
+                                </TabsContent>
                             </Tabs>
                         </ScrollArea>
 
