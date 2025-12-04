@@ -60,21 +60,21 @@ const NPSScore = () => {
                     <div className="space-y-4">
                         <div>
                             <div className="flex justify-between mb-2">
-                                <span>Promoters</span>
+                                <span>Önerenler</span>
                                 <span>{npsData.promoters}%</span>
                             </div>
                             <Progress value={npsData.promoters} className="h-2" />
                         </div>
                         <div>
                             <div className="flex justify-between mb-2">
-                                <span>Passives</span>
+                                <span>Pasifler</span>
                                 <span>{npsData.passives}%</span>
                             </div>
                             <Progress value={npsData.passives} className="h-2" />
                         </div>
                         <div>
                             <div className="flex justify-between mb-2">
-                                <span>Detractors</span>
+                                <span>Eleştirenler</span>
                                 <span>{npsData.detractors}%</span>
                             </div>
                             <Progress value={npsData.detractors} className="h-2" />
