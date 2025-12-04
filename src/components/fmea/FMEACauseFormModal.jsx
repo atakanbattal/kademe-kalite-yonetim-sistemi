@@ -26,11 +26,11 @@ const FMEACauseFormModal = ({ open, setOpen, failureModeId, existingCause, onSuc
     useEffect(() => {
         if (open && failureModeId) {
             loadMaxCauseNumber();
+            loadFailureModeSeverity();
             if (existingCause) {
                 setFormData({
                     cause_number: existingCause.cause_number || 1,
                     potential_cause: existingCause.potential_cause || '',
-                    severity: existingCause.severity || 5,
                     occurrence: existingCause.occurrence || 5,
                     detection: existingCause.detection || 5,
                     occurrence_rationale: existingCause.occurrence_rationale || '',
@@ -38,11 +38,11 @@ const FMEACauseFormModal = ({ open, setOpen, failureModeId, existingCause, onSuc
                     current_controls_prevention: existingCause.current_controls_prevention || '',
                     current_controls_detection: existingCause.current_controls_detection || ''
                 });
+                setFailureModeSeverity(existingCause.severity || 5);
             } else {
                 setFormData({
                     cause_number: maxCauseNumber + 1,
                     potential_cause: '',
-                    severity: 5,
                     occurrence: 5,
                     detection: 5,
                     occurrence_rationale: '',
@@ -53,6 +53,22 @@ const FMEACauseFormModal = ({ open, setOpen, failureModeId, existingCause, onSuc
             }
         }
     }, [open, failureModeId, existingCause, maxCauseNumber]);
+
+    const loadFailureModeSeverity = async () => {
+        if (!failureModeId) return;
+        try {
+            const { data, error } = await supabase
+                .from('fmea_failure_modes')
+                .select('severity')
+                .eq('id', failureModeId)
+                .single();
+
+            if (error) throw error;
+            setFailureModeSeverity(data?.severity || 5);
+        } catch (error) {
+            console.error('Failure mode severity loading error:', error);
+        }
+    };
 
     const loadMaxCauseNumber = async () => {
         if (!failureModeId) return;
@@ -85,13 +101,19 @@ const FMEACauseFormModal = ({ open, setOpen, failureModeId, existingCause, onSuc
 
             if (fmError) throw fmError;
 
+            const severity = failureMode.severity;
+            const occurrence = parseInt(formData.occurrence);
+            const detection = parseInt(formData.detection);
+            const rpn = severity * occurrence * detection;
+
             const dataToSubmit = {
                 failure_mode_id: failureModeId,
                 cause_number: parseInt(formData.cause_number),
                 potential_cause: formData.potential_cause,
-                severity: failureMode.severity,
-                occurrence: parseInt(formData.occurrence),
-                detection: parseInt(formData.detection),
+                severity: severity,
+                occurrence: occurrence,
+                detection: detection,
+                rpn: rpn,
                 occurrence_rationale: formData.occurrence_rationale || null,
                 detection_rationale: formData.detection_rationale || null,
                 current_controls_prevention: formData.current_controls_prevention || null,
@@ -200,11 +222,11 @@ const FMEACauseFormModal = ({ open, setOpen, failureModeId, existingCause, onSuc
                             <div>
                                 <Label>RPN</Label>
                                 <Input
-                                    value={formData.severity * formData.occurrence * formData.detection}
+                                    value={failureModeSeverity * formData.occurrence * formData.detection}
                                     readOnly
                                     className="bg-muted"
                                 />
-                                <p className="text-xs text-muted-foreground mt-1">S × O × D</p>
+                                <p className="text-xs text-muted-foreground mt-1">S ({failureModeSeverity}) × O × D</p>
                             </div>
                         </div>
 
