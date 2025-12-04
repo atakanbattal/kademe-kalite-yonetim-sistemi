@@ -22,7 +22,7 @@ const CustomerFeedback = () => {
                 .from('customer_feedback')
                 .select(`
                     *,
-                    customer:customer_id(customer_name)
+                    customers!customer_id(customer_name, customer_code)
                 `)
                 .order('feedback_date', { ascending: false });
 
@@ -69,10 +69,10 @@ const CustomerFeedback = () => {
                                         <div>
                                             <h4 className="font-semibold">{item.subject}</h4>
                                             <p className="text-sm text-muted-foreground">
-                                                {item.customer?.customer_name} | {new Date(item.feedback_date).toLocaleDateString('tr-TR')}
+                                                {item.customers?.customer_name} | {new Date(item.feedback_date).toLocaleDateString('tr-TR')}
                                             </p>
                                         </div>
-                                        <Badge variant={item.status === 'Resolved' ? 'success' : 'default'}>
+                                        <Badge variant={item.status === 'Çözüldü' ? 'success' : 'default'}>
                                             {item.status}
                                         </Badge>
                                     </div>

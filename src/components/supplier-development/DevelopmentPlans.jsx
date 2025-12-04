@@ -22,7 +22,7 @@ const DevelopmentPlans = () => {
                 .from('supplier_development_plans')
                 .select(`
                     *,
-                    supplier:supplier_id(supplier_name)
+                    suppliers!supplier_id(id, name)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -69,7 +69,7 @@ const DevelopmentPlans = () => {
                                         <div>
                                             <h4 className="font-semibold">{plan.plan_name}</h4>
                                             <p className="text-sm text-muted-foreground">
-                                                {plan.supplier?.supplier_name} | {plan.plan_type}
+                                                {plan.suppliers?.name} | {plan.plan_type}
                                             </p>
                                         </div>
                                         <Badge>{plan.current_status}</Badge>

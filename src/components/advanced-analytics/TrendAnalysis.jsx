@@ -30,27 +30,166 @@ const TrendAnalysis = () => {
     const loadTrendData = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .rpc('calculate_trend_analysis', {
-                    p_metric_name: selectedMetric,
-                    p_period_type: selectedPeriod,
-                    p_periods: 12
+            let data = [];
+            const now = new Date();
+            const periods = selectedPeriod === 'Monthly' ? 12 : selectedPeriod === 'Yearly' ? 5 : selectedPeriod === 'Weekly' ? 52 : 30;
+            
+            if (selectedMetric === 'PPM') {
+                // PPM verilerini incoming_inspections'tan çek
+                const startDate = new Date();
+                if (selectedPeriod === 'Monthly') {
+                    startDate.setMonth(startDate.getMonth() - periods);
+                } else if (selectedPeriod === 'Yearly') {
+                    startDate.setFullYear(startDate.getFullYear() - periods);
+                } else if (selectedPeriod === 'Weekly') {
+                    startDate.setDate(startDate.getDate() - periods * 7);
+                } else {
+                    startDate.setDate(startDate.getDate() - periods);
+                }
+
+                const { data: inspections, error: inspError } = await supabase
+                    .from('incoming_inspections')
+                    .select('inspection_date, inspected_quantity, rejected_quantity')
+                    .gte('inspection_date', startDate.toISOString().split('T')[0])
+                    .order('inspection_date', { ascending: true });
+
+                if (inspError) throw inspError;
+
+                // Aylık/haftalık/günlük gruplama
+                const grouped = {};
+                inspections?.forEach(ins => {
+                    const date = new Date(ins.inspection_date);
+                    let key;
+                    if (selectedPeriod === 'Monthly') {
+                        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    } else if (selectedPeriod === 'Yearly') {
+                        key = `${date.getFullYear()}`;
+                    } else if (selectedPeriod === 'Weekly') {
+                        const week = Math.floor((date - new Date(date.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+                        key = `${date.getFullYear()}-W${String(week + 1).padStart(2, '0')}`;
+                    } else {
+                        key = ins.inspection_date;
+                    }
+
+                    if (!grouped[key]) {
+                        grouped[key] = { total: 0, rejected: 0 };
+                    }
+                    grouped[key].total += ins.inspected_quantity || 0;
+                    grouped[key].rejected += ins.rejected_quantity || 0;
                 });
 
-            if (error) throw error;
-            
-            if (data && data.trend_data) {
-                setTrendData(data.trend_data);
+                data = Object.keys(grouped).sort().map(key => {
+                    const ppm = grouped[key].total > 0 
+                        ? (grouped[key].rejected / grouped[key].total) * 1000000 
+                        : 0;
+                    return {
+                        period: key,
+                        value: Math.round(ppm),
+                        moving_avg: Math.round(ppm) // Basit hesaplama
+                    };
+                });
+            } else if (selectedMetric === 'NC Count') {
+                // Non-conformities sayısı
+                const startDate = new Date();
+                if (selectedPeriod === 'Monthly') {
+                    startDate.setMonth(startDate.getMonth() - periods);
+                } else if (selectedPeriod === 'Yearly') {
+                    startDate.setFullYear(startDate.getFullYear() - periods);
+                } else if (selectedPeriod === 'Weekly') {
+                    startDate.setDate(startDate.getDate() - periods * 7);
+                } else {
+                    startDate.setDate(startDate.getDate() - periods);
+                }
+
+                const { data: ncs, error: ncError } = await supabase
+                    .from('non_conformities')
+                    .select('created_at')
+                    .gte('created_at', startDate.toISOString())
+                    .order('created_at', { ascending: true });
+
+                if (ncError) throw ncError;
+
+                const grouped = {};
+                ncs?.forEach(nc => {
+                    const date = new Date(nc.created_at);
+                    let key;
+                    if (selectedPeriod === 'Monthly') {
+                        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    } else if (selectedPeriod === 'Yearly') {
+                        key = `${date.getFullYear()}`;
+                    } else if (selectedPeriod === 'Weekly') {
+                        const week = Math.floor((date - new Date(date.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+                        key = `${date.getFullYear()}-W${String(week + 1).padStart(2, '0')}`;
+                    } else {
+                        key = nc.created_at.split('T')[0];
+                    }
+
+                    grouped[key] = (grouped[key] || 0) + 1;
+                });
+
+                data = Object.keys(grouped).sort().map(key => ({
+                    period: key,
+                    value: grouped[key],
+                    moving_avg: grouped[key]
+                }));
+            } else if (selectedMetric === 'Cost') {
+                // Quality costs
+                const startDate = new Date();
+                if (selectedPeriod === 'Monthly') {
+                    startDate.setMonth(startDate.getMonth() - periods);
+                } else if (selectedPeriod === 'Yearly') {
+                    startDate.setFullYear(startDate.getFullYear() - periods);
+                } else if (selectedPeriod === 'Weekly') {
+                    startDate.setDate(startDate.getDate() - periods * 7);
+                } else {
+                    startDate.setDate(startDate.getDate() - periods);
+                }
+
+                const { data: costs, error: costError } = await supabase
+                    .from('quality_costs')
+                    .select('cost_date, total_cost')
+                    .gte('cost_date', startDate.toISOString().split('T')[0])
+                    .order('cost_date', { ascending: true });
+
+                if (costError) throw costError;
+
+                const grouped = {};
+                costs?.forEach(cost => {
+                    const date = new Date(cost.cost_date);
+                    let key;
+                    if (selectedPeriod === 'Monthly') {
+                        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    } else if (selectedPeriod === 'Yearly') {
+                        key = `${date.getFullYear()}`;
+                    } else if (selectedPeriod === 'Weekly') {
+                        const week = Math.floor((date - new Date(date.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+                        key = `${date.getFullYear()}-W${String(week + 1).padStart(2, '0')}`;
+                    } else {
+                        key = cost.cost_date;
+                    }
+
+                    grouped[key] = (grouped[key] || 0) + (parseFloat(cost.total_cost) || 0);
+                });
+
+                data = Object.keys(grouped).sort().map(key => ({
+                    period: key,
+                    value: Math.round(grouped[key]),
+                    moving_avg: Math.round(grouped[key])
+                }));
             } else {
-                setTrendData([]);
+                // OTD için boş veri
+                data = [];
             }
+
+            setTrendData(data);
         } catch (error) {
             console.error('Trend data loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Trend verileri yüklenirken hata oluştu.'
+                description: 'Trend verileri yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setTrendData([]);
         } finally {
             setLoading(false);
         }

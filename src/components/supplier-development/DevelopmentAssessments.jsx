@@ -19,7 +19,7 @@ const DevelopmentAssessments = () => {
                 .from('supplier_development_assessments')
                 .select(`
                     *,
-                    plan:plan_id(plan_name)
+                    supplier_development_plans!plan_id(plan_name)
                 `)
                 .order('assessment_date', { ascending: false });
 
@@ -56,7 +56,7 @@ const DevelopmentAssessments = () => {
                         <div className="space-y-2">
                             {assessments.map((assessment) => (
                                 <div key={assessment.id} className="p-4 border rounded-lg">
-                                    <h4 className="font-semibold">{assessment.plan?.plan_name}</h4>
+                                    <h4 className="font-semibold">{assessment.supplier_development_plans?.plan_name}</h4>
                                     <p className="text-sm text-muted-foreground">
                                         {new Date(assessment.assessment_date).toLocaleDateString('tr-TR')} | 
                                         İyileşme: {assessment.improvement_percentage || 0}%

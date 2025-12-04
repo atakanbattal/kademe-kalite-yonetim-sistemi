@@ -22,7 +22,7 @@ const SatisfactionSurveys = () => {
                 .from('customer_satisfaction_surveys')
                 .select(`
                     *,
-                    customer:customer_id(customer_name)
+                    customers!customer_id(customer_name, customer_code)
                 `)
                 .order('survey_date', { ascending: false });
 
@@ -68,7 +68,7 @@ const SatisfactionSurveys = () => {
                                     <div>
                                         <h4 className="font-semibold">{survey.survey_name}</h4>
                                         <p className="text-sm text-muted-foreground">
-                                            {survey.customer?.customer_name} | {new Date(survey.survey_date).toLocaleDateString('tr-TR')}
+                                            {survey.customers?.customer_name} | {new Date(survey.survey_date).toLocaleDateString('tr-TR')}
                                         </p>
                                         {survey.nps_score !== null && (
                                             <Badge className="mt-2">NPS: {survey.nps_score}</Badge>

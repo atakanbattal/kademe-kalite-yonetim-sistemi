@@ -20,7 +20,7 @@ const DevelopmentActions = () => {
                 .from('supplier_development_actions')
                 .select(`
                     *,
-                    plan:plan_id(plan_name, supplier:supplier_id(supplier_name))
+                    supplier_development_plans!plan_id(plan_name, suppliers!supplier_id(id, name))
                 `)
                 .order('due_date', { ascending: true });
 
@@ -63,7 +63,7 @@ const DevelopmentActions = () => {
                                                 Aksiyon #{action.action_number}: {action.action_description}
                                             </h4>
                                             <p className="text-sm text-muted-foreground">
-                                                {action.plan?.plan_name} | {action.plan?.supplier?.supplier_name}
+                                                {action.supplier_development_plans?.plan_name} | {action.supplier_development_plans?.suppliers?.name}
                                             </p>
                                         </div>
                                         <Badge>{action.status}</Badge>

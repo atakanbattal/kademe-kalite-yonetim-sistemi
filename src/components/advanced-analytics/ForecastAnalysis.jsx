@@ -18,41 +18,112 @@ const ForecastAnalysis = () => {
     const generateForecast = async () => {
         setLoading(true);
         try {
-            // Basit tahmin hesaplama (gerçek uygulamada ML modeli kullanılabilir)
-            const { data: historical, error } = await supabase
-                .from('quality_trends')
-                .select('*')
-                .eq('metric_name', selectedMetric)
-                .eq('period_type', 'Monthly')
-                .order('period_value', { ascending: false })
-                .limit(12);
+            // Mevcut verilerden tahmin oluştur
+            let historicalData = [];
+            const now = new Date();
+            const startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 12);
 
-            if (error) throw error;
+            if (selectedMetric === 'PPM') {
+                const { data: inspections, error } = await supabase
+                    .from('incoming_inspections')
+                    .select('inspection_date, inspected_quantity, rejected_quantity')
+                    .gte('inspection_date', startDate.toISOString().split('T')[0])
+                    .order('inspection_date', { ascending: true });
 
-            if (historical && historical.length > 0) {
+                if (error) throw error;
+
+                const grouped = {};
+                inspections?.forEach(ins => {
+                    const date = new Date(ins.inspection_date);
+                    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    if (!grouped[key]) {
+                        grouped[key] = { total: 0, rejected: 0 };
+                    }
+                    grouped[key].total += ins.inspected_quantity || 0;
+                    grouped[key].rejected += ins.rejected_quantity || 0;
+                });
+
+                historicalData = Object.keys(grouped).sort().map(key => {
+                    const ppm = grouped[key].total > 0 
+                        ? (grouped[key].rejected / grouped[key].total) * 1000000 
+                        : 0;
+                    return { period: key, value: Math.round(ppm) };
+                });
+            } else if (selectedMetric === 'NC Count') {
+                const { data: ncs, error } = await supabase
+                    .from('non_conformities')
+                    .select('created_at')
+                    .gte('created_at', startDate.toISOString())
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                const grouped = {};
+                ncs?.forEach(nc => {
+                    const date = new Date(nc.created_at);
+                    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    grouped[key] = (grouped[key] || 0) + 1;
+                });
+
+                historicalData = Object.keys(grouped).sort().map(key => ({
+                    period: key,
+                    value: grouped[key]
+                }));
+            } else if (selectedMetric === 'Cost') {
+                const { data: costs, error } = await supabase
+                    .from('quality_costs')
+                    .select('cost_date, total_cost')
+                    .gte('cost_date', startDate.toISOString().split('T')[0])
+                    .order('cost_date', { ascending: true });
+
+                if (error) throw error;
+
+                const grouped = {};
+                costs?.forEach(cost => {
+                    const date = new Date(cost.cost_date);
+                    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    grouped[key] = (grouped[key] || 0) + (parseFloat(cost.total_cost) || 0);
+                });
+
+                historicalData = Object.keys(grouped).sort().map(key => ({
+                    period: key,
+                    value: Math.round(grouped[key])
+                }));
+            }
+
+            if (historicalData.length > 0) {
                 // Basit lineer trend tahmini
-                const values = historical.map(h => parseFloat(h.value)).reverse();
-                const avgChange = (values[values.length - 1] - values[0]) / (values.length - 1);
+                const values = historicalData.map(h => h.value);
+                const avgChange = values.length > 1 ? (values[values.length - 1] - values[0]) / (values.length - 1) : 0;
                 
                 const forecast = [];
                 let lastValue = values[values.length - 1];
                 
                 for (let i = 1; i <= forecastPeriods; i++) {
                     const forecastValue = lastValue + (avgChange * i);
+                    const nextMonth = new Date();
+                    nextMonth.setMonth(nextMonth.getMonth() + i);
                     forecast.push({
-                        period: `Tahmin ${i}`,
-                        value: Math.max(0, forecastValue),
+                        period: `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`,
+                        value: Math.max(0, Math.round(forecastValue)),
                         type: 'forecast'
                     });
                 }
 
                 setForecastData({
-                    historical: historical.map((h, idx) => ({
-                        period: new Date(h.period_value).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }),
-                        value: parseFloat(h.value),
+                    historical: historicalData.map(h => ({
+                        period: h.period,
+                        value: h.value,
                         type: 'historical'
                     })),
                     forecast
+                });
+            } else {
+                toast({
+                    variant: 'default',
+                    title: 'Bilgi',
+                    description: 'Tahmin için yeterli veri bulunamadı.'
                 });
             }
         } catch (error) {
@@ -60,7 +131,7 @@ const ForecastAnalysis = () => {
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Tahmin oluşturulurken hata oluştu.'
+                description: 'Tahmin oluşturulurken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
         } finally {
             setLoading(false);

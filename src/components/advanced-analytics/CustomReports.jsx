@@ -17,20 +17,33 @@ const CustomReports = () => {
     const loadReports = async () => {
         setLoading(true);
         try {
+            // Özel raporlar tablosu yoksa boş liste döndür
             const { data, error } = await supabase
                 .from('quality_analytics_reports')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                // Tablo yoksa sessizce boş liste döndür
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    setReports([]);
+                    return;
+                }
+                throw error;
+            }
             setReports(data || []);
         } catch (error) {
             console.error('Reports loading error:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Hata',
-                description: 'Raporlar yüklenirken hata oluştu.'
-            });
+            // Tablo yoksa hata gösterme, sadece boş liste göster
+            if (error.code === '42P01' || error.message.includes('does not exist')) {
+                setReports([]);
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Raporlar yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
+                });
+            }
         } finally {
             setLoading(false);
         }

@@ -26,9 +26,9 @@ const ProcessValidationModule = () => {
                 .from('validation_plans')
                 .select(`
                     *,
-                    equipment:equipment_id(equipment_name, equipment_code),
-                    responsible_person:responsible_person_id(full_name),
-                    responsible_department:responsible_department_id(unit_name)
+                    equipments!equipment_id(id, name, serial_number),
+                    personnel!responsible_person_id(id, full_name),
+                    cost_settings!responsible_department_id(id, unit_name)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -52,9 +52,9 @@ const ProcessValidationModule = () => {
 
     const stats = useMemo(() => {
         const total = plans.length;
-        const inProgress = plans.filter(p => p.status === 'In Progress').length;
-        const completed = plans.filter(p => p.status === 'Completed').length;
-        const planned = plans.filter(p => p.status === 'Planned').length;
+        const inProgress = plans.filter(p => p.status === 'Devam Eden').length;
+        const completed = plans.filter(p => p.status === 'Tamamlanan').length;
+        const planned = plans.filter(p => p.status === 'Planlanan').length;
 
         return { total, inProgress, completed, planned };
     }, [plans]);

@@ -10,8 +10,18 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useData } from '@/contexts/DataContext';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 
-const VALIDATION_TYPES = ['Initial', 'Periodic', 'After Change'];
-const VALIDATION_STATUSES = ['Planned', 'In Progress', 'Completed', 'Failed', 'Cancelled'];
+const VALIDATION_TYPES = [
+    { value: 'İlk', label: 'İlk Validasyon' },
+    { value: 'Periyodik', label: 'Periyodik Validasyon' },
+    { value: 'Değişiklik Sonrası', label: 'Değişiklik Sonrası Validasyon' }
+];
+const VALIDATION_STATUSES = [
+    { value: 'Planlanan', label: 'Planlanan' },
+    { value: 'Devam Eden', label: 'Devam Eden' },
+    { value: 'Tamamlanan', label: 'Tamamlanan' },
+    { value: 'Başarısız', label: 'Başarısız' },
+    { value: 'İptal Edildi', label: 'İptal Edildi' }
+];
 
 const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => {
     const { toast } = useToast();
@@ -23,11 +33,11 @@ const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => 
         equipment_id: null,
         part_number: '',
         part_name: '',
-        validation_type: 'Initial',
+        validation_type: 'İlk',
         change_reason: '',
         planned_start_date: '',
         planned_end_date: '',
-        status: 'Planned',
+        status: 'Planlanan',
         responsible_person_id: null,
         responsible_department_id: null
     });
@@ -50,11 +60,11 @@ const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => 
                 equipment_id: null,
                 part_number: '',
                 part_name: '',
-                validation_type: 'Initial',
+                validation_type: 'İlk',
                 change_reason: '',
                 planned_start_date: '',
                 planned_end_date: '',
-                status: 'Planned',
+                status: 'Planlanan',
                 responsible_person_id: null,
                 responsible_department_id: null
             });
@@ -110,7 +120,7 @@ const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => 
 
     const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
     const departmentOptions = unitCostSettings.map(u => ({ value: u.id, label: u.unit_name }));
-    const equipmentOptions = equipments.map(e => ({ value: e.id, label: `${e.equipment_name} (${e.equipment_code})` }));
+    const equipmentOptions = equipments?.map(e => ({ value: e.id, label: `${e.name || e.equipment_name} (${e.serial_number || e.equipment_code || ''})` })) || [];
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -152,7 +162,7 @@ const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => 
                                     </SelectTrigger>
                                     <SelectContent>
                                         {VALIDATION_TYPES.map(type => (
-                                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                                            <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -168,7 +178,7 @@ const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => 
                                     </SelectTrigger>
                                     <SelectContent>
                                         {VALIDATION_STATUSES.map(status => (
-                                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                                            <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -224,7 +234,7 @@ const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => 
                                     onChange={(e) => setFormData({ ...formData, planned_end_date: e.target.value })}
                                 />
                             </div>
-                            {formData.validation_type === 'After Change' && (
+                            {formData.validation_type === 'Değişiklik Sonrası' && (
                                 <div className="md:col-span-2">
                                     <Label htmlFor="change_reason">Değişiklik Nedeni</Label>
                                     <Textarea

@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import ValidationPlanFormModal from './ValidationPlanFormModal';
 
 const STATUS_COLORS = {
-    'Planned': 'default',
-    'In Progress': 'warning',
-    'Completed': 'success',
-    'Failed': 'destructive',
-    'Cancelled': 'secondary'
+    'Planlanan': 'default',
+    'Devam Eden': 'warning',
+    'Tamamlanan': 'success',
+    'Başarısız': 'destructive',
+    'İptal Edildi': 'secondary'
 };
 
 const ValidationPlansList = ({ plans, loading, onRefresh }) => {
@@ -87,10 +87,10 @@ const ValidationPlansList = ({ plans, loading, onRefresh }) => {
                                             <span className="font-medium">{plan.process_name}</span>
                                         </div>
                                     )}
-                                    {plan.equipment && (
+                                    {plan.equipments && (
                                         <div>
                                             <span className="text-muted-foreground">Ekipman: </span>
-                                            <span className="font-medium">{plan.equipment.equipment_name}</span>
+                                            <span className="font-medium">{plan.equipments.name}</span>
                                         </div>
                                     )}
                                     <div>
