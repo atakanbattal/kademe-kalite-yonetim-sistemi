@@ -119,6 +119,10 @@ import React, { useState, useEffect, useCallback } from 'react';
         analysis_fishbone: { man: '', machine: '', method: '', material: '', environment: '', measurement: '' },
         solution_description: '',
         start_date: null, end_date: null, team_members: [],
+        cost_benefit_score: 5, // 1-10 arası
+        difficulty_score: 5, // 1-10 arası (tersine - kolay = 10, zor = 1)
+        employee_participation_score: 5, // 1-10 arası
+        kaizen_score: 0, // Otomatik hesaplanacak
     });
 
     const KaizenFormModal = ({ isOpen, setIsOpen, onSuccess, existingKaizen, kaizenType, personnel, units, suppliers }) => {
@@ -145,6 +149,17 @@ import React, { useState, useEffect, useCallback } from 'react';
             const totalYearlyGain = totalMonthlyGain * 12;
 
             return { total_monthly_gain: totalMonthlyGain, total_yearly_gain: totalYearlyGain };
+        }, []);
+
+        const calculateKaizenScore = useCallback((data) => {
+            const costBenefit = parseFloat(data.cost_benefit_score) || 5;
+            const difficulty = parseFloat(data.difficulty_score) || 5; // Tersine: kolay = 10, zor = 1
+            const participation = parseFloat(data.employee_participation_score) || 5;
+            
+            // Skor = (Maliyet Faydası × 0.4) + (Zorluk Derecesi × 0.3) + (Çalışan Katılımı × 0.3)
+            const score = (costBenefit * 0.4) + (difficulty * 0.3) + (participation * 0.3);
+            
+            return Math.round(score * 10) / 10; // 1 ondalık basamak
         }, []);
 
         const normalizeMultiSelect = (value) => {
@@ -195,6 +210,14 @@ import React, { useState, useEffect, useCallback } from 'react';
                 setAttachmentsAfter([]);
             }
         }, [existingKaizen, isEditMode, isOpen, kaizenType, calculateGains]);
+
+        // Skor değişikliklerini izle ve otomatik hesapla
+        useEffect(() => {
+            const score = calculateKaizenScore(formData);
+            if (Math.abs(score - (formData.kaizen_score || 0)) > 0.01) {
+                setFormData(prev => ({ ...prev, kaizen_score: score }));
+            }
+        }, [formData.cost_benefit_score, formData.difficulty_score, formData.employee_participation_score, calculateKaizenScore]);
 
         const updateFormData = useCallback((newData) => {
             const gains = calculateGains(newData);
@@ -258,7 +281,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                 
                 const numericFields = ['part_cost', 'monthly_production_quantity', 'defective_parts_before', 'defective_parts_after', 'labor_time_saving_minutes', 'minute_cost', 'total_monthly_gain', 'total_yearly_gain', 'energy_saving', 'other_saving', 'roi'];
 
-                const dataToSubmit = { ...rest };
+                const dataToSubmit = { ...rest, kaizen_score: kaizenScore };
                 numericFields.forEach(field => {
                     if (dataToSubmit[field] === '' || dataToSubmit[field] === null || dataToSubmit[field] === undefined) {
                         dataToSubmit[field] = 0;
@@ -409,6 +432,78 @@ import React, { useState, useEffect, useCallback } from 'react';
                                         <div><Label>Hatalı Parça Adedi (Sonra)</Label><Input id="defective_parts_after" type="number" value={formData.defective_parts_after ?? ''} onChange={handleChange} /></div>
                                         <div><Label>İşçilik Tasarrufu (dk/adet)</Label><Input id="labor_time_saving_minutes" type="number" step="0.01" value={formData.labor_time_saving_minutes ?? ''} onChange={handleChange} /></div>
                                         <div><Label>Dakika Maliyeti (₺)</Label><Input id="minute_cost" type="number" step="0.01" value={formData.minute_cost ?? ''} onChange={handleChange} disabled /></div>
+                                        </div>
+                                        
+                                        {/* Kaizen Skor Sistemi */}
+                                        <div className="md:col-span-4 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border-2 border-primary/20">
+                                            <h4 className="font-semibold text-primary mb-4 flex items-center gap-2">
+                                                <BrainCircuit className="h-5 w-5" />
+                                                Kaizen Skor Sistemi
+                                            </h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                <div>
+                                                    <Label htmlFor="cost_benefit_score">
+                                                        Maliyet Faydası (1-10) <span className="text-red-500">*</span>
+                                                    </Label>
+                                                    <Input
+                                                        id="cost_benefit_score"
+                                                        type="number"
+                                                        min="1"
+                                                        max="10"
+                                                        value={formData.cost_benefit_score ?? 5}
+                                                        onChange={handleChange}
+                                                        className="mt-1"
+                                                    />
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        Ağırlık: %40
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="difficulty_score">
+                                                        Zorluk Derecesi (1-10) <span className="text-red-500">*</span>
+                                                    </Label>
+                                                    <Input
+                                                        id="difficulty_score"
+                                                        type="number"
+                                                        min="1"
+                                                        max="10"
+                                                        value={formData.difficulty_score ?? 5}
+                                                        onChange={handleChange}
+                                                        className="mt-1"
+                                                    />
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        Kolay=10, Zor=1 (Ağırlık: %30)
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="employee_participation_score">
+                                                        Çalışan Katılımı (1-10) <span className="text-red-500">*</span>
+                                                    </Label>
+                                                    <Input
+                                                        id="employee_participation_score"
+                                                        type="number"
+                                                        min="1"
+                                                        max="10"
+                                                        value={formData.employee_participation_score ?? 5}
+                                                        onChange={handleChange}
+                                                        className="mt-1"
+                                                    />
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        Ağırlık: %30
+                                                    </p>
+                                                </div>
+                                                <div className="p-3 bg-primary/10 rounded-lg">
+                                                    <Label className="text-sm text-muted-foreground">Kaizen Skoru</Label>
+                                                    <p className="text-2xl font-bold text-primary mt-1">
+                                                        {formData.kaizen_score?.toFixed(1) || '0.0'} / 10
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        Otomatik hesaplanır
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
                                         <div className="p-2 bg-green-50 rounded-lg md:col-span-1">
                                             <Label className="text-green-800">Aylık Kazanç</Label>
                                             <p className="font-bold text-lg text-green-700">{(formData.total_monthly_gain || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</p>
