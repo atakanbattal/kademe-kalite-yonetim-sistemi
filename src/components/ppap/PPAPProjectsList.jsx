@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Eye, Trash2 } from 'lucide-react';
+import { Plus, Edit, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/lib/customSupabaseClient';
-import { useToast } from '@/components/ui/use-toast';
 import PPAPProjectFormModal from './PPAPProjectFormModal';
 
 const STATUS_COLORS = {
@@ -18,7 +16,6 @@ const STATUS_COLORS = {
 };
 
 const PPAPProjectsList = ({ projects, loading, onRefresh }) => {
-    const { toast } = useToast();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
 
@@ -86,10 +83,10 @@ const PPAPProjectsList = ({ projects, loading, onRefresh }) => {
                                 </div>
 
                                 <div className="space-y-2 text-sm">
-                                    {project.customers && (
+                                    {project.customer && (
                                         <div>
                                             <span className="text-muted-foreground">Müşteri: </span>
-                                            <span className="font-medium">{project.customers.customer_name}</span>
+                                            <span className="font-medium">{project.customer.customer_name}</span>
                                         </div>
                                     )}
                                     {project.part_name && (
@@ -98,10 +95,10 @@ const PPAPProjectsList = ({ projects, loading, onRefresh }) => {
                                             <span className="font-medium">{project.part_name}</span>
                                         </div>
                                     )}
-                                    {project.personnel && (
+                                    {project.project_manager && (
                                         <div>
                                             <span className="text-muted-foreground">Proje Yöneticisi: </span>
-                                            <span className="font-medium">{project.personnel.full_name}</span>
+                                            <span className="font-medium">{project.project_manager.full_name}</span>
                                         </div>
                                     )}
                                     {project.target_completion_date && (
@@ -123,35 +120,6 @@ const PPAPProjectsList = ({ projects, loading, onRefresh }) => {
                                     >
                                         <Edit className="w-4 h-4 mr-1" />
                                         Düzenle
-                                    </Button>
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={async () => {
-                                            if (confirm('Bu PPAP projesini silmek istediğinize emin misiniz?')) {
-                                                try {
-                                                    const { error } = await supabase
-                                                        .from('apqp_projects')
-                                                        .delete()
-                                                        .eq('id', project.id);
-                                                    if (error) throw error;
-                                                    toast({
-                                                        title: 'Başarılı',
-                                                        description: 'PPAP projesi silindi.'
-                                                    });
-                                                    onRefresh();
-                                                } catch (error) {
-                                                    toast({
-                                                        variant: 'destructive',
-                                                        title: 'Hata',
-                                                        description: error.message || 'Silme işlemi başarısız.'
-                                                    });
-                                                }
-                                            }
-                                        }}
-                                    >
-                                        <Trash2 className="w-4 h-4 mr-1" />
-                                        Sil
                                     </Button>
                                 </div>
                             </CardContent>

@@ -30,23 +30,12 @@ const SPCModule = () => {
                 .from('spc_characteristics')
                 .select(`
                     *,
-                    personnel!responsible_person_id(id, full_name),
-                    cost_settings!responsible_department_id(id, unit_name)
+                    responsible_person:responsible_person_id(full_name),
+                    responsible_department:responsible_department_id(unit_name)
                 `)
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Tablo Bulunamadı',
-                        description: 'spc_characteristics tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-spc-module.sql script\'ini çalıştırın.'
-                    });
-                    setCharacteristics([]);
-                    return;
-                }
-                throw error;
-            }
+            if (error) throw error;
             setCharacteristics(data || []);
         } catch (error) {
             console.error('SPC karakteristikleri yüklenirken hata:', error);
@@ -194,3 +183,4 @@ const SPCModule = () => {
 };
 
 export default SPCModule;
+

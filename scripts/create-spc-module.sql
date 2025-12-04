@@ -313,7 +313,7 @@ RETURNS TABLE (
     pp DECIMAL,
     ppk DECIMAL,
     mean_val DECIMAL,
-    std_deviation DECIMAL,
+    std_dev DECIMAL,
     sigma_level DECIMAL
 ) AS $$
 DECLARE
@@ -371,3 +371,4 @@ BEGIN
     RETURN QUERY SELECT v_cp, v_cpk, v_pp, v_ppk, v_mean, v_std_dev, v_sigma;
 END;
 $$ LANGUAGE plpgsql;
+

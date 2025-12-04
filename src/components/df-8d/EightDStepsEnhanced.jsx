@@ -8,11 +8,25 @@ import { CheckCircle2, Lock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EvidenceUploader from './EvidenceUploader';
 
-const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false, ncId = null }) => {
+const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false, ncId = null, progress = null, onProgressChange = null }) => {
     const [expandedSteps, setExpandedSteps] = useState(new Set(['D1'])); // İlk adım açık
+
+    // eight_d_progress kullanılıyorsa onu kullan, yoksa eight_d_steps'ten dönüştür
+    const currentProgress = progress || (steps ? Object.keys(steps).reduce((acc, key) => {
+        const step = steps[key];
+        acc[key] = {
+            completed: step.completed || !!(step.responsible && step.completionDate && step.description),
+            responsible: step.responsible || null,
+            completionDate: step.completionDate || null,
+            description: step.description || null,
+            evidenceFiles: step.evidenceFiles || []
+        };
+        return acc;
+    }, {}) : {});
 
     // Adım tamamlanma kontrolü
     const isStepCompleted = (stepKey, step) => {
+        if (!step) return false;
         // JSONB formatından gelen veriler için kontrol
         if (step.completed !== undefined) {
             return step.completed === true && !!(step.responsible && step.completionDate && step.description);
@@ -29,7 +43,7 @@ const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false, ncId = 
         if (currentIndex === 0) return true; // İlk adım her zaman erişilebilir
         
         const previousStepKey = stepOrder[currentIndex - 1];
-        const previousStep = steps[previousStepKey];
+        const previousStep = currentProgress[previousStepKey];
         
         return isStepCompleted(previousStepKey, previousStep);
     };
@@ -41,7 +55,7 @@ const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false, ncId = 
     };
 
     const handleStepChange = (stepKey, field, value) => {
-        const currentStep = steps[stepKey] || {};
+        const currentStep = currentProgress[stepKey] || {};
         const newStep = {
             ...currentStep,
             [field]: value,
@@ -56,10 +70,24 @@ const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false, ncId = 
             }
         }
         
-        const newSteps = {
-            ...steps,
+        const newProgress = {
+            ...currentProgress,
             [stepKey]: newStep,
         };
+        
+        // Hem progress hem de steps'i güncelle (geriye dönük uyumluluk için)
+        if (onProgressChange) {
+            onProgressChange(newProgress);
+        }
+        
+        // Steps formatına da dönüştür (geriye dönük uyumluluk)
+        const newSteps = Object.keys(newProgress).reduce((acc, key) => {
+            acc[key] = {
+                title: steps?.[key]?.title || getDefaultTitle(key),
+                ...newProgress[key]
+            };
+            return acc;
+        }, {});
         onStepsChange(newSteps);
     };
 
@@ -80,7 +108,8 @@ const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false, ncId = 
     return (
         <div className="space-y-4 p-1">
             {stepOrder.map((key, index) => {
-                const step = steps[key] || {};
+                const step = currentProgress[key] || {};
+                const stepTitle = steps?.[key]?.title || getDefaultTitle(key);
                 const completed = isStepCompleted(key, step);
                 const accessible = isStepAccessible(key);
                 const isExpanded = expandedSteps.has(key);
@@ -112,7 +141,7 @@ const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false, ncId = 
                                     </div>
                                     <div>
                                         <CardTitle className="text-md text-primary flex items-center gap-2">
-                                            {key}: {step.title || getDefaultTitle(key)}
+                                            {key}: {stepTitle}
                                             {isLocked && <Lock className="w-4 h-4 text-gray-400" />}
                                         </CardTitle>
                                         {!accessible && isEditMode && (

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileCheck, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { BarChart3, TrendingUp, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const ProcessValidationModule = () => {
+const AdvancedQualityAnalysisModule = () => {
     return (
         <motion.div 
             initial={{ opacity: 0, y: 20 }} 
@@ -12,16 +12,16 @@ const ProcessValidationModule = () => {
         >
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold">Proses Validasyonu</h1>
+                    <h1 className="text-3xl font-bold">Gelişmiş Kalite Veri Analizi</h1>
                     <p className="text-muted-foreground mt-2">
-                        IQ/OQ/PQ protokolleri ve validasyon planları yönetimi
+                        Özel rapor builder, gelişmiş görselleştirme ve tahminleme modelleri
                     </p>
                 </div>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Proses Validasyonu Modülü</CardTitle>
+                    <CardTitle>Gelişmiş Kalite Veri Analizi Modülü</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground">
@@ -33,5 +33,5 @@ const ProcessValidationModule = () => {
     );
 };
 
-export default ProcessValidationModule;
+export default AdvancedQualityAnalysisModule;
 

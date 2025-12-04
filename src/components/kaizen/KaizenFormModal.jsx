@@ -326,7 +326,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                 
                 const numericFields = ['part_cost', 'monthly_production_quantity', 'defective_parts_before', 'defective_parts_after', 'labor_time_saving_minutes', 'minute_cost', 'total_monthly_gain', 'total_yearly_gain', 'energy_saving', 'other_saving', 'roi'];
 
-                const dataToSubmit = { ...rest, kaizen_score: kaizenScore };
+                const dataToSubmit = { ...rest, kaizen_score: formData.kaizen_score || calculateKaizenScore(formData) };
                 numericFields.forEach(field => {
                     if (dataToSubmit[field] === '' || dataToSubmit[field] === null || dataToSubmit[field] === undefined) {
                         dataToSubmit[field] = 0;

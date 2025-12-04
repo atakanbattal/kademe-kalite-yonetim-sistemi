@@ -108,7 +108,9 @@ import React, { useState, useEffect } from 'react';
                                     <TabsContent value="8d_steps" className="mt-4">
                                         <EightDStepsEnhanced 
                                             steps={formData.eight_d_steps || {}} 
+                                            progress={formData.eight_d_progress || null}
                                             onStepsChange={(steps) => setFormData(prev => ({...prev, eight_d_steps: steps}))}
+                                            onProgressChange={(progress) => setFormData(prev => ({...prev, eight_d_progress: progress}))}
                                             isEditMode={isEditMode}
                                             ncId={formData.id || null}
                                         />

@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Eye, Trash2 } from 'lucide-react';
+import { Plus, Edit, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/lib/customSupabaseClient';
-import { useToast } from '@/components/ui/use-toast';
 import FMEAProjectFormModal from './FMEAProjectFormModal';
 
 const STATUS_COLORS = {
@@ -21,7 +19,6 @@ const TYPE_COLORS = {
 };
 
 const FMEAProjectsList = ({ projects, loading, onRefresh, onSelectProject }) => {
-    const { toast } = useToast();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
 
@@ -112,10 +109,10 @@ const FMEAProjectsList = ({ projects, loading, onRefresh, onSelectProject }) => 
                                             <span className="font-medium">{project.process_name}</span>
                                         </div>
                                     )}
-                                    {project.personnel && (
+                                    {project.team_leader && (
                                         <div>
                                             <span className="text-muted-foreground">Takım Lideri: </span>
-                                            <span className="font-medium">{project.personnel.full_name}</span>
+                                            <span className="font-medium">{project.team_leader.full_name}</span>
                                         </div>
                                     )}
                                     <div>
@@ -148,36 +145,6 @@ const FMEAProjectsList = ({ projects, loading, onRefresh, onSelectProject }) => 
                                     >
                                         <Eye className="w-4 h-4 mr-1" />
                                         Görüntüle
-                                    </Button>
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            if (confirm('Bu FMEA projesini silmek istediğinize emin misiniz?')) {
-                                                try {
-                                                    const { error } = await supabase
-                                                        .from('fmea_projects')
-                                                        .delete()
-                                                        .eq('id', project.id);
-                                                    if (error) throw error;
-                                                    toast({
-                                                        title: 'Başarılı',
-                                                        description: 'FMEA projesi silindi.'
-                                                    });
-                                                    onRefresh();
-                                                } catch (error) {
-                                                    toast({
-                                                        variant: 'destructive',
-                                                        title: 'Hata',
-                                                        description: error.message || 'Silme işlemi başarısız.'
-                                                    });
-                                                }
-                                            }
-                                        }}
-                                    >
-                                        <Trash2 className="w-4 h-4 mr-1" />
-                                        Sil
                                     </Button>
                                 </div>
                             </CardContent>

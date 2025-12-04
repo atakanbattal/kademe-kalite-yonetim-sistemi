@@ -25,24 +25,13 @@ const FMEAModule = () => {
                 .from('fmea_projects')
                 .select(`
                     *,
-                    customers!customer_id(customer_name, customer_code),
-                    personnel!team_leader_id(id, full_name),
-                    cost_settings!responsible_department_id(id, unit_name)
+                    customer:customer_id(customer_name, customer_code),
+                    team_leader:team_leader_id(full_name),
+                    responsible_department:responsible_department_id(unit_name)
                 `)
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Tablo Bulunamadı',
-                        description: 'fmea_projects tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-fmea-module.sql script\'ini çalıştırın.'
-                    });
-                    setProjects([]);
-                    return;
-                }
-                throw error;
-            }
+            if (error) throw error;
             setProjects(data || []);
         } catch (error) {
             console.error('FMEA projeleri yüklenirken hata:', error);

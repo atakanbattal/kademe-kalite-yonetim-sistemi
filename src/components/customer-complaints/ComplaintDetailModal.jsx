@@ -334,6 +334,86 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                         </CardContent>
                                     </Card>
 
+                                    {/* SLA Bilgileri */}
+                                    {complaintData.sla_status && (
+                                        <Card className="border-l-4 border-l-primary">
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2 text-lg">
+                                                    <Clock className="w-5 h-5" />
+                                                    SLA Takibi
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-3">
+                                                <div>
+                                                    <div className="text-sm font-medium text-muted-foreground">
+                                                        SLA Durumu
+                                                    </div>
+                                                    <Badge 
+                                                        variant={
+                                                            complaintData.sla_status === 'Overdue' ? 'destructive' :
+                                                            complaintData.sla_status === 'At Risk' ? 'warning' :
+                                                            'default'
+                                                        }
+                                                        className="mt-1"
+                                                    >
+                                                        {complaintData.sla_status === 'Overdue' ? 'Gecikmiş' :
+                                                         complaintData.sla_status === 'At Risk' ? 'Risk Altında' :
+                                                         complaintData.sla_status === 'On Time' ? 'Zamanında' :
+                                                         'Beklemede'}
+                                                    </Badge>
+                                                </div>
+                                                {complaintData.sla_first_response_hours && (
+                                                    <div>
+                                                        <div className="text-sm font-medium text-muted-foreground">
+                                                            İlk Yanıt SLA
+                                                        </div>
+                                                        <div className="text-sm">
+                                                            {complaintData.sla_first_response_hours} saat
+                                                            {complaintData.first_response_hours && (
+                                                                <span className={`ml-2 ${
+                                                                    complaintData.first_response_hours > complaintData.sla_first_response_hours 
+                                                                        ? 'text-red-600 font-semibold' 
+                                                                        : 'text-green-600'
+                                                                }`}>
+                                                                    (Gerçekleşen: {complaintData.first_response_hours.toFixed(1)} saat)
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {complaintData.sla_resolution_hours && (
+                                                    <div>
+                                                        <div className="text-sm font-medium text-muted-foreground">
+                                                            Çözüm SLA
+                                                        </div>
+                                                        <div className="text-sm">
+                                                            {complaintData.sla_resolution_hours} saat
+                                                            {complaintData.resolution_hours && (
+                                                                <span className={`ml-2 ${
+                                                                    complaintData.resolution_hours > complaintData.sla_resolution_hours 
+                                                                        ? 'text-red-600 font-semibold' 
+                                                                        : 'text-green-600'
+                                                                }`}>
+                                                                    (Gerçekleşen: {complaintData.resolution_hours.toFixed(1)} saat)
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {complaintData.first_response_date && (
+                                                    <div>
+                                                        <div className="text-sm font-medium text-muted-foreground">
+                                                            İlk Yanıt Tarihi
+                                                        </div>
+                                                        <div className="text-sm">
+                                                            {new Date(complaintData.first_response_date).toLocaleDateString('tr-TR')}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    )}
+
                                     {/* Şikayet Detayları */}
                                     <Card>
                                         <CardHeader>

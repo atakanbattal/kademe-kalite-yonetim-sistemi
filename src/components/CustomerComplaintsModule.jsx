@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ComplaintFormModal from '@/components/customer-complaints/ComplaintFormModal';
 import ComplaintDetailModal from '@/components/customer-complaints/ComplaintDetailModal';
 import ComplaintAnalytics from '@/components/customer-complaints/ComplaintAnalytics';
+import ComplaintSLADashboard from '@/components/customer-complaints/ComplaintSLADashboard';
 
 const SEVERITY_COLORS = {
     'Kritik': 'destructive',
@@ -475,10 +476,14 @@ const CustomerComplaintsModule = () => {
 
             {/* Tab Menüsü */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="list">
                         <FileText className="w-4 h-4 mr-2" />
                         Şikayet Listesi
+                    </TabsTrigger>
+                    <TabsTrigger value="sla">
+                        <Clock className="w-4 h-4 mr-2" />
+                        SLA Takibi
                     </TabsTrigger>
                     <TabsTrigger value="analytics">
                         <BarChart3 className="w-4 h-4 mr-2" />
@@ -511,6 +516,10 @@ const CustomerComplaintsModule = () => {
                         filterSeverity={filterSeverity}
                         filterCustomer={filterCustomer}
                     />
+                </TabsContent>
+
+                <TabsContent value="sla" className="mt-6">
+                    <ComplaintSLADashboard complaints={customerComplaints} />
                 </TabsContent>
 
                 <TabsContent value="analytics" className="mt-6">

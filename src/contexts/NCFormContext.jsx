@@ -235,6 +235,16 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 mdi_no: '',
                 user_id: user?.id || '',
                 eight_d_steps: defaultEightDSteps,
+                eight_d_progress: Object.keys(defaultEightDSteps).reduce((acc, key) => {
+                    acc[key] = {
+                        completed: false,
+                        responsible: null,
+                        completionDate: null,
+                        description: null,
+                        evidenceFiles: []
+                    };
+                    return acc;
+                }, {}),
                 attachments: [],
                 part_name: '',
                 part_code: '',
@@ -275,6 +285,22 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 const openingDateValue = initialRecord.df_opened_at || initialRecord.opening_date || initialRecord.created_at;
                 const dueDateValue = initialRecord.due_at || initialRecord.due_date;
 
+                // eight_d_progress'i yükle veya eight_d_steps'ten oluştur
+                let eightDProgress = initialRecord.eight_d_progress;
+                if (!eightDProgress && mergedEightD) {
+                    eightDProgress = Object.keys(mergedEightD).reduce((acc, key) => {
+                        const step = mergedEightD[key];
+                        acc[key] = {
+                            completed: step.completed || !!(step.responsible && step.completionDate && step.description),
+                            responsible: step.responsible || null,
+                            completionDate: step.completionDate || null,
+                            description: step.description || null,
+                            evidenceFiles: step.evidenceFiles || []
+                        };
+                        return acc;
+                    }, {});
+                }
+
                 finalData = {
                     ...mergedRecord,
                     type: initialRecord.type || 'DF',
@@ -283,6 +309,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                     due_date: toISODateString(safeParseDate(dueDateValue)),
                     due_at: safeParseDate(dueDateValue).toISOString(),
                     eight_d_steps: mergedEightD,
+                    eight_d_progress: eightDProgress,
                     attachments: initialRecord.attachments || [],
                 };
                 delete finalData.source;

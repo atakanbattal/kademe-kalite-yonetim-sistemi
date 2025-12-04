@@ -16,6 +16,8 @@ import React, { useState, useMemo, useCallback } from 'react';
     import COPQCalculator from '@/components/quality-cost/COPQCalculator';
     import PartCostLeaders from '@/components/quality-cost/PartCostLeaders';
     import CostAnomalyDetector from '@/components/quality-cost/CostAnomalyDetector';
+    import CostTrendAnalysis from '@/components/quality-cost/CostTrendAnalysis';
+    import UnitCostDistribution from '@/components/quality-cost/UnitCostDistribution';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -328,10 +330,12 @@ import React, { useState, useMemo, useCallback } from 'react';
                             producedVehicles={producedVehicles}
                             loading={loading} 
                         />
+                        <CostTrendAnalysis costs={filteredCosts} />
                         <PartCostLeaders 
                             costs={filteredCosts}
                             onPartClick={(part) => handleOpenDetailModal(`Parça: ${part.partCode}`, part.costs)}
                         />
+                        <UnitCostDistribution costs={filteredCosts} />
                         <CostAnomalyDetector 
                             costs={filteredCosts}
                             onAnomalyClick={(anomaly) => {

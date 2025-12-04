@@ -36,6 +36,13 @@ const KaizenDashboard = ({ data, loading }) => {
     const approvedKaizens = data.filter(k => ['Onaylandı', 'Uygulamada', 'Standartlaştırıldı', 'Kapandı'].includes(k.status)).length;
     const inProgressKaizens = data.filter(k => k.status === 'Uygulamada').length;
     const totalYearlyGain = data.reduce((acc, k) => acc + (k.total_yearly_gain || 0), 0);
+    const avgKaizenScore = data.length > 0 
+        ? (data.reduce((acc, k) => acc + (k.kaizen_score || 0), 0) / data.length).toFixed(1)
+        : 0;
+    const topScoredKaizens = [...data]
+        .filter(k => k.kaizen_score && k.kaizen_score > 0)
+        .sort((a, b) => (b.kaizen_score || 0) - (a.kaizen_score || 0))
+        .slice(0, 5);
 
     const byDepartment = data.reduce((acc, k) => {
         const dept = k.department?.unit_name || 'Belirtilmemiş';
@@ -69,11 +76,12 @@ const KaizenDashboard = ({ data, loading }) => {
             initial="hidden"
             animate="visible"
         >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <motion.div variants={itemVariants}><StatCard icon={Zap} title="Toplam Kaizen" value={totalKaizens} loading={loading} /></motion.div>
                 <motion.div variants={itemVariants}><StatCard icon={CheckCircle} title="Onaylanan" value={approvedKaizens} loading={loading} color="text-green-500" /></motion.div>
                 <motion.div variants={itemVariants}><StatCard icon={TrendingUp} title="Uygulamada" value={inProgressKaizens} loading={loading} color="text-orange-500" /></motion.div>
                 <motion.div variants={itemVariants}><StatCard icon={DollarSign} title="Yıllık Kazanç" value={totalYearlyGain.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })} loading={loading} color="text-blue-500" /></motion.div>
+                <motion.div variants={itemVariants}><StatCard icon={TrendingUp} title="Ort. Kaizen Skoru" value={`${avgKaizenScore}/10`} loading={loading} color="text-purple-500" /></motion.div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

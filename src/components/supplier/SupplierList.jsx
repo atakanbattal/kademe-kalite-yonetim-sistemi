@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
     import { motion } from 'framer-motion';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { Badge } from '@/components/ui/badge';
     import { Button } from '@/components/ui/button';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-    import { MoreHorizontal, Edit, BarChart3, AlertTriangle, Users, FileText, CalendarCheck, Trash2, Star, Shield, Eye as EyeIcon, AlertOctagon, Link, PlusCircle } from 'lucide-react';
+    import { MoreHorizontal, Edit, BarChart3, AlertTriangle, Users, FileText, CalendarCheck, Trash2, Star, Shield, Eye as EyeIcon, AlertOctagon, Link, PlusCircle, TrendingUp, TrendingDown } from 'lucide-react';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
     import SupplierAuditPlanModal from '@/components/supplier/SupplierAuditPlanModal';
@@ -31,6 +31,8 @@ import React, { useState } from 'react';
         const [selectedPlan, setSelectedPlan] = useState(null);
         
         const [selectedSupplier, setSelectedSupplier] = useState(null);
+        const [supplierMetrics, setSupplierMetrics] = useState({});
+        const currentYear = new Date().getFullYear();
 
         const handleAction = (action, supplier, plan = null) => {
             setSelectedSupplier(supplier);
@@ -85,6 +87,45 @@ import React, { useState } from 'react';
             onEdit(alternativeData, true); // Pass a flag to indicate it's a new alternative
         };
 
+        // PPM ve OTD verilerini yükle
+        useEffect(() => {
+            const loadSupplierMetrics = async () => {
+                const metrics = {};
+                for (const supplier of suppliers) {
+                    try {
+                        // PPM verisi
+                        const { data: ppmData } = await supabase
+                            .from('supplier_ppm_data')
+                            .select('ppm_value')
+                            .eq('supplier_id', supplier.id)
+                            .eq('year', currentYear)
+                            .is('month', null)
+                            .single();
+                        
+                        // OTD verisi
+                        const { data: otdData } = await supabase.rpc('calculate_supplier_otd', {
+                            p_supplier_id: supplier.id,
+                            p_year: currentYear,
+                            p_month: null
+                        });
+
+                        metrics[supplier.id] = {
+                            ppm: ppmData?.ppm_value || null,
+                            otd: otdData || null
+                        };
+                    } catch (error) {
+                        console.error(`Metrics load error for supplier ${supplier.id}:`, error);
+                        metrics[supplier.id] = { ppm: null, otd: null };
+                    }
+                }
+                setSupplierMetrics(metrics);
+            };
+
+            if (suppliers.length > 0) {
+                loadSupplierMetrics();
+            }
+        }, [suppliers, currentYear]);
+
         if (suppliers.length === 0) {
             return <div className="text-center py-10 text-muted-foreground">Filtre kriterlerine uygun tedarikçi bulunamadı.</div>;
         }
@@ -126,6 +167,8 @@ import React, { useState } from 'react';
                                 <th>Tedarikçi</th>
                                 <th>Ürün Grubu</th>
                                 <th>Puan / Sınıf</th>
+                                <th>PPM</th>
+                                <th>OTD%</th>
                                 <th>İlişki</th>
                                 <th>Yaklaşan Denetim</th>
                                 <th>Durum</th>
@@ -146,6 +189,23 @@ import React, { useState } from 'react';
                                     .sort((a,b) => new Date(a.planned_date) - new Date(b.planned_date))[0];
                                 
                                 const alternatives = allSuppliers.filter(s => s.alternative_to_supplier_id === supplier.id);
+                                const metrics = supplierMetrics[supplier.id] || { ppm: null, otd: null };
+                                
+                                const getPPMBadge = (ppm) => {
+                                    if (ppm === null || ppm === undefined) return <span className="text-xs text-muted-foreground">-</span>;
+                                    if (ppm < 100) return <Badge className="bg-green-500 text-white">{ppm.toFixed(0)}</Badge>;
+                                    if (ppm < 500) return <Badge className="bg-blue-500 text-white">{ppm.toFixed(0)}</Badge>;
+                                    if (ppm < 1000) return <Badge className="bg-yellow-500 text-white">{ppm.toFixed(0)}</Badge>;
+                                    return <Badge variant="destructive">{ppm.toFixed(0)}</Badge>;
+                                };
+
+                                const getOTDBadge = (otd) => {
+                                    if (otd === null || otd === undefined) return <span className="text-xs text-muted-foreground">-</span>;
+                                    if (otd >= 95) return <Badge className="bg-green-500 text-white">{otd.toFixed(1)}%</Badge>;
+                                    if (otd >= 90) return <Badge className="bg-blue-500 text-white">{otd.toFixed(1)}%</Badge>;
+                                    if (otd >= 80) return <Badge className="bg-yellow-500 text-white">{otd.toFixed(1)}%</Badge>;
+                                    return <Badge variant="destructive">{otd.toFixed(1)}%</Badge>;
+                                };
 
                                 return (
                                 <motion.tr 
@@ -169,6 +229,36 @@ import React, { useState } from 'react';
                                             </TooltipTrigger>
                                             <TooltipContent>
                                                 <p className="flex items-center gap-2">{gradeInfo.icon} {gradeInfo.description}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </td>
+                                    <td>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                {getPPMBadge(metrics.ppm)}
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Parts Per Million - {currentYear} Yılı</p>
+                                                {metrics.ppm !== null && (
+                                                    <p className="text-xs mt-1">
+                                                        {metrics.ppm < 100 ? 'Mükemmel' : metrics.ppm < 500 ? 'İyi' : metrics.ppm < 1000 ? 'Orta' : 'Kötü'}
+                                                    </p>
+                                                )}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </td>
+                                    <td>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                {getOTDBadge(metrics.otd)}
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>On-Time Delivery - {currentYear} Yılı</p>
+                                                {metrics.otd !== null && (
+                                                    <p className="text-xs mt-1">
+                                                        {metrics.otd >= 95 ? 'Mükemmel' : metrics.otd >= 90 ? 'İyi' : metrics.otd >= 80 ? 'Orta' : 'Kötü'}
+                                                    </p>
+                                                )}
                                             </TooltipContent>
                                         </Tooltip>
                                     </td>

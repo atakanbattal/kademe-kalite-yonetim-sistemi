@@ -8,6 +8,9 @@ import React, { useState, useEffect } from 'react';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
     import SupplierAuditTab from '@/components/supplier/SupplierAuditTab';
+    import SupplierPPMDisplay from '@/components/supplier/SupplierPPMDisplay';
+    import SupplierOTDDisplay from '@/components/supplier/SupplierOTDDisplay';
+    import SupplierEvaluationDisplay from '@/components/supplier/SupplierEvaluationDisplay';
 
 
     const SupplierFormModal = ({ isOpen, setIsOpen, supplier, refreshSuppliers, allSuppliers, isNewAlternative = false }) => {
@@ -100,9 +103,11 @@ import React, { useState, useEffect } from 'react';
                     </DialogHeader>
                     
                     <Tabs defaultValue="details" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
+                        <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="details">Tedarikçi Bilgileri</TabsTrigger>
                             <TabsTrigger value="audits" disabled={!isEditMode}>Denetim Takibi</TabsTrigger>
+                            <TabsTrigger value="performance" disabled={!isEditMode}>PPM/OTD</TabsTrigger>
+                            <TabsTrigger value="evaluation" disabled={!isEditMode}>Değerlendirme</TabsTrigger>
                         </TabsList>
                         <TabsContent value="details" className="mt-4">
                             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -164,6 +169,19 @@ import React, { useState, useEffect } from 'react';
                         </TabsContent>
                         <TabsContent value="audits" className="mt-4 max-h-[60vh] overflow-y-auto pr-2">
                              {isEditMode && <SupplierAuditTab supplier={formData} refreshData={refreshSuppliers} />}
+                        </TabsContent>
+                        <TabsContent value="performance" className="mt-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                            {isEditMode && formData.id && (
+                                <>
+                                    <SupplierPPMDisplay supplierId={formData.id} supplierName={formData.name} />
+                                    <SupplierOTDDisplay supplierId={formData.id} supplierName={formData.name} />
+                                </>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="evaluation" className="mt-4 max-h-[70vh] overflow-y-auto pr-2">
+                            {isEditMode && formData.id && (
+                                <SupplierEvaluationDisplay supplierId={formData.id} supplierName={formData.name} />
+                            )}
                         </TabsContent>
                     </Tabs>
                     

@@ -20,6 +20,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import TaskModule from '@/pages/TaskModule';
     import AuditLogModule from '@/components/AuditLogModule';
     import SupplierLiveAudit from '@/pages/SupplierLiveAudit';
+    import SupplierPortalPage from '@/pages/SupplierPortalPage';
     import PrintableReport from '@/pages/PrintableReport';
     import PrintableDashboardReport from '@/pages/PrintableDashboardReport';
     import PrintableInternalAuditDashboard from '@/pages/PrintableInternalAuditDashboard';
@@ -81,7 +82,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
       'fmea': 'FMEA Yönetimi',
       'mpc': 'Üretim Planlama ve Kontrolü',
       'process-validation': 'Proses Validasyonu',
-      'advanced-analytics': 'Gelişmiş Veri Analizi',
+      'advanced-analytics': 'Gelişmiş Kalite Veri Analizi',
       'customer-satisfaction': 'Müşteri Memnuniyeti',
       'supplier-development': 'Tedarikçi Geliştirme',
       'dmaic': 'DMAIC Projeleri',
@@ -97,6 +98,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               <NCFormProvider>
                 <Routes>
                   <Route path="/login" element={<Login />} />
+                  <Route path="/supplier-portal" element={<SupplierPortalPage />} />
                    <Route path="/print/report/:type/:id" element={<AuthProtected><PrintableReport /></AuthProtected>} />
                   <Route path="/print/dashboard-report" element={<AuthProtected><PrintableDashboardReport /></AuthProtected>} />
                   <Route path="/print/internal-audit-dashboard" element={<AuthProtected><PrintableInternalAuditDashboard /></AuthProtected>} />
@@ -359,6 +361,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'fmea': return <FMEAModule />;
               case 'mpc': return <MPCModule />;
               case 'process-validation': return <ProcessValidationModule />;
+<<<<<<< HEAD
               case 'advanced-analytics': return <AdvancedAnalyticsModule />;
               case 'customer-satisfaction': return <CustomerSatisfactionModule />;
               case 'supplier-development': return <SupplierDevelopmentModule />;
