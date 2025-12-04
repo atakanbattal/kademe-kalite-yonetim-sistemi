@@ -12,6 +12,11 @@ const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false }) => {
 
     // Adım tamamlanma kontrolü
     const isStepCompleted = (stepKey, step) => {
+        // JSONB formatından gelen veriler için kontrol
+        if (step.completed !== undefined) {
+            return step.completed === true && !!(step.responsible && step.completionDate && step.description);
+        }
+        // Eski format için geriye dönük uyumluluk
         return !!(step.responsible && step.completionDate && step.description);
     };
 
@@ -35,12 +40,24 @@ const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false }) => {
     };
 
     const handleStepChange = (stepKey, field, value) => {
+        const currentStep = steps[stepKey] || {};
+        const newStep = {
+            ...currentStep,
+            [field]: value,
+        };
+        
+        // Eğer tüm zorunlu alanlar doldurulduysa completed'i true yap
+        if (field === 'description' || field === 'responsible' || field === 'completionDate') {
+            if (newStep.responsible && newStep.completionDate && newStep.description) {
+                newStep.completed = true;
+            } else {
+                newStep.completed = false;
+            }
+        }
+        
         const newSteps = {
             ...steps,
-            [stepKey]: {
-                ...steps[stepKey],
-                [field]: value,
-            },
+            [stepKey]: newStep,
         };
         onStepsChange(newSteps);
     };

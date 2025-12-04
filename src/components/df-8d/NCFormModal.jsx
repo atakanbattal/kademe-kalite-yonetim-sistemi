@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
     import { Button } from '@/components/ui/button';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-    import EightDSteps from '@/components/df-8d/EightDSteps';
+    import EightDStepsEnhanced from '@/components/df-8d/EightDStepsEnhanced';
     import { useNCForm } from '@/hooks/useNCForm';
     import NCFormGeneral from '@/components/df-8d/NCFormGeneral';
     import { ScrollArea } from '@/components/ui/scroll-area';
@@ -92,9 +92,10 @@ import React, { useState, useEffect } from 'react';
                                 </TabsContent>
                                 {formData.type === '8D' && (
                                     <TabsContent value="8d_steps" className="mt-4">
-                                        <EightDSteps 
+                                        <EightDStepsEnhanced 
                                             steps={formData.eight_d_steps || {}} 
-                                            onStepsChange={(steps) => setFormData(prev => ({...prev, eight_d_steps: steps}))} 
+                                            onStepsChange={(steps) => setFormData(prev => ({...prev, eight_d_steps: steps}))}
+                                            isEditMode={isEditMode}
                                         />
                                     </TabsContent>
                                 )}
