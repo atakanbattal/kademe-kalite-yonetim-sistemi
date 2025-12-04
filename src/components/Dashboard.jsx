@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from 'react';
     import { motion } from 'framer-motion';
+    import { format } from 'date-fns';
+    import { tr } from 'date-fns/locale';
     import { 
         AlertTriangle, FileText, Beaker, CheckSquare, BarChart, List, ShieldCheck, CalendarClock, TrendingUp, BookCheck, ClipboardCheck, WalletCards, FileDown
     } from 'lucide-react';
