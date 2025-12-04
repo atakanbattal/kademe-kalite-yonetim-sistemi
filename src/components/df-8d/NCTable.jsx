@@ -105,11 +105,25 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                     onClick={() => onView(record)}
                                 >
                                     <td className="border-t border-border px-4 py-2 text-sm">{record.nc_number || record.mdi_no}</td>
-                                    <td className="border-t border-border px-4 py-2 text-sm">{getTypeBadge(record.type)}</td>
+                                    <td className="border-t border-border px-4 py-2 text-sm">
+                                        <div className="flex items-center gap-2">
+                                            {getTypeBadge(record.type)}
+                                            {record.is_major && (
+                                                <Badge variant="destructive" className="text-xs">MAJOR</Badge>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="border-t border-border px-4 py-2 text-sm max-w-xs truncate">{record.title}</td>
                                     <td className="border-t border-border px-4 py-2 text-sm">{record.department}</td>
                                     <td className="border-t border-border px-4 py-2 text-sm">{formatDate(record.due_at)}</td>
-                                    <td className="border-t border-border px-4 py-2 text-sm">{getStatusBadge(record)}</td>
+                                    <td className="border-t border-border px-4 py-2 text-sm">
+                                        <div className="flex flex-col gap-1">
+                                            {getStatusBadge(record)}
+                                            {record.is_major && (
+                                                <span className="text-xs text-red-600 dark:text-red-400 font-semibold">Tekrarlayan</span>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="border-t border-border px-4 py-2 text-sm text-center" onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>

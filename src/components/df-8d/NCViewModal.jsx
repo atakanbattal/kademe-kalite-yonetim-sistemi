@@ -45,6 +45,8 @@ import { Lightbox } from 'react-modal-image';
 import { RejectModal } from '@/components/df-8d/modals/ActionModals';
 import { getStatusBadge } from '@/lib/statusUtils';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import RevisionHistory from './RevisionHistory';
 
 const InfoItem = ({ icon: Icon, label, value, className }) => (
   <div
@@ -237,6 +239,9 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
             <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
               {record.nc_number || record.mdi_no}
               {getStatusBadge(record)}
+              {record.is_major && (
+                <Badge variant="destructive" className="text-sm">MAJOR UYGUNSUZLUK</Badge>
+              )}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               {record.title}
@@ -244,7 +249,13 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
           </DialogHeader>
 
           <ScrollArea className="flex-grow pr-4">
-            <div className="space-y-6 py-4">
+            <Tabs defaultValue="general" className="w-full py-4">
+              <TabsList>
+                <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
+                {record.type === '8D' && <TabsTrigger value="revisions">Revizyon Geçmişi</TabsTrigger>}
+              </TabsList>
+              
+              <TabsContent value="general" className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-foreground mb-3">
                   Genel Bilgiler
@@ -401,7 +412,14 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                   </div>
                 </>
               )}
-            </div>
+              </TabsContent>
+              
+              {record.type === '8D' && (
+                <TabsContent value="revisions" className="mt-4">
+                  <RevisionHistory ncId={record.id} />
+                </TabsContent>
+              )}
+            </Tabs>
           </ScrollArea>
 
           <DialogFooter className="pt-4 border-t flex-shrink-0 justify-between">
