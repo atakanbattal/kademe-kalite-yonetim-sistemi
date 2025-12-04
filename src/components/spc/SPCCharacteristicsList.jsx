@@ -3,9 +3,12 @@ import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
 import SPCCharacteristicFormModal from './SPCCharacteristicFormModal';
 
 const SPCCharacteristicsList = ({ characteristics, loading, onRefresh }) => {
+    const { toast } = useToast();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingCharacteristic, setEditingCharacteristic] = useState(null);
 
@@ -110,6 +113,36 @@ const SPCCharacteristicsList = ({ characteristics, loading, onRefresh }) => {
                                     >
                                         <Edit className="w-4 h-4 mr-1" />
                                         Düzenle
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (confirm('Bu karakteristiği silmek istediğinize emin misiniz?')) {
+                                                try {
+                                                    const { error } = await supabase
+                                                        .from('spc_characteristics')
+                                                        .delete()
+                                                        .eq('id', char.id);
+                                                    if (error) throw error;
+                                                    toast({
+                                                        title: 'Başarılı',
+                                                        description: 'Karakteristik silindi.'
+                                                    });
+                                                    onRefresh();
+                                                } catch (error) {
+                                                    toast({
+                                                        variant: 'destructive',
+                                                        title: 'Hata',
+                                                        description: error.message || 'Silme işlemi başarısız.'
+                                                    });
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4 mr-1" />
+                                        Sil
                                     </Button>
                                 </div>
                             </CardContent>

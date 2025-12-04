@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Upload, Download, Eye, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Plus, Upload, Download, Eye, CheckCircle2, XCircle, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -260,6 +260,43 @@ const PPAPDocuments = ({ projects }) => {
                                             >
                                                 <Download className="w-4 h-4 mr-1" />
                                                 İndir
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={async () => {
+                                                    if (confirm('Bu dokümanı silmek istediğinize emin misiniz?')) {
+                                                        try {
+                                                            // Storage'dan dosyayı sil
+                                                            if (doc.file_path) {
+                                                                const { error: storageError } = await supabase.storage
+                                                                    .from('ppap_documents')
+                                                                    .remove([doc.file_path]);
+                                                                if (storageError) console.error('Storage delete error:', storageError);
+                                                            }
+                                                            // Veritabanından kaydı sil
+                                                            const { error } = await supabase
+                                                                .from('ppap_documents')
+                                                                .delete()
+                                                                .eq('id', doc.id);
+                                                            if (error) throw error;
+                                                            toast({
+                                                                title: 'Başarılı',
+                                                                description: 'Doküman silindi.'
+                                                            });
+                                                            loadDocuments(selectedProject);
+                                                        } catch (error) {
+                                                            toast({
+                                                                variant: 'destructive',
+                                                                title: 'Hata',
+                                                                description: error.message || 'Silme işlemi başarısız.'
+                                                            });
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-1" />
+                                                Sil
                                             </Button>
                                         </div>
                                     </div>

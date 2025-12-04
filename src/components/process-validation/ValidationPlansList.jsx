@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Eye } from 'lucide-react';
+import { Plus, Edit, Eye, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
 import ValidationPlanFormModal from './ValidationPlanFormModal';
 
 const STATUS_COLORS = {
@@ -14,6 +16,7 @@ const STATUS_COLORS = {
 };
 
 const ValidationPlansList = ({ plans, loading, onRefresh }) => {
+    const { toast } = useToast();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
 
@@ -126,6 +129,35 @@ const ValidationPlansList = ({ plans, loading, onRefresh }) => {
                                     >
                                         <Edit className="w-4 h-4 mr-1" />
                                         Düzenle
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={async () => {
+                                            if (confirm('Bu validasyon planını silmek istediğinize emin misiniz?')) {
+                                                try {
+                                                    const { error } = await supabase
+                                                        .from('validation_plans')
+                                                        .delete()
+                                                        .eq('id', plan.id);
+                                                    if (error) throw error;
+                                                    toast({
+                                                        title: 'Başarılı',
+                                                        description: 'Validasyon planı silindi.'
+                                                    });
+                                                    onRefresh();
+                                                } catch (error) {
+                                                    toast({
+                                                        variant: 'destructive',
+                                                        title: 'Hata',
+                                                        description: error.message || 'Silme işlemi başarısız.'
+                                                    });
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4 mr-1" />
+                                        Sil
                                     </Button>
                                 </div>
                             </CardContent>

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Edit, Search, Package } from 'lucide-react';
+import { Plus, Edit, Search, Package, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -188,6 +188,35 @@ const LotTraceability = () => {
                                         >
                                             <Edit className="w-4 h-4 mr-1" />
                                             Düzenle
+                                        </Button>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={async () => {
+                                                if (confirm('Bu lot kaydını silmek istediğinize emin misiniz?')) {
+                                                    try {
+                                                        const { error } = await supabase
+                                                            .from('lot_traceability')
+                                                            .delete()
+                                                            .eq('id', lot.id);
+                                                        if (error) throw error;
+                                                        toast({
+                                                            title: 'Başarılı',
+                                                            description: 'Lot kaydı silindi.'
+                                                        });
+                                                        loadLots();
+                                                    } catch (error) {
+                                                        toast({
+                                                            variant: 'destructive',
+                                                            title: 'Hata',
+                                                            description: error.message || 'Silme işlemi başarısız.'
+                                                        });
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4 mr-1" />
+                                            Sil
                                         </Button>
                                     </div>
                                 </div>
