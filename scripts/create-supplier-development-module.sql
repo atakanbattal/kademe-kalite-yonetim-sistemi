@@ -8,13 +8,13 @@ CREATE TABLE IF NOT EXISTS supplier_development_plans (
     
     -- Plan Bilgileri
     plan_name VARCHAR(255) NOT NULL,
-    plan_type VARCHAR(50) NOT NULL, -- 'Quality Improvement', 'Capacity', 'Cost Reduction', 'Technology'
-    priority VARCHAR(50) DEFAULT 'Medium', -- 'Low', 'Medium', 'High', 'Critical'
+    plan_type VARCHAR(50) NOT NULL, -- 'Kalite İyileştirme', 'Kapasite', 'Maliyet Azaltma', 'Teknoloji'
+    priority VARCHAR(50) DEFAULT 'Orta', -- 'Düşük', 'Orta', 'Yüksek', 'Kritik'
     
     -- Hedefler
     objectives TEXT NOT NULL,
     target_metrics JSONB, -- Hedef metrikler (PPM, OTD, etc.)
-    current_status VARCHAR(50) DEFAULT 'Planned', -- 'Planned', 'In Progress', 'Completed', 'On Hold'
+    current_status VARCHAR(50) DEFAULT 'Planlanan', -- 'Planlanan', 'Devam Eden', 'Tamamlanan', 'Beklemede'
     
     -- Tarihler
     start_date DATE,
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS supplier_development_actions (
     action_type VARCHAR(50), -- 'Training', 'Process Improvement', 'Equipment', 'Documentation'
     
     -- Durum
-    status VARCHAR(50) DEFAULT 'Open', -- 'Open', 'In Progress', 'Completed', 'Cancelled'
+    status VARCHAR(50) DEFAULT 'Açık', -- 'Açık', 'Devam Eden', 'Tamamlanan', 'İptal Edildi'
     due_date DATE,
     completed_date DATE,
     
