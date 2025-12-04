@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
     import FiveN1KTemplate from '@/components/df-8d/analysis-templates/FiveN1KTemplate';
     import IshikawaTemplate from '@/components/df-8d/analysis-templates/IshikawaTemplate';
     import FiveWhyTemplate from '@/components/df-8d/analysis-templates/FiveWhyTemplate';
+    import FTATemplate from '@/components/df-8d/analysis-templates/FTATemplate';
 
     const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initialRecord }) => {
         const { toast } = useToast();
@@ -109,6 +110,7 @@ import React, { useState, useEffect } from 'react';
                                             <TabsTrigger value="5n1k">5N1K Analizi</TabsTrigger>
                                             <TabsTrigger value="ishikawa">Ishikawa (Balık Kılçığı)</TabsTrigger>
                                             <TabsTrigger value="5why">5 Neden Analizi</TabsTrigger>
+                                            <TabsTrigger value="fta">FTA (Hata Ağacı)</TabsTrigger>
                                         </TabsList>
                                         <TabsContent value="5n1k" className="mt-4">
                                             <FiveN1KTemplate
@@ -126,6 +128,12 @@ import React, { useState, useEffect } from 'react';
                                             <FiveWhyTemplate
                                                 analysisData={formData.five_why_analysis || {}}
                                                 onAnalysisChange={(data) => setFormData(prev => ({...prev, five_why_analysis: data}))}
+                                            />
+                                        </TabsContent>
+                                        <TabsContent value="fta" className="mt-4">
+                                            <FTATemplate
+                                                analysisData={formData.fta_analysis || {}}
+                                                onAnalysisChange={(data) => setFormData(prev => ({...prev, fta_analysis: data}))}
                                             />
                                         </TabsContent>
                                     </Tabs>
