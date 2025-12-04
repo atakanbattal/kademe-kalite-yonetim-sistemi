@@ -24,7 +24,7 @@ const ProcessParameters = () => {
                 .from('process_parameters')
                 .select(`
                     *,
-                    equipments!equipment_id(id, name, serial_number)
+                    equipments!machine_equipment_id(id, name, serial_number)
                 `)
                 .order('parameter_name', { ascending: true });
 
