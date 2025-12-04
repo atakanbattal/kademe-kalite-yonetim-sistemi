@@ -15,6 +15,7 @@ import React, { useState, useMemo, useCallback } from 'react';
     import { CostViewModal } from '@/components/quality-cost/CostViewModal';
     import COPQCalculator from '@/components/quality-cost/COPQCalculator';
     import PartCostLeaders from '@/components/quality-cost/PartCostLeaders';
+    import CostAnomalyDetector from '@/components/quality-cost/CostAnomalyDetector';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
