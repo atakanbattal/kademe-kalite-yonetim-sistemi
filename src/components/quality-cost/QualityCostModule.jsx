@@ -31,7 +31,7 @@ import React, { useState, useMemo, useCallback } from 'react';
     const QualityCostModule = ({ onOpenNCForm }) => {
         const { toast } = useToast();
         const { profile } = useAuth();
-        const { qualityCosts, personnel, unitCostSettings, materialCostSettings, loading, refreshData } = useData();
+        const { qualityCosts, personnel, unitCostSettings, materialCostSettings, producedVehicles, loading, refreshData } = useData();
 
         const [isFormModalOpen, setFormModalOpen] = useState(false);
         const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -321,6 +321,29 @@ import React, { useState, useMemo, useCallback } from 'react';
                                 </ScrollArea>
                             </div>
                         </div>
+                    </TabsContent>
+                    <TabsContent value="copq" className="mt-6 space-y-6">
+                        <COPQCalculator 
+                            costs={filteredCosts} 
+                            producedVehicles={producedVehicles}
+                            loading={loading} 
+                        />
+                        <PartCostLeaders 
+                            costs={filteredCosts}
+                            onPartClick={(part) => handleOpenDetailModal(`Parça: ${part.partCode}`, part.costs)}
+                        />
+                        <CostAnomalyDetector 
+                            costs={filteredCosts}
+                            onAnomalyClick={(anomaly) => {
+                                const relatedCosts = filteredCosts.filter(c => {
+                                    if (anomaly.type === 'unit') {
+                                        return c.unit === anomaly.unit;
+                                    }
+                                    return true;
+                                });
+                                handleOpenDetailModal(anomaly.title, relatedCosts);
+                            }}
+                        />
                     </TabsContent>
                     <TabsContent value="details" className="mt-6">
                         <VehicleCostBreakdown costs={filteredCosts} loading={loading} />
