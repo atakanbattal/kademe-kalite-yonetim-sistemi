@@ -147,8 +147,17 @@ import React, { useState, useEffect, useCallback } from 'react';
             
             const totalMonthlyGain = scrapGain + laborGain + otherGains;
             const totalYearlyGain = totalMonthlyGain * 12;
+            
+            // ROI hesaplama (basit yaklaşım: yıllık kazanç / başlangıç yatırımı × 100)
+            // Başlangıç yatırımı için part_cost ve labor maliyetlerini kullanabiliriz
+            const initialInvestment = (parseFloat(data.part_cost) || 0) * (parseFloat(data.defective_parts_before) || 0);
+            const roi = initialInvestment > 0 ? (totalYearlyGain / initialInvestment) * 100 : 0;
 
-            return { total_monthly_gain: totalMonthlyGain, total_yearly_gain: totalYearlyGain };
+            return { 
+                total_monthly_gain: totalMonthlyGain, 
+                total_yearly_gain: totalYearlyGain,
+                roi: roi
+            };
         }, []);
 
         const calculateKaizenScore = useCallback((data) => {
@@ -218,6 +227,28 @@ import React, { useState, useEffect, useCallback } from 'react';
                 setFormData(prev => ({ ...prev, kaizen_score: score }));
             }
         }, [formData.cost_benefit_score, formData.difficulty_score, formData.employee_participation_score, calculateKaizenScore]);
+
+        // Maliyet kazancı değişikliklerini izle ve otomatik hesapla
+        useEffect(() => {
+            const gains = calculateGains(formData);
+            setFormData(prev => ({
+                ...prev,
+                total_monthly_gain: gains.total_monthly_gain,
+                total_yearly_gain: gains.total_yearly_gain,
+                roi: gains.roi
+            }));
+        }, [
+            formData.part_cost,
+            formData.monthly_production_quantity,
+            formData.defective_parts_before,
+            formData.defective_parts_after,
+            formData.labor_time_saving_minutes,
+            formData.minute_cost,
+            formData.energy_saving,
+            formData.other_saving,
+            formData.department,
+            calculateGains
+        ]);
 
         const updateFormData = useCallback((newData) => {
             const gains = calculateGains(newData);
