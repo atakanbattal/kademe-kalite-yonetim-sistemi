@@ -24,19 +24,31 @@ const ProcessParameters = () => {
                 .from('process_parameters')
                 .select(`
                     *,
-                    equipment:equipment_id(equipment_name, equipment_code)
+                    equipments!equipment_id(id, name, serial_number)
                 `)
                 .order('parameter_name', { ascending: true });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'process_parameters tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-mpc-module.sql script\'ini çalıştırın.'
+                    });
+                    setParameters([]);
+                    return;
+                }
+                throw error;
+            }
             setParameters(data || []);
         } catch (error) {
             console.error('Process parameters loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Proses parametreleri yüklenirken hata oluştu.'
+                description: 'Proses parametreleri yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setParameters([]);
         } finally {
             setLoading(false);
         }
@@ -124,10 +136,10 @@ const ProcessParameters = () => {
                                 </div>
 
                                 <div className="space-y-2 text-sm">
-                                    {param.equipment && (
+                                    {param.equipments && (
                                         <div>
                                             <span className="text-muted-foreground">Ekipman: </span>
-                                            <span className="font-medium">{param.equipment.equipment_name}</span>
+                                            <span className="font-medium">{param.equipments.name}</span>
                                         </div>
                                     )}
                                     {param.target_value && (

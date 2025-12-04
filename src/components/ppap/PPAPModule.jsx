@@ -26,13 +26,24 @@ const PPAPModule = () => {
                 .from('apqp_projects')
                 .select(`
                     *,
-                    customer:customer_id(customer_name, customer_code),
-                    project_manager:project_manager_id(full_name),
-                    responsible_department:responsible_department_id(unit_name)
+                    customers!customer_id(customer_name, customer_code),
+                    personnel!project_manager_id(id, full_name),
+                    cost_settings!responsible_department_id(id, unit_name)
                 `)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'apqp_projects tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-ppap-apqp-module.sql script\'ini çalıştırın.'
+                    });
+                    setProjects([]);
+                    return;
+                }
+                throw error;
+            }
             setProjects(data || []);
         } catch (error) {
             console.error('PPAP projeleri yüklenirken hata:', error);

@@ -21,19 +21,31 @@ const CriticalCharacteristics = () => {
                 .from('critical_characteristics')
                 .select(`
                     *,
-                    responsible_department:responsible_department_id(unit_name)
+                    cost_settings!responsible_department_id(id, unit_name)
                 `)
                 .order('characteristic_code', { ascending: true });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'critical_characteristics tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-mpc-module.sql script\'ini çalıştırın.'
+                    });
+                    setCharacteristics([]);
+                    return;
+                }
+                throw error;
+            }
             setCharacteristics(data || []);
-        } catch (error) {
+            } catch (error) {
             console.error('Critical characteristics loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Kritik karakteristikler yüklenirken hata oluştu.'
+                description: 'Kritik karakteristikler yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setCharacteristics([]);
         } finally {
             setLoading(false);
         }

@@ -23,15 +23,27 @@ const ProductionPlans = () => {
                 .order('plan_date', { ascending: false })
                 .limit(100);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'production_plans tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-mpc-module.sql script\'ini çalıştırın.'
+                    });
+                    setPlans([]);
+                    return;
+                }
+                throw error;
+            }
             setPlans(data || []);
         } catch (error) {
             console.error('Production plans loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Üretim planları yüklenirken hata oluştu.'
+                description: 'Üretim planları yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setPlans([]);
         } finally {
             setLoading(false);
         }

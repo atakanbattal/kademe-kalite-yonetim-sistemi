@@ -31,15 +31,27 @@ const LotTraceability = () => {
 
             const { data, error } = await query;
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'lot_traceability tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-mpc-module.sql script\'ini çalıştırın.'
+                    });
+                    setLots([]);
+                    return;
+                }
+                throw error;
+            }
             setLots(data || []);
         } catch (error) {
             console.error('Lot traceability loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Lot takibi yüklenirken hata oluştu.'
+                description: 'Lot takibi yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setLots([]);
         } finally {
             setLoading(false);
         }

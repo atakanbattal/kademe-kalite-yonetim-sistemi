@@ -23,15 +23,27 @@ const DMAICProjectsList = () => {
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'dmaic_projects tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-dmaic-module.sql script\'ini çalıştırın.'
+                    });
+                    setProjects([]);
+                    return;
+                }
+                throw error;
+            }
             setProjects(data || []);
         } catch (error) {
             console.error('Projects loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Projeler yüklenirken hata oluştu.'
+                description: 'Projeler yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setProjects([]);
         } finally {
             setLoading(false);
         }
