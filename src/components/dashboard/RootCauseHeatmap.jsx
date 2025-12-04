@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 
-const RootCauseHeatmap = () => {
+const RootCauseHeatmap = ({ onDeptClick }) => {
     const { nonConformities, loading } = useData();
 
     const heatmapData = useMemo(() => {

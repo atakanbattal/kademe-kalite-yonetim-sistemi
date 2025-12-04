@@ -11,21 +11,33 @@ const CriticalNonConformities = ({ onViewDetails }) => {
     const { nonConformities, qualityCosts, producedVehicles, loading } = useData();
 
     // RPN'i yüksek maddeler (RPN = Severity × Occurrence × Detection)
+    // RPN skorları genellikle 1-10 arası değerlerle çalışır, maksimum 10×10×10 = 1000
     const highRPN = useMemo(() => {
         if (!nonConformities) return [];
         return nonConformities
             .filter(nc => {
-                // RPN hesaplama (eğer direkt RPN yoksa severity ve occurrence'dan hesapla)
-                const severity = nc.severity || 5; // Varsayılan
-                const occurrence = nc.occurrence || 5;
-                const detection = nc.detection || 5;
+                if (nc.status === 'Kapatıldı') return false;
+                // RPN hesaplama: Severity (1-10) × Occurrence (1-10) × Detection (1-10)
+                // Eğer değerler yoksa varsayılan olarak 5 kullanılır (orta risk)
+                const severity = Math.min(Math.max(nc.severity || 5, 1), 10); // 1-10 arası
+                const occurrence = Math.min(Math.max(nc.occurrence || 5, 1), 10); // 1-10 arası
+                const detection = Math.min(Math.max(nc.detection || 5, 1), 10); // 1-10 arası
                 const rpn = severity * occurrence * detection;
-                return rpn >= 100 && nc.status !== 'Kapatıldı'; // RPN >= 100 kritik
+                // RPN >= 100 kritik kabul edilir (örn: 5×5×4 = 100)
+                return rpn >= 100;
             })
-            .map(nc => ({
-                ...nc,
-                rpn: (nc.severity || 5) * (nc.occurrence || 5) * (nc.detection || 5)
-            }))
+            .map(nc => {
+                const severity = Math.min(Math.max(nc.severity || 5, 1), 10);
+                const occurrence = Math.min(Math.max(nc.occurrence || 5, 1), 10);
+                const detection = Math.min(Math.max(nc.detection || 5, 1), 10);
+                return {
+                    ...nc,
+                    rpn: severity * occurrence * detection,
+                    severity,
+                    occurrence,
+                    detection
+                };
+            })
             .sort((a, b) => b.rpn - a.rpn)
             .slice(0, 5);
     }, [nonConformities]);

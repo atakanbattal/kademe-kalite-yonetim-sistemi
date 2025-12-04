@@ -128,10 +128,10 @@ const RiskBasedIndicators = () => {
     }, [producedVehicles, nonConformities]);
 
     const getRiskLevel = (score) => {
-        if (score >= 20) return { level: 'CRITICAL', color: 'destructive' };
-        if (score >= 10) return { level: 'HIGH', color: 'destructive' };
-        if (score >= 5) return { level: 'MEDIUM', color: 'secondary' };
-        return { level: 'LOW', color: 'outline' };
+        if (score >= 20) return { level: 'KRİTİK', color: 'destructive' };
+        if (score >= 10) return { level: 'YÜKSEK', color: 'destructive' };
+        if (score >= 5) return { level: 'ORTA', color: 'secondary' };
+        return { level: 'DÜŞÜK', color: 'outline' };
     };
 
     if (loading) {

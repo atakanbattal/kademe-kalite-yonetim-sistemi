@@ -10,7 +10,9 @@ import React, { useState, useCallback } from 'react';
     import { Button } from '@/components/ui/button';
     import { cn } from '@/lib/utils';
     import useDashboardData from '@/hooks/useDashboardData';
+    import { useData } from '@/contexts/DataContext';
     import DashboardDetailModal, { renderNCItem, renderCostItem } from '@/components/dashboard/DashboardDetailModal';
+    import DetailModal from '@/components/dashboard/DetailModal';
     import ReportGenerationModalEnhanced from '@/components/dashboard/ReportGenerationModalEnhanced';
     import DFDrillDownAnalysis from '@/components/dashboard/DFDrillDownAnalysis';
     import QuarantineDrillDownAnalysis from '@/components/dashboard/QuarantineDrillDownAnalysis';
@@ -104,11 +106,13 @@ import React, { useState, useCallback } from 'react';
     const Dashboard = ({ setActiveModule }) => {
         const { toast } = useToast();
         const { kpiData, nonconformityData, costData, pendingApprovals, upcomingCalibrations, expiringDocs, completedAudits, loading, error } = useDashboardData();
+        const { nonConformities, equipments, documents, qualityCosts } = useData();
         
         const [isDetailModalOpen, setDetailModalOpen] = useState(false);
         const [detailModalContent, setDetailModalContent] = useState({ title: '', records: [], renderItem: () => null });
         const [isReportModalOpen, setReportModalOpen] = useState(false);
         const [drillDownType, setDrillDownType] = useState(null); // 'df', 'quarantine', 'cost', null
+        const [detailModalData, setDetailModalData] = useState({ isOpen: false, title: '', description: '', data: [], columns: [] });
 
         const handleCardClick = useCallback((module, kpiTitle) => {
             // KPI kartlarına özel drill-down analizleri
@@ -297,9 +301,67 @@ import React, { useState, useCallback } from 'react';
                 <motion.div variants={itemVariants}>
                     <ErrorBoundary componentName="Gerçek Zamanlı Uyarılar">
                         <DashboardAlerts onAlertClick={(type, data) => {
-                            if (type === 'overdue-nc') handleCardClick('df-8d');
-                            else if (type === 'overdue-calibration' || type === 'expiring-docs') handleCardClick('equipment');
-                            else if (type === 'cost-anomaly') handleCardClick('quality-cost');
+                            if (type === 'overdue-nc') {
+                                setDetailModalData({
+                                    isOpen: true,
+                                    title: '30+ Gün Açık DF/8D Kayıtları',
+                                    description: `${data.length} adet geciken kayıt bulundu`,
+                                    data: data,
+                                    columns: [
+                                        { key: 'nc_number', label: 'Kayıt No' },
+                                        { key: 'title', label: 'Başlık' },
+                                        { key: 'department', label: 'Sorumlu Birim' },
+                                        { 
+                                            key: 'daysOverdue', 
+                                            label: 'Gecikme (Gün)',
+                                            render: (row) => <span className="font-semibold text-red-600">{row.daysOverdue}</span>
+                                        },
+                                        { key: 'status', label: 'Durum' }
+                                    ]
+                                });
+                            } else if (type === 'overdue-calibration') {
+                                setDetailModalData({
+                                    isOpen: true,
+                                    title: 'Geciken Kalibrasyonlar',
+                                    description: `${data.length} adet geciken kalibrasyon bulundu`,
+                                    data: data,
+                                    columns: [
+                                        { key: 'equipment', label: 'Ekipman Adı' },
+                                        { 
+                                            key: 'dueDate', 
+                                            label: 'Son Geçerlilik',
+                                            render: (row) => format(new Date(row.dueDate), 'dd.MM.yyyy', { locale: tr })
+                                        },
+                                        { 
+                                            key: 'daysOverdue', 
+                                            label: 'Gecikme (Gün)',
+                                            render: (row) => <span className="font-semibold text-red-600">{row.daysOverdue}</span>
+                                        }
+                                    ]
+                                });
+                            } else if (type === 'expiring-docs') {
+                                setDetailModalData({
+                                    isOpen: true,
+                                    title: 'Geçerliliği Dolacak Dokümanlar',
+                                    description: `${data.length} adet doküman yakında geçerliliğini yitirecek`,
+                                    data: data,
+                                    columns: [
+                                        { key: 'name', label: 'Doküman Adı' },
+                                        { 
+                                            key: 'valid_until', 
+                                            label: 'Son Geçerlilik',
+                                            render: (row) => format(new Date(row.valid_until), 'dd.MM.yyyy', { locale: tr })
+                                        },
+                                        { 
+                                            key: 'daysRemaining', 
+                                            label: 'Kalan Gün',
+                                            render: (row) => <span className="font-semibold text-yellow-600">{row.daysRemaining}</span>
+                                        }
+                                    ]
+                                });
+                            } else if (type === 'cost-anomaly') {
+                                handleCardClick('quality-cost');
+                            }
                         }} />
                     </ErrorBoundary>
                 </motion.div>
@@ -315,8 +377,59 @@ import React, { useState, useCallback } from 'react';
                 <motion.div variants={itemVariants}>
                     <ErrorBoundary componentName="Bugünün Görevleri">
                         <TodayTasks onTaskClick={(type, data) => {
-                            if (type === 'overdue-8d') handleCardClick('df-8d');
-                            else if (type === 'due-calibration') handleCardClick('equipment');
+                            if (type === 'overdue-8d') {
+                                setDetailModalData({
+                                    isOpen: true,
+                                    title: 'Bugün Kapanması Gereken 8D Kayıtları',
+                                    description: `${data.length} adet 8D kaydı bugün kapanması gerekiyor`,
+                                    data: data,
+                                    columns: [
+                                        { key: 'nc_number', label: 'Kayıt No' },
+                                        { key: 'title', label: 'Başlık' },
+                                        { key: 'department', label: 'Sorumlu Birim' },
+                                        { 
+                                            key: 'target_close_date', 
+                                            label: 'Hedef Kapanış',
+                                            render: (row) => format(new Date(row.target_close_date), 'dd.MM.yyyy', { locale: tr })
+                                        },
+                                        { 
+                                            key: 'daysOverdue', 
+                                            label: 'Gecikme',
+                                            render: (row) => row.isOverdue ? (
+                                                <span className="font-semibold text-red-600">{row.daysOverdue} gün</span>
+                                            ) : (
+                                                <span className="text-green-600">Bugün</span>
+                                            )
+                                        }
+                                    ],
+                                    onRowClick: (row) => handleCardClick('df-8d')
+                                });
+                            } else if (type === 'due-calibration') {
+                                setDetailModalData({
+                                    isOpen: true,
+                                    title: 'Bugün Kalibrasyonu Dolan Cihazlar',
+                                    description: `${data.length} adet cihazın kalibrasyonu bugün doluyor`,
+                                    data: data,
+                                    columns: [
+                                        { key: 'equipment', label: 'Ekipman Adı' },
+                                        { 
+                                            key: 'dueDate', 
+                                            label: 'Son Geçerlilik',
+                                            render: (row) => format(new Date(row.dueDate), 'dd.MM.yyyy', { locale: tr })
+                                        },
+                                        { 
+                                            key: 'daysOverdue', 
+                                            label: 'Durum',
+                                            render: (row) => row.isOverdue ? (
+                                                <span className="font-semibold text-red-600">{row.daysOverdue} gün gecikme</span>
+                                            ) : (
+                                                <span className="text-green-600">Bugün</span>
+                                            )
+                                        }
+                                    ],
+                                    onRowClick: (row) => handleCardClick('equipment')
+                                });
+                            }
                         }} />
                     </ErrorBoundary>
                 </motion.div>
@@ -338,7 +451,34 @@ import React, { useState, useCallback } from 'react';
                 {/* Kök Neden Isı Haritası */}
                 <motion.div variants={itemVariants}>
                     <ErrorBoundary componentName="Kök Neden Isı Haritası">
-                        <RootCauseHeatmap />
+                        <RootCauseHeatmap onDeptClick={(deptName) => {
+                            const deptNCs = (nonConformities || []).filter(nc => 
+                                (nc.requesting_unit || nc.department) === deptName
+                            );
+                            setDetailModalData({
+                                isOpen: true,
+                                title: `${deptName} - Uygunsuzluk Detayları`,
+                                description: `${deptNCs.length} adet uygunsuzluk kaydı bulundu`,
+                                data: deptNCs,
+                                columns: [
+                                    { key: 'nc_number', label: 'Kayıt No' },
+                                    { key: 'title', label: 'Başlık' },
+                                    { key: 'type', label: 'Tip' },
+                                    { key: 'status', label: 'Durum' },
+                                    { 
+                                        key: 'severity', 
+                                        label: 'Şiddet',
+                                        render: (row) => row.severity || '-'
+                                    },
+                                    { 
+                                        key: 'opening_date', 
+                                        label: 'Açılış Tarihi',
+                                        render: (row) => row.opening_date ? format(new Date(row.opening_date), 'dd.MM.yyyy', { locale: tr }) : '-'
+                                    }
+                                ],
+                                onRowClick: (row) => handleCardClick('df-8d')
+                            });
+                        }} />
                     </ErrorBoundary>
                 </motion.div>
 
@@ -435,6 +575,17 @@ import React, { useState, useCallback } from 'react';
                         />
                     </motion.div>
                 </motion.div>
+
+                {/* Detay Modal */}
+                <DetailModal
+                    isOpen={detailModalData.isOpen}
+                    onClose={() => setDetailModalData({ ...detailModalData, isOpen: false })}
+                    title={detailModalData.title}
+                    description={detailModalData.description}
+                    data={detailModalData.data}
+                    columns={detailModalData.columns}
+                    onRowClick={detailModalData.onRowClick}
+                />
             </div>
         );
     };
