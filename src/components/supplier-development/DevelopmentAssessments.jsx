@@ -23,15 +23,28 @@ const DevelopmentAssessments = () => {
                 `)
                 .order('assessment_date', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.error('Tablo bulunamadı:', error);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'supplier_development_assessments tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-supplier-development-module.sql script\'ini çalıştırın.'
+                    });
+                    setAssessments([]);
+                    return;
+                }
+                throw error;
+            }
             setAssessments(data || []);
         } catch (error) {
             console.error('Assessments loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Değerlendirmeler yüklenirken hata oluştu.'
+                description: 'Değerlendirmeler yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setAssessments([]);
         } finally {
             setLoading(false);
         }

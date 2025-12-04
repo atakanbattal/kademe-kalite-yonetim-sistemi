@@ -24,15 +24,28 @@ const DevelopmentActions = () => {
                 `)
                 .order('due_date', { ascending: true });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.error('Tablo bulunamadı:', error);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'supplier_development_actions tablosu henüz oluşturulmamış. Lütfen Supabase SQL Editor\'de create-supplier-development-module.sql script\'ini çalıştırın.'
+                    });
+                    setActions([]);
+                    return;
+                }
+                throw error;
+            }
             setActions(data || []);
         } catch (error) {
             console.error('Actions loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Aksiyonlar yüklenirken hata oluştu.'
+                description: 'Aksiyonlar yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
+            setActions([]);
         } finally {
             setLoading(false);
         }
