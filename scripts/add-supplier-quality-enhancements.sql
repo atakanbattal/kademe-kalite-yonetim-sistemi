@@ -475,3 +475,68 @@ COMMENT ON TABLE public.supplier_8d_links IS 'Tedarikçilere özel 8D portal lin
 COMMENT ON TABLE public.supplier_8d_submissions IS 'Tedarikçilerden gelen 8D gönderimleri';
 COMMENT ON FUNCTION generate_supplier_8d_link IS 'Tedarikçi için özel 8D portal linki oluşturma';
 
+-- 16. Girdi KK Entegrasyonu: Reddedilen stok otomatik tedarikçi kalite modülüne düşme
+CREATE OR REPLACE FUNCTION auto_create_supplier_nc_from_rejection()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_supplier_id UUID;
+    v_nc_id UUID;
+BEGIN
+    -- Sadece Ret kararı verildiğinde ve supplier_id varsa çalış
+    IF NEW.decision = 'Ret' AND NEW.supplier_id IS NOT NULL AND (OLD.decision IS NULL OR OLD.decision != 'Ret') THEN
+        -- Tedarikçi bilgisini al
+        v_supplier_id := NEW.supplier_id;
+        
+        -- Otomatik olarak tedarikçi uygunsuzluğu oluştur
+        INSERT INTO public.non_conformities (
+            supplier_id,
+            title,
+            description,
+            type,
+            status,
+            priority,
+            department,
+            opening_date,
+            is_supplier_nc,
+            source_inspection_id,
+            part_code,
+            part_name,
+            vehicle_type
+        ) VALUES (
+            v_supplier_id,
+            COALESCE(NEW.part_name || ' (' || NEW.part_code || ')', 'GKK Ret Kararı') || ' - Otomatik Uygunsuzluk',
+            'Girdi Kalite Kontrol sonucu Ret kararı verilmiştir. ' ||
+            'İrsaliye No: ' || COALESCE(NEW.delivery_note_number, '-') || E'\n' ||
+            'Reddedilen Miktar: ' || COALESCE(NEW.quantity_rejected::text, '0') || ' ' || COALESCE(NEW.unit, 'adet') || E'\n' ||
+            'Muayene Tarihi: ' || NEW.inspection_date::text || E'\n' ||
+            COALESCE('Notlar: ' || NEW.notes, ''),
+            'DF',
+            'Açık',
+            'Yüksek',
+            'Tedarikçi',
+            NEW.inspection_date,
+            true,
+            NEW.id,
+            NEW.part_code,
+            NEW.part_name,
+            NEW.vehicle_type
+        ) RETURNING id INTO v_nc_id;
+        
+        -- Tedarikçi 8D linki oluştur (opsiyonel - otomatik)
+        -- PERFORM generate_supplier_8d_link(v_supplier_id, v_nc_id, 30);
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger'ı oluştur
+DROP TRIGGER IF EXISTS trigger_auto_supplier_nc_from_rejection ON public.incoming_inspections;
+CREATE TRIGGER trigger_auto_supplier_nc_from_rejection
+    AFTER INSERT OR UPDATE ON public.incoming_inspections
+    FOR EACH ROW
+    WHEN (NEW.decision = 'Ret' AND NEW.supplier_id IS NOT NULL)
+    EXECUTE FUNCTION auto_create_supplier_nc_from_rejection();
+
+COMMENT ON FUNCTION auto_create_supplier_nc_from_rejection IS 'Girdi KK Ret kararı sonrası otomatik tedarikçi uygunsuzluğu oluşturma';
+
