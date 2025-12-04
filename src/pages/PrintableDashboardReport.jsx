@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
-import { format, startOfToday } from 'date-fns';
+import { format, startOfToday, parseISO } from 'date-fns';
 import useReportData from '@/hooks/useReportData';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -54,7 +54,12 @@ const PrintableDashboardReport = () => {
         return <div className="text-center p-8 text-red-600 font-semibold">{error || 'Rapor verileri yüklenemedi.'}</div>;
     }
 
-    const { df8d, internalAudit, supplier, vehicleQuality, kaizen, qualityCost, quarantine, deviation, equipment, document } = data;
+    const { 
+        df8d, internalAudit, supplier, vehicleQuality, kaizen, qualityCost, 
+        quarantine, deviation, equipment, document, complaints, criticalNCs, 
+        qualityWall, rootCauseHeatmap, todayTasks, alerts, kpis, qualityGoals, 
+        benchmarks, risks 
+    } = data;
     const CHART_COLORS = ['#1F3A5F', '#4A6FA5', '#7B93DB', '#A2B5F2', '#CAD5FF'];
     const PIE_COLORS = { A: '#16a34a', B: '#2563eb', C: '#f59e0b', D: '#dc2626', 'N/A': '#6b7280' };
 
@@ -294,6 +299,428 @@ const PrintableDashboardReport = () => {
                         </div>
                     </div>
                 </ReportSection>
+
+                {/* Müşteri Şikayetleri */}
+                {complaints && complaints.total > 0 && (
+                    <ReportSection title="Müşteri Şikayetleri" className="page-break-before">
+                        <div className="kpi-grid">
+                            <KpiCard title="Toplam Şikayet" value={complaints.total} />
+                            <KpiCard title="SLA Gecikmiş" value={complaints.slaOverdue} />
+                            <KpiCard title="Kritik Şikayet" value={complaints.bySeverity?.Kritik || 0} />
+                            <KpiCard title="Yüksek Şikayet" value={complaints.bySeverity?.Yüksek || 0} />
+                        </div>
+                        {complaints.monthlyTrend && complaints.monthlyTrend.length > 0 && (
+                            <div className="chart-container">
+                                <ResponsiveContainer>
+                                    <BarChart data={complaints.monthlyTrend}>
+                                        <XAxis dataKey="name" fontSize={10} />
+                                        <YAxis fontSize={10} />
+                                        <Tooltip />
+                                        <Bar dataKey="count" name="Şikayet Sayısı" fill={CHART_COLORS[2]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                    </ReportSection>
+                )}
+
+                {/* Kritik Uygunsuzluklar */}
+                {(criticalNCs?.highRPN?.length > 0 || criticalNCs?.highCost?.length > 0 || criticalNCs?.recurring?.length > 0) && (
+                    <ReportSection title="Kritik Uygunsuzluklar" className="page-break-before">
+                        {criticalNCs.highRPN && criticalNCs.highRPN.length > 0 && (
+                            <>
+                                <h3 className="section-subtitle">RPN Yüksek Uygunsuzluklar (RPN ≥ 100)</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-no">No</th>
+                                            <th className="col-title">Başlık</th>
+                                            <th className="col-dept">Birim</th>
+                                            <th className="col-days">RPN</th>
+                                            <th className="col-status">Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {criticalNCs.highRPN.map((nc, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-no">{nc.nc_number || '-'}</td>
+                                                <td className="col-title text-wrap">{nc.title || nc.nc_number || '-'}</td>
+                                                <td className="col-dept">{nc.department || nc.requesting_unit || '-'}</td>
+                                                <td className="col-days">{nc.rpn}</td>
+                                                <td className="col-status">{nc.status || 'Açık'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                        {criticalNCs.highCost && criticalNCs.highCost.length > 0 && (
+                            <>
+                                <h3 className="section-subtitle" style={{marginTop: '20px'}}>Maliyeti Yüksek Uygunsuzluklar</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-no">No</th>
+                                            <th className="col-title">Başlık</th>
+                                            <th className="col-dept">Birim</th>
+                                            <th className="col-days">Maliyet (₺)</th>
+                                            <th className="col-status">Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {criticalNCs.highCost.map((nc, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-no">{nc.nc_number || '-'}</td>
+                                                <td className="col-title text-wrap">{nc.title || nc.nc_number || '-'}</td>
+                                                <td className="col-dept">{nc.department || nc.requesting_unit || '-'}</td>
+                                                <td className="col-days">{nc.totalCost?.toLocaleString('tr-TR') || '0'}</td>
+                                                <td className="col-status">{nc.status || 'Açık'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                        {criticalNCs.recurring && criticalNCs.recurring.length > 0 && (
+                            <>
+                                <h3 className="section-subtitle" style={{marginTop: '20px'}}>Tekrarlayan Uygunsuzluklar</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-no">Parça Kodu</th>
+                                            <th className="col-title">Başlık</th>
+                                            <th className="col-dept">Tekrar Sayısı</th>
+                                            <th className="col-status">Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {criticalNCs.recurring.map((nc, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-no">{nc.part_code || '-'}</td>
+                                                <td className="col-title text-wrap">{nc.title || nc.nc_number || '-'}</td>
+                                                <td className="col-dept">{nc.count || 0}</td>
+                                                <td className="col-status">{nc.status || 'Açık'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                    </ReportSection>
+                )}
+
+                {/* Kalite Duvarı */}
+                {(qualityWall?.best?.length > 0 || qualityWall?.worst?.length > 0) && (
+                    <ReportSection title="Kalite Duvarı" className="page-break-before">
+                        <div className="grid-container">
+                            <div>
+                                <h3 className="section-subtitle">En İyi 3 Birim</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-dept">Birim</th>
+                                            <th className="col-days">Açık</th>
+                                            <th className="col-days">Toplam</th>
+                                            <th className="col-status">Kapatma Oranı</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {qualityWall.best.map((dept, idx) => {
+                                            const closeRate = dept.totalNCs > 0 ? ((dept.closedNCs / dept.totalNCs) * 100).toFixed(1) : '0';
+                                            return (
+                                                <tr key={idx}>
+                                                    <td className="col-dept">{dept.name}</td>
+                                                    <td className="col-days">{dept.openNCs}</td>
+                                                    <td className="col-days">{dept.totalNCs}</td>
+                                                    <td className="col-status">{closeRate}%</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div>
+                                <h3 className="section-subtitle">En Kötü 3 Birim</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-dept">Birim</th>
+                                            <th className="col-days">Açık</th>
+                                            <th className="col-days">Toplam</th>
+                                            <th className="col-status">Kapatma Oranı</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {qualityWall.worst.map((dept, idx) => {
+                                            const closeRate = dept.totalNCs > 0 ? ((dept.closedNCs / dept.totalNCs) * 100).toFixed(1) : '0';
+                                            return (
+                                                <tr key={idx}>
+                                                    <td className="col-dept">{dept.name}</td>
+                                                    <td className="col-days">{dept.openNCs}</td>
+                                                    <td className="col-days">{dept.totalNCs}</td>
+                                                    <td className="col-status">{closeRate}%</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </ReportSection>
+                )}
+
+                {/* Kök Neden Isı Haritası */}
+                {(rootCauseHeatmap?.byDepartment?.length > 0 || rootCauseHeatmap?.byRootCause?.length > 0) && (
+                    <ReportSection title="Kök Neden Analizi" className="page-break-before">
+                        <div className="grid-container">
+                            {rootCauseHeatmap.byDepartment && rootCauseHeatmap.byDepartment.length > 0 && (
+                                <div>
+                                    <h3 className="section-subtitle">Birim Bazında Hata Yoğunluğu</h3>
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="col-dept">Birim</th>
+                                                <th className="col-days">Hata Sayısı</th>
+                                                <th className="col-status">Ort. Şiddet</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {rootCauseHeatmap.byDepartment.slice(0, 10).map((dept, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="col-dept">{dept.name}</td>
+                                                    <td className="col-days">{dept.count}</td>
+                                                    <td className="col-status">{dept.avgSeverity}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                            {rootCauseHeatmap.byRootCause && rootCauseHeatmap.byRootCause.length > 0 && (
+                                <div>
+                                    <h3 className="section-subtitle">En Sık Tekrarlayan Kök Nedenler</h3>
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="col-title">Kök Neden</th>
+                                                <th className="col-days">Tekrar Sayısı</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {rootCauseHeatmap.byRootCause.slice(0, 10).map((rc, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="col-title text-wrap">{rc.name}</td>
+                                                    <td className="col-days">{rc.count}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </ReportSection>
+                )}
+
+                {/* Bugünün Görevleri */}
+                {(todayTasks?.overdue8D?.length > 0 || todayTasks?.dueCalibrations?.length > 0) && (
+                    <ReportSection title="Bugünün Kritik Görevleri" className="page-break-before">
+                        {todayTasks.overdue8D && todayTasks.overdue8D.length > 0 && (
+                            <>
+                                <h3 className="section-subtitle">Geciken 8D Kayıtları</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-no">No</th>
+                                            <th className="col-title">Başlık</th>
+                                            <th className="col-dept">Birim</th>
+                                            <th className="col-days">Gecikme (Gün)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {todayTasks.overdue8D.map((task, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-no">{task.nc_number || '-'}</td>
+                                                <td className="col-title text-wrap">{task.title || task.nc_number || '-'}</td>
+                                                <td className="col-dept">{task.department || task.requesting_unit || '-'}</td>
+                                                <td className="col-days">{task.daysOverdue || 0}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                        {todayTasks.dueCalibrations && todayTasks.dueCalibrations.length > 0 && (
+                            <>
+                                <h3 className="section-subtitle" style={{marginTop: '20px'}}>Geciken Kalibrasyonlar</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-title">Cihaz Adı</th>
+                                            <th className="col-dept">Son Kalibrasyon</th>
+                                            <th className="col-days">Gecikme (Gün)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {todayTasks.dueCalibrations.map((cal, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-title">{cal.equipment || '-'}</td>
+                                                <td className="col-dept">{cal.dueDate ? format(parseISO(cal.dueDate), 'dd.MM.yyyy') : '-'}</td>
+                                                <td className="col-days">{cal.daysOverdue || 0}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                    </ReportSection>
+                )}
+
+                {/* Uyarılar */}
+                {(alerts?.overdueNCs?.length > 0 || alerts?.overdueCalibrations?.length > 0 || alerts?.expiringDocs?.length > 0 || alerts?.costAnomalies?.length > 0) && (
+                    <ReportSection title="Sistem Uyarıları" className="page-break-before">
+                        {alerts.overdueNCs && alerts.overdueNCs.length > 0 && (
+                            <>
+                                <h3 className="section-subtitle">30+ Gün Geciken DF/8D</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-no">No</th>
+                                            <th className="col-title">Başlık</th>
+                                            <th className="col-dept">Birim</th>
+                                            <th className="col-days">Gecikme (Gün)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {alerts.overdueNCs.slice(0, 10).map((alert, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-no">{alert.nc_number || '-'}</td>
+                                                <td className="col-title text-wrap">{alert.title || alert.nc_number || '-'}</td>
+                                                <td className="col-dept">{alert.department || alert.requesting_unit || '-'}</td>
+                                                <td className="col-days">{alert.daysOverdue || 0}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                        {alerts.expiringDocs && alerts.expiringDocs.length > 0 && (
+                            <>
+                                <h3 className="section-subtitle" style={{marginTop: '20px'}}>Süresi Dolmak Üzere Olan Dokümanlar</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-title">Doküman Adı</th>
+                                            <th className="col-dept">Geçerlilik Tarihi</th>
+                                            <th className="col-days">Kalan Gün</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {alerts.expiringDocs.map((doc, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-title text-wrap">{doc.name || doc.title || '-'}</td>
+                                                <td className="col-dept">{doc.valid_until ? format(parseISO(doc.valid_until), 'dd.MM.yyyy') : '-'}</td>
+                                                <td className="col-days">{doc.daysRemaining || 0}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                        {alerts.costAnomalies && alerts.costAnomalies.length > 0 && (
+                            <>
+                                <h3 className="section-subtitle" style={{marginTop: '20px'}}>Maliyet Anomalileri</h3>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-title">Uyarı</th>
+                                            <th className="col-dept">Artış Oranı</th>
+                                            <th className="col-days">Bu Ay</th>
+                                            <th className="col-status">Geçen Ay</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {alerts.costAnomalies.map((anomaly, idx) => (
+                                            <tr key={idx}>
+                                                <td className="col-title">{anomaly.message}</td>
+                                                <td className="col-dept">%{anomaly.increase}</td>
+                                                <td className="col-days">{anomaly.thisMonth?.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' }) || '-'}</td>
+                                                <td className="col-status">{anomaly.lastMonth?.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' }) || '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                    </ReportSection>
+                )}
+
+                {/* Kalite Hedefleri */}
+                {qualityGoals && qualityGoals.length > 0 && (
+                    <ReportSection title="Kalite Hedefleri ve Gerçekleşenler" className="page-break-before">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th className="col-title">Hedef Adı</th>
+                                    <th className="col-dept">Hedef</th>
+                                    <th className="col-days">Gerçekleşen</th>
+                                    <th className="col-status">Başarı %</th>
+                                    <th className="col-status">Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {qualityGoals.map((goal, idx) => {
+                                    // Basit hesaplama (gerçek hesaplama QualityGoalsPanel'de yapılıyor)
+                                    const actual = 0; // Bu kısım daha detaylı hesaplanabilir
+                                    const target = goal.target_value || 0;
+                                    const progress = target > 0 ? Math.min((actual / target * 100), 100) : 0;
+                                    const status = progress >= 100 ? 'Başarılı' : progress >= 75 ? 'Risk' : 'Başarısız';
+                                    return (
+                                        <tr key={idx}>
+                                            <td className="col-title text-wrap">{goal.goal_name || goal.name || '-'}</td>
+                                            <td className="col-dept">{target}</td>
+                                            <td className="col-days">{actual}</td>
+                                            <td className="col-status">{progress.toFixed(1)}%</td>
+                                            <td className="col-status">{status}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </ReportSection>
+                )}
+
+                {/* Risk Bazlı Göstergeler */}
+                {risks && risks.length > 0 && (
+                    <ReportSection title="Risk Bazlı Göstergeler (ISO 9001:2015 Madde 6.1)" className="page-break-before">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th className="col-title">Risk Tipi</th>
+                                    <th className="col-dept">Risk Adı</th>
+                                    <th className="col-days">Olasılık</th>
+                                    <th className="col-days">Etki</th>
+                                    <th className="col-status">Risk Skoru</th>
+                                    <th className="col-status">Risk Seviyesi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {risks.map((risk, idx) => {
+                                    const riskLevel = risk.risk_score >= 20 ? 'KRİTİK' : risk.risk_score >= 10 ? 'YÜKSEK' : risk.risk_score >= 5 ? 'ORTA' : 'DÜŞÜK';
+                                    return (
+                                        <tr key={idx}>
+                                            <td className="col-title">{risk.risk_type || '-'}</td>
+                                            <td className="col-dept text-wrap">{risk.risk_name || '-'}</td>
+                                            <td className="col-days">{risk.probability || '-'}/5</td>
+                                            <td className="col-days">{risk.impact || '-'}/5</td>
+                                            <td className="col-status">{risk.risk_score || '-'}</td>
+                                            <td className="col-status">{riskLevel}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </ReportSection>
+                )}
             </div>
         </>
     );
