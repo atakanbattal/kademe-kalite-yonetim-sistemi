@@ -105,14 +105,22 @@ CREATE POLICY "dev_assessments_insert" ON supplier_development_assessments FOR I
 CREATE POLICY "dev_assessments_update" ON supplier_development_assessments FOR UPDATE USING (true);
 CREATE POLICY "dev_assessments_delete" ON supplier_development_assessments FOR DELETE USING (true);
 
--- Trigger: updated_at otomatik güncelleme
+-- Trigger: updated_at otomatik güncelleme (eğer fonksiyon yoksa oluştur)
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER update_dev_plans_updated_at
     BEFORE UPDATE ON supplier_development_plans
     FOR EACH ROW
-    EXECUTE FUNCTION update_spc_updated_at();
+    EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER update_dev_actions_updated_at
     BEFORE UPDATE ON supplier_development_actions
     FOR EACH ROW
-    EXECUTE FUNCTION update_spc_updated_at();
+    EXECUTE FUNCTION update_updated_at();
 
