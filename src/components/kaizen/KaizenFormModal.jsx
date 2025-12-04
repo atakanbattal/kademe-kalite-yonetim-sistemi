@@ -15,6 +15,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { UploadCloud, File as FileIcon, Trash2, BrainCircuit, Fish, HelpCircle, Sigma, Calendar as CalendarIcon } from 'lucide-react';
     import { sanitizeFileName } from '@/lib/utils';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    import KaizenA3Template from './KaizenA3Template';
     import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
     import { Calendar } from '@/components/ui/calendar';
     import { format } from 'date-fns';
@@ -123,6 +124,18 @@ import React, { useState, useEffect, useCallback } from 'react';
         difficulty_score: 5, // 1-10 arası (tersine - kolay = 10, zor = 1)
         employee_participation_score: 5, // 1-10 arası
         kaizen_score: 0, // Otomatik hesaplanacak
+        a3_format: {
+            problem_definition: '',
+            current_state: '',
+            target_state: '',
+            root_cause_analysis: '',
+            solution_plan: '',
+            implementation_plan: '',
+            results_and_followup: '',
+            team_members: '',
+            start_date: '',
+            end_date: ''
+        }
     });
 
     const KaizenFormModal = ({ isOpen, setIsOpen, onSuccess, existingKaizen, kaizenType, personnel, units, suppliers }) => {
@@ -357,13 +370,14 @@ import React, { useState, useEffect, useCallback } from 'react';
                     </DialogHeader>
                     <form onSubmit={handleSubmit}>
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="grid w-full grid-cols-6">
+                            <TabsList className="grid w-full grid-cols-7">
                                 <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
                                 <TabsTrigger value="5n1k">5N1K</TabsTrigger>
                                 <TabsTrigger value="5whys">5 Neden</TabsTrigger>
                                 <TabsTrigger value="fishbone">Balık Kılçığı</TabsTrigger>
                                 <TabsTrigger value="solution">Çözüm & Kanıt</TabsTrigger>
                                 <TabsTrigger value="cost">Maliyet Analizi</TabsTrigger>
+                                <TabsTrigger value="a3">A3 Formatı</TabsTrigger>
                             </TabsList>
                             <ScrollArea className="h-[65vh]">
                               <div className="p-4">
