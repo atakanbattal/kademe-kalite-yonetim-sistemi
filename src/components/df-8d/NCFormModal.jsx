@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import FiveN1KTemplate from '@/components/df-8d/analysis-templates/FiveN1KTemplate';
     import IshikawaTemplate from '@/components/df-8d/analysis-templates/IshikawaTemplate';
+    import FiveWhyTemplate from '@/components/df-8d/analysis-templates/FiveWhyTemplate';
 
     const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initialRecord }) => {
         const { toast } = useToast();
@@ -102,11 +103,32 @@ import React, { useState, useEffect } from 'react';
                                         />
                                     </TabsContent>
                                 )}
-                                <TabsContent value="analysis" className="mt-4">
-                                    <FiveN1KTemplate
-                                        analysisData={formData.five_n1k_analysis || {}}
-                                        onAnalysisChange={(data) => setFormData(prev => ({...prev, five_n1k_analysis: data}))}
-                                    />
+                                <TabsContent value="analysis" className="mt-4 space-y-4">
+                                    <Tabs defaultValue="5n1k" className="w-full">
+                                        <TabsList>
+                                            <TabsTrigger value="5n1k">5N1K Analizi</TabsTrigger>
+                                            <TabsTrigger value="ishikawa">Ishikawa (Balık Kılçığı)</TabsTrigger>
+                                            <TabsTrigger value="5why">5 Neden Analizi</TabsTrigger>
+                                        </TabsList>
+                                        <TabsContent value="5n1k" className="mt-4">
+                                            <FiveN1KTemplate
+                                                analysisData={formData.five_n1k_analysis || {}}
+                                                onAnalysisChange={(data) => setFormData(prev => ({...prev, five_n1k_analysis: data}))}
+                                            />
+                                        </TabsContent>
+                                        <TabsContent value="ishikawa" className="mt-4">
+                                            <IshikawaTemplate
+                                                analysisData={formData.ishikawa_analysis || {}}
+                                                onAnalysisChange={(data) => setFormData(prev => ({...prev, ishikawa_analysis: data}))}
+                                            />
+                                        </TabsContent>
+                                        <TabsContent value="5why" className="mt-4">
+                                            <FiveWhyTemplate
+                                                analysisData={formData.five_why_analysis || {}}
+                                                onAnalysisChange={(data) => setFormData(prev => ({...prev, five_why_analysis: data}))}
+                                            />
+                                        </TabsContent>
+                                    </Tabs>
                                 </TabsContent>
                             </Tabs>
                         </ScrollArea>
