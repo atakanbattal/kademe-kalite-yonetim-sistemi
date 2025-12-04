@@ -54,7 +54,16 @@ import React, { useState, useEffect } from 'react';
             if (error) {
                 toast({ variant: 'destructive', title: 'Hata!', description: `Kayıt kaydedilemedi: ${error.message}` });
             } else {
-                toast({ title: 'Başarılı!', description: `Kayıt başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.` });
+                // Tekrarlayan problem kontrolü
+                if (data && data.is_major) {
+                    toast({ 
+                        variant: 'destructive', 
+                        title: '⚠️ Major Uygunsuzluk Tespit Edildi!', 
+                        description: 'Bu problem tekrarlayan bir problem olarak işaretlendi. Detaylı analiz yapılması önerilir.' 
+                    });
+                } else {
+                    toast({ title: 'Başarılı!', description: `Kayıt başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.` });
+                }
                 if(onSaveSuccess) onSaveSuccess(data);
                 if (!isEditMode) clearDraft();
                 setIsOpen(false);
