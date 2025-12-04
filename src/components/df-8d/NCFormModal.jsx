@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
     import NCFormGeneral from '@/components/df-8d/NCFormGeneral';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import FiveN1KTemplate from '@/components/df-8d/analysis-templates/FiveN1KTemplate';
+    import IshikawaTemplate from '@/components/df-8d/analysis-templates/IshikawaTemplate';
 
     const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initialRecord }) => {
         const { toast } = useToast();
