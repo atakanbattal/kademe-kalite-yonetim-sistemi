@@ -32,8 +32,8 @@ const navItems = [
   { id: 'document', icon: BookOpen, label: 'Doküman Yönetimi' },
   { id: 'wps', icon: FileSignature, label: 'WPS Yönetimi' },
   { id: 'tasks', icon: ClipboardList, label: 'Görev Yönetimi' },
-  { id: 'settings', icon: Settings, label: 'Ayarlar' },
   { id: 'audit-logs', icon: ScrollText, label: 'Denetim Kayıtları' },
+  { id: 'settings', icon: Settings, label: 'Ayarlar' },
 ];
 const Sidebar = ({
   activeModule,

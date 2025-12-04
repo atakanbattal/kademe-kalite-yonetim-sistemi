@@ -1,15 +1,18 @@
 import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2, Edit } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import MSAFormModal from './MSAFormModal';
 
 const MSAStudies = () => {
     const { toast } = useToast();
     const [studies, setStudies] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [formModalOpen, setFormModalOpen] = useState(false);
+    const [selectedStudy, setSelectedStudy] = useState(null);
 
     const loadStudies = useCallback(async () => {
         setLoading(true);
@@ -69,7 +72,10 @@ const MSAStudies = () => {
                             Gage R&R, Bias, Linearity, Stability çalışmaları
                         </CardDescription>
                     </div>
-                    <Button>
+                    <Button onClick={() => {
+                        setSelectedStudy(null);
+                        setFormModalOpen(true);
+                    }}>
                         <Plus className="w-4 h-4 mr-2" />
                         Yeni MSA Çalışması
                     </Button>
@@ -132,6 +138,49 @@ const MSAStudies = () => {
                                                 <p className="text-sm text-muted-foreground">{study.recommendation}</p>
                                             </div>
                                         )}
+
+                                        <div className="mt-4 flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setSelectedStudy(study);
+                                                    setFormModalOpen(true);
+                                                }}
+                                            >
+                                                <Edit className="w-4 h-4 mr-2" />
+                                                Düzenle
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={async () => {
+                                                    if (confirm('Bu MSA çalışmasını silmek istediğinize emin misiniz?')) {
+                                                        try {
+                                                            const { error } = await supabase
+                                                                .from('spc_msa_studies')
+                                                                .delete()
+                                                                .eq('id', study.id);
+                                                            if (error) throw error;
+                                                            toast({
+                                                                title: 'Başarılı',
+                                                                description: 'MSA çalışması silindi.'
+                                                            });
+                                                            loadStudies();
+                                                        } catch (error) {
+                                                            toast({
+                                                                variant: 'destructive',
+                                                                title: 'Hata',
+                                                                description: error.message || 'Silme işlemi başarısız.'
+                                                            });
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Sil
+                                            </Button>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             );
@@ -139,6 +188,15 @@ const MSAStudies = () => {
                     </div>
                 )}
             </CardContent>
+            <MSAFormModal
+                open={formModalOpen}
+                setOpen={setFormModalOpen}
+                existingStudy={selectedStudy}
+                onSuccess={() => {
+                    loadStudies();
+                    setSelectedStudy(null);
+                }}
+            />
         </Card>
     );
 };

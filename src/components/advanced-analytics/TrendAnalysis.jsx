@@ -49,7 +49,7 @@ const TrendAnalysis = () => {
 
                 const { data: inspections, error: inspError } = await supabase
                     .from('incoming_inspections')
-                    .select('inspection_date, inspected_quantity, rejected_quantity')
+                    .select('inspection_date, quantity_received, quantity_rejected')
                     .gte('inspection_date', startDate.toISOString().split('T')[0])
                     .order('inspection_date', { ascending: true });
 
@@ -74,8 +74,8 @@ const TrendAnalysis = () => {
                     if (!grouped[key]) {
                         grouped[key] = { total: 0, rejected: 0 };
                     }
-                    grouped[key].total += ins.inspected_quantity || 0;
-                    grouped[key].rejected += ins.rejected_quantity || 0;
+                    grouped[key].total += ins.quantity_received || 0;
+                    grouped[key].rejected += ins.quantity_rejected || 0;
                 });
 
                 data = Object.keys(grouped).sort().map(key => {
@@ -147,7 +147,7 @@ const TrendAnalysis = () => {
 
                 const { data: costs, error: costError } = await supabase
                     .from('quality_costs')
-                    .select('cost_date, total_cost')
+                    .select('cost_date, amount')
                     .gte('cost_date', startDate.toISOString().split('T')[0])
                     .order('cost_date', { ascending: true });
 
@@ -168,7 +168,7 @@ const TrendAnalysis = () => {
                         key = cost.cost_date;
                     }
 
-                    grouped[key] = (grouped[key] || 0) + (parseFloat(cost.total_cost) || 0);
+                    grouped[key] = (grouped[key] || 0) + (parseFloat(cost.amount) || 0);
                 });
 
                 data = Object.keys(grouped).sort().map(key => ({

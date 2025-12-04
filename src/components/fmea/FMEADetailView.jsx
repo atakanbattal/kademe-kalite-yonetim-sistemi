@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { ArrowLeft, Plus, Edit, AlertTriangle, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, AlertTriangle, TrendingUp, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import FMEACauseFormModal from './FMEACauseFormModal';
 
 const FMEADetailView = ({ project, onBack }) => {
     const { toast } = useToast();
@@ -16,6 +17,9 @@ const FMEADetailView = ({ project, onBack }) => {
     const [actionPlans, setActionPlans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedFunction, setSelectedFunction] = useState(null);
+    const [causeModalOpen, setCauseModalOpen] = useState(false);
+    const [selectedFailureMode, setSelectedFailureMode] = useState(null);
+    const [selectedCause, setSelectedCause] = useState(null);
 
     const loadFMEAData = useCallback(async () => {
         if (!project?.id) return;
@@ -232,12 +236,39 @@ const FMEADetailView = ({ project, onBack }) => {
                 <TabsContent value="matrix" className="mt-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>RPN (Risk Priority Number) Matrisi</CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle>RPN (Risk Priority Number) Matrisi</CardTitle>
+                                {failureModes.length > 0 && (
+                                    <Button
+                                        size="sm"
+                                        onClick={() => {
+                                            setSelectedFailureMode(failureModes[0].id);
+                                            setSelectedCause(null);
+                                            setCauseModalOpen(true);
+                                        }}
+                                    >
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Kök Neden Ekle
+                                    </Button>
+                                )}
+                            </div>
                         </CardHeader>
                         <CardContent>
                             {causesControls.length === 0 ? (
                                 <div className="text-center py-12 text-muted-foreground">
-                                    Henüz kök neden tanımlanmamış.
+                                    <p className="mb-4">Henüz kök neden tanımlanmamış.</p>
+                                    {failureModes.length > 0 && (
+                                        <Button
+                                            onClick={() => {
+                                                setSelectedFailureMode(failureModes[0].id);
+                                                setSelectedCause(null);
+                                                setCauseModalOpen(true);
+                                            }}
+                                        >
+                                            <Plus className="w-4 h-4 mr-2" />
+                                            İlk Kök Neden Ekle
+                                        </Button>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
@@ -252,6 +283,7 @@ const FMEADetailView = ({ project, onBack }) => {
                                                 <TableHead>D</TableHead>
                                                 <TableHead>RPN</TableHead>
                                                 <TableHead>Durum</TableHead>
+                                                <TableHead>İşlemler</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -275,6 +307,49 @@ const FMEADetailView = ({ project, onBack }) => {
                                                             <Badge variant={getRPNColor(cc.rpn)}>
                                                                 {getRPNStatus(cc.rpn)}
                                                             </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        setSelectedFailureMode(cc.failure_mode_id);
+                                                                        setSelectedCause(cc);
+                                                                        setCauseModalOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <Edit className="w-3 h-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="destructive"
+                                                                    size="sm"
+                                                                    onClick={async () => {
+                                                                        if (confirm('Bu kök neden kaydını silmek istediğinize emin misiniz?')) {
+                                                                            try {
+                                                                                const { error } = await supabase
+                                                                                    .from('fmea_causes_controls')
+                                                                                    .delete()
+                                                                                    .eq('id', cc.id);
+                                                                                if (error) throw error;
+                                                                                toast({
+                                                                                    title: 'Başarılı',
+                                                                                    description: 'Kök neden silindi.'
+                                                                                });
+                                                                                loadFMEAData();
+                                                                            } catch (error) {
+                                                                                toast({
+                                                                                    variant: 'destructive',
+                                                                                    title: 'Hata',
+                                                                                    description: error.message || 'Silme işlemi başarısız.'
+                                                                                });
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                </Button>
+                                                            </div>
                                                         </TableCell>
                                                     </TableRow>
                                                 );
@@ -339,6 +414,20 @@ const FMEADetailView = ({ project, onBack }) => {
                                                                                 S: {failure.severity}
                                                                             </Badge>
                                                                         </div>
+                                                                        <div className="mt-3 flex items-center justify-between">
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                onClick={() => {
+                                                                                    setSelectedFailureMode(failure.id);
+                                                                                    setSelectedCause(null);
+                                                                                    setCauseModalOpen(true);
+                                                                                }}
+                                                                            >
+                                                                                <Plus className="w-3 h-3 mr-2" />
+                                                                                Kök Neden Ekle
+                                                                            </Button>
+                                                                        </div>
                                                                         {failureCauses.length > 0 && (
                                                                             <div className="mt-3 space-y-2">
                                                                                 {failureCauses.map((cause) => (
@@ -351,9 +440,50 @@ const FMEADetailView = ({ project, onBack }) => {
                                                                                                     <span>D: {cause.detection}</span>
                                                                                                 </div>
                                                                                             </div>
-                                                                                            <Badge variant={getRPNColor(cause.rpn)} className="ml-2">
-                                                                                                RPN: {cause.rpn}
-                                                                                            </Badge>
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <Badge variant={getRPNColor(cause.rpn)} className="ml-2">
+                                                                                                    RPN: {cause.rpn}
+                                                                                                </Badge>
+                                                                                                <Button
+                                                                                                    variant="outline"
+                                                                                                    size="sm"
+                                                                                                    onClick={() => {
+                                                                                                        setSelectedFailureMode(failure.id);
+                                                                                                        setSelectedCause(cause);
+                                                                                                        setCauseModalOpen(true);
+                                                                                                    }}
+                                                                                                >
+                                                                                                    <Edit className="w-3 h-3" />
+                                                                                                </Button>
+                                                                                                <Button
+                                                                                                    variant="destructive"
+                                                                                                    size="sm"
+                                                                                                    onClick={async () => {
+                                                                                                        if (confirm('Bu kök neden kaydını silmek istediğinize emin misiniz?')) {
+                                                                                                            try {
+                                                                                                                const { error } = await supabase
+                                                                                                                    .from('fmea_causes_controls')
+                                                                                                                    .delete()
+                                                                                                                    .eq('id', cause.id);
+                                                                                                                if (error) throw error;
+                                                                                                                toast({
+                                                                                                                    title: 'Başarılı',
+                                                                                                                    description: 'Kök neden silindi.'
+                                                                                                                });
+                                                                                                                loadFMEAData();
+                                                                                                            } catch (error) {
+                                                                                                                toast({
+                                                                                                                    variant: 'destructive',
+                                                                                                                    title: 'Hata',
+                                                                                                                    description: error.message || 'Silme işlemi başarısız.'
+                                                                                                                });
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }}
+                                                                                                >
+                                                                                                    <Trash2 className="w-3 h-3" />
+                                                                                                </Button>
+                                                                                            </div>
                                                                                         </div>
                                                                                     </div>
                                                                                 ))}
@@ -374,6 +504,17 @@ const FMEADetailView = ({ project, onBack }) => {
                     </Card>
                 </TabsContent>
             </Tabs>
+            <FMEACauseFormModal
+                open={causeModalOpen}
+                setOpen={setCauseModalOpen}
+                failureModeId={selectedFailureMode}
+                existingCause={selectedCause}
+                onSuccess={() => {
+                    loadFMEAData();
+                    setSelectedCause(null);
+                    setSelectedFailureMode(null);
+                }}
+            />
         </div>
     );
 };
