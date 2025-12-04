@@ -361,7 +361,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'fmea': return <FMEAModule />;
               case 'mpc': return <MPCModule />;
               case 'process-validation': return <ProcessValidationModule />;
-<<<<<<< HEAD
               case 'advanced-analytics': return <AdvancedAnalyticsModule />;
               case 'customer-satisfaction': return <CustomerSatisfactionModule />;
               case 'supplier-development': return <SupplierDevelopmentModule />;
