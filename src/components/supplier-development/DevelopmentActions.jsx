@@ -66,7 +66,13 @@ const DevelopmentActions = () => {
                                                 {action.supplier_development_plans?.plan_name} | {action.supplier_development_plans?.suppliers?.name}
                                             </p>
                                         </div>
-                                        <Badge>{action.status}</Badge>
+                                        <Badge variant={
+                                            action.status === 'Tamamlanan' ? 'success' :
+                                            action.status === 'Devam Eden' ? 'warning' :
+                                            action.status === 'İptal Edildi' ? 'destructive' : 'default'
+                                        }>
+                                            {action.status}
+                                        </Badge>
                                     </div>
                                 </div>
                             ))}
