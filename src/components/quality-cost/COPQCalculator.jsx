@@ -263,23 +263,27 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
                     </div>
 
                     {/* Araç Başı Ortalama */}
-                    {copqData.costPerVehicle > 0 && (
-                        <div className="p-4 bg-muted rounded-lg">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-semibold text-muted-foreground">
-                                        Araç Başı Ortalama Kalitesizlik Maliyeti
-                                    </p>
-                                    <p className="text-xl font-bold text-foreground mt-1">
-                                        {formatCurrency(copqData.costPerVehicle)}
-                                    </p>
-                                </div>
-                                <Badge variant="secondary" className="text-sm">
-                                    IATF Metrik
-                                </Badge>
+                    <div className="p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/20">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <p className="text-sm font-semibold text-muted-foreground">
+                                    Araç Başı Ortalama Kalitesizlik Maliyeti
+                                </p>
+                                <p className="text-3xl font-bold text-primary mt-1">
+                                    {formatCurrency(copqData.costPerVehicle)}
+                                </p>
                             </div>
+                            <Badge variant="secondary" className="text-sm px-3 py-1">
+                                IATF 16949 Metrik
+                            </Badge>
                         </div>
-                    )}
+                        {producedVehicles && producedVehicles.length > 0 && (
+                            <div className="text-xs text-muted-foreground">
+                                <p>Toplam Üretilen Araç: {producedVehicles.reduce((sum, v) => sum + (v.quantity || 0), 0).toLocaleString('tr-TR')} adet</p>
+                                <p>Toplam COPQ: {formatCurrency(copqData.totalCOPQ)}</p>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Formül Açıklaması */}
                     <div className="p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
