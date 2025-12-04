@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -100,13 +100,7 @@ const DevelopmentPlans = () => {
                                                 {plan.suppliers?.name} | {plan.plan_type}
                                             </p>
                                         </div>
-                                        <Badge variant={
-                                            plan.current_status === 'Tamamlanan' ? 'success' :
-                                            plan.current_status === 'Devam Eden' ? 'warning' :
-                                            plan.current_status === 'Beklemede' ? 'secondary' : 'default'
-                                        }>
-                                            {plan.current_status}
-                                        </Badge>
+                                        <Badge>{plan.current_status}</Badge>
                                     </div>
                                     <p className="text-sm">{plan.objectives}</p>
                                     <div className="flex gap-2 mt-2">
@@ -117,35 +111,6 @@ const DevelopmentPlans = () => {
                                         >
                                             <Edit className="w-4 h-4 mr-1" />
                                             Düzenle
-                                        </Button>
-                                        <Button
-                                            variant="destructive"
-                                            size="sm"
-                                            onClick={async () => {
-                                                if (confirm('Bu geliştirme planını silmek istediğinize emin misiniz?')) {
-                                                    try {
-                                                        const { error } = await supabase
-                                                            .from('supplier_development_plans')
-                                                            .delete()
-                                                            .eq('id', plan.id);
-                                                        if (error) throw error;
-                                                        toast({
-                                                            title: 'Başarılı',
-                                                            description: 'Geliştirme planı silindi.'
-                                                        });
-                                                        loadPlans();
-                                                    } catch (error) {
-                                                        toast({
-                                                            variant: 'destructive',
-                                                            title: 'Hata',
-                                                            description: error.message || 'Silme işlemi başarısız.'
-                                                        });
-                                                    }
-                                                }
-                                            }}
-                                        >
-                                            <Trash2 className="w-4 h-4 mr-1" />
-                                            Sil
                                         </Button>
                                     </div>
                                 </div>
