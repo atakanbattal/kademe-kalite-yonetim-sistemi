@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, Lock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import EvidenceUploader from './EvidenceUploader';
 
-const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false }) => {
+const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false, ncId = null }) => {
     const [expandedSteps, setExpandedSteps] = useState(new Set(['D1'])); // İlk adım açık
 
     // Adım tamamlanma kontrolü
@@ -179,6 +180,20 @@ const EightDStepsEnhanced = ({ steps, onStepsChange, isEditMode = false }) => {
                                     <div className="md:col-span-2 flex items-center gap-2 text-sm text-green-600">
                                         <CheckCircle2 className="w-4 h-4" />
                                         <span>Bu adım tamamlandı. Bir sonraki adıma geçebilirsiniz.</span>
+                                    </div>
+                                )}
+                                
+                                {/* Kanıt Yükleme */}
+                                {ncId && (
+                                    <div className="md:col-span-2">
+                                        <EvidenceUploader
+                                            stepKey={key}
+                                            ncId={ncId}
+                                            evidenceFiles={step.evidenceFiles || []}
+                                            onEvidenceChange={(files) => {
+                                                handleStepChange(key, 'evidenceFiles', files);
+                                            }}
+                                        />
                                     </div>
                                 )}
                             </CardContent>

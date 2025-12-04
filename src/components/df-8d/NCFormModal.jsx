@@ -101,6 +101,7 @@ import React, { useState, useEffect } from 'react';
                                             steps={formData.eight_d_steps || {}} 
                                             onStepsChange={(steps) => setFormData(prev => ({...prev, eight_d_steps: steps}))}
                                             isEditMode={isEditMode}
+                                            ncId={formData.id || null}
                                         />
                                     </TabsContent>
                                 )}
