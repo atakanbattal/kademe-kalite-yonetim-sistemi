@@ -355,6 +355,18 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                                 </div>
                                                 <div>{complaintData.complaint_category}</div>
                                             </div>
+                                            {complaintData.complaint_classification && (
+                                                <div>
+                                                    <div className="text-sm font-medium text-muted-foreground">
+                                                        Sınıflandırma (ISO 10002)
+                                                    </div>
+                                                    <div>
+                                                        <Badge variant="outline">
+                                                            {complaintData.complaint_classification}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div>
                                                 <div className="text-sm font-medium text-muted-foreground">
                                                     Öncelik

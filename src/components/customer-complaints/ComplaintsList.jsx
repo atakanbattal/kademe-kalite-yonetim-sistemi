@@ -473,6 +473,20 @@ export default function ComplaintsList({
                                             </td>
                                             <td className="px-4 py-3">
                                                 {getSeverityBadge(complaint.severity)}
+                                                {complaint.sla_status && (
+                                                    <Badge 
+                                                        variant={
+                                                            complaint.sla_status === 'Overdue' ? 'destructive' :
+                                                            complaint.sla_status === 'At Risk' ? 'warning' :
+                                                            'success'
+                                                        }
+                                                        className="ml-1"
+                                                    >
+                                                        {complaint.sla_status === 'Overdue' ? 'SLA Gecikmiş' :
+                                                         complaint.sla_status === 'At Risk' ? 'SLA Risk' :
+                                                         'SLA OK'}
+                                                    </Badge>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3">
                                                 {getStatusBadge(complaint.status)}
