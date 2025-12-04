@@ -478,7 +478,6 @@ import React, { useState, useEffect, useCallback } from 'react';
                                         <div><Label>Hatalı Parça Adedi (Sonra)</Label><Input id="defective_parts_after" type="number" value={formData.defective_parts_after ?? ''} onChange={handleChange} /></div>
                                         <div><Label>İşçilik Tasarrufu (dk/adet)</Label><Input id="labor_time_saving_minutes" type="number" step="0.01" value={formData.labor_time_saving_minutes ?? ''} onChange={handleChange} /></div>
                                         <div><Label>Dakika Maliyeti (₺)</Label><Input id="minute_cost" type="number" step="0.01" value={formData.minute_cost ?? ''} onChange={handleChange} disabled /></div>
-                                        </div>
                                         
                                         {/* Kaizen Skor Sistemi */}
                                         <div className="md:col-span-4 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border-2 border-primary/20">
