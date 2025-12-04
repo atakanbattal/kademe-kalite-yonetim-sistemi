@@ -176,8 +176,12 @@ const DashboardAlerts = ({ onAlertClick }) => {
                         </div>
                         <div className="space-y-1 text-sm text-red-800 dark:text-red-200">
                             {overdueNCs.slice(0, 3).map((nc, idx) => (
-                                <div key={idx} className="flex items-center justify-between">
-                                    <span>{nc.nc_number || nc.mdi_no || 'N/A'}</span>
+                                <div 
+                                    key={idx} 
+                                    className="flex items-center justify-between cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 p-1 rounded transition-colors"
+                                    onClick={() => onAlertClick && onAlertClick('overdue-nc-detail', nc)}
+                                >
+                                    <span className="font-medium">{nc.nc_number || nc.mdi_no || 'N/A'}</span>
                                     <span className="font-medium">{nc.daysOverdue} gün</span>
                                 </div>
                             ))}
@@ -212,8 +216,12 @@ const DashboardAlerts = ({ onAlertClick }) => {
                         </div>
                         <div className="space-y-1 text-sm text-orange-800 dark:text-orange-200">
                             {overdueCalibrations.slice(0, 3).map((cal, idx) => (
-                                <div key={idx} className="flex items-center justify-between">
-                                    <span>{cal.equipment}</span>
+                                <div 
+                                    key={idx} 
+                                    className="flex items-center justify-between cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30 p-1 rounded transition-colors"
+                                    onClick={() => onAlertClick && onAlertClick('overdue-calibration-detail', cal)}
+                                >
+                                    <span className="font-medium">{cal.equipment}</span>
                                     <span className="font-medium">{cal.daysOverdue} gün gecikme</span>
                                 </div>
                             ))}
@@ -248,8 +256,12 @@ const DashboardAlerts = ({ onAlertClick }) => {
                         </div>
                         <div className="space-y-1 text-sm text-yellow-800 dark:text-yellow-200">
                             {expiringDocuments.slice(0, 3).map((doc, idx) => (
-                                <div key={idx} className="flex items-center justify-between">
-                                    <span>{doc.name}</span>
+                                <div 
+                                    key={idx} 
+                                    className="flex items-center justify-between cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/30 p-1 rounded transition-colors"
+                                    onClick={() => onAlertClick && onAlertClick('expiring-docs-detail', doc)}
+                                >
+                                    <span className="font-medium">{doc.name}</span>
                                     <span className="font-medium">{doc.daysRemaining} gün kaldı</span>
                                 </div>
                             ))}

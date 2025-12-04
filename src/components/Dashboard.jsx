@@ -303,7 +303,10 @@ import React, { useState, useCallback } from 'react';
                 <motion.div variants={itemVariants}>
                     <ErrorBoundary componentName="Gerçek Zamanlı Uyarılar">
                         <DashboardAlerts onAlertClick={(type, data) => {
-                            if (type === 'overdue-nc') {
+                            if (type === 'overdue-nc-detail' && data) {
+                                // Tek bir kayıt detayı göster
+                                handleCardClick('df-8d');
+                            } else if (type === 'overdue-nc') {
                                 setDetailModalData({
                                     isOpen: true,
                                     title: '30+ Gün Açık DF/8D Kayıtları',
@@ -319,8 +322,12 @@ import React, { useState, useCallback } from 'react';
                                             render: (row) => <span className="font-semibold text-red-600">{row.daysOverdue}</span>
                                         },
                                         { key: 'status', label: 'Durum' }
-                                    ]
+                                    ],
+                                    onRowClick: (row) => handleCardClick('df-8d')
                                 });
+                            } else if (type === 'overdue-calibration-detail' && data) {
+                                // Tek bir kalibrasyon detayı göster
+                                handleCardClick('equipment');
                             } else if (type === 'overdue-calibration') {
                                 setDetailModalData({
                                     isOpen: true,
@@ -339,8 +346,12 @@ import React, { useState, useCallback } from 'react';
                                             label: 'Gecikme (Gün)',
                                             render: (row) => <span className="font-semibold text-red-600">{row.daysOverdue}</span>
                                         }
-                                    ]
+                                    ],
+                                    onRowClick: (row) => handleCardClick('equipment')
                                 });
+                            } else if (type === 'expiring-docs-detail' && data) {
+                                // Tek bir doküman detayı göster
+                                handleCardClick('document');
                             } else if (type === 'expiring-docs') {
                                 setDetailModalData({
                                     isOpen: true,
@@ -359,7 +370,8 @@ import React, { useState, useCallback } from 'react';
                                             label: 'Kalan Gün',
                                             render: (row) => <span className="font-semibold text-yellow-600">{row.daysRemaining}</span>
                                         }
-                                    ]
+                                    ],
+                                    onRowClick: (row) => handleCardClick('document')
                                 });
                             } else if (type === 'cost-anomaly') {
                                 handleCardClick('quality-cost');
@@ -439,7 +451,36 @@ import React, { useState, useCallback } from 'react';
                 {/* 5 En Kritik Uygunsuzluk */}
                 <motion.div variants={itemVariants}>
                     <ErrorBoundary componentName="Kritik Uygunsuzluklar">
-                        <CriticalNonConformities onViewDetails={(nc) => handleCardClick('df-8d')} />
+                        <CriticalNonConformities onViewDetails={(nc) => {
+                            if (nc && nc.id) {
+                                setDetailModalData({
+                                    isOpen: true,
+                                    title: `Uygunsuzluk Detayı - ${nc.nc_number || nc.mdi_no || 'N/A'}`,
+                                    description: nc.title || 'Detay bilgisi',
+                                    data: [nc],
+                                    columns: [
+                                        { key: 'nc_number', label: 'Kayıt No' },
+                                        { key: 'title', label: 'Başlık' },
+                                        { key: 'type', label: 'Tip' },
+                                        { key: 'status', label: 'Durum' },
+                                        { key: 'department', label: 'Sorumlu Birim' },
+                                        { 
+                                            key: 'severity', 
+                                            label: 'Şiddet',
+                                            render: (row) => row.severity || '-'
+                                        },
+                                        { 
+                                            key: 'opening_date', 
+                                            label: 'Açılış Tarihi',
+                                            render: (row) => row.opening_date ? format(new Date(row.opening_date), 'dd.MM.yyyy', { locale: tr }) : '-'
+                                        }
+                                    ],
+                                    onRowClick: (row) => handleCardClick('df-8d')
+                                });
+                            } else {
+                                handleCardClick('df-8d');
+                            }
+                        }} />
                     </ErrorBoundary>
                 </motion.div>
 
