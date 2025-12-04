@@ -215,6 +215,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     analysis_5n1k: existingKaizen.analysis_5n1k || getInitialData().analysis_5n1k,
                     analysis_5_whys: existingKaizen.analysis_5_whys || getInitialData().analysis_5_whys,
                     analysis_fishbone: existingKaizen.analysis_fishbone || getInitialData().analysis_fishbone,
+                    a3_format: existingKaizen.a3_format || getInitialData().a3_format,
                     kaizen_topic: normalizeMultiSelect(existingKaizen.kaizen_topic),
                     isg_effect: normalizeMultiSelect(existingKaizen.isg_effect),
                     environmental_effect: normalizeMultiSelect(existingKaizen.environmental_effect),
@@ -564,6 +565,17 @@ import React, { useState, useEffect, useCallback } from 'react';
                                           <div><Label>Çevresel Etki</Label><MultiSelectPopover options={ENV_EFFECTS} value={formData.environmental_effect} onChange={(v) => handleSelectChange('environmental_effect', v)} placeholder="Etki seçin..." /></div>
                                         </div>
                                     </div>
+                                </TabsContent>
+                                <TabsContent value="a3">
+                                    <KaizenA3Template
+                                        kaizenData={formData.a3_format || {}}
+                                        onA3Change={(a3Data) => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                a3_format: a3Data
+                                            }));
+                                        }}
+                                    />
                                 </TabsContent>
                               </div>
                             </ScrollArea>
