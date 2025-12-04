@@ -27,6 +27,23 @@ const COMPLAINT_CATEGORIES = [
     'Paketleme', 'İletişim', 'Fiyatlandırma', 'Diğer'
 ];
 
+// ISO 10002 gereklilikleri için şikayet sınıflandırması
+const COMPLAINT_CLASSIFICATIONS = [
+    { value: 'Ürün', label: 'Ürün' },
+    { value: 'Servis', label: 'Servis' },
+    { value: 'Montaj', label: 'Montaj' },
+    { value: 'Yanlış Kullanım', label: 'Yanlış Kullanım' },
+    { value: 'Diğer', label: 'Diğer' }
+];
+
+// SLA süreleri (saat cinsinden)
+const SLA_DURATIONS = {
+    'Kritik': { firstResponse: 24, resolution: 72 },
+    'Yüksek': { firstResponse: 48, resolution: 120 },
+    'Orta': { firstResponse: 72, resolution: 168 },
+    'Düşük': { firstResponse: 120, resolution: 240 } // 5 iş günü = 120 saat
+};
+
 const SEVERITIES = ['Kritik', 'Yüksek', 'Orta', 'Düşük'];
 const PRIORITIES = ['Acil', 'Yüksek', 'Normal', 'Düşük'];
 
