@@ -374,3 +374,104 @@ COMMENT ON TABLE public.supplier_ppm_data IS 'Tedarikçi PPM verileri (aylık/y�
 COMMENT ON TABLE public.supplier_deliveries IS 'Tedarikçi teslimat takibi (OTD% hesaplama için)';
 COMMENT ON TABLE public.supplier_evaluations IS 'Tedarikçi yıllık değerlendirme kayıtları';
 
+-- 12. Tedarikçi 8D Portal Link Sistemi
+CREATE TABLE IF NOT EXISTS public.supplier_8d_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    supplier_id UUID NOT NULL REFERENCES public.suppliers(id) ON DELETE CASCADE,
+    nc_id UUID NOT NULL REFERENCES public.non_conformities(id) ON DELETE CASCADE,
+    unique_token VARCHAR(100) UNIQUE NOT NULL DEFAULT gen_random_uuid()::text,
+    link_url TEXT NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT true,
+    accessed_at TIMESTAMP WITH TIME ZONE,
+    access_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by UUID REFERENCES auth.users(id)
+);
+
+-- 13. Tedarikçi 8D Portal Gönderimleri
+CREATE TABLE IF NOT EXISTS public.supplier_8d_submissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    link_id UUID NOT NULL REFERENCES public.supplier_8d_links(id) ON DELETE CASCADE,
+    supplier_id UUID NOT NULL REFERENCES public.suppliers(id) ON DELETE CASCADE,
+    nc_id UUID NOT NULL REFERENCES public.non_conformities(id) ON DELETE CASCADE,
+    eight_d_steps JSONB,
+    root_cause_analysis TEXT,
+    corrective_actions TEXT,
+    preventive_actions TEXT,
+    evidence_files TEXT[], -- Supabase Storage paths
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    supplier_contact_name TEXT,
+    supplier_contact_email TEXT,
+    status VARCHAR(50) DEFAULT 'Beklemede' CHECK (status IN ('Beklemede', 'İnceleniyor', 'Onaylandı', 'Reddedildi'))
+);
+
+-- 14. Unique token oluşturma fonksiyonu
+CREATE OR REPLACE FUNCTION generate_supplier_8d_link(
+    p_supplier_id UUID,
+    p_nc_id UUID,
+    p_expires_days INTEGER DEFAULT 30
+)
+RETURNS UUID AS $$
+DECLARE
+    v_link_id UUID;
+    v_token VARCHAR(100);
+    v_base_url TEXT;
+BEGIN
+    -- Unique token oluştur
+    v_token := encode(gen_random_bytes(32), 'hex');
+    
+    -- Base URL (production'da environment variable'dan alınmalı)
+    v_base_url := 'https://kademekalite.online/supplier-portal/8d/';
+    
+    -- Link kaydı oluştur
+    INSERT INTO public.supplier_8d_links (
+        supplier_id,
+        nc_id,
+        unique_token,
+        link_url,
+        expires_at,
+        created_by
+    ) VALUES (
+        p_supplier_id,
+        p_nc_id,
+        v_token,
+        v_base_url || v_token,
+        NOW() + (p_expires_days || ' days')::INTERVAL,
+        auth.uid()
+    ) RETURNING id INTO v_link_id;
+    
+    RETURN v_link_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 15. Link erişim takibi
+CREATE OR REPLACE FUNCTION track_supplier_link_access(
+    p_token VARCHAR(100)
+)
+RETURNS UUID AS $$
+DECLARE
+    v_link_id UUID;
+BEGIN
+    UPDATE public.supplier_8d_links
+    SET accessed_at = NOW(),
+        access_count = access_count + 1
+    WHERE unique_token = p_token
+        AND is_active = true
+        AND (expires_at IS NULL OR expires_at > NOW())
+    RETURNING id INTO v_link_id;
+    
+    RETURN v_link_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Index'ler
+CREATE INDEX IF NOT EXISTS idx_supplier_8d_links_token ON public.supplier_8d_links(unique_token);
+CREATE INDEX IF NOT EXISTS idx_supplier_8d_links_supplier_nc ON public.supplier_8d_links(supplier_id, nc_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_8d_submissions_link ON public.supplier_8d_submissions(link_id);
+CREATE INDEX IF NOT EXISTS idx_supplier_8d_submissions_status ON public.supplier_8d_submissions(status);
+
+COMMENT ON TABLE public.supplier_8d_links IS 'Tedarikçilere özel 8D portal linkleri';
+COMMENT ON TABLE public.supplier_8d_submissions IS 'Tedarikçilerden gelen 8D gönderimleri';
+COMMENT ON FUNCTION generate_supplier_8d_link IS 'Tedarikçi için özel 8D portal linki oluşturma';
+
