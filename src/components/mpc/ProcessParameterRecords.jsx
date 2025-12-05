@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { X, Plus, AlertCircle, Trash2 } from 'lucide-react';
+import { X, Plus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -140,46 +140,16 @@ const ProcessParameterRecords = ({ parameterId, onClose }) => {
                                                 <div className="text-sm text-muted-foreground mt-1">
                                                     {new Date(record.record_date).toLocaleString('tr-TR')} | 
                                                     {record.shift && ` Shift: ${record.shift} |`}
-                                                    {record.personnel && ` Operatör: ${record.personnel.full_name}`}
+                                                    {record.operator && ` Operatör: ${record.operator.full_name}`}
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openFormModal(record)}
-                                                >
-                                                    Düzenle
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={async () => {
-                                                        if (confirm('Bu parametre kaydını silmek istediğinize emin misiniz?')) {
-                                                            try {
-                                                                const { error } = await supabase
-                                                                    .from('process_parameter_records')
-                                                                    .delete()
-                                                                    .eq('id', record.id);
-                                                                if (error) throw error;
-                                                                toast({
-                                                                    title: 'Başarılı',
-                                                                    description: 'Parametre kaydı silindi.'
-                                                                });
-                                                                loadRecords();
-                                                            } catch (error) {
-                                                                toast({
-                                                                    variant: 'destructive',
-                                                                    title: 'Hata',
-                                                                    description: error.message || 'Silme işlemi başarısız.'
-                                                                });
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    <Trash2 className="w-3 h-3" />
-                                                </Button>
-                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => openFormModal(record)}
+                                            >
+                                                Düzenle
+                                            </Button>
                                         </div>
                                     </div>
                                 ))}
