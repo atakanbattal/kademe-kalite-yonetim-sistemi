@@ -324,7 +324,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
                 const { id, created_at, updated_at, kaizen_no, proposer, department, supplier, responsible_person, ...rest } = formData;
                 
-                const numericFields = ['part_cost', 'monthly_production_quantity', 'defective_parts_before', 'defective_parts_after', 'labor_time_saving_minutes', 'minute_cost', 'total_monthly_gain', 'total_yearly_gain', 'energy_saving', 'other_saving', 'roi'];
+                const numericFields = ['part_cost', 'monthly_production_quantity', 'defective_parts_before', 'defective_parts_after', 'labor_time_saving_minutes', 'minute_cost', 'total_monthly_gain', 'total_yearly_gain', 'energy_saving', 'other_saving', 'roi', 'cost_benefit_score', 'difficulty_score', 'employee_participation_score', 'kaizen_score'];
 
                 const dataToSubmit = { ...rest, kaizen_score: formData.kaizen_score || calculateKaizenScore(formData) };
                 numericFields.forEach(field => {
