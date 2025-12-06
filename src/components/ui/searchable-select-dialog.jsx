@@ -94,16 +94,16 @@ export function SearchableSelectDialog({
           </div>
         </Button>
       </DialogTrigger>
-      <DialogContent className="p-0">
+      <DialogContent className="p-0" style={{ pointerEvents: 'auto' }}>
         <DialogHeader className="p-4 pb-0">
           <DialogTitle>{dialogTitle}</DialogTitle>
         </DialogHeader>
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
-          <ScrollArea className="max-h-[300px]">
-            <CommandList>
+          <ScrollArea className="max-h-[300px]" style={{ pointerEvents: 'auto' }}>
+            <CommandList style={{ pointerEvents: 'auto' }}>
               <CommandEmpty>{notFoundText}</CommandEmpty>
-              <CommandGroup>
+              <CommandGroup style={{ pointerEvents: 'auto' }}>
                 {options.map((option) => (
                   <CommandItem
                     key={option.value}
@@ -111,6 +111,12 @@ export function SearchableSelectDialog({
                     onSelect={() => handleSelect(option.value)}
                     onClick={(e) => {
                       e.preventDefault();
+                      e.stopPropagation();
+                      handleSelect(option.value);
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       handleSelect(option.value);
                     }}
                   >

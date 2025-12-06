@@ -76,7 +76,20 @@ const CommandSeparator = React.forwardRef(({ className, ...props }, ref) => (
 CommandSeparator.displayName = CommandPrimitive.Separator.displayName
 
 const CommandItem = React.forwardRef(({ className, onClick, onSelect, ...props }, ref) => {
+  const handleMouseDown = (e) => {
+    // Prevent default to avoid focus issues
+    e.preventDefault();
+    if (onClick) {
+      onClick(e);
+    }
+    // Trigger onSelect if provided
+    if (onSelect) {
+      onSelect();
+    }
+  };
+
   const handleClick = (e) => {
+    // Also handle regular click events
     if (onClick) {
       onClick(e);
     }
@@ -89,11 +102,13 @@ const CommandItem = React.forwardRef(({ className, onClick, onSelect, ...props }
     <CommandPrimitive.Item
       ref={ref}
       className={cn(
-        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent hover:text-accent-foreground",
+        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent hover:text-accent-foreground active:bg-accent",
         className
       )}
+      onMouseDown={handleMouseDown}
       onClick={handleClick}
       onSelect={onSelect}
+      style={{ pointerEvents: 'auto' }}
       {...props} />
   );
 })
