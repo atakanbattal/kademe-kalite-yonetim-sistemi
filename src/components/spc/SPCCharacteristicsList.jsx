@@ -3,11 +3,26 @@ import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import SPCCharacteristicFormModal from './SPCCharacteristicFormModal';
 
 const SPCCharacteristicsList = ({ characteristics, loading, onRefresh }) => {
+    const { toast } = useToast();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingCharacteristic, setEditingCharacteristic] = useState(null);
+    const [deletingCharacteristic, setDeletingCharacteristic] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const openFormModal = (char = null) => {
         setEditingCharacteristic(char);
@@ -18,6 +33,37 @@ const SPCCharacteristicsList = ({ characteristics, loading, onRefresh }) => {
         setEditingCharacteristic(null);
         setFormModalOpen(false);
         onRefresh();
+    };
+
+    const handleDelete = async () => {
+        if (!deletingCharacteristic) return;
+        
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('spc_characteristics')
+                .delete()
+                .eq('id', deletingCharacteristic.id);
+
+            if (error) throw error;
+            
+            toast({
+                title: 'Başarılı',
+                description: 'Karakteristik silindi.'
+            });
+            
+            setDeletingCharacteristic(null);
+            onRefresh();
+        } catch (error) {
+            console.error('Error deleting characteristic:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: error.message || 'Karakteristik silinirken hata oluştu.'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     if (loading) {
@@ -111,6 +157,14 @@ const SPCCharacteristicsList = ({ characteristics, loading, onRefresh }) => {
                                         <Edit className="w-4 h-4 mr-1" />
                                         Düzenle
                                     </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setDeletingCharacteristic(char)}
+                                        className="text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -126,6 +180,28 @@ const SPCCharacteristicsList = ({ characteristics, loading, onRefresh }) => {
                     onSuccess={closeFormModal}
                 />
             )}
+
+            <AlertDialog open={!!deletingCharacteristic} onOpenChange={(open) => !open && setDeletingCharacteristic(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Karakteristiği Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{deletingCharacteristic?.characteristic_name}" karakteristiğini silmek istediğinizden emin misiniz?
+                            Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Siliniyor...' : 'Sil'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };
