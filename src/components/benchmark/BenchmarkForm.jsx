@@ -314,11 +314,17 @@ const BenchmarkForm = ({
                                      ? formData.department_id 
                                      : null;
             
+            // Tarih alanlarını temizle - boş string'leri null'a çevir
+            const cleanStartDate = formData.start_date && formData.start_date.trim() !== '' ? formData.start_date : null;
+            const cleanTargetCompletionDate = formData.target_completion_date && formData.target_completion_date.trim() !== '' ? formData.target_completion_date : null;
+            
             const dataToSave = {
                 ...formData,
                 owner_id: cleanOwnerId,
                 department_id: cleanDepartmentId,
                 team_members: formData.team_members && formData.team_members.length > 0 ? formData.team_members : null,
+                start_date: cleanStartDate,
+                target_completion_date: cleanTargetCompletionDate,
                 estimated_budget: formData.estimated_budget 
                     ? parseFloat(formData.estimated_budget) 
                     : null,
