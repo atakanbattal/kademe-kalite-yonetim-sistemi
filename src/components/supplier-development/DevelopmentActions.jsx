@@ -1,13 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import DevelopmentActionFormModal from './DevelopmentActionFormModal';
 
 const DevelopmentActions = () => {
     const { toast } = useToast();
     const [actions, setActions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isFormModalOpen, setFormModalOpen] = useState(false);
+    const [editingAction, setEditingAction] = useState(null);
+    const [deletingAction, setDeletingAction] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         loadActions();
@@ -38,11 +55,59 @@ const DevelopmentActions = () => {
         }
     };
 
+    const openFormModal = (action = null) => {
+        setEditingAction(action);
+        setFormModalOpen(true);
+    };
+
+    const closeFormModal = () => {
+        setEditingAction(null);
+        setFormModalOpen(false);
+        loadActions();
+    };
+
+    const handleDelete = async () => {
+        if (!deletingAction) return;
+        
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('supplier_development_actions')
+                .delete()
+                .eq('id', deletingAction.id);
+
+            if (error) throw error;
+            
+            toast({
+                title: 'Başarılı',
+                description: 'Aksiyon silindi.'
+            });
+            
+            setDeletingAction(null);
+            loadActions();
+        } catch (error) {
+            console.error('Error deleting action:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: error.message || 'Aksiyon silinirken hata oluştu.'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="space-y-4">
             <Card>
                 <CardHeader>
-                    <CardTitle>Geliştirme Aksiyonları</CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle>Geliştirme Aksiyonları</CardTitle>
+                        <Button onClick={() => openFormModal()}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Yeni Aksiyon
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     {loading ? (
@@ -68,12 +133,65 @@ const DevelopmentActions = () => {
                                         </div>
                                         <Badge>{action.status}</Badge>
                                     </div>
+                                    <div className="flex gap-2 mt-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => openFormModal(action)}
+                                        >
+                                            <Edit className="w-4 h-4 mr-1" />
+                                            Düzenle
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setDeletingAction(action)}
+                                            className="text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </CardContent>
             </Card>
+
+            <DevelopmentActionFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingAction(null);
+                    }
+                }}
+                existingAction={editingAction}
+                planId={null}
+                onSuccess={closeFormModal}
+            />
+
+            <AlertDialog open={!!deletingAction} onOpenChange={(open) => !open && setDeletingAction(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Aksiyonu Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{deletingAction?.action_description}" aksiyonunu silmek istediğinizden emin misiniz?
+                            Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Siliniyor...' : 'Sil'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

@@ -15,6 +15,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import DMAICProjectFormModal from './DMAICProjectFormModal';
 
 const DMAICProjectsList = () => {
     const { toast } = useToast();
@@ -22,6 +23,8 @@ const DMAICProjectsList = () => {
     const [loading, setLoading] = useState(true);
     const [deletingProject, setDeletingProject] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isFormModalOpen, setFormModalOpen] = useState(false);
+    const [editingProject, setEditingProject] = useState(null);
 
     useEffect(() => {
         loadProjects();
@@ -98,13 +101,24 @@ const DMAICProjectsList = () => {
         }
     };
 
+    const openFormModal = (project = null) => {
+        setEditingProject(project);
+        setFormModalOpen(true);
+    };
+
+    const closeFormModal = () => {
+        setEditingProject(null);
+        setFormModalOpen(false);
+        loadProjects();
+    };
+
     return (
         <div className="space-y-4">
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle>DMAIC Projeleri</CardTitle>
-                        <Button>
+                        <Button onClick={() => openFormModal()}>
                             <Plus className="w-4 h-4 mr-2" />
                             Yeni Proje
                         </Button>
@@ -137,6 +151,14 @@ const DMAICProjectsList = () => {
                                         İlerleme: %{Math.round(getPhaseProgress(project))}
                                     </div>
                                     <div className="flex gap-2 mt-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => openFormModal(project)}
+                                        >
+                                            <Edit className="w-4 h-4 mr-1" />
+                                            Düzenle
+                                        </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -175,6 +197,18 @@ const DMAICProjectsList = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <DMAICProjectFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingProject(null);
+                    }
+                }}
+                existingProject={editingProject}
+                onSuccess={closeFormModal}
+            />
         </div>
     );
 };

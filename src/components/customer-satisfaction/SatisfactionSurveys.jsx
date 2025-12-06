@@ -15,6 +15,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import SatisfactionSurveyFormModal from './SatisfactionSurveyFormModal';
 
 const SatisfactionSurveys = () => {
     const { toast } = useToast();
@@ -22,6 +23,8 @@ const SatisfactionSurveys = () => {
     const [loading, setLoading] = useState(true);
     const [deletingSurvey, setDeletingSurvey] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isFormModalOpen, setFormModalOpen] = useState(false);
+    const [editingSurvey, setEditingSurvey] = useState(null);
 
     useEffect(() => {
         loadSurveys();
@@ -83,13 +86,24 @@ const SatisfactionSurveys = () => {
         }
     };
 
+    const openFormModal = (survey = null) => {
+        setEditingSurvey(survey);
+        setFormModalOpen(true);
+    };
+
+    const closeFormModal = () => {
+        setEditingSurvey(null);
+        setFormModalOpen(false);
+        loadSurveys();
+    };
+
     return (
         <div className="space-y-4">
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle>Müşteri Memnuniyet Anketleri</CardTitle>
-                        <Button>
+                        <Button onClick={() => openFormModal()}>
                             <Plus className="w-4 h-4 mr-2" />
                             Yeni Anket
                         </Button>
@@ -118,8 +132,13 @@ const SatisfactionSurveys = () => {
                                         )}
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button variant="outline" size="sm">
-                                            Görüntüle
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm"
+                                            onClick={() => openFormModal(survey)}
+                                        >
+                                            <Edit className="w-4 h-4 mr-1" />
+                                            Düzenle
                                         </Button>
                                         <Button 
                                             variant="outline" 
@@ -158,6 +177,18 @@ const SatisfactionSurveys = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <SatisfactionSurveyFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingSurvey(null);
+                    }
+                }}
+                existingSurvey={editingSurvey}
+                onSuccess={closeFormModal}
+            />
         </div>
     );
 };
