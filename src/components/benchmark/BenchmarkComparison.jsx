@@ -1177,9 +1177,10 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                 <p className="text-sm mb-3">{item.description}</p>
                                             )}
                                             <div className="space-y-2 text-sm">
+                                                {/* Maliyet Bilgileri */}
                                                 {item.unit_price && (
                                                     <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Fiyat:</span>
+                                                        <span className="text-muted-foreground">Birim Fiyat:</span>
                                                         <span className="font-medium">
                                                             {new Intl.NumberFormat('tr-TR', {
                                                                 style: 'currency',
@@ -1188,16 +1189,101 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                         </span>
                                                     </div>
                                                 )}
-                                                {item.quality_score && (
+                                                {item.total_cost_of_ownership && (
                                                     <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Kalite:</span>
-                                                        <Badge variant="outline">{item.quality_score}/100</Badge>
+                                                        <span className="text-muted-foreground">TCO:</span>
+                                                        <span className="font-medium">
+                                                            {new Intl.NumberFormat('tr-TR', {
+                                                                style: 'currency',
+                                                                currency: item.currency || 'TRY'
+                                                            }).format(item.total_cost_of_ownership)}
+                                                        </span>
                                                     </div>
                                                 )}
-                                                {itemScores[item.id] && (
+                                                {item.roi_percentage && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">ROI:</span>
+                                                        <Badge variant="outline">{item.roi_percentage}%</Badge>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Teslimat ve Süre */}
+                                                {(item.delivery_time_days || item.lead_time_days) && (
                                                     <div className="flex justify-between pt-2 border-t">
-                                                        <span className="font-medium">Toplam Skor:</span>
-                                                        <Badge className="bg-primary">
+                                                        <span className="text-muted-foreground">Teslimat:</span>
+                                                        <span className="font-medium">
+                                                            {item.delivery_time_days || item.lead_time_days} gün
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Kalite Skorları */}
+                                                <div className="pt-2 border-t space-y-1">
+                                                    {item.quality_score && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Kalite:</span>
+                                                            <Badge variant="outline">{item.quality_score}/100</Badge>
+                                                        </div>
+                                                    )}
+                                                    {item.performance_score && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Performans:</span>
+                                                            <Badge variant="outline">{item.performance_score}/100</Badge>
+                                                        </div>
+                                                    )}
+                                                    {item.reliability_score && (
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Güvenilirlik:</span>
+                                                            <Badge variant="outline">{item.reliability_score}/100</Badge>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Hizmet Skorları */}
+                                                {(item.after_sales_service_score || item.technical_support_score) && (
+                                                    <div className="pt-2 border-t space-y-1">
+                                                        {item.after_sales_service_score && (
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Satış Sonrası:</span>
+                                                                <Badge variant="outline">{item.after_sales_service_score}/100</Badge>
+                                                            </div>
+                                                        )}
+                                                        {item.technical_support_score && (
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Teknik Destek:</span>
+                                                                <Badge variant="outline">{item.technical_support_score}/100</Badge>
+                                                            </div>
+                                                        )}
+                                                        {item.warranty_period_months && (
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Garanti:</span>
+                                                                <span className="font-medium">{item.warranty_period_months} ay</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Risk ve Diğer */}
+                                                {item.risk_level && (
+                                                    <div className="flex justify-between pt-2 border-t">
+                                                        <span className="text-muted-foreground">Risk:</span>
+                                                        <Badge 
+                                                            variant={
+                                                                item.risk_level === 'Düşük' ? 'default' :
+                                                                item.risk_level === 'Orta' ? 'secondary' :
+                                                                item.risk_level === 'Yüksek' ? 'destructive' : 'destructive'
+                                                            }
+                                                        >
+                                                            {item.risk_level}
+                                                        </Badge>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Toplam Skor */}
+                                                {itemScores[item.id] && (
+                                                    <div className="flex justify-between pt-2 border-t mt-2">
+                                                        <span className="font-semibold">Toplam Skor:</span>
+                                                        <Badge className="bg-primary text-lg px-3 py-1">
                                                             {itemScores[item.id].average.toFixed(1)}
                                                         </Badge>
                                                     </div>
