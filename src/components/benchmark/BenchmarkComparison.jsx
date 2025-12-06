@@ -152,6 +152,8 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 
     // Otomatik skorlama fonksiyonu - tüm kriterleri değerlendirir
     const calculateAutoScore = useCallback((item) => {
+        if (!item || !items || items.length === 0) return 0;
+        
         let totalScore = 0;
         let maxScore = 0;
         const weights = {
@@ -333,6 +335,8 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     // Calculate total weighted score for each item
     const itemScores = useMemo(() => {
         const result = {};
+        if (!items || items.length === 0) return result;
+        
         items.forEach(item => {
             let totalScore = 0;
             let totalWeight = 0;
@@ -1476,7 +1480,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                             )}
 
                             <div className="grid gap-4 md:grid-cols-2">
-                                {items.map((item) => (
+                                {items && items.length > 0 ? items.map((item) => (
                                     <Card key={item.id}>
                                         <CardHeader>
                                             <div className="flex items-start justify-between">
