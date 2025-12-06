@@ -1807,9 +1807,15 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                                 <Badge className="text-base px-3 py-1">
                                                                     {itemScores[item.id]?.average.toFixed(1) || '0.0'}
                                                                 </Badge>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={criteria && criteria.length > 0 ? criteria.length + 2 : 3} className="text-center text-muted-foreground py-8">
+                                                            Henüz alternatif eklenmemiş.
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
                                                 </TableBody>
                                             </Table>
                                         </div>
