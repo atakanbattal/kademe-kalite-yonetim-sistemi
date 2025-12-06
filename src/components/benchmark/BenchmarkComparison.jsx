@@ -80,6 +80,10 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         }
 
         setLoading(true);
+        // itemsData ve criteriaData'yı try bloğu dışında tanımla ki catch bloğunda erişilebilir olsun
+        let itemsData = [];
+        let criteriaData = [];
+        
         try {
             console.log('fetchComparisonData: Starting data fetch');
             // Önce items ve criteria'yı çek
@@ -99,8 +103,8 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             if (itemsRes.error) throw itemsRes.error;
             if (criteriaRes.error) throw criteriaRes.error;
 
-            const itemsData = itemsRes.data || [];
-            const criteriaData = criteriaRes.data || [];
+            itemsData = itemsRes.data || [];
+            criteriaData = criteriaRes.data || [];
             
             console.log('fetchComparisonData: Items loaded', { count: itemsData.length, items: itemsData });
             console.log('fetchComparisonData: Criteria loaded', { count: criteriaData.length, criteria: criteriaData });
@@ -116,22 +120,38 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             let prosConsData = [];
             
             if (itemIds.length > 0) {
-                const [scoresRes, prosConsRes] = await Promise.all([
-                    supabase
-                        .from('benchmark_scores')
-                        .select('*')
-                        .in('benchmark_item_id', itemIds),
-                    supabase
+                // Scores sorgusu - zorunlu
+                const scoresRes = await supabase
+                    .from('benchmark_scores')
+                    .select('*')
+                    .in('benchmark_item_id', itemIds);
+
+                if (scoresRes.error) {
+                    console.warn('benchmark_scores sorgusu hatası:', scoresRes.error);
+                    // Scores hatası kritik değil, devam et
+                } else {
+                    scoresData = scoresRes.data || [];
+                }
+
+                // Pros/cons sorgusu - opsiyonel (tablo yoksa hata verme)
+                try {
+                    const prosConsRes = await supabase
                         .from('benchmark_pros_cons')
                         .select('*')
-                        .in('benchmark_item_id', itemIds)
-                ]);
+                        .in('benchmark_item_id', itemIds);
 
-                if (scoresRes.error) throw scoresRes.error;
-                if (prosConsRes.error) throw prosConsRes.error;
-
-                scoresData = scoresRes.data || [];
-                prosConsData = prosConsRes.data || [];
+                    if (prosConsRes.error) {
+                        console.warn('benchmark_pros_cons sorgusu hatası (tablo mevcut olmayabilir):', prosConsRes.error);
+                        // Pros/cons hatası kritik değil, devam et
+                        prosConsData = [];
+                    } else {
+                        prosConsData = prosConsRes.data || [];
+                    }
+                } catch (prosConsError) {
+                    console.warn('benchmark_pros_cons sorgusu exception:', prosConsError);
+                    // Pros/cons hatası kritik değil, devam et
+                    prosConsData = [];
+                }
             }
 
             // Organize scores by item and criterion
@@ -163,21 +183,44 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 prosConsCount: Object.keys(prosConsMap).length
             });
         } catch (error) {
-            console.error('Karşılaştırma verileri yüklenirken hata:', error);
+            console.error('Karşılaştırma verileri yüklenirken kritik hata:', error);
             console.error('Error details:', {
                 message: error.message,
                 stack: error.stack,
                 benchmarkId: benchmark?.id
             });
-            // Hata durumunda da state'leri temizle
-            setItems([]);
-            setCriteria([]);
-            setScores({});
-            setProsConsData({});
+            
+            // Items ve criteria yüklenmişse koru, sadece scores ve prosCons'u temizle
+            // itemsData ve criteriaData değişkenlerini kontrol et (henüz state'e set edilmemiş olabilir)
+            const itemsLoaded = itemsData && itemsData.length > 0;
+            const criteriaLoaded = criteriaData && criteriaData.length > 0;
+            
+            if (itemsLoaded || criteriaLoaded) {
+                // Items veya criteria yüklenmişse, onları koru
+                if (itemsLoaded) {
+                    setItems(itemsData);
+                    console.log('Items korunuyor:', itemsData.length);
+                }
+                if (criteriaLoaded) {
+                    setCriteria(criteriaData);
+                    console.log('Criteria korunuyor:', criteriaData.length);
+                }
+                // Sadece scores ve prosCons'u temizle
+                setScores({});
+                setProsConsData({});
+                console.log('Items ve criteria korunuyor, sadece scores ve prosCons temizlendi');
+            } else {
+                // Hiçbir veri yüklenmemişse, state'leri temizle
+                setItems([]);
+                setCriteria([]);
+                setScores({});
+                setProsConsData({});
+            }
+            
             toast({
                 variant: 'destructive',
-                title: 'Hata',
-                description: 'Veriler yüklenirken bir hata oluştu: ' + (error.message || 'Bilinmeyen hata')
+                title: 'Uyarı',
+                description: 'Bazı veriler yüklenirken bir hata oluştu, ancak temel veriler korundu.'
             });
         } finally {
             setLoading(false);
