@@ -68,11 +68,33 @@ const UnitCostDistribution = ({ costs }) => {
         return { unitData, totalCost };
     }, [costs]);
 
-    const pieData = distributionData.unitData.map(unit => ({
-        name: unit.unit,
-        value: unit.totalCost,
-        percentage: unit.percentage
-    }));
+    // Küçük dilimleri (< %3) "Diğer" kategorisine topla
+    const pieData = useMemo(() => {
+        const threshold = 3; // %3 altındaki dilimler
+        const mainData = [];
+        const otherData = { name: 'Diğer', value: 0, percentage: 0, count: 0 };
+        
+        distributionData.unitData.forEach(unit => {
+            if (unit.percentage >= threshold) {
+                mainData.push({
+                    name: unit.unit,
+                    value: unit.totalCost,
+                    percentage: unit.percentage,
+                    count: unit.count
+                });
+            } else {
+                otherData.value += unit.totalCost;
+                otherData.percentage += unit.percentage;
+                otherData.count += unit.count;
+            }
+        });
+        
+        if (otherData.value > 0) {
+            mainData.push(otherData);
+        }
+        
+        return mainData.sort((a, b) => b.value - a.value);
+    }, [distributionData.unitData]);
 
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
@@ -108,26 +130,57 @@ const UnitCostDistribution = ({ costs }) => {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        {/* Pie Chart */}
-                        <div className="h-[400px]">
+                        {/* Pie Chart - Donut Chart olarak göster */}
+                        <div className="h-[500px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
                                         data={pieData}
                                         cx="50%"
                                         cy="50%"
-                                        labelLine={false}
-                                        label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
-                                        outerRadius={120}
+                                        labelLine={true}
+                                        label={({ name, percentage }) => {
+                                            // Sadece %5 üzerindeki dilimler için label göster
+                                            if (percentage >= 5) {
+                                                return `${name}\n${percentage.toFixed(1)}%`;
+                                            }
+                                            return '';
+                                        }}
+                                        outerRadius={140}
+                                        innerRadius={60}
                                         fill="#8884d8"
                                         dataKey="value"
+                                        paddingAngle={2}
                                     >
                                         {pieData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Legend />
+                                    <Tooltip 
+                                        content={({ active, payload }) => {
+                                            if (active && payload && payload.length) {
+                                                const data = payload[0];
+                                                return (
+                                                    <div className="bg-background/95 backdrop-blur-sm p-3 border border-border rounded-lg shadow-lg">
+                                                        <p className="font-semibold text-foreground">{data.name}</p>
+                                                        <p className="text-primary font-bold">{formatCurrency(data.value)}</p>
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            {data.payload.percentage.toFixed(2)}% - {data.payload.count || 0} kayıt
+                                                        </p>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        }}
+                                    />
+                                    <Legend 
+                                        verticalAlign="bottom" 
+                                        height={36}
+                                        formatter={(value, entry) => {
+                                            const data = pieData.find(d => d.name === value);
+                                            return `${value} (${data?.percentage.toFixed(1)}%)`;
+                                        }}
+                                    />
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
@@ -157,10 +210,10 @@ const UnitCostDistribution = ({ costs }) => {
                                     />
                                     <Legend />
                                     <Bar dataKey="totalCost" fill="#8884d8" name="Toplam Maliyet" />
-                                    <Bar dataKey="internalCost" fill="#82ca9d" name="Internal Failure" />
-                                    <Bar dataKey="externalCost" fill="#ffc658" name="External Failure" />
-                                    <Bar dataKey="appraisalCost" fill="#ff8042" name="Appraisal" />
-                                    <Bar dataKey="preventionCost" fill="#0088FE" name="Prevention" />
+                                    <Bar dataKey="internalCost" fill="#82ca9d" name="İç Hata Maliyeti" />
+                                    <Bar dataKey="externalCost" fill="#ffc658" name="Dış Hata Maliyeti" />
+                                    <Bar dataKey="appraisalCost" fill="#ff8042" name="Değerlendirme Maliyeti" />
+                                    <Bar dataKey="preventionCost" fill="#0088FE" name="Önleme Maliyeti" />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>

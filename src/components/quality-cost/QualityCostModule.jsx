@@ -328,7 +328,8 @@ import React, { useState, useMemo, useCallback } from 'react';
                         <COPQCalculator 
                             costs={filteredCosts} 
                             producedVehicles={producedVehicles}
-                            loading={loading} 
+                            loading={loading}
+                            dateRange={dateRange}
                         />
                         <CostTrendAnalysis costs={filteredCosts} />
                         <PartCostLeaders 

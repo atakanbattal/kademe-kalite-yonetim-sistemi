@@ -9,7 +9,7 @@ const formatCurrency = (value) => {
     return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 };
 
-const COPQCalculator = ({ costs, producedVehicles, loading }) => {
+const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
     const copqData = useMemo(() => {
         if (!costs || costs.length === 0) {
             return {
@@ -105,7 +105,18 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
         const totalCOPQ = internalFailure + externalFailure + appraisal + prevention;
         
         // Araç başı ortalama kalitesizlik maliyeti
-        const totalVehicles = producedVehicles?.reduce((sum, v) => sum + (v.quantity || 0), 0) || 0;
+        // Tarih filtresine göre üretilen araç sayısını hesapla
+        let filteredVehicles = producedVehicles || [];
+        if (dateRange?.startDate && dateRange?.endDate) {
+            const startDate = new Date(dateRange.startDate);
+            const endDate = new Date(dateRange.endDate);
+            filteredVehicles = filteredVehicles.filter(v => {
+                const vehicleDate = v.created_at ? new Date(v.created_at) : (v.production_date ? new Date(v.production_date) : null);
+                if (!vehicleDate) return false;
+                return vehicleDate >= startDate && vehicleDate <= endDate;
+            });
+        }
+        const totalVehicles = filteredVehicles.reduce((sum, v) => sum + (v.quantity || 1), 0);
         const costPerVehicle = totalVehicles > 0 ? totalCOPQ / totalVehicles : 0;
 
         return {
@@ -115,9 +126,10 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
             prevention,
             totalCOPQ,
             costPerVehicle,
-            breakdown
+            breakdown,
+            totalVehicles
         };
-    }, [costs, producedVehicles]);
+    }, [costs, producedVehicles, dateRange]);
 
     if (loading) {
         return (
@@ -135,7 +147,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <DollarSign className="h-5 w-5 text-primary" />
-                        COPQ (Cost of Poor Quality) Hesaplama
+                        COPQ (Kalitesizlik Maliyeti) Hesaplama
                     </CardTitle>
                     <CardDescription>
                         IATF 16949 mantığına göre kalitesizlik maliyeti analizi
@@ -169,7 +181,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-semibold text-red-700 dark:text-red-400">
-                                    Internal Failure
+                                    İç Hata Maliyeti
                                 </span>
                                 <TrendingDown className="h-4 w-4 text-red-600" />
                             </div>
@@ -194,7 +206,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">
-                                    External Failure
+                                    Dış Hata Maliyeti
                                 </span>
                                 <TrendingUp className="h-4 w-4 text-orange-600" />
                             </div>
@@ -219,7 +231,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">
-                                    Appraisal
+                                    Değerlendirme Maliyeti
                                 </span>
                                 <DollarSign className="h-4 w-4 text-blue-600" />
                             </div>
@@ -244,7 +256,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-semibold text-green-700 dark:text-green-400">
-                                    Prevention
+                                    Önleme Maliyeti
                                 </span>
                                 <AlertTriangle className="h-4 w-4 text-green-600" />
                             </div>
@@ -277,9 +289,9 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
                                 IATF 16949 Metrik
                             </Badge>
                         </div>
-                        {producedVehicles && producedVehicles.length > 0 && (
+                        {copqData.totalVehicles > 0 && (
                             <div className="text-xs text-muted-foreground">
-                                <p>Toplam Üretilen Araç: {producedVehicles.reduce((sum, v) => sum + (v.quantity || 0), 0).toLocaleString('tr-TR')} adet</p>
+                                <p>Toplam Üretilen Araç: {copqData.totalVehicles.toLocaleString('tr-TR')} adet</p>
                                 <p>Toplam COPQ: {formatCurrency(copqData.totalCOPQ)}</p>
                             </div>
                         )}
@@ -288,7 +300,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading }) => {
                     {/* Formül Açıklaması */}
                     <div className="p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
                         <p className="font-semibold mb-1">COPQ Formülü (IATF 16949):</p>
-                        <p>COPQ = Internal Failure + External Failure + Appraisal + Prevention</p>
+                        <p>COPQ = İç Hata Maliyeti + Dış Hata Maliyeti + Değerlendirme Maliyeti + Önleme Maliyeti</p>
                     </div>
                 </CardContent>
             </Card>
