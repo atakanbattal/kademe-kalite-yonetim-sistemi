@@ -1874,7 +1874,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-6">
-                                        {items.map((item) => (
+                                        {items && items.length > 0 ? items.map((item) => (
                                             <div key={item.id} className="border-b last:border-0 pb-6 last:pb-0">
                                                 <h4 className="font-semibold mb-3">{item.item_name}</h4>
                                                 <div className="grid md:grid-cols-2 gap-4">
