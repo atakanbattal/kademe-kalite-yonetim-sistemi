@@ -61,10 +61,16 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         console.log('BenchmarkComparison useEffect:', { benchmark, isOpen, benchmarkId: benchmark?.id });
         if (benchmark?.id && isOpen) {
             fetchComparisonData();
-        } else {
-            console.log('BenchmarkComparison: Skipping fetchComparisonData', { benchmark, isOpen });
+        } else if (!isOpen) {
+            // Modal kapandığında state'leri temizle
+            console.log('BenchmarkComparison: Modal kapandı, state temizleniyor');
+            setItems([]);
+            setCriteria([]);
+            setScores({});
+            setProsConsData({});
+            setLoading(false);
         }
-    }, [benchmark?.id, isOpen, fetchComparisonData]);
+    }, [benchmark?.id, isOpen]);
 
     const fetchComparisonData = useCallback(async () => {
         console.log('fetchComparisonData called', { benchmarkId: benchmark?.id });
@@ -93,14 +99,17 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             if (itemsRes.error) throw itemsRes.error;
             if (criteriaRes.error) throw criteriaRes.error;
 
-            const items = itemsRes.data || [];
-            const criteria = criteriaRes.data || [];
+            const itemsData = itemsRes.data || [];
+            const criteriaData = criteriaRes.data || [];
             
-            setItems(items);
-            setCriteria(criteria);
+            console.log('fetchComparisonData: Items loaded', { count: itemsData.length, items: itemsData });
+            console.log('fetchComparisonData: Criteria loaded', { count: criteriaData.length, criteria: criteriaData });
+            
+            setItems(itemsData);
+            setCriteria(criteriaData);
 
             // Item ID'leri al
-            const itemIds = items.map(item => item.id);
+            const itemIds = itemsData.map(item => item.id);
             
             // Scores ve pros_cons'u item ID'leri ile filtrele
             let scoresData = [];
@@ -146,6 +155,13 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 }
             });
             setProsConsData(prosConsMap);
+            
+            console.log('fetchComparisonData: Data loaded successfully', {
+                itemsCount: itemsData.length,
+                criteriaCount: criteriaData.length,
+                scoresCount: Object.keys(scoresMap).length,
+                prosConsCount: Object.keys(prosConsMap).length
+            });
         } catch (error) {
             console.error('Karşılaştırma verileri yüklenirken hata:', error);
             console.error('Error details:', {
@@ -153,6 +169,11 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 stack: error.stack,
                 benchmarkId: benchmark?.id
             });
+            // Hata durumunda da state'leri temizle
+            setItems([]);
+            setCriteria([]);
+            setScores({});
+            setProsConsData({});
             toast({
                 variant: 'destructive',
                 title: 'Hata',
