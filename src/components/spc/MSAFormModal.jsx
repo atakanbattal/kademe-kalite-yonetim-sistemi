@@ -11,7 +11,7 @@ import { useData } from '@/contexts/DataContext';
 
 const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
     const { toast } = useToast();
-    const { equipments } = useData();
+    const { equipments = [] } = useData();
     const [formData, setFormData] = useState({
         study_name: '',
         characteristic_id: null,
@@ -23,6 +23,7 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [characteristics, setCharacteristics] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (open) {
@@ -52,6 +53,7 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
     }, [open, existingStudy]);
 
     const loadCharacteristics = async () => {
+        setLoading(true);
         try {
             const { data, error } = await supabase
                 .from('spc_characteristics')
@@ -59,10 +61,28 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
                 .eq('is_active', true)
                 .order('characteristic_name', { ascending: true });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'spc_characteristics tablosu henüz oluşturulmamış.'
+                    });
+                    setCharacteristics([]);
+                    return;
+                }
+                throw error;
+            }
             setCharacteristics(data || []);
         } catch (error) {
             console.error('Characteristics loading error:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Karakteristikler yüklenirken hata oluştu.'
+            });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -116,26 +136,33 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
         }
     };
 
-    const equipmentOptions = equipments.map(e => ({ 
+    const equipmentOptions = (equipments || []).map(e => ({ 
         value: e.id, 
-        label: `${e.equipment_name} (${e.equipment_code})` 
+        label: `${e.equipment_name || 'Bilinmeyen'} (${e.equipment_code || 'N/A'})` 
     }));
 
-    const characteristicOptions = characteristics.map(c => ({
+    const characteristicOptions = (characteristics || []).map(c => ({
         value: c.id,
-        label: `${c.characteristic_code} - ${c.characteristic_name}`
+        label: `${c.characteristic_code || 'N/A'} - ${c.characteristic_name || 'Bilinmeyen'}`
     }));
+
+    if (!open) return null;
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
                         {existingStudy ? 'MSA Çalışması Düzenle' : 'Yeni MSA Çalışması'}
                     </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                    <div className="space-y-4">
+                {loading ? (
+                    <div className="py-12 text-center text-muted-foreground">
+                        Yükleniyor...
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit}>
+                        <div className="space-y-4">
                         <div>
                             <Label htmlFor="study_name">Çalışma Adı <span className="text-red-500">*</span></Label>
                             <Input
@@ -238,17 +265,18 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
                                 rows={3}
                             />
                         </div>
-                    </div>
+                        </div>
 
-                    <DialogFooter className="mt-6">
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                            İptal
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
-                        </Button>
-                    </DialogFooter>
-                </form>
+                        <DialogFooter className="mt-6">
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                                İptal
+                            </Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                )}
             </DialogContent>
         </Dialog>
     );

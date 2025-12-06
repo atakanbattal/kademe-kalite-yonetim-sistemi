@@ -242,14 +242,17 @@ const MSAStudies = () => {
                 </div>
             )}
 
-            {isFormModalOpen && (
-                <MSAFormModal
-                    open={isFormModalOpen}
-                    setOpen={setFormModalOpen}
-                    existingStudy={editingStudy}
-                    onSuccess={closeFormModal}
-                />
-            )}
+            <MSAFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingStudy(null);
+                    }
+                }}
+                existingStudy={editingStudy}
+                onSuccess={closeFormModal}
+            />
 
             <AlertDialog open={!!deletingStudy} onOpenChange={(open) => !open && setDeletingStudy(null)}>
                 <AlertDialogContent>
