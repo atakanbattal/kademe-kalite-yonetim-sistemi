@@ -1052,10 +1052,10 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="items">
-                                Alternatifler ({items.length})
+                                Alternatifler ({items?.length || 0})
                             </TabsTrigger>
                             <TabsTrigger value="criteria">
-                                Kriterler ({criteria.length})
+                                Kriterler ({criteria?.length || 0})
                             </TabsTrigger>
                             <TabsTrigger value="matrix">
                                 Karşılaştırma Matrisi
