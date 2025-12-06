@@ -158,12 +158,46 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             item_name: '',
             item_code: '',
             description: '',
+            supplier_id: '',
+            manufacturer: '',
+            model_number: '',
+            // Maliyet Bilgileri
             unit_price: '',
             currency: 'TRY',
+            minimum_order_quantity: '',
             lead_time_days: '',
+            payment_terms: '',
+            total_cost_of_ownership: '',
+            roi_percentage: '',
+            // Kalite ve Performans
             quality_score: '',
             performance_score: '',
-            reliability_score: ''
+            reliability_score: '',
+            // Satış Sonrası Hizmet
+            after_sales_service_score: '',
+            warranty_period_months: '',
+            support_availability: '',
+            technical_support_score: '',
+            // Teslimat ve Operasyonel
+            delivery_time_days: '',
+            implementation_time_days: '',
+            training_required_hours: '',
+            // Bakım ve Maliyet
+            maintenance_cost: '',
+            maintenance_frequency_months: '',
+            // Çevresel ve Sürdürülebilirlik
+            energy_efficiency_score: '',
+            environmental_impact_score: '',
+            // Kullanılabilirlik ve Teknik
+            ease_of_use_score: '',
+            documentation_quality_score: '',
+            scalability_score: '',
+            compatibility_score: '',
+            innovation_score: '',
+            // Pazar ve Referanslar
+            market_reputation_score: '',
+            customer_references_count: '',
+            risk_level: ''
         });
     };
 
@@ -178,16 +212,57 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         }
 
         try {
+            // Tüm sayısal değerleri parse et
+            const parseDecimal = (val) => val && val !== '' ? parseFloat(val) : null;
+            const parseIntValue = (val) => val && val !== '' ? parseInt(val) : null;
+
             const { data, error } = await supabase
                 .from('benchmark_items')
                 .insert({
                     benchmark_id: benchmark.id,
-                    ...newItem,
-                    unit_price: newItem.unit_price ? parseFloat(newItem.unit_price) : null,
-                    lead_time_days: newItem.lead_time_days ? parseInt(newItem.lead_time_days) : null,
-                    quality_score: newItem.quality_score ? parseFloat(newItem.quality_score) : null,
-                    performance_score: newItem.performance_score ? parseFloat(newItem.performance_score) : null,
-                    reliability_score: newItem.reliability_score ? parseFloat(newItem.reliability_score) : null
+                    item_name: newItem.item_name,
+                    item_code: newItem.item_code || null,
+                    description: newItem.description || null,
+                    supplier_id: newItem.supplier_id || null,
+                    manufacturer: newItem.manufacturer || null,
+                    model_number: newItem.model_number || null,
+                    // Maliyet Bilgileri
+                    unit_price: parseDecimal(newItem.unit_price),
+                    currency: newItem.currency || 'TRY',
+                    minimum_order_quantity: parseIntValue(newItem.minimum_order_quantity),
+                    lead_time_days: parseIntValue(newItem.lead_time_days),
+                    payment_terms: newItem.payment_terms || null,
+                    total_cost_of_ownership: parseDecimal(newItem.total_cost_of_ownership),
+                    roi_percentage: parseDecimal(newItem.roi_percentage),
+                    // Kalite ve Performans
+                    quality_score: parseDecimal(newItem.quality_score),
+                    performance_score: parseDecimal(newItem.performance_score),
+                    reliability_score: parseDecimal(newItem.reliability_score),
+                    // Satış Sonrası Hizmet
+                    after_sales_service_score: parseDecimal(newItem.after_sales_service_score),
+                    warranty_period_months: parseIntValue(newItem.warranty_period_months),
+                    support_availability: newItem.support_availability || null,
+                    technical_support_score: parseDecimal(newItem.technical_support_score),
+                    // Teslimat ve Operasyonel
+                    delivery_time_days: parseIntValue(newItem.delivery_time_days),
+                    implementation_time_days: parseIntValue(newItem.implementation_time_days),
+                    training_required_hours: parseIntValue(newItem.training_required_hours),
+                    // Bakım ve Maliyet
+                    maintenance_cost: parseDecimal(newItem.maintenance_cost),
+                    maintenance_frequency_months: parseIntValue(newItem.maintenance_frequency_months),
+                    // Çevresel ve Sürdürülebilirlik
+                    energy_efficiency_score: parseDecimal(newItem.energy_efficiency_score),
+                    environmental_impact_score: parseDecimal(newItem.environmental_impact_score),
+                    // Kullanılabilirlik ve Teknik
+                    ease_of_use_score: parseDecimal(newItem.ease_of_use_score),
+                    documentation_quality_score: parseDecimal(newItem.documentation_quality_score),
+                    scalability_score: parseDecimal(newItem.scalability_score),
+                    compatibility_score: parseDecimal(newItem.compatibility_score),
+                    innovation_score: parseDecimal(newItem.innovation_score),
+                    // Pazar ve Referanslar
+                    market_reputation_score: parseDecimal(newItem.market_reputation_score),
+                    customer_references_count: parseIntValue(newItem.customer_references_count),
+                    risk_level: newItem.risk_level || null
                 })
                 .select()
                 .single();
@@ -205,7 +280,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Alternatif eklenirken bir hata oluştu.'
+                description: 'Alternatif eklenirken bir hata oluştu: ' + error.message
             });
         }
     };
@@ -643,64 +718,421 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                             {newItem && (
                                 <Card className="border-2 border-primary">
                                     <CardHeader>
-                                        <CardTitle className="text-base">Yeni Alternatif</CardTitle>
+                                        <CardTitle className="text-base">Yeni Alternatif Ekle</CardTitle>
                                     </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        <div className="grid gap-3 md:grid-cols-2">
-                                            <div>
-                                                <Label>Alternatif Adı *</Label>
-                                                <Input
-                                                    value={newItem.item_name}
-                                                    onChange={(e) => setNewItem({...newItem, item_name: e.target.value})}
-                                                    placeholder="Örn: Alternatif A"
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label>Kod</Label>
-                                                <Input
-                                                    value={newItem.item_code}
-                                                    onChange={(e) => setNewItem({...newItem, item_code: e.target.value})}
-                                                    placeholder="Ürün/Parça kodu"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <Label>Açıklama</Label>
-                                            <Textarea
-                                                value={newItem.description}
-                                                onChange={(e) => setNewItem({...newItem, description: e.target.value})}
-                                                rows={2}
-                                            />
-                                        </div>
-                                        <div className="grid gap-3 md:grid-cols-3">
-                                            <div>
-                                                <Label>Birim Fiyat</Label>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={newItem.unit_price}
-                                                    onChange={(e) => setNewItem({...newItem, unit_price: e.target.value})}
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label>Kalite Skoru (0-100)</Label>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={newItem.quality_score}
-                                                    onChange={(e) => setNewItem({...newItem, quality_score: e.target.value})}
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label>Tedarik Süresi (gün)</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={newItem.lead_time_days}
-                                                    onChange={(e) => setNewItem({...newItem, lead_time_days: e.target.value})}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
+                                    <CardContent>
+                                        <Tabs defaultValue="basic" className="w-full">
+                                            <TabsList className="grid w-full grid-cols-5">
+                                                <TabsTrigger value="basic">Temel</TabsTrigger>
+                                                <TabsTrigger value="cost">Maliyet</TabsTrigger>
+                                                <TabsTrigger value="quality">Kalite</TabsTrigger>
+                                                <TabsTrigger value="service">Hizmet</TabsTrigger>
+                                                <TabsTrigger value="other">Diğer</TabsTrigger>
+                                            </TabsList>
+
+                                            {/* Temel Bilgiler */}
+                                            <TabsContent value="basic" className="space-y-3 mt-4">
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div>
+                                                        <Label>Alternatif Adı *</Label>
+                                                        <Input
+                                                            value={newItem.item_name}
+                                                            onChange={(e) => setNewItem({...newItem, item_name: e.target.value})}
+                                                            placeholder="Örn: Alternatif A"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Kod</Label>
+                                                        <Input
+                                                            value={newItem.item_code}
+                                                            onChange={(e) => setNewItem({...newItem, item_code: e.target.value})}
+                                                            placeholder="Ürün/Parça kodu"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div>
+                                                        <Label>Üretici</Label>
+                                                        <Input
+                                                            value={newItem.manufacturer}
+                                                            onChange={(e) => setNewItem({...newItem, manufacturer: e.target.value})}
+                                                            placeholder="Üretici firma adı"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Model/Seri No</Label>
+                                                        <Input
+                                                            value={newItem.model_number}
+                                                            onChange={(e) => setNewItem({...newItem, model_number: e.target.value})}
+                                                            placeholder="Model numarası"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <Label>Açıklama</Label>
+                                                    <Textarea
+                                                        value={newItem.description}
+                                                        onChange={(e) => setNewItem({...newItem, description: e.target.value})}
+                                                        rows={3}
+                                                        placeholder="Alternatif hakkında detaylı açıklama"
+                                                    />
+                                                </div>
+                                            </TabsContent>
+
+                                            {/* Maliyet Bilgileri */}
+                                            <TabsContent value="cost" className="space-y-3 mt-4">
+                                                <div className="grid gap-3 md:grid-cols-3">
+                                                    <div>
+                                                        <Label>Birim Fiyat</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={newItem.unit_price}
+                                                            onChange={(e) => setNewItem({...newItem, unit_price: e.target.value})}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Para Birimi</Label>
+                                                        <Select
+                                                            value={newItem.currency}
+                                                            onValueChange={(value) => setNewItem({...newItem, currency: value})}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="TRY">TRY</SelectItem>
+                                                                <SelectItem value="USD">USD</SelectItem>
+                                                                <SelectItem value="EUR">EUR</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div>
+                                                        <Label>Minimum Sipariş Miktarı</Label>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.minimum_order_quantity}
+                                                            onChange={(e) => setNewItem({...newItem, minimum_order_quantity: e.target.value})}
+                                                            placeholder="Adet"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div>
+                                                        <Label>Toplam Sahiplik Maliyeti (TCO)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={newItem.total_cost_of_ownership}
+                                                            onChange={(e) => setNewItem({...newItem, total_cost_of_ownership: e.target.value})}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Yatırım Getirisi (ROI) %</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={newItem.roi_percentage}
+                                                            onChange={(e) => setNewItem({...newItem, roi_percentage: e.target.value})}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <Label>Ödeme Koşulları</Label>
+                                                    <Input
+                                                        value={newItem.payment_terms}
+                                                        onChange={(e) => setNewItem({...newItem, payment_terms: e.target.value})}
+                                                        placeholder="Örn: Peşin, 30 gün vadeli"
+                                                    />
+                                                </div>
+                                            </TabsContent>
+
+                                            {/* Kalite ve Performans */}
+                                            <TabsContent value="quality" className="space-y-3 mt-4">
+                                                <div className="grid gap-3 md:grid-cols-3">
+                                                    <div>
+                                                        <Label>Kalite Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.quality_score}
+                                                            onChange={(e) => setNewItem({...newItem, quality_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Performans Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.performance_score}
+                                                            onChange={(e) => setNewItem({...newItem, performance_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Güvenilirlik Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.reliability_score}
+                                                            onChange={(e) => setNewItem({...newItem, reliability_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-3">
+                                                    <div>
+                                                        <Label>Enerji Verimliliği (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.energy_efficiency_score}
+                                                            onChange={(e) => setNewItem({...newItem, energy_efficiency_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Çevresel Etki Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.environmental_impact_score}
+                                                            onChange={(e) => setNewItem({...newItem, environmental_impact_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Kullanılabilirlik Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.ease_of_use_score}
+                                                            onChange={(e) => setNewItem({...newItem, ease_of_use_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-3">
+                                                    <div>
+                                                        <Label>Ölçeklenebilirlik Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.scalability_score}
+                                                            onChange={(e) => setNewItem({...newItem, scalability_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Uyumluluk Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.compatibility_score}
+                                                            onChange={(e) => setNewItem({...newItem, compatibility_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>İnovasyon Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.innovation_score}
+                                                            onChange={(e) => setNewItem({...newItem, innovation_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </TabsContent>
+
+                                            {/* Satış Sonrası Hizmet */}
+                                            <TabsContent value="service" className="space-y-3 mt-4">
+                                                <div className="grid gap-3 md:grid-cols-3">
+                                                    <div>
+                                                        <Label>Satış Sonrası Hizmet Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.after_sales_service_score}
+                                                            onChange={(e) => setNewItem({...newItem, after_sales_service_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Teknik Destek Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.technical_support_score}
+                                                            onChange={(e) => setNewItem({...newItem, technical_support_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Dokümantasyon Kalitesi (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.documentation_quality_score}
+                                                            onChange={(e) => setNewItem({...newItem, documentation_quality_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-3">
+                                                    <div>
+                                                        <Label>Garanti Süresi (Ay)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.warranty_period_months}
+                                                            onChange={(e) => setNewItem({...newItem, warranty_period_months: e.target.value})}
+                                                            placeholder="Ay"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Destek Erişilebilirliği</Label>
+                                                        <Select
+                                                            value={newItem.support_availability}
+                                                            onValueChange={(value) => setNewItem({...newItem, support_availability: value})}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Seçin" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="7/24">7/24</SelectItem>
+                                                                <SelectItem value="İş Saatleri">İş Saatleri</SelectItem>
+                                                                <SelectItem value="Hafta İçi">Hafta İçi</SelectItem>
+                                                                <SelectItem value="Sınırlı">Sınırlı</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div>
+                                                        <Label>Pazar İtibarı Skoru (0-100)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            max="100"
+                                                            value={newItem.market_reputation_score}
+                                                            onChange={(e) => setNewItem({...newItem, market_reputation_score: e.target.value})}
+                                                            placeholder="0-100"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div>
+                                                        <Label>Müşteri Referans Sayısı</Label>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.customer_references_count}
+                                                            onChange={(e) => setNewItem({...newItem, customer_references_count: e.target.value})}
+                                                            placeholder="Adet"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Risk Seviyesi</Label>
+                                                        <Select
+                                                            value={newItem.risk_level}
+                                                            onValueChange={(value) => setNewItem({...newItem, risk_level: value})}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Seçin" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="Düşük">Düşük</SelectItem>
+                                                                <SelectItem value="Orta">Orta</SelectItem>
+                                                                <SelectItem value="Yüksek">Yüksek</SelectItem>
+                                                                <SelectItem value="Kritik">Kritik</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                            </TabsContent>
+
+                                            {/* Diğer Bilgiler */}
+                                            <TabsContent value="other" className="space-y-3 mt-4">
+                                                <div className="grid gap-3 md:grid-cols-3">
+                                                    <div>
+                                                        <Label>Teslimat Süresi (Gün)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.delivery_time_days}
+                                                            onChange={(e) => setNewItem({...newItem, delivery_time_days: e.target.value})}
+                                                            placeholder="Gün"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Uygulama Süresi (Gün)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.implementation_time_days}
+                                                            onChange={(e) => setNewItem({...newItem, implementation_time_days: e.target.value})}
+                                                            placeholder="Gün"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Eğitim Gereksinimi (Saat)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.training_required_hours}
+                                                            onChange={(e) => setNewItem({...newItem, training_required_hours: e.target.value})}
+                                                            placeholder="Saat"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div>
+                                                        <Label>Bakım Maliyeti</Label>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={newItem.maintenance_cost}
+                                                            onChange={(e) => setNewItem({...newItem, maintenance_cost: e.target.value})}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label>Bakım Sıklığı (Ay)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.maintenance_frequency_months}
+                                                            onChange={(e) => setNewItem({...newItem, maintenance_frequency_months: e.target.value})}
+                                                            placeholder="Ay"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </TabsContent>
+                                        </Tabs>
+                                        <div className="flex gap-2 mt-4 pt-4 border-t">
                                             <Button size="sm" onClick={handleSaveNewItem}>
                                                 <Check className="mr-2 h-4 w-4" />
                                                 Kaydet
