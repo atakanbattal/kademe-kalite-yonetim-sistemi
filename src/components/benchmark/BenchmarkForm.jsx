@@ -485,10 +485,11 @@ const BenchmarkForm = ({
                 <form onSubmit={handleSubmit}>
                     <ScrollArea className="h-[calc(90vh-200px)] pr-4">
                         <Tabs defaultValue="basic" className="w-full">
-                            <TabsList className="grid w-full grid-cols-3">
+                            <TabsList className="grid w-full grid-cols-4">
                                 <TabsTrigger value="basic">Temel Bilgiler</TabsTrigger>
                                 <TabsTrigger value="details">Detaylar</TabsTrigger>
                                 <TabsTrigger value="team">Ekip & Tarihler</TabsTrigger>
+                                <TabsTrigger value="alternatives">Alternatifler</TabsTrigger>
                             </TabsList>
 
                             {/* Temel Bilgiler */}
@@ -1016,6 +1017,32 @@ const BenchmarkForm = ({
                                             ))}
                                         </div>
                                     )}
+                                </div>
+                            </TabsContent>
+
+                            {/* Alternatifler Sekmesi */}
+                            <TabsContent value="alternatives" className="space-y-4 mt-4">
+                                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <h3 className="font-semibold text-blue-900 mb-2">💡 Alternatif Ekleme</h3>
+                                    <p className="text-sm text-blue-800 mb-4">
+                                        Benchmark kaydını oluşturduktan sonra, detay sayfasından alternatifleri ekleyebilir ve karşılaştırma yapabilirsiniz.
+                                    </p>
+                                    <div className="space-y-2 text-sm text-blue-700">
+                                        <p>✅ Alternatif ekleme ve karşılaştırma özellikleri:</p>
+                                        <ul className="list-disc list-inside space-y-1 ml-2">
+                                            <li>Maliyet bilgileri (Fiyat, TCO, ROI, Bakım maliyeti)</li>
+                                            <li>Kalite skorları (Kalite, Performans, Güvenilirlik)</li>
+                                            <li>Satış sonrası hizmet (Teknik destek, Garanti, Dokümantasyon)</li>
+                                            <li>Teslimat ve operasyonel bilgiler (Teslimat süresi, Uygulama süresi)</li>
+                                            <li>Çevresel ve teknik kriterler (Enerji verimliliği, Ölçeklenebilirlik)</li>
+                                            <li>Pazar bilgileri (İtibar, Referanslar, Risk seviyesi)</li>
+                                        </ul>
+                                    </div>
+                                    <div className="mt-4 p-3 bg-white rounded border border-blue-300">
+                                        <p className="text-xs text-blue-600">
+                                            <strong>Not:</strong> Benchmark kaydını kaydettikten sonra, detay sayfasında "Karşılaştırma" butonuna tıklayarak alternatifleri ekleyebilir ve tüm kriterleri girebilirsiniz.
+                                        </p>
+                                    </div>
                                 </div>
                             </TabsContent>
                         </Tabs>
