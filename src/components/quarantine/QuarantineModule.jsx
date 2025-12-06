@@ -237,7 +237,16 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                             <div>{item.part_name}</div>
                             <div className="text-xs text-muted-foreground">{item.part_code} / {item.lot_no}</div>
                         </td>
-                        <td className="text-foreground">{item.quantity} {item.unit}</td>
+                        <td className="text-foreground">
+                            {item.status === 'Tamamlandı' && item.initial_quantity ? (
+                                <span className="line-through text-muted-foreground">{item.initial_quantity}</span>
+                            ) : (
+                                item.quantity
+                            )} {item.unit}
+                            {item.status === 'Tamamlandı' && item.initial_quantity && (
+                                <span className="block text-xs text-muted-foreground">Başlangıç: {item.initial_quantity} {item.unit}</span>
+                            )}
+                        </td>
                         <td className="text-foreground">{item.source_department || 'Belirtilmemiş'}</td>
                         <td>
                           <span className={`status-indicator ${getStatusColor(item.status)}`}>{item.status}</span>

@@ -38,8 +38,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             setLoadingHistory(false);
         }, [record, toast]);
 
-        // Başlangıç miktarını hesapla (mevcut miktar + işlenen miktarların toplamı)
+        // Başlangıç miktarını hesapla (initial_quantity varsa onu kullan, yoksa hesapla)
         const initialQuantity = useMemo(() => {
+            if (record?.initial_quantity) {
+                return record.initial_quantity;
+            }
             if (!history || history.length === 0) return record?.quantity || 0;
             const totalProcessed = history.reduce((sum, h) => sum + (h.processed_quantity || 0), 0);
             return (record?.quantity || 0) + totalProcessed;

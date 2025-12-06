@@ -115,6 +115,8 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
         const submissionData = {
           ...rest,
           quantity: parseInt(rest.quantity, 10),
+          // Yeni kayıt için initial_quantity = quantity (trigger da bunu yapıyor ama açıkça belirtmek daha iyi)
+          initial_quantity: isEditMode ? existingRecord?.initial_quantity : parseInt(rest.quantity, 10),
         };
 
         // Remove api view only fields before submitting to the actual table
