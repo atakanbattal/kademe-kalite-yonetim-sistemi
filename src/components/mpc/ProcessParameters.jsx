@@ -1,11 +1,21 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Edit, Activity, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Activity, AlertCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import ProcessParameterFormModal from './ProcessParameterFormModal';
 import ProcessParameterRecords from './ProcessParameterRecords';
 
@@ -16,6 +26,8 @@ const ProcessParameters = () => {
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingParameter, setEditingParameter] = useState(null);
     const [selectedParameter, setSelectedParameter] = useState(null);
+    const [deletingParameter, setDeletingParameter] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const loadParameters = useCallback(async () => {
         setLoading(true);
@@ -55,6 +67,37 @@ const ProcessParameters = () => {
         setEditingParameter(null);
         setFormModalOpen(false);
         loadParameters();
+    };
+
+    const handleDelete = async () => {
+        if (!deletingParameter) return;
+        
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('process_parameters')
+                .delete()
+                .eq('id', deletingParameter.id);
+
+            if (error) throw error;
+            
+            toast({
+                title: 'Başarılı',
+                description: 'Proses parametresi silindi.'
+            });
+            
+            setDeletingParameter(null);
+            loadParameters();
+        } catch (error) {
+            console.error('Error deleting parameter:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: error.message || 'Parametre silinirken hata oluştu.'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     if (loading) {
@@ -159,6 +202,17 @@ const ProcessParameters = () => {
                                         <Edit className="w-4 h-4 mr-1" />
                                         Düzenle
                                     </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeletingParameter(param);
+                                        }}
+                                        className="text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -173,14 +227,39 @@ const ProcessParameters = () => {
                 />
             )}
 
-            {isFormModalOpen && (
-                <ProcessParameterFormModal
-                    open={isFormModalOpen}
-                    setOpen={setFormModalOpen}
-                    existingParameter={editingParameter}
-                    onSuccess={closeFormModal}
-                />
-            )}
+            <ProcessParameterFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingParameter(null);
+                    }
+                }}
+                existingParameter={editingParameter}
+                onSuccess={closeFormModal}
+            />
+
+            <AlertDialog open={!!deletingParameter} onOpenChange={(open) => !open && setDeletingParameter(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Parametreyi Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{deletingParameter?.parameter_name}" proses parametresini silmek istediğinizden emin misiniz?
+                            Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Siliniyor...' : 'Sil'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

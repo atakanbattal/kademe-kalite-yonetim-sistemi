@@ -1,8 +1,20 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Eye } from 'lucide-react';
+import { Plus, Edit, Eye, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import FMEAProjectFormModal from './FMEAProjectFormModal';
 
 const STATUS_COLORS = {
@@ -19,8 +31,11 @@ const TYPE_COLORS = {
 };
 
 const FMEAProjectsList = ({ projects, loading, onRefresh, onSelectProject }) => {
+    const { toast } = useToast();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
+    const [deletingProject, setDeletingProject] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const openFormModal = (project = null) => {
         setEditingProject(project);
@@ -31,6 +46,37 @@ const FMEAProjectsList = ({ projects, loading, onRefresh, onSelectProject }) => 
         setEditingProject(null);
         setFormModalOpen(false);
         onRefresh();
+    };
+
+    const handleDelete = async () => {
+        if (!deletingProject) return;
+        
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('fmea_projects')
+                .delete()
+                .eq('id', deletingProject.id);
+
+            if (error) throw error;
+            
+            toast({
+                title: 'Başarılı',
+                description: 'FMEA projesi silindi.'
+            });
+            
+            setDeletingProject(null);
+            onRefresh();
+        } catch (error) {
+            console.error('Error deleting FMEA project:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: error.message || 'FMEA projesi silinirken hata oluştu.'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     if (loading) {
@@ -146,6 +192,17 @@ const FMEAProjectsList = ({ projects, loading, onRefresh, onSelectProject }) => 
                                         <Eye className="w-4 h-4 mr-1" />
                                         Görüntüle
                                     </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeletingProject(project);
+                                        }}
+                                        className="text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -153,14 +210,39 @@ const FMEAProjectsList = ({ projects, loading, onRefresh, onSelectProject }) => 
                 </div>
             )}
 
-            {isFormModalOpen && (
-                <FMEAProjectFormModal
-                    open={isFormModalOpen}
-                    setOpen={setFormModalOpen}
-                    existingProject={editingProject}
-                    onSuccess={closeFormModal}
-                />
-            )}
+            <FMEAProjectFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingProject(null);
+                    }
+                }}
+                existingProject={editingProject}
+                onSuccess={closeFormModal}
+            />
+
+            <AlertDialog open={!!deletingProject} onOpenChange={(open) => !open && setDeletingProject(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>FMEA Projesini Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{deletingProject?.fmea_name}" FMEA projesini silmek istediğinizden emin misiniz?
+                            Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Siliniyor...' : 'Sil'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

@@ -1,10 +1,20 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Edit, AlertCircle } from 'lucide-react';
+import { Plus, Edit, AlertCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import CriticalCharacteristicFormModal from './CriticalCharacteristicFormModal';
 
 const CriticalCharacteristics = () => {
@@ -13,6 +23,8 @@ const CriticalCharacteristics = () => {
     const [loading, setLoading] = useState(true);
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingCharacteristic, setEditingCharacteristic] = useState(null);
+    const [deletingCharacteristic, setDeletingCharacteristic] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const loadCharacteristics = useCallback(async () => {
         setLoading(true);
@@ -52,6 +64,37 @@ const CriticalCharacteristics = () => {
         setEditingCharacteristic(null);
         setFormModalOpen(false);
         loadCharacteristics();
+    };
+
+    const handleDelete = async () => {
+        if (!deletingCharacteristic) return;
+        
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('critical_characteristics')
+                .delete()
+                .eq('id', deletingCharacteristic.id);
+
+            if (error) throw error;
+            
+            toast({
+                title: 'Başarılı',
+                description: 'Kritik karakteristik silindi.'
+            });
+            
+            setDeletingCharacteristic(null);
+            loadCharacteristics();
+        } catch (error) {
+            console.error('Error deleting characteristic:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: error.message || 'Karakteristik silinirken hata oluştu.'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const getTypeColor = (type) => {
@@ -155,6 +198,14 @@ const CriticalCharacteristics = () => {
                                         <Edit className="w-4 h-4 mr-1" />
                                         Düzenle
                                     </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setDeletingCharacteristic(char)}
+                                        className="text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -162,14 +213,39 @@ const CriticalCharacteristics = () => {
                 </div>
             )}
 
-            {isFormModalOpen && (
-                <CriticalCharacteristicFormModal
-                    open={isFormModalOpen}
-                    setOpen={setFormModalOpen}
-                    existingCharacteristic={editingCharacteristic}
-                    onSuccess={closeFormModal}
-                />
-            )}
+            <CriticalCharacteristicFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingCharacteristic(null);
+                    }
+                }}
+                existingCharacteristic={editingCharacteristic}
+                onSuccess={closeFormModal}
+            />
+
+            <AlertDialog open={!!deletingCharacteristic} onOpenChange={(open) => !open && setDeletingCharacteristic(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Karakteristiği Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{deletingCharacteristic?.characteristic_name}" karakteristiğini silmek istediğinizden emin misiniz?
+                            Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Siliniyor...' : 'Sil'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

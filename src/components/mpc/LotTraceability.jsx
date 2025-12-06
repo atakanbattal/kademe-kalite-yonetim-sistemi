@@ -1,11 +1,21 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Edit, Search, Package } from 'lucide-react';
+import { Plus, Edit, Search, Package, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import LotTraceabilityFormModal from './LotTraceabilityFormModal';
 
 const LotTraceability = () => {
@@ -15,6 +25,8 @@ const LotTraceability = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingLot, setEditingLot] = useState(null);
+    const [deletingLot, setDeletingLot] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const loadLots = useCallback(async () => {
         setLoading(true);
@@ -58,6 +70,37 @@ const LotTraceability = () => {
         setEditingLot(null);
         setFormModalOpen(false);
         loadLots();
+    };
+
+    const handleDelete = async () => {
+        if (!deletingLot) return;
+        
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('lot_traceability')
+                .delete()
+                .eq('id', deletingLot.id);
+
+            if (error) throw error;
+            
+            toast({
+                title: 'Başarılı',
+                description: 'Lot kaydı silindi.'
+            });
+            
+            setDeletingLot(null);
+            loadLots();
+        } catch (error) {
+            console.error('Error deleting lot:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: error.message || 'Lot kaydı silinirken hata oluştu.'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const getStatusColor = (status) => {
@@ -177,6 +220,14 @@ const LotTraceability = () => {
                                             <Edit className="w-4 h-4 mr-1" />
                                             Düzenle
                                         </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setDeletingLot(lot)}
+                                            className="text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
                                     </div>
                                 </div>
                             </CardContent>
@@ -185,14 +236,39 @@ const LotTraceability = () => {
                 </div>
             )}
 
-            {isFormModalOpen && (
-                <LotTraceabilityFormModal
-                    open={isFormModalOpen}
-                    setOpen={setFormModalOpen}
-                    existingLot={editingLot}
-                    onSuccess={closeFormModal}
-                />
-            )}
+            <LotTraceabilityFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingLot(null);
+                    }
+                }}
+                existingLot={editingLot}
+                onSuccess={closeFormModal}
+            />
+
+            <AlertDialog open={!!deletingLot} onOpenChange={(open) => !open && setDeletingLot(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Lot Kaydını Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{deletingLot?.lot_number}" lot kaydını silmek istediğinizden emin misiniz?
+                            Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Siliniyor...' : 'Sil'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

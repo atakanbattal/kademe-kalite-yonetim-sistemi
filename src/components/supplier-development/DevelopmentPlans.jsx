@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit } from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import DevelopmentPlanFormModal from './DevelopmentPlanFormModal';
 
 const DevelopmentPlans = () => {
@@ -13,6 +23,8 @@ const DevelopmentPlans = () => {
     const [loading, setLoading] = useState(true);
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
+    const [deletingPlan, setDeletingPlan] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         loadPlans();
@@ -27,6 +39,37 @@ const DevelopmentPlans = () => {
         setEditingPlan(null);
         setFormModalOpen(false);
         loadPlans();
+    };
+
+    const handleDelete = async () => {
+        if (!deletingPlan) return;
+        
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('supplier_development_plans')
+                .delete()
+                .eq('id', deletingPlan.id);
+
+            if (error) throw error;
+            
+            toast({
+                title: 'Başarılı',
+                description: 'Geliştirme planı silindi.'
+            });
+            
+            setDeletingPlan(null);
+            loadPlans();
+        } catch (error) {
+            console.error('Error deleting plan:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: error.message || 'Plan silinirken hata oluştu.'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const loadPlans = async () => {
@@ -112,6 +155,14 @@ const DevelopmentPlans = () => {
                                             <Edit className="w-4 h-4 mr-1" />
                                             Düzenle
                                         </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setDeletingPlan(plan)}
+                                            className="text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
                                     </div>
                                 </div>
                             ))}
@@ -120,14 +171,39 @@ const DevelopmentPlans = () => {
                 </CardContent>
             </Card>
 
-            {isFormModalOpen && (
-                <DevelopmentPlanFormModal
-                    open={isFormModalOpen}
-                    setOpen={setFormModalOpen}
-                    existingPlan={editingPlan}
-                    onSuccess={closeFormModal}
-                />
-            )}
+            <DevelopmentPlanFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingPlan(null);
+                    }
+                }}
+                existingPlan={editingPlan}
+                onSuccess={closeFormModal}
+            />
+
+            <AlertDialog open={!!deletingPlan} onOpenChange={(open) => !open && setDeletingPlan(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Planı Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{deletingPlan?.plan_name}" geliştirme planını silmek istediğinizden emin misiniz?
+                            Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Siliniyor...' : 'Sil'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

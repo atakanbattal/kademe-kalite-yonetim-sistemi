@@ -1,8 +1,20 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Eye } from 'lucide-react';
+import { Plus, Edit, Eye, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import ValidationPlanFormModal from './ValidationPlanFormModal';
 
 const STATUS_COLORS = {
@@ -14,8 +26,11 @@ const STATUS_COLORS = {
 };
 
 const ValidationPlansList = ({ plans, loading, onRefresh }) => {
+    const { toast } = useToast();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
+    const [deletingPlan, setDeletingPlan] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const openFormModal = (plan = null) => {
         setEditingPlan(plan);
@@ -26,6 +41,37 @@ const ValidationPlansList = ({ plans, loading, onRefresh }) => {
         setEditingPlan(null);
         setFormModalOpen(false);
         onRefresh();
+    };
+
+    const handleDelete = async () => {
+        if (!deletingPlan) return;
+        
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('validation_plans')
+                .delete()
+                .eq('id', deletingPlan.id);
+
+            if (error) throw error;
+            
+            toast({
+                title: 'Başarılı',
+                description: 'Validasyon planı silindi.'
+            });
+            
+            setDeletingPlan(null);
+            onRefresh();
+        } catch (error) {
+            console.error('Error deleting plan:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: error.message || 'Plan silinirken hata oluştu.'
+            });
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     if (loading) {
@@ -127,6 +173,14 @@ const ValidationPlansList = ({ plans, loading, onRefresh }) => {
                                         <Edit className="w-4 h-4 mr-1" />
                                         Düzenle
                                     </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setDeletingPlan(plan)}
+                                        className="text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -134,14 +188,39 @@ const ValidationPlansList = ({ plans, loading, onRefresh }) => {
                 </div>
             )}
 
-            {isFormModalOpen && (
-                <ValidationPlanFormModal
-                    open={isFormModalOpen}
-                    setOpen={setFormModalOpen}
-                    existingPlan={editingPlan}
-                    onSuccess={closeFormModal}
-                />
-            )}
+            <ValidationPlanFormModal
+                open={isFormModalOpen}
+                setOpen={(open) => {
+                    setFormModalOpen(open);
+                    if (!open) {
+                        setEditingPlan(null);
+                    }
+                }}
+                existingPlan={editingPlan}
+                onSuccess={closeFormModal}
+            />
+
+            <AlertDialog open={!!deletingPlan} onOpenChange={(open) => !open && setDeletingPlan(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Planı Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{deletingPlan?.plan_name}" validasyon planını silmek istediğinizden emin misiniz?
+                            Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Siliniyor...' : 'Sil'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };
