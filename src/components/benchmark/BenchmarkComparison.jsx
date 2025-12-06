@@ -128,6 +128,186 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         }
     };
 
+    // Otomatik skorlama fonksiyonu - tüm kriterleri değerlendirir
+    const calculateAutoScore = useCallback((item) => {
+        let totalScore = 0;
+        let maxScore = 0;
+        const weights = {
+            // Maliyet kriterleri (düşük fiyat = yüksek skor)
+            unit_price: 15,
+            total_cost_of_ownership: 20,
+            roi_percentage: 15,
+            maintenance_cost: 10,
+            // Kalite kriterleri
+            quality_score: 25,
+            performance_score: 20,
+            reliability_score: 20,
+            // Hizmet kriterleri
+            after_sales_service_score: 15,
+            technical_support_score: 15,
+            warranty_period_months: 10,
+            documentation_quality_score: 10,
+            // Operasyonel kriterler (düşük süre = yüksek skor)
+            delivery_time_days: 15,
+            lead_time_days: 15,
+            implementation_time_days: 10,
+            training_required_hours: 10,
+            // Çevresel ve teknik
+            energy_efficiency_score: 10,
+            environmental_impact_score: 10,
+            ease_of_use_score: 15,
+            scalability_score: 15,
+            compatibility_score: 15,
+            innovation_score: 10,
+            market_reputation_score: 15,
+            customer_references_count: 10
+        };
+
+        // Fiyat skorlaması (tersine - düşük fiyat = yüksek skor)
+        if (item.unit_price) {
+            const allPrices = items.map(i => i.unit_price).filter(p => p);
+            if (allPrices.length > 0) {
+                const maxPrice = Math.max(...allPrices);
+                const minPrice = Math.min(...allPrices);
+                if (maxPrice > minPrice) {
+                    const priceScore = 100 - ((item.unit_price - minPrice) / (maxPrice - minPrice)) * 100;
+                    totalScore += (priceScore * weights.unit_price) / 100;
+                } else {
+                    totalScore += weights.unit_price;
+                }
+            }
+            maxScore += weights.unit_price;
+        }
+
+        // TCO skorlaması (tersine)
+        if (item.total_cost_of_ownership) {
+            const allTCOs = items.map(i => i.total_cost_of_ownership).filter(t => t);
+            if (allTCOs.length > 0) {
+                const maxTCO = Math.max(...allTCOs);
+                const minTCO = Math.min(...allTCOs);
+                if (maxTCO > minTCO) {
+                    const tcoScore = 100 - ((item.total_cost_of_ownership - minTCO) / (maxTCO - minTCO)) * 100;
+                    totalScore += (tcoScore * weights.total_cost_of_ownership) / 100;
+                } else {
+                    totalScore += weights.total_cost_of_ownership;
+                }
+            }
+            maxScore += weights.total_cost_of_ownership;
+        }
+
+        // ROI skorlaması (yüksek ROI = yüksek skor)
+        if (item.roi_percentage) {
+            totalScore += (Math.min(item.roi_percentage, 100) * weights.roi_percentage) / 100;
+            maxScore += weights.roi_percentage;
+        }
+
+        // Bakım maliyeti (tersine)
+        if (item.maintenance_cost) {
+            const allMaintenance = items.map(i => i.maintenance_cost).filter(m => m);
+            if (allMaintenance.length > 0) {
+                const maxMaintenance = Math.max(...allMaintenance);
+                const minMaintenance = Math.min(...allMaintenance);
+                if (maxMaintenance > minMaintenance) {
+                    const maintenanceScore = 100 - ((item.maintenance_cost - minMaintenance) / (maxMaintenance - minMaintenance)) * 100;
+                    totalScore += (maintenanceScore * weights.maintenance_cost) / 100;
+                } else {
+                    totalScore += weights.maintenance_cost;
+                }
+            }
+            maxScore += weights.maintenance_cost;
+        }
+
+        // Doğrudan skorlar (0-100 arası)
+        const directScores = [
+            'quality_score', 'performance_score', 'reliability_score',
+            'after_sales_service_score', 'technical_support_score',
+            'documentation_quality_score', 'energy_efficiency_score',
+            'environmental_impact_score', 'ease_of_use_score',
+            'scalability_score', 'compatibility_score', 'innovation_score',
+            'market_reputation_score'
+        ];
+
+        directScores.forEach(scoreKey => {
+            if (item[scoreKey] !== null && item[scoreKey] !== undefined) {
+                totalScore += (item[scoreKey] * weights[scoreKey]) / 100;
+                maxScore += weights[scoreKey];
+            }
+        });
+
+        // Garanti süresi (yüksek süre = yüksek skor, maksimum 60 ay = 100 puan)
+        if (item.warranty_period_months) {
+            const warrantyScore = Math.min((item.warranty_period_months / 60) * 100, 100);
+            totalScore += (warrantyScore * weights.warranty_period_months) / 100;
+            maxScore += weights.warranty_period_months;
+        }
+
+        // Teslimat süresi (tersine - düşük süre = yüksek skor)
+        const deliveryDays = item.delivery_time_days || item.lead_time_days;
+        if (deliveryDays) {
+            const allDelivery = items.map(i => i.delivery_time_days || i.lead_time_days).filter(d => d);
+            if (allDelivery.length > 0) {
+                const maxDelivery = Math.max(...allDelivery);
+                const minDelivery = Math.min(...allDelivery);
+                if (maxDelivery > minDelivery) {
+                    const deliveryScore = 100 - ((deliveryDays - minDelivery) / (maxDelivery - minDelivery)) * 100;
+                    totalScore += (deliveryScore * weights.delivery_time_days) / 100;
+                } else {
+                    totalScore += weights.delivery_time_days;
+                }
+            }
+            maxScore += weights.delivery_time_days;
+        }
+
+        // Uygulama süresi (tersine)
+        if (item.implementation_time_days) {
+            const allImplementation = items.map(i => i.implementation_time_days).filter(i => i);
+            if (allImplementation.length > 0) {
+                const maxImpl = Math.max(...allImplementation);
+                const minImpl = Math.min(...allImplementation);
+                if (maxImpl > minImpl) {
+                    const implScore = 100 - ((item.implementation_time_days - minImpl) / (maxImpl - minImpl)) * 100;
+                    totalScore += (implScore * weights.implementation_time_days) / 100;
+                } else {
+                    totalScore += weights.implementation_time_days;
+                }
+            }
+            maxScore += weights.implementation_time_days;
+        }
+
+        // Eğitim süresi (tersine)
+        if (item.training_required_hours) {
+            const allTraining = items.map(i => i.training_required_hours).filter(t => t);
+            if (allTraining.length > 0) {
+                const maxTraining = Math.max(...allTraining);
+                const minTraining = Math.min(...allTraining);
+                if (maxTraining > minTraining) {
+                    const trainingScore = 100 - ((item.training_required_hours - minTraining) / (maxTraining - minTraining)) * 100;
+                    totalScore += (trainingScore * weights.training_required_hours) / 100;
+                } else {
+                    totalScore += weights.training_required_hours;
+                }
+            }
+            maxScore += weights.training_required_hours;
+        }
+
+        // Müşteri referans sayısı (yüksek sayı = yüksek skor, maksimum 50 referans = 100 puan)
+        if (item.customer_references_count) {
+            const refScore = Math.min((item.customer_references_count / 50) * 100, 100);
+            totalScore += (refScore * weights.customer_references_count) / 100;
+            maxScore += weights.customer_references_count;
+        }
+
+        // Risk seviyesi (düşük risk = yüksek skor)
+        if (item.risk_level) {
+            const riskScores = { 'Düşük': 100, 'Orta': 70, 'Yüksek': 40, 'Kritik': 10 };
+            const riskScore = riskScores[item.risk_level] || 50;
+            totalScore += (riskScore * 10) / 100; // Risk ağırlığı 10
+            maxScore += 10;
+        }
+
+        return maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+    }, [items]);
+
     // Calculate total weighted score for each item
     const itemScores = useMemo(() => {
         const result = {};
@@ -135,6 +315,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             let totalScore = 0;
             let totalWeight = 0;
             
+            // Önce kullanıcı tanımlı kriterlerden skor al
             criteria.forEach(criterion => {
                 const key = `${item.id}_${criterion.id}`;
                 const score = scores[key];
@@ -144,13 +325,24 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 }
             });
 
-            result[item.id] = {
-                total: totalScore,
-                average: totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0
-            };
+            // Eğer kullanıcı tanımlı kriter yoksa veya eksikse, otomatik skorlama kullan
+            if (totalWeight === 0 || criteria.length === 0) {
+                const autoScore = calculateAutoScore(item);
+                result[item.id] = {
+                    total: autoScore,
+                    average: autoScore,
+                    isAutoCalculated: true
+                };
+            } else {
+                result[item.id] = {
+                    total: totalScore,
+                    average: totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0,
+                    isAutoCalculated: false
+                };
+            }
         });
         return result;
-    }, [items, criteria, scores]);
+    }, [items, criteria, scores, calculateAutoScore]);
 
     // Handlers for Items
     const handleAddItem = () => {
