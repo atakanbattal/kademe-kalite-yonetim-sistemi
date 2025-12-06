@@ -989,7 +989,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         `;
     };
 
-    if (!benchmark) return null;
+    if (!benchmark || !isOpen) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -1000,7 +1000,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                             <TrendingUp className="inline-block mr-2 h-6 w-6" />
                             Benchmark Karşılaştırma
                         </DialogTitle>
-                        <Button size="sm" variant="outline" onClick={handleDownloadReport}>
+                        <Button size="sm" variant="outline" onClick={handleDownloadReport} disabled={!benchmark}>
                             <Download className="mr-2 h-4 w-4" />
                             Rapor İndir
                         </Button>
