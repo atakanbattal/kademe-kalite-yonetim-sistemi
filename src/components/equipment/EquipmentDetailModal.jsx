@@ -12,11 +12,13 @@ import React, { useState, useEffect } from 'react';
     import CalibrationModal from '@/components/equipment/CalibrationModal';
     import AssignModal from '@/components/equipment/AssignModal';
     import PdfViewerModal from '@/components/document/PdfViewerModal';
+    import ScrapEquipmentModal from '@/components/equipment/ScrapEquipmentModal';
 
     const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh }) => {
         const { toast } = useToast();
         const [isCalibrationModalOpen, setCalibrationModalOpen] = useState(false);
         const [isAssignModalOpen, setAssignModalOpen] = useState(false);
+        const [isScrapModalOpen, setIsScrapModalOpen] = useState(false);
         const [personnelList, setPersonnelList] = useState([]);
         const [selectedCalibration, setSelectedCalibration] = useState(null);
         const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
@@ -38,6 +40,7 @@ import React, { useState, useEffect } from 'react';
                 case 'Zimmetli': return 'default';
                 case 'Bakımda': return 'warning';
                 case 'Kullanım Dışı': return 'destructive';
+                case 'Hurdaya Ayrıldı': return 'destructive';
                 default: return 'secondary';
             }
         };
@@ -146,7 +149,17 @@ import React, { useState, useEffect } from 'react';
                                 </TabsContent>
                             </Tabs>
                         </ScrollArea>
-                        <DialogFooter className="p-4 border-t">
+                        <DialogFooter className="p-4 border-t flex justify-between">
+                            <div>
+                                {equipment.status !== 'Hurdaya Ayrıldı' && (
+                                    <Button 
+                                        variant="destructive" 
+                                        onClick={() => setIsScrapModalOpen(true)}
+                                    >
+                                        Hurdaya Ayır
+                                    </Button>
+                                )}
+                            </div>
                             <Button variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
                         </DialogFooter>
                     </DialogContent>
@@ -178,6 +191,18 @@ import React, { useState, useEffect } from 'react';
                     pdfUrl={pdfViewerState.url}
                     title={pdfViewerState.title}
                 />
+
+                {isScrapModalOpen && (
+                    <ScrapEquipmentModal
+                        isOpen={isScrapModalOpen}
+                        setIsOpen={setIsScrapModalOpen}
+                        equipment={equipment}
+                        onSuccess={() => {
+                            setIsScrapModalOpen(false);
+                            onRefresh();
+                        }}
+                    />
+                )}
             </>
         );
     };
