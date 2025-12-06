@@ -122,7 +122,7 @@ CREATE OR REPLACE FUNCTION get_active_fmea_projects_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM fmea_projects 
-            WHERE status IN ('Active', 'In Review'));
+            WHERE status IN ('Active', 'In Review', 'Draft'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -163,7 +163,7 @@ CREATE OR REPLACE FUNCTION get_active_apqp_projects_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM apqp_projects 
-            WHERE status NOT IN ('Approved', 'Rejected'));
+            WHERE status NOT IN ('Approved', 'Rejected', 'Completed'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -245,7 +245,7 @@ CREATE OR REPLACE FUNCTION get_open_customer_complaints_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM customer_complaints 
-            WHERE status NOT IN ('Closed', 'Resolved'));
+            WHERE status NOT IN ('Kapalı', 'Çözüldü'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -257,11 +257,13 @@ DECLARE
     v_sla_compliant INTEGER;
 BEGIN
     SELECT COUNT(*) INTO v_total FROM customer_complaints 
-    WHERE status IN ('Closed', 'Resolved');
+    WHERE status IN ('Kapalı', 'Çözüldü');
     
     SELECT COUNT(*) INTO v_sla_compliant FROM customer_complaints 
-    WHERE status IN ('Closed', 'Resolved')
-    AND resolution_date <= sla_due_date;
+    WHERE status IN ('Kapalı', 'Çözüldü')
+    AND actual_close_date IS NOT NULL
+    AND target_close_date IS NOT NULL
+    AND actual_close_date <= target_close_date;
     
     IF v_total = 0 THEN
         RETURN 0;
@@ -277,11 +279,11 @@ RETURNS NUMERIC AS $$
 DECLARE
     v_avg_days NUMERIC;
 BEGIN
-    SELECT AVG(EXTRACT(EPOCH FROM (resolution_date - complaint_date)) / 86400)
+    SELECT AVG(EXTRACT(EPOCH FROM (actual_close_date - complaint_date)) / 86400)
     INTO v_avg_days
     FROM customer_complaints
-    WHERE status IN ('Closed', 'Resolved')
-    AND resolution_date IS NOT NULL
+    WHERE status IN ('Kapalı', 'Çözüldü')
+    AND actual_close_date IS NOT NULL
     AND complaint_date IS NOT NULL;
     
     RETURN COALESCE(ROUND(v_avg_days, 2), 0);
@@ -296,7 +298,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION get_active_suppliers_count()
 RETURNS INTEGER AS $$
 BEGIN
-    RETURN (SELECT COUNT(*)::INTEGER FROM suppliers WHERE is_active = true);
+    RETURN (SELECT COUNT(*)::INTEGER FROM suppliers WHERE status = 'Onaylı');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -306,7 +308,7 @@ RETURNS NUMERIC AS $$
 DECLARE
     v_avg_score NUMERIC;
 BEGIN
-    SELECT AVG(overall_score) INTO v_avg_score FROM supplier_scores;
+    SELECT AVG(final_score) INTO v_avg_score FROM supplier_scores;
     RETURN COALESCE(ROUND(v_avg_score, 2), 0);
 END;
 $$ LANGUAGE plpgsql;
@@ -318,11 +320,11 @@ DECLARE
     v_total_suppliers INTEGER;
     v_nc_suppliers INTEGER;
 BEGIN
-    SELECT COUNT(*) INTO v_total_suppliers FROM suppliers WHERE is_active = true;
+    SELECT COUNT(*) INTO v_total_suppliers FROM suppliers WHERE status = 'Onaylı';
     
     SELECT COUNT(DISTINCT supplier_id) INTO v_nc_suppliers 
     FROM supplier_non_conformities 
-    WHERE status != 'Closed';
+    WHERE status != 'Kapalı';
     
     IF v_total_suppliers = 0 THEN
         RETURN 0;
@@ -341,7 +343,7 @@ CREATE OR REPLACE FUNCTION get_active_kaizen_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM kaizen_entries 
-            WHERE status NOT IN ('Completed', 'Cancelled'));
+            WHERE status NOT IN ('Tamamlandı', 'İptal'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -350,7 +352,7 @@ CREATE OR REPLACE FUNCTION get_completed_kaizen_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM kaizen_entries 
-            WHERE status = 'Completed');
+            WHERE status = 'Tamamlandı');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -363,7 +365,7 @@ DECLARE
 BEGIN
     SELECT COUNT(*) INTO v_total FROM kaizen_entries;
     SELECT COUNT(*) INTO v_completed FROM kaizen_entries 
-    WHERE status = 'Completed';
+    WHERE status = 'Tamamlandı';
     
     IF v_total = 0 THEN
         RETURN 0;
@@ -382,7 +384,7 @@ CREATE OR REPLACE FUNCTION get_planned_trainings_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM trainings 
-            WHERE training_date >= CURRENT_DATE);
+            WHERE (start_date >= CURRENT_DATE OR scheduled_date >= CURRENT_DATE));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -391,7 +393,7 @@ CREATE OR REPLACE FUNCTION get_completed_trainings_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM trainings 
-            WHERE status = 'Completed');
+            WHERE status = 'Tamamlandı');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -404,7 +406,7 @@ DECLARE
 BEGIN
     SELECT COUNT(*) INTO v_total_participants FROM training_participants;
     SELECT COUNT(*) INTO v_attended_participants FROM training_participants 
-    WHERE attendance_status = 'Attended';
+    WHERE status = 'Tamamlandı';
     
     IF v_total_participants = 0 THEN
         RETURN 0;
@@ -459,7 +461,7 @@ CREATE OR REPLACE FUNCTION get_produced_vehicles_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM produced_vehicles 
-            WHERE production_date >= CURRENT_DATE - INTERVAL '30 days');
+            WHERE created_at >= CURRENT_DATE - INTERVAL '30 days');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -472,7 +474,7 @@ DECLARE
 BEGIN
     SELECT COUNT(*) INTO v_total FROM quality_inspections;
     SELECT COUNT(*) INTO v_passed FROM quality_inspections 
-    WHERE inspection_result = 'Passed';
+    WHERE status = 'Onaylandı';
     
     IF v_total = 0 THEN
         RETURN 0;
@@ -488,11 +490,11 @@ RETURNS NUMERIC AS $$
 DECLARE
     v_avg_days NUMERIC;
 BEGIN
-    SELECT AVG(EXTRACT(EPOCH FROM (approval_date - inspection_date)) / 86400)
+    SELECT AVG(EXTRACT(EPOCH FROM (approved_at - created_at)) / 86400)
     INTO v_avg_days
-    FROM quality_inspections
-    WHERE approval_date IS NOT NULL
-    AND inspection_date IS NOT NULL;
+    FROM produced_vehicles
+    WHERE approved_at IS NOT NULL
+    AND created_at IS NOT NULL;
     
     RETURN COALESCE(ROUND(v_avg_days, 2), 0);
 END;
@@ -507,7 +509,7 @@ CREATE OR REPLACE FUNCTION get_active_benchmarks_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM benchmarks 
-            WHERE status NOT IN ('Completed', 'Cancelled'));
+            WHERE status NOT IN ('Completed', 'Cancelled', 'Tamamlandı', 'İptal'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -516,7 +518,7 @@ CREATE OR REPLACE FUNCTION get_completed_benchmarks_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM benchmarks 
-            WHERE status = 'Completed');
+            WHERE status IN ('Completed', 'Tamamlandı'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -551,7 +553,7 @@ CREATE OR REPLACE FUNCTION get_open_tasks_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM tasks 
-            WHERE status NOT IN ('Completed', 'Cancelled'));
+            WHERE status NOT IN ('Completed', 'Cancelled', 'Tamamlandı', 'İptal'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -560,7 +562,7 @@ CREATE OR REPLACE FUNCTION get_overdue_tasks_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM tasks 
-            WHERE status NOT IN ('Completed', 'Cancelled')
+            WHERE status NOT IN ('Completed', 'Cancelled', 'Tamamlandı', 'İptal')
             AND due_date < CURRENT_DATE);
 END;
 $$ LANGUAGE plpgsql;
@@ -574,7 +576,7 @@ DECLARE
 BEGIN
     SELECT COUNT(*) INTO v_total FROM tasks;
     SELECT COUNT(*) INTO v_completed FROM tasks 
-    WHERE status = 'Completed';
+    WHERE status IN ('Completed', 'Tamamlandı');
     
     IF v_total = 0 THEN
         RETURN 0;
@@ -597,10 +599,10 @@ DECLARE
     v_total INTEGER;
     v_nps NUMERIC;
 BEGIN
-    SELECT COUNT(*) INTO v_total FROM customer_scores;
-    SELECT COUNT(*) INTO v_promoters FROM customer_scores 
+    SELECT COUNT(*) INTO v_total FROM customer_satisfaction_surveys;
+    SELECT COUNT(*) INTO v_promoters FROM customer_satisfaction_surveys 
     WHERE nps_score >= 9;
-    SELECT COUNT(*) INTO v_detractors FROM customer_scores 
+    SELECT COUNT(*) INTO v_detractors FROM customer_satisfaction_surveys 
     WHERE nps_score <= 6;
     
     IF v_total = 0 THEN
@@ -616,7 +618,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION get_satisfaction_surveys_count()
 RETURNS INTEGER AS $$
 BEGIN
-    RETURN (SELECT COUNT(*)::INTEGER FROM satisfaction_surveys);
+    RETURN (SELECT COUNT(*)::INTEGER FROM customer_satisfaction_surveys);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -626,7 +628,7 @@ RETURNS NUMERIC AS $$
 DECLARE
     v_avg_score NUMERIC;
 BEGIN
-    SELECT AVG(overall_satisfaction_score) INTO v_avg_score FROM customer_scores;
+    SELECT AVG(overall_score) INTO v_avg_score FROM customer_satisfaction_surveys;
     RETURN COALESCE(ROUND(v_avg_score, 2), 0);
 END;
 $$ LANGUAGE plpgsql;
@@ -640,7 +642,7 @@ CREATE OR REPLACE FUNCTION get_active_supplier_development_plans_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM supplier_development_plans 
-            WHERE status NOT IN ('Completed', 'Cancelled'));
+            WHERE current_status NOT IN ('Completed', 'Cancelled', 'Tamamlandı', 'İptal'));
 END;
 $$ LANGUAGE plpgsql;
 
@@ -649,7 +651,7 @@ CREATE OR REPLACE FUNCTION get_completed_supplier_development_plans_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM supplier_development_plans 
-            WHERE status = 'Completed');
+            WHERE current_status IN ('Completed', 'Tamamlandı'));
 END;
 $$ LANGUAGE plpgsql;
 
