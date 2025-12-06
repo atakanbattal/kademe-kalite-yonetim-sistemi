@@ -159,7 +159,7 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
                         Yükleniyor...
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-4">
                         <div>
                             <Label htmlFor="study_name">Çalışma Adı <span className="text-red-500">*</span></Label>

@@ -3,18 +3,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useData } from '@/contexts/DataContext';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 
-const STUDY_STATUSES = ['Planned', 'In Progress', 'Completed', 'Failed'];
+const STATUSES = ['Planned', 'In Progress', 'Completed', 'Failed'];
 
 const RunAtRateFormModal = ({ open, setOpen, existingStudy, projectId, onSuccess }) => {
     const { toast } = useToast();
-    const { personnel } = useData();
+    const { personnel = [] } = useData();
     const [formData, setFormData] = useState({
         study_date: new Date().toISOString().split('T')[0],
         production_line: '',
@@ -33,13 +33,16 @@ const RunAtRateFormModal = ({ open, setOpen, existingStudy, projectId, onSuccess
     useEffect(() => {
         if (existingStudy) {
             setFormData({
-                ...existingStudy,
                 study_date: existingStudy.study_date || new Date().toISOString().split('T')[0],
-                target_production_rate: existingStudy.target_production_rate?.toString() || '',
-                actual_production_rate: existingStudy.actual_production_rate?.toString() || '',
-                production_quantity: existingStudy.production_quantity?.toString() || '',
-                duration_hours: existingStudy.duration_hours?.toString() || '',
-                success_rate: existingStudy.success_rate?.toString() || '',
+                production_line: existingStudy.production_line || '',
+                target_production_rate: existingStudy.target_production_rate || '',
+                actual_production_rate: existingStudy.actual_production_rate || '',
+                production_quantity: existingStudy.production_quantity || '',
+                duration_hours: existingStudy.duration_hours || '',
+                success_rate: existingStudy.success_rate || '',
+                issues_encountered: existingStudy.issues_encountered || '',
+                corrective_actions: existingStudy.corrective_actions || '',
+                status: existingStudy.status || 'Completed',
                 conducted_by: existingStudy.conducted_by || null
             });
         } else {
@@ -64,24 +67,28 @@ const RunAtRateFormModal = ({ open, setOpen, existingStudy, projectId, onSuccess
         setIsSubmitting(true);
 
         try {
-            // Başarı oranını otomatik hesapla
-            const targetRate = parseFloat(formData.target_production_rate) || 0;
-            const actualRate = parseFloat(formData.actual_production_rate) || 0;
-            const calculatedSuccessRate = targetRate > 0 ? (actualRate / targetRate * 100) : 0;
+            if (!projectId) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Lütfen bir proje seçin.'
+                });
+                setIsSubmitting(false);
+                return;
+            }
 
             const dataToSubmit = {
+                ...formData,
                 project_id: projectId,
                 study_date: formData.study_date,
-                production_line: formData.production_line,
-                target_production_rate: parseInt(formData.target_production_rate) || 0,
-                actual_production_rate: parseInt(formData.actual_production_rate) || 0,
-                production_quantity: parseInt(formData.production_quantity) || 0,
-                duration_hours: parseFloat(formData.duration_hours) || 0,
-                success_rate: calculatedSuccessRate,
-                issues_encountered: formData.issues_encountered,
-                corrective_actions: formData.corrective_actions,
-                status: formData.status,
-                conducted_by: formData.conducted_by
+                target_production_rate: formData.target_production_rate ? parseInt(formData.target_production_rate) : null,
+                actual_production_rate: formData.actual_production_rate ? parseInt(formData.actual_production_rate) : null,
+                production_quantity: formData.production_quantity ? parseInt(formData.production_quantity) : null,
+                duration_hours: formData.duration_hours ? parseFloat(formData.duration_hours) : null,
+                success_rate: formData.success_rate ? parseFloat(formData.success_rate) : null,
+                conducted_by: formData.conducted_by || null,
+                issues_encountered: formData.issues_encountered || null,
+                corrective_actions: formData.corrective_actions || null
             };
 
             if (existingStudy) {
@@ -108,6 +115,7 @@ const RunAtRateFormModal = ({ open, setOpen, existingStudy, projectId, onSuccess
             }
 
             onSuccess();
+            setOpen(false);
         } catch (error) {
             console.error('Error saving study:', error);
             toast({
@@ -120,19 +128,19 @@ const RunAtRateFormModal = ({ open, setOpen, existingStudy, projectId, onSuccess
         }
     };
 
-    const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
+    const personnelOptions = (personnel || []).map(p => ({ value: p.id, label: p.full_name }));
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
                         {existingStudy ? 'Run-at-Rate Çalışması Düzenle' : 'Yeni Run-at-Rate Çalışması'}
                     </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="study_date">Çalışma Tarihi *</Label>
                                 <Input
@@ -144,56 +152,7 @@ const RunAtRateFormModal = ({ open, setOpen, existingStudy, projectId, onSuccess
                                 />
                             </div>
                             <div>
-                                <Label htmlFor="production_line">Üretim Hattı</Label>
-                                <Input
-                                    id="production_line"
-                                    value={formData.production_line}
-                                    onChange={(e) => setFormData({ ...formData, production_line: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="target_production_rate">Hedef Üretim Hızı (adet/saat) *</Label>
-                                <Input
-                                    id="target_production_rate"
-                                    type="number"
-                                    value={formData.target_production_rate}
-                                    onChange={(e) => setFormData({ ...formData, target_production_rate: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="actual_production_rate">Gerçekleşen Üretim Hızı (adet/saat) *</Label>
-                                <Input
-                                    id="actual_production_rate"
-                                    type="number"
-                                    value={formData.actual_production_rate}
-                                    onChange={(e) => setFormData({ ...formData, actual_production_rate: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="production_quantity">Üretim Miktarı (adet) *</Label>
-                                <Input
-                                    id="production_quantity"
-                                    type="number"
-                                    value={formData.production_quantity}
-                                    onChange={(e) => setFormData({ ...formData, production_quantity: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="duration_hours">Süre (saat) *</Label>
-                                <Input
-                                    id="duration_hours"
-                                    type="number"
-                                    step="0.1"
-                                    value={formData.duration_hours}
-                                    onChange={(e) => setFormData({ ...formData, duration_hours: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="status">Durum *</Label>
+                                <Label htmlFor="status">Durum</Label>
                                 <Select
                                     value={formData.status}
                                     onValueChange={(v) => setFormData({ ...formData, status: v })}
@@ -202,50 +161,115 @@ const RunAtRateFormModal = ({ open, setOpen, existingStudy, projectId, onSuccess
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {STUDY_STATUSES.map(status => (
-                                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                                        {STATUSES.map(status => (
+                                            <SelectItem key={status} value={status}>
+                                                {status === 'Planned' ? 'Planlandı' :
+                                                 status === 'In Progress' ? 'Devam Eden' :
+                                                 status === 'Completed' ? 'Tamamlandı' : 'Başarısız'}
+                                            </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="production_line">Üretim Hattı</Label>
+                            <Input
+                                id="production_line"
+                                value={formData.production_line}
+                                onChange={(e) => setFormData({ ...formData, production_line: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <Label>Yürüten Kişi</Label>
-                                <SearchableSelectDialog
-                                    options={personnelOptions}
-                                    value={formData.conducted_by}
-                                    onChange={(v) => setFormData({ ...formData, conducted_by: v })}
-                                    triggerPlaceholder="Personel Seçin"
+                                <Label htmlFor="target_production_rate">Hedef Üretim Hızı (adet/saat)</Label>
+                                <Input
+                                    id="target_production_rate"
+                                    type="number"
+                                    value={formData.target_production_rate}
+                                    onChange={(e) => setFormData({ ...formData, target_production_rate: e.target.value })}
                                 />
                             </div>
-                            <div className="md:col-span-2">
-                                <Label htmlFor="issues_encountered">Karşılaşılan Sorunlar</Label>
-                                <Textarea
-                                    id="issues_encountered"
-                                    value={formData.issues_encountered}
-                                    onChange={(e) => setFormData({ ...formData, issues_encountered: e.target.value })}
-                                    rows={3}
+                            <div>
+                                <Label htmlFor="actual_production_rate">Gerçekleşen Üretim Hızı (adet/saat)</Label>
+                                <Input
+                                    id="actual_production_rate"
+                                    type="number"
+                                    value={formData.actual_production_rate}
+                                    onChange={(e) => setFormData({ ...formData, actual_production_rate: e.target.value })}
                                 />
                             </div>
-                            <div className="md:col-span-2">
-                                <Label htmlFor="corrective_actions">Düzeltici Aksiyonlar</Label>
-                                <Textarea
-                                    id="corrective_actions"
-                                    value={formData.corrective_actions}
-                                    onChange={(e) => setFormData({ ...formData, corrective_actions: e.target.value })}
-                                    rows={3}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="production_quantity">Üretim Miktarı (adet)</Label>
+                                <Input
+                                    id="production_quantity"
+                                    type="number"
+                                    value={formData.production_quantity}
+                                    onChange={(e) => setFormData({ ...formData, production_quantity: e.target.value })}
                                 />
                             </div>
-                            {formData.target_production_rate && formData.actual_production_rate && (
-                                <div className="md:col-span-2 p-3 bg-blue-50 rounded-lg">
-                                    <Label className="text-blue-800">Hesaplanan Başarı Oranı</Label>
-                                    <p className="text-lg font-bold text-blue-700">
-                                        {((parseFloat(formData.actual_production_rate) / parseFloat(formData.target_production_rate)) * 100).toFixed(1)}%
-                                    </p>
-                                </div>
-                            )}
+                            <div>
+                                <Label htmlFor="duration_hours">Süre (saat)</Label>
+                                <Input
+                                    id="duration_hours"
+                                    type="number"
+                                    step="0.1"
+                                    value={formData.duration_hours}
+                                    onChange={(e) => setFormData({ ...formData, duration_hours: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="success_rate">Başarı Oranı (%)</Label>
+                            <Input
+                                id="success_rate"
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="100"
+                                value={formData.success_rate}
+                                onChange={(e) => setFormData({ ...formData, success_rate: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <Label>Sorumlu Kişi</Label>
+                            <SearchableSelectDialog
+                                options={personnelOptions}
+                                value={formData.conducted_by}
+                                onChange={(v) => setFormData({ ...formData, conducted_by: v })}
+                                triggerPlaceholder="Personel Seçin"
+                            />
+                        </div>
+
+                        <div>
+                            <Label htmlFor="issues_encountered">Karşılaşılan Sorunlar</Label>
+                            <Textarea
+                                id="issues_encountered"
+                                value={formData.issues_encountered}
+                                onChange={(e) => setFormData({ ...formData, issues_encountered: e.target.value })}
+                                rows={3}
+                            />
+                        </div>
+
+                        <div>
+                            <Label htmlFor="corrective_actions">Düzeltici Aksiyonlar</Label>
+                            <Textarea
+                                id="corrective_actions"
+                                value={formData.corrective_actions}
+                                onChange={(e) => setFormData({ ...formData, corrective_actions: e.target.value })}
+                                rows={3}
+                            />
                         </div>
                     </div>
-                    <DialogFooter className="mt-4">
+
+                    <DialogFooter className="mt-6">
                         <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                             İptal
                         </Button>
@@ -260,4 +284,3 @@ const RunAtRateFormModal = ({ open, setOpen, existingStudy, projectId, onSuccess
 };
 
 export default RunAtRateFormModal;
-
