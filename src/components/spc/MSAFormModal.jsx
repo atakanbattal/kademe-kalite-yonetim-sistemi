@@ -27,7 +27,7 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
 
     useEffect(() => {
         if (open) {
-            loadCharacteristics();
+            // Form verilerini sıfırla
             if (existingStudy) {
                 setFormData({
                     study_name: existingStudy.study_name || '',
@@ -49,6 +49,11 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
                     recommendation: ''
                 });
             }
+            // Karakteristikleri yükle
+            loadCharacteristics();
+        } else {
+            // Modal kapandığında loading state'ini sıfırla
+            setLoading(false);
         }
     }, [open, existingStudy]);
 
@@ -63,12 +68,9 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
 
             if (error) {
                 if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Tablo Bulunamadı',
-                        description: 'spc_characteristics tablosu henüz oluşturulmamış.'
-                    });
+                    console.warn('spc_characteristics tablosu bulunamadı');
                     setCharacteristics([]);
+                    setLoading(false);
                     return;
                 }
                 throw error;
@@ -76,11 +78,15 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
             setCharacteristics(data || []);
         } catch (error) {
             console.error('Characteristics loading error:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Hata',
-                description: 'Karakteristikler yüklenirken hata oluştu.'
-            });
+            setCharacteristics([]);
+            // Hata durumunda da toast göster ama modalı kapatma
+            if (error.code !== '42P01') {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Karakteristikler yüklenirken hata oluştu: ' + (error.message || 'Bilinmeyen hata')
+                });
+            }
         } finally {
             setLoading(false);
         }
