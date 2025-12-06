@@ -24,15 +24,28 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
             case 'Zimmetli': return 'default';
             case 'Bakımda': return 'default';
             case 'Kullanım Dışı': return 'destructive';
+            case 'Hurdaya Ayrıldı': return 'destructive';
             default: return 'secondary';
         }
     };
 
-    const getCalibrationStatus = (calibrations) => {
+    const getCalibrationStatus = (calibrations, equipmentStatus) => {
+        // Hurdaya ayrılmış ekipmanlar için kalibrasyon durumu gösterilmez
+        if (equipmentStatus === 'Hurdaya Ayrıldı') {
+            return { text: 'Hurdaya Ayrıldı', variant: 'destructive', date: null, daysLeft: null };
+        }
+        
         if (!calibrations || calibrations.length === 0) {
             return { text: 'Girilmemiş', variant: 'secondary', date: null, daysLeft: null };
         }
-        const latestCalibration = [...calibrations].sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
+        
+        // Sadece aktif kalibrasyonları kontrol et
+        const activeCalibrations = calibrations.filter(cal => cal.is_active !== false);
+        if (activeCalibrations.length === 0) {
+            return { text: 'Pasif', variant: 'secondary', date: null, daysLeft: null };
+        }
+        
+        const latestCalibration = [...activeCalibrations].sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
         const nextDate = new Date(latestCalibration.next_calibration_date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -73,7 +86,7 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
                 </thead>
                 <tbody>
                     {equipments.map((eq, index) => {
-                        const calStatus = getCalibrationStatus(eq.equipment_calibrations);
+                        const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
                         return (
                         <motion.tr
                             key={eq.id}
