@@ -721,6 +721,15 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     };
 
     const handleDownloadReport = () => {
+        if (!benchmark) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Benchmark bilgisi bulunamadı.'
+            });
+            return;
+        }
+        
         const printContent = generateComparisonReport();
         const printWindow = window.open('', '_blank');
         
