@@ -726,6 +726,33 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             return scoreB - scoreA;
         });
 
+        // Kriter kategorilerine göre grupla
+        const getCriterionCategory = (item, key) => {
+            if (['unit_price', 'total_cost_of_ownership', 'roi_percentage', 'maintenance_cost'].includes(key)) return 'Maliyet';
+            if (['quality_score', 'performance_score', 'reliability_score'].includes(key)) return 'Kalite';
+            if (['after_sales_service_score', 'technical_support_score', 'warranty_period_months', 'documentation_quality_score'].includes(key)) return 'Hizmet';
+            if (['delivery_time_days', 'lead_time_days', 'implementation_time_days', 'training_required_hours'].includes(key)) return 'Operasyonel';
+            if (['energy_efficiency_score', 'environmental_impact_score'].includes(key)) return 'Çevresel';
+            if (['ease_of_use_score', 'scalability_score', 'compatibility_score', 'innovation_score'].includes(key)) return 'Teknik';
+            if (['market_reputation_score', 'customer_references_count', 'risk_level'].includes(key)) return 'Pazar';
+            return 'Diğer';
+        };
+
+        const formatValue = (item, key) => {
+            const value = item[key];
+            if (value === null || value === undefined || value === '') return '-';
+            if (key.includes('score') && typeof value === 'number') return `${value.toFixed(1)}/100`;
+            if (key.includes('price') || key.includes('cost') || key.includes('ownership')) {
+                return new Intl.NumberFormat('tr-TR', {
+                    style: 'currency',
+                    currency: item.currency || 'TRY'
+                }).format(value);
+            }
+            if (key.includes('percentage') || key.includes('roi')) return `${value}%`;
+            if (key.includes('days') || key.includes('hours') || key.includes('months') || key.includes('count')) return `${value} ${key.includes('days') ? 'gün' : key.includes('hours') ? 'saat' : key.includes('months') ? 'ay' : 'adet'}`;
+            return value.toString();
+        };
+
         return `
 <!DOCTYPE html>
 <html lang="tr">
