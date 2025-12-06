@@ -1625,7 +1625,15 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                             </div>
                                         </CardContent>
                                     </Card>
-                                ))}
+                                )) : (
+                                    <div className="col-span-2">
+                                        <Card className="p-6 text-center">
+                                            <p className="text-muted-foreground">
+                                                Henüz alternatif eklenmemiş. Yeni alternatif eklemek için yukarıdaki butona tıklayın.
+                                            </p>
+                                        </Card>
+                                    </div>
+                                )}
                             </div>
                         </TabsContent>
 
@@ -1832,7 +1840,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-3">
-                                        {items
+                                        {items && items.length > 0 ? items
                                             .sort((a, b) => {
                                                 const scoreA = itemScores[a.id]?.average || 0;
                                                 const scoreB = itemScores[b.id]?.average || 0;
@@ -1868,7 +1876,11 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                         <div className="text-xs text-muted-foreground">puan</div>
                                                     </div>
                                                 </div>
-                                            ))}
+                                            )) : (
+                                                <p className="text-center text-muted-foreground py-8">
+                                                    Henüz alternatif eklenmemiş.
+                                                </p>
+                                            )}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -1964,7 +1976,11 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ))}
+                                        )) : (
+                                            <p className="text-center text-muted-foreground py-8">
+                                                Henüz alternatif eklenmemiş.
+                                            </p>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
