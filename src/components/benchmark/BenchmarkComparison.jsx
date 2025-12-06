@@ -878,8 +878,78 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     </div>
     ` : ''}
 
+    <div class="section">
+        <div class="section-title">Detaylı Kriter Karşılaştırması</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 200px;">Kriter</th>
+                    ${sortedItems.map(item => `<th style="text-align: center;">${item.item_name}</th>`).join('')}
+                </tr>
+            </thead>
+            <tbody>
+                ${['unit_price', 'total_cost_of_ownership', 'roi_percentage', 'quality_score', 'performance_score', 'reliability_score', 'after_sales_service_score', 'technical_support_score', 'warranty_period_months', 'delivery_time_days', 'lead_time_days', 'implementation_time_days', 'energy_efficiency_score', 'environmental_impact_score', 'ease_of_use_score', 'scalability_score', 'compatibility_score', 'innovation_score', 'market_reputation_score', 'customer_references_count', 'risk_level'].map(key => {
+                    const criterionNames = {
+                        'unit_price': 'Birim Fiyat',
+                        'total_cost_of_ownership': 'Toplam Sahiplik Maliyeti (TCO)',
+                        'roi_percentage': 'Yatırım Getirisi (ROI)',
+                        'quality_score': 'Kalite Skoru',
+                        'performance_score': 'Performans Skoru',
+                        'reliability_score': 'Güvenilirlik Skoru',
+                        'after_sales_service_score': 'Satış Sonrası Hizmet',
+                        'technical_support_score': 'Teknik Destek',
+                        'warranty_period_months': 'Garanti Süresi',
+                        'delivery_time_days': 'Teslimat Süresi',
+                        'lead_time_days': 'Tedarik Süresi',
+                        'implementation_time_days': 'Uygulama Süresi',
+                        'energy_efficiency_score': 'Enerji Verimliliği',
+                        'environmental_impact_score': 'Çevresel Etki',
+                        'ease_of_use_score': 'Kullanılabilirlik',
+                        'scalability_score': 'Ölçeklenebilirlik',
+                        'compatibility_score': 'Uyumluluk',
+                        'innovation_score': 'İnovasyon',
+                        'market_reputation_score': 'Pazar İtibarı',
+                        'customer_references_count': 'Müşteri Referans Sayısı',
+                        'risk_level': 'Risk Seviyesi'
+                    };
+                    
+                    const hasValue = sortedItems.some(item => item[key] !== null && item[key] !== undefined && item[key] !== '');
+                    if (!hasValue) return '';
+                    
+                    return `
+                    <tr>
+                        <td style="font-weight: 600;">${criterionNames[key] || key}</td>
+                        ${sortedItems.map(item => {
+                            const value = formatValue(item, key);
+                            const bestValue = sortedItems.reduce((best, current) => {
+                                const currentVal = current[key];
+                                const bestVal = best[key];
+                                if (currentVal === null || currentVal === undefined || currentVal === '') return best;
+                                if (bestVal === null || bestVal === undefined || bestVal === '') return current;
+                                
+                                // Fiyat ve süre için en düşük değer en iyi
+                                if (key.includes('price') || key.includes('cost') || key.includes('days') || key.includes('hours')) {
+                                    return currentVal < bestVal ? current : best;
+                                }
+                                // Skorlar ve yüzdeler için en yüksek değer en iyi
+                                if (key.includes('score') || key.includes('percentage') || key.includes('count') || key.includes('months')) {
+                                    return currentVal > bestVal ? current : best;
+                                }
+                                return best;
+                            }, sortedItems[0]);
+                            const isBest = bestValue && item[key] === bestValue[key] && item[key] !== null && item[key] !== undefined && item[key] !== '';
+                            return `<td style="text-align: center; ${isBest ? 'background: #dbeafe; font-weight: bold;' : ''}">${value}</td>`;
+                        }).join('')}
+                    </tr>
+                    `;
+                }).filter(row => row !== '').join('')}
+            </tbody>
+        </table>
+    </div>
+
     <div class="footer">
         <p>Bu rapor Kademe QMS Benchmark Modülü tarafından otomatik olarak oluşturulmuştur.</p>
+        <p>Oluşturulma Tarihi: ${new Date().toLocaleString('tr-TR')}</p>
     </div>
 </body>
 </html>
