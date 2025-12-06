@@ -136,7 +136,10 @@ const ValidationPlansList = ({ plans, loading, onRefresh }) => {
                                     {plan.equipment && (
                                         <div>
                                             <span className="text-muted-foreground">Ekipman: </span>
-                                            <span className="font-medium">{plan.equipment.equipment_name}</span>
+                                            <span className="font-medium">{plan.equipment.name || plan.equipment.equipment_name || 'Bilinmeyen'}</span>
+                                            {plan.equipment.serial_number && (
+                                                <span className="text-muted-foreground ml-1">({plan.equipment.serial_number})</span>
+                                            )}
                                         </div>
                                     )}
                                     <div>

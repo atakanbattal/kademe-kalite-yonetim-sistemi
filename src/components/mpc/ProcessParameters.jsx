@@ -36,7 +36,7 @@ const ProcessParameters = () => {
                 .from('process_parameters')
                 .select(`
                     *,
-                    equipment:equipment_id(equipment_name, equipment_code)
+                    equipment:equipment_id(id, name, serial_number)
                 `)
                 .order('parameter_name', { ascending: true });
 
@@ -182,7 +182,10 @@ const ProcessParameters = () => {
                                     {param.equipment && (
                                         <div>
                                             <span className="text-muted-foreground">Ekipman: </span>
-                                            <span className="font-medium">{param.equipment.equipment_name}</span>
+                                            <span className="font-medium">{param.equipment.name || param.equipment.equipment_name || 'Bilinmeyen'}</span>
+                                            {param.equipment.serial_number && (
+                                                <span className="text-muted-foreground ml-1">({param.equipment.serial_number})</span>
+                                            )}
                                         </div>
                                     )}
                                     {param.target_value && (

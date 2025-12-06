@@ -138,7 +138,7 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
 
     const equipmentOptions = (equipments || []).map(e => ({ 
         value: e.id, 
-        label: `${e.equipment_name || 'Bilinmeyen'} (${e.equipment_code || 'N/A'})` 
+        label: `${e.name || e.equipment_name || 'Bilinmeyen'} (${e.serial_number || e.equipment_code || 'N/A'})` 
     }));
 
     const characteristicOptions = (characteristics || []).map(c => ({

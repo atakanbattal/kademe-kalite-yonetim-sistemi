@@ -112,7 +112,7 @@ const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => 
     const departmentOptions = (unitCostSettings || []).map(u => ({ value: u.id, label: u.unit_name }));
     const equipmentOptions = (equipments || []).map(e => ({ 
         value: e.id, 
-        label: `${e.equipment_name || 'Bilinmeyen'} (${e.equipment_code || 'N/A'})` 
+        label: `${e.name || e.equipment_name || 'Bilinmeyen'} (${e.serial_number || e.equipment_code || 'N/A'})` 
     }));
 
     return (

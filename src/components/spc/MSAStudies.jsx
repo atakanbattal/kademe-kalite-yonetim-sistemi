@@ -51,7 +51,7 @@ const MSAStudies = () => {
                 .select(`
                     *,
                     characteristic:characteristic_id(characteristic_name, characteristic_code),
-                    equipment:measurement_equipment_id(equipment_name, equipment_code)
+                    equipment:measurement_equipment_id(id, name, serial_number)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -185,7 +185,10 @@ const MSAStudies = () => {
                                         {study.equipment && (
                                             <div>
                                                 <span className="text-muted-foreground">Ekipman: </span>
-                                                <span className="font-medium">{study.equipment.equipment_name}</span>
+                                                <span className="font-medium">{study.equipment.name || study.equipment.equipment_name || 'Bilinmeyen'}</span>
+                                                {study.equipment.serial_number && (
+                                                    <span className="text-muted-foreground ml-1">({study.equipment.serial_number})</span>
+                                                )}
                                             </div>
                                         )}
                                         {study.gage_rr_percent !== null && (

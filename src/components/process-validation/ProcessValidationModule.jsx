@@ -26,7 +26,7 @@ const ProcessValidationModule = () => {
                 .from('validation_plans')
                 .select(`
                     *,
-                    equipment:equipment_id(equipment_name, equipment_code),
+                    equipment:equipment_id(id, name, serial_number),
                     responsible_person:responsible_person_id(full_name),
                     responsible_department:responsible_department_id(unit_name)
                 `)
