@@ -72,11 +72,11 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
                         upsert: false
                     }));
                 
-                // Eğer bucket yoksa documents bucket'ını kullan
-                if (uploadError && uploadError.message.includes('Bucket not found')) {
+                // Eğer bucket yoksa calibration_certificates bucket'ını kullan (mevcut bucket)
+                if (uploadError && (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found'))) {
                     ({ data: uploadData, error: uploadError } = await supabase.storage
-                        .from('documents')
-                        .upload(`equipment/scrap/${fileName}`, scrapDocument, {
+                        .from('calibration_certificates')
+                        .upload(`scrap/${fileName}`, scrapDocument, {
                             contentType: 'application/pdf',
                             upsert: false
                         }));
