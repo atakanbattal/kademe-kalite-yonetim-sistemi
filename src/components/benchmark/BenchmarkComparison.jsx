@@ -148,7 +148,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [benchmark?.id, toast]);
 
     // Otomatik skorlama fonksiyonu - tüm kriterleri değerlendirir
     const calculateAutoScore = useCallback((item) => {
