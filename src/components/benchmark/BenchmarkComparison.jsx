@@ -751,6 +751,8 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     };
 
     const generateComparisonReport = () => {
+        if (!benchmark) return '';
+        
         const sortedItems = [...items].sort((a, b) => {
             const scoreA = itemScores[a.id]?.average || 0;
             const scoreB = itemScores[b.id]?.average || 0;
@@ -790,7 +792,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Benchmark Karşılaştırma Raporu - ${benchmark.title}</title>
+    <title>Benchmark Karşılaştırma Raporu - ${benchmark?.title || 'Benchmark'}</title>
     <style>
         @page { size: A4 landscape; margin: 15mm; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #333; }
@@ -813,7 +815,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 <body>
     <div class="header">
         <h1>Benchmark Karşılaştırma Raporu</h1>
-        <p><strong>${benchmark.title}</strong> | ${benchmark.benchmark_number}</p>
+        <p><strong>${benchmark?.title || 'Benchmark'}</strong> | ${benchmark?.benchmark_number || 'N/A'}</p>
     </div>
 
     <div class="section">
