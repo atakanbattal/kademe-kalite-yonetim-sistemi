@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
     X, Plus, Trash2, Save, Download, TrendingUp, Award,
     ThumbsUp, ThumbsDown, BarChart3, PieChart, FileText,
-    Edit, Check, AlertCircle
+    Edit, Check, AlertCircle, Loader2
 } from 'lucide-react';
 import {
     Dialog,
@@ -68,7 +68,8 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 
         setLoading(true);
         try {
-            const [itemsRes, criteriaRes, scoresRes, prosConsRes] = await Promise.all([
+            // Önce items ve criteria'yı çek
+            const [itemsRes, criteriaRes] = await Promise.all([
                 supabase
                     .from('benchmark_items')
                     .select('*')
@@ -78,26 +79,47 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                     .from('benchmark_criteria')
                     .select('*')
                     .eq('benchmark_id', benchmark.id)
-                    .order('order_index'),
-                supabase
-                    .from('benchmark_scores')
-                    .select('*'),
-                supabase
-                    .from('benchmark_pros_cons')
-                    .select('*')
+                    .order('order_index')
             ]);
 
             if (itemsRes.error) throw itemsRes.error;
             if (criteriaRes.error) throw criteriaRes.error;
-            if (scoresRes.error) throw scoresRes.error;
-            if (prosConsRes.error) throw prosConsRes.error;
 
-            setItems(itemsRes.data || []);
-            setCriteria(criteriaRes.data || []);
+            const items = itemsRes.data || [];
+            const criteria = criteriaRes.data || [];
+            
+            setItems(items);
+            setCriteria(criteria);
+
+            // Item ID'leri al
+            const itemIds = items.map(item => item.id);
+            
+            // Scores ve pros_cons'u item ID'leri ile filtrele
+            let scoresData = [];
+            let prosConsData = [];
+            
+            if (itemIds.length > 0) {
+                const [scoresRes, prosConsRes] = await Promise.all([
+                    supabase
+                        .from('benchmark_scores')
+                        .select('*')
+                        .in('benchmark_item_id', itemIds),
+                    supabase
+                        .from('benchmark_pros_cons')
+                        .select('*')
+                        .in('benchmark_item_id', itemIds)
+                ]);
+
+                if (scoresRes.error) throw scoresRes.error;
+                if (prosConsRes.error) throw prosConsRes.error;
+
+                scoresData = scoresRes.data || [];
+                prosConsData = prosConsRes.data || [];
+            }
 
             // Organize scores by item and criterion
             const scoresMap = {};
-            (scoresRes.data || []).forEach(score => {
+            scoresData.forEach(score => {
                 const key = `${score.benchmark_item_id}_${score.criterion_id}`;
                 scoresMap[key] = score;
             });
@@ -105,7 +127,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 
             // Organize pros/cons by item
             const prosConsMap = {};
-            (prosConsRes.data || []).forEach(pc => {
+            prosConsData.forEach(pc => {
                 if (!prosConsMap[pc.benchmark_item_id]) {
                     prosConsMap[pc.benchmark_item_id] = { pros: [], cons: [] };
                 }
@@ -121,7 +143,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Veriler yüklenirken bir hata oluştu.'
+                description: 'Veriler yüklenirken bir hata oluştu: ' + error.message
             });
         } finally {
             setLoading(false);
@@ -973,11 +995,19 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                         </Button>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        {benchmark.title}
+                        {benchmark?.title || 'Yükleniyor...'}
                     </p>
                 </DialogHeader>
 
-                <ScrollArea className="h-[calc(95vh-120px)]">
+                {loading ? (
+                    <div className="flex items-center justify-center h-[calc(95vh-120px)]">
+                        <div className="text-center">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                            <p className="text-sm text-muted-foreground">Veriler yükleniyor...</p>
+                        </div>
+                    </div>
+                ) : (
+                    <ScrollArea className="h-[calc(95vh-120px)]">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="items">
