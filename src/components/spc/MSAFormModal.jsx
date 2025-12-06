@@ -193,19 +193,22 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
                             <div>
                                 <Label htmlFor="characteristic_id">Kritik Karakteristik</Label>
                                 <Select
-                                    value={formData.characteristic_id || ''}
+                                    value={formData.characteristic_id || undefined}
                                     onValueChange={(value) => setFormData({ ...formData, characteristic_id: value || null })}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Seçiniz" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Seçiniz</SelectItem>
-                                        {characteristicOptions.map(opt => (
-                                            <SelectItem key={opt.value} value={opt.value}>
-                                                {opt.label}
-                                            </SelectItem>
-                                        ))}
+                                        {characteristicOptions.length > 0 ? (
+                                            characteristicOptions.map(opt => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="none" disabled>Karakteristik bulunamadı</SelectItem>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -214,19 +217,22 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
                         <div>
                             <Label htmlFor="measurement_equipment_id">Ölçüm Ekipmanı</Label>
                             <Select
-                                value={formData.measurement_equipment_id || ''}
+                                value={formData.measurement_equipment_id || undefined}
                                 onValueChange={(value) => setFormData({ ...formData, measurement_equipment_id: value || null })}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Seçiniz" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Seçiniz</SelectItem>
-                                    {equipmentOptions.map(opt => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
+                                    {equipmentOptions.length > 0 ? (
+                                        equipmentOptions.map(opt => (
+                                            <SelectItem key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))
+                                    ) : (
+                                        <SelectItem value="none" disabled>Ekipman bulunamadı</SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
