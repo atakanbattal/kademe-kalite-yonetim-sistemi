@@ -749,31 +749,215 @@ const BenchmarkDetail = ({
                                                 {item.description && (
                                                     <p className="text-sm mb-3">{item.description}</p>
                                                 )}
-                                                <div className="grid gap-3 md:grid-cols-3 text-sm">
-                                                    {item.unit_price && (
-                                                        <div>
-                                                            <p className="text-muted-foreground">Birim Fiyat</p>
-                                                            <p className="font-medium">
-                                                                {new Intl.NumberFormat('tr-TR', {
-                                                                    style: 'currency',
-                                                                    currency: item.currency || 'TRY'
-                                                                }).format(item.unit_price)}
-                                                            </p>
+                                                
+                                                {/* Temel Bilgiler */}
+                                                {(item.manufacturer || item.model_number || item.category || item.origin) && (
+                                                    <div className="mb-3 pb-3 border-b">
+                                                        <h4 className="text-sm font-semibold mb-2">Temel Bilgiler</h4>
+                                                        <div className="grid gap-2 md:grid-cols-2 text-sm">
+                                                            {item.manufacturer && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Üretici</p>
+                                                                    <p className="font-medium">{item.manufacturer}</p>
+                                                                </div>
+                                                            )}
+                                                            {item.model_number && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Model/Seri No</p>
+                                                                    <p className="font-medium">{item.model_number}</p>
+                                                                </div>
+                                                            )}
+                                                            {item.category && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Kategori</p>
+                                                                    <p className="font-medium">{item.category}</p>
+                                                                </div>
+                                                            )}
+                                                            {item.origin && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Menşei</p>
+                                                                    <p className="font-medium">{item.origin}</p>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                    {item.quality_score && (
-                                                        <div>
-                                                            <p className="text-muted-foreground">Kalite Skoru</p>
-                                                            <p className="font-medium">{item.quality_score}/100</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Maliyet Bilgileri */}
+                                                {(item.unit_price || item.total_cost_of_ownership || item.roi_percentage || item.minimum_order_quantity || item.payment_terms) && (
+                                                    <div className="mb-3 pb-3 border-b">
+                                                        <h4 className="text-sm font-semibold mb-2">Maliyet Bilgileri</h4>
+                                                        <div className="grid gap-2 md:grid-cols-3 text-sm">
+                                                            {item.unit_price && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Birim Fiyat</p>
+                                                                    <p className="font-medium">
+                                                                        {new Intl.NumberFormat('tr-TR', {
+                                                                            style: 'currency',
+                                                                            currency: item.currency || 'TRY'
+                                                                        }).format(item.unit_price)}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                            {item.total_cost_of_ownership && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">TCO</p>
+                                                                    <p className="font-medium">
+                                                                        {new Intl.NumberFormat('tr-TR', {
+                                                                            style: 'currency',
+                                                                            currency: item.currency || 'TRY'
+                                                                        }).format(item.total_cost_of_ownership)}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                            {item.roi_percentage && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">ROI</p>
+                                                                    <p className="font-medium">{item.roi_percentage}%</p>
+                                                                </div>
+                                                            )}
+                                                            {item.minimum_order_quantity && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Minimum Sipariş</p>
+                                                                    <p className="font-medium">{item.minimum_order_quantity} adet</p>
+                                                                </div>
+                                                            )}
+                                                            {item.payment_terms && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Ödeme Koşulları</p>
+                                                                    <p className="font-medium">{item.payment_terms}</p>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                    {item.lead_time_days && (
-                                                        <div>
-                                                            <p className="text-muted-foreground">Tedarik Süresi</p>
-                                                            <p className="font-medium">{item.lead_time_days} gün</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Kalite ve Performans */}
+                                                {(item.quality_score || item.performance_score || item.reliability_score || item.durability_score || item.safety_score || item.standards_compliance_score) && (
+                                                    <div className="mb-3 pb-3 border-b">
+                                                        <h4 className="text-sm font-semibold mb-2">Kalite ve Performans</h4>
+                                                        <div className="grid gap-2 md:grid-cols-3 text-sm">
+                                                            {item.quality_score && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Kalite Skoru</p>
+                                                                    <p className="font-medium">{item.quality_score}/100</p>
+                                                                </div>
+                                                            )}
+                                                            {item.performance_score && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Performans Skoru</p>
+                                                                    <p className="font-medium">{item.performance_score}/100</p>
+                                                                </div>
+                                                            )}
+                                                            {item.reliability_score && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Güvenilirlik Skoru</p>
+                                                                    <p className="font-medium">{item.reliability_score}/100</p>
+                                                                </div>
+                                                            )}
+                                                            {item.durability_score && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Dayanıklılık Skoru</p>
+                                                                    <p className="font-medium">{item.durability_score}/100</p>
+                                                                </div>
+                                                            )}
+                                                            {item.safety_score && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Güvenlik Skoru</p>
+                                                                    <p className="font-medium">{item.safety_score}/100</p>
+                                                                </div>
+                                                            )}
+                                                            {item.standards_compliance_score && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Standart Uygunluk</p>
+                                                                    <p className="font-medium">{item.standards_compliance_score}/100</p>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Hizmet Bilgileri */}
+                                                {(item.after_sales_service_score || item.technical_support_score || item.warranty_period_months || item.support_availability) && (
+                                                    <div className="mb-3 pb-3 border-b">
+                                                        <h4 className="text-sm font-semibold mb-2">Satış Sonrası Hizmet</h4>
+                                                        <div className="grid gap-2 md:grid-cols-3 text-sm">
+                                                            {item.after_sales_service_score && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Satış Sonrası Skoru</p>
+                                                                    <p className="font-medium">{item.after_sales_service_score}/100</p>
+                                                                </div>
+                                                            )}
+                                                            {item.technical_support_score && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Teknik Destek Skoru</p>
+                                                                    <p className="font-medium">{item.technical_support_score}/100</p>
+                                                                </div>
+                                                            )}
+                                                            {item.warranty_period_months && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Garanti Süresi</p>
+                                                                    <p className="font-medium">{item.warranty_period_months} ay</p>
+                                                                </div>
+                                                            )}
+                                                            {item.support_availability && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Destek Erişilebilirliği</p>
+                                                                    <p className="font-medium">{item.support_availability}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Operasyonel Bilgiler */}
+                                                {(item.delivery_time_days || item.lead_time_days || item.implementation_time_days || item.training_required_hours) && (
+                                                    <div className="mb-3 pb-3 border-b">
+                                                        <h4 className="text-sm font-semibold mb-2">Operasyonel Bilgiler</h4>
+                                                        <div className="grid gap-2 md:grid-cols-3 text-sm">
+                                                            {item.delivery_time_days && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Teslimat Süresi</p>
+                                                                    <p className="font-medium">{item.delivery_time_days} gün</p>
+                                                                </div>
+                                                            )}
+                                                            {item.lead_time_days && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Tedarik Süresi</p>
+                                                                    <p className="font-medium">{item.lead_time_days} gün</p>
+                                                                </div>
+                                                            )}
+                                                            {item.implementation_time_days && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Uygulama Süresi</p>
+                                                                    <p className="font-medium">{item.implementation_time_days} gün</p>
+                                                                </div>
+                                                            )}
+                                                            {item.training_required_hours && (
+                                                                <div>
+                                                                    <p className="text-muted-foreground">Eğitim Gereksinimi</p>
+                                                                    <p className="font-medium">{item.training_required_hours} saat</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Risk */}
+                                                {item.risk_level && (
+                                                    <div className="mb-3">
+                                                        <h4 className="text-sm font-semibold mb-2">Risk Değerlendirmesi</h4>
+                                                        <Badge 
+                                                            variant={
+                                                                item.risk_level === 'Düşük' ? 'default' :
+                                                                item.risk_level === 'Orta' ? 'secondary' :
+                                                                item.risk_level === 'Yüksek' ? 'destructive' : 'destructive'
+                                                            }
+                                                        >
+                                                            {item.risk_level}
+                                                        </Badge>
+                                                    </div>
+                                                )}
                                             </CardContent>
                                         </Card>
                                     ))
