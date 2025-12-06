@@ -26,13 +26,23 @@ const EquipmentDashboard = ({ equipments, loading }) => {
         thirtyDaysFromNow.setDate(today.getDate() + 30);
 
         equipments.forEach(eq => {
-            const latestCalibration = [...(eq.equipment_calibrations || [])].sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
-            if (latestCalibration) {
-                const nextDate = new Date(latestCalibration.next_calibration_date);
-                if (nextDate <= thirtyDaysFromNow && nextDate >= today) {
-                    approachingCalibration++;
+            // Hurdaya ayrılmış ekipmanları kalibrasyon sayımından hariç tut
+            if (eq.status === 'Hurdaya Ayrıldı') {
+                return;
+            }
+            
+            // Sadece aktif kalibrasyonları kontrol et
+            const activeCalibrations = (eq.equipment_calibrations || []).filter(cal => cal.is_active !== false);
+            if (activeCalibrations.length > 0) {
+                const latestCalibration = [...activeCalibrations].sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
+                if (latestCalibration) {
+                    const nextDate = new Date(latestCalibration.next_calibration_date);
+                    if (nextDate <= thirtyDaysFromNow && nextDate >= today) {
+                        approachingCalibration++;
+                    }
                 }
             }
+            
             if(eq.equipment_assignments?.some(a => a.is_active)){
                 assignedCount++;
             }
