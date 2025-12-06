@@ -51,7 +51,8 @@ const BenchmarkDetail = ({
 
         setLoading(true);
         try {
-            const [itemsRes, docsRes, activityRes, approvalsRes] = await Promise.all([
+            // Önce kritik verileri yükle (alternatifler ve dokümanlar)
+            const [itemsRes, docsRes] = await Promise.all([
                 supabase
                     .from('benchmark_items')
                     .select('*')
@@ -61,41 +62,55 @@ const BenchmarkDetail = ({
                     .from('benchmark_documents')
                     .select('*')
                     .eq('benchmark_id', benchmark.id)
-                    .order('created_at', { ascending: false }),
-                supabase
+                    .order('created_at', { ascending: false })
+            ]);
+
+            if (itemsRes.error) throw itemsRes.error;
+            if (docsRes.error) throw docsRes.error;
+
+            setItems(itemsRes.data || []);
+            setDocuments(docsRes.data || []);
+
+            // Opsiyonel verileri ayrı ayrı yükle (hata olsa bile devam et)
+            try {
+                const activityRes = await supabase
                     .from('benchmark_activity_log')
-                    .select(`
-                        *,
-                        user:auth.users(email)
-                    `)
+                    .select('*')
                     .eq('benchmark_id', benchmark.id)
                     .order('performed_at', { ascending: false })
-                    .limit(20),
-                supabase
+                    .limit(20);
+                
+                if (!activityRes.error) {
+                    setActivityLog(activityRes.data || []);
+                }
+            } catch (err) {
+                console.warn('Activity log yüklenemedi:', err);
+                setActivityLog([]);
+            }
+
+            try {
+                const approvalsRes = await supabase
                     .from('benchmark_approvals')
                     .select(`
                         *,
                         approver:personnel!benchmark_approvals_approver_id_fkey(id, name)
                     `)
                     .eq('benchmark_id', benchmark.id)
-                    .order('approval_level')
-            ]);
-
-            if (itemsRes.error) throw itemsRes.error;
-            if (docsRes.error) throw docsRes.error;
-            if (activityRes.error) throw activityRes.error;
-            if (approvalsRes.error) throw approvalsRes.error;
-
-            setItems(itemsRes.data || []);
-            setDocuments(docsRes.data || []);
-            setActivityLog(activityRes.data || []);
-            setApprovals(approvalsRes.data || []);
+                    .order('approval_level');
+                
+                if (!approvalsRes.error) {
+                    setApprovals(approvalsRes.data || []);
+                }
+            } catch (err) {
+                console.warn('Approvals yüklenemedi (tablo mevcut olmayabilir):', err);
+                setApprovals([]);
+            }
         } catch (error) {
             console.error('Detaylar yüklenirken hata:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Detaylar yüklenirken bir hata oluştu.'
+                description: 'Detaylar yüklenirken bir hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
         } finally {
             setLoading(false);
