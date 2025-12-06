@@ -75,15 +75,28 @@ const CommandSeparator = React.forwardRef(({ className, ...props }, ref) => (
 ))
 CommandSeparator.displayName = CommandPrimitive.Separator.displayName
 
-const CommandItem = React.forwardRef(({ className, ...props }, ref) => (
-  <CommandPrimitive.Item
-    ref={ref}
-    className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className
-    )}
-    {...props} />
-))
+const CommandItem = React.forwardRef(({ className, onClick, onSelect, ...props }, ref) => {
+  const handleClick = (e) => {
+    if (onClick) {
+      onClick(e);
+    }
+    if (onSelect && !e.defaultPrevented) {
+      onSelect();
+    }
+  };
+
+  return (
+    <CommandPrimitive.Item
+      ref={ref}
+      className={cn(
+        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent hover:text-accent-foreground",
+        className
+      )}
+      onClick={handleClick}
+      onSelect={onSelect}
+      {...props} />
+  );
+})
 
 CommandItem.displayName = CommandPrimitive.Item.displayName
 

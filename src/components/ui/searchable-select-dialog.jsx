@@ -109,6 +109,10 @@ export function SearchableSelectDialog({
                     key={option.value}
                     value={getSearchValue(option)}
                     onSelect={() => handleSelect(option.value)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSelect(option.value);
+                    }}
                   >
                     <Check
                       className={cn(
