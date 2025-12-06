@@ -148,13 +148,19 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             setProsConsData(prosConsMap);
         } catch (error) {
             console.error('Karşılaştırma verileri yüklenirken hata:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                benchmarkId: benchmark?.id
+            });
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Veriler yüklenirken bir hata oluştu: ' + error.message
+                description: 'Veriler yüklenirken bir hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
         } finally {
             setLoading(false);
+            console.log('fetchComparisonData: Finished');
         }
     }, [benchmark?.id, toast]);
 
@@ -1003,9 +1009,33 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 
     console.log('BenchmarkComparison render:', { benchmark, isOpen, loading, itemsCount: items?.length, criteriaCount: criteria?.length });
 
-    if (!benchmark || !isOpen) {
-        console.log('BenchmarkComparison: Not rendering (benchmark or isOpen is falsy)', { benchmark, isOpen });
+    // Eğer modal açık değilse hiçbir şey render etme
+    if (!isOpen) {
+        console.log('BenchmarkComparison: Modal kapalı, returning null');
         return null;
+    }
+
+    // Eğer benchmark yoksa bile modal'ı göster ama içeriği loading olarak göster
+    if (!benchmark) {
+        console.log('BenchmarkComparison: Benchmark yok, loading gösteriliyor');
+        return (
+            <Dialog open={isOpen} onOpenChange={onClose}>
+                <DialogContent className="max-w-[95vw] max-h-[95vh]">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl">
+                            <TrendingUp className="inline-block mr-2 h-6 w-6" />
+                            Benchmark Karşılaştırma
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center justify-center h-[calc(95vh-120px)]">
+                        <div className="text-center">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
+                            <p className="text-sm text-muted-foreground">Benchmark bilgisi yükleniyor...</p>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
     }
 
     return (
