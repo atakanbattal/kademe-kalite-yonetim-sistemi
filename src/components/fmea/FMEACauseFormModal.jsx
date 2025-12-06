@@ -22,6 +22,7 @@ const FMEACauseFormModal = ({ open, setOpen, failureModeId, existingCause, onSuc
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [maxCauseNumber, setMaxCauseNumber] = useState(0);
+    const [failureModeSeverity, setFailureModeSeverity] = useState(5);
 
     useEffect(() => {
         if (open && failureModeId) {

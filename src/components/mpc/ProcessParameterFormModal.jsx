@@ -14,7 +14,7 @@ const ProcessParameterFormModal = ({ open, setOpen, existingParameter, onSuccess
     const { equipments } = useData();
     const [formData, setFormData] = useState({
         parameter_name: '',
-        machine_equipment_id: null,
+        equipment_id: null,
         process_name: '',
         target_value: '',
         usl: '',
@@ -29,7 +29,7 @@ const ProcessParameterFormModal = ({ open, setOpen, existingParameter, onSuccess
         if (existingParameter) {
             setFormData({
                 ...existingParameter,
-                machine_equipment_id: existingParameter.machine_equipment_id || null,
+                equipment_id: existingParameter.equipment_id || existingParameter.machine_equipment_id || null,
                 target_value: existingParameter.target_value?.toString() || '',
                 usl: existingParameter.usl?.toString() || '',
                 lsl: existingParameter.lsl?.toString() || ''
@@ -37,7 +37,7 @@ const ProcessParameterFormModal = ({ open, setOpen, existingParameter, onSuccess
         } else {
             setFormData({
                 parameter_name: '',
-                machine_equipment_id: null,
+                equipment_id: null,
                 process_name: '',
                 target_value: '',
                 usl: '',
@@ -97,7 +97,10 @@ const ProcessParameterFormModal = ({ open, setOpen, existingParameter, onSuccess
         }
     };
 
-    const equipmentOptions = equipments.map(e => ({ value: e.id, label: `${e.equipment_name} (${e.equipment_code})` }));
+    const equipmentOptions = (equipments || []).map(e => ({ 
+        value: e.id, 
+        label: `${e.equipment_name || 'Bilinmeyen'} (${e.equipment_code || 'N/A'})` 
+    }));
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -123,8 +126,8 @@ const ProcessParameterFormModal = ({ open, setOpen, existingParameter, onSuccess
                                 <Label>Makine/Ekipman</Label>
                                 <SearchableSelectDialog
                                     options={equipmentOptions}
-                                    value={formData.machine_equipment_id}
-                                    onChange={(v) => setFormData({ ...formData, machine_equipment_id: v })}
+                                    value={formData.equipment_id}
+                                    onChange={(v) => setFormData({ ...formData, equipment_id: v })}
                                     triggerPlaceholder="Ekipman Seçin"
                                 />
                             </div>

@@ -40,7 +40,19 @@ const ProcessParameters = () => {
                 `)
                 .order('parameter_name', { ascending: true });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'process_parameters tablosu henüz oluşturulmamış.'
+                    });
+                    setParameters([]);
+                    setLoading(false);
+                    return;
+                }
+                throw error;
+            }
             setParameters(data || []);
         } catch (error) {
             console.error('Process parameters loading error:', error);

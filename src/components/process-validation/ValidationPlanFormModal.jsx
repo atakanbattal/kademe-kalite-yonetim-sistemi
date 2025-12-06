@@ -108,9 +108,12 @@ const ValidationPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) => 
         }
     };
 
-    const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
-    const departmentOptions = unitCostSettings.map(u => ({ value: u.id, label: u.unit_name }));
-    const equipmentOptions = equipments.map(e => ({ value: e.id, label: `${e.equipment_name} (${e.equipment_code})` }));
+    const personnelOptions = (personnel || []).map(p => ({ value: p.id, label: p.full_name }));
+    const departmentOptions = (unitCostSettings || []).map(u => ({ value: u.id, label: u.unit_name }));
+    const equipmentOptions = (equipments || []).map(e => ({ 
+        value: e.id, 
+        label: `${e.equipment_name || 'Bilinmeyen'} (${e.equipment_code || 'N/A'})` 
+    }));
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>

@@ -32,14 +32,26 @@ const ProcessValidationModule = () => {
                 `)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Tablo Bulunamadı',
+                        description: 'validation_plans tablosu henüz oluşturulmamış.'
+                    });
+                    setPlans([]);
+                    setLoading(false);
+                    return;
+                }
+                throw error;
+            }
             setPlans(data || []);
         } catch (error) {
             console.error('Validation plans loading error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Validasyon planları yüklenirken hata oluştu.'
+                description: error.message || 'Validasyon planları yüklenirken hata oluştu.'
             });
         } finally {
             setLoading(false);
