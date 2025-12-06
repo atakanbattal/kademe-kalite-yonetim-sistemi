@@ -118,6 +118,23 @@ import React, { useState, useEffect } from 'react';
                                 <div><p className="text-sm text-muted-foreground">Ölçüm Aralığı</p><p className="font-semibold">{equipment.measurement_range || '-'}</p></div>
                                 <div><p className="text-sm text-muted-foreground">Ölçüm Belirsizliği</p><p className="font-semibold">{equipment.measurement_uncertainty || '-'}</p></div>
                                 <div><p className="text-sm text-muted-foreground">Kalibrasyon Periyodu</p><p className="font-semibold">{equipment.calibration_frequency_months ? `${equipment.calibration_frequency_months} Ay` : '-'}</p></div>
+                                {equipment.status === 'Hurdaya Ayrıldı' && equipment.scrap_date && (
+                                    <>
+                                        <div><p className="text-sm text-muted-foreground">Hurdaya Ayırma Tarihi</p><p className="font-semibold text-destructive">{new Date(equipment.scrap_date).toLocaleDateString('tr-TR')}</p></div>
+                                        <div className="col-span-2"><p className="text-sm text-muted-foreground">Hurdaya Ayırma Sebebi</p><p className="font-semibold">{equipment.scrap_reason || '-'}</p></div>
+                                        {equipment.scrap_document_path && (
+                                            <div className="col-span-full">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleOpenPdfViewer(equipment.scrap_document_path, 'Hurdaya Ayırma Tutanağı')}
+                                                >
+                                                    Hurdaya Ayırma Tutanağını Görüntüle
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                                 <div className="col-span-full"><p className="text-sm text-muted-foreground">Açıklama</p><p className="font-semibold">{equipment.description || '-'}</p></div>
                             </div>
 
