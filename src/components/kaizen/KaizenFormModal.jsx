@@ -347,6 +347,28 @@ import React, { useState, useEffect, useCallback } from 'react';
                     error = insertError;
                 }
 
+                // Kaizen durumu değiştiğinde KPI'ları güncelle
+                if (!error && dataToSubmit.status) {
+                    try {
+                        // Kaizen KPI değerlerini hesapla ve güncelle
+                        const [activeCount, completedCount, successRate] = await Promise.all([
+                            supabase.rpc('get_active_kaizen_count'),
+                            supabase.rpc('get_completed_kaizen_count'),
+                            supabase.rpc('get_kaizen_success_rate')
+                        ]);
+
+                        // KPI'ları güncelle
+                        await Promise.all([
+                            supabase.from('kpis').update({ current_value: activeCount.data }).eq('is_auto', true).eq('auto_kpi_id', 'active_kaizen_count'),
+                            supabase.from('kpis').update({ current_value: completedCount.data }).eq('is_auto', true).eq('auto_kpi_id', 'completed_kaizen_count'),
+                            supabase.from('kpis').update({ current_value: successRate.data }).eq('is_auto', true).eq('auto_kpi_id', 'kaizen_success_rate')
+                        ]);
+                    } catch (kpiError) {
+                        console.error('KPI güncelleme hatası:', kpiError);
+                        // KPI güncelleme hatası kritik değil, devam et
+                    }
+                }
+
                 if (error) throw error;
 
                 toast({ title: 'Başarılı!', description: `Kaizen başarıyla ${isEditMode ? 'kaydedildi' : 'oluşturuldu'}.` });

@@ -339,33 +339,40 @@ $$ LANGUAGE plpgsql;
 -- ============================================
 
 -- Aktif Kaizen Sayısı
+-- Kapandı ve Reddedildi hariç tümü aktif
 CREATE OR REPLACE FUNCTION get_active_kaizen_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM kaizen_entries 
-            WHERE status NOT IN ('Tamamlandı', 'İptal'));
+            WHERE status NOT IN ('Kapandı', 'Reddedildi'));
 END;
 $$ LANGUAGE plpgsql;
 
 -- Tamamlanmış Kaizen Sayısı
+-- Kapandı durumu tamamlanmış sayılır
 CREATE OR REPLACE FUNCTION get_completed_kaizen_count()
 RETURNS INTEGER AS $$
 BEGIN
     RETURN (SELECT COUNT(*)::INTEGER FROM kaizen_entries 
-            WHERE status = 'Tamamlandı');
+            WHERE status = 'Kapandı');
 END;
 $$ LANGUAGE plpgsql;
 
 -- Kaizen Başarı Oranı
+-- Kapandı / (Toplam - Reddedildi - Askıda)
 CREATE OR REPLACE FUNCTION get_kaizen_success_rate()
 RETURNS NUMERIC AS $$
 DECLARE
     v_total INTEGER;
     v_completed INTEGER;
 BEGIN
-    SELECT COUNT(*) INTO v_total FROM kaizen_entries;
+    -- Reddedildi ve Askıda hariç toplam
+    SELECT COUNT(*) INTO v_total FROM kaizen_entries 
+    WHERE status NOT IN ('Reddedildi', 'Askıda');
+    
+    -- Kapandı olanlar
     SELECT COUNT(*) INTO v_completed FROM kaizen_entries 
-    WHERE status = 'Tamamlandı';
+    WHERE status = 'Kapandı';
     
     IF v_total = 0 THEN
         RETURN 0;
