@@ -415,7 +415,16 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     };
 
     const handleSaveNewItem = async () => {
-        if (!newItem.item_name.trim()) {
+        if (!benchmark?.id) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Benchmark bilgisi bulunamadı.'
+            });
+            return;
+        }
+
+        if (!newItem || !newItem.item_name || !newItem.item_name.trim()) {
             toast({
                 variant: 'destructive',
                 title: 'Hata',
@@ -425,64 +434,85 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         }
 
         try {
+            console.log('handleSaveNewItem: Kaydetme başlıyor', { benchmarkId: benchmark.id, newItem });
+            
             // Tüm sayısal değerleri parse et
-            const parseDecimal = (val) => val && val !== '' ? parseFloat(val) : null;
-            const parseIntValue = (val) => val && val !== '' ? parseInt(val) : null;
+            const parseDecimal = (val) => {
+                if (val === null || val === undefined || val === '') return null;
+                const parsed = parseFloat(val);
+                return isNaN(parsed) ? null : parsed;
+            };
+            const parseIntValue = (val) => {
+                if (val === null || val === undefined || val === '') return null;
+                const parsed = parseInt(val);
+                return isNaN(parsed) ? null : parsed;
+            };
+
+            const insertData = {
+                benchmark_id: benchmark.id,
+                item_name: newItem.item_name.trim(),
+                item_code: newItem.item_code?.trim() || null,
+                description: newItem.description?.trim() || null,
+                supplier_id: newItem.supplier_id?.trim() || null,
+                manufacturer: newItem.manufacturer?.trim() || null,
+                model_number: newItem.model_number?.trim() || null,
+                // Maliyet Bilgileri
+                unit_price: parseDecimal(newItem.unit_price),
+                currency: newItem.currency || 'TRY',
+                minimum_order_quantity: parseIntValue(newItem.minimum_order_quantity),
+                lead_time_days: parseIntValue(newItem.lead_time_days),
+                payment_terms: newItem.payment_terms?.trim() || null,
+                total_cost_of_ownership: parseDecimal(newItem.total_cost_of_ownership),
+                roi_percentage: parseDecimal(newItem.roi_percentage),
+                // Kalite ve Performans
+                quality_score: parseDecimal(newItem.quality_score),
+                performance_score: parseDecimal(newItem.performance_score),
+                reliability_score: parseDecimal(newItem.reliability_score),
+                // Satış Sonrası Hizmet
+                after_sales_service_score: parseDecimal(newItem.after_sales_service_score),
+                warranty_period_months: parseIntValue(newItem.warranty_period_months),
+                support_availability: newItem.support_availability?.trim() || null,
+                technical_support_score: parseDecimal(newItem.technical_support_score),
+                // Teslimat ve Operasyonel
+                delivery_time_days: parseIntValue(newItem.delivery_time_days),
+                implementation_time_days: parseIntValue(newItem.implementation_time_days),
+                training_required_hours: parseIntValue(newItem.training_required_hours),
+                // Bakım ve Maliyet
+                maintenance_cost: parseDecimal(newItem.maintenance_cost),
+                maintenance_frequency_months: parseIntValue(newItem.maintenance_frequency_months),
+                // Çevresel ve Sürdürülebilirlik
+                energy_efficiency_score: parseDecimal(newItem.energy_efficiency_score),
+                environmental_impact_score: parseDecimal(newItem.environmental_impact_score),
+                // Kullanılabilirlik ve Teknik
+                ease_of_use_score: parseDecimal(newItem.ease_of_use_score),
+                documentation_quality_score: parseDecimal(newItem.documentation_quality_score),
+                scalability_score: parseDecimal(newItem.scalability_score),
+                compatibility_score: parseDecimal(newItem.compatibility_score),
+                innovation_score: parseDecimal(newItem.innovation_score),
+                // Pazar ve Referanslar
+                market_reputation_score: parseDecimal(newItem.market_reputation_score),
+                customer_references_count: parseIntValue(newItem.customer_references_count),
+                risk_level: newItem.risk_level?.trim() || null
+            };
+
+            console.log('handleSaveNewItem: Insert data', insertData);
 
             const { data, error } = await supabase
                 .from('benchmark_items')
-                .insert({
-                    benchmark_id: benchmark.id,
-                    item_name: newItem.item_name,
-                    item_code: newItem.item_code || null,
-                    description: newItem.description || null,
-                    supplier_id: newItem.supplier_id || null,
-                    manufacturer: newItem.manufacturer || null,
-                    model_number: newItem.model_number || null,
-                    // Maliyet Bilgileri
-                    unit_price: parseDecimal(newItem.unit_price),
-                    currency: newItem.currency || 'TRY',
-                    minimum_order_quantity: parseIntValue(newItem.minimum_order_quantity),
-                    lead_time_days: parseIntValue(newItem.lead_time_days),
-                    payment_terms: newItem.payment_terms || null,
-                    total_cost_of_ownership: parseDecimal(newItem.total_cost_of_ownership),
-                    roi_percentage: parseDecimal(newItem.roi_percentage),
-                    // Kalite ve Performans
-                    quality_score: parseDecimal(newItem.quality_score),
-                    performance_score: parseDecimal(newItem.performance_score),
-                    reliability_score: parseDecimal(newItem.reliability_score),
-                    // Satış Sonrası Hizmet
-                    after_sales_service_score: parseDecimal(newItem.after_sales_service_score),
-                    warranty_period_months: parseIntValue(newItem.warranty_period_months),
-                    support_availability: newItem.support_availability || null,
-                    technical_support_score: parseDecimal(newItem.technical_support_score),
-                    // Teslimat ve Operasyonel
-                    delivery_time_days: parseIntValue(newItem.delivery_time_days),
-                    implementation_time_days: parseIntValue(newItem.implementation_time_days),
-                    training_required_hours: parseIntValue(newItem.training_required_hours),
-                    // Bakım ve Maliyet
-                    maintenance_cost: parseDecimal(newItem.maintenance_cost),
-                    maintenance_frequency_months: parseIntValue(newItem.maintenance_frequency_months),
-                    // Çevresel ve Sürdürülebilirlik
-                    energy_efficiency_score: parseDecimal(newItem.energy_efficiency_score),
-                    environmental_impact_score: parseDecimal(newItem.environmental_impact_score),
-                    // Kullanılabilirlik ve Teknik
-                    ease_of_use_score: parseDecimal(newItem.ease_of_use_score),
-                    documentation_quality_score: parseDecimal(newItem.documentation_quality_score),
-                    scalability_score: parseDecimal(newItem.scalability_score),
-                    compatibility_score: parseDecimal(newItem.compatibility_score),
-                    innovation_score: parseDecimal(newItem.innovation_score),
-                    // Pazar ve Referanslar
-                    market_reputation_score: parseDecimal(newItem.market_reputation_score),
-                    customer_references_count: parseIntValue(newItem.customer_references_count),
-                    risk_level: newItem.risk_level || null
-                })
+                .insert(insertData)
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('handleSaveNewItem: Database error', error);
+                throw error;
+            }
 
-            setItems([...items, data]);
+            console.log('handleSaveNewItem: Kayıt başarılı', data);
+
+            // Verileri yeniden yükle
+            await fetchComparisonData();
+            
             setNewItem(null);
             toast({
                 title: 'Başarılı',
@@ -490,10 +520,16 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             });
         } catch (error) {
             console.error('Alternatif eklenirken hata:', error);
+            console.error('Error details:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Alternatif eklenirken bir hata oluştu: ' + error.message
+                description: 'Alternatif eklenirken bir hata oluştu: ' + (error.message || 'Bilinmeyen hata')
             });
         }
     };
