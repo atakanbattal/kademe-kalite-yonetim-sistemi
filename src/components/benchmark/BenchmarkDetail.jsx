@@ -242,12 +242,13 @@ const BenchmarkDetail = ({
         const alternativesHtml = items.length > 0 ? `
             <div class="section">
                 <h2 class="section-title">Karşılaştırılan Alternatifler (${items.length})</h2>
+                <div class="section-content">
                 ${items.map((item, index) => `
                     <div class="step-section">
                         <h3 class="step-title">${index + 1}. ${item.item_name}${item.item_code ? ` (${item.item_code})` : ''}</h3>
                         <div class="step-content">
                             ${item.description ? `<p><strong>Açıklama:</strong> ${item.description}</p>` : ''}
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;">
                                 ${item.unit_price ? `<p><strong>Birim Fiyat:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: item.currency || 'TRY' }).format(item.unit_price)}</p>` : ''}
                                 ${item.total_cost_of_ownership ? `<p><strong>TCO:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: item.currency || 'TRY' }).format(item.total_cost_of_ownership)}</p>` : ''}
                                 ${item.roi_percentage ? `<p><strong>ROI:</strong> ${item.roi_percentage}%</p>` : ''}
@@ -259,7 +260,7 @@ const BenchmarkDetail = ({
                                 ${item.risk_level ? `<p><strong>Risk Seviyesi:</strong> ${item.risk_level}</p>` : ''}
                             </div>
                             ${(item.manufacturer || item.model_number || item.category || item.origin) ? `
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #d1d5db;">
+                                <div class="step-description">
                                     ${item.manufacturer ? `<p><strong>Üretici:</strong> ${item.manufacturer}</p>` : ''}
                                     ${item.model_number ? `<p><strong>Model/Seri No:</strong> ${item.model_number}</p>` : ''}
                                     ${item.category ? `<p><strong>Kategori:</strong> ${item.category}</p>` : ''}
@@ -269,6 +270,7 @@ const BenchmarkDetail = ({
                         </div>
                     </div>
                 `).join('')}
+                </div>
             </div>
         ` : '';
 
@@ -276,6 +278,7 @@ const BenchmarkDetail = ({
         const documentsHtml = documents.length > 0 ? `
             <div class="section">
                 <h2 class="section-title">Ekli Dokümanlar (${documents.length})</h2>
+                <div class="section-content">
                 <div class="info-grid">
                     ${documents.slice(0, 10).map(doc => `
                         <div class="info-item">
@@ -283,6 +286,7 @@ const BenchmarkDetail = ({
                             <span class="value">${doc.document_type || '-'} | ${doc.document_date ? formatDate(doc.document_date) : '-'}</span>
                         </div>
                     `).join('')}
+                </div>
                 </div>
             </div>
         ` : '';
@@ -294,90 +298,169 @@ const BenchmarkDetail = ({
     <meta charset="UTF-8">
     <title>Benchmark Raporu - ${benchmark.benchmark_number || benchmark.title}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+        
+        * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
         
         body {
             font-family: 'Inter', sans-serif;
             color: #1f2937;
             margin: 0;
             padding: 0;
-            background-color: #f3f4f6;
+            background-color: #f8fafc;
+            line-height: 1.6;
         }
         .page {
             background-color: white;
             width: 210mm;
             min-height: 297mm;
             margin: 20px auto;
-            padding: 20mm;
+            padding: 0;
             box-sizing: border-box;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8mm;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            z-index: 1;
+        }
+        .page-content {
+            padding: 25mm 20mm 20mm 20mm;
+            position: relative;
+            z-index: 2;
         }
         .header {
-            text-align: center;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            font-size: 24px;
-            font-weight: 700;
-            color: #111827;
-            margin: 0;
-        }
-        .header p {
-            font-size: 14px;
-            color: #6b7280;
-            margin: 5px 0 0;
-        }
-        .report-title-section {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 25px;
+            align-items: center;
+            border-bottom: 3px solid #1e40af;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .header-left {
+            flex: 1;
+        }
+        .header-logo {
+            height: 50px;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e40af;
+            margin: 0 0 5px 0;
+            letter-spacing: -0.5px;
+        }
+        .header p {
+            font-size: 13px;
+            color: #64748b;
+            margin: 0;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .header-right {
+            text-align: right;
+        }
+        .report-number {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        .report-date {
+            font-size: 11px;
+            color: #64748b;
+        }
+        .report-title-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #1e40af;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         .report-title h2 {
-            font-size: 20px;
-            font-weight: 600;
-            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.3px;
         }
         .report-title p {
-            font-size: 14px;
-            color: #4b5563;
-            margin: 5px 0 0;
+            font-size: 15px;
+            color: #475569;
+            margin: 0;
+            font-weight: 500;
+        }
+        .badge-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
         }
 
         .section {
-            margin-bottom: 25px;
+            margin-bottom: 35px;
             page-break-inside: avoid;
         }
         .section-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1e40af;
-            border-bottom: 2px solid #bfdbfe;
-            padding-bottom: 5px;
-            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px 8px 0 0;
+            margin: 0 0 0 0;
+            letter-spacing: -0.2px;
+        }
+        .section-content {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-top: none;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
         }
         .info-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
+            gap: 18px;
         }
         .info-item {
-            background-color: #f9fafb;
-            border-radius: 8px;
-            padding: 12px;
-            border: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .info-item:hover {
+            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.1);
+            transform: translateY(-2px);
         }
         .info-item .label {
             display: block;
-            font-size: 12px;
-            color: #6b7280;
-            margin-bottom: 4px;
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .info-item .value {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
+            color: #0f172a;
         }
         .full-width {
            grid-column: 1 / -1;
@@ -385,64 +468,116 @@ const BenchmarkDetail = ({
         .problem-description {
             white-space: pre-wrap;
             word-wrap: break-word;
+            font-size: 14px;
+            line-height: 1.8;
+            color: #334155;
         }
 
         .step-section {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            background: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
         .step-title {
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: 700;
             color: #1e40af;
-            margin: 0 0 10px 0;
+            margin: 0 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
         }
         .step-content {
-            background-color: #f9fafb;
-            border-left: 3px solid #60a5fa;
-            padding: 15px;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border-left: 4px solid #3b82f6;
+            padding: 18px;
             border-radius: 0 8px 8px 0;
         }
-        .step-content p { margin: 0 0 8px 0; font-size: 13px; }
+        .step-content p { 
+            margin: 0 0 10px 0; 
+            font-size: 13px; 
+            color: #475569;
+            line-height: 1.7;
+        }
         .step-content p:last-child { margin-bottom: 0; }
+        .step-content strong {
+            color: #1e40af;
+            font-weight: 600;
+        }
         .step-description {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px dashed #d1d5db;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed #cbd5e1;
         }
         .image-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
+            gap: 12px;
         }
         .attachment-image {
             width: 100%;
             height: auto;
             border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            border: 2px solid #e2e8f0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
         .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 15px 20mm;
+            border-top: 2px solid #e2e8f0;
             text-align: center;
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 12px;
-            color: #9ca3af;
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .footer-left {
+            text-align: left;
+        }
+        .footer-right {
+            text-align: right;
+        }
+        .footer-center {
+            flex: 1;
+            text-align: center;
+        }
+        .page-number {
+            font-weight: 600;
+            color: #1e40af;
         }
         @media print {
             body { background-color: white; margin: 0; padding: 0; }
             .page { margin: 0; box-shadow: none; border: none; }
+            .page::before { display: none; }
             @page {
                 size: A4;
-                margin: 20mm;
+                margin: 0;
+            }
+            .footer {
+                position: fixed;
+                bottom: 0;
             }
         }
     </style>
 </head>
 <body>
     <div class="page">
+        <div class="page-content">
         <div class="header">
-            <h1>KADEME A.Ş.</h1>
-            <p>Kalite Yönetim Sistemi</p>
+            <div class="header-left">
+                <h1>KADEME A.Ş.</h1>
+                <p>Kalite Yönetim Sistemi</p>
+            </div>
+            <div class="header-right">
+                <div class="report-number">Rapor No: ${benchmark.benchmark_number || 'N/A'}</div>
+                <div class="report-date">${formatDate(new Date().toISOString())}</div>
+            </div>
         </div>
         <div class="report-title-section">
             <div class="report-title">
@@ -457,6 +592,7 @@ const BenchmarkDetail = ({
 
         <div class="section">
             <h2 class="section-title">Genel Bilgiler</h2>
+            <div class="section-content">
             <div class="info-grid">
                 <div class="info-item"><span class="label">Benchmark Numarası</span><span class="value">${benchmark.benchmark_number || '-'}</span></div>
                 <div class="info-item"><span class="label">Durum</span><span class="value">${benchmark.status || '-'}</span></div>
@@ -468,13 +604,16 @@ const BenchmarkDetail = ({
                 ${benchmark.department ? `<div class="info-item"><span class="label">Departman</span><span class="value">${benchmark.department.unit_name || '-'}</span></div>` : ''}
                 ${benchmark.estimated_budget ? `<div class="info-item"><span class="label">Tahmini Bütçe</span><span class="value">${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: benchmark.currency || 'TRY' }).format(benchmark.estimated_budget)}</span></div>` : ''}
             </div>
+            </div>
         </div>
 
         ${benchmark.description ? `
         <div class="section">
             <h2 class="section-title">Açıklama</h2>
+            <div class="section-content">
             <div class="info-item full-width">
                 <p class="problem-description">${benchmark.description.replace(/\n/g, '<br>')}</p>
+            </div>
             </div>
         </div>
         ` : ''}
@@ -482,8 +621,10 @@ const BenchmarkDetail = ({
         ${benchmark.objective ? `
         <div class="section">
             <h2 class="section-title">Amaç</h2>
+            <div class="section-content">
             <div class="info-item full-width">
                 <p class="problem-description">${benchmark.objective.replace(/\n/g, '<br>')}</p>
+            </div>
             </div>
         </div>
         ` : ''}
@@ -491,8 +632,10 @@ const BenchmarkDetail = ({
         ${benchmark.scope ? `
         <div class="section">
             <h2 class="section-title">Kapsam</h2>
+            <div class="section-content">
             <div class="info-item full-width">
                 <p class="problem-description">${benchmark.scope.replace(/\n/g, '<br>')}</p>
+            </div>
             </div>
         </div>
         ` : ''}
@@ -501,8 +644,19 @@ const BenchmarkDetail = ({
 
         ${documentsHtml}
         
+        </div>
         <div class="footer">
-            Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
+            <div class="footer-left">
+                <div>KADEME A.Ş.</div>
+                <div style="font-size: 10px; margin-top: 2px;">Kalite Yönetim Sistemi</div>
+            </div>
+            <div class="footer-center">
+                Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
+            </div>
+            <div class="footer-right">
+                <div class="page-number">Sayfa <span id="pageNum">1</span></div>
+                <div style="font-size: 10px; margin-top: 2px;">${formatDate(new Date().toISOString())}</div>
+            </div>
         </div>
     </div>
     <script>
