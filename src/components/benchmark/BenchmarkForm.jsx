@@ -376,6 +376,130 @@ const BenchmarkForm = ({
                 });
             }
 
+            // Alternatifleri kaydet (eğer varsa)
+            if (alternatives.length > 0 && result?.id) {
+                console.log(`📦 ${alternatives.length} alternatif kaydediliyor...`);
+                
+                for (const alt of alternatives) {
+                    try {
+                        const parseDecimal = (val) => val && val !== '' ? parseFloat(val) : null;
+                        const parseIntValue = (val) => val && val !== '' ? parseInt(val) : null;
+
+                        const { error: altError } = await supabase
+                            .from('benchmark_items')
+                            .insert({
+                                benchmark_id: result.id,
+                                item_name: alt.item_name,
+                                item_code: alt.item_code || null,
+                                description: alt.description || null,
+                                manufacturer: alt.manufacturer || null,
+                                model_number: alt.model_number || null,
+                                unit_price: parseDecimal(alt.unit_price),
+                                currency: alt.currency || 'TRY',
+                                minimum_order_quantity: parseIntValue(alt.minimum_order_quantity),
+                                lead_time_days: parseIntValue(alt.lead_time_days),
+                                payment_terms: alt.payment_terms || null,
+                                total_cost_of_ownership: parseDecimal(alt.total_cost_of_ownership),
+                                roi_percentage: parseDecimal(alt.roi_percentage),
+                                quality_score: parseDecimal(alt.quality_score),
+                                performance_score: parseDecimal(alt.performance_score),
+                                reliability_score: parseDecimal(alt.reliability_score),
+                                after_sales_service_score: parseDecimal(alt.after_sales_service_score),
+                                warranty_period_months: parseIntValue(alt.warranty_period_months),
+                                support_availability: alt.support_availability || null,
+                                technical_support_score: parseDecimal(alt.technical_support_score),
+                                delivery_time_days: parseIntValue(alt.delivery_time_days),
+                                implementation_time_days: parseIntValue(alt.implementation_time_days),
+                                training_required_hours: parseIntValue(alt.training_required_hours),
+                                maintenance_cost: parseDecimal(alt.maintenance_cost),
+                                maintenance_frequency_months: parseIntValue(alt.maintenance_frequency_months),
+                                energy_efficiency_score: parseDecimal(alt.energy_efficiency_score),
+                                environmental_impact_score: parseDecimal(alt.environmental_impact_score),
+                                ease_of_use_score: parseDecimal(alt.ease_of_use_score),
+                                documentation_quality_score: parseDecimal(alt.documentation_quality_score),
+                                scalability_score: parseDecimal(alt.scalability_score),
+                                compatibility_score: parseDecimal(alt.compatibility_score),
+                                innovation_score: parseDecimal(alt.innovation_score),
+                                market_reputation_score: parseDecimal(alt.market_reputation_score),
+                                customer_references_count: parseIntValue(alt.customer_references_count),
+                                risk_level: alt.risk_level || null
+                            });
+
+                        if (altError) throw altError;
+                        console.log(`✅ Alternatif kaydedildi: ${alt.item_name}`);
+                    } catch (altError) {
+                        console.error(`❌ Alternatif kaydetme hatası (${alt.item_name}):`, altError);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Alternatif Kaydetme Hatası',
+                            description: `${alt.item_name} kaydedilemedi: ${altError.message}`
+                        });
+                    }
+                }
+            }
+
+            // Alternatifleri kaydet (eğer varsa)
+            if (alternatives.length > 0 && result?.id) {
+                console.log(`📦 ${alternatives.length} alternatif kaydediliyor...`);
+                
+                for (const alt of alternatives) {
+                    try {
+                        const parseDecimal = (val) => val && val !== '' ? parseFloat(val) : null;
+                        const parseIntValue = (val) => val && val !== '' ? parseInt(val) : null;
+
+                        const { error: altError } = await supabase
+                            .from('benchmark_items')
+                            .insert({
+                                benchmark_id: result.id,
+                                item_name: alt.item_name,
+                                item_code: alt.item_code || null,
+                                description: alt.description || null,
+                                manufacturer: alt.manufacturer || null,
+                                model_number: alt.model_number || null,
+                                unit_price: parseDecimal(alt.unit_price),
+                                currency: alt.currency || 'TRY',
+                                minimum_order_quantity: parseIntValue(alt.minimum_order_quantity),
+                                lead_time_days: parseIntValue(alt.lead_time_days),
+                                payment_terms: alt.payment_terms || null,
+                                total_cost_of_ownership: parseDecimal(alt.total_cost_of_ownership),
+                                roi_percentage: parseDecimal(alt.roi_percentage),
+                                quality_score: parseDecimal(alt.quality_score),
+                                performance_score: parseDecimal(alt.performance_score),
+                                reliability_score: parseDecimal(alt.reliability_score),
+                                after_sales_service_score: parseDecimal(alt.after_sales_service_score),
+                                warranty_period_months: parseIntValue(alt.warranty_period_months),
+                                support_availability: alt.support_availability || null,
+                                technical_support_score: parseDecimal(alt.technical_support_score),
+                                delivery_time_days: parseIntValue(alt.delivery_time_days),
+                                implementation_time_days: parseIntValue(alt.implementation_time_days),
+                                training_required_hours: parseIntValue(alt.training_required_hours),
+                                maintenance_cost: parseDecimal(alt.maintenance_cost),
+                                maintenance_frequency_months: parseIntValue(alt.maintenance_frequency_months),
+                                energy_efficiency_score: parseDecimal(alt.energy_efficiency_score),
+                                environmental_impact_score: parseDecimal(alt.environmental_impact_score),
+                                ease_of_use_score: parseDecimal(alt.ease_of_use_score),
+                                documentation_quality_score: parseDecimal(alt.documentation_quality_score),
+                                scalability_score: parseDecimal(alt.scalability_score),
+                                compatibility_score: parseDecimal(alt.compatibility_score),
+                                innovation_score: parseDecimal(alt.innovation_score),
+                                market_reputation_score: parseDecimal(alt.market_reputation_score),
+                                customer_references_count: parseIntValue(alt.customer_references_count),
+                                risk_level: alt.risk_level || null
+                            });
+
+                        if (altError) throw altError;
+                        console.log(`✅ Alternatif kaydedildi: ${alt.item_name}`);
+                    } catch (altError) {
+                        console.error(`❌ Alternatif kaydetme hatası (${alt.item_name}):`, altError);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Alternatif Kaydetme Hatası',
+                            description: `${alt.item_name} kaydedilemedi: ${altError.message}`
+                        });
+                    }
+                }
+            }
+
             // Dosyaları yükle
             if (uploadedFiles.length > 0) {
                 console.log(`📤 ${uploadedFiles.length} dosya yükleniyor...`);
@@ -442,11 +566,13 @@ const BenchmarkForm = ({
                 title: 'Başarılı',
                 description: benchmark?.id 
                     ? 'Benchmark başarıyla güncellendi.' 
-                    : `Yeni benchmark oluşturuldu${uploadedFiles.length > 0 ? ` ve ${uploadedFiles.length} dosya yüklendi` : ''}.`
+                    : `Yeni benchmark oluşturuldu${alternatives.length > 0 ? ` ve ${alternatives.length} alternatif eklendi` : ''}${uploadedFiles.length > 0 ? ` ve ${uploadedFiles.length} dosya yüklendi` : ''}.`
             });
 
             // Formu temizle
             setUploadedFiles([]);
+            setAlternatives([]);
+            setNewAlternative(null);
             
             onSuccess(result);
         } catch (error) {
@@ -1022,28 +1148,256 @@ const BenchmarkForm = ({
 
                             {/* Alternatifler Sekmesi */}
                             <TabsContent value="alternatives" className="space-y-4 mt-4">
-                                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                    <h3 className="font-semibold text-blue-900 mb-2">💡 Alternatif Ekleme</h3>
-                                    <p className="text-sm text-blue-800 mb-4">
-                                        Benchmark kaydını oluşturduktan sonra, detay sayfasından alternatifleri ekleyebilir ve karşılaştırma yapabilirsiniz.
-                                    </p>
-                                    <div className="space-y-2 text-sm text-blue-700">
-                                        <p>✅ Alternatif ekleme ve karşılaştırma özellikleri:</p>
-                                        <ul className="list-disc list-inside space-y-1 ml-2">
-                                            <li>Maliyet bilgileri (Fiyat, TCO, ROI, Bakım maliyeti)</li>
-                                            <li>Kalite skorları (Kalite, Performans, Güvenilirlik)</li>
-                                            <li>Satış sonrası hizmet (Teknik destek, Garanti, Dokümantasyon)</li>
-                                            <li>Teslimat ve operasyonel bilgiler (Teslimat süresi, Uygulama süresi)</li>
-                                            <li>Çevresel ve teknik kriterler (Enerji verimliliği, Ölçeklenebilirlik)</li>
-                                            <li>Pazar bilgileri (İtibar, Referanslar, Risk seviyesi)</li>
-                                        </ul>
-                                    </div>
-                                    <div className="mt-4 p-3 bg-white rounded border border-blue-300">
-                                        <p className="text-xs text-blue-600">
-                                            <strong>Not:</strong> Benchmark kaydını kaydettikten sonra, detay sayfasında "Karşılaştırma" butonuna tıklayarak alternatifleri ekleyebilir ve tüm kriterleri girebilirsiniz.
-                                        </p>
-                                    </div>
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-lg font-semibold">Karşılaştırılacak Alternatifler</h3>
+                                    <Button 
+                                        type="button"
+                                        size="sm" 
+                                        onClick={() => setNewAlternative({
+                                            item_name: '',
+                                            item_code: '',
+                                            description: '',
+                                            manufacturer: '',
+                                            model_number: '',
+                                            unit_price: '',
+                                            currency: 'TRY',
+                                            total_cost_of_ownership: '',
+                                            roi_percentage: '',
+                                            quality_score: '',
+                                            performance_score: '',
+                                            reliability_score: '',
+                                            after_sales_service_score: '',
+                                            warranty_period_months: '',
+                                            support_availability: '',
+                                            technical_support_score: '',
+                                            delivery_time_days: '',
+                                            implementation_time_days: '',
+                                            training_required_hours: '',
+                                            maintenance_cost: '',
+                                            maintenance_frequency_months: '',
+                                            energy_efficiency_score: '',
+                                            environmental_impact_score: '',
+                                            ease_of_use_score: '',
+                                            documentation_quality_score: '',
+                                            scalability_score: '',
+                                            compatibility_score: '',
+                                            innovation_score: '',
+                                            market_reputation_score: '',
+                                            customer_references_count: '',
+                                            risk_level: ''
+                                        })}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Alternatif Ekle
+                                    </Button>
                                 </div>
+
+                                {newAlternative && (
+                                    <div className="p-4 border-2 border-primary rounded-lg bg-muted/30">
+                                        <div className="space-y-4">
+                                            <div className="grid gap-3 md:grid-cols-2">
+                                                <div>
+                                                    <Label>Alternatif Adı *</Label>
+                                                    <Input
+                                                        value={newAlternative.item_name}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, item_name: e.target.value})}
+                                                        placeholder="Örn: Alternatif A"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>Kod</Label>
+                                                    <Input
+                                                        value={newAlternative.item_code}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, item_code: e.target.value})}
+                                                        placeholder="Ürün/Parça kodu"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="grid gap-3 md:grid-cols-2">
+                                                <div>
+                                                    <Label>Üretici</Label>
+                                                    <Input
+                                                        value={newAlternative.manufacturer}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, manufacturer: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>Model/Seri No</Label>
+                                                    <Input
+                                                        value={newAlternative.model_number}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, model_number: e.target.value})}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <Label>Açıklama</Label>
+                                                <Textarea
+                                                    value={newAlternative.description}
+                                                    onChange={(e) => setNewAlternative({...newAlternative, description: e.target.value})}
+                                                    rows={2}
+                                                />
+                                            </div>
+                                            
+                                            {/* Hızlı Kriter Girişi */}
+                                            <div className="grid gap-3 md:grid-cols-4 pt-2 border-t">
+                                                <div>
+                                                    <Label>Birim Fiyat</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={newAlternative.unit_price}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, unit_price: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>TCO</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={newAlternative.total_cost_of_ownership}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, total_cost_of_ownership: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>ROI %</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={newAlternative.roi_percentage}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, roi_percentage: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>Kalite Skoru (0-100)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        max="100"
+                                                        value={newAlternative.quality_score}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, quality_score: e.target.value})}
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="grid gap-3 md:grid-cols-4">
+                                                <div>
+                                                    <Label>Performans (0-100)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        max="100"
+                                                        value={newAlternative.performance_score}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, performance_score: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>Teslimat Süresi (gün)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={newAlternative.delivery_time_days}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, delivery_time_days: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>Satış Sonrası (0-100)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        max="100"
+                                                        value={newAlternative.after_sales_service_score}
+                                                        onChange={(e) => setNewAlternative({...newAlternative, after_sales_service_score: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>Risk Seviyesi</Label>
+                                                    <Select
+                                                        value={newAlternative.risk_level}
+                                                        onValueChange={(value) => setNewAlternative({...newAlternative, risk_level: value})}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Seçin" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Düşük">Düşük</SelectItem>
+                                                            <SelectItem value="Orta">Orta</SelectItem>
+                                                            <SelectItem value="Yüksek">Yüksek</SelectItem>
+                                                            <SelectItem value="Kritik">Kritik</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2 pt-2 border-t">
+                                                <Button 
+                                                    type="button"
+                                                    size="sm" 
+                                                    onClick={() => {
+                                                        if (!newAlternative.item_name.trim()) {
+                                                            toast({
+                                                                variant: 'destructive',
+                                                                title: 'Hata',
+                                                                description: 'Alternatif adı zorunludur.'
+                                                            });
+                                                            return;
+                                                        }
+                                                        setAlternatives([...alternatives, {...newAlternative}]);
+                                                        setNewAlternative(null);
+                                                        toast({
+                                                            title: 'Başarılı',
+                                                            description: 'Alternatif eklendi. Benchmark kaydedildiğinde kaydedilecek.'
+                                                        });
+                                                    }}
+                                                >
+                                                    <Plus className="mr-2 h-4 w-4" />
+                                                    Ekle
+                                                </Button>
+                                                <Button 
+                                                    type="button"
+                                                    size="sm" 
+                                                    variant="outline" 
+                                                    onClick={() => setNewAlternative(null)}
+                                                >
+                                                    İptal
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {alternatives.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm font-medium">Eklenen Alternatifler ({alternatives.length}):</p>
+                                        {alternatives.map((alt, idx) => (
+                                            <div key={idx} className="p-3 border rounded-lg flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium">{alt.item_name}</p>
+                                                    {alt.unit_price && (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            Fiyat: {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: alt.currency || 'TRY' }).format(alt.unit_price)}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => setAlternatives(alternatives.filter((_, i) => i !== idx))}
+                                                >
+                                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {alternatives.length === 0 && !newAlternative && (
+                                    <div className="p-4 bg-muted rounded-lg text-center text-sm text-muted-foreground">
+                                        Henüz alternatif eklenmedi. "+ Alternatif Ekle" butonuna tıklayarak alternatif ekleyebilirsiniz.
+                                    </div>
+                                )}
                             </TabsContent>
                         </Tabs>
                     </ScrollArea>
