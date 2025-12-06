@@ -436,68 +436,6 @@ const BenchmarkForm = ({
                 }
             }
 
-            // Alternatifleri kaydet (eğer varsa)
-            if (alternatives.length > 0 && result?.id) {
-                console.log(`📦 ${alternatives.length} alternatif kaydediliyor...`);
-                
-                for (const alt of alternatives) {
-                    try {
-                        const parseDecimal = (val) => val && val !== '' ? parseFloat(val) : null;
-                        const parseIntValue = (val) => val && val !== '' ? parseInt(val) : null;
-
-                        const { error: altError } = await supabase
-                            .from('benchmark_items')
-                            .insert({
-                                benchmark_id: result.id,
-                                item_name: alt.item_name,
-                                item_code: alt.item_code || null,
-                                description: alt.description || null,
-                                manufacturer: alt.manufacturer || null,
-                                model_number: alt.model_number || null,
-                                unit_price: parseDecimal(alt.unit_price),
-                                currency: alt.currency || 'TRY',
-                                minimum_order_quantity: parseIntValue(alt.minimum_order_quantity),
-                                lead_time_days: parseIntValue(alt.lead_time_days),
-                                payment_terms: alt.payment_terms || null,
-                                total_cost_of_ownership: parseDecimal(alt.total_cost_of_ownership),
-                                roi_percentage: parseDecimal(alt.roi_percentage),
-                                quality_score: parseDecimal(alt.quality_score),
-                                performance_score: parseDecimal(alt.performance_score),
-                                reliability_score: parseDecimal(alt.reliability_score),
-                                after_sales_service_score: parseDecimal(alt.after_sales_service_score),
-                                warranty_period_months: parseIntValue(alt.warranty_period_months),
-                                support_availability: alt.support_availability || null,
-                                technical_support_score: parseDecimal(alt.technical_support_score),
-                                delivery_time_days: parseIntValue(alt.delivery_time_days),
-                                implementation_time_days: parseIntValue(alt.implementation_time_days),
-                                training_required_hours: parseIntValue(alt.training_required_hours),
-                                maintenance_cost: parseDecimal(alt.maintenance_cost),
-                                maintenance_frequency_months: parseIntValue(alt.maintenance_frequency_months),
-                                energy_efficiency_score: parseDecimal(alt.energy_efficiency_score),
-                                environmental_impact_score: parseDecimal(alt.environmental_impact_score),
-                                ease_of_use_score: parseDecimal(alt.ease_of_use_score),
-                                documentation_quality_score: parseDecimal(alt.documentation_quality_score),
-                                scalability_score: parseDecimal(alt.scalability_score),
-                                compatibility_score: parseDecimal(alt.compatibility_score),
-                                innovation_score: parseDecimal(alt.innovation_score),
-                                market_reputation_score: parseDecimal(alt.market_reputation_score),
-                                customer_references_count: parseIntValue(alt.customer_references_count),
-                                risk_level: alt.risk_level || null
-                            });
-
-                        if (altError) throw altError;
-                        console.log(`✅ Alternatif kaydedildi: ${alt.item_name}`);
-                    } catch (altError) {
-                        console.error(`❌ Alternatif kaydetme hatası (${alt.item_name}):`, altError);
-                        toast({
-                            variant: 'destructive',
-                            title: 'Alternatif Kaydetme Hatası',
-                            description: `${alt.item_name} kaydedilemedi: ${altError.message}`
-                        });
-                    }
-                }
-            }
-
             // Dosyaları yükle
             if (uploadedFiles.length > 0) {
                 console.log(`📤 ${uploadedFiles.length} dosya yükleniyor...`);
