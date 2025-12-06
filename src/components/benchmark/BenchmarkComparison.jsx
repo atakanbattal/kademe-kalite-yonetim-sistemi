@@ -58,16 +58,24 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     const [editingProsCons, setEditingProsCons] = useState(null);
 
     useEffect(() => {
+        console.log('BenchmarkComparison useEffect:', { benchmark, isOpen, benchmarkId: benchmark?.id });
         if (benchmark?.id && isOpen) {
             fetchComparisonData();
+        } else {
+            console.log('BenchmarkComparison: Skipping fetchComparisonData', { benchmark, isOpen });
         }
     }, [benchmark?.id, isOpen, fetchComparisonData]);
 
     const fetchComparisonData = useCallback(async () => {
-        if (!benchmark?.id) return;
+        console.log('fetchComparisonData called', { benchmarkId: benchmark?.id });
+        if (!benchmark?.id) {
+            console.log('fetchComparisonData: No benchmark ID, returning');
+            return;
+        }
 
         setLoading(true);
         try {
+            console.log('fetchComparisonData: Starting data fetch');
             // Önce items ve criteria'yı çek
             const [itemsRes, criteriaRes] = await Promise.all([
                 supabase
@@ -993,7 +1001,12 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         `;
     };
 
-    if (!benchmark || !isOpen) return null;
+    console.log('BenchmarkComparison render:', { benchmark, isOpen, loading, itemsCount: items?.length, criteriaCount: criteria?.length });
+
+    if (!benchmark || !isOpen) {
+        console.log('BenchmarkComparison: Not rendering (benchmark or isOpen is falsy)', { benchmark, isOpen });
+        return null;
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
