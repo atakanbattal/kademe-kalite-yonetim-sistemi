@@ -146,8 +146,6 @@ const MSAFormModal = ({ open, setOpen, existingStudy, onSuccess }) => {
         label: `${c.characteristic_code || 'N/A'} - ${c.characteristic_name || 'Bilinmeyen'}`
     }));
 
-    if (!open) return null;
-
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
