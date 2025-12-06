@@ -1949,7 +1949,8 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                             </Card>
                         </TabsContent>
                     </Tabs>
-                </ScrollArea>
+                    </ScrollArea>
+                )}
             </DialogContent>
         </Dialog>
     );
