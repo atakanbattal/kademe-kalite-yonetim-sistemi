@@ -920,153 +920,270 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     <meta charset="UTF-8">
     <title>Benchmark Karşılaştırma Raporu - ${benchmark?.title || 'Benchmark'}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+        
+        * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
         
         body {
             font-family: 'Inter', sans-serif;
             color: #1f2937;
             margin: 0;
             padding: 0;
-            background-color: #f3f4f6;
+            background-color: #f8fafc;
+            line-height: 1.6;
         }
         .page {
             background-color: white;
             width: 210mm;
             min-height: 297mm;
             margin: 20px auto;
-            padding: 20mm;
+            padding: 0;
             box-sizing: border-box;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8mm;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            z-index: 1;
+        }
+        .page-content {
+            padding: 25mm 20mm 20mm 20mm;
+            position: relative;
+            z-index: 2;
         }
         .header {
-            text-align: center;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            font-size: 24px;
-            font-weight: 700;
-            color: #111827;
-            margin: 0;
-        }
-        .header p {
-            font-size: 14px;
-            color: #6b7280;
-            margin: 5px 0 0;
-        }
-        .report-title-section {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 25px;
+            align-items: center;
+            border-bottom: 3px solid #1e40af;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .header-left {
+            flex: 1;
+        }
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e40af;
+            margin: 0 0 5px 0;
+            letter-spacing: -0.5px;
+        }
+        .header p {
+            font-size: 13px;
+            color: #64748b;
+            margin: 0;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .header-right {
+            text-align: right;
+        }
+        .report-number {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        .report-date {
+            font-size: 11px;
+            color: #64748b;
+        }
+        .report-title-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #1e40af;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         .report-title h2 {
-            font-size: 20px;
-            font-weight: 600;
-            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.3px;
         }
         .report-title p {
-            font-size: 14px;
-            color: #4b5563;
-            margin: 5px 0 0;
+            font-size: 15px;
+            color: #475569;
+            margin: 0;
+            font-weight: 500;
         }
 
         .section {
-            margin-bottom: 25px;
+            margin-bottom: 35px;
             page-break-inside: avoid;
         }
         .section-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1e40af;
-            border-bottom: 2px solid #bfdbfe;
-            padding-bottom: 5px;
-            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px 8px 0 0;
+            margin: 0 0 0 0;
+            letter-spacing: -0.2px;
         }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-        th { background: #f3f4f6; font-weight: 600; color: #1f2937; }
-        .rank-1 { background: #fef3c7; }
-        .rank-2 { background: #dbeafe; }
-        .rank-3 { background: #fce7f3; }
+        .section-content {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-top: none;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+            font-size: 11px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        th, td { 
+            border: 1px solid #e2e8f0; 
+            padding: 10px 12px; 
+            text-align: left; 
+        }
+        th { 
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            font-weight: 600; 
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td {
+            background: #ffffff;
+        }
+        tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+        .rank-1 { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important; font-weight: 600; }
+        .rank-2 { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important; font-weight: 600; }
+        .rank-3 { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%) !important; font-weight: 600; }
         .score-high { color: #059669; font-weight: bold; }
         .score-medium { color: #d97706; font-weight: bold; }
         .score-low { color: #dc2626; font-weight: bold; }
         .pros-cons-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 18px;
             margin-bottom: 20px;
         }
         .pros-box {
-            background: #f0fdf4;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
             border-left: 4px solid #22c55e;
-            padding: 12px;
-            border-radius: 4px;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(34, 197, 94, 0.1);
         }
         .cons-box {
-            background: #fef2f2;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
             border-left: 4px solid #ef4444;
-            padding: 12px;
-            border-radius: 4px;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.1);
         }
         .pros-box h4 {
             color: #15803d;
-            margin: 0 0 8px 0;
-            font-size: 12px;
-            font-weight: 600;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 700;
         }
         .cons-box h4 {
             color: #dc2626;
-            margin: 0 0 8px 0;
-            font-size: 12px;
-            font-weight: 600;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 700;
         }
         .pros-box ul, .cons-box ul {
             margin: 0;
             padding-left: 20px;
-            font-size: 11px;
+            font-size: 12px;
+            line-height: 1.8;
         }
         .pros-box li, .cons-box li {
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
         .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 15px 20mm;
+            border-top: 2px solid #e2e8f0;
             text-align: center;
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 12px;
-            color: #9ca3af;
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .footer-left {
+            text-align: left;
+        }
+        .footer-right {
+            text-align: right;
+        }
+        .footer-center {
+            flex: 1;
+            text-align: center;
+        }
+        .page-number {
+            font-weight: 600;
+            color: #1e40af;
         }
         @media print {
             body { background-color: white; margin: 0; padding: 0; }
             .page { margin: 0; box-shadow: none; border: none; }
+            .page::before { display: none; }
             @page {
                 size: A4;
-                margin: 20mm;
+                margin: 0;
+            }
+            .footer {
+                position: fixed;
+                bottom: 0;
             }
         }
     </style>
 </head>
 <body>
     <div class="page">
+        <div class="page-content">
         <div class="header">
-            <h1>KADEME A.Ş.</h1>
-            <p>Kalite Yönetim Sistemi</p>
+            <div class="header-left">
+                <h1>KADEME A.Ş.</h1>
+                <p>Kalite Yönetim Sistemi</p>
+            </div>
+            <div class="header-right">
+                <div class="report-number">Rapor No: ${benchmark?.benchmark_number || 'N/A'}</div>
+                <div class="report-date">${creationDate}</div>
+            </div>
         </div>
         <div class="report-title-section">
             <div class="report-title">
                 <h2>Benchmark Karşılaştırma Raporu</h2>
                 <p>${benchmark?.title || '-'}</p>
             </div>
-            <div>
-                <p style="font-size: 12px; color: #6b7280; margin: 0;">Rapor No: ${benchmark?.benchmark_number || 'N/A'}</p>
-            </div>
         </div>
 
     <div class="section">
         <div class="section-title">Genel Sıralama</div>
+        <div class="section-content">
         <table>
             <thead>
                 <tr>
@@ -1092,11 +1209,13 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 }).join('')}
             </tbody>
         </table>
+        </div>
     </div>
 
     ${criteria.length > 0 ? `
     <div class="section">
         <div class="section-title">Detaylı Karşılaştırma Matrisi</div>
+        <div class="section-content">
         <table>
             <thead>
                 <tr>
@@ -1126,12 +1245,14 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 }).join('')}
             </tbody>
         </table>
+        </div>
     </div>
     ` : ''}
 
     ${Object.keys(prosConsData).length > 0 ? `
     <div class="section">
         <div class="section-title">Avantaj & Dezavantaj Analizi</div>
+        <div class="section-content">
         ${sortedItems.map(item => {
             const itemData = prosConsData[item.id];
             if (!itemData || (itemData.pros.length === 0 && itemData.cons.length === 0)) return '';
@@ -1161,11 +1282,13 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             </div>
             `;
         }).join('')}
+        </div>
     </div>
     ` : ''}
 
     <div class="section">
         <div class="section-title">Detaylı Kriter Karşılaştırması</div>
+        <div class="section-content">
         <table>
             <thead>
                 <tr>
@@ -1231,10 +1354,22 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 }).filter(row => row !== '').join('')}
             </tbody>
         </table>
+        </div>
     </div>
 
+        </div>
         <div class="footer">
-            Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
+            <div class="footer-left">
+                <div>KADEME A.Ş.</div>
+                <div style="font-size: 10px; margin-top: 2px;">Kalite Yönetim Sistemi</div>
+            </div>
+            <div class="footer-center">
+                Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
+            </div>
+            <div class="footer-right">
+                <div class="page-number">Sayfa <span id="pageNum">1</span></div>
+                <div style="font-size: 10px; margin-top: 2px;">${creationDate}</div>
+            </div>
         </div>
     </div>
     <script>
