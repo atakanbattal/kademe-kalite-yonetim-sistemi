@@ -1772,7 +1772,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {items.map((item) => (
+                                                    {items && items.length > 0 ? items.map((item) => (
                                                         <TableRow key={item.id}>
                                                             <TableCell className="font-medium">
                                                                 <div>
