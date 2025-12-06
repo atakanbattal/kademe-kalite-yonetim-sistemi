@@ -485,7 +485,12 @@ const BenchmarkDetail = ({
                             </Button>
                             <Button
                                 size="sm"
-                                onClick={() => onCompare(benchmark)}
+                                onClick={() => {
+                                    if (onCompare) {
+                                        onCompare(benchmark);
+                                        onClose(); // Detail modal'ını kapat
+                                    }
+                                }}
                             >
                                 <TrendingUp className="h-4 w-4 mr-2" />
                                 Karşılaştır
