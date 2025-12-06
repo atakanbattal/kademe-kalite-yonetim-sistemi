@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
     import { Button } from '@/components/ui/button';
     import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,10 +33,17 @@ import React, { useState, useEffect, useCallback } from 'react';
             if (error) {
                 toast({ variant: 'destructive', title: 'Hata!', description: 'İşlem geçmişi alınamadı.' });
             } else {
-                setHistory(data);
+                setHistory(data || []);
             }
             setLoadingHistory(false);
         }, [record, toast]);
+
+        // Başlangıç miktarını hesapla (mevcut miktar + işlenen miktarların toplamı)
+        const initialQuantity = useMemo(() => {
+            if (!history || history.length === 0) return record?.quantity || 0;
+            const totalProcessed = history.reduce((sum, h) => sum + (h.processed_quantity || 0), 0);
+            return (record?.quantity || 0) + totalProcessed;
+        }, [history, record]);
 
         useEffect(() => {
             if (isOpen) {
@@ -76,13 +83,18 @@ import React, { useState, useEffect, useCallback } from 'react';
                                         <DetailItem label="Parça Adı" value={record.part_name} />
                                         <DetailItem label="Parça Kodu" value={record.part_code} />
                                         <DetailItem label="Lot / Seri No" value={record.lot_no} />
+                                        <DetailItem label="Başlangıç Miktarı" value={`${initialQuantity} ${record.unit}`} />
                                         <DetailItem label="Mevcut Miktar" value={`${record.quantity} ${record.unit}`} />
+                                        <DetailItem label="İşlenen Toplam Miktar" value={`${initialQuantity - (record.quantity || 0)} ${record.unit}`} />
                                         <DetailItem label="Karantina Tarihi" value={new Date(record.quarantine_date).toLocaleDateString('tr-TR')} />
                                         <DetailItem label="Durum" value={record.status} />
                                         <DetailItem label="Sebep Olan Birim" value={record.source_department} />
                                         <DetailItem label="Talebi Yapan Birim" value={record.requesting_department} />
                                         <DetailItem label="Talebi Yapan Kişi" value={record.requesting_person_name} />
-                                        <DetailItem label="Açıklama" value={record.description} />
+                                        <DetailItem label="Neden Karantinaya Alındı" value={record.description || 'Belirtilmemiş'} />
+                                        {record.decision && (
+                                            <DetailItem label="Son Karar" value={`${record.decision}${record.decision_date ? ` (${new Date(record.decision_date).toLocaleDateString('tr-TR')})` : ''}`} />
+                                        )}
                                     </div>
                                 </ScrollArea>
                             </TabsContent>
@@ -91,30 +103,96 @@ import React, { useState, useEffect, useCallback } from 'react';
                                     {loadingHistory ? (
                                         <p className="text-muted-foreground">Yükleniyor...</p>
                                     ) : history.length > 0 ? (
-                                        <div className="overflow-x-auto">
-                                            <table className="data-table w-full">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Tarih</th>
-                                                        <th>Karar</th>
-                                                        <th>Miktar</th>
-                                                        <th>Notlar</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {history.map(h => (
-                                                        <tr key={h.id}>
-                                                            <td>{new Date(h.decision_date).toLocaleString('tr-TR')}</td>
-                                                            <td>{h.decision}</td>
-                                                            <td>{h.processed_quantity}</td>
-                                                            <td>{h.notes || '-'}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                        <div className="space-y-4">
+                                            {/* Timeline görünümü */}
+                                            <div className="relative">
+                                                {history.map((h, index) => {
+                                                    const isLast = index === history.length - 1;
+                                                    const decisionColors = {
+                                                        'Serbest Bırak': 'bg-green-100 border-green-300 text-green-800',
+                                                        'Sapma Onayı': 'bg-blue-100 border-blue-300 text-blue-800',
+                                                        'Yeniden İşlem': 'bg-yellow-100 border-yellow-300 text-yellow-800',
+                                                        'Hurda': 'bg-red-100 border-red-300 text-red-800',
+                                                        'İade': 'bg-orange-100 border-orange-300 text-orange-800',
+                                                        'Onay Bekliyor': 'bg-gray-100 border-gray-300 text-gray-800'
+                                                    };
+                                                    const colorClass = decisionColors[h.decision] || 'bg-gray-100 border-gray-300 text-gray-800';
+                                                    
+                                                    return (
+                                                        <div key={h.id} className="relative pb-8">
+                                                            {!isLast && (
+                                                                <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-border"></div>
+                                                            )}
+                                                            <div className="flex gap-4">
+                                                                <div className="flex-shrink-0">
+                                                                    <div className={`w-8 h-8 rounded-full border-2 ${colorClass.replace('bg-', 'bg-').replace('border-', 'border-')} flex items-center justify-center font-bold text-sm`}>
+                                                                        {index + 1}
+                                                                    </div>
+                                                                </div>
+                                                                <div className={`flex-1 p-4 rounded-lg border-2 ${colorClass}`}>
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <div>
+                                                                            <h4 className="font-bold text-lg">{h.decision}</h4>
+                                                                            <p className="text-sm opacity-80">
+                                                                                {new Date(h.decision_date).toLocaleString('tr-TR', {
+                                                                                    day: '2-digit',
+                                                                                    month: 'long',
+                                                                                    year: 'numeric',
+                                                                                    hour: '2-digit',
+                                                                                    minute: '2-digit'
+                                                                                })}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="text-right">
+                                                                            <p className="font-bold text-xl">{h.processed_quantity} {record.unit}</p>
+                                                                            <p className="text-xs opacity-70">İşlenen Miktar</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    {h.notes && (
+                                                                        <div className="mt-3 pt-3 border-t border-current/20">
+                                                                            <p className="text-sm font-semibold mb-1">Notlar:</p>
+                                                                            <p className="text-sm whitespace-pre-wrap">{h.notes}</p>
+                                                                        </div>
+                                                                    )}
+                                                                    {h.deviation_approval_url && (
+                                                                        <div className="mt-2">
+                                                                            <a 
+                                                                                href={h.deviation_approval_url} 
+                                                                                target="_blank" 
+                                                                                rel="noopener noreferrer"
+                                                                                className="text-sm underline hover:opacity-80"
+                                                                            >
+                                                                                Sapma Onayı Belgesi →
+                                                                            </a>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            
+                                            {/* Özet Bilgi */}
+                                            <div className="mt-6 p-4 bg-muted rounded-lg">
+                                                <h4 className="font-semibold mb-2">Özet</h4>
+                                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                                    <div>
+                                                        <span className="text-muted-foreground">Toplam İşlem Sayısı:</span>
+                                                        <span className="font-semibold ml-2">{history.length}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-muted-foreground">Toplam İşlenen Miktar:</span>
+                                                        <span className="font-semibold ml-2">{history.reduce((sum, h) => sum + (h.processed_quantity || 0), 0)} {record.unit}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     ) : (
-                                        <p className="text-muted-foreground text-center py-8">Bu kayıt için işlem geçmişi bulunamadı.</p>
+                                        <div className="text-center py-8">
+                                            <p className="text-muted-foreground mb-2">Bu kayıt için işlem geçmişi bulunamadı.</p>
+                                            <p className="text-sm text-muted-foreground">Henüz bu karantina kaydı için karar verilmemiş.</p>
+                                        </div>
                                     )}
                                 </ScrollArea>
                             </TabsContent>
