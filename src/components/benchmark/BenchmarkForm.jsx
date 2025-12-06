@@ -58,6 +58,10 @@ const BenchmarkForm = ({
     const [ownerSearchValue, setOwnerSearchValue] = useState('');
     const [teamSearchValue, setTeamSearchValue] = useState('');
     
+    // Alternatifler için state
+    const [alternatives, setAlternatives] = useState([]);
+    const [newAlternative, setNewAlternative] = useState(null);
+    
     // Form state
     const [formData, setFormData] = useState({
         category_id: '',
