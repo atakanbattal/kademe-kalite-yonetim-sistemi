@@ -302,12 +302,6 @@ const BenchmarkForm = ({
         setLoading(true);
 
         try {
-            // department_id'yi temizle - eğer "dept_" ile başlıyorsa null yap
-            const cleanDepartmentId = formData.department_id && 
-                                     !formData.department_id.startsWith('dept_') 
-                                     ? formData.department_id 
-                                     : null;
-            
             // UUID alanlarını temizle - boş string'leri null'a çevir
             const cleanOwnerId = formData.owner_id && formData.owner_id.trim() !== '' ? formData.owner_id : null;
             const cleanDepartmentId = formData.department_id && 
