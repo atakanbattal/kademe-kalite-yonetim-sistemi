@@ -37,6 +37,34 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Info, HelpCircle } from 'lucide-react';
+
+// Helper component for Label with Tooltip
+const LabelWithTooltip = ({ children, tooltip, required = false }) => (
+    <div className="flex items-center gap-1.5">
+        <Label className={required ? "after:content-['*'] after:ml-0.5 after:text-destructive" : ""}>
+            {children}
+        </Label>
+        {tooltip && (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                        <p className="text-xs">{tooltip}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        )}
+    </div>
+);
 
 const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     const { toast } = useToast();
@@ -453,7 +481,14 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             // Pazar ve Referanslar
             market_reputation_score: '',
             customer_references_count: '',
-            risk_level: ''
+            risk_level: '',
+            // Yeni eklenen alanlar
+            category: '',
+            origin: '',
+            implementation_cost: '',
+            durability_score: '',
+            safety_score: '',
+            standards_compliance_score: ''
         });
     };
 
@@ -535,7 +570,14 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 // Pazar ve Referanslar
                 market_reputation_score: parseDecimal(newItem.market_reputation_score),
                 customer_references_count: parseIntValue(newItem.customer_references_count),
-                risk_level: newItem.risk_level?.trim() || null
+                risk_level: newItem.risk_level?.trim() || null,
+                // Yeni eklenen alanlar
+                category: newItem.category?.trim() || null,
+                origin: newItem.origin?.trim() || null,
+                implementation_cost: parseDecimal(newItem.implementation_cost),
+                durability_score: parseDecimal(newItem.durability_score),
+                safety_score: parseDecimal(newItem.safety_score),
+                standards_compliance_score: parseDecimal(newItem.standards_compliance_score)
             };
 
             console.log('handleSaveNewItem: Insert data', insertData);
@@ -1191,18 +1233,28 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                             </TabsList>
 
                                             {/* Temel Bilgiler */}
-                                            <TabsContent value="basic" className="space-y-3 mt-4">
+                                            <TabsContent value="basic" className="space-y-4 mt-4">
+                                                <div className="mb-4 p-3 bg-muted/50 rounded-lg border">
+                                                    <p className="text-sm text-muted-foreground">
+                                                        <strong>ℹ️ Bilgi:</strong> Sadece "Alternatif Adı" zorunludur. Diğer tüm alanlar opsiyoneldir.
+                                                    </p>
+                                                </div>
+                                                
                                                 <div className="grid gap-3 md:grid-cols-2">
                                                     <div>
-                                                        <Label>Alternatif Adı *</Label>
+                                                        <LabelWithTooltip tooltip="Karşılaştırma için benzersiz bir isim verin" required>
+                                                            Alternatif Adı
+                                                        </LabelWithTooltip>
                                                         <Input
                                                             value={newItem.item_name}
                                                             onChange={(e) => setNewItem({...newItem, item_name: e.target.value})}
-                                                            placeholder="Örn: Alternatif A"
+                                                            placeholder="Örn: Alternatif A, Ürün X, Tedarikçi Y"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <Label>Kod</Label>
+                                                        <LabelWithTooltip tooltip="Ürün, parça veya hizmet için kullanılan kod/numara">
+                                                            Kod/Referans No
+                                                        </LabelWithTooltip>
                                                         <Input
                                                             value={newItem.item_code}
                                                             onChange={(e) => setNewItem({...newItem, item_code: e.target.value})}
@@ -1210,9 +1262,12 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                         />
                                                     </div>
                                                 </div>
+                                                
                                                 <div className="grid gap-3 md:grid-cols-2">
                                                     <div>
-                                                        <Label>Üretici</Label>
+                                                        <LabelWithTooltip tooltip="Ürünü üreten veya hizmeti sağlayan firma adı">
+                                                            Üretici/Tedarikçi
+                                                        </LabelWithTooltip>
                                                         <Input
                                                             value={newItem.manufacturer}
                                                             onChange={(e) => setNewItem({...newItem, manufacturer: e.target.value})}
@@ -1220,7 +1275,9 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                         />
                                                     </div>
                                                     <div>
-                                                        <Label>Model/Seri No</Label>
+                                                        <LabelWithTooltip tooltip="Ürün model numarası, seri numarası veya versiyon bilgisi">
+                                                            Model/Seri No
+                                                        </LabelWithTooltip>
                                                         <Input
                                                             value={newItem.model_number}
                                                             onChange={(e) => setNewItem({...newItem, model_number: e.target.value})}
@@ -1228,22 +1285,56 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                         />
                                                     </div>
                                                 </div>
+                                                
                                                 <div>
-                                                    <Label>Açıklama</Label>
+                                                    <LabelWithTooltip tooltip="Alternatif hakkında detaylı açıklama, özellikler ve notlar">
+                                                        Açıklama
+                                                    </LabelWithTooltip>
                                                     <Textarea
                                                         value={newItem.description}
                                                         onChange={(e) => setNewItem({...newItem, description: e.target.value})}
-                                                        rows={3}
-                                                        placeholder="Alternatif hakkında detaylı açıklama"
+                                                        rows={4}
+                                                        placeholder="Alternatif hakkında detaylı açıklama, özellikler, avantajlar ve dezavantajlar..."
                                                     />
+                                                </div>
+                                                
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div>
+                                                        <LabelWithTooltip tooltip="Ürün/hizmetin kategorisi veya tipi">
+                                                            Kategori/Tip
+                                                        </LabelWithTooltip>
+                                                        <Input
+                                                            value={newItem.category || ''}
+                                                            onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                                                            placeholder="Örn: Endüstriyel, Ticari, Profesyonel"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <LabelWithTooltip tooltip="Ürün/hizmetin menşei veya üretim yeri">
+                                                            Menşei/Üretim Yeri
+                                                        </LabelWithTooltip>
+                                                        <Input
+                                                            value={newItem.origin || ''}
+                                                            onChange={(e) => setNewItem({...newItem, origin: e.target.value})}
+                                                            placeholder="Örn: Türkiye, Almanya, Çin"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </TabsContent>
 
                                             {/* Maliyet Bilgileri */}
-                                            <TabsContent value="cost" className="space-y-3 mt-4">
+                                            <TabsContent value="cost" className="space-y-4 mt-4">
+                                                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                                                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                                                        <strong>💡 İpucu:</strong> Tüm maliyet alanları opsiyoneldir. Sadece mevcut bilgileri girin.
+                                                    </p>
+                                                </div>
+                                                
                                                 <div className="grid gap-3 md:grid-cols-3">
                                                     <div>
-                                                        <Label>Birim Fiyat</Label>
+                                                        <LabelWithTooltip tooltip="Ürün/hizmetin birim fiyatı (satın alma fiyatı)">
+                                                            Birim Fiyat
+                                                        </LabelWithTooltip>
                                                         <Input
                                                             type="number"
                                                             step="0.01"
@@ -1265,11 +1356,15 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                                 <SelectItem value="TRY">TRY</SelectItem>
                                                                 <SelectItem value="USD">USD</SelectItem>
                                                                 <SelectItem value="EUR">EUR</SelectItem>
+                                                                <SelectItem value="GBP">GBP</SelectItem>
+                                                                <SelectItem value="JPY">JPY</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
                                                     <div>
-                                                        <Label>Minimum Sipariş Miktarı</Label>
+                                                        <LabelWithTooltip tooltip="Tek seferde sipariş edilebilecek minimum miktar">
+                                                            Minimum Sipariş Miktarı
+                                                        </LabelWithTooltip>
                                                         <Input
                                                             type="number"
                                                             value={newItem.minimum_order_quantity}
@@ -1278,9 +1373,12 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                         />
                                                     </div>
                                                 </div>
+                                                
                                                 <div className="grid gap-3 md:grid-cols-2">
                                                     <div>
-                                                        <Label>Toplam Sahiplik Maliyeti (TCO)</Label>
+                                                        <LabelWithTooltip tooltip="TCO (Total Cost of Ownership): Ürün/hizmetin satın alma fiyatı dahil olmak üzere, tüm yaşam döngüsü boyunca oluşan tüm maliyetlerin toplamıdır. Satın alma, kurulum, bakım, onarım, enerji, eğitim ve hurda maliyetlerini içerir.">
+                                                            Toplam Sahiplik Maliyeti (TCO)
+                                                        </LabelWithTooltip>
                                                         <Input
                                                             type="number"
                                                             step="0.01"
@@ -1288,9 +1386,14 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                             onChange={(e) => setNewItem({...newItem, total_cost_of_ownership: e.target.value})}
                                                             placeholder="0.00"
                                                         />
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            Satın alma + kurulum + bakım + enerji + diğer maliyetler
+                                                        </p>
                                                     </div>
                                                     <div>
-                                                        <Label>Yatırım Getirisi (ROI) %</Label>
+                                                        <LabelWithTooltip tooltip="ROI (Return on Investment): Yatırım getirisi, bir yatırımdan elde edilen kârın yatırım maliyetine oranıdır. Formül: ((Kazanç - Maliyet) / Maliyet) × 100. Örneğin, %150 ROI, yatırılan her 1 TL için 1.5 TL kazanç anlamına gelir.">
+                                                            Yatırım Getirisi (ROI) %
+                                                        </LabelWithTooltip>
                                                         <Input
                                                             type="number"
                                                             step="0.01"
@@ -1298,132 +1401,271 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                             onChange={(e) => setNewItem({...newItem, roi_percentage: e.target.value})}
                                                             placeholder="0.00"
                                                         />
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            Örnek: %150 = Yatırılan 1 TL için 1.5 TL kazanç
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <Label>Ödeme Koşulları</Label>
-                                                    <Input
-                                                        value={newItem.payment_terms}
-                                                        onChange={(e) => setNewItem({...newItem, payment_terms: e.target.value})}
-                                                        placeholder="Örn: Peşin, 30 gün vadeli"
-                                                    />
+                                                
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div>
+                                                        <LabelWithTooltip tooltip="Ödeme koşulları: Peşin, vadeli (30/60/90 gün), taksitli ödeme gibi ödeme seçenekleri">
+                                                            Ödeme Koşulları
+                                                        </LabelWithTooltip>
+                                                        <Input
+                                                            value={newItem.payment_terms}
+                                                            onChange={(e) => setNewItem({...newItem, payment_terms: e.target.value})}
+                                                            placeholder="Örn: Peşin, 30 gün vadeli, %2 iskonto"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <LabelWithTooltip tooltip="Tedarik süresi: Siparişten teslimata kadar geçen süre">
+                                                            Tedarik Süresi (Gün)
+                                                        </LabelWithTooltip>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.lead_time_days}
+                                                            onChange={(e) => setNewItem({...newItem, lead_time_days: e.target.value})}
+                                                            placeholder="Gün"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="grid gap-3 md:grid-cols-3">
+                                                    <div>
+                                                        <LabelWithTooltip tooltip="Yıllık bakım maliyeti (ortalama)">
+                                                            Yıllık Bakım Maliyeti
+                                                        </LabelWithTooltip>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={newItem.maintenance_cost}
+                                                            onChange={(e) => setNewItem({...newItem, maintenance_cost: e.target.value})}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <LabelWithTooltip tooltip="Bakım yapılması gereken sıklık (ay cinsinden)">
+                                                            Bakım Sıklığı (Ay)
+                                                        </LabelWithTooltip>
+                                                        <Input
+                                                            type="number"
+                                                            value={newItem.maintenance_frequency_months}
+                                                            onChange={(e) => setNewItem({...newItem, maintenance_frequency_months: e.target.value})}
+                                                            placeholder="Ay"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <LabelWithTooltip tooltip="Kurulum/uygulama için gereken ek maliyetler">
+                                                            Kurulum Maliyeti
+                                                        </LabelWithTooltip>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={newItem.implementation_cost || ''}
+                                                            onChange={(e) => setNewItem({...newItem, implementation_cost: e.target.value})}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </TabsContent>
 
                                             {/* Kalite ve Performans */}
-                                            <TabsContent value="quality" className="space-y-3 mt-4">
-                                                <div className="grid gap-3 md:grid-cols-3">
-                                                    <div>
-                                                        <Label>Kalite Skoru (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.quality_score}
-                                                            onChange={(e) => setNewItem({...newItem, quality_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <Label>Performans Skoru (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.performance_score}
-                                                            onChange={(e) => setNewItem({...newItem, performance_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <Label>Güvenilirlik Skoru (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.reliability_score}
-                                                            onChange={(e) => setNewItem({...newItem, reliability_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
-                                                    </div>
+                                            <TabsContent value="quality" className="space-y-4 mt-4">
+                                                <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                                                    <p className="text-sm text-green-900 dark:text-green-100">
+                                                        <strong>📊 Skorlama:</strong> Tüm skorlar 0-100 arası değer alır. 100 en yüksek, 0 en düşük performansı temsil eder. Boş bırakabilirsiniz.
+                                                    </p>
                                                 </div>
-                                                <div className="grid gap-3 md:grid-cols-3">
+                                                
+                                                <div className="space-y-4">
                                                     <div>
-                                                        <Label>Enerji Verimliliği (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.energy_efficiency_score}
-                                                            onChange={(e) => setNewItem({...newItem, energy_efficiency_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
+                                                        <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Temel Kalite Kriterleri</h4>
+                                                        <div className="grid gap-3 md:grid-cols-3">
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Ürün/hizmetin genel kalite seviyesi. Malzeme kalitesi, işçilik, standartlara uygunluk gibi faktörleri değerlendirin.">
+                                                                    Kalite Skoru (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.quality_score}
+                                                                    onChange={(e) => setNewItem({...newItem, quality_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Ürün/hizmetin performans seviyesi. Hız, verimlilik, kapasite, çıktı kalitesi gibi faktörleri değerlendirin.">
+                                                                    Performans Skoru (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.performance_score}
+                                                                    onChange={(e) => setNewItem({...newItem, performance_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Ürün/hizmetin güvenilirlik seviyesi. Arıza sıklığı, dayanıklılık, uzun ömür, bakım gereksinimi gibi faktörleri değerlendirin.">
+                                                                    Güvenilirlik Skoru (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.reliability_score}
+                                                                    onChange={(e) => setNewItem({...newItem, reliability_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </div>
+                                                    
                                                     <div>
-                                                        <Label>Çevresel Etki Skoru (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.environmental_impact_score}
-                                                            onChange={(e) => setNewItem({...newItem, environmental_impact_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
+                                                        <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Çevresel ve Sürdürülebilirlik</h4>
+                                                        <div className="grid gap-3 md:grid-cols-3">
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Enerji tüketimi ve verimlilik seviyesi. Düşük enerji tüketimi, yüksek verimlilik = yüksek skor.">
+                                                                    Enerji Verimliliği (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.energy_efficiency_score}
+                                                                    onChange={(e) => setNewItem({...newItem, energy_efficiency_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Çevresel etki seviyesi. Karbon ayak izi, geri dönüşüm, atık miktarı, sürdürülebilirlik gibi faktörleri değerlendirin.">
+                                                                    Çevresel Etki Skoru (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.environmental_impact_score}
+                                                                    onChange={(e) => setNewItem({...newItem, environmental_impact_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Ürün/hizmetin kullanım kolaylığı. Kullanıcı dostu arayüz, basit kurulum, anlaşılır dokümantasyon gibi faktörleri değerlendirin.">
+                                                                    Kullanılabilirlik Skoru (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.ease_of_use_score}
+                                                                    onChange={(e) => setNewItem({...newItem, ease_of_use_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </div>
+                                                    
                                                     <div>
-                                                        <Label>Kullanılabilirlik Skoru (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.ease_of_use_score}
-                                                            onChange={(e) => setNewItem({...newItem, ease_of_use_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
+                                                        <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Teknik Özellikler</h4>
+                                                        <div className="grid gap-3 md:grid-cols-3">
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Büyüme ve genişleme potansiyeli. Artan ihtiyaçlara uyum sağlama, modüler yapı, yükseltilebilirlik gibi faktörleri değerlendirin.">
+                                                                    Ölçeklenebilirlik Skoru (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.scalability_score}
+                                                                    onChange={(e) => setNewItem({...newItem, scalability_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Mevcut sistemler ve standartlarla uyumluluk seviyesi. Entegrasyon kolaylığı, uyumluluk, standartlara uygunluk gibi faktörleri değerlendirin.">
+                                                                    Uyumluluk Skoru (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.compatibility_score}
+                                                                    onChange={(e) => setNewItem({...newItem, compatibility_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <LabelWithTooltip tooltip="Yenilikçilik ve teknolojik gelişmişlik seviyesi. Yeni teknolojiler, inovatif özellikler, gelecek potansiyeli gibi faktörleri değerlendirin.">
+                                                                    İnovasyon Skoru (0-100)
+                                                                </LabelWithTooltip>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={newItem.innovation_score}
+                                                                    onChange={(e) => setNewItem({...newItem, innovation_score: e.target.value})}
+                                                                    placeholder="0-100"
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="grid gap-3 md:grid-cols-3">
-                                                    <div>
-                                                        <Label>Ölçeklenebilirlik Skoru (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.scalability_score}
-                                                            onChange={(e) => setNewItem({...newItem, scalability_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <Label>Uyumluluk Skoru (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.compatibility_score}
-                                                            onChange={(e) => setNewItem({...newItem, compatibility_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <Label>İnovasyon Skoru (0-100)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            max="100"
-                                                            value={newItem.innovation_score}
-                                                            onChange={(e) => setNewItem({...newItem, innovation_score: e.target.value})}
-                                                            placeholder="0-100"
-                                                        />
+                                                    
+                                                    <div className="grid gap-3 md:grid-cols-3">
+                                                        <div>
+                                                            <LabelWithTooltip tooltip="Ürün/hizmetin dayanıklılık ve uzun ömür seviyesi">
+                                                                Dayanıklılık Skoru (0-100)
+                                                            </LabelWithTooltip>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                max="100"
+                                                                value={newItem.durability_score || ''}
+                                                                onChange={(e) => setNewItem({...newItem, durability_score: e.target.value})}
+                                                                placeholder="0-100"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <LabelWithTooltip tooltip="Ürün/hizmetin güvenlik seviyesi ve risk faktörleri">
+                                                                Güvenlik Skoru (0-100)
+                                                            </LabelWithTooltip>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                max="100"
+                                                                value={newItem.safety_score || ''}
+                                                                onChange={(e) => setNewItem({...newItem, safety_score: e.target.value})}
+                                                                placeholder="0-100"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <LabelWithTooltip tooltip="Ürün/hizmetin standartlara ve sertifikalara uygunluk seviyesi">
+                                                                Standart Uygunluk Skoru (0-100)
+                                                            </LabelWithTooltip>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                max="100"
+                                                                value={newItem.standards_compliance_score || ''}
+                                                                onChange={(e) => setNewItem({...newItem, standards_compliance_score: e.target.value})}
+                                                                placeholder="0-100"
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </TabsContent>
