@@ -128,8 +128,8 @@ CREATE TABLE IF NOT EXISTS spc_capability_studies (
 CREATE TABLE IF NOT EXISTS spc_msa_studies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     study_name VARCHAR(255) NOT NULL,
-    characteristic_id UUID REFERENCES spc_characteristics(id),
-    measurement_equipment_id UUID REFERENCES equipments(id),
+    characteristic_id UUID REFERENCES spc_characteristics(id) ON DELETE CASCADE,
+    measurement_equipment_id UUID REFERENCES equipments(id) ON DELETE SET NULL,
     
     -- Çalışma Bilgileri
     study_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
