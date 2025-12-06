@@ -851,8 +851,10 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             return;
         }
         
-        const printContent = generateComparisonReport();
-        const printWindow = window.open('', '_blank');
+        const htmlContent = generateComparisonReport();
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, '_blank');
         
         if (!printWindow) {
             toast({
@@ -862,13 +864,10 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             });
             return;
         }
-
-        printWindow.document.write(printContent);
-        printWindow.document.close();
         
-        setTimeout(() => {
-            printWindow.print();
-        }, 250);
+        if (printWindow) {
+            printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+        }
     };
 
     const generateComparisonReport = () => {
@@ -919,81 +918,71 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Benchmark Karşılaştırma Raporu - ${benchmark?.title || 'Benchmark'}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        @page { 
-            size: A4 landscape; 
-            margin: 15mm;
-            @bottom-center {
-                content: "Sayfa " counter(page) " / " counter(pages);
-                font-size: 8pt;
-                color: #666;
-            }
-        }
-        body { 
-            font-family: 'Inter', sans-serif; 
-            line-height: 1.5; 
-            color: #1f2937; 
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #1f2937;
             margin: 0;
             padding: 0;
             background-color: #f3f4f6;
         }
-        .page-container {
+        .page {
             background-color: white;
-            width: 297mm;
-            min-height: 210mm;
+            width: 210mm;
+            min-height: 297mm;
             margin: 20px auto;
-            padding: 15mm;
+            padding: 20mm;
             box-sizing: border-box;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        .report-header {
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
+        }
+        .header p {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 5px 0 0;
+        }
+        .report-title-section {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 15px;
             margin-bottom: 25px;
         }
-        .report-header-left {
-            flex: 1;
-        }
-        .report-header-left h1 {
-            font-size: 18px;
-            font-weight: 700;
-            color: #111827;
-            margin: 0 0 4px 0;
-        }
-        .report-header-left p {
-            font-size: 10px;
-            color: #6b7280;
+        .report-title h2 {
+            font-size: 20px;
+            font-weight: 600;
             margin: 0;
         }
-        .report-header-right {
-            text-align: right;
-        }
-        .report-header-right h2 {
+        .report-title p {
             font-size: 14px;
+            color: #4b5563;
+            margin: 5px 0 0;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }
+        .section-title {
+            font-size: 16px;
             font-weight: 600;
             color: #1e40af;
-            margin: 0 0 4px 0;
-        }
-        .report-header-right p {
-            font-size: 10px;
-            color: #6b7280;
-            margin: 0;
-        }
-        .section { margin-bottom: 25px; page-break-inside: avoid; }
-        .section-title { 
-            background: #1e40af; 
-            color: white; 
-            padding: 8px 12px; 
-            font-size: 14px; 
-            font-weight: 600; 
-            margin-bottom: 12px;
-            border-radius: 4px;
+            border-bottom: 2px solid #bfdbfe;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
         }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
         th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
@@ -1042,32 +1031,37 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         .pros-box li, .cons-box li {
             margin-bottom: 4px;
         }
-        .report-footer {
+        .footer {
+            text-align: center;
             margin-top: 30px;
             padding-top: 15px;
-            border-top: 2px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 9px;
-            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #9ca3af;
         }
         @media print {
             body { background-color: white; margin: 0; padding: 0; }
-            .page-container { margin: 0; box-shadow: none; border: none; }
+            .page { margin: 0; box-shadow: none; border: none; }
+            @page {
+                size: A4;
+                margin: 20mm;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <div class="report-header">
-            <div class="report-header-left">
-                <h1>KADEME A.Ş.</h1>
-                <p>Kalite Yönetim Sistemi</p>
-            </div>
-            <div class="report-header-right">
+    <div class="page">
+        <div class="header">
+            <h1>KADEME A.Ş.</h1>
+            <p>Kalite Yönetim Sistemi</p>
+        </div>
+        <div class="report-title-section">
+            <div class="report-title">
                 <h2>Benchmark Karşılaştırma Raporu</h2>
-                <p>Rapor No: ${benchmark?.benchmark_number || 'N/A'}</p>
+                <p>${benchmark?.title || '-'}</p>
+            </div>
+            <div>
+                <p style="font-size: 12px; color: #6b7280; margin: 0;">Rapor No: ${benchmark?.benchmark_number || 'N/A'}</p>
             </div>
         </div>
 
@@ -1239,15 +1233,29 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         </table>
     </div>
 
-        <div class="report-footer">
-            <div>
-                <p style="margin: 0;">Oluşturma Tarihi: ${creationDate}</p>
-            </div>
-            <div>
-                <p style="margin: 0;">Hazırlayan: ${preparedBy}</p>
-            </div>
+        <div class="footer">
+            Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
         </div>
     </div>
+    <script>
+        const images = document.querySelectorAll('.attachment-image');
+        const promises = Array.from(images).map(img => {
+            return new Promise((resolve) => {
+                if (img.complete) {
+                    resolve();
+                } else {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Resolve on error too, to not block printing
+                }
+            });
+        });
+
+        Promise.all(promises).then(() => {
+            setTimeout(() => {
+                window.print();
+            }, 500); // Increased delay to ensure rendering
+        });
+    </script>
 </body>
 </html>
         `;
@@ -2758,4 +2766,5 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 };
 
 export default BenchmarkComparison;
+
 

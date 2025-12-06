@@ -190,9 +190,10 @@ const BenchmarkDetail = ({
     };
 
     const handleGenerateReport = () => {
-        // Yazdırma sayfasını aç
-        const printContent = generatePrintableReport();
-        const printWindow = window.open('', '_blank');
+        const htmlContent = generatePrintableReport();
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, '_blank');
         
         if (!printWindow) {
             toast({
@@ -202,260 +203,332 @@ const BenchmarkDetail = ({
             });
             return;
         }
-
-        printWindow.document.write(printContent);
-        printWindow.document.close();
         
-        // Sayfayı yazdır
-        setTimeout(() => {
-            printWindow.print();
-        }, 250);
+        if (printWindow) {
+            printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+        }
     };
 
     const generatePrintableReport = () => {
-        const today = format(new Date(), 'dd MMMM yyyy', { locale: tr });
-        
-        return `
+        const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
+
+        const getStatusBadge = (status) => {
+            let bgColor, textColor;
+            switch (status) {
+                case 'Taslak': bgColor = '#e5e7eb'; textColor = '#4b5563'; break;
+                case 'Devam Ediyor': bgColor = '#dbeafe'; textColor = '#1e40af'; break;
+                case 'Analiz Aşamasında': bgColor = '#e9d5ff'; textColor = '#7c3aed'; break;
+                case 'Onay Bekliyor': bgColor = '#fde047'; textColor = '#713f12'; break;
+                case 'Tamamlandı': bgColor = '#86efac'; textColor = '#15803d'; break;
+                case 'İptal': bgColor = '#fca5a5'; textColor = '#b91c1c'; break;
+                default: bgColor = '#e5e7eb'; textColor = '#4b5563'; break;
+            }
+            return `<span style="background-color: ${bgColor}; color: ${textColor}; padding: 4px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600;">${status}</span>`;
+        };
+
+        const getPriorityBadge = (priority) => {
+            let bgColor, textColor;
+            switch (priority) {
+                case 'Kritik': bgColor = '#fca5a5'; textColor = '#b91c1c'; break;
+                case 'Yüksek': bgColor = '#fdba74'; textColor = '#c2410c'; break;
+                case 'Normal': bgColor = '#93c5fd'; textColor = '#1e40af'; break;
+                case 'Düşük': bgColor = '#d1d5db'; textColor = '#4b5563'; break;
+                default: bgColor = '#d1d5db'; textColor = '#4b5563'; break;
+            }
+            return `<span style="background-color: ${bgColor}; color: ${textColor}; padding: 4px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600;">${priority}</span>`;
+        };
+
+        // Alternatifler için detaylı HTML
+        const alternativesHtml = items.length > 0 ? `
+            <div class="section">
+                <h2 class="section-title">Karşılaştırılan Alternatifler (${items.length})</h2>
+                ${items.map((item, index) => `
+                    <div class="step-section">
+                        <h3 class="step-title">${index + 1}. ${item.item_name}${item.item_code ? ` (${item.item_code})` : ''}</h3>
+                        <div class="step-content">
+                            ${item.description ? `<p><strong>Açıklama:</strong> ${item.description}</p>` : ''}
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
+                                ${item.unit_price ? `<p><strong>Birim Fiyat:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: item.currency || 'TRY' }).format(item.unit_price)}</p>` : ''}
+                                ${item.total_cost_of_ownership ? `<p><strong>TCO:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: item.currency || 'TRY' }).format(item.total_cost_of_ownership)}</p>` : ''}
+                                ${item.roi_percentage ? `<p><strong>ROI:</strong> ${item.roi_percentage}%</p>` : ''}
+                                ${item.quality_score ? `<p><strong>Kalite Skoru:</strong> ${item.quality_score}/100</p>` : ''}
+                                ${item.performance_score ? `<p><strong>Performans Skoru:</strong> ${item.performance_score}/100</p>` : ''}
+                                ${item.reliability_score ? `<p><strong>Güvenilirlik Skoru:</strong> ${item.reliability_score}/100</p>` : ''}
+                                ${item.delivery_time_days ? `<p><strong>Teslimat Süresi:</strong> ${item.delivery_time_days} gün</p>` : ''}
+                                ${item.after_sales_service_score ? `<p><strong>Satış Sonrası Hizmet:</strong> ${item.after_sales_service_score}/100</p>` : ''}
+                                ${item.risk_level ? `<p><strong>Risk Seviyesi:</strong> ${item.risk_level}</p>` : ''}
+                            </div>
+                            ${(item.manufacturer || item.model_number || item.category || item.origin) ? `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #d1d5db;">
+                                    ${item.manufacturer ? `<p><strong>Üretici:</strong> ${item.manufacturer}</p>` : ''}
+                                    ${item.model_number ? `<p><strong>Model/Seri No:</strong> ${item.model_number}</p>` : ''}
+                                    ${item.category ? `<p><strong>Kategori:</strong> ${item.category}</p>` : ''}
+                                    ${item.origin ? `<p><strong>Menşei:</strong> ${item.origin}</p>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+
+        // Dokümanlar için HTML
+        const documentsHtml = documents.length > 0 ? `
+            <div class="section">
+                <h2 class="section-title">Ekli Dokümanlar (${documents.length})</h2>
+                <div class="info-grid">
+                    ${documents.slice(0, 10).map(doc => `
+                        <div class="info-item">
+                            <span class="label">${doc.document_title || 'Doküman'}</span>
+                            <span class="value">${doc.document_type || '-'} | ${doc.document_date ? formatDate(doc.document_date) : '-'}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : '';
+
+        const htmlContent = `
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Benchmark Raporu - ${benchmark.title}</title>
+    <title>Benchmark Raporu - ${benchmark.benchmark_number || benchmark.title}</title>
     <style>
-        @page {
-            size: A4;
-            margin: 20mm;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 210mm;
-            margin: 0 auto;
-            padding: 20px;
+            font-family: 'Inter', sans-serif;
+            color: #1f2937;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f4f6;
+        }
+        .page {
+            background-color: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            padding: 20mm;
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         .header {
             text-align: center;
-            border-bottom: 3px solid #2563eb;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
         }
         .header h1 {
-            color: #1e40af;
-            margin: 0 0 10px 0;
-            font-size: 28px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
         }
-        .header .meta {
-            color: #666;
+        .header p {
             font-size: 14px;
+            color: #6b7280;
+            margin: 5px 0 0;
         }
+        .report-title-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+        }
+        .report-title h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .report-title p {
+            font-size: 14px;
+            color: #4b5563;
+            margin: 5px 0 0;
+        }
+
         .section {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             page-break-inside: avoid;
         }
         .section-title {
-            background: #2563eb;
-            color: white;
-            padding: 10px 15px;
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e40af;
+            border-bottom: 2px solid #bfdbfe;
+            padding-bottom: 5px;
             margin-bottom: 15px;
         }
         .info-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, 1fr);
             gap: 15px;
-            margin-bottom: 15px;
         }
         .info-item {
-            border-left: 3px solid #2563eb;
-            padding-left: 12px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
         }
-        .info-label {
-            font-weight: 600;
-            color: #666;
-            font-size: 13px;
-            margin-bottom: 3px;
+        .info-item .label {
+            display: block;
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
         }
-        .info-value {
-            font-size: 15px;
-            color: #000;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 13px;
+        .info-item .value {
+            font-size: 14px;
             font-weight: 600;
         }
-        .badge-status {
-            background: #3b82f6;
-            color: white;
+        .full-width {
+           grid-column: 1 / -1;
         }
-        .badge-priority {
-            background: #f59e0b;
-            color: white;
+        .problem-description {
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
-        table {
+
+        .step-section {
+            margin-bottom: 15px;
+        }
+        .step-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e40af;
+            margin: 0 0 10px 0;
+        }
+        .step-content {
+            background-color: #f9fafb;
+            border-left: 3px solid #60a5fa;
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+        }
+        .step-content p { margin: 0 0 8px 0; font-size: 13px; }
+        .step-content p:last-child { margin-bottom: 0; }
+        .step-description {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #d1d5db;
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .attachment-image {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: left;
-        }
-        th {
-            background: #f3f4f6;
-            font-weight: 600;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
         }
         .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 2px solid #e5e7eb;
             text-align: center;
-            color: #666;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
             font-size: 12px;
-        }
-        .description {
-            background: #f9fafb;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
+            color: #9ca3af;
         }
         @media print {
-            body {
-                padding: 0;
-            }
-            .section {
-                page-break-inside: avoid;
+            body { background-color: white; margin: 0; padding: 0; }
+            .page { margin: 0; box-shadow: none; border: none; }
+            @page {
+                size: A4;
+                margin: 20mm;
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Benchmark Analiz Raporu</h1>
-        <div class="meta">
-            <strong>${benchmark.benchmark_number}</strong> | ${today}
+    <div class="page">
+        <div class="header">
+            <h1>KADEME A.Ş.</h1>
+            <p>Kalite Yönetim Sistemi</p>
         </div>
-    </div>
+        <div class="report-title-section">
+            <div class="report-title">
+                <h2>Benchmark Raporu</h2>
+                <p>${benchmark.title || '-'}</p>
+            </div>
+            <div>
+                ${getStatusBadge(benchmark.status)}
+                ${getPriorityBadge(benchmark.priority)}
+            </div>
+        </div>
 
-    <div class="section">
-        <div class="section-title">Genel Bilgiler</div>
-        <h2 style="margin-top: 0;">${benchmark.title}</h2>
-        
-        <div class="info-grid">
-            <div class="info-item">
-                <div class="info-label">Durum</div>
-                <div class="info-value"><span class="badge badge-status">${benchmark.status}</span></div>
+        <div class="section">
+            <h2 class="section-title">Genel Bilgiler</h2>
+            <div class="info-grid">
+                <div class="info-item"><span class="label">Benchmark Numarası</span><span class="value">${benchmark.benchmark_number || '-'}</span></div>
+                <div class="info-item"><span class="label">Durum</span><span class="value">${benchmark.status || '-'}</span></div>
+                <div class="info-item"><span class="label">Öncelik</span><span class="value">${benchmark.priority || '-'}</span></div>
+                ${benchmark.category ? `<div class="info-item"><span class="label">Kategori</span><span class="value">${benchmark.category.name || '-'}</span></div>` : ''}
+                ${benchmark.start_date ? `<div class="info-item"><span class="label">Başlangıç Tarihi</span><span class="value">${formatDate(benchmark.start_date)}</span></div>` : ''}
+                ${benchmark.target_completion_date ? `<div class="info-item"><span class="label">Hedef Tamamlanma</span><span class="value">${formatDate(benchmark.target_completion_date)}</span></div>` : ''}
+                ${benchmark.owner ? `<div class="info-item"><span class="label">Sorumlu Kişi</span><span class="value">${benchmark.owner.full_name || benchmark.owner.name || '-'}</span></div>` : ''}
+                ${benchmark.department ? `<div class="info-item"><span class="label">Departman</span><span class="value">${benchmark.department.unit_name || '-'}</span></div>` : ''}
+                ${benchmark.estimated_budget ? `<div class="info-item"><span class="label">Tahmini Bütçe</span><span class="value">${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: benchmark.currency || 'TRY' }).format(benchmark.estimated_budget)}</span></div>` : ''}
             </div>
-            <div class="info-item">
-                <div class="info-label">Öncelik</div>
-                <div class="info-value"><span class="badge badge-priority">${benchmark.priority}</span></div>
-            </div>
-            ${benchmark.category ? `
-            <div class="info-item">
-                <div class="info-label">Kategori</div>
-                <div class="info-value">${benchmark.category.name}</div>
-            </div>
-            ` : ''}
-            ${benchmark.owner ? `
-            <div class="info-item">
-                <div class="info-label">Sorumlu</div>
-                <div class="info-value">${benchmark.owner.name}</div>
-            </div>
-            ` : ''}
-            ${benchmark.department ? `
-            <div class="info-item">
-                <div class="info-label">Departman</div>
-                <div class="info-value">${benchmark.department.unit_name}</div>
-            </div>
-            ` : ''}
-            ${benchmark.estimated_budget ? `
-            <div class="info-item">
-                <div class="info-label">Tahmini Bütçe</div>
-                <div class="info-value">${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: benchmark.currency || 'TRY' }).format(benchmark.estimated_budget)}</div>
-            </div>
-            ` : ''}
         </div>
 
         ${benchmark.description ? `
-        <div class="description">
-            <strong>Açıklama:</strong><br>
-            ${benchmark.description.replace(/\n/g, '<br>')}
+        <div class="section">
+            <h2 class="section-title">Açıklama</h2>
+            <div class="info-item full-width">
+                <p class="problem-description">${benchmark.description.replace(/\n/g, '<br>')}</p>
+            </div>
         </div>
         ` : ''}
-        
+
         ${benchmark.objective ? `
-        <div class="description">
-            <strong>Amaç:</strong><br>
-            ${benchmark.objective.replace(/\n/g, '<br>')}
+        <div class="section">
+            <h2 class="section-title">Amaç</h2>
+            <div class="info-item full-width">
+                <p class="problem-description">${benchmark.objective.replace(/\n/g, '<br>')}</p>
+            </div>
         </div>
         ` : ''}
-    </div>
 
-    ${items.length > 0 ? `
-    <div class="section">
-        <div class="section-title">Karşılaştırılan Alternatifler (${items.length})</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Sıra</th>
-                    <th>Alternatif</th>
-                    <th>Açıklama</th>
-                    ${items[0].unit_price ? '<th>Fiyat</th>' : ''}
-                    ${items[0].quality_score ? '<th>Kalite Skoru</th>' : ''}
-                </tr>
-            </thead>
-            <tbody>
-                ${items.map((item, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td><strong>${item.item_name}</strong>${item.item_code ? `<br><small>${item.item_code}</small>` : ''}</td>
-                    <td>${item.description || '-'}</td>
-                    ${item.unit_price ? `<td>${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: item.currency || 'TRY' }).format(item.unit_price)}</td>` : ''}
-                    ${item.quality_score ? `<td>${item.quality_score}/100</td>` : ''}
-                </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    </div>
-    ` : ''}
+        ${benchmark.scope ? `
+        <div class="section">
+            <h2 class="section-title">Kapsam</h2>
+            <div class="info-item full-width">
+                <p class="problem-description">${benchmark.scope.replace(/\n/g, '<br>')}</p>
+            </div>
+        </div>
+        ` : ''}
 
-    ${documents.length > 0 ? `
-    <div class="section">
-        <div class="section-title">Ekli Dokümanlar (${documents.length})</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Doküman Başlığı</th>
-                    <th>Tür</th>
-                    <th>Tarih</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${documents.slice(0, 10).map(doc => `
-                <tr>
-                    <td>${doc.document_title}</td>
-                    <td>${doc.document_type}</td>
-                    <td>${doc.document_date ? format(new Date(doc.document_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
-                </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    </div>
-    ` : ''}
+        ${alternativesHtml}
 
-    <div class="footer">
-        <p>Bu rapor Kademe QMS sistemi tarafından otomatik olarak oluşturulmuştur.</p>
-        <p>Oluşturulma Tarihi: ${today}</p>
+        ${documentsHtml}
+        
+        <div class="footer">
+            Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
+        </div>
     </div>
+    <script>
+        const images = document.querySelectorAll('.attachment-image');
+        const promises = Array.from(images).map(img => {
+            return new Promise((resolve) => {
+                if (img.complete) {
+                    resolve();
+                } else {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Resolve on error too, to not block printing
+                }
+            });
+        });
+
+        Promise.all(promises).then(() => {
+            setTimeout(() => {
+                window.print();
+            }, 500); // Increased delay to ensure rendering
+        });
+    </script>
 </body>
 </html>
         `;
+
+        return htmlContent;
     };
 
     if (!benchmark) return null;
