@@ -308,9 +308,19 @@ const BenchmarkForm = ({
                                      ? formData.department_id 
                                      : null;
             
+            // UUID alanlarını temizle - boş string'leri null'a çevir
+            const cleanOwnerId = formData.owner_id && formData.owner_id.trim() !== '' ? formData.owner_id : null;
+            const cleanDepartmentId = formData.department_id && 
+                                     formData.department_id.trim() !== '' &&
+                                     !formData.department_id.startsWith('dept_') 
+                                     ? formData.department_id 
+                                     : null;
+            
             const dataToSave = {
                 ...formData,
+                owner_id: cleanOwnerId,
                 department_id: cleanDepartmentId,
+                team_members: formData.team_members && formData.team_members.length > 0 ? formData.team_members : null,
                 estimated_budget: formData.estimated_budget 
                     ? parseFloat(formData.estimated_budget) 
                     : null,
