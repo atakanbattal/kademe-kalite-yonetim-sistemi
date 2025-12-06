@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
     X, Plus, Trash2, Save, Download, TrendingUp, Award,
     ThumbsUp, ThumbsDown, BarChart3, PieChart, FileText,
-    Edit, Check, AlertCircle, Loader2
+    Edit, Check, AlertCircle, Loader2, Eye
 } from 'lucide-react';
 import {
     Dialog,
@@ -71,6 +71,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('items');
+    const [selectedItemDetail, setSelectedItemDetail] = useState(null);
 
     // Data states
     const [items, setItems] = useState([]);
@@ -906,6 +907,13 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             return value.toString();
         };
 
+        const creationDate = new Date().toLocaleDateString('tr-TR', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric' 
+        });
+        const preparedBy = "Atakan BATTAL";
+
         return `
 <!DOCTYPE html>
 <html lang="tr">
@@ -914,29 +922,154 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Benchmark Karşılaştırma Raporu - ${benchmark?.title || 'Benchmark'}</title>
     <style>
-        @page { size: A4 landscape; margin: 15mm; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #333; }
-        .header { text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 25px; }
-        .header h1 { color: #1e40af; margin: 0 0 8px 0; font-size: 24px; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @page { 
+            size: A4 landscape; 
+            margin: 15mm;
+            @bottom-center {
+                content: "Sayfa " counter(page) " / " counter(pages);
+                font-size: 8pt;
+                color: #666;
+            }
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            line-height: 1.5; 
+            color: #1f2937; 
+            margin: 0;
+            padding: 0;
+            background-color: #f3f4f6;
+        }
+        .page-container {
+            background-color: white;
+            width: 297mm;
+            min-height: 210mm;
+            margin: 20px auto;
+            padding: 15mm;
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .report-header-left {
+            flex: 1;
+        }
+        .report-header-left h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 4px 0;
+        }
+        .report-header-left p {
+            font-size: 10px;
+            color: #6b7280;
+            margin: 0;
+        }
+        .report-header-right {
+            text-align: right;
+        }
+        .report-header-right h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e40af;
+            margin: 0 0 4px 0;
+        }
+        .report-header-right p {
+            font-size: 10px;
+            color: #6b7280;
+            margin: 0;
+        }
         .section { margin-bottom: 25px; page-break-inside: avoid; }
-        .section-title { background: #2563eb; color: white; padding: 8px 12px; font-size: 16px; font-weight: bold; margin-bottom: 12px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #f3f4f6; font-weight: 600; }
+        .section-title { 
+            background: #1e40af; 
+            color: white; 
+            padding: 8px 12px; 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+        th { background: #f3f4f6; font-weight: 600; color: #1f2937; }
         .rank-1 { background: #fef3c7; }
         .rank-2 { background: #dbeafe; }
         .rank-3 { background: #fce7f3; }
         .score-high { color: #059669; font-weight: bold; }
         .score-medium { color: #d97706; font-weight: bold; }
         .score-low { color: #dc2626; font-weight: bold; }
-        .footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center; color: #666; font-size: 11px; }
+        .pros-cons-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .pros-box {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 12px;
+            border-radius: 4px;
+        }
+        .cons-box {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 12px;
+            border-radius: 4px;
+        }
+        .pros-box h4 {
+            color: #15803d;
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .cons-box h4 {
+            color: #dc2626;
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .pros-box ul, .cons-box ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 11px;
+        }
+        .pros-box li, .cons-box li {
+            margin-bottom: 4px;
+        }
+        .report-footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9px;
+            color: #6b7280;
+        }
+        @media print {
+            body { background-color: white; margin: 0; padding: 0; }
+            .page-container { margin: 0; box-shadow: none; border: none; }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Benchmark Karşılaştırma Raporu</h1>
-        <p><strong>${benchmark?.title || 'Benchmark'}</strong> | ${benchmark?.benchmark_number || 'N/A'}</p>
-    </div>
+    <div class="page-container">
+        <div class="report-header">
+            <div class="report-header-left">
+                <h1>KADEME A.Ş.</h1>
+                <p>Kalite Yönetim Sistemi</p>
+            </div>
+            <div class="report-header-right">
+                <h2>Benchmark Karşılaştırma Raporu</h2>
+                <p>Rapor No: ${benchmark?.benchmark_number || 'N/A'}</p>
+            </div>
+        </div>
 
     <div class="section">
         <div class="section-title">Genel Sıralama</div>
@@ -1009,19 +1142,25 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             const itemData = prosConsData[item.id];
             if (!itemData || (itemData.pros.length === 0 && itemData.cons.length === 0)) return '';
             return `
-            <div style="margin-bottom: 20px; border: 1px solid #ddd; padding: 12px; border-radius: 6px;">
-                <h3 style="margin: 0 0 10px 0; color: #1e40af;">${item.item_name}</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div>
-                        <h4 style="color: #059669; margin: 0 0 8px 0;">✓ Avantajlar</h4>
-                        <ul style="margin: 0; padding-left: 20px;">
-                            ${(itemData.pros || []).map(pro => `<li style="margin-bottom: 5px;">${pro.description}</li>`).join('')}
+            <div style="margin-bottom: 20px; border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; background: #f9fafb;">
+                <h3 style="margin: 0 0 12px 0; color: #1e40af; font-size: 14px; font-weight: 600;">${item.item_name}</h3>
+                <div class="pros-cons-container">
+                    <div class="pros-box">
+                        <h4>✓ Avantajlar</h4>
+                        <ul>
+                            ${(itemData.pros || []).length > 0 
+                                ? (itemData.pros || []).map(pro => `<li>${pro.description || '-'}</li>`).join('')
+                                : '<li>Avantaj belirtilmemiş</li>'
+                            }
                         </ul>
                     </div>
-                    <div>
-                        <h4 style="color: #dc2626; margin: 0 0 8px 0;">✗ Dezavantajlar</h4>
-                        <ul style="margin: 0; padding-left: 20px;">
-                            ${(itemData.cons || []).map(con => `<li style="margin-bottom: 5px;">${con.description}</li>`).join('')}
+                    <div class="cons-box">
+                        <h4>✗ Dezavantajlar</h4>
+                        <ul>
+                            ${(itemData.cons || []).length > 0 
+                                ? (itemData.cons || []).map(con => `<li>${con.description || '-'}</li>`).join('')
+                                : '<li>Dezavantaj belirtilmemiş</li>'
+                            }
                         </ul>
                     </div>
                 </div>
@@ -1100,9 +1239,14 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         </table>
     </div>
 
-    <div class="footer">
-        <p>Bu rapor Kademe QMS Benchmark Modülü tarafından otomatik olarak oluşturulmuştur.</p>
-        <p>Oluşturulma Tarihi: ${new Date().toLocaleString('tr-TR')}</p>
+        <div class="report-footer">
+            <div>
+                <p style="margin: 0;">Oluşturma Tarihi: ${creationDate}</p>
+            </div>
+            <div>
+                <p style="margin: 0;">Hazırlayan: ${preparedBy}</p>
+            </div>
+        </div>
     </div>
 </body>
 </html>
@@ -1865,13 +2009,22 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                         </p>
                                                     )}
                                                 </div>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => handleDeleteItem(item.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                                </Button>
+                                                <div className="flex gap-1">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => setSelectedItemDetail(item)}
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => handleDeleteItem(item.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </CardHeader>
                                         <CardContent>
@@ -2357,6 +2510,249 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                     </ScrollArea>
                 )}
             </DialogContent>
+            
+            {/* Alternatif Detay Modal */}
+            {selectedItemDetail && (
+                <Dialog open={!!selectedItemDetail} onOpenChange={() => setSelectedItemDetail(null)}>
+                    <DialogContent className="max-w-4xl max-h-[90vh]">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl">
+                                {selectedItemDetail.item_name}
+                                {selectedItemDetail.item_code && (
+                                    <span className="text-sm text-muted-foreground ml-2">
+                                        ({selectedItemDetail.item_code})
+                                    </span>
+                                )}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <ScrollArea className="h-[calc(90vh-120px)] pr-4">
+                            <div className="space-y-6">
+                                {/* Temel Bilgiler */}
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-3">Temel Bilgiler</h3>
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        {selectedItemDetail.manufacturer && (
+                                            <div>
+                                                <Label className="text-muted-foreground">Üretici</Label>
+                                                <p className="font-medium">{selectedItemDetail.manufacturer}</p>
+                                            </div>
+                                        )}
+                                        {selectedItemDetail.model_number && (
+                                            <div>
+                                                <Label className="text-muted-foreground">Model/Seri No</Label>
+                                                <p className="font-medium">{selectedItemDetail.model_number}</p>
+                                            </div>
+                                        )}
+                                        {selectedItemDetail.category && (
+                                            <div>
+                                                <Label className="text-muted-foreground">Kategori</Label>
+                                                <p className="font-medium">{selectedItemDetail.category}</p>
+                                            </div>
+                                        )}
+                                        {selectedItemDetail.origin && (
+                                            <div>
+                                                <Label className="text-muted-foreground">Menşei</Label>
+                                                <p className="font-medium">{selectedItemDetail.origin}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {selectedItemDetail.description && (
+                                        <div className="mt-3">
+                                            <Label className="text-muted-foreground">Açıklama</Label>
+                                            <p className="text-sm mt-1">{selectedItemDetail.description}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Maliyet Bilgileri */}
+                                {(selectedItemDetail.unit_price || selectedItemDetail.total_cost_of_ownership || selectedItemDetail.roi_percentage) && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3">Maliyet Bilgileri</h3>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            {selectedItemDetail.unit_price && (
+                                                <div className="p-3 bg-muted/50 rounded-lg">
+                                                    <Label className="text-muted-foreground">Birim Fiyat</Label>
+                                                    <p className="font-semibold text-lg">
+                                                        {new Intl.NumberFormat('tr-TR', {
+                                                            style: 'currency',
+                                                            currency: selectedItemDetail.currency || 'TRY'
+                                                        }).format(selectedItemDetail.unit_price)}
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.total_cost_of_ownership && (
+                                                <div className="p-3 bg-muted/50 rounded-lg">
+                                                    <Label className="text-muted-foreground">TCO (Toplam Sahiplik Maliyeti)</Label>
+                                                    <p className="font-semibold text-lg">
+                                                        {new Intl.NumberFormat('tr-TR', {
+                                                            style: 'currency',
+                                                            currency: selectedItemDetail.currency || 'TRY'
+                                                        }).format(selectedItemDetail.total_cost_of_ownership)}
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.roi_percentage && (
+                                                <div className="p-3 bg-muted/50 rounded-lg">
+                                                    <Label className="text-muted-foreground">ROI (Yatırım Getirisi)</Label>
+                                                    <p className="font-semibold text-lg">{selectedItemDetail.roi_percentage}%</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {selectedItemDetail.minimum_order_quantity && (
+                                            <div className="mt-3">
+                                                <Label className="text-muted-foreground">Minimum Sipariş Miktarı</Label>
+                                                <p className="font-medium">{selectedItemDetail.minimum_order_quantity} adet</p>
+                                            </div>
+                                        )}
+                                        {selectedItemDetail.payment_terms && (
+                                            <div className="mt-3">
+                                                <Label className="text-muted-foreground">Ödeme Koşulları</Label>
+                                                <p className="font-medium">{selectedItemDetail.payment_terms}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Kalite ve Performans */}
+                                {(selectedItemDetail.quality_score || selectedItemDetail.performance_score || selectedItemDetail.reliability_score) && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3">Kalite ve Performans</h3>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            {selectedItemDetail.quality_score && (
+                                                <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                                                    <Label className="text-muted-foreground">Kalite Skoru</Label>
+                                                    <p className="font-semibold text-lg">{selectedItemDetail.quality_score}/100</p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.performance_score && (
+                                                <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                                                    <Label className="text-muted-foreground">Performans Skoru</Label>
+                                                    <p className="font-semibold text-lg">{selectedItemDetail.performance_score}/100</p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.reliability_score && (
+                                                <div className="p-3 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                                                    <Label className="text-muted-foreground">Güvenilirlik Skoru</Label>
+                                                    <p className="font-semibold text-lg">{selectedItemDetail.reliability_score}/100</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="grid gap-3 md:grid-cols-3 mt-3">
+                                            {selectedItemDetail.durability_score && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Dayanıklılık Skoru</Label>
+                                                    <p className="font-medium">{selectedItemDetail.durability_score}/100</p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.safety_score && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Güvenlik Skoru</Label>
+                                                    <p className="font-medium">{selectedItemDetail.safety_score}/100</p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.standards_compliance_score && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Standart Uygunluk Skoru</Label>
+                                                    <p className="font-medium">{selectedItemDetail.standards_compliance_score}/100</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Hizmet Bilgileri */}
+                                {(selectedItemDetail.after_sales_service_score || selectedItemDetail.technical_support_score || selectedItemDetail.warranty_period_months) && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3">Satış Sonrası Hizmet</h3>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            {selectedItemDetail.after_sales_service_score && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Satış Sonrası Hizmet Skoru</Label>
+                                                    <p className="font-medium">{selectedItemDetail.after_sales_service_score}/100</p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.technical_support_score && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Teknik Destek Skoru</Label>
+                                                    <p className="font-medium">{selectedItemDetail.technical_support_score}/100</p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.warranty_period_months && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Garanti Süresi</Label>
+                                                    <p className="font-medium">{selectedItemDetail.warranty_period_months} ay</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {selectedItemDetail.support_availability && (
+                                            <div className="mt-3">
+                                                <Label className="text-muted-foreground">Destek Erişilebilirliği</Label>
+                                                <p className="font-medium">{selectedItemDetail.support_availability}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Operasyonel Bilgiler */}
+                                {(selectedItemDetail.delivery_time_days || selectedItemDetail.implementation_time_days || selectedItemDetail.training_required_hours) && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3">Operasyonel Bilgiler</h3>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            {selectedItemDetail.delivery_time_days && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Teslimat Süresi</Label>
+                                                    <p className="font-medium">{selectedItemDetail.delivery_time_days} gün</p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.implementation_time_days && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Uygulama Süresi</Label>
+                                                    <p className="font-medium">{selectedItemDetail.implementation_time_days} gün</p>
+                                                </div>
+                                            )}
+                                            {selectedItemDetail.training_required_hours && (
+                                                <div>
+                                                    <Label className="text-muted-foreground">Eğitim Gereksinimi</Label>
+                                                    <p className="font-medium">{selectedItemDetail.training_required_hours} saat</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Risk ve Diğer */}
+                                {selectedItemDetail.risk_level && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3">Risk Değerlendirmesi</h3>
+                                        <Badge 
+                                            variant={
+                                                selectedItemDetail.risk_level === 'Düşük' ? 'default' :
+                                                selectedItemDetail.risk_level === 'Orta' ? 'secondary' :
+                                                selectedItemDetail.risk_level === 'Yüksek' ? 'destructive' : 'destructive'
+                                            }
+                                            className="text-lg px-4 py-2"
+                                        >
+                                            {selectedItemDetail.risk_level}
+                                        </Badge>
+                                    </div>
+                                )}
+
+                                {/* Toplam Skor */}
+                                {itemScores[selectedItemDetail.id] && (
+                                    <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-lg font-semibold">Toplam Skor</span>
+                                            <Badge className="bg-primary text-xl px-4 py-2">
+                                                {itemScores[selectedItemDetail.id].average.toFixed(1)}/100
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </DialogContent>
+                </Dialog>
+            )}
         </Dialog>
     );
 };
