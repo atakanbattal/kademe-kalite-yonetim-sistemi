@@ -58,12 +58,12 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     const [editingProsCons, setEditingProsCons] = useState(null);
 
     useEffect(() => {
-        if (benchmark?.id) {
+        if (benchmark?.id && isOpen) {
             fetchComparisonData();
         }
-    }, [benchmark?.id]);
+    }, [benchmark?.id, isOpen, fetchComparisonData]);
 
-    const fetchComparisonData = async () => {
+    const fetchComparisonData = useCallback(async () => {
         if (!benchmark?.id) return;
 
         setLoading(true);
