@@ -30,12 +30,29 @@ export function SearchableSelectDialog({
   allowClear = false
 }) {
   const [open, setOpen] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   const selectedOption = options.find((option) => option.value === value);
 
   const handleSelect = (currentValue) => {
-    onChange(currentValue === value ? "" : currentValue);
-    setOpen(false);
+    // Prevent double calls
+    if (isSelecting) return;
+    
+    setIsSelecting(true);
+    
+    // Always set the value, don't clear if same value is selected
+    if (currentValue && currentValue !== value) {
+      onChange(currentValue);
+    } else if (currentValue) {
+      // Same value selected, just close the modal
+      onChange(currentValue);
+    }
+    
+    // Close modal after a short delay to ensure onChange is called
+    setTimeout(() => {
+      setOpen(false);
+      setIsSelecting(false);
+    }, 100);
   };
   
   const handleClear = (e) => {
@@ -108,16 +125,17 @@ export function SearchableSelectDialog({
                   <CommandItem
                     key={option.value}
                     value={getSearchValue(option)}
-                    onSelect={() => handleSelect(option.value)}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSelect(option.value);
+                    onSelect={() => {
+                      if (!isSelecting) {
+                        handleSelect(option.value);
+                      }
                     }}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleSelect(option.value);
+                      if (!isSelecting) {
+                        handleSelect(option.value);
+                      }
                     }}
                   >
                     <Check
