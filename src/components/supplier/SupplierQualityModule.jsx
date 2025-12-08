@@ -100,13 +100,13 @@ import SupplierDocumentsTab from '@/components/supplier/SupplierDocumentsTab';
           </div>
           
           <Tabs defaultValue="dashboard" className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
-                <TabsTrigger value="dashboard"><BarChart className="w-4 h-4 mr-2" />Genel Bakış</TabsTrigger>
-                <TabsTrigger value="list"><List className="w-4 h-4 mr-2" />Tedarikçi Listesi</TabsTrigger>
-                <TabsTrigger value="audits"><CalendarCheck className="w-4 h-4 mr-2" />Denetim Takibi</TabsTrigger>
-                <TabsTrigger value="question-bank"><HelpCircle className="w-4 h-4 mr-2" />Soru Bankası</TabsTrigger>
-                <TabsTrigger value="ncs"><AlertTriangle className="w-4 h-4 mr-2" />Uygunsuzluklar & DF</TabsTrigger>
-                <TabsTrigger value="documents"><FileText className="w-4 h-4 mr-2" />Dokümanlar</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 gap-1 overflow-x-auto">
+                <TabsTrigger value="dashboard" className="text-xs md:text-sm"><BarChart className="w-4 h-4 mr-1 md:mr-2" />Genel Bakış</TabsTrigger>
+                <TabsTrigger value="list" className="text-xs md:text-sm"><List className="w-4 h-4 mr-1 md:mr-2" />Tedarikçi Listesi</TabsTrigger>
+                <TabsTrigger value="audits" className="text-xs md:text-sm"><CalendarCheck className="w-4 h-4 mr-1 md:mr-2" />Denetim Takibi</TabsTrigger>
+                <TabsTrigger value="question-bank" className="text-xs md:text-sm"><HelpCircle className="w-4 h-4 mr-1 md:mr-2" />Soru Bankası</TabsTrigger>
+                <TabsTrigger value="ncs" className="text-xs md:text-sm"><AlertTriangle className="w-4 h-4 mr-1 md:mr-2" />Uygunsuzluklar & DF</TabsTrigger>
+                <TabsTrigger value="documents" className="text-xs md:text-sm"><FileText className="w-4 h-4 mr-1 md:mr-2" />Dokümanlar</TabsTrigger>
             </TabsList>
             <TabsContent value="dashboard" className="mt-6">
                 <SupplierDashboard 
