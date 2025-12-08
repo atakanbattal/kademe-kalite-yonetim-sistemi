@@ -63,15 +63,17 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
     }, [selectedSupplier]);
 
     const loadDocuments = async () => {
-        if (!selectedSupplier) return;
-        
         setLoading(true);
         try {
             let query = supabase
                 .from('supplier_documents')
-                .select('*')
-                .eq('supplier_id', selectedSupplier.id)
+                .select('*, suppliers!supplier_documents_supplier_id_fkey(name, code)')
                 .order('uploaded_at', { ascending: false });
+            
+            // Eğer tedarikçi seçiliyse filtrele
+            if (selectedSupplier) {
+                query = query.eq('supplier_id', selectedSupplier.id);
+            }
 
             if (filterType !== 'all') {
                 query = query.eq('document_type', filterType);
@@ -281,14 +283,19 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                     
                     <div className="mb-4">
                         <Label>Tedarikçi Seç</Label>
-                        <Select value={selectedSupplier?.id || ''} onValueChange={(value) => {
-                            const supplier = suppliers.find(s => s.id === value);
-                            setSelectedSupplier(supplier || null);
+                        <Select value={selectedSupplier?.id || 'all'} onValueChange={(value) => {
+                            if (value === 'all') {
+                                setSelectedSupplier(null);
+                            } else {
+                                const supplier = suppliers.find(s => s.id === value);
+                                setSelectedSupplier(supplier || null);
+                            }
                         }}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Tedarikçi seçin..." />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="all">Tüm Tedarikçiler</SelectItem>
                                 {suppliers.map(supplier => (
                                     <SelectItem key={supplier.id} value={supplier.id}>
                                         {supplier.name} {supplier.code && `(${supplier.code})`}
@@ -376,6 +383,12 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                             <div className="font-medium truncate" title={doc.document_name}>
                                                 {doc.document_name}
                                             </div>
+                                            {/* Tedarikçi adı (tüm tedarikçiler görüntülenirken) */}
+                                            {!selectedSupplier && doc.suppliers && (
+                                                <div className="text-xs text-muted-foreground mt-1 truncate">
+                                                    {doc.suppliers.name} {doc.suppliers.code && `(${doc.suppliers.code})`}
+                                                </div>
+                                            )}
                                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                 <Badge variant="outline">{doc.document_type}</Badge>
                                                 {doc.status !== 'Aktif' && (
