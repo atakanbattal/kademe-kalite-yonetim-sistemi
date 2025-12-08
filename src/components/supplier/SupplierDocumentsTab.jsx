@@ -461,15 +461,16 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             )}
 
             {/* Yükleme Modal */}
-            <Dialog open={isUploadOpen} onOpenChange={setUploadOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Doküman Yükle</DialogTitle>
-                        <DialogDescription>
-                            {selectedSupplier ? `${selectedSupplier.name} için doküman yükleyin` : 'Lütfen önce bir tedarikçi seçin'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
+            {isUploadOpen && (
+                <Dialog open={isUploadOpen} onOpenChange={setUploadOpen}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Doküman Yükle</DialogTitle>
+                            <DialogDescription>
+                                {selectedSupplier ? `${selectedSupplier.name} için doküman yükleyin` : 'Lütfen önce bir tedarikçi seçin'}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
                         <div>
                             <Label>Doküman Tipi <span className="text-red-500">*</span></Label>
                             <Select value={docType} onValueChange={setDocType}>
