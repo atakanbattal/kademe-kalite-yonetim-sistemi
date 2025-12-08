@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { sanitizeFileName } from '@/lib/utils';
 
 const DOCUMENT_TYPES = ['Şikayet Formu', 'Fotoğraf', 'Rapor', '8D Raporu', 'Test Sonucu', 'Email', 'Diğer'];
 
@@ -37,8 +38,15 @@ const DocumentsTab = ({ complaintId, documents, onRefresh }) => {
         setIsUploading(true);
         try {
             for (const file of selectedFiles) {
-                const filePath = `complaints/${complaintId}/${Date.now()}-${file.name}`;
-                const { error: uploadError } = await supabase.storage.from('complaint_attachments').upload(filePath, file);
+                const sanitizedFileName = sanitizeFileName(file.name);
+                const timestamp = Date.now();
+                const randomStr = Math.random().toString(36).substring(2, 9);
+                const filePath = `complaints/${complaintId}/${timestamp}-${randomStr}-${sanitizedFileName}`;
+                const { error: uploadError } = await supabase.storage.from('complaint_attachments').upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: file.type || 'application/octet-stream'
+                });
                 if (uploadError) throw uploadError;
 
                 const fileExt = file.name.split('.').pop();

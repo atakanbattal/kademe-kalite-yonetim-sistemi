@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { FileText, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { sanitizeFileName } from '@/lib/utils';
 
 const SupplierPortal = ({ token, supplierId }) => {
     const { toast } = useToast();
@@ -95,12 +96,21 @@ const SupplierPortal = ({ token, supplierId }) => {
             // Dosyaları yükle
             const uploadedFiles = [];
             for (const file of files) {
-                const filePath = `supplier-8d/${supplierId}/${selectedNC.id}/${Date.now()}-${file.name}`;
+                const sanitizedFileName = sanitizeFileName(file.name);
+                const timestamp = Date.now();
+                const randomStr = Math.random().toString(36).substring(2, 9);
+                const filePath = `supplier-8d/${supplierId}/${selectedNC.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
                 const { error: uploadError } = await supabase.storage
                     .from('df_attachments')
-                    .upload(filePath, file);
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false,
+                        contentType: file.type || 'application/octet-stream'
+                    });
 
-                if (uploadError) throw uploadError;
+                if (uploadError) {
+                    throw new Error(`Dosya yüklenemedi: ${uploadError.message}`);
+                }
                 uploadedFiles.push(filePath);
             }
 

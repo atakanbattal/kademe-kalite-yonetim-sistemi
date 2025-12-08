@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { v4 as uuidv4 } from 'uuid';
 import { useData } from '@/contexts/DataContext';
+import { sanitizeFileName } from '@/lib/utils';
 
 const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) => {
     const { toast } = useToast();
@@ -58,8 +59,16 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) =>
         let fileName = formData.file_name;
 
         if (file) {
-            const newFilePath = `inkr_reports/${formData.part_code}_${Date.now()}_${file.name}`;
-            const { error: uploadError } = await supabase.storage.from('incoming_control').upload(newFilePath, file);
+            const sanitizedFileName = sanitizeFileName(file.name);
+            const timestamp = Date.now();
+            const randomStr = Math.random().toString(36).substring(2, 9);
+            const safePartCode = String(formData.part_code || 'unknown').replace(/[^a-zA-Z0-9\-_]/g, '-');
+            const newFilePath = `inkr_reports/${safePartCode}_${timestamp}_${randomStr}_${sanitizedFileName}`;
+            const { error: uploadError } = await supabase.storage.from('incoming_control').upload(newFilePath, file, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type || 'application/octet-stream'
+            });
             if (uploadError) {
                 toast({ variant: 'destructive', title: 'Hata!', description: `Dosya yüklenemedi: ${uploadError.message}` });
                 setIsUploading(false); return;

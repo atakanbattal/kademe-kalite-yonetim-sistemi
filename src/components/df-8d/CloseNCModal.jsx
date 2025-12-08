@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { UploadCloud, File as FileIcon, X } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
+import { sanitizeFileName } from '@/lib/utils';
 
 const CloseNCModal = ({ isOpen, setIsOpen, record, refreshData }) => {
     const { toast } = useToast();
@@ -41,10 +42,15 @@ const CloseNCModal = ({ isOpen, setIsOpen, record, refreshData }) => {
 
         if (files.length > 0) {
             for (const file of files) {
-                const filePath = `closing_attachments/${record.id}/${uuidv4()}-${file.name}`;
+                const sanitizedFileName = sanitizeFileName(file.name);
+                const filePath = `closing_attachments/${record.id}/${uuidv4()}-${sanitizedFileName}`;
                 const { data, error } = await supabase.storage
                     .from('documents')
-                    .upload(filePath, file);
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false,
+                        contentType: file.type || 'application/octet-stream'
+                    });
 
                 if (error) {
                     toast({

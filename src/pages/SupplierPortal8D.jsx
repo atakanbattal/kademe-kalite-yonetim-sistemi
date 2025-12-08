@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, CheckCircle2, XCircle, AlertTriangle, Upload, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import EightDStepsEnhanced from '@/components/df-8d/EightDStepsEnhanced';
+import { sanitizeFileName } from '@/lib/utils';
 
 const SupplierPortal8D = () => {
     const { token } = useParams();
@@ -119,12 +120,21 @@ const SupplierPortal8D = () => {
             // Dosyaları yükle
             const uploadedFilePaths = [];
             for (const file of files) {
-                const filePath = `supplier-8d/${linkData.id}/${Date.now()}-${file.name}`;
+                const sanitizedFileName = sanitizeFileName(file.name);
+                const timestamp = Date.now();
+                const randomStr = Math.random().toString(36).substring(2, 9);
+                const filePath = `supplier-8d/${linkData.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
                 const { error: uploadError } = await supabase.storage
                     .from('df_attachments')
-                    .upload(filePath, file);
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false,
+                        contentType: file.type || 'application/octet-stream'
+                    });
 
-                if (uploadError) throw uploadError;
+                if (uploadError) {
+                    throw new Error(`Dosya yüklenemedi: ${uploadError.message}`);
+                }
                 uploadedFilePaths.push(filePath);
             }
 

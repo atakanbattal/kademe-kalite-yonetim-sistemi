@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeFileName } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SourceRecordSelector from './SourceRecordSelector';
 
@@ -330,8 +330,15 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
 
         if (files.length > 0) {
             const uploadPromises = files.map(file => {
-                const filePath = `${deviationData.id}/${uuidv4()}-${file.name}`;
-                return supabase.storage.from('deviation_attachments').upload(filePath, file, { contentType: file.type || 'application/octet-stream' });
+                const sanitizedFileName = sanitizeFileName(file.name);
+                const timestamp = Date.now();
+                const randomStr = Math.random().toString(36).substring(2, 9);
+                const filePath = `${deviationData.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
+                return supabase.storage.from('deviation_attachments').upload(filePath, file, { 
+                    contentType: file.type || 'application/octet-stream',
+                    cacheControl: '3600',
+                    upsert: false
+                });
             });
             const uploadResults = await Promise.all(uploadPromises);
 
