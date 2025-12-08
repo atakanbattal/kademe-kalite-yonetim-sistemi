@@ -164,7 +164,6 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                         supplier_id: selectedSupplier.id,
                         user_id: user?.id,
                         tags: tagsArray.length > 0 ? tagsArray : null,
-                        valid_until: expiryDate || null,
                         status: 'Aktif'
                     })
                     .select('id')
@@ -185,7 +184,6 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                     file_type: fileExt,
                     file_size: file.size,
                     uploaded_by: user?.id,
-                    expiry_date: expiryDate || null,
                     tags: tagsArray.length > 0 ? tagsArray : null,
                     related_nc_id: relatedNcId && relatedNcId !== 'none' ? relatedNcId : null,
                     related_audit_id: relatedAuditId && relatedAuditId !== 'none' ? relatedAuditId : null,
@@ -269,8 +267,8 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
 
     const getRelatedNcTitle = (ncId) => {
         if (!ncId) return null;
-        const nc = nonConformities?.find(n => n.id === ncId);
-        return nc ? nc.nc_number || nc.title : null;
+        const nc = supplierNonConformities?.find(n => n.id === ncId);
+        return nc ? nc.nc_number || `NC-${nc.id?.substring(0, 8)}` : null;
     };
 
     const getRelatedAuditTitle = (auditId) => {
