@@ -242,14 +242,75 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
             }
         }, [toast]);
 
+        // Dosya adını normalize et ve güvenli hale getir
+        const normalizeFileName = (fileName) => {
+            if (!fileName) return 'file';
+            
+            const turkishToAscii = {
+                'ç': 'c', 'Ç': 'C', 'ğ': 'g', 'Ğ': 'G', 'ı': 'i', 'İ': 'I',
+                'ö': 'o', 'Ö': 'O', 'ş': 's', 'Ş': 'S', 'ü': 'u', 'Ü': 'U'
+            };
+            
+            let normalized = fileName;
+            Object.keys(turkishToAscii).forEach(key => {
+                normalized = normalized.replace(new RegExp(key, 'g'), turkishToAscii[key]);
+            });
+            
+            const lastDotIndex = normalized.lastIndexOf('.');
+            let name = normalized;
+            let ext = '';
+            
+            if (lastDotIndex > 0 && lastDotIndex < normalized.length - 1) {
+                name = normalized.substring(0, lastDotIndex);
+                ext = normalized.substring(lastDotIndex + 1);
+            }
+            
+            name = name.replace(/[^a-zA-Z0-9\-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+            ext = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            
+            if (!ext || ext.length === 0) {
+                const originalLastDot = fileName.lastIndexOf('.');
+                if (originalLastDot > 0 && originalLastDot < fileName.length - 1) {
+                    ext = fileName.substring(originalLastDot + 1).toLowerCase();
+                }
+            }
+            
+            if (!ext || ext.length === 0) ext = 'file';
+            if (!name || name.length === 0) name = 'file';
+            
+            return `${name}.${ext}`;
+        };
+
+        const createSafeFilePath = (originalFileName, recordId) => {
+            const normalizedName = normalizeFileName(originalFileName);
+            const timestamp = Date.now();
+            const randomStr = Math.random().toString(36).substring(2, 9);
+            const safeFileName = `${timestamp}-${randomStr}-${normalizedName}`;
+            const safeRecordId = String(recordId || 'unknown').replace(/[^a-zA-Z0-9\-_]/g, '-');
+            return `${safeRecordId}/${safeFileName}`;
+        };
+
         const handleSaveNC = async (formData, files) => {
           const isEditMode = !!formData.id;
           let uploadedFilePaths = formData.attachments || [];
           if (files && files.length > 0) {
               const recordId = formData.id || uuidv4();
-              const uploadPromises = files.map(file => {
-                  const filePath = `${recordId}/${uuidv4()}-${file.name}`;
-                  return supabase.storage.from('df_attachments').upload(filePath, file, { contentType: file.type });
+              const uploadPromises = files.map(async (file) => {
+                  const originalFileName = file.name || 'unnamed-file';
+                  const filePath = createSafeFilePath(originalFileName, recordId);
+                  
+                  try {
+                      const { data, error } = await supabase.storage
+                          .from('df_attachments')
+                          .upload(filePath, file, {
+                              contentType: file.type || 'application/octet-stream',
+                              cacheControl: '3600',
+                              upsert: false
+                          });
+                      return { data, error };
+                  } catch (err) {
+                      return { data: null, error: err };
+                  }
               });
               const uploadResults = await Promise.all(uploadPromises);
               const uploadErrors = uploadResults.filter(res => res.error);

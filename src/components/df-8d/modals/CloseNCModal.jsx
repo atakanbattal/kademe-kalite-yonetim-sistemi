@@ -15,6 +15,68 @@ const CloseNCModal = ({ isOpen, setIsOpen, record, onSave }) => {
     const [files, setFiles] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Dosya adını normalize et ve güvenli hale getir
+    const normalizeFileName = (fileName) => {
+        if (!fileName) return 'file';
+        
+        // Türkçe karakterleri ASCII'ye çevir
+        const turkishToAscii = {
+            'ç': 'c', 'Ç': 'C',
+            'ğ': 'g', 'Ğ': 'G',
+            'ı': 'i', 'İ': 'I',
+            'ö': 'o', 'Ö': 'O',
+            'ş': 's', 'Ş': 'S',
+            'ü': 'u', 'Ü': 'U'
+        };
+        
+        let normalized = fileName;
+        Object.keys(turkishToAscii).forEach(key => {
+            normalized = normalized.replace(new RegExp(key, 'g'), turkishToAscii[key]);
+        });
+        
+        // Dosya adını ve uzantısını ayır
+        const lastDotIndex = normalized.lastIndexOf('.');
+        let name = normalized;
+        let ext = '';
+        
+        if (lastDotIndex > 0 && lastDotIndex < normalized.length - 1) {
+            name = normalized.substring(0, lastDotIndex);
+            ext = normalized.substring(lastDotIndex + 1);
+        }
+        
+        // Özel karakterleri temizle ve boşlukları tire ile değiştir
+        name = name
+            .replace(/[^a-zA-Z0-9\-_]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+        
+        // Uzantıyı temizle
+        ext = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        
+        // Eğer uzantı yoksa orijinal dosyadan al
+        if (!ext || ext.length === 0) {
+            const originalLastDot = fileName.lastIndexOf('.');
+            if (originalLastDot > 0 && originalLastDot < fileName.length - 1) {
+                ext = fileName.substring(originalLastDot + 1).toLowerCase();
+            }
+        }
+        
+        if (!ext || ext.length === 0) ext = 'file';
+        if (!name || name.length === 0) name = 'file';
+        
+        return `${name}.${ext}`;
+    };
+
+    // Güvenli dosya yolu oluştur
+    const createSafeFilePath = (originalFileName, recordId) => {
+        const normalizedName = normalizeFileName(originalFileName);
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(2, 9);
+        const safeFileName = `${timestamp}-${randomStr}-${normalizedName}`;
+        const safeRecordId = String(recordId || 'unknown').replace(/[^a-zA-Z0-9\-_]/g, '-');
+        return `nc_closing_attachments/${safeRecordId}/${safeFileName}`;
+    };
+
     const onDrop = useCallback(acceptedFiles => {
         setFiles(prev => [...prev, ...acceptedFiles.map(file => Object.assign(file, {
             preview: URL.createObjectURL(file)
@@ -43,9 +105,22 @@ const CloseNCModal = ({ isOpen, setIsOpen, record, onSave }) => {
         let closing_attachments = record.closing_attachments || [];
 
         if (files.length > 0) {
-            const uploadPromises = files.map(file => {
-                const filePath = `nc_closing_attachments/${record.id}/${uuidv4()}-${file.name}`;
-                return supabase.storage.from('df_attachments').upload(filePath, file);
+            const uploadPromises = files.map(async (file) => {
+                const originalFileName = file.name || 'unnamed-file';
+                const filePath = createSafeFilePath(originalFileName, record.id);
+                
+                try {
+                    const { data, error } = await supabase.storage
+                        .from('df_attachments')
+                        .upload(filePath, file, {
+                            cacheControl: '3600',
+                            upsert: false,
+                            contentType: file.type || 'application/octet-stream'
+                        });
+                    return { data, error };
+                } catch (err) {
+                    return { data: null, error: err };
+                }
             });
             const uploadResults = await Promise.all(uploadPromises);
 
