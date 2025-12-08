@@ -71,7 +71,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             // Debug: Tüm dokümanları logla
             console.log('🔍 Documents modülü - Tüm dokümanlar:', documents);
             console.log('🔍 Aktif tab:', activeTab);
-            console.log('🔍 Doküman tipleri:', documents.map(d => d.document_type));
+            if (documents && documents.length > 0) {
+                console.log('🔍 Doküman tipleri:', [...new Set(documents.map(d => d.document_type).filter(Boolean))]);
+                console.log('🔍 İlk doküman örneği:', documents[0]);
+            } else {
+                console.log('⚠️ Doküman listesi boş!');
+            }
             
             let docs = documents
                 .filter(doc => {
@@ -99,7 +104,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 const lowercasedFilter = searchTerm.toLowerCase();
                 docs = docs.filter(doc => {
                     const titleMatch = doc.title?.toLowerCase().includes(lowercasedFilter);
-                    const personnelMatch = activeTab === 'Personel Sertifikaları' && doc.personnel?.full_name?.toLowerCase().includes(lowercasedFilter);
+                    const personnelMatch = activeTab === 'Personel Sertifikaları' && (
+                        doc.personnel?.full_name?.toLowerCase().includes(lowercasedFilter) ||
+                        doc.owner?.full_name?.toLowerCase().includes(lowercasedFilter)
+                    );
                     return titleMatch || personnelMatch;
                 });
             }
@@ -268,7 +276,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                                         <div>{doc.title}</div>
                                                         <div className="text-xs text-muted-foreground">{doc.document_number}</div>
                                                     </td>
-                                                    {activeTab === 'Personel Sertifikaları' && <td>{doc.personnel?.full_name || 'N/A'}</td>}
+                                                    {activeTab === 'Personel Sertifikaları' && <td>{doc.personnel?.full_name || doc.owner?.full_name || 'N/A'}</td>}
                                                     <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
                                                     <td className="text-muted-foreground">{revision ? format(new Date(revision.publish_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
