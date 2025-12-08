@@ -561,11 +561,11 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                     </SelectTrigger>
                                     <SelectContent className="z-[100]">
                                         <SelectItem value="none">Yok</SelectItem>
-                                        {selectedSupplier && supplierNonConformities
+                                        {selectedSupplier && nonConformities
                                             ?.filter(nc => nc.supplier_id === selectedSupplier.id)
                                             .map(nc => (
                                                 <SelectItem key={nc.id} value={nc.id}>
-                                                    {nc.nc_number || `NC-${nc.id?.substring(0, 8)}`}
+                                                    {nc.nc_number || nc.title || `NC-${nc.id?.substring(0, 8)}`}
                                                 </SelectItem>
                                             ))}
                                     </SelectContent>
