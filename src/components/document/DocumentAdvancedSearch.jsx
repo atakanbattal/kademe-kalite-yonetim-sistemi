@@ -133,14 +133,14 @@ const DocumentAdvancedSearch = ({ onSearchChange, onFilterChange }) => {
                             <div>
                                 <Label>Birim</Label>
                                 <Select
-                                    value={filters.department_id || ''}
-                                    onValueChange={(value) => handleFilterChange('department_id', value || null)}
+                                    value={filters.department_id || '__all__'}
+                                    onValueChange={(value) => handleFilterChange('department_id', value === '__all__' ? null : value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Tüm birimler" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Tüm birimler</SelectItem>
+                                        <SelectItem value="__all__">Tüm birimler</SelectItem>
                                         {productionDepartments.map(dept => (
                                             <SelectItem key={dept.id} value={dept.id}>
                                                 {dept.unit_name}
@@ -153,14 +153,14 @@ const DocumentAdvancedSearch = ({ onSearchChange, onFilterChange }) => {
                             <div>
                                 <Label>Doküman Tipi</Label>
                                 <Select
-                                    value={filters.document_type || ''}
-                                    onValueChange={(value) => handleFilterChange('document_type', value || null)}
+                                    value={filters.document_type || '__all__'}
+                                    onValueChange={(value) => handleFilterChange('document_type', value === '__all__' ? null : value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Tüm tipler" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Tüm tipler</SelectItem>
+                                        <SelectItem value="__all__">Tüm tipler</SelectItem>
                                         <SelectItem value="Prosedürler">Prosedürler</SelectItem>
                                         <SelectItem value="Talimatlar">Talimatlar</SelectItem>
                                         <SelectItem value="Formlar">Formlar</SelectItem>
@@ -183,14 +183,14 @@ const DocumentAdvancedSearch = ({ onSearchChange, onFilterChange }) => {
                             <div>
                                 <Label>Onay Durumu</Label>
                                 <Select
-                                    value={filters.approval_status || ''}
-                                    onValueChange={(value) => handleFilterChange('approval_status', value || null)}
+                                    value={filters.approval_status || '__all__'}
+                                    onValueChange={(value) => handleFilterChange('approval_status', value === '__all__' ? null : value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Tüm durumlar" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Tüm durumlar</SelectItem>
+                                        <SelectItem value="__all__">Tüm durumlar</SelectItem>
                                         <SelectItem value="Taslak">Taslak</SelectItem>
                                         <SelectItem value="Onay Bekliyor">Onay Bekliyor</SelectItem>
                                         <SelectItem value="Onaylandı">Onaylandı</SelectItem>
@@ -203,14 +203,14 @@ const DocumentAdvancedSearch = ({ onSearchChange, onFilterChange }) => {
                             <div>
                                 <Label>Sınıflandırma</Label>
                                 <Select
-                                    value={filters.classification || ''}
-                                    onValueChange={(value) => handleFilterChange('classification', value || null)}
+                                    value={filters.classification || '__all__'}
+                                    onValueChange={(value) => handleFilterChange('classification', value === '__all__' ? null : value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Tüm sınıflandırmalar" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Tüm sınıflandırmalar</SelectItem>
+                                        <SelectItem value="__all__">Tüm sınıflandırmalar</SelectItem>
                                         <SelectItem value="Genel">Genel</SelectItem>
                                         <SelectItem value="İç Kullanım">İç Kullanım</SelectItem>
                                         <SelectItem value="Gizli">Gizli</SelectItem>
@@ -222,14 +222,14 @@ const DocumentAdvancedSearch = ({ onSearchChange, onFilterChange }) => {
                             <div>
                                 <Label>Doküman Sahibi</Label>
                                 <Select
-                                    value={filters.owner_id || ''}
-                                    onValueChange={(value) => handleFilterChange('owner_id', value || null)}
+                                    value={filters.owner_id || '__all__'}
+                                    onValueChange={(value) => handleFilterChange('owner_id', value === '__all__' ? null : value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Tüm personel" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Tüm personel</SelectItem>
+                                        <SelectItem value="__all__">Tüm personel</SelectItem>
                                         {personnel.map(p => (
                                             <SelectItem key={p.id} value={p.id}>
                                                 {p.full_name}

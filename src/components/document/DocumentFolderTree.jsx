@@ -455,14 +455,14 @@ const DocumentFolderTree = ({
                         <div>
                             <Label>Üst Klasör</Label>
                             <Select
-                                value={folderFormData.parent_folder_id || ''}
-                                onValueChange={(value) => setFolderFormData(prev => ({ ...prev, parent_folder_id: value || null }))}
+                                value={folderFormData.parent_folder_id || '__root__'}
+                                onValueChange={(value) => setFolderFormData(prev => ({ ...prev, parent_folder_id: value === '__root__' ? null : value }))}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Üst klasör seçin (opsiyonel)" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Kök Klasör</SelectItem>
+                                    <SelectItem value="__root__">Kök Klasör</SelectItem>
                                     {availableParentFolders.map(folder => (
                                         <SelectItem key={folder.id} value={folder.id}>
                                             {folder.folder_path || folder.folder_name}

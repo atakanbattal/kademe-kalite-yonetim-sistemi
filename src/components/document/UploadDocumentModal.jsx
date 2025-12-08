@@ -299,9 +299,9 @@ import { Badge } from '@/components/ui/badge';
                         <div>
                             <Label htmlFor="department_id">Birim</Label>
                             <Select
-                                value={formData.department_id || ''}
+                                value={formData.department_id || '__none__'}
                                 onValueChange={(value) => {
-                                    handleSelectChange('department_id', value);
+                                    handleSelectChange('department_id', value === '__none__' ? null : value);
                                     handleSelectChange('supplier_id', null);
                                     loadFolders();
                                 }}
@@ -310,7 +310,7 @@ import { Badge } from '@/components/ui/badge';
                                     <SelectValue placeholder="Birim seçin..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Birim seçin</SelectItem>
+                                    <SelectItem value="__none__">Birim seçin</SelectItem>
                                     {productionDepartments.map(dept => (
                                         <SelectItem key={dept.id} value={dept.id}>
                                             {dept.unit_name}
@@ -323,15 +323,15 @@ import { Badge } from '@/components/ui/badge';
                         <div>
                             <Label htmlFor="folder_id">Klasör</Label>
                             <Select
-                                value={formData.folder_id || ''}
-                                onValueChange={(value) => handleSelectChange('folder_id', value)}
+                                value={formData.folder_id || '__none__'}
+                                onValueChange={(value) => handleSelectChange('folder_id', value === '__none__' ? null : value)}
                                 disabled={!formData.department_id && !formData.supplier_id}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Klasör seçin (opsiyonel)" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Klasör seçin</SelectItem>
+                                    <SelectItem value="__none__">Klasör seçin</SelectItem>
                                     {folders.map(folder => (
                                         <SelectItem key={folder.id} value={folder.id}>
                                             {folder.folder_path || folder.folder_name}
@@ -393,8 +393,8 @@ import { Badge } from '@/components/ui/badge';
                         <div>
                             <Label htmlFor="owner_id">Doküman Sahibi</Label>
                             <Select
-                                value={formData.owner_id || ''}
-                                onValueChange={(value) => handleSelectChange('owner_id', value)}
+                                value={formData.owner_id || '__none__'}
+                                onValueChange={(value) => handleSelectChange('owner_id', value === '__none__' ? null : value)}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Sahip seçin (opsiyonel)" />
