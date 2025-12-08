@@ -95,9 +95,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 })
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
             
-            console.log(`✅ Filtrelenmiş dokümanlar (${activeTab}):`, docs.length);
-            return docs;
-
             if (searchTerm) {
                 const lowercasedFilter = searchTerm.toLowerCase();
                 docs = docs.filter(doc => {
@@ -106,6 +103,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                     return titleMatch || personnelMatch;
                 });
             }
+            
+            console.log(`✅ Filtrelenmiş dokümanlar (${activeTab}):`, docs.length);
             return docs;
         }, [documents, activeTab, searchTerm]);
         
