@@ -56,7 +56,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
     // Tedarikçi seçildiğinde veya filtreler değiştiğinde dokümanları yükle
     useEffect(() => {
         loadDocuments();
-    }, [selectedSupplier, filterType, filterStatus]);
+    }, [selectedSupplier, filterType, filterStatus, searchTerm]);
 
     const loadDocuments = async () => {
         setLoading(true);
