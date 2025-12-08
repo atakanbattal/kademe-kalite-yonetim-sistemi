@@ -9,6 +9,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import UploadDocumentModal from '@/components/document/UploadDocumentModal';
     import { Badge } from '@/components/ui/badge';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+    import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { useData } from '@/contexts/DataContext';
@@ -77,10 +78,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
     const DocumentModule = () => {
         const { toast } = useToast();
-        const { documents, personnel, loading, refreshData } = useData();
+        const { documents, personnel, loading, refreshData, unitCostSettings } = useData();
         const [isUploadModalOpen, setUploadModalOpen] = useState(false);
         const [editingDocument, setEditingDocument] = useState(null);
         const [searchTerm, setSearchTerm] = useState('');
+        const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
         const [activeTab, setActiveTab] = useState(DOCUMENT_CATEGORIES[0].value);
         const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
 
@@ -130,6 +132,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 })
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
             
+            // Birim filtresi (sadece Prosedürler, Talimatlar ve Formlar için)
+            if (selectedDepartmentId && (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar')) {
+                docs = docs.filter(doc => doc.department_id === selectedDepartmentId);
+            }
+            
             if (searchTerm) {
                 const lowercasedFilter = searchTerm.toLowerCase();
                 docs = docs.filter(doc => {
@@ -144,7 +151,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             
             console.log(`✅ Filtrelenmiş dokümanlar (${activeTab}):`, docs.length);
             return docs;
-        }, [documents, activeTab, searchTerm]);
+        }, [documents, activeTab, searchTerm, selectedDepartmentId]);
         
         const downloadPdf = async (revision, fileName, documentType) => {
             let filePath = revision?.attachments?.[0]?.path;
@@ -223,6 +230,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
         const currentCategory = DOCUMENT_CATEGORIES.find(c => c.value === activeTab);
 
+        // Tab değiştiğinde birim filtresini sıfırla
+        useEffect(() => {
+            setSelectedDepartmentId('');
+        }, [activeTab]);
+
         return (
             <div className="space-y-6">
                 <UploadDocumentModal 
@@ -263,14 +275,31 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                     <TabsContent value={activeTab} className="pt-6">
                         <div className="dashboard-widget">
                              <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                                <div className="relative w-full sm:max-w-sm">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input 
-                                        placeholder="Doküman veya personel adı ile ara..." 
-                                        className="pl-10"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
+                                <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                                    <div className="relative w-full sm:max-w-sm">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input 
+                                            placeholder="Doküman veya personel adı ile ara..." 
+                                            className="pl-10"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    {(activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') && (
+                                        <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
+                                            <SelectTrigger className="w-full sm:w-[200px]">
+                                                <SelectValue placeholder="Birim seçin..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="">Tüm Birimler</SelectItem>
+                                                {unitCostSettings && unitCostSettings.map((dept) => (
+                                                    <SelectItem key={dept.id} value={dept.id}>
+                                                        {dept.unit_name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
                                 </div>
                                 <Button onClick={() => handleOpenUploadModal()} className="w-full sm:w-auto">
                                     <Plus className="w-4 h-4 mr-2" /> {currentCategory?.addText || 'Yeni Doküman Ekle'}
@@ -286,15 +315,16 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                             {(activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') && <th>Birim</th>}
                                             <th>Versiyon</th>
                                             <th>Yayın Tarihi</th>
+                                            <th>Revizyon Tarihi</th>
                                             <th>Geçerlilik Durumu</th>
                                             <th>İşlemler</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' || (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') ? '7' : '6'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') ? '8' : '7'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
                                         ) : filteredDocuments.length === 0 ? (
-                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' || (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') ? '7' : '6'} className="text-center py-8 text-muted-foreground">Bu kategoride doküman bulunmuyor.</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') ? '8' : '7'} className="text-center py-8 text-muted-foreground">Bu kategoride doküman bulunmuyor.</td></tr>
                                         ) : (
                                             filteredDocuments.map((doc, index) => {
                                                 const revision = doc.document_revisions;
@@ -318,6 +348,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                                     )}
                                                     <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
                                                     <td className="text-muted-foreground">{revision ? format(new Date(revision.publish_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
+                                                    <td className="text-muted-foreground">{revision?.created_at ? format(new Date(revision.created_at), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
                                                     <td className="flex items-center gap-2">
                                                         <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>

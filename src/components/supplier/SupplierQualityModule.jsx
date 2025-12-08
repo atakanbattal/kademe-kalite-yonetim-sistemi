@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { motion } from 'framer-motion';
-    import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle } from 'lucide-react';
+    import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
     import { useData } from '@/contexts/DataContext';
 
-    import SupplierDashboard from '@/components/supplier/SupplierDashboard';
-    import SupplierList from '@/components/supplier/SupplierList';
-    import SupplierFilters from '@/components/supplier/SupplierFilters';
-    import SupplierFormModal from '@/components/supplier/SupplierFormModal';
-    import SupplierNCTab from '@/components/supplier/SupplierNCTab';
-    import AuditTrackingTab from '@/components/supplier/AuditTrackingTab';
-    import SupplierQuestionBank from '@/components/supplier/SupplierQuestionBank';
+import SupplierDashboard from '@/components/supplier/SupplierDashboard';
+import SupplierList from '@/components/supplier/SupplierList';
+import SupplierFilters from '@/components/supplier/SupplierFilters';
+import SupplierFormModal from '@/components/supplier/SupplierFormModal';
+import SupplierNCTab from '@/components/supplier/SupplierNCTab';
+import AuditTrackingTab from '@/components/supplier/AuditTrackingTab';
+import SupplierQuestionBank from '@/components/supplier/SupplierQuestionBank';
+import SupplierDocumentsTab from '@/components/supplier/SupplierDocumentsTab';
 
 
     const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) => {
@@ -99,12 +100,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
           </div>
           
           <Tabs defaultValue="dashboard" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="dashboard"><BarChart className="w-4 h-4 mr-2" />Genel Bakış</TabsTrigger>
                 <TabsTrigger value="list"><List className="w-4 h-4 mr-2" />Tedarikçi Listesi</TabsTrigger>
                 <TabsTrigger value="audits"><CalendarCheck className="w-4 h-4 mr-2" />Denetim Takibi</TabsTrigger>
                 <TabsTrigger value="question-bank"><HelpCircle className="w-4 h-4 mr-2" />Soru Bankası</TabsTrigger>
                 <TabsTrigger value="ncs"><AlertTriangle className="w-4 h-4 mr-2" />Uygunsuzluklar & DF</TabsTrigger>
+                <TabsTrigger value="documents"><FileText className="w-4 h-4 mr-2" />Dokümanlar</TabsTrigger>
             </TabsList>
             <TabsContent value="dashboard" className="mt-6">
                 <SupplierDashboard 
@@ -146,6 +148,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                   loading={loading} 
                   onOpenNCForm={onOpenNCForm}
                   onOpenNCView={onOpenNCView}
+                />
+            </TabsContent>
+            <TabsContent value="documents" className="mt-6">
+                <SupplierDocumentsTab 
+                  suppliers={suppliers} 
+                  loading={loading} 
+                  refreshData={refreshData}
                 />
             </TabsContent>
           </Tabs>
