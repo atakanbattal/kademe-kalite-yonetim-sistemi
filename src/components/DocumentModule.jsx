@@ -307,15 +307,17 @@ const DocumentModule = () => {
                                 </TabsList>
 
                                 <TabsContent value="all" className="mt-0">
-                                    <DocumentFolderTree
-                                        selectedFolderId={selectedFolderId}
-                                        onFolderSelect={(id) => {
-                                            setSelectedFolderId(id);
-                                            setSelectedDepartmentId(null);
-                                            setSelectedSupplierId(null);
-                                        }}
-                                        refreshTrigger={0}
-                                    />
+                                    {activeTab === 'all' && (
+                                        <DocumentFolderTree
+                                            selectedFolderId={selectedFolderId}
+                                            onFolderSelect={(id) => {
+                                                setSelectedFolderId(id);
+                                                setSelectedDepartmentId(null);
+                                                setSelectedSupplierId(null);
+                                            }}
+                                            refreshTrigger={0}
+                                        />
+                                    )}
                                 </TabsContent>
 
                                 <TabsContent value="departments" className="mt-0">
@@ -341,7 +343,7 @@ const DocumentModule = () => {
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {selectedDepartmentId && (
+                                        {selectedDepartmentId && activeTab === 'departments' && (
                                             <DocumentFolderTree
                                                 selectedFolderId={selectedFolderId}
                                                 onFolderSelect={(id) => {
@@ -378,7 +380,7 @@ const DocumentModule = () => {
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {selectedSupplierId && (
+                                        {selectedSupplierId && activeTab === 'suppliers' && (
                                             <DocumentFolderTree
                                                 selectedFolderId={selectedFolderId}
                                                 onFolderSelect={(id) => {

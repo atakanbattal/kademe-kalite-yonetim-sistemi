@@ -61,6 +61,7 @@ const DocumentFolderTree = ({
 
     useEffect(() => {
         loadFolders();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [departmentId, supplierId, refreshTrigger]);
 
     const loadFolders = async () => {
