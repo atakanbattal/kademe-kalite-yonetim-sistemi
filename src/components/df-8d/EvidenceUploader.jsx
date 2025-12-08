@@ -18,6 +18,88 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
     const [previewUrl, setPreviewUrl] = useState(null);
     const [previewType, setPreviewType] = useState(null);
 
+    // Dosya adını normalize et ve güvenli hale getir
+    const normalizeFileName = (fileName) => {
+        if (!fileName) return 'file';
+        
+        // Türkçe karakterleri ASCII'ye çevir
+        const turkishToAscii = {
+            'ç': 'c', 'Ç': 'C',
+            'ğ': 'g', 'Ğ': 'G',
+            'ı': 'i', 'İ': 'I',
+            'ö': 'o', 'Ö': 'O',
+            'ş': 's', 'Ş': 'S',
+            'ü': 'u', 'Ü': 'U'
+        };
+        
+        let normalized = fileName;
+        Object.keys(turkishToAscii).forEach(key => {
+            normalized = normalized.replace(new RegExp(key, 'g'), turkishToAscii[key]);
+        });
+        
+        // Dosya adını ve uzantısını ayır
+        const lastDotIndex = normalized.lastIndexOf('.');
+        let name = normalized;
+        let ext = '';
+        
+        if (lastDotIndex > 0 && lastDotIndex < normalized.length - 1) {
+            name = normalized.substring(0, lastDotIndex);
+            ext = normalized.substring(lastDotIndex + 1);
+        }
+        
+        // Özel karakterleri temizle ve boşlukları tire ile değiştir
+        name = name
+            .replace(/[^a-zA-Z0-9\-_]/g, '-') // Sadece harf, rakam, tire ve alt çizgi bırak
+            .replace(/-+/g, '-') // Birden fazla tireyi tek tireye çevir
+            .replace(/^-|-$/g, ''); // Başta ve sonda tire varsa kaldır
+        
+        // Uzantıyı temizle
+        ext = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        
+        // Eğer uzantı yoksa veya geçersizse, orijinal dosyadan al
+        if (!ext || ext.length === 0) {
+            const originalLastDot = fileName.lastIndexOf('.');
+            if (originalLastDot > 0 && originalLastDot < fileName.length - 1) {
+                ext = fileName.substring(originalLastDot + 1).toLowerCase();
+            }
+        }
+        
+        // Eğer hala uzantı yoksa varsayılan ekle
+        if (!ext || ext.length === 0) {
+            ext = 'file';
+        }
+        
+        // Eğer isim boşsa varsayılan isim kullan
+        if (!name || name.length === 0) {
+            name = 'file';
+        }
+        
+        return `${name}.${ext}`;
+    };
+
+    // Güvenli dosya yolu oluştur
+    const createSafeFilePath = (originalFileName, ncId, stepKey) => {
+        const normalizedName = normalizeFileName(originalFileName);
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(2, 9);
+        const safeFileName = `${timestamp}-${randomStr}-${normalizedName}`;
+        
+        // ncId ve stepKey'i de güvenli hale getir
+        const safeNcId = String(ncId || 'unknown').replace(/[^a-zA-Z0-9\-_]/g, '-');
+        const safeStepKey = String(stepKey || 'step').replace(/[^a-zA-Z0-9\-_]/g, '-');
+        
+        return `nc-evidence/${safeNcId}/${safeStepKey}/${safeFileName}`;
+    };
+
+    // Dosya boyutunu formatla
+    const formatFileSize = (bytes) => {
+        if (!bytes) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    };
+
     useEffect(() => {
         if (evidenceFiles && evidenceFiles.length > 0) {
             setFiles(evidenceFiles);
@@ -26,19 +108,48 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
 
     const handleFileSelect = (e) => {
         const selectedFiles = Array.from(e.target.files);
-        const validFiles = selectedFiles.filter(file => {
+        const validFiles = [];
+        const errors = [];
+        
+        selectedFiles.forEach(file => {
+            // Dosya adı kontrolü
+            if (!file.name || file.name.trim().length === 0) {
+                errors.push('Geçersiz dosya adı');
+                return;
+            }
+            
+            // Dosya boyutu kontrolü
             const maxSize = 50 * 1024 * 1024; // 50 MB
             if (file.size > maxSize) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Dosya çok büyük',
-                    description: `${file.name} dosyası 50 MB'dan büyük olamaz.`
-                });
-                return false;
+                errors.push(`${file.name} dosyası 50 MB'dan büyük (${formatFileSize(file.size)})`);
+                return;
             }
-            return true;
+            
+            // Boş dosya kontrolü
+            if (file.size === 0) {
+                errors.push(`${file.name} dosyası boş`);
+                return;
+            }
+            
+            validFiles.push(file);
         });
-        setFiles(prev => [...prev, ...validFiles.map(f => ({ file: f, uploaded: false, path: null }))]);
+        
+        // Hataları göster
+        if (errors.length > 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Dosya seçim hatası',
+                description: errors.slice(0, 3).join(', ') + (errors.length > 3 ? ` ve ${errors.length - 3} hata daha...` : '')
+            });
+        }
+        
+        // Geçerli dosyaları ekle
+        if (validFiles.length > 0) {
+            setFiles(prev => [...prev, ...validFiles.map(f => ({ file: f, uploaded: false, path: null }))]);
+        }
+        
+        // Input'u temizle (aynı dosyayı tekrar seçebilmek için)
+        e.target.value = '';
     };
 
     const handleUpload = async () => {
@@ -55,20 +166,61 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                 }
 
                 const file = fileData.file;
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-                const filePath = `nc-evidence/${ncId}/${stepKey}/${fileName}`;
+                const originalFileName = file.name || 'unnamed-file';
+                
+                // Güvenli dosya yolu oluştur
+                let filePath = createSafeFilePath(originalFileName, ncId, stepKey);
 
-                // Dosyayı storage'a yükle
-                const { error: uploadError } = await supabase.storage
-                    .from('df_attachments')
-                    .upload(filePath, file, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
+                // Dosyayı storage'a yükle - encoding sorunlarını önlemek için File nesnesini doğrudan kullan
+                let uploadError = null;
+                try {
+                    const { error } = await supabase.storage
+                        .from('df_attachments')
+                        .upload(filePath, file, {
+                            cacheControl: '3600',
+                            upsert: false,
+                            contentType: file.type || 'application/octet-stream'
+                        });
+                    uploadError = error;
+                } catch (err) {
+                    uploadError = err;
+                }
 
                 if (uploadError) {
-                    throw new Error(`${file.name} yüklenemedi: ${uploadError.message}`);
+                    // Daha detaylı hata mesajı
+                    const errorMessage = uploadError.message || 'Bilinmeyen hata';
+                    console.error('Dosya yükleme hatası:', {
+                        fileName: originalFileName,
+                        filePath,
+                        error: uploadError,
+                        fileSize: file.size,
+                        fileType: file.type
+                    });
+                    
+                    // Eğer dosya adı sorunluysa, tekrar normalize et ve dene
+                    if (errorMessage.includes('Invalid') || errorMessage.includes('invalid') || errorMessage.includes('path')) {
+                        const retryFilePath = createSafeFilePath(`file-${Date.now()}`, ncId, stepKey);
+                        try {
+                            const { error: retryError } = await supabase.storage
+                                .from('df_attachments')
+                                .upload(retryFilePath, file, {
+                                    cacheControl: '3600',
+                                    upsert: false,
+                                    contentType: file.type || 'application/octet-stream'
+                                });
+                            
+                            if (retryError) {
+                                throw new Error(`${originalFileName} yüklenemedi: ${retryError.message}`);
+                            }
+                            
+                            // Retry başarılı, filePath'i güncelle
+                            filePath = retryFilePath;
+                        } catch (retryErr) {
+                            throw new Error(`${originalFileName} yüklenemedi: ${retryErr.message || errorMessage}`);
+                        }
+                    } else {
+                        throw new Error(`${originalFileName} yüklenemedi: ${errorMessage}`);
+                    }
                 }
 
                 // Public URL al
@@ -165,14 +317,6 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
         return <FileText className="h-5 w-5" />;
     };
 
-    const formatFileSize = (bytes) => {
-        if (!bytes) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-    };
-
     return (
         <>
             <Card className="mt-4">
@@ -187,7 +331,7 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                         <Input
                             type="file"
                             multiple
-                            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.tar,.gz"
                             onChange={handleFileSelect}
                             className="flex-1"
                             disabled={uploading}
