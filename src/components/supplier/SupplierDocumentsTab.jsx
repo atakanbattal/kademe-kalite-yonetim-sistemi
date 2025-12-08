@@ -540,7 +540,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                         <SelectValue placeholder="Seçiniz (opsiyonel)" />
                                     </SelectTrigger>
                                     <SelectContent className="z-[100]">
-                                        <SelectItem value="">Yok</SelectItem>
+                                        <SelectItem value="none">Yok</SelectItem>
                                         {nonConformities
                                             ?.filter(nc => nc.supplier_id === selectedSupplier?.id)
                                             .map(nc => (
@@ -558,7 +558,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                         <SelectValue placeholder="Seçiniz (opsiyonel)" />
                                     </SelectTrigger>
                                     <SelectContent className="z-[100]">
-                                        <SelectItem value="">Yok</SelectItem>
+                                        <SelectItem value="none">Yok</SelectItem>
                                         {supplierAuditPlans
                                             ?.filter(audit => audit.supplier_id === selectedSupplier?.id)
                                             .map(audit => (
