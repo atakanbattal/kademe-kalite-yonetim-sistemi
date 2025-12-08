@@ -1680,10 +1680,24 @@ const generatePrintableReportHtml = (record, type) => {
 			
 			.signature-box {
 				padding: 8px !important;
+				display: flex !important;
+				flex-direction: column !important;
+				align-items: center !important;
 			}
 			
 			.signature-box .role {
 				font-size: 8px !important;
+				min-height: 32px !important;
+				display: flex !important;
+				align-items: flex-start !important;
+				justify-content: center !important;
+				margin-bottom: 0 !important;
+				text-align: center;
+			}
+			
+			.signature-line {
+				margin-top: 8px !important;
+				width: 100% !important;
 			}
 			
 			/* PRINT - AYNI AYARLAR */
@@ -1784,10 +1798,24 @@ const generatePrintableReportHtml = (record, type) => {
 				
 				.signature-box {
 					padding: 8px !important;
+					display: flex !important;
+					flex-direction: column !important;
+					align-items: center !important;
 				}
 				
 				.signature-box .role {
 					font-size: 8px !important;
+					min-height: 32px !important;
+					display: flex !important;
+					align-items: flex-start !important;
+					justify-content: center !important;
+					margin-bottom: 0 !important;
+					text-align: center;
+				}
+				
+				.signature-line {
+					margin-top: 8px !important;
+					width: 100% !important;
 				}
 				
 				/* Footer print için */
@@ -2087,17 +2115,27 @@ const generatePrintableReportHtml = (record, type) => {
 			flex: 1;
 			min-width: 0;
 			visibility: visible !important;
-			display: block !important;
+			display: flex !important;
+			flex-direction: column !important;
+			align-items: center !important;
 		}
 		.signature-box .role { 
 			font-weight: 600; 
 			font-size: 10px; 
-			margin-bottom: 5px;
+			margin-bottom: 0;
 			visibility: visible !important;
+			text-align: center;
+			min-height: 40px;
+			display: flex;
+			align-items: flex-start;
+			justify-content: center;
+			padding: 0 4px;
 		}
 		.signature-line { 
 			border-bottom: 1px solid #9ca3af; 
+			margin-top: 8px;
 			margin-bottom: 5px; 
+			width: 100%;
 			height: 20px;
 			visibility: visible !important;
 		}
@@ -2107,6 +2145,7 @@ const generatePrintableReportHtml = (record, type) => {
 			margin: 0; 
 			min-height: 16px;
 			visibility: visible !important;
+			text-align: center;
 		}
 		.signature-box .title { 
 			font-size: 9px; 
