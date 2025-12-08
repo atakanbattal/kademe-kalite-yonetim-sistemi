@@ -36,7 +36,7 @@ const BUCKET_NAME = 'supplier_documents';
 const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshData }) => {
     const { toast } = useToast();
     const { user } = useAuth();
-    const { supplierNonConformities, supplierAuditPlans } = useData();
+    const { nonConformities, supplierAuditPlans } = useData();
     const [selectedSupplier, setSelectedSupplier] = useState(null);
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(false);
