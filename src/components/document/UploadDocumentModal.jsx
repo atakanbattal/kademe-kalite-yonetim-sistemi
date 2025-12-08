@@ -16,6 +16,19 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 
     const BUCKET_NAME = 'documents';
 
+    // Doküman tipine göre klasör adı döndürür
+    const getDocumentFolder = (documentType) => {
+        const folderMap = {
+            'Kalite Sertifikaları': 'Kalite-Sertifikalari',
+            'Personel Sertifikaları': 'Personel-Sertifikalari',
+            'Prosedürler': 'documents',
+            'Talimatlar': 'documents',
+            'Formlar': 'documents',
+            'Diğer': 'documents',
+        };
+        return folderMap[documentType] || 'documents';
+    };
+
     const UploadDocumentModal = ({ isOpen, setIsOpen, refreshDocuments, existingDocument, categories, preselectedCategory }) => {
         const { toast } = useToast();
         const { user, profile } = useAuth();
@@ -117,7 +130,9 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                          }
                     }
                     const sanitizedFileName = sanitizeFileName(file.name);
-                    const filePath = `${user.id}/${documentId}-${sanitizedFileName}`;
+                    // Doküman tipine göre klasör yapısı oluştur
+                    const folderName = getDocumentFolder(formData.document_type);
+                    const filePath = `${folderName}/${documentId}-${sanitizedFileName}`;
                     const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file);
                     if (uploadError) throw uploadError;
 

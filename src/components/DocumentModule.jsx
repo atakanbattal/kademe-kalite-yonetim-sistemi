@@ -25,6 +25,36 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
     const BUCKET_NAME = 'documents';
 
+    // Doküman tipine göre klasör adı döndürür (Storage klasör yapısına uygun)
+    const getDocumentFolder = (documentType) => {
+        const folderMap = {
+            'Kalite Sertifikaları': 'Kalite-Sertifikalari',
+            'Personel Sertifikaları': 'Personel-Sertifikalari',
+            'Prosedürler': 'documents',
+            'Talimatlar': 'documents',
+            'Formlar': 'documents',
+            'Diğer': 'documents',
+        };
+        return folderMap[documentType] || 'documents';
+    };
+
+    // Eski path formatını yeni klasör yapısına uyarlar (eğer gerekirse)
+    const normalizeDocumentPath = (path, documentType) => {
+        if (!path) return null;
+        // Eğer path zaten klasör yapısında ise (örn: "Kalite-Sertifikalari/..."), olduğu gibi döndür
+        if (path.includes('/') && !path.startsWith('documents/') && !path.includes('Kalite') && !path.includes('Personel')) {
+            // Eski format: "user-id/documentId-filename" -> yeni format: "folder/documentId-filename"
+            const folderName = getDocumentFolder(documentType);
+            const parts = path.split('/');
+            if (parts.length >= 2) {
+                // user-id kısmını klasör adıyla değiştir
+                return `${folderName}/${parts.slice(1).join('/')}`;
+            }
+        }
+        // Eğer path zaten doğru formatta ise, olduğu gibi döndür
+        return path;
+    };
+
     const ValidityStatus = ({ validUntil }) => {
         if (!validUntil) {
             return <Badge variant="secondary">Süresiz</Badge>;
@@ -116,12 +146,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             return docs;
         }, [documents, activeTab, searchTerm]);
         
-        const downloadPdf = async (revision, fileName) => {
-            const filePath = revision?.attachments?.[0]?.path;
+        const downloadPdf = async (revision, fileName, documentType) => {
+            let filePath = revision?.attachments?.[0]?.path;
             if (!filePath) {
                  toast({ variant: 'destructive', title: 'Hata', description: 'İndirilecek dosya yolu bulunamadı.' });
                 return;
             }
+            // Path'i normalize et (eski formatı yeni klasör yapısına uyarla)
+            filePath = normalizeDocumentPath(filePath, documentType);
             const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
             if (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: `Dosya indirilemedi: ${error.message}` });
@@ -159,12 +191,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             setUploadModalOpen(true);
         };
 
-        const handleViewPdf = async (revision, title) => {
-            const filePath = revision?.attachments?.[0]?.path;
+        const handleViewPdf = async (revision, title, documentType) => {
+            let filePath = revision?.attachments?.[0]?.path;
             if (!filePath) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Görüntülenecek dosya yolu bulunamadı.' });
                 return;
             }
+            
+            // Path'i normalize et (eski formatı yeni klasör yapısına uyarla)
+            filePath = normalizeDocumentPath(filePath, documentType);
             
             try {
                 // Download file as blob
@@ -281,8 +316,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                                     <td className="text-muted-foreground">{revision ? format(new Date(revision.publish_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
                                                     <td className="flex items-center gap-2">
-                                                        <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>
-                                                        <Button variant="ghost" size="sm" onClick={() => downloadPdf(revision, fileName)} disabled={!hasFile}><FileDown className="w-4 h-4 mr-1" /> İndir</Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => downloadPdf(revision, fileName, doc.document_type)} disabled={!hasFile}><FileDown className="w-4 h-4 mr-1" /> İndir</Button>
                                                         <Button variant="ghost" size="icon" onClick={() => handleOpenUploadModal(doc)}><Edit className="w-4 h-4" /></Button>
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
