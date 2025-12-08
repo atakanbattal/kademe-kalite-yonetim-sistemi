@@ -474,7 +474,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                             <Label>Doküman Tipi <span className="text-red-500">*</span></Label>
                             <Select value={docType} onValueChange={setDocType}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[100]">
                                     {DOCUMENT_TYPES.map(t => (
                                         <SelectItem key={t} value={t}>{t}</SelectItem>
                                     ))}
@@ -538,7 +538,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                     <SelectTrigger>
                                         <SelectValue placeholder="Seçiniz (opsiyonel)" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="z-[100]">
                                         <SelectItem value="">Yok</SelectItem>
                                         {nonConformities
                                             ?.filter(nc => nc.supplier_id === selectedSupplier?.id)
@@ -556,7 +556,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                     <SelectTrigger>
                                         <SelectValue placeholder="Seçiniz (opsiyonel)" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="z-[100]">
                                         <SelectItem value="">Yok</SelectItem>
                                         {supplierAuditPlans
                                             ?.filter(audit => audit.supplier_id === selectedSupplier?.id)
