@@ -85,11 +85,15 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             let filtered = data || [];
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
-                filtered = filtered.filter(doc =>
-                    doc.document_name?.toLowerCase().includes(term) ||
-                    doc.document_description?.toLowerCase().includes(term) ||
-                    doc.tags?.some(tag => tag.toLowerCase().includes(term))
-                );
+                filtered = filtered.filter(doc => {
+                    const supplierName = doc.suppliers?.name?.toLowerCase() || '';
+                    const supplierCode = doc.suppliers?.code?.toLowerCase() || '';
+                    return doc.document_name?.toLowerCase().includes(term) ||
+                        doc.document_description?.toLowerCase().includes(term) ||
+                        supplierName.includes(term) ||
+                        supplierCode.includes(term) ||
+                        doc.tags?.some(tag => tag.toLowerCase().includes(term));
+                });
             }
 
             setDocuments(filtered);
