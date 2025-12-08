@@ -111,8 +111,8 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             toast({ variant: 'destructive', title: 'Dosya seçilmedi!' });
             return;
         }
-        if (!selectedSupplier) {
-            toast({ variant: 'destructive', title: 'Lütfen bir tedarikçi seçin!' });
+        if (!selectedSupplier || selectedSupplier === null) {
+            toast({ variant: 'destructive', title: 'Lütfen bir tedarikçi seçin! (Tüm Tedarikçiler seçeneği ile yükleme yapılamaz)' });
             return;
         }
 
@@ -345,14 +345,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             </Card>
 
             {/* Doküman Listesi */}
-            {!selectedSupplier ? (
-                <Card>
-                    <CardContent className="py-12 text-center text-muted-foreground">
-                        <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Lütfen bir tedarikçi seçin</p>
-                    </CardContent>
-                </Card>
-            ) : loading ? (
+            {loading ? (
                 <Card>
                     <CardContent className="py-12 text-center text-muted-foreground">
                         <p>Yükleniyor...</p>
