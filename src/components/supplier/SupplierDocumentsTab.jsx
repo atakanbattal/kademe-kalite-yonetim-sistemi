@@ -63,7 +63,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
         try {
             let query = supabase
                 .from('supplier_documents')
-                .select('*, suppliers!supplier_documents_supplier_id_fkey(name, code)')
+                .select('*, suppliers!supplier_documents_supplier_id_fkey(name)')
                 .order('uploaded_at', { ascending: false });
             
             // Eğer tedarikçi seçiliyse filtrele
@@ -87,11 +87,9 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                 const term = searchTerm.toLowerCase();
                 filtered = filtered.filter(doc => {
                     const supplierName = doc.suppliers?.name?.toLowerCase() || '';
-                    const supplierCode = doc.suppliers?.code?.toLowerCase() || '';
                     return doc.document_name?.toLowerCase().includes(term) ||
                         doc.document_description?.toLowerCase().includes(term) ||
                         supplierName.includes(term) ||
-                        supplierCode.includes(term) ||
                         doc.tags?.some(tag => tag.toLowerCase().includes(term));
                 });
             }
@@ -298,7 +296,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                 <SelectItem value="all">Tüm Tedarikçiler</SelectItem>
                                 {suppliers.map(supplier => (
                                     <SelectItem key={supplier.id} value={supplier.id}>
-                                        {supplier.name} {supplier.code && `(${supplier.code})`}
+                                        {supplier.name}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -372,101 +370,95 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                     </CardContent>
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
                     {documents.map(doc => (
-                        <Card key={doc.id} className="hover:shadow-lg transition-shadow">
-                            <CardContent className="pt-6">
-                                <div className="flex items-start gap-3 mb-3">
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Card key={doc.id} className="hover:shadow-md transition-shadow">
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-4">
+                                    {/* Dosya İkonu */}
+                                    <div className="flex-shrink-0">
                                         {getFileIcon(doc.file_type)}
-                                        <div className="flex-1 min-w-0">
+                                    </div>
+                                    
+                                    {/* Doküman Bilgileri */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
                                             <div className="font-medium truncate" title={doc.document_name}>
                                                 {doc.document_name}
                                             </div>
-                                            {/* Tedarikçi adı (tüm tedarikçiler görüntülenirken) */}
-                                            {!selectedSupplier && doc.suppliers && (
-                                                <div className="text-xs text-muted-foreground mt-1 truncate">
-                                                    {doc.suppliers.name} {doc.suppliers.code && `(${doc.suppliers.code})`}
+                                            <Badge variant="outline" className="text-xs">{doc.document_type}</Badge>
+                                            {doc.status !== 'Aktif' && (
+                                                <Badge variant={doc.status === 'Arşiv' ? 'secondary' : 'destructive'} className="text-xs">
+                                                    {doc.status}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Tedarikçi adı (tüm tedarikçiler görüntülenirken) */}
+                                        {!selectedSupplier && doc.suppliers && (
+                                            <div className="text-xs text-muted-foreground mb-1">
+                                                Tedarikçi: {doc.suppliers.name}
+                                            </div>
+                                        )}
+                                        
+                                        {/* Açıklama */}
+                                        {doc.document_description && (
+                                            <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
+                                                {doc.document_description}
+                                            </p>
+                                        )}
+                                        
+                                        {/* Meta Bilgiler */}
+                                        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                                            <div className="flex items-center gap-1">
+                                                <Calendar className="w-3 h-3" />
+                                                {format(new Date(doc.uploaded_at), 'dd.MM.yyyy HH:mm', { locale: tr })}
+                                            </div>
+                                            {doc.file_size && (
+                                                <div>Boyut: {formatFileSize(doc.file_size)}</div>
+                                            )}
+                                            {doc.expiry_date && (
+                                                <div className={new Date(doc.expiry_date) < new Date() ? 'text-red-500' : ''}>
+                                                    Geçerlilik: {format(new Date(doc.expiry_date), 'dd.MM.yyyy', { locale: tr })}
                                                 </div>
                                             )}
-                                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                <Badge variant="outline">{doc.document_type}</Badge>
-                                                {doc.status !== 'Aktif' && (
-                                                    <Badge variant={doc.status === 'Arşiv' ? 'secondary' : 'destructive'}>
-                                                        {doc.status}
-                                                    </Badge>
-                                                )}
-                                            </div>
+                                        </div>
+                                        
+                                        {/* İlişkili Kayıtlar ve Etiketler */}
+                                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                            {doc.related_nc_id && (
+                                                <Badge variant="outline" className="text-xs">
+                                                    <Link2 className="w-3 h-3 mr-1" />
+                                                    NC: {getRelatedNcTitle(doc.related_nc_id) || 'Bilinmiyor'}
+                                                </Badge>
+                                            )}
+                                            {doc.related_audit_id && (
+                                                <Badge variant="outline" className="text-xs">
+                                                    <Link2 className="w-3 h-3 mr-1" />
+                                                    Denetim: {getRelatedAuditTitle(doc.related_audit_id) || 'Bilinmiyor'}
+                                                </Badge>
+                                            )}
+                                            {doc.tags && doc.tags.length > 0 && doc.tags.slice(0, 3).map((tag, idx) => (
+                                                <Badge key={idx} variant="secondary" className="text-xs">
+                                                    <Tag className="w-3 h-3 mr-1" />
+                                                    {tag}
+                                                </Badge>
+                                            ))}
                                         </div>
                                     </div>
-                                </div>
-
-                                {doc.document_description && (
-                                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                                        {doc.document_description}
-                                    </p>
-                                )}
-
-                                {/* İlişkili Kayıtlar */}
-                                {(doc.related_nc_id || doc.related_audit_id) && (
-                                    <div className="flex flex-wrap gap-2 mb-3">
-                                        {doc.related_nc_id && (
-                                            <Badge variant="outline" className="text-xs">
-                                                <Link2 className="w-3 h-3 mr-1" />
-                                                NC: {getRelatedNcTitle(doc.related_nc_id) || 'Bilinmiyor'}
-                                            </Badge>
-                                        )}
-                                        {doc.related_audit_id && (
-                                            <Badge variant="outline" className="text-xs">
-                                                <Link2 className="w-3 h-3 mr-1" />
-                                                Denetim: {getRelatedAuditTitle(doc.related_audit_id) || 'Bilinmiyor'}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Etiketler */}
-                                {doc.tags && doc.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mb-3">
-                                        {doc.tags.map((tag, idx) => (
-                                            <Badge key={idx} variant="secondary" className="text-xs">
-                                                <Tag className="w-3 h-3 mr-1" />
-                                                {tag}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <div className="text-xs text-muted-foreground mb-3 space-y-1">
-                                    <div className="flex items-center gap-1">
-                                        <Calendar className="w-3 h-3" />
-                                        {format(new Date(doc.uploaded_at), 'dd.MM.yyyy HH:mm', { locale: tr })}
-                                    </div>
-                                    {doc.file_size && (
-                                        <div>Boyut: {formatFileSize(doc.file_size)}</div>
-                                    )}
-                                    {doc.expiry_date && (
-                                        <div className={new Date(doc.expiry_date) < new Date() ? 'text-red-500' : ''}>
-                                            Geçerlilik: {format(new Date(doc.expiry_date), 'dd.MM.yyyy', { locale: tr })}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex flex-col gap-2 mt-4">
-                                    <Button size="sm" variant="outline" onClick={() => viewDocument(doc)} className="w-full">
-                                        <Eye className="w-4 h-4 mr-2" />
-                                        Görüntüle
-                                    </Button>
-                                    <div className="flex gap-2">
-                                        <Button size="sm" variant="outline" onClick={() => downloadDocument(doc)} className="flex-1">
-                                            <Download className="w-4 h-4 mr-2" />
-                                            İndir
+                                    
+                                    {/* Aksiyon Butonları */}
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <Button size="sm" variant="outline" onClick={() => viewDocument(doc)}>
+                                            <Eye className="w-4 h-4" />
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadDocument(doc)}>
+                                            <Download className="w-4 h-4" />
                                         </Button>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button size="sm" variant="destructive" className="flex-1">
-                                                    <Trash2 className="w-4 h-4 mr-2" />
-                                                    Sil
+                                                <Button size="sm" variant="destructive">
+                                                    <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
