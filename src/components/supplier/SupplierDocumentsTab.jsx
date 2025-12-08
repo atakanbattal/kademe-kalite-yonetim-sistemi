@@ -581,9 +581,10 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                         >
                             {isUploading ? 'Yükleniyor...' : `Yükle (${selectedFiles.length} dosya)`}
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 };
