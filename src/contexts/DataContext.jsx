@@ -201,8 +201,26 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                     const key = heavyKeys[index];
                     if (result.status === 'fulfilled' && !result.value.error) {
                         newState[key] = result.value.data || [];
+                        // Documents için özel debug
+                        if (key === 'documents') {
+                            console.log('📚 Documents fetch başarılı:', result.value.data?.length || 0, 'doküman');
+                            if (result.value.data && result.value.data.length > 0) {
+                                console.log('📚 İlk doküman örneği:', result.value.data[0]);
+                                console.log('📚 Doküman tipleri:', [...new Set(result.value.data.map(d => d.document_type).filter(Boolean))]);
+                            }
+                        }
                     } else {
-                        console.warn(`⚠️ ${key} fetch failed:`, result.reason || result.value?.error);
+                        const error = result.reason || result.value?.error;
+                        console.error(`❌ ${key} fetch failed:`, error);
+                        // Documents için özel hata mesajı
+                        if (key === 'documents') {
+                            console.error('❌ Documents sorgu hatası detayları:', {
+                                error: error,
+                                message: error?.message,
+                                details: error?.details,
+                                hint: error?.hint
+                            });
+                        }
                         newState[key] = [];
                     }
                 });
