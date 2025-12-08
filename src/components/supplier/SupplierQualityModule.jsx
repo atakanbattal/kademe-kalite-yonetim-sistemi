@@ -162,4 +162,4 @@ import SupplierDocumentsTab from '@/components/supplier/SupplierDocumentsTab';
       );
     };
 
-    export default SupplierQualityModule;// Build trigger
+    export default SupplierQualityModule;
