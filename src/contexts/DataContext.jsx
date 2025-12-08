@@ -52,6 +52,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             complaintAnalyses: [],
             complaintActions: [],
             complaintDocuments: [],
+            documentFolders: [],
         });
 
         // İlk yükleme flag'i - sonsuz döngüyü önlemek için
@@ -120,7 +121,16 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 suppliers: supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)'),
                 producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').limit(500),
                 equipments: supabase.from('equipments').select('*, equipment_calibrations(*), equipment_assignments(*, personnel(full_name))'),
-                documents: supabase.from('documents').select('*, personnel(id, full_name), document_revisions:current_revision_id(*), valid_until'),
+                documents: supabase.from('documents').select(`
+                    *,
+                    personnel(id, full_name),
+                    department:department_id(unit_name, unit_code),
+                    supplier:supplier_id(name, supplier_code),
+                    owner:owner_id(full_name, email),
+                    folder:folder_id(folder_name, folder_path),
+                    document_revisions:current_revision_id(*)
+                `),
+                documentFolders: supabase.from('document_folders').select('*').eq('is_archived', false).order('folder_name'),
             };
 
             // DÜŞÜK ÖNCELİKLİ TABLOLAR (Son dalga - limit ile)
