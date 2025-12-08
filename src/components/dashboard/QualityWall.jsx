@@ -12,9 +12,10 @@ const QualityWall = () => {
 
         const deptStats = {};
         
-        // Her birim için istatistikler
+        // Her birim için istatistikler - açılan birimlerden veri çek
         nonConformities.forEach(nc => {
-            const dept = nc.requesting_unit || nc.department || 'Belirtilmemiş';
+            // Açılan birim: department kolonu (talep eden birim yerine)
+            const dept = nc.department || 'Belirtilmemiş';
             if (!deptStats[dept]) {
                 deptStats[dept] = {
                     name: dept,

@@ -1,4 +1,4 @@
--- Otomatik KPI RPC Fonksiyonları
+image.png-- Otomatik KPI RPC Fonksiyonları
 -- Tüm modüllerden veri çekebilen KPI fonksiyonları
 
 -- ============================================

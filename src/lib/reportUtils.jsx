@@ -1520,21 +1520,49 @@ const generateGenericReportHtml = (record, type) => {
 		<div class="section signature-section">
 			<h2 class="section-title dark">İMZA VE ONAY</h2>
 			<div class="signature-area">
-				<div class="signature-box">
-					<p class="role">HAZIRLAYAN</p>
-					<div class="signature-line"></div>
-			<p class="name">${type === 'incoming_inspection' ? (record.prepared_by ? record.prepared_by : '&nbsp;') : '&nbsp;'}</p>
-				</div>
-				<div class="signature-box">
-					<p class="role">KONTROL EDEN</p>
-					<div class="signature-line"></div>
-			<p class="name">${type === 'incoming_inspection' ? (record.controlled_by ? record.controlled_by : '&nbsp;') : '&nbsp;'}</p>
-				</div>
-				<div class="signature-box">
-					<p class="role">ONAYLAYAN</p>
-					<div class="signature-line"></div>
-			<p class="name">${type === 'incoming_inspection' ? (record.created_by ? record.created_by : '&nbsp;') : '&nbsp;'}</p>
-				</div>
+				${type === 'deviation' ? `
+					<div class="signature-box">
+						<p class="role">TALEP EDEN</p>
+						<div class="signature-line"></div>
+						<p class="name">${record.requesting_person || '&nbsp;'}</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">ARGE</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">KALİTE KONTROL VE GÜVENCE</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">FABRİKA MÜDÜRÜ</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">GENEL MÜDÜR</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+				` : `
+					<div class="signature-box">
+						<p class="role">HAZIRLAYAN</p>
+						<div class="signature-line"></div>
+						<p class="name">${type === 'incoming_inspection' ? (record.prepared_by ? record.prepared_by : '&nbsp;') : '&nbsp;'}</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">KONTROL EDEN</p>
+						<div class="signature-line"></div>
+						<p class="name">${type === 'incoming_inspection' ? (record.controlled_by ? record.controlled_by : '&nbsp;') : '&nbsp;'}</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">ONAYLAYAN</p>
+						<div class="signature-line"></div>
+						<p class="name">${type === 'incoming_inspection' ? (record.created_by ? record.created_by : '&nbsp;') : '&nbsp;'}</p>
+					</div>
+				`}
 			</div>
 		</div>
 	`;
@@ -2056,7 +2084,8 @@ const generatePrintableReportHtml = (record, type) => {
 		}
 		
 		.signature-box { 
-			width: 30%;
+			flex: 1;
+			min-width: 0;
 			visibility: visible !important;
 			display: block !important;
 		}

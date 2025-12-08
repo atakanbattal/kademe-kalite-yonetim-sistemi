@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Package, AlertTriangle, DollarSign, CheckCircle2 } from 'lucide-react';
+import { Search, Package, AlertTriangle, DollarSign, CheckCircle2, FileCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency } from '@/lib/utils';
@@ -22,11 +22,40 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
     const [quarantineRecords, setQuarantineRecords] = useState([]);
     const [qualityCosts, setQualityCosts] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [deviationMap, setDeviationMap] = useState({}); // source_record_id -> deviation bilgisi
 
     // Veri yükleme
     useEffect(() => {
         loadRecords();
+        loadDeviationMap();
     }, [activeTab]);
+
+    // Sapma oluşturulan kayıtları yükle
+    const loadDeviationMap = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('deviations')
+                .select('id, request_no, source_type, source_record_id')
+                .not('source_record_id', 'is', null);
+
+            if (error) throw error;
+
+            // source_type ve source_record_id kombinasyonuna göre map oluştur
+            const map = {};
+            (data || []).forEach(dev => {
+                if (dev.source_type && dev.source_record_id) {
+                    const key = `${dev.source_type}_${dev.source_record_id}`;
+                    map[key] = {
+                        id: dev.id,
+                        request_no: dev.request_no
+                    };
+                }
+            });
+            setDeviationMap(map);
+        } catch (error) {
+            console.error('Sapma kayıtları yüklenemedi:', error);
+        }
+    };
 
     // İlk seçili kayıt varsa yükle
     useEffect(() => {
@@ -263,6 +292,13 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
         );
     };
 
+    // Kayıt için sapma oluşturulup oluşturulmadığını kontrol et
+    const hasDeviation = (record, sourceType) => {
+        if (!record?.id || !sourceType) return null;
+        const key = `${sourceType}_${record.id}`;
+        return deviationMap[key] || null;
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-4">
@@ -381,13 +417,26 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                                 <CardContent className="p-3">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex-1">
-                                            <div className="font-semibold">{record.part_code || '-'}</div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="font-semibold">{record.part_code || '-'}</div>
+                                                {hasDeviation(record, 'incoming_inspection') && (
+                                                    <Badge variant="outline" className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border-blue-300">
+                                                        <FileCheck className="h-3 w-3" />
+                                                        Sapma Oluşturuldu
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             {record.part_name && (
                                                 <div className="text-xs text-muted-foreground mt-0.5">{record.part_name}</div>
                                             )}
                                             <div className="text-sm text-muted-foreground mt-1">
                                                 {record.record_no || '-'} • {record.supplier_name || record.supplier?.name || 'Tedarikçi yok'}
                                             </div>
+                                            {hasDeviation(record, 'incoming_inspection') && (
+                                                <div className="text-xs text-blue-600 mt-1">
+                                                    Sapma No: {hasDeviation(record, 'incoming_inspection').request_no}
+                                                </div>
+                                            )}
                                         </div>
                                         {getStatusBadge(record.decision)}
                                     </div>
@@ -453,13 +502,26 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                                 <CardContent className="p-3">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex-1">
-                                            <div className="font-semibold">{record.part_code || '-'}</div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="font-semibold">{record.part_code || '-'}</div>
+                                                {hasDeviation(record, 'quarantine') && (
+                                                    <Badge variant="outline" className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border-blue-300">
+                                                        <FileCheck className="h-3 w-3" />
+                                                        Sapma Oluşturuldu
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             {record.part_name && (
                                                 <div className="text-xs text-muted-foreground mt-0.5">{record.part_name}</div>
                                             )}
                                             <div className="text-sm text-muted-foreground mt-1">
                                                 Lot No: {record.lot_no || '-'}
                                             </div>
+                                            {hasDeviation(record, 'quarantine') && (
+                                                <div className="text-xs text-blue-600 mt-1">
+                                                    Sapma No: {hasDeviation(record, 'quarantine').request_no}
+                                                </div>
+                                            )}
                                         </div>
                                         {getStatusBadge(record.status)}
                                     </div>
@@ -515,11 +577,24 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                             >
                                 <CardContent className="p-3">
                                     <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <div className="font-semibold">{record.part_code || 'Genel Maliyet'}</div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className="font-semibold">{record.part_code || 'Genel Maliyet'}</div>
+                                                {hasDeviation(record, 'quality_cost') && (
+                                                    <Badge variant="outline" className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border-blue-300">
+                                                        <FileCheck className="h-3 w-3" />
+                                                        Sapma Oluşturuldu
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             <div className="text-sm text-muted-foreground">
                                                 {record.cost_type}
                                             </div>
+                                            {hasDeviation(record, 'quality_cost') && (
+                                                <div className="text-xs text-blue-600 mt-1">
+                                                    Sapma No: {hasDeviation(record, 'quality_cost').request_no}
+                                                </div>
+                                            )}
                                         </div>
                                         <Badge variant="default">
                                             {formatCurrency(record.amount)}
