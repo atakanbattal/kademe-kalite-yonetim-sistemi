@@ -267,8 +267,8 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
 
     const getRelatedNcTitle = (ncId) => {
         if (!ncId) return null;
-        const nc = supplierNonConformities?.find(n => n.id === ncId);
-        return nc ? nc.nc_number || `NC-${nc.id?.substring(0, 8)}` : null;
+        const nc = nonConformities?.find(n => n.id === ncId);
+        return nc ? nc.nc_number || nc.title || `NC-${nc.id?.substring(0, 8)}` : null;
     };
 
     const getRelatedAuditTitle = (auditId) => {
