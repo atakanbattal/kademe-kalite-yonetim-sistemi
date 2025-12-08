@@ -148,8 +148,8 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                     uploaded_by: user?.id,
                     expiry_date: expiryDate || null,
                     tags: tagsArray.length > 0 ? tagsArray : null,
-                    related_nc_id: relatedNcId || null,
-                    related_audit_id: relatedAuditId || null,
+                    related_nc_id: relatedNcId && relatedNcId !== 'none' ? relatedNcId : null,
+                    related_audit_id: relatedAuditId && relatedAuditId !== 'none' ? relatedAuditId : null,
                     status: 'Aktif'
                 });
                 
@@ -161,8 +161,8 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             setDocDescription('');
             setExpiryDate('');
             setTags('');
-            setRelatedNcId('');
-            setRelatedAuditId('');
+            setRelatedNcId('none');
+            setRelatedAuditId('none');
             setUploadOpen(false);
             loadDocuments();
             if (refreshData) refreshData();
