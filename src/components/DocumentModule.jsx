@@ -57,13 +57,21 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         const filteredDocuments = useMemo(() => {
             let docs = documents
                 .filter(doc => doc.document_type === activeTab)
+                .map(doc => {
+                    // document_revisions bir array ise, current_revision_id ile eşleşeni bul
+                    let revision = doc.document_revisions;
+                    if (Array.isArray(revision) && doc.current_revision_id) {
+                        revision = revision.find(r => r.id === doc.current_revision_id) || revision[0] || null;
+                    }
+                    return { ...doc, document_revisions: revision };
+                })
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
             if (searchTerm) {
                 const lowercasedFilter = searchTerm.toLowerCase();
                 docs = docs.filter(doc => {
                     const titleMatch = doc.title?.toLowerCase().includes(lowercasedFilter);
-                    const personnelMatch = activeTab === 'Personel Sertifikaları' && doc.personnel?.full_name.toLowerCase().includes(lowercasedFilter);
+                    const personnelMatch = activeTab === 'Personel Sertifikaları' && doc.personnel?.full_name?.toLowerCase().includes(lowercasedFilter);
                     return titleMatch || personnelMatch;
                 });
             }
