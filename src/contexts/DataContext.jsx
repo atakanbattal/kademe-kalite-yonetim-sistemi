@@ -124,8 +124,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 documents: supabase.from('documents').select(`
                     *,
                     personnel(id, full_name),
-                    department:department_id(unit_name, unit_code),
-                    supplier:supplier_id(name, supplier_code),
+                    department:department_id(unit_name),
+                    supplier:supplier_id(name),
                     owner:owner_id(full_name, email),
                     folder:folder_id(folder_name, folder_path),
                     document_revisions:current_revision_id(*)

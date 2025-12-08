@@ -47,8 +47,8 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document, onRefresh }) => {
                 .from('documents')
                 .select(`
                     *,
-                    department:department_id(unit_name, unit_code),
-                    supplier:supplier_id(name, supplier_code),
+                    department:department_id(unit_name),
+                    supplier:supplier_id(name),
                     owner:owner_id(full_name, email),
                     folder:folder_id(folder_name, folder_path),
                     current_revision:current_revision_id(*)
