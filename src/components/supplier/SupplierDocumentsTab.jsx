@@ -36,7 +36,7 @@ const BUCKET_NAME = 'supplier_documents';
 const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshData }) => {
     const { toast } = useToast();
     const { user } = useAuth();
-    const { nonConformities, supplierAuditPlans } = useData();
+    const { supplierNonConformities, supplierAuditPlans } = useData();
     const [selectedSupplier, setSelectedSupplier] = useState(null);
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -44,7 +44,6 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [docType, setDocType] = useState('Aksiyon Planı');
     const [docDescription, setDocDescription] = useState('');
-    const [expiryDate, setExpiryDate] = useState('');
     const [tags, setTags] = useState('');
     const [relatedNcId, setRelatedNcId] = useState('none');
     const [relatedAuditId, setRelatedAuditId] = useState('none');
@@ -199,7 +198,6 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             toast({ title: 'Başarılı!', description: `${selectedFiles.length} dosya yüklendi.` });
             setSelectedFiles([]);
             setDocDescription('');
-            setExpiryDate('');
             setTags('');
             setRelatedNcId('none');
             setRelatedAuditId('none');
@@ -552,25 +550,14 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                 placeholder="Doküman hakkında açıklama..."
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="expiry_date">Geçerlilik Tarihi</Label>
-                                <Input 
-                                    id="expiry_date" 
-                                    type="date" 
-                                    value={expiryDate} 
-                                    onChange={(e) => setExpiryDate(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="tags">Etiketler</Label>
-                                <Input 
-                                    id="tags" 
-                                    value={tags} 
-                                    onChange={(e) => setTags(e.target.value)}
-                                    placeholder="virgülle ayırın: örn: kalite, test, rapor"
-                                />
-                            </div>
+                        <div>
+                            <Label htmlFor="tags">Etiketler</Label>
+                            <Input 
+                                id="tags" 
+                                value={tags} 
+                                onChange={(e) => setTags(e.target.value)}
+                                placeholder="virgülle ayırın: örn: kalite, test, rapor"
+                            />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -581,11 +568,11 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                     </SelectTrigger>
                                     <SelectContent className="z-[100]">
                                         <SelectItem value="none">Yok</SelectItem>
-                                        {nonConformities
-                                            ?.filter(nc => nc.supplier_id === selectedSupplier?.id)
+                                        {selectedSupplier && supplierNonConformities
+                                            ?.filter(nc => nc.supplier_id === selectedSupplier.id)
                                             .map(nc => (
                                                 <SelectItem key={nc.id} value={nc.id}>
-                                                    {nc.nc_number || nc.title}
+                                                    {nc.nc_number || `NC-${nc.id?.substring(0, 8)}`}
                                                 </SelectItem>
                                             ))}
                                     </SelectContent>
@@ -599,11 +586,11 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                     </SelectTrigger>
                                     <SelectContent className="z-[100]">
                                         <SelectItem value="none">Yok</SelectItem>
-                                        {supplierAuditPlans
-                                            ?.filter(audit => audit.supplier_id === selectedSupplier?.id)
+                                        {selectedSupplier && supplierAuditPlans
+                                            ?.filter(audit => audit.supplier_id === selectedSupplier.id)
                                             .map(audit => (
                                                 <SelectItem key={audit.id} value={audit.id}>
-                                                    {audit.audit_number || `Denetim ${audit.audit_date}`}
+                                                    {audit.audit_number || `Denetim ${audit.audit_date ? format(new Date(audit.audit_date), 'dd.MM.yyyy', { locale: tr }) : audit.id?.substring(0, 8)}`}
                                                 </SelectItem>
                                             ))}
                                     </SelectContent>
