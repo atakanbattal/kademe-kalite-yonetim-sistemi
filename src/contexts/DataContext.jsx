@@ -120,8 +120,41 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 suppliers: supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)'),
                 producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').limit(500),
                 equipments: supabase.from('equipments').select('*, equipment_calibrations(*), equipment_assignments(*, personnel(full_name))'),
-                // Documents sorgusu - document_revisions için foreign key belirtilmeli (birden fazla ilişki var)
-                documents: supabase.from('documents').select('*, document_revisions!document_revisions_document_id_fkey(*)').order('created_at', { ascending: false }),
+                // Documents sorgusu - önce documents çek, sonra document_revisions ayrı çekilecek
+                documents: (async () => {
+                    try {
+                        // Önce documents'ı çek
+                        const { data: docsData, error: docsError } = await supabase
+                            .from('documents')
+                            .select('*')
+                            .order('created_at', { ascending: false });
+                        
+                        if (docsError) throw docsError;
+                        if (!docsData || docsData.length === 0) {
+                            return { data: [], error: null };
+                        }
+                        
+                        // Her doküman için document_revisions'ı çek
+                        const docsWithRevisions = await Promise.all(docsData.map(async (doc) => {
+                            const { data: revisions, error: revError } = await supabase
+                                .from('document_revisions')
+                                .select('*')
+                                .eq('document_id', doc.id);
+                            
+                            if (revError) {
+                                console.warn(`⚠️ Document ${doc.id} için revisions çekilemedi:`, revError);
+                                return { ...doc, document_revisions: [] };
+                            }
+                            
+                            return { ...doc, document_revisions: revisions || [] };
+                        }));
+                        
+                        return { data: docsWithRevisions, error: null };
+                    } catch (error) {
+                        console.error('❌ Documents fetch error:', error);
+                        return { data: [], error };
+                    }
+                })(),
             };
 
             // DÜŞÜK ÖNCELİKLİ TABLOLAR (Son dalga - limit ile)
