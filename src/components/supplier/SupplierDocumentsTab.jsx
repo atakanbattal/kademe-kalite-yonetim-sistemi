@@ -303,10 +303,8 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                         </Select>
                     </div>
 
-                    {selectedSupplier && (
-                        <>
-                            {/* Filtreler */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {/* Filtreler - Tüm Tedarikçiler seçildiğinde de görünür */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
