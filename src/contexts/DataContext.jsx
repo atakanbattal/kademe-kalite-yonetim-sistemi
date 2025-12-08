@@ -134,19 +134,31 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                             return { data: [], error: null };
                         }
                         
-                        // Her doküman için document_revisions'ı çek
+                        // Her doküman için document_revisions ve personel bilgilerini çek
                         const docsWithRevisions = await Promise.all(docsData.map(async (doc) => {
-                            const { data: revisions, error: revError } = await supabase
-                                .from('document_revisions')
-                                .select('*')
-                                .eq('document_id', doc.id);
+                            const [revisionsResult, personnelResult, ownerResult] = await Promise.all([
+                                // Document revisions
+                                supabase.from('document_revisions').select('*').eq('document_id', doc.id),
+                                // Personnel bilgisi (eğer personnel_id varsa)
+                                doc.personnel_id ? supabase.from('personnel').select('id, full_name').eq('id', doc.personnel_id).single() : Promise.resolve({ data: null, error: null }),
+                                // Owner bilgisi (eğer owner_id varsa)
+                                doc.owner_id ? supabase.from('personnel').select('id, full_name').eq('id', doc.owner_id).single() : Promise.resolve({ data: null, error: null })
+                            ]);
                             
-                            if (revError) {
-                                console.warn(`⚠️ Document ${doc.id} için revisions çekilemedi:`, revError);
-                                return { ...doc, document_revisions: [] };
+                            const revisions = revisionsResult.data || [];
+                            const personnel = personnelResult.data || null;
+                            const owner = ownerResult.data || null;
+                            
+                            if (revisionsResult.error) {
+                                console.warn(`⚠️ Document ${doc.id} için revisions çekilemedi:`, revisionsResult.error);
                             }
                             
-                            return { ...doc, document_revisions: revisions || [] };
+                            return { 
+                                ...doc, 
+                                document_revisions: revisions,
+                                personnel: personnel,
+                                owner: owner
+                            };
                         }));
                         
                         return { data: docsWithRevisions, error: null };
