@@ -3,13 +3,12 @@
 -- ============================================================================
 -- Bu script profesyonel bir doküman yönetim sistemi oluşturur
 -- Özellikler:
+-- - Klasör yapısı ile organizasyon
 -- - Birim bazlı doküman organizasyonu
--- - Klasör yapısı ve hiyerarşik organizasyon
 -- - Detaylı revizyon takibi
 -- - Tedarikçi dokümanları yönetimi
 -- - Onay süreçleri
 -- - Kapsamlı arama ve filtreleme
--- - Mevcut verileri koruma
 
 -- ============================================================================
 -- 1. KLASÖR YAPISI TABLOSU
@@ -20,20 +19,17 @@ CREATE TABLE IF NOT EXISTS document_folders (
     
     -- Klasör bilgileri
     folder_name VARCHAR(255) NOT NULL,
-    folder_path TEXT NOT NULL, -- Tam klasör yolu (örn: /Üretim/Prosedürler/Kalite)
+    folder_path TEXT NOT NULL, -- Tam klasör yolu (örn: /Üretim/Talimatlar/Kalite)
     parent_folder_id UUID REFERENCES document_folders(id) ON DELETE CASCADE,
     
-    -- Klasör tipi ve organizasyon
-    folder_type VARCHAR(50) NOT NULL DEFAULT 'Genel', -- 'Birim', 'Tedarikçi', 'Kategori', 'Genel'
-    department_id UUID REFERENCES cost_settings(id) ON DELETE CASCADE,
-    supplier_id UUID REFERENCES suppliers(id) ON DELETE CASCADE,
-    
-    -- Klasör kategorisi
-    folder_category VARCHAR(100), -- 'Prosedürler', 'Talimatlar', 'Formlar', 'Sertifikalar', 'Tedarikçi Dokümanları'
+    -- Organizasyon
+    department_id UUID REFERENCES cost_settings(id), -- Birim bazlı klasörler için
+    folder_type VARCHAR(50) DEFAULT 'Genel', -- 'Birim', 'Tedarikçi', 'Müşteri', 'Genel'
+    folder_category VARCHAR(100), -- 'Talimatlar', 'Prosedürler', 'Formlar', 'Sertifikalar', vb.
     
     -- Açıklama ve metadata
     description TEXT,
-    color VARCHAR(7), -- Hex renk kodu (#RRGGBB)
+    color VARCHAR(7), -- Hex renk kodu (UI için)
     icon VARCHAR(50), -- İkon adı
     
     -- Erişim kontrolü
@@ -43,26 +39,21 @@ CREATE TABLE IF NOT EXISTS document_folders (
     is_active BOOLEAN DEFAULT true,
     is_archived BOOLEAN DEFAULT false,
     
-    -- Sıralama
-    display_order INTEGER DEFAULT 0,
-    
     -- Meta
     created_by UUID REFERENCES auth.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     
-    -- Klasör yolu benzersizliği (aynı birimde aynı yolda iki klasör olamaz)
-    UNIQUE(folder_path, department_id, supplier_id)
+    -- Klasör yolu benzersizliği
+    UNIQUE(folder_path, department_id)
 );
 
 COMMENT ON TABLE document_folders IS 'Doküman klasör yapısı ve organizasyonu';
 
 CREATE INDEX IF NOT EXISTS idx_document_folders_parent_folder_id ON document_folders(parent_folder_id);
 CREATE INDEX IF NOT EXISTS idx_document_folders_department_id ON document_folders(department_id);
-CREATE INDEX IF NOT EXISTS idx_document_folders_supplier_id ON document_folders(supplier_id);
 CREATE INDEX IF NOT EXISTS idx_document_folders_folder_type ON document_folders(folder_type);
 CREATE INDEX IF NOT EXISTS idx_document_folders_folder_path ON document_folders(folder_path);
-CREATE INDEX IF NOT EXISTS idx_document_folders_is_active ON document_folders(is_active);
 
 -- ============================================================================
 -- 2. MEVCUT TABLOLARI GENİŞLETME
@@ -93,8 +84,7 @@ ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES personnel(id), -- Doküman sah
 ADD COLUMN IF NOT EXISTS description TEXT,
 ADD COLUMN IF NOT EXISTS notes TEXT,
 ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS download_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+ADD COLUMN IF NOT EXISTS download_count INTEGER DEFAULT 0;
 
 -- Document revisions tablosuna yeni kolonlar ekle
 ALTER TABLE document_revisions
@@ -296,8 +286,8 @@ DECLARE
     v_sequence INTEGER;
     v_doc_number VARCHAR(100);
 BEGIN
-    -- Departman kodunu al (unit_name'in ilk 3 karakterini kullan)
-    SELECT UPPER(SUBSTRING(unit_name, 1, 3)) INTO v_dept_code
+    -- Departman kodunu al
+    SELECT COALESCE(unit_code, UPPER(SUBSTRING(unit_name, 1, 3))) INTO v_dept_code
     FROM cost_settings
     WHERE id = p_department_id;
     
@@ -316,8 +306,8 @@ BEGIN
     END CASE;
     
     -- Alt kategori kodunu belirle
-    IF p_document_subcategory IS NOT NULL AND p_document_subcategory != '' THEN
-        v_subcat_code := UPPER(SUBSTRING(REGEXP_REPLACE(p_document_subcategory, '[^A-Za-z0-9]', '', 'g'), 1, 2));
+    IF p_document_subcategory IS NOT NULL THEN
+        v_subcat_code := UPPER(SUBSTRING(p_document_subcategory, 1, 2));
     ELSE
         v_subcat_code := '';
     END IF;
@@ -329,7 +319,8 @@ BEGIN
     SELECT COALESCE(MAX(CAST(SUBSTRING(document_number FROM '[0-9]+$') AS INTEGER)), 0) + 1
     INTO v_sequence
     FROM documents
-    WHERE document_number LIKE v_dept_code || '-' || v_type_code || '-' || COALESCE(v_subcat_code || '-', '') || v_year || '-%';
+    WHERE document_number LIKE v_dept_code || '-' || v_type_code || '-' || COALESCE(v_subcat_code || '-', '') || v_year || '-%'
+       OR document_number LIKE v_dept_code || '-' || v_type_code || '-' || v_year || '-%';
     
     -- Doküman numarasını oluştur
     IF v_subcat_code != '' THEN
@@ -358,24 +349,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Klasör yolu oluşturma fonksiyonu
-CREATE OR REPLACE FUNCTION build_folder_path(
-    p_folder_id UUID
-)
+CREATE OR REPLACE FUNCTION build_folder_path(p_folder_id UUID)
 RETURNS TEXT AS $$
 DECLARE
     v_path TEXT := '';
     v_folder RECORD;
-    v_parent_id UUID;
+    v_current_id UUID := p_folder_id;
 BEGIN
-    v_parent_id := p_folder_id;
-    
-    -- Klasör zincirini yukarı doğru takip et
-    LOOP
+    WHILE v_current_id IS NOT NULL LOOP
         SELECT id, folder_name, parent_folder_id INTO v_folder
         FROM document_folders
-        WHERE id = v_parent_id;
+        WHERE id = v_current_id;
         
-        EXIT WHEN NOT FOUND;
+        IF NOT FOUND THEN
+            EXIT;
+        END IF;
         
         IF v_path = '' THEN
             v_path := v_folder.folder_name;
@@ -383,64 +371,10 @@ BEGIN
             v_path := v_folder.folder_name || '/' || v_path;
         END IF;
         
-        EXIT WHEN v_folder.parent_folder_id IS NULL;
-        v_parent_id := v_folder.parent_folder_id;
+        v_current_id := v_folder.parent_folder_id;
     END LOOP;
     
     RETURN '/' || v_path;
-END;
-$$ LANGUAGE plpgsql;
-
--- Doküman revizyonu oluşturma
-CREATE OR REPLACE FUNCTION create_document_revision(
-    p_document_id UUID,
-    p_revision_number VARCHAR,
-    p_revision_reason TEXT,
-    p_prepared_by_id UUID,
-    p_attachments JSONB DEFAULT NULL
-)
-RETURNS UUID AS $$
-DECLARE
-    v_revision_id UUID;
-    v_doc RECORD;
-BEGIN
-    -- Doküman bilgilerini al
-    SELECT * INTO v_doc FROM documents WHERE id = p_document_id;
-    
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Doküman bulunamadı: %', p_document_id;
-    END IF;
-    
-    -- Yeni revizyon oluştur
-    INSERT INTO document_revisions (
-        document_id,
-        revision_number,
-        revision_reason,
-        publish_date,
-        prepared_by_id,
-        user_id,
-        attachments,
-        revision_status,
-        effective_date
-    ) VALUES (
-        p_document_id,
-        p_revision_number,
-        p_revision_reason,
-        CURRENT_DATE,
-        p_prepared_by_id,
-        (SELECT id FROM auth.users WHERE id = auth.uid()),
-        p_attachments,
-        'Taslak',
-        CURRENT_DATE
-    ) RETURNING id INTO v_revision_id;
-    
-    -- Dokümanın current_revision_id'sini güncelle
-    UPDATE documents
-    SET current_revision_id = v_revision_id,
-        updated_at = NOW()
-    WHERE id = p_document_id;
-    
-    RETURN v_revision_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -502,8 +436,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger'ı migration'dan SONRA oluştur (migration scriptinde trigger devre dışı bırakılacak)
 DROP TRIGGER IF EXISTS trigger_update_documents_updated_at ON documents;
+CREATE TRIGGER trigger_update_documents_updated_at
+BEFORE UPDATE ON documents
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS trigger_update_supplier_documents_updated_at ON supplier_documents;
 CREATE TRIGGER trigger_update_supplier_documents_updated_at
@@ -521,14 +458,7 @@ EXECUTE FUNCTION update_updated_at_column();
 CREATE OR REPLACE FUNCTION update_folder_path()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Klasör yolu oluştur
     NEW.folder_path := build_folder_path(NEW.id);
-    
-    -- Alt klasörlerin yollarını da güncelle
-    UPDATE document_folders
-    SET folder_path = build_folder_path(id)
-    WHERE parent_folder_id = NEW.id;
-    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -561,12 +491,8 @@ CREATE POLICY "Users can view approvals"
 ON document_approvals FOR SELECT
 USING (true);
 
-CREATE POLICY "Users can insert approvals"
-ON document_approvals FOR INSERT
-WITH CHECK (true);
-
-CREATE POLICY "Users can update approvals"
-ON document_approvals FOR UPDATE
+CREATE POLICY "Users can manage approvals"
+ON document_approvals FOR ALL
 USING (true);
 
 -- Document access logs için RLS
@@ -587,12 +513,8 @@ CREATE POLICY "Users can view comments"
 ON document_comments FOR SELECT
 USING (true);
 
-CREATE POLICY "Users can insert comments"
-ON document_comments FOR INSERT
-WITH CHECK (true);
-
-CREATE POLICY "Users can update comments"
-ON document_comments FOR UPDATE
+CREATE POLICY "Users can manage comments"
+ON document_comments FOR ALL
 USING (true);
 
 -- Document notifications için RLS
@@ -626,7 +548,7 @@ CREATE OR REPLACE VIEW documents_by_department AS
 SELECT 
     d.*,
     cs.unit_name AS department_name,
-    UPPER(SUBSTRING(cs.unit_name, 1, 3)) AS department_code,
+    cs.unit_code AS department_code,
     p.full_name AS owner_name,
     dr.revision_number AS current_revision,
     dr.publish_date AS current_revision_date,
@@ -638,10 +560,10 @@ FROM documents d
 LEFT JOIN cost_settings cs ON d.department_id = cs.id
 LEFT JOIN personnel p ON d.owner_id = p.id
 LEFT JOIN document_revisions dr ON d.current_revision_id = dr.id
-LEFT JOIN document_folders df ON d.folder_id = df.id
 LEFT JOIN document_revisions dr2 ON d.id = dr2.document_id
+LEFT JOIN document_folders df ON d.folder_id = df.id
 WHERE d.is_archived = false
-GROUP BY d.id, cs.unit_name, p.full_name, dr.revision_number, dr.publish_date, dr.revision_status, df.folder_name, df.folder_path;
+GROUP BY d.id, cs.unit_name, cs.unit_code, p.full_name, dr.revision_number, dr.publish_date, dr.revision_status, df.folder_name, df.folder_path;
 
 -- Tedarikçi dokümanları görünümü
 CREATE OR REPLACE VIEW supplier_documents_view AS
@@ -656,14 +578,14 @@ SELECT
     dr.revision_number,
     dr.publish_date,
     s.name AS supplier_name,
-    NULL AS supplier_code,
+    s.supplier_code,
     df.folder_name,
     df.folder_path
 FROM supplier_documents sd
 JOIN documents d ON sd.document_id = d.id
 LEFT JOIN document_revisions dr ON d.current_revision_id = dr.id
-LEFT JOIN document_folders df ON d.folder_id = df.id
 JOIN suppliers s ON sd.supplier_id = s.id
+LEFT JOIN document_folders df ON d.folder_id = df.id
 WHERE d.is_archived = false;
 
 -- Revizyon geçmişi görünümü
@@ -713,123 +635,25 @@ WHERE d.is_active = true
 ORDER BY 
     COALESCE(d.next_review_date, d.valid_until) ASC;
 
--- Klasör hiyerarşisi görünümü
-CREATE OR REPLACE VIEW folder_hierarchy AS
-SELECT 
-    df.*,
-    cs.unit_name AS department_name,
-    s.name AS supplier_name,
-    COUNT(DISTINCT d.id) AS document_count,
-    COUNT(DISTINCT df2.id) AS subfolder_count
-FROM document_folders df
-LEFT JOIN cost_settings cs ON df.department_id = cs.id
-LEFT JOIN suppliers s ON df.supplier_id = s.id
-LEFT JOIN documents d ON df.id = d.folder_id AND d.is_archived = false
-LEFT JOIN document_folders df2 ON df.id = df2.parent_folder_id AND df2.is_archived = false
-WHERE df.is_archived = false
-GROUP BY df.id, cs.unit_name, s.name;
-
 -- ============================================================================
--- 9. MEVCUT VERİLERİ KORUMA VE MİGRATİON
+-- 9. BAŞLANGIÇ KLASÖRLERİ OLUŞTURMA
 -- ============================================================================
 
--- Mevcut dokümanları varsayılan klasöre taşı
-DO $$
-DECLARE
-    v_root_folder_id UUID;
-    v_dept_id UUID;
-    v_dept_name TEXT;
-BEGIN
-    -- Her birim için kök klasör oluştur
-    FOR v_dept_id, v_dept_name IN 
-        SELECT DISTINCT cs.id, cs.unit_name
-        FROM documents d
-        JOIN cost_settings cs ON d.department = cs.unit_name
-        WHERE d.department IS NOT NULL
-    LOOP
-        -- Kök klasör oluştur
-        INSERT INTO document_folders (folder_name, folder_path, folder_type, department_id, folder_category)
-        VALUES (v_dept_name, '/' || v_dept_name, 'Birim', v_dept_id, 'Genel')
-        ON CONFLICT DO NOTHING
-        RETURNING id INTO v_root_folder_id;
-        
-        -- Bu birime ait dokümanları güncelle (updated_at manuel olarak set ediliyor)
-        UPDATE documents
-        SET department_id = v_dept_id,
-            folder_id = v_root_folder_id,
-            updated_at = COALESCE(updated_at, NOW())
-        WHERE department = v_dept_name
-          AND department_id IS NULL;
-    END LOOP;
-    
-    -- Kategori bazlı alt klasörler oluştur
-    FOR v_dept_id, v_dept_name IN 
-        SELECT DISTINCT cs.id, cs.unit_name
-        FROM documents d
-        JOIN cost_settings cs ON d.department = cs.unit_name
-        WHERE d.department IS NOT NULL
-    LOOP
-        -- Prosedürler klasörü
-        INSERT INTO document_folders (folder_name, folder_path, folder_type, department_id, folder_category, parent_folder_id)
-        SELECT v_dept_name || ' - Prosedürler', '/' || v_dept_name || '/Prosedürler', 'Birim', v_dept_id, 'Prosedürler', id
-        FROM document_folders
-        WHERE folder_path = '/' || v_dept_name AND folder_type = 'Birim'
-        ON CONFLICT DO NOTHING;
-        
-        -- Talimatlar klasörü
-        INSERT INTO document_folders (folder_name, folder_path, folder_type, department_id, folder_category, parent_folder_id)
-        SELECT v_dept_name || ' - Talimatlar', '/' || v_dept_name || '/Talimatlar', 'Birim', v_dept_id, 'Talimatlar', id
-        FROM document_folders
-        WHERE folder_path = '/' || v_dept_name AND folder_type = 'Birim'
-        ON CONFLICT DO NOTHING;
-        
-        -- Formlar klasörü
-        INSERT INTO document_folders (folder_name, folder_path, folder_type, department_id, folder_category, parent_folder_id)
-        SELECT v_dept_name || ' - Formlar', '/' || v_dept_name || '/Formlar', 'Birim', v_dept_id, 'Formlar', id
-        FROM document_folders
-        WHERE folder_path = '/' || v_dept_name AND folder_type = 'Birim'
-        ON CONFLICT DO NOTHING;
-        
-        -- Sertifikalar klasörü
-        INSERT INTO document_folders (folder_name, folder_path, folder_type, department_id, folder_category, parent_folder_id)
-        SELECT v_dept_name || ' - Sertifikalar', '/' || v_dept_name || '/Sertifikalar', 'Birim', v_dept_id, 'Sertifikalar', id
-        FROM document_folders
-        WHERE folder_path = '/' || v_dept_name AND folder_type = 'Birim'
-        ON CONFLICT DO NOTHING;
-    END LOOP;
-    
-    -- Dokümanları ilgili klasörlere taşı (updated_at manuel olarak set ediliyor)
-    UPDATE documents d
-    SET folder_id = (
-        SELECT df.id
-        FROM document_folders df
-        WHERE df.department_id = d.department_id
-          AND df.folder_category = CASE 
-              WHEN d.document_type = 'Prosedürler' THEN 'Prosedürler'
-              WHEN d.document_type = 'Talimatlar' THEN 'Talimatlar'
-              WHEN d.document_type = 'Formlar' THEN 'Formlar'
-              WHEN d.document_type IN ('Kalite Sertifikaları', 'Personel Sertifikaları') THEN 'Sertifikalar'
-              ELSE 'Genel'
-          END
-        LIMIT 1
-    ),
-    updated_at = COALESCE(updated_at, NOW())
-    WHERE d.folder_id IS NULL
-      AND d.department_id IS NOT NULL;
-END $$;
+-- Varsayılan klasörleri oluştur (eğer yoksa)
+INSERT INTO document_folders (folder_name, folder_path, folder_type, folder_category, description, is_active)
+SELECT 'Birim Dokümanları', '/Birim Dokümanları', 'Birim', 'Genel', 'Tüm birim dokümanları', true
+WHERE NOT EXISTS (SELECT 1 FROM document_folders WHERE folder_path = '/Birim Dokümanları');
+
+INSERT INTO document_folders (folder_name, folder_path, folder_type, folder_category, description, is_active)
+SELECT 'Tedarikçi Dokümanları', '/Tedarikçi Dokümanları', 'Tedarikçi', 'Genel', 'Tedarikçilerden gelen dokümanlar', true
+WHERE NOT EXISTS (SELECT 1 FROM document_folders WHERE folder_path = '/Tedarikçi Dokümanları');
+
+INSERT INTO document_folders (folder_name, folder_path, folder_type, folder_category, description, is_active)
+SELECT 'Müşteri Dokümanları', '/Müşteri Dokümanları', 'Müşteri', 'Genel', 'Müşterilerden gelen dokümanlar', true
+WHERE NOT EXISTS (SELECT 1 FROM document_folders WHERE folder_path = '/Müşteri Dokümanları');
 
 -- ============================================================================
--- 10. TRİGGER'LARI OLUŞTUR (Migration'dan SONRA)
--- ============================================================================
-
--- Documents tablosu için updated_at trigger'ı
-CREATE TRIGGER trigger_update_documents_updated_at
-BEFORE UPDATE ON documents
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- 11. YORUMLAR
+-- 10. YORUMLAR
 -- ============================================================================
 
 COMMENT ON COLUMN documents.folder_id IS 'Dokümanın ait olduğu klasör';
@@ -849,6 +673,7 @@ COMMENT ON COLUMN document_revisions.effective_date IS 'Revizyonun yürürlük t
 COMMENT ON COLUMN document_revisions.superseded_date IS 'Revizyonun yürürlükten kalkma tarihi';
 COMMENT ON COLUMN document_revisions.change_summary IS 'Değişiklik özeti';
 
-COMMENT ON COLUMN document_folders.folder_path IS 'Tam klasör yolu (örn: /Üretim/Prosedürler/Kalite)';
-COMMENT ON COLUMN document_folders.folder_type IS 'Klasör tipi: Birim, Tedarikçi, Kategori, Genel';
-COMMENT ON COLUMN document_folders.folder_category IS 'Klasör kategorisi: Prosedürler, Talimatlar, Formlar, Sertifikalar, Tedarikçi Dokümanları';
+COMMENT ON COLUMN document_folders.folder_path IS 'Tam klasör yolu (otomatik oluşturulur)';
+COMMENT ON COLUMN document_folders.folder_type IS 'Klasör tipi: Birim, Tedarikçi, Müşteri, Genel';
+COMMENT ON COLUMN document_folders.folder_category IS 'Klasör kategorisi: Talimatlar, Prosedürler, Formlar, vb.';
+
