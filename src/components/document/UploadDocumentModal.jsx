@@ -195,8 +195,7 @@ import { Badge } from '@/components/ui/badge';
                     };
                 }
                 
-                // Mevcut kullanıcının personel kaydını bul
-                const currentUserPersonnelRecord = personnelList.find(p => p.email === user.email);
+                // Owner ID'yi belirle
                 const ownerId = formData.owner_id || currentUserPersonnelRecord?.id || null;
 
                 const documentPayload = {
