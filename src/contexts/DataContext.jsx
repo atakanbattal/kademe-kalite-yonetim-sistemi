@@ -233,28 +233,39 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 
                 heavyResults.forEach((result, index) => {
                     const key = heavyKeys[index];
-                    if (result.status === 'fulfilled' && !result.value.error) {
-                        newState[key] = result.value.data || [];
-                        // Documents için özel debug
+                    if (result.status === 'fulfilled') {
+                        // Documents için özel kontrol - async fonksiyon { data, error } döndürüyor
                         if (key === 'documents') {
-                            console.log('📚 Documents fetch başarılı:', result.value.data?.length || 0, 'doküman');
-                            if (result.value.data && result.value.data.length > 0) {
-                                console.log('📚 İlk doküman örneği:', result.value.data[0]);
-                                console.log('📚 Doküman tipleri:', [...new Set(result.value.data.map(d => d.document_type).filter(Boolean))]);
+                            const documentsResult = result.value;
+                            if (!documentsResult.error && documentsResult.data) {
+                                newState[key] = documentsResult.data || [];
+                                console.log('📚 Documents fetch başarılı:', documentsResult.data?.length || 0, 'doküman');
+                                if (documentsResult.data && documentsResult.data.length > 0) {
+                                    console.log('📚 İlk doküman örneği:', documentsResult.data[0]);
+                                    console.log('📚 Doküman tipleri:', [...new Set(documentsResult.data.map(d => d.document_type).filter(Boolean))]);
+                                }
+                            } else {
+                                console.error('❌ Documents fetch failed:', documentsResult.error);
+                                console.error('❌ Documents sorgu hatası detayları:', {
+                                    error: documentsResult.error,
+                                    message: documentsResult.error?.message,
+                                    details: documentsResult.error?.details,
+                                    hint: documentsResult.error?.hint
+                                });
+                                newState[key] = [];
+                            }
+                        } else {
+                            // Diğer tablolar için normal kontrol
+                            if (!result.value.error) {
+                                newState[key] = result.value.data || [];
+                            } else {
+                                console.error(`❌ ${key} fetch failed:`, result.value.error);
+                                newState[key] = [];
                             }
                         }
                     } else {
                         const error = result.reason || result.value?.error;
                         console.error(`❌ ${key} fetch failed:`, error);
-                        // Documents için özel hata mesajı
-                        if (key === 'documents') {
-                            console.error('❌ Documents sorgu hatası detayları:', {
-                                error: error,
-                                message: error?.message,
-                                details: error?.details,
-                                hint: error?.hint
-                            });
-                        }
                         newState[key] = [];
                     }
                 });
