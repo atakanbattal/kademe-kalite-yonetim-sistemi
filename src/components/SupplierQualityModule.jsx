@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useData } from '@/contexts/DataContext';
@@ -13,6 +12,7 @@ import SupplierFormModal from '@/components/supplier/SupplierFormModal';
 import SupplierNCTab from '@/components/supplier/SupplierNCTab';
 import AuditTrackingTab from '@/components/supplier/AuditTrackingTab';
 import SupplierQuestionBank from '@/components/supplier/SupplierQuestionBank';
+import SupplierDocumentsTab from '@/components/supplier/SupplierDocumentsTab';
 
 
 const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) => {
@@ -20,6 +20,7 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
   const [isFormModalOpen, setFormModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [isNewAlternative, setIsNewAlternative] = useState(false);
   const [filters, setFilters] = useState({
     searchTerm: '',
     status: 'all',
@@ -29,9 +30,11 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
   const mergedSuppliers = useMemo(() => {
     return suppliers.map(s => {
       const supplierNcs = nonConformities.filter(nc => nc.supplier_id === s.id);
+      const altSupplier = s.alternative_to_supplier_id ? suppliers.find(main => main.id === s.alternative_to_supplier_id) : null;
       return {
         ...s,
-        supplier_non_conformities: supplierNcs
+        supplier_non_conformities: supplierNcs,
+        alternative_supplier: altSupplier
       };
     });
   }, [suppliers, nonConformities]);
@@ -40,7 +43,17 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
     let tempSuppliers = [...mergedSuppliers];
     if (filters.searchTerm) {
         const term = filters.searchTerm.toLowerCase();
-        tempSuppliers = tempSuppliers.filter(s => s.name.toLowerCase().includes(term) || s.product_group?.toLowerCase().includes(term));
+        // Kapsamlı arama: tedarikçi adı, ürün grubu, kod, adres, iletişim bilgileri, uygunsuzluk başlıkları
+        tempSuppliers = tempSuppliers.filter(s => 
+            s.name.toLowerCase().includes(term) || 
+            s.product_group?.toLowerCase().includes(term) ||
+            s.code?.toLowerCase().includes(term) ||
+            s.address?.toLowerCase().includes(term) ||
+            s.contact_person?.toLowerCase().includes(term) ||
+            s.email?.toLowerCase().includes(term) ||
+            s.phone?.toLowerCase().includes(term) ||
+            s.supplier_non_conformities?.some(nc => nc.title?.toLowerCase().includes(term) || nc.description?.toLowerCase().includes(term))
+        );
     }
     if (filters.status !== 'all') {
         tempSuppliers = tempSuppliers.filter(s => s.status === filters.status);
@@ -51,16 +64,18 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
     setFilteredSuppliers(tempSuppliers);
   }, [filters, mergedSuppliers]);
 
-
-  const handleEditSupplier = (supplier) => {
+  const handleEditSupplier = useCallback((supplier, isAlternative = false) => {
     setSelectedSupplier(supplier);
+    setIsNewAlternative(isAlternative);
     setFormModalOpen(true);
-  };
+  }, []);
 
-  const handleAddNewSupplier = () => {
+  const handleAddNewSupplier = useCallback(() => {
     setSelectedSupplier(null);
+    setIsNewAlternative(false);
     setFormModalOpen(true);
-  };
+  }, []);
+
 
   return (
     <div className="space-y-6">
@@ -70,6 +85,7 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
         supplier={selectedSupplier}
         refreshSuppliers={refreshData}
         allSuppliers={suppliers}
+        isNewAlternative={isNewAlternative}
       />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -84,12 +100,13 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
       </div>
       
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="dashboard"><BarChart className="w-4 h-4 mr-2" />Genel Bakış</TabsTrigger>
-            <TabsTrigger value="list"><List className="w-4 h-4 mr-2" />Tedarikçi Listesi</TabsTrigger>
-            <TabsTrigger value="audits"><CalendarCheck className="w-4 h-4 mr-2" />Denetim Takibi</TabsTrigger>
-            <TabsTrigger value="question-bank"><HelpCircle className="w-4 h-4 mr-2" />Soru Bankası</TabsTrigger>
-            <TabsTrigger value="ncs"><AlertTriangle className="w-4 h-4 mr-2" />Uygunsuzluklar & DF</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 gap-1 overflow-x-auto">
+            <TabsTrigger value="dashboard" className="text-xs md:text-sm"><BarChart className="w-4 h-4 mr-1 md:mr-2" />Genel Bakış</TabsTrigger>
+            <TabsTrigger value="list" className="text-xs md:text-sm"><List className="w-4 h-4 mr-1 md:mr-2" />Tedarikçi Listesi</TabsTrigger>
+            <TabsTrigger value="audits" className="text-xs md:text-sm"><CalendarCheck className="w-4 h-4 mr-1 md:mr-2" />Denetim Takibi</TabsTrigger>
+            <TabsTrigger value="question-bank" className="text-xs md:text-sm"><HelpCircle className="w-4 h-4 mr-1 md:mr-2" />Soru Bankası</TabsTrigger>
+            <TabsTrigger value="ncs" className="text-xs md:text-sm"><AlertTriangle className="w-4 h-4 mr-1 md:mr-2" />Uygunsuzluklar & DF</TabsTrigger>
+            <TabsTrigger value="documents" className="text-xs md:text-sm"><FileText className="w-4 h-4 mr-1 md:mr-2" />Dokümanlar</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="mt-6">
             <SupplierDashboard 
@@ -124,13 +141,20 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
         </TabsContent>
          <TabsContent value="question-bank" className="mt-6">
             <SupplierQuestionBank />
-        </TabsContent>
+         </TabsContent>
         <TabsContent value="ncs" className="mt-6">
             <SupplierNCTab 
               allSuppliers={suppliers} 
               loading={loading} 
               onOpenNCForm={onOpenNCForm}
               onOpenNCView={onOpenNCView}
+            />
+        </TabsContent>
+        <TabsContent value="documents" className="mt-6">
+            <SupplierDocumentsTab 
+              suppliers={suppliers} 
+              loading={loading} 
+              refreshData={refreshData}
             />
         </TabsContent>
       </Tabs>
