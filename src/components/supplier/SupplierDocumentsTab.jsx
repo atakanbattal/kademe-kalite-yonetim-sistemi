@@ -273,7 +273,13 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                             <h3 className="text-lg font-semibold">Tedarikçi Doküman Yönetimi</h3>
                             <p className="text-sm text-muted-foreground">Tedarikçilerden gelen tüm dokümanları yönetin</p>
                         </div>
-                        <Button onClick={() => setUploadOpen(true)} disabled={!selectedSupplier}>
+                        <Button onClick={() => {
+                            if (!selectedSupplier) {
+                                toast({ variant: 'destructive', title: 'Lütfen bir tedarikçi seçin! (Tüm Tedarikçiler seçeneği ile yükleme yapılamaz)' });
+                                return;
+                            }
+                            setUploadOpen(true);
+                        }}>
                             <Upload className="w-4 h-4 mr-2" />
                             Dosya Yükle
                         </Button>
