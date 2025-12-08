@@ -123,10 +123,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 // Documents sorgusu - önce documents çek, sonra document_revisions ayrı çekilecek
                 documents: (async () => {
                     try {
-                        // Önce documents'ı çek
+                        // Önce documents'ı department bilgisiyle birlikte çek
                         const { data: docsData, error: docsError } = await supabase
                             .from('documents')
-                            .select('*')
+                            .select('*, department:department_id(id, unit_name)')
                             .order('created_at', { ascending: false });
                         
                         if (docsError) throw docsError;

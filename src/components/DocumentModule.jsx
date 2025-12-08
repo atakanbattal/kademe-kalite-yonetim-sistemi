@@ -283,6 +283,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                         <tr>
                                             <th>Doküman Adı / Numarası</th>
                                             {activeTab === 'Personel Sertifikaları' && <th>Personel</th>}
+                                            {(activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') && <th>Birim</th>}
                                             <th>Versiyon</th>
                                             <th>Yayın Tarihi</th>
                                             <th>Geçerlilik Durumu</th>
@@ -291,9 +292,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan="6" className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' || (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') ? '7' : '6'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
                                         ) : filteredDocuments.length === 0 ? (
-                                            <tr><td colSpan="6" className="text-center py-8 text-muted-foreground">Bu kategoride doküman bulunmuyor.</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' || (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') ? '7' : '6'} className="text-center py-8 text-muted-foreground">Bu kategoride doküman bulunmuyor.</td></tr>
                                         ) : (
                                             filteredDocuments.map((doc, index) => {
                                                 const revision = doc.document_revisions;
@@ -312,6 +313,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                                         <div className="text-xs text-muted-foreground">{doc.document_number}</div>
                                                     </td>
                                                     {activeTab === 'Personel Sertifikaları' && <td>{doc.personnel?.full_name || doc.owner?.full_name || 'N/A'}</td>}
+                                                    {(activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') && (
+                                                        <td className="text-muted-foreground">{doc.department?.unit_name || '-'}</td>
+                                                    )}
                                                     <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
                                                     <td className="text-muted-foreground">{revision ? format(new Date(revision.publish_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>

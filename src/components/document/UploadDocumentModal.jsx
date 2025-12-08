@@ -32,7 +32,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
     const UploadDocumentModal = ({ isOpen, setIsOpen, refreshDocuments, existingDocument, categories, preselectedCategory }) => {
         const { toast } = useToast();
         const { user, profile } = useAuth();
-        const { personnel: personnelList } = useData();
+        const { personnel: personnelList, unitCostSettings } = useData();
         const isEditMode = !!existingDocument;
 
         const [formData, setFormData] = useState({});
@@ -53,7 +53,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         revision_reason: 'İlk Yayın',
                         valid_until: '',
                         status: 'Yayınlandı',
-                        department: profile?.department || '',
+                        department_id: null,
                     };
 
                     if (isEditMode && existingDocument) {
@@ -68,6 +68,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                             publish_date: revision?.publish_date ? new Date(revision.publish_date).toISOString().slice(0, 10) : '',
                             revision_reason: revision?.revision_reason || '',
                             file_name: revision?.attachments?.[0]?.name,
+                            department_id: existingDocument.department_id || null,
                          });
                     } else {
                         setFormData(initialData);
@@ -111,6 +112,11 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen tüm zorunlu alanları doldurun.' });
                 return;
             }
+            // Prosedürler, Talimatlar ve Formlar için birim zorunlu
+            if ((formData.document_type === 'Prosedürler' || formData.document_type === 'Talimatlar' || formData.document_type === 'Formlar') && !formData.department_id) {
+                toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen birim seçiniz.' });
+                return;
+            }
             setIsSubmitting(true);
 
             try {
@@ -148,7 +154,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     title: formData.title,
                     document_type: formData.document_type,
                     status: 'Yayınlandı',
-                    department: formData.department,
+                    department_id: formData.department_id || null,
                     personnel_id: formData.document_type === 'Personel Sertifikaları' ? formData.personnel_id : null,
                     valid_until: formData.valid_until || null,
                     user_id: user.id,
@@ -247,6 +253,32 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                                                 {p.full_name}
                                             </SelectItem>
                                         ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {(formData.document_type === 'Prosedürler' || formData.document_type === 'Talimatlar' || formData.document_type === 'Formlar') && (
+                            <div>
+                                <Label htmlFor="department_id">Birim <span className="text-red-500">*</span></Label>
+                                <Select
+                                    value={formData.department_id || ''}
+                                    onValueChange={(value) => handleSelectChange('department_id', value)}
+                                    required
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Birim seçin..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {unitCostSettings && unitCostSettings.length > 0 ? (
+                                            unitCostSettings.map((dept) => (
+                                                <SelectItem key={dept.id} value={dept.id}>
+                                                    {dept.unit_name}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="" disabled>Birim bulunamadı</SelectItem>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
