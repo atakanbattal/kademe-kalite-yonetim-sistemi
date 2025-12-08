@@ -426,11 +426,6 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                             {doc.file_size && (
                                                 <div>Boyut: {formatFileSize(doc.file_size)}</div>
                                             )}
-                                            {doc.expiry_date && (
-                                                <div className={new Date(doc.expiry_date) < new Date() ? 'text-red-500' : ''}>
-                                                    Geçerlilik: {format(new Date(doc.expiry_date), 'dd.MM.yyyy', { locale: tr })}
-                                                </div>
-                                            )}
                                         </div>
                                         
                                         {/* İlişkili Kayıtlar ve Etiketler */}
