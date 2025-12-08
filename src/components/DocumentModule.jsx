@@ -42,6 +42,7 @@ const DocumentModule = () => {
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isUploadModalOpen, setUploadModalOpen] = useState(false);
+    const [editingDocument, setEditingDocument] = useState(null);
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedFolderId, setSelectedFolderId] = useState(null);
@@ -249,12 +250,20 @@ const DocumentModule = () => {
         <div className="space-y-6">
             <UploadDocumentModal
                 isOpen={isUploadModalOpen}
-                setIsOpen={setUploadModalOpen}
+                setIsOpen={(open) => {
+                    setUploadModalOpen(open);
+                    if (!open) {
+                        setEditingDocument(null);
+                    }
+                }}
                 refreshDocuments={loadDocuments}
                 categories={['Prosedürler', 'Talimatlar', 'Formlar', 'Kalite Sertifikaları', 'Personel Sertifikaları', 'Diğer']}
                 personnelList={personnel}
-                existingDocument={null}
+                existingDocument={editingDocument}
                 preselectedCategory={null}
+                preselectedFolderId={selectedFolderId}
+                preselectedDepartmentId={selectedDepartmentId}
+                preselectedSupplierId={selectedSupplierId}
             />
 
             <DocumentDetailModal
@@ -490,6 +499,12 @@ const DocumentModule = () => {
                                                         {doc.department.unit_name}
                                                     </div>
                                                 )}
+                                                {doc.owner && (
+                                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                        <Users className="h-3 w-3" />
+                                                        {doc.owner.full_name}
+                                                    </div>
+                                                )}
                                                 {doc.folder && (
                                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                         <Folder className="h-3 w-3" />
@@ -512,12 +527,24 @@ const DocumentModule = () => {
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => handleViewDocument(doc)}
+                                                        title="Görüntüle"
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                     </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => {
+                                                            setEditingDocument(doc);
+                                                            setUploadModalOpen(true);
+                                                        }}
+                                                        title="Düzenle"
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Button size="sm" variant="ghost" className="text-destructive">
+                                                            <Button size="sm" variant="ghost" className="text-destructive" title="Sil">
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </AlertDialogTrigger>
@@ -552,6 +579,7 @@ const DocumentModule = () => {
                                             <tr className="border-b">
                                                 <th className="text-left p-4 font-semibold">Doküman</th>
                                                 <th className="text-left p-4 font-semibold">Birim</th>
+                                                <th className="text-left p-4 font-semibold">Sahip</th>
                                                 <th className="text-left p-4 font-semibold">Klasör</th>
                                                 <th className="text-left p-4 font-semibold">Revizyon</th>
                                                 <th className="text-left p-4 font-semibold">Durum</th>
@@ -579,6 +607,14 @@ const DocumentModule = () => {
                                                     </td>
                                                     <td className="p-4">
                                                         {doc.department?.unit_name || '-'}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        {doc.owner ? (
+                                                            <div className="flex items-center gap-1 text-sm">
+                                                                <Users className="h-3 w-3 text-muted-foreground" />
+                                                                {doc.owner.full_name}
+                                                            </div>
+                                                        ) : '-'}
                                                     </td>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-1 text-sm text-muted-foreground">

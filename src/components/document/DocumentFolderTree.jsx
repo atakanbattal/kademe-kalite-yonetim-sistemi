@@ -77,23 +77,29 @@ const DocumentFolderTree = ({
                 query = query.eq('department_id', departmentId);
             } else if (supplierId) {
                 query = query.eq('supplier_id', supplierId);
-            } else {
-                query = query.or(`department_id.is.null,supplier_id.is.null`);
+            } else if (!departmentId && !supplierId) {
+                // Tümü sekmesinde - hem birim hem tedarikçi hem de genel klasörleri göster
+                query = query.or(`department_id.is.null,supplier_id.is.null,department_id.not.is.null,supplier_id.not.is.null`);
             }
 
             const { data, error } = await query;
 
-            if (error) throw error;
+            if (error) {
+                console.error('Klasör yükleme hatası:', error);
+                throw error;
+            }
+            
             setFolders(data || []);
             
             // Kök klasörleri otomatik aç
             const rootFolders = (data || []).filter(f => !f.parent_folder_id);
             setExpandedFolders(new Set(rootFolders.map(f => f.id)));
         } catch (error) {
+            console.error('Klasör yükleme hatası:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Klasörler yüklenemedi: ' + error.message
+                description: 'Klasörler yüklenemedi: ' + (error.message || 'Bilinmeyen hata')
             });
         } finally {
             setLoading(false);
@@ -150,6 +156,24 @@ const DocumentFolderTree = ({
         }
 
         try {
+            // Eğer parent_folder_id varsa, önce parent'ın var olduğundan emin ol
+            if (folderFormData.parent_folder_id) {
+                const { data: parentFolder } = await supabase
+                    .from('document_folders')
+                    .select('id, folder_path')
+                    .eq('id', folderFormData.parent_folder_id)
+                    .single();
+                
+                if (!parentFolder) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Hata',
+                        description: 'Seçilen üst klasör bulunamadı.'
+                    });
+                    return;
+                }
+            }
+
             const { data, error } = await supabase
                 .from('document_folders')
                 .insert({
@@ -179,10 +203,11 @@ const DocumentFolderTree = ({
             });
             loadFolders();
         } catch (error) {
+            console.error('Klasör oluşturma hatası:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Klasör oluşturulamadı: ' + error.message
+                description: 'Klasör oluşturulamadı: ' + (error.message || 'Bilinmeyen hata')
             });
         }
     };
