@@ -235,8 +235,8 @@ DECLARE
     v_sequence INTEGER;
     v_doc_number VARCHAR(100);
 BEGIN
-    -- Departman kodunu al (unit_code yoksa unit_name'in ilk 3 harfini kullan)
-    SELECT COALESCE(SUBSTRING(unit_name, 1, 3), 'GEN') INTO v_dept_code
+    -- Departman kodunu al
+    SELECT COALESCE(unit_code, SUBSTRING(unit_name, 1, 3)) INTO v_dept_code
     FROM cost_settings
     WHERE id = p_department_id;
     
@@ -491,7 +491,7 @@ CREATE OR REPLACE VIEW documents_by_department AS
 SELECT 
     d.*,
     cs.unit_name AS department_name,
-    SUBSTRING(cs.unit_name, 1, 3) AS department_code,
+    cs.unit_code AS department_code,
     p.full_name AS owner_name,
     dr.revision_number AS current_revision,
     dr.publish_date AS current_revision_date,
@@ -503,7 +503,7 @@ LEFT JOIN personnel p ON d.owner_id = p.id
 LEFT JOIN document_revisions dr ON d.current_revision_id = dr.id
 LEFT JOIN document_revisions dr2 ON d.id = dr2.document_id
 WHERE d.is_archived = false
-GROUP BY d.id, cs.unit_name, p.full_name, dr.revision_number, dr.publish_date, dr.revision_status;
+GROUP BY d.id, cs.unit_name, cs.unit_code, p.full_name, dr.revision_number, dr.publish_date, dr.revision_status;
 
 -- Tedarikçi dokümanları görünümü
 CREATE OR REPLACE VIEW supplier_documents_view AS

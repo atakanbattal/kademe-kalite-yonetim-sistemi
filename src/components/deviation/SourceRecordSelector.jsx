@@ -418,7 +418,7 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2">
-                                                <div className="font-semibold">{record.part_code || '-'}</div>
+                                            <div className="font-semibold">{record.part_code || '-'}</div>
                                                 {hasDeviation(record, 'incoming_inspection') && (
                                                     <Badge variant="outline" className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border-blue-300">
                                                         <FileCheck className="h-3 w-3" />
@@ -503,7 +503,7 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2">
-                                                <div className="font-semibold">{record.part_code || '-'}</div>
+                                            <div className="font-semibold">{record.part_code || '-'}</div>
                                                 {hasDeviation(record, 'quarantine') && (
                                                     <Badge variant="outline" className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border-blue-300">
                                                         <FileCheck className="h-3 w-3" />
@@ -579,7 +579,7 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2">
-                                                <div className="font-semibold">{record.part_code || 'Genel Maliyet'}</div>
+                                            <div className="font-semibold">{record.part_code || 'Genel Maliyet'}</div>
                                                 {hasDeviation(record, 'quality_cost') && (
                                                     <Badge variant="outline" className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border-blue-300">
                                                         <FileCheck className="h-3 w-3" />
