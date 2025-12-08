@@ -54,18 +54,49 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         const [activeTab, setActiveTab] = useState(DOCUMENT_CATEGORIES[0].value);
         const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
 
+        // Debug: Dokümanları console'a yazdır
+        useEffect(() => {
+            if (documents && documents.length > 0) {
+                console.log('📄 Toplam doküman sayısı:', documents.length);
+                console.log('📄 Doküman tipleri:', [...new Set(documents.map(d => d.document_type))]);
+                console.log('📄 Kalite Sertifikaları:', documents.filter(d => d.document_type === 'Kalite Sertifikaları').length);
+                console.log('📄 Personel Sertifikaları:', documents.filter(d => d.document_type === 'Personel Sertifikaları').length);
+                console.log('📄 Tüm dokümanlar:', documents);
+            } else {
+                console.log('⚠️ Doküman bulunamadı veya yükleniyor...');
+            }
+        }, [documents]);
+
         const filteredDocuments = useMemo(() => {
+            // Debug: Tüm dokümanları logla
+            console.log('🔍 Documents modülü - Tüm dokümanlar:', documents);
+            console.log('🔍 Aktif tab:', activeTab);
+            console.log('🔍 Doküman tipleri:', documents.map(d => d.document_type));
+            
             let docs = documents
-                .filter(doc => doc.document_type === activeTab)
+                .filter(doc => {
+                    const matches = doc.document_type === activeTab;
+                    if (!matches && doc.document_type) {
+                        console.log(`❌ Filtre dışı: ${doc.title} - Tip: ${doc.document_type}, Beklenen: ${activeTab}`);
+                    }
+                    return matches;
+                })
                 .map(doc => {
                     // document_revisions bir array ise, current_revision_id ile eşleşeni bul
                     let revision = doc.document_revisions;
                     if (Array.isArray(revision) && doc.current_revision_id) {
                         revision = revision.find(r => r.id === doc.current_revision_id) || revision[0] || null;
                     }
+                    // Eğer revision yoksa ve current_revision_id varsa, direkt fetch et
+                    if (!revision && doc.current_revision_id) {
+                        console.warn(`⚠️ Revision bulunamadı: ${doc.title} - current_revision_id: ${doc.current_revision_id}`);
+                    }
                     return { ...doc, document_revisions: revision };
                 })
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            
+            console.log(`✅ Filtrelenmiş dokümanlar (${activeTab}):`, docs.length);
+            return docs;
 
             if (searchTerm) {
                 const lowercasedFilter = searchTerm.toLowerCase();
