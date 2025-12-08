@@ -137,10 +137,32 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                 const fileExt = file.name.split('.').pop();
                 const tagsArray = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
                 
+                // Önce documents tablosuna kayıt oluştur
+                const { data: documentData, error: documentError } = await supabase
+                    .from('documents')
+                    .insert({
+                        title: file.name,
+                        document_type: docType,
+                        document_category: docType,
+                        supplier_id: selectedSupplier.id,
+                        user_id: user?.id,
+                        tags: tagsArray.length > 0 ? tagsArray : null,
+                        valid_until: expiryDate || null,
+                        status: 'Aktif'
+                    })
+                    .select('id')
+                    .single();
+                
+                if (documentError) throw documentError;
+                if (!documentData?.id) throw new Error('Document kaydı oluşturulamadı');
+                
+                // Sonra supplier_documents tablosuna kayıt ekle
                 const { error: dbError } = await supabase.from('supplier_documents').insert({
                     supplier_id: selectedSupplier.id,
+                    document_id: documentData.id,
                     document_type: docType,
                     document_name: file.name,
+                    document_category: docType,
                     document_description: docDescription || null,
                     file_path: filePath,
                     file_type: fileExt,
