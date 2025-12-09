@@ -14,6 +14,7 @@ import React, { useState, useMemo, useCallback } from 'react';
     import RecordListModal from '@/components/df-8d/modals/RecordListModal';
     import { Button } from '@/components/ui/button';
     import { parseISO, isAfter } from 'date-fns';
+    import { normalizeTurkishForSearch } from '@/lib/utils';
 
     const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
         const { nonConformities, refreshData, loading } = useData();
@@ -82,12 +83,12 @@ import React, { useState, useMemo, useCallback } from 'react';
                 });
             }
 
-            const searchTermLower = filters.searchTerm.toLowerCase().trim();
+            const normalizedSearchTerm = normalizeTurkishForSearch(filters.searchTerm.trim());
             // Arama terimini kelimelere böl (daha esnek arama için)
-            const searchWords = searchTermLower.split(/\s+/).filter(word => word.length > 0);
+            const searchWords = normalizedSearchTerm.split(/\s+/).filter(word => word.length > 0);
             
             const filtered = nonConformities.filter(record => {
-                // Tüm alanları birleştir ve arama yap
+                // Tüm alanları birleştir ve arama yap (Türkçe karakterleri normalize et)
                 const searchableText = [
                     record.nc_number,
                     record.mdi_no,
@@ -112,7 +113,7 @@ import React, { useState, useMemo, useCallback } from 'react';
                     record.eight_d_progress ? JSON.stringify(record.eight_d_progress) : null,
                 ]
                 .filter(Boolean)
-                .map(val => String(val).toLowerCase())
+                .map(val => normalizeTurkishForSearch(String(val)))
                 .join(' ');
 
                 // Tüm kelimelerin eşleşmesi gerekiyor (AND mantığı)

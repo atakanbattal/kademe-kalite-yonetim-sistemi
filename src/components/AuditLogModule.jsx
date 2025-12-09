@@ -10,6 +10,7 @@ import React, { useMemo, useState } from 'react';
     import { Search, Filter, Clock, User, FileText, Plus, Edit, Trash2, ChevronRight } from 'lucide-react';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    import { normalizeTurkishForSearch } from '@/lib/utils';
 
     const AuditLogModule = () => {
       const { auditLogs, loading } = useData();
@@ -31,12 +32,12 @@ import React, { useMemo, useState } from 'react';
         
         // Arama filtresi
         if (searchTerm) {
-          const lowercasedTerm = searchTerm.toLowerCase();
+          const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
           logs = logs.filter(log =>
-            log.action.toLowerCase().includes(lowercasedTerm) ||
-            log.user_full_name?.toLowerCase().includes(lowercasedTerm) ||
-            log.table_name?.toLowerCase().includes(lowercasedTerm) ||
-            (log.details && JSON.stringify(log.details).toLowerCase().includes(lowercasedTerm))
+            normalizeTurkishForSearch(log.action).includes(normalizedSearchTerm) ||
+            normalizeTurkishForSearch(log.user_full_name).includes(normalizedSearchTerm) ||
+            normalizeTurkishForSearch(log.table_name).includes(normalizedSearchTerm) ||
+            (log.details && normalizeTurkishForSearch(JSON.stringify(log.details)).includes(normalizedSearchTerm))
           );
         }
         

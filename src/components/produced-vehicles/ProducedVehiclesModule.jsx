@@ -55,11 +55,11 @@ import React, { useState, useMemo } from 'react';
             }
 
             if (searchTerm) {
-                const lowercasedFilter = searchTerm.toLowerCase();
+                const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
                 return sortedVehicles.filter(v => 
-                    v.chassis_no?.toLowerCase().includes(lowercasedFilter) ||
-                    v.vehicle_type?.toLowerCase().includes(lowercasedFilter) ||
-                    v.customer_name?.toLowerCase().includes(lowercasedFilter)
+                    normalizeTurkishForSearch(v.chassis_no).includes(normalizedSearchTerm) ||
+                    normalizeTurkishForSearch(v.vehicle_type).includes(normalizedSearchTerm) ||
+                    normalizeTurkishForSearch(v.customer_name).includes(normalizedSearchTerm)
                 );
             }
             return sortedVehicles;

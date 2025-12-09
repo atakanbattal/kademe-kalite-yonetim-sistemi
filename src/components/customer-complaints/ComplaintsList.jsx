@@ -18,6 +18,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { normalizeTurkishForSearch } from '../../lib/utils';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
@@ -99,13 +100,13 @@ export default function ComplaintsList({
 
         // Arama filtresi
         if (searchTerm) {
-            const term = searchTerm.toLowerCase();
+            const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
             filtered = filtered.filter(c =>
-                c.complaint_number?.toLowerCase().includes(term) ||
-                c.complaint_title?.toLowerCase().includes(term) ||
-                c.complaint_description?.toLowerCase().includes(term) ||
-                c.customer?.customer_name?.toLowerCase().includes(term) ||
-                c.product_name?.toLowerCase().includes(term)
+                normalizeTurkishForSearch(c.complaint_number).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.complaint_title).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.complaint_description).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.customer?.customer_name).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.product_name).includes(normalizedSearchTerm)
             );
         }
 

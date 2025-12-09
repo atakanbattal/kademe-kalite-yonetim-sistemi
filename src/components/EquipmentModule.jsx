@@ -13,6 +13,7 @@ import EquipmentDetailModal from '@/components/equipment/EquipmentDetailModal';
 import EquipmentDashboard from '@/components/equipment/EquipmentDashboard';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { useData } from '@/contexts/DataContext';
+import { normalizeTurkishForSearch } from '@/lib/utils';
 
 const EquipmentModule = () => {
     const { toast } = useToast();
@@ -28,24 +29,24 @@ const EquipmentModule = () => {
         let filtered = allEquipments;
 
         if (searchTerm) {
-            const lowerSearchTerm = searchTerm.toLowerCase();
+            const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
             filtered = filtered.filter(eq => {
                 // Temel ekipman bilgileri
-                const nameMatch = eq.name?.toLowerCase().includes(lowerSearchTerm);
-                const serialMatch = eq.serial_number?.toLowerCase().includes(lowerSearchTerm);
-                const brandMatch = eq.brand_model?.toLowerCase().includes(lowerSearchTerm);
-                const locationMatch = eq.location?.toLowerCase().includes(lowerSearchTerm);
-                const unitMatch = eq.responsible_unit?.toLowerCase().includes(lowerSearchTerm);
-                const categoryMatch = eq.category?.toLowerCase().includes(lowerSearchTerm);
+                const nameMatch = normalizeTurkishForSearch(eq.name).includes(normalizedSearchTerm);
+                const serialMatch = normalizeTurkishForSearch(eq.serial_number).includes(normalizedSearchTerm);
+                const brandMatch = normalizeTurkishForSearch(eq.brand_model).includes(normalizedSearchTerm);
+                const locationMatch = normalizeTurkishForSearch(eq.location).includes(normalizedSearchTerm);
+                const unitMatch = normalizeTurkishForSearch(eq.responsible_unit).includes(normalizedSearchTerm);
+                const categoryMatch = normalizeTurkishForSearch(eq.category).includes(normalizedSearchTerm);
                 
                 // Kalibrasyon bilgileri (sertifika no)
                 const calibrationMatch = eq.equipment_calibrations?.some(cal => 
-                    cal.certificate_number?.toLowerCase().includes(lowerSearchTerm)
+                    normalizeTurkishForSearch(cal.certificate_number).includes(normalizedSearchTerm)
                 );
                 
                 // Personel bilgileri (zimmetli personel)
                 const personnelMatch = eq.equipment_assignments?.some(assign => 
-                    assign.personnel?.full_name?.toLowerCase().includes(lowerSearchTerm)
+                    normalizeTurkishForSearch(assign.personnel?.full_name).includes(normalizedSearchTerm)
                 );
                 
                 return nameMatch || serialMatch || brandMatch || locationMatch || 

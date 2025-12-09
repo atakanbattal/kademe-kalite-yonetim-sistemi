@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
     import { useData } from '@/contexts/DataContext';
     import PdfViewerModal from '@/components/document/PdfViewerModal';
     import { openPrintableReport } from '@/lib/reportUtils';
+    import { normalizeTurkishForSearch } from '@/lib/utils';
 
     const DOCUMENT_CATEGORIES = [
       { value: 'Kalite Sertifikaları', label: 'Kalite Sertifikaları', icon: Certificate, addText: 'Yeni Kalite Sertifikası Ekle' },
@@ -181,12 +182,13 @@ import { Label } from '@/components/ui/label';
             }
             
             if (searchTerm) {
-                const lowercasedFilter = searchTerm.toLowerCase();
+                const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
                 docs = docs.filter(doc => {
-                    const titleMatch = doc.title?.toLowerCase().includes(lowercasedFilter);
+                    const normalizedTitle = normalizeTurkishForSearch(doc.title);
+                    const titleMatch = normalizedTitle.includes(normalizedSearchTerm);
                     const personnelMatch = activeTab === 'Personel Sertifikaları' && (
-                        doc.personnel?.full_name?.toLowerCase().includes(lowercasedFilter) ||
-                        doc.owner?.full_name?.toLowerCase().includes(lowercasedFilter)
+                        normalizeTurkishForSearch(doc.personnel?.full_name).includes(normalizedSearchTerm) ||
+                        normalizeTurkishForSearch(doc.owner?.full_name).includes(normalizedSearchTerm)
                     );
                     return titleMatch || personnelMatch;
                 });

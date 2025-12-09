@@ -38,3 +38,26 @@ export function sanitizeFileName(fileName) {
 
     return sanitized.replace(/__+/g, '_');
 }
+
+/**
+ * Türkçe karakterleri normalize eder (arama için)
+ * Örnek: "İzin" -> "izin", "Öğrenci" -> "ogrenci"
+ */
+export function normalizeTurkishForSearch(text) {
+    if (!text) return '';
+    
+    return String(text)
+        .toLowerCase()
+        .replace(/ı/g, 'i')
+        .replace(/İ/g, 'i')
+        .replace(/ğ/g, 'g')
+        .replace(/Ğ/g, 'g')
+        .replace(/ü/g, 'u')
+        .replace(/Ü/g, 'u')
+        .replace(/ş/g, 's')
+        .replace(/Ş/g, 's')
+        .replace(/ö/g, 'o')
+        .replace(/Ö/g, 'o')
+        .replace(/ç/g, 'c')
+        .replace(/Ç/g, 'c');
+}

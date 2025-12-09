@@ -16,6 +16,7 @@ import ComplaintFormModal from '@/components/customer-complaints/ComplaintFormMo
 import ComplaintDetailModal from '@/components/customer-complaints/ComplaintDetailModal';
 import ComplaintAnalytics from '@/components/customer-complaints/ComplaintAnalytics';
 import ComplaintSLADashboard from '@/components/customer-complaints/ComplaintSLADashboard';
+import { normalizeTurkishForSearch } from '@/lib/utils';
 
 const SEVERITY_COLORS = {
     'Kritik': 'destructive',
@@ -180,19 +181,19 @@ const ComplaintList = ({
         }
 
         if (searchTerm) {
-            const lowercased = searchTerm.toLowerCase();
+            const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
             // Kapsamlı arama: şikayet no, başlık, açıklama, ürün, müşteri, çözüm, root cause
             filtered = filtered.filter(c =>
-                c.complaint_number?.toLowerCase().includes(lowercased) ||
-                c.title?.toLowerCase().includes(lowercased) ||
-                c.description?.toLowerCase().includes(lowercased) ||
-                c.product_name?.toLowerCase().includes(lowercased) ||
-                c.product_code?.toLowerCase().includes(lowercased) ||
-                c.batch_number?.toLowerCase().includes(lowercased) ||
-                c.customer?.customer_name?.toLowerCase().includes(lowercased) ||
-                c.root_cause?.toLowerCase().includes(lowercased) ||
-                c.solution?.toLowerCase().includes(lowercased) ||
-                c.assigned_to?.toLowerCase().includes(lowercased)
+                normalizeTurkishForSearch(c.complaint_number).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.title).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.description).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.product_name).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.product_code).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.batch_number).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.customer?.customer_name).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.root_cause).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.solution).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(c.assigned_to).includes(normalizedSearchTerm)
             );
         }
 
