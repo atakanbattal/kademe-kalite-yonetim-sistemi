@@ -231,12 +231,12 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">
                         <Label>Durum Seçin (Opsiyonel)</Label>
-                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                        <Select value={selectedStatus || 'all'} onValueChange={(value) => setSelectedStatus(value === 'all' ? '' : value)}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Durum seçin (boş bırakabilirsiniz)..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Tüm Durumlar</SelectItem>
+                                <SelectItem value="all">Tüm Durumlar</SelectItem>
                                 {statusOptions.map(option => (
                                     <SelectItem key={option.value} value={option.value}>
                                         {option.label}
