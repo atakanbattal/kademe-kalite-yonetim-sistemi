@@ -5,11 +5,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
-    import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
     import UploadDocumentModal from '@/components/document/UploadDocumentModal';
-    import { Badge } from '@/components/ui/badge';
-    import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-    import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { useData } from '@/contexts/DataContext';
@@ -326,19 +326,32 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                     </div>
                 </div>
 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-                        {DOCUMENT_CATEGORIES.map(({ value, label, icon: Icon }) => (
-                            <TabsTrigger
-                                key={value}
-                                value={value}
-                                className="flex-1"
-                            >
-                                <Icon className="w-4 h-4 mr-2" /> {label}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                    <TabsContent value={activeTab} className="pt-6">
+                <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                            <Label htmlFor="category-select" className="text-base font-semibold whitespace-nowrap">Kategori:</Label>
+                            <Select value={activeTab} onValueChange={setActiveTab}>
+                                <SelectTrigger id="category-select" className="w-full sm:w-[300px]">
+                                    <div className="flex items-center gap-2">
+                                        {currentCategory && React.createElement(currentCategory.icon, { className: "w-4 h-4" })}
+                                        <SelectValue placeholder="Kategori seçin..." />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[400px]">
+                                    {DOCUMENT_CATEGORIES.map(({ value, label, icon: Icon }) => (
+                                        <SelectItem key={value} value={value}>
+                                            <div className="flex items-center gap-2">
+                                                <Icon className="w-4 h-4" />
+                                                <span>{label}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    
+                    <div className="pt-2">
                         <div className="dashboard-widget">
                              <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                                 <div className="flex flex-col sm:flex-row gap-4 flex-1">
@@ -351,7 +364,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-                                    {(activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') && (
+                                    {['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) && (
                                         <Select value={selectedDepartmentId || 'all'} onValueChange={(value) => setSelectedDepartmentId(value === 'all' ? '' : value)}>
                                             <SelectTrigger className="w-full sm:w-[200px]">
                                                 <SelectValue placeholder="Birim seçin..." />
@@ -446,8 +459,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                 </table>
                             </div>
                         </div>
-                    </TabsContent>
-                </Tabs>
+                    </div>
+                </div>
             </div>
         );
     };
