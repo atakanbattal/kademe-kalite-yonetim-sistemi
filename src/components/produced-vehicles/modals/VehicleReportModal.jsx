@@ -188,7 +188,6 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                         <Select value={reportType} onValueChange={(value) => {
                             setReportType(value);
                             setSelectedStatus('');
-                            setSelectedEventType('');
                             setDateFrom(null);
                             setDateTo(null);
                             setFilteredVehicles([]);
