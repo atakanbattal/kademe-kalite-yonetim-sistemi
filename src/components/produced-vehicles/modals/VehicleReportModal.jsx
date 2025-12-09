@@ -107,11 +107,16 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
             if (selectedStatus && selectedStatus !== 'all') {
                 const statusOption = statusOptions.find(opt => opt.value === selectedStatus);
                 if (statusOption) {
+                    // Kalite Kontrolde için hem control_start hem de quality_entry eventlerini kontrol et
+                    const eventTypesToCheck = statusOption.value === 'Kalite Kontrolde' 
+                        ? [...statusOption.eventTypes, 'quality_entry']
+                        : statusOption.eventTypes;
+                    
                     // Timeline eventlerini al
                     const { data: timelineEvents, error } = await supabase
                         .from('vehicle_timeline_events')
                         .select('inspection_id, event_type, event_timestamp')
-                        .in('event_type', statusOption.eventTypes)
+                        .in('event_type', eventTypesToCheck)
                         .order('event_timestamp', { ascending: false });
 
                     if (error) throw error;
@@ -121,7 +126,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                     if (statusOption.checkEnd) {
                         // Aralık kontrolü: Başlangıç var ama bitiş yok
                         timelineEvents.forEach(event => {
-                            if (statusOption.eventTypes.includes(event.event_type)) {
+                            if (eventTypesToCheck.includes(event.event_type)) {
                                 // Bu araç için bitiş eventi var mı kontrol et
                                 const hasEnd = timelineEvents.some(e => 
                                     e.inspection_id === event.inspection_id && 
