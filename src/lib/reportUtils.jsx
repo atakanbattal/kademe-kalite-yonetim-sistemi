@@ -670,10 +670,234 @@ const generateListReportHtml = (record, type) => {
 	let title = '';
 	let headers = [];
 	let rowsHtml = '';
-	let totalCount = record.items.length;
+	let totalCount = record.items ? record.items.length : (record.allRecords ? record.allRecords.length : 0);
 	let summaryHtml = '';
 
-	if (type === 'quarantine_list') {
+	if (type === 'nonconformity_executive') {
+		// Yönetici özet raporu için özel HTML
+		const kpiStats = record.kpiStats || {};
+		const kpiHtml = `
+			<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px;">
+				<div style="background-color: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 11px; color: #1e40af; font-weight: 600; margin-bottom: 5px;">AÇIK</div>
+					<div style="font-size: 24px; font-weight: 700; color: #1e40af;">${kpiStats.open || 0}</div>
+				</div>
+				<div style="background-color: #d1fae5; border: 2px solid #10b981; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 11px; color: #065f46; font-weight: 600; margin-bottom: 5px;">KAPALI</div>
+					<div style="font-size: 24px; font-weight: 700; color: #065f46;">${kpiStats.closed || 0}</div>
+				</div>
+				<div style="background-color: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 11px; color: #991b1b; font-weight: 600; margin-bottom: 5px;">REDDEDİLDİ</div>
+					<div style="font-size: 24px; font-weight: 700; color: #991b1b;">${kpiStats.rejected || 0}</div>
+				</div>
+				<div style="background-color: #fed7aa; border: 2px solid #f97316; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 11px; color: #9a3412; font-weight: 600; margin-bottom: 5px;">GECİKEN</div>
+					<div style="font-size: 24px; font-weight: 700; color: #9a3412;">${kpiStats.overdue || 0}</div>
+				</div>
+			</div>
+			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+				<div style="background-color: #e0e7ff; border: 2px solid #6366f1; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 11px; color: #3730a3; font-weight: 600; margin-bottom: 5px;">DF</div>
+					<div style="font-size: 20px; font-weight: 700; color: #3730a3;">${kpiStats.DF || 0}</div>
+				</div>
+				<div style="background-color: #f3e8ff; border: 2px solid #9333ea; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 11px; color: #6b21a8; font-weight: 600; margin-bottom: 5px;">8D</div>
+					<div style="font-size: 20px; font-weight: 700; color: #6b21a8;">${kpiStats['8D'] || 0}</div>
+				</div>
+				<div style="background-color: #fce7f3; border: 2px solid #ec4899; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 11px; color: #9f1239; font-weight: 600; margin-bottom: 5px;">MDI</div>
+					<div style="font-size: 20px; font-weight: 700; color: #9f1239;">${kpiStats.MDI || 0}</div>
+				</div>
+			</div>
+		`;
+
+		const deptPerformanceHtml = record.deptPerformance && record.deptPerformance.length > 0
+			? `
+				<table class="info-table results-table" style="margin-top: 15px;">
+					<thead>
+						<tr>
+							<th>Birim</th>
+							<th style="text-align: center;">Açık</th>
+							<th style="text-align: center;">Kapalı</th>
+							<th style="text-align: center;">Geciken</th>
+							<th style="text-align: right;">Ort. Kapatma (Gün)</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.deptPerformance.map(dept => `
+							<tr>
+								<td style="font-weight: 600;">${dept.unit}</td>
+								<td style="text-align: center;">${dept.open}</td>
+								<td style="text-align: center;">${dept.closed}</td>
+								<td style="text-align: center; font-weight: 600; color: #dc2626;">${dept.overdue}</td>
+								<td style="text-align: right;">${dept.avgClosureTime}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '<p style="color: #6b7280; font-style: italic;">Birim performans verisi bulunamadı.</p>';
+
+		const requesterContributionHtml = record.requesterContribution && record.requesterContribution.length > 0
+			? `
+				<table class="info-table results-table" style="margin-top: 15px;">
+					<thead>
+						<tr>
+							<th>Talep Eden Birim</th>
+							<th style="text-align: center;">Toplam</th>
+							<th style="text-align: center;">DF</th>
+							<th style="text-align: center;">8D</th>
+							<th style="text-align: center;">MDI</th>
+							<th style="text-align: right;">Katkı %</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.requesterContribution.map(req => `
+							<tr>
+								<td style="font-weight: 600;">${req.unit}</td>
+								<td style="text-align: center;">${req.total}</td>
+								<td style="text-align: center;">${req.DF}</td>
+								<td style="text-align: center;">${req['8D']}</td>
+								<td style="text-align: center;">${req.MDI}</td>
+								<td style="text-align: right; font-weight: 600;">%${req.contribution}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '<p style="color: #6b7280; font-style: italic;">Talep eden birim verisi bulunamadı.</p>';
+
+		const overdueRecordsHtml = record.overdueRecords && record.overdueRecords.length > 0
+			? `
+				<table class="info-table results-table" style="margin-top: 15px;">
+					<thead>
+						<tr>
+							<th>No</th>
+							<th>Tip</th>
+							<th>Konu</th>
+							<th>Birim</th>
+							<th>Termin</th>
+							<th style="text-align: right;">Gecikme (Gün)</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.overdueRecords.map(rec => `
+							<tr>
+								<td style="font-weight: 600;">${rec.nc_number}</td>
+								<td style="text-align: center;">
+									${rec.type === 'DF' ? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #3b82f6; color: white;">DF</span>' :
+									  rec.type === '8D' ? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>' :
+									  rec.type === 'MDI' ? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>' : rec.type}
+								</td>
+								<td>${rec.title}</td>
+								<td>${rec.department}</td>
+								<td>${rec.due_date}</td>
+								<td style="text-align: right; font-weight: 700; color: #dc2626;">${rec.days_overdue}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '<p style="color: #10b981; font-weight: 600; text-align: center; padding: 20px;">✓ Geciken kayıt bulunmuyor.</p>';
+
+		const statusSummary = Object.entries(record.statusDistribution || {})
+			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
+			.join('');
+		const typeSummary = Object.entries(record.typeDistribution || {})
+			.map(([type, count]) => `<span style="margin-right: 15px;"><strong>${type}:</strong> ${count}</span>`)
+			.join('');
+
+		summaryHtml = `
+			<p><strong>Toplam Kayıt Sayısı:</strong> ${record.totalRecords || 0}</p>
+			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
+			${typeSummary ? `<p><strong>Tip Dağılımı:</strong> ${typeSummary}</p>` : ''}
+		`;
+
+		const allRecordsHtml = record.allRecords && record.allRecords.length > 0
+			? `
+				<table class="info-table results-table">
+					<thead>
+						<tr>
+							<th style="width: 10%;">No</th>
+							<th style="width: 6%;">Tip</th>
+							<th style="width: 20%;">Problem</th>
+							<th style="width: 12%;">Departman</th>
+							<th style="width: 10%;">Açılış</th>
+							<th style="width: 10%;">Kapanış</th>
+							<th style="width: 10%;">Termin</th>
+							<th style="width: 12%;">Durum</th>
+							<th style="width: 10%;">Sorumlu</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.allRecords.map(item => {
+							const statusBadge = item.status === 'Kapatıldı' 
+								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Kapatıldı</span>'
+								: item.status === 'Reddedildi'
+								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
+								: item.status === 'Gecikmiş'
+								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Gecikmiş</span>'
+								: item.status === 'İşlemde'
+								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">İşlemde</span>'
+								: item.status === 'Onay Bekliyor'
+								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Onay Bekliyor</span>'
+								: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Açık</span>';
+							
+							const typeBadge = item.type === 'DF'
+								? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #3b82f6; color: white;">DF</span>'
+								: item.type === '8D'
+								? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>'
+								: item.type === 'MDI'
+								? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>'
+								: item.type;
+							
+							return `
+								<tr>
+									<td style="white-space: nowrap; font-weight: 600;">${item.nc_number}</td>
+									<td style="text-align: center;">${typeBadge}</td>
+									<td><strong>${item.title}</strong></td>
+									<td>${item.department}</td>
+									<td style="white-space: nowrap;">${item.opening_date}</td>
+									<td style="white-space: nowrap;">${item.closing_date}</td>
+									<td style="white-space: nowrap;">${item.due_date}</td>
+									<td>${statusBadge}</td>
+									<td style="font-size: 0.85em;">${item.responsible_person}</td>
+								</tr>
+							`;
+						}).join('')}
+					</tbody>
+				</table>
+			`
+			: '<p style="color: #6b7280; font-style: italic;">Kayıt bulunamadı.</p>';
+
+		return `
+			<div class="section">
+				<h2 class="section-title blue">GENEL İSTATİSTİKLER</h2>
+				${kpiHtml}
+			</div>
+
+			<div class="section">
+				<h2 class="section-title blue">BİRİM BAZLI PERFORMANS</h2>
+				${deptPerformanceHtml}
+			</div>
+
+			<div class="section">
+				<h2 class="section-title blue">TALEP EDEN BİRİM KATKISI</h2>
+				${requesterContributionHtml}
+			</div>
+
+			<div class="section">
+				<h2 class="section-title red">TERMİN SÜRESİ GECİKEN UYGUNSUZLUKLAR</h2>
+				${overdueRecordsHtml}
+			</div>
+
+			<div class="section">
+				<h2 class="section-title blue">TÜM KAYITLAR</h2>
+				<div class="list-summary">${summaryHtml}</div>
+				${allRecordsHtml}
+			</div>
+		`;
+	} else if (type === 'quarantine_list') {
 		title = 'Genel Karantina Raporu';
 		headers = ['Tarih', 'Parça Bilgileri', 'Miktar', 'Durum', 'Sorumlu Birim', 'Açıklama'];
 		rowsHtml = record.items.map(item => `
