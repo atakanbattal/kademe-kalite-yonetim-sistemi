@@ -27,13 +27,19 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) =>
 
     useEffect(() => {
         if (isOpen) {
-            if (existingReport) {
-                setFormData({ ...existingReport, report_date: new Date(existingReport.report_date).toISOString().split('T')[0] });
+            if (existingReport && existingReport.id) {
+                // Mevcut raporu düzenleme modu
+                setFormData({ ...existingReport, report_date: existingReport.report_date ? new Date(existingReport.report_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0] });
             } else {
+                // Yeni rapor oluşturma modu (part_code ve part_name varsa önceden doldur)
                 setFormData({
-                    part_code: '', part_name: '', supplier_id: null,
+                    part_code: existingReport?.part_code || '', 
+                    part_name: existingReport?.part_name || '', 
+                    supplier_id: null,
                     report_date: new Date().toISOString().split('T')[0],
-                    status: 'Beklemede', notes: '', items: []
+                    status: 'Beklemede', 
+                    notes: '', 
+                    items: []
                 });
             }
             setFile(null);
