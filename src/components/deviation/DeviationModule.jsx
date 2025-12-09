@@ -37,17 +37,17 @@ const DeviationModule = ({ onOpenNCForm }) => {
 
     const filteredDeviations = useMemo(() => {
         return deviations.filter(d => {
-            const searchTermLower = filters.searchTerm.toLowerCase();
+            const normalizedSearchTerm = normalizeTurkishForSearch(filters.searchTerm);
             // Kapsamlı arama: talep no, açıklama, talep eden, birim, kaynak, onaylayan, parça/ürün bilgisi
             const matchesSearch =
-                (d.request_no && d.request_no.toLowerCase().includes(searchTermLower)) ||
-                (d.description && d.description.toLowerCase().includes(searchTermLower)) ||
-                (d.requesting_person && d.requesting_person.toLowerCase().includes(searchTermLower)) ||
-                (d.requesting_unit && d.requesting_unit.toLowerCase().includes(searchTermLower)) ||
-                (d.source && d.source.toLowerCase().includes(searchTermLower)) ||
-                (d.approving_person && d.approving_person.toLowerCase().includes(searchTermLower)) ||
-                (d.product_part && d.product_part.toLowerCase().includes(searchTermLower)) ||
-                (d.justification && d.justification.toLowerCase().includes(searchTermLower));
+                (d.request_no && normalizeTurkishForSearch(d.request_no).includes(normalizedSearchTerm)) ||
+                (d.description && normalizeTurkishForSearch(d.description).includes(normalizedSearchTerm)) ||
+                (d.requesting_person && normalizeTurkishForSearch(d.requesting_person).includes(normalizedSearchTerm)) ||
+                (d.requesting_unit && normalizeTurkishForSearch(d.requesting_unit).includes(normalizedSearchTerm)) ||
+                (d.source && normalizeTurkishForSearch(d.source).includes(normalizedSearchTerm)) ||
+                (d.approving_person && normalizeTurkishForSearch(d.approving_person).includes(normalizedSearchTerm)) ||
+                (d.product_part && normalizeTurkishForSearch(d.product_part).includes(normalizedSearchTerm)) ||
+                (d.justification && normalizeTurkishForSearch(d.justification).includes(normalizedSearchTerm));
 
             const matchesStatus = filters.status === 'all' || d.status === filters.status;
             const matchesUnit = filters.requestingUnit === 'all' || d.requesting_unit === filters.requestingUnit;
