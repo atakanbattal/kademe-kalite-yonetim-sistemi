@@ -167,19 +167,19 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         try {
             const currentYear = new Date().getFullYear();
             
-            // Aynı yıl ve aynı tip için son numarayı bul
+            // Tüm sapma kayıtlarını al (tip filtresi olmadan - mevcut kayıtları da görmek için)
             const { data, error } = await supabase
                 .from('deviations')
                 .select('request_no, deviation_type, created_at')
-                .eq('deviation_type', type)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
             let newNumber = 1;
+            let foundCurrentYearNumber = false;
             
-            // Bu yıl ve bu tip için numara bul
             if (data && data.length > 0) {
+                // Bu yıl ve bu tip için yeni format numaraları bul
                 const currentYearNumbers = data.filter(d => {
                     if (!d.request_no) return false;
                     const yearMatch = d.request_no.match(/(\d{4})/);
@@ -187,19 +187,80 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     return parseInt(yearMatch[1]) === currentYear;
                 });
 
+                // Yeni format numaralarını kontrol et
                 if (currentYearNumbers.length > 0) {
-                    const lastNo = currentYearNumbers[0].request_no;
-                    if (type === 'Üretim') {
-                        // Üretim: 2025-U001 formatı
-                        const match = lastNo.match(/\d{4}-U(\d+)/);
-                        if (match) {
-                            newNumber = parseInt(match[1]) + 1;
+                    const sameTypeNumbers = currentYearNumbers.filter(d => {
+                        // Tip kontrolü: eğer deviation_type yoksa eski kayıt olabilir
+                        if (!d.deviation_type) {
+                            // Eski kayıtlar için tip tahmini yap
+                            if (type === 'Üretim') {
+                                return d.request_no.includes('-U');
+                            } else {
+                                return !d.request_no.includes('-U') && !d.request_no.match(/^SAP-/);
+                            }
                         }
-                    } else {
-                        // Girdi Kontrolü: 2025-001 formatı
-                        const match = lastNo.match(/\d{4}-(\d+)/);
-                        if (match && !lastNo.includes('-U')) {
-                            newNumber = parseInt(match[1]) + 1;
+                        return d.deviation_type === type;
+                    });
+
+                    if (sameTypeNumbers.length > 0) {
+                        const lastNo = sameTypeNumbers[0].request_no;
+                        if (type === 'Üretim') {
+                            // Üretim: 2025-U001 formatı
+                            const match = lastNo.match(/\d{4}-U(\d+)/);
+                            if (match) {
+                                newNumber = parseInt(match[1]) + 1;
+                                foundCurrentYearNumber = true;
+                            }
+                        } else {
+                            // Girdi Kontrolü: 2025-001 formatı
+                            const match = lastNo.match(/\d{4}-(\d+)/);
+                            if (match && !lastNo.includes('-U')) {
+                                newNumber = parseInt(match[1]) + 1;
+                                foundCurrentYearNumber = true;
+                            }
+                        }
+                    }
+                }
+
+                // Eğer bu yıl için numara bulunamadıysa, eski format numaralarını kontrol et
+                if (!foundCurrentYearNumber) {
+                    // Eski format: SAP-0001, SAP-0002 gibi
+                    const oldFormatNumbers = data.filter(d => {
+                        if (!d.request_no) return false;
+                        return d.request_no.match(/^SAP-\d+/);
+                    });
+
+                    if (oldFormatNumbers.length > 0) {
+                        // En yüksek eski numarayı bul
+                        let maxOldNumber = 0;
+                        oldFormatNumbers.forEach(d => {
+                            const match = d.request_no.match(/SAP-(\d+)/);
+                            if (match) {
+                                const num = parseInt(match[1]);
+                                if (num > maxOldNumber) {
+                                    maxOldNumber = num;
+                                }
+                            }
+                        });
+
+                        // Eski numaralardan sonra devam et
+                        // Eğer tip Üretim ise U001'den başla, değilse 001'den başla
+                        // Ancak eski numaraların toplam sayısını da göz önünde bulundur
+                        if (type === 'Üretim') {
+                            // Üretim için ayrı sayaç başlat (eski kayıtlar genelde Girdi Kontrolü olabilir)
+                            newNumber = 1;
+                        } else {
+                            // Girdi Kontrolü için eski numaralardan devam et
+                            // Eski kayıtların bir kısmı Üretim olabilir, bu yüzden dikkatli ol
+                            // En güvenli yol: eski numaraların sayısını al ve devam et
+                            const oldFormatCount = oldFormatNumbers.length;
+                            // Eğer bu yıl için hiç yeni format numarası yoksa, eski numaralardan devam et
+                            if (currentYearNumbers.length === 0) {
+                                newNumber = oldFormatCount + 1;
+                            } else {
+                                // Bu yıl için yeni format numaraları var, onlardan devam et
+                                newNumber = 1;
+                            }
                         }
                     }
                 }
