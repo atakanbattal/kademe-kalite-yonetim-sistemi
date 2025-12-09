@@ -396,6 +396,8 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                     <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Departman:</strong> ${fault.department?.name || '-'}</p>
                     <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Miktar:</strong> ${fault.quantity || '-'}</p>
                     <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Tarih:</strong> ${formatDate(fault.fault_date)}</p>
+                    <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Giriş Tarihi:</strong> ${fault.created_at ? formatDate(fault.created_at) : '-'}</p>
+                    ${fault.is_resolved && fault.resolved_at ? `<p style="margin: 0 0 6px 0; font-size: 12px; color: #15803d;"><strong>Çözüm Tarihi:</strong> ${formatDate(fault.resolved_at)}</p>` : ''}
                     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #fecaca;">
                         <p style="margin: 0; font-size: 13px; color: #4b5563;"><strong>Açıklama:</strong></p>
                         <p style="margin: 4px 0 0 0; font-size: 12px; color: #1f2937; white-space: pre-wrap;">${fault.description || '-'}</p>

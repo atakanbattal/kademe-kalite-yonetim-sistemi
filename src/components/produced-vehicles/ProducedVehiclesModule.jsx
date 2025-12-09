@@ -16,8 +16,10 @@ import React, { useState, useMemo } from 'react';
     import VehicleStatusDetailModal from '@/components/produced-vehicles/VehicleStatusDetailModal';
     import VehicleTimeDetailModal from '@/components/produced-vehicles/modals/VehicleTimeDetailModal';
     import VehicleFilterModal from '@/components/produced-vehicles/modals/VehicleFilterModal';
+    import VehicleReportModal from '@/components/produced-vehicles/modals/VehicleReportModal';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
+    import { FileText } from 'lucide-react';
 
     const ProducedVehiclesModule = ({ onOpenNCForm }) => {
         const { toast } = useToast();
@@ -32,6 +34,7 @@ import React, { useState, useMemo } from 'react';
         const [isTimeDetailModalOpen, setTimeDetailModalOpen] = useState(false);
         const [isStatusDetailModalOpen, setStatusDetailModalOpen] = useState(false);
         const [isFilterModalOpen, setFilterModalOpen] = useState(false);
+        const [isReportModalOpen, setReportModalOpen] = useState(false);
         const [statusDetail, setStatusDetail] = useState(null);
         const [filters, setFilters] = useState({ status: [], vehicle_type: [], dateRange: null });
 
@@ -143,6 +146,12 @@ import React, { useState, useMemo } from 'react';
                     currentFilters={filters}
                     vehicles={producedVehicles}
                 />
+                <VehicleReportModal
+                    isOpen={isReportModalOpen}
+                    setIsOpen={setReportModalOpen}
+                    vehicles={memoizedVehicles}
+                    filters={filters}
+                />
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
@@ -159,9 +168,14 @@ import React, { useState, useMemo } from 'react';
                             <TabsTrigger value="quality"><BarChart2 className="w-4 h-4 mr-2" />Kalite Analizi</TabsTrigger>
                         </TabsList>
                         {activeTab === 'operations' && (
-                            <Button onClick={() => handleOpenModal(setAddModalOpen, null)}>
-                                <Plus className="w-4 h-4 mr-2" /> Yeni Araç Ekle
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={() => setReportModalOpen(true)}>
+                                    <FileText className="w-4 h-4 mr-2" /> Rapor Al
+                                </Button>
+                                <Button onClick={() => handleOpenModal(setAddModalOpen, null)}>
+                                    <Plus className="w-4 h-4 mr-2" /> Yeni Araç Ekle
+                                </Button>
+                            </div>
                         )}
                     </div>
 

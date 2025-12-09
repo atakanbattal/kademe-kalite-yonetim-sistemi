@@ -178,9 +178,15 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 <div className="space-y-3 p-4">
                                     {faults.map(fault => (
                                         <div key={fault.id} className={cn("p-3 rounded-md border flex items-center justify-between", fault.is_resolved ? "bg-green-100/50 border-green-200" : "bg-red-100/50 border-red-200")}>
-                                            <div>
+                                            <div className="flex-1">
                                                 <p className="font-medium">{fault.description}</p>
                                                 <p className="text-sm text-muted-foreground">{fault.department_name} - {fault.quantity} adet</p>
+                                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                                    <span>Giriş: {fault.created_at ? new Date(fault.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
+                                                    {fault.is_resolved && fault.resolved_at && (
+                                                        <span className="text-green-700">Çözüm: {new Date(fault.resolved_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 {canManage && !fault.is_resolved && (
