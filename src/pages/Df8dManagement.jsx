@@ -5,7 +5,7 @@ import React, { useState, useMemo, useCallback } from 'react';
     import { Helmet } from 'react-helmet';
     import { motion } from 'framer-motion';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-    import { LayoutDashboard, List, Plus } from 'lucide-react';
+    import { LayoutDashboard, List, Plus, FileText } from 'lucide-react';
     import NCDashboard from '@/components/df-8d/NCDashboard';
     import NCTable from '@/components/df-8d/NCTable';
     import NCFilters from '@/components/df-8d/NCFilters';
@@ -13,8 +13,9 @@ import React, { useState, useMemo, useCallback } from 'react';
     import CloseNCModal from '@/components/df-8d/modals/CloseNCModal';
     import RecordListModal from '@/components/df-8d/modals/RecordListModal';
     import { Button } from '@/components/ui/button';
-    import { parseISO, isAfter } from 'date-fns';
-    import { normalizeTurkishForSearch } from '@/lib/utils';
+import { parseISO, isAfter, format } from 'date-fns';
+import { normalizeTurkishForSearch } from '@/lib/utils';
+import { openPrintableReport } from '@/lib/reportUtils';
 
     const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
         const { nonConformities, refreshData, loading } = useData();
@@ -25,10 +26,6 @@ import React, { useState, useMemo, useCallback } from 'react';
             status: 'all',
             type: 'all',
             department: 'all',
-            openingDateFrom: null,
-            openingDateTo: null,
-            closingDateFrom: null,
-            closingDateTo: null,
         });
         
         const [recordListModal, setRecordListModal] = useState({ isOpen: false, title: '', records: [] });
@@ -70,48 +67,7 @@ import React, { useState, useMemo, useCallback } from 'react';
                 const matchesType = filters.type === 'all' || record.type === filters.type;
                 const matchesDepartment = filters.department === 'all' || record.department === filters.department;
 
-                // Açılış tarihi filtresi
-                let matchesOpeningDate = true;
-                if (filters.openingDateFrom || filters.openingDateTo) {
-                    const openingDate = record.df_opened_at || record.opening_date || record.created_at;
-                    if (openingDate) {
-                        const openingDateObj = parseISO(openingDate);
-                        if (filters.openingDateFrom) {
-                            const fromDate = new Date(filters.openingDateFrom);
-                            fromDate.setHours(0, 0, 0, 0);
-                            matchesOpeningDate = matchesOpeningDate && openingDateObj >= fromDate;
-                        }
-                        if (filters.openingDateTo) {
-                            const toDate = new Date(filters.openingDateTo);
-                            toDate.setHours(23, 59, 59, 999);
-                            matchesOpeningDate = matchesOpeningDate && openingDateObj <= toDate;
-                        }
-                    } else {
-                        matchesOpeningDate = false;
-                    }
-                }
-
-                // Kapanış tarihi filtresi
-                let matchesClosingDate = true;
-                if (filters.closingDateFrom || filters.closingDateTo) {
-                    if (record.closed_at) {
-                        const closingDateObj = parseISO(record.closed_at);
-                        if (filters.closingDateFrom) {
-                            const fromDate = new Date(filters.closingDateFrom);
-                            fromDate.setHours(0, 0, 0, 0);
-                            matchesClosingDate = matchesClosingDate && closingDateObj >= fromDate;
-                        }
-                        if (filters.closingDateTo) {
-                            const toDate = new Date(filters.closingDateTo);
-                            toDate.setHours(23, 59, 59, 999);
-                            matchesClosingDate = matchesClosingDate && closingDateObj <= toDate;
-                        }
-                    } else {
-                        matchesClosingDate = false;
-                    }
-                }
-
-                return matchesStatus && matchesType && matchesDepartment && matchesOpeningDate && matchesClosingDate;
+                return matchesStatus && matchesType && matchesDepartment;
                 });
 
                 return filtered.sort((a, b) => {
@@ -177,48 +133,7 @@ import React, { useState, useMemo, useCallback } from 'react';
                 const matchesType = filters.type === 'all' || record.type === filters.type;
                 const matchesDepartment = filters.department === 'all' || record.department === filters.department;
 
-                // Açılış tarihi filtresi
-                let matchesOpeningDate = true;
-                if (filters.openingDateFrom || filters.openingDateTo) {
-                    const openingDate = record.df_opened_at || record.opening_date || record.created_at;
-                    if (openingDate) {
-                        const openingDateObj = parseISO(openingDate);
-                        if (filters.openingDateFrom) {
-                            const fromDate = new Date(filters.openingDateFrom);
-                            fromDate.setHours(0, 0, 0, 0);
-                            matchesOpeningDate = matchesOpeningDate && openingDateObj >= fromDate;
-                        }
-                        if (filters.openingDateTo) {
-                            const toDate = new Date(filters.openingDateTo);
-                            toDate.setHours(23, 59, 59, 999);
-                            matchesOpeningDate = matchesOpeningDate && openingDateObj <= toDate;
-                        }
-                    } else {
-                        matchesOpeningDate = false;
-                    }
-                }
-
-                // Kapanış tarihi filtresi
-                let matchesClosingDate = true;
-                if (filters.closingDateFrom || filters.closingDateTo) {
-                    if (record.closed_at) {
-                        const closingDateObj = parseISO(record.closed_at);
-                        if (filters.closingDateFrom) {
-                            const fromDate = new Date(filters.closingDateFrom);
-                            fromDate.setHours(0, 0, 0, 0);
-                            matchesClosingDate = matchesClosingDate && closingDateObj >= fromDate;
-                        }
-                        if (filters.closingDateTo) {
-                            const toDate = new Date(filters.closingDateTo);
-                            toDate.setHours(23, 59, 59, 999);
-                            matchesClosingDate = matchesClosingDate && closingDateObj <= toDate;
-                        }
-                    } else {
-                        matchesClosingDate = false;
-                    }
-                }
-
-                return matchesSearch && matchesStatus && matchesType && matchesDepartment && matchesOpeningDate && matchesClosingDate;
+                return matchesSearch && matchesStatus && matchesType && matchesDepartment;
             });
 
             return filtered.sort((a, b) => {
@@ -266,6 +181,45 @@ import React, { useState, useMemo, useCallback } from 'react';
             onOpenNCView(record);
         };
 
+        const handleGenerateReport = () => {
+            if (filteredRecords.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor oluşturmak için en az bir kayıt olmalıdır.',
+                });
+                return;
+            }
+
+            const formatDate = (dateString) => {
+                if (!dateString) return '-';
+                try {
+                    return format(parseISO(dateString), 'dd.MM.yyyy');
+                } catch {
+                    return '-';
+                }
+            };
+
+            const reportData = {
+                id: `nc-list-${Date.now()}`,
+                items: filteredRecords.map(record => ({
+                    nc_number: record.nc_number || record.mdi_no || '-',
+                    type: record.type || '-',
+                    title: record.title || '-',
+                    department: record.department || '-',
+                    opening_date: formatDate(record.df_opened_at || record.opening_date || record.created_at),
+                    closing_date: record.closed_at ? formatDate(record.closed_at) : '-',
+                    due_date: record.status === 'Reddedildi' ? '-' : formatDate(record.due_at),
+                    status: record.status || '-',
+                    responsible_person: record.responsible_person || '-',
+                    requesting_person: record.requesting_person || '-',
+                    requesting_unit: record.requesting_unit || '-',
+                })),
+            };
+
+            openPrintableReport(reportData, 'nonconformity_list', true);
+        };
+
         return (
             <>
                 <Helmet>
@@ -284,6 +238,12 @@ import React, { useState, useMemo, useCallback } from 'react';
                                 <TabsTrigger value="list"><List className="mr-2 h-4 w-4" /> Liste</TabsTrigger>
                             </TabsList>
                             <div className="flex items-center gap-2">
+                                {activeTab === 'list' && (
+                                    <Button onClick={handleGenerateReport} size="sm" variant="outline">
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Rapor Al
+                                    </Button>
+                                )}
                                 <Button onClick={onAddNC} size="sm">
                                     <Plus className="mr-2 h-4 w-4" />
                                     Yeni Kayıt

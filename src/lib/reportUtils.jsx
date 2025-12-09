@@ -748,6 +748,68 @@ const generateListReportHtml = (record, type) => {
 			<p><strong>Toplam Doküman Sayısı:</strong> ${totalCount}</p>
 			<p><strong>Kategori:</strong> ${record.categoryName || '-'}</p>
 		`;
+	} else if (type === 'nonconformity_list') {
+		title = 'Uygunsuzluk (DF/8D) Listesi Raporu';
+		headers = ['No', 'Tip', 'Problem', 'Departman', 'Açılış Tarihi', 'Kapanış Tarihi', 'Termin Tarihi', 'Durum', 'Sorumlu Kişi'];
+		rowsHtml = record.items.map(item => {
+			const statusBadge = item.status === 'Kapatıldı' 
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Kapatıldı</span>'
+				: item.status === 'Reddedildi'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
+				: item.status === 'Gecikmiş'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Gecikmiş</span>'
+				: item.status === 'İşlemde'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">İşlemde</span>'
+				: item.status === 'Onay Bekliyor'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Onay Bekliyor</span>'
+				: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Açık</span>';
+			
+			const typeBadge = item.type === 'DF'
+				? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #3b82f6; color: white;">DF</span>'
+				: item.type === '8D'
+				? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>'
+				: item.type === 'MDI'
+				? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>'
+				: item.type;
+			
+			return `
+				<tr>
+					<td style="width: 10%; white-space: nowrap; font-weight: 600;">${item.nc_number}</td>
+					<td style="width: 6%; text-align: center;">${typeBadge}</td>
+					<td style="width: 20%;"><strong>${item.title}</strong></td>
+					<td style="width: 12%;">${item.department}</td>
+					<td style="width: 10%; white-space: nowrap;">${item.opening_date}</td>
+					<td style="width: 10%; white-space: nowrap;">${item.closing_date}</td>
+					<td style="width: 10%; white-space: nowrap;">${item.due_date}</td>
+					<td style="width: 12%;">${statusBadge}</td>
+					<td style="width: 10%; font-size: 0.85em;">${item.responsible_person}</td>
+				</tr>
+			`;
+		}).join('');
+		
+		// Durum bazlı özet
+		const statusCounts = record.items.reduce((acc, item) => {
+			acc[item.status] = (acc[item.status] || 0) + 1;
+			return acc;
+		}, {});
+		const statusSummary = Object.entries(statusCounts)
+			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
+			.join('');
+		
+		// Tip bazlı özet
+		const typeCounts = record.items.reduce((acc, item) => {
+			acc[item.type] = (acc[item.type] || 0) + 1;
+			return acc;
+		}, {});
+		const typeSummary = Object.entries(typeCounts)
+			.map(([type, count]) => `<span style="margin-right: 15px;"><strong>${type}:</strong> ${count}</span>`)
+			.join('');
+		
+		summaryHtml = `
+			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
+			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
+			<p><strong>Tip Dağılımı:</strong> ${typeSummary}</p>
+		`;
 	}
 
 	return `
