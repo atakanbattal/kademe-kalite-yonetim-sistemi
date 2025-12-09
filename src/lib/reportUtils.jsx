@@ -56,8 +56,8 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 			console.error("Error storing report data:", error);
 			
 			// Fallback: Liste tipleri için hata, diğerleri için database fetch
-			const isListType = ['quarantine_list', 'deviation_list', 'incoming_inspection_list'].includes(type);
-			if (isListType) {
+			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list'].includes(type);
+			if (isListTypeFallback) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
 				return;
 			}
