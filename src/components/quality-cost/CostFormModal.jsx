@@ -256,6 +256,20 @@ import React, { useState, useEffect, useCallback } from 'react';
             const initialData = getInitialFormData();
             let costData = isEditMode ? { ...initialData, ...existingCost } : initialData;
             
+            // Join edilmiş objeleri temizle (sadece ID'ler kalmalı)
+            if (costData.responsible_personnel) {
+                delete costData.responsible_personnel;
+            }
+            if (costData.non_conformities) {
+                delete costData.non_conformities;
+            }
+            if (costData.suppliers) {
+                delete costData.suppliers;
+            }
+            if (costData.supplier) {
+                delete costData.supplier;
+            }
+            
             if (costData.cost_date) {
                 costData.cost_date = new Date(costData.cost_date).toISOString().slice(0, 10);
             }
