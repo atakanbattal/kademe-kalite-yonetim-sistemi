@@ -17,7 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useData } from '@/contexts/DataContext';
 import { sanitizeFileName } from '@/lib/utils';
 
-const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) => {
+const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onReportSaved }) => {
     const { toast } = useToast();
     const isEditMode = !!(existingReport && existingReport.id);
     const [formData, setFormData] = useState({});
@@ -169,6 +169,14 @@ const InkrManagement = ({ onViewPdf }) => {
             toast({ variant: 'destructive', title: 'Hata!', description: `Rapor silinemedi: ${error.message}` });
         } else {
             toast({ title: 'Başarılı!', description: 'INKR raporu silindi.' });
+            // INKR raporlarını yeniden çek
+            const { data, error: fetchError } = await supabase
+                .from('inkr_reports')
+                .select('*, supplier:supplier_id(name)')
+                .order('created_at', { ascending: false });
+            if (!fetchError) {
+                setInkrReports(data || []);
+            }
             refreshData();
         }
     };
