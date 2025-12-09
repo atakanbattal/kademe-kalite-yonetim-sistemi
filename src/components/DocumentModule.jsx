@@ -86,36 +86,23 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         const [activeTab, setActiveTab] = useState(DOCUMENT_CATEGORIES[0].value);
         const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
 
-        // Debug: Dokümanları console'a yazdır
-        useEffect(() => {
-            if (documents && documents.length > 0) {
-                console.log('📄 Toplam doküman sayısı:', documents.length);
-                console.log('📄 Doküman tipleri:', [...new Set(documents.map(d => d.document_type))]);
-                console.log('📄 Kalite Sertifikaları:', documents.filter(d => d.document_type === 'Kalite Sertifikaları').length);
-                console.log('📄 Personel Sertifikaları:', documents.filter(d => d.document_type === 'Personel Sertifikaları').length);
-                console.log('📄 Tüm dokümanlar:', documents);
-            } else {
-                console.log('⚠️ Doküman bulunamadı veya yükleniyor...');
-            }
-        }, [documents]);
 
         const filteredDocuments = useMemo(() => {
-            // Debug: Tüm dokümanları logla
-            console.log('🔍 Documents modülü - Tüm dokümanlar:', documents);
-            console.log('🔍 Aktif tab:', activeTab);
-            if (documents && documents.length > 0) {
-                console.log('🔍 Doküman tipleri:', [...new Set(documents.map(d => d.document_type).filter(Boolean))]);
-                console.log('🔍 İlk doküman örneği:', documents[0]);
-            } else {
-                console.log('⚠️ Doküman listesi boş!');
-            }
+            // Doküman tipi eşleştirme mapping'i (veritabanındaki farklı formatları desteklemek için)
+            const documentTypeMapping = {
+                'Prosedürler': ['Prosedürler', 'Prosedür'],
+                'Talimatlar': ['Talimatlar', 'Talimat'],
+                'Formlar': ['Formlar', 'Form'],
+                'Kalite Sertifikaları': ['Kalite Sertifikaları', 'Kalite Sertifikası'],
+                'Personel Sertifikaları': ['Personel Sertifikaları', 'Personel Sertifikası'],
+                'Diğer': ['Diğer']
+            };
             
             let docs = documents
                 .filter(doc => {
-                    const matches = doc.document_type === activeTab;
-                    if (!matches && doc.document_type) {
-                        console.log(`❌ Filtre dışı: ${doc.title} - Tip: ${doc.document_type}, Beklenen: ${activeTab}`);
-                    }
+                    // Aktif tab için geçerli olan tüm tip varyasyonlarını kontrol et
+                    const validTypes = documentTypeMapping[activeTab] || [activeTab];
+                    const matches = validTypes.includes(doc.document_type);
                     return matches;
                 })
                 .map(doc => {
@@ -149,7 +136,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 });
             }
             
-            console.log(`✅ Filtrelenmiş dokümanlar (${activeTab}):`, docs.length);
             return docs;
         }, [documents, activeTab, searchTerm, selectedDepartmentId]);
         
@@ -286,12 +272,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                         />
                                     </div>
                                     {(activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') && (
-                                        <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
+                                        <Select value={selectedDepartmentId || 'all'} onValueChange={(value) => setSelectedDepartmentId(value === 'all' ? '' : value)}>
                                             <SelectTrigger className="w-full sm:w-[200px]">
                                                 <SelectValue placeholder="Birim seçin..." />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="">Tüm Birimler</SelectItem>
+                                                <SelectItem value="all">Tüm Birimler</SelectItem>
                                                 {unitCostSettings && unitCostSettings.map((dept) => (
                                                     <SelectItem key={dept.id} value={dept.id}>
                                                         {dept.unit_name}
