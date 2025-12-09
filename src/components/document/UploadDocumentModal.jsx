@@ -127,8 +127,12 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 
         const handleSubmit = async (e) => {
             e.preventDefault();
-            if (!isEditMode && !file) {
+            if (!isEditMode && !isRevisionMode && !file) {
                 toast({ variant: 'destructive', title: 'Dosya Eksik', description: 'Lütfen bir PDF dosyası seçin.' });
+                return;
+            }
+            if (isRevisionMode && !file && !existingDocument?.document_revisions?.attachments?.[0]?.path) {
+                toast({ variant: 'destructive', title: 'Dosya Eksik', description: 'Lütfen bir PDF dosyası seçin veya mevcut dosyayı kullanın.' });
                 return;
             }
             if (!formData.title || !formData.document_type || !formData.publish_date) {
@@ -158,7 +162,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     throw new Error("Mevcut kullanıcı için personel kaydı bulunamadı. Lütfen yöneticinizle iletişime geçin.");
                 }
 
-                const documentId = isEditMode ? existingDocument.id : uuidv4();
+                const documentId = (isEditMode || isRevisionMode) ? existingDocument.id : uuidv4();
                 let attachmentData = null;
 
                 if (file) {
@@ -199,7 +203,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     publish_date: formData.publish_date,
                     prepared_by_id: currentUserPersonnelRecord.id,
                     user_id: user.id,
-                    attachments: attachmentData ? [attachmentData] : (isEditMode ? existingDocument.document_revisions?.attachments : null),
+                    attachments: attachmentData ? [attachmentData] : ((isEditMode || isRevisionMode) ? existingDocument.document_revisions?.attachments : null),
                 };
                 
                 if (isRevisionMode) {
