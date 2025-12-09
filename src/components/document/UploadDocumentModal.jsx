@@ -166,17 +166,26 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 let attachmentData = null;
 
                 if (file) {
-                    if (isEditMode && existingDocument.current_revision_id) {
-                         const { data: rev } = await supabase.from('document_revisions').select('attachments').eq('id', existingDocument.current_revision_id).single();
-                         if (rev?.attachments?.[0]?.path) {
-                            await supabase.storage.from(BUCKET_NAME).remove([rev.attachments[0].path]);
-                         }
-                    }
                     const sanitizedFileName = sanitizeFileName(file.name);
                     // Doküman tipine göre klasör yapısı oluştur
                     const folderName = getDocumentFolder(formData.document_type);
-                    const filePath = `${folderName}/${documentId}-${sanitizedFileName}`;
-                    const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file);
+                    
+                    // Revizyon modunda benzersiz dosya yolu oluştur (revizyon numarası ile)
+                    let filePath;
+                    if (isRevisionMode) {
+                        const revisionNumber = formData.revision_number || '1';
+                        // Dosya adından uzantıyı ayır ve revizyon numarasını ekle
+                        const fileNameWithoutExt = sanitizedFileName.replace(/\.[^/.]+$/, '');
+                        const fileExt = sanitizedFileName.substring(sanitizedFileName.lastIndexOf('.'));
+                        filePath = `${folderName}/${documentId}-rev${revisionNumber}-${fileNameWithoutExt}${fileExt}`;
+                    } else {
+                        filePath = `${folderName}/${documentId}-${sanitizedFileName}`;
+                    }
+                    
+                    // Yeni dosyayı yükle (upsert: true ile varsa üzerine yaz)
+                    const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, {
+                        upsert: true
+                    });
                     if (uploadError) throw uploadError;
 
                     attachmentData = {

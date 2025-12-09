@@ -242,16 +242,33 @@ import { Label } from '@/components/ui/label';
 
         const handleReviseDocument = async (doc) => {
             try {
-                // Mevcut revizyon numarasını al
-                const currentRevision = doc.document_revisions;
-                const currentRevisionNumber = currentRevision?.revision_number || 0;
-                const nextRevisionNumber = parseInt(currentRevisionNumber, 10) + 1;
+                // Tüm revizyonları çek ve en yüksek revizyon numarasını bul
+                const { data: allRevisions, error: revError } = await supabase
+                    .from('document_revisions')
+                    .select('revision_number')
+                    .eq('document_id', doc.id)
+                    .order('revision_number', { ascending: false });
+
+                if (revError) throw revError;
+
+                // En yüksek revizyon numarasını bul
+                let maxRevisionNumber = 0;
+                if (allRevisions && allRevisions.length > 0) {
+                    allRevisions.forEach(rev => {
+                        const revNum = parseInt(rev.revision_number, 10);
+                        if (!isNaN(revNum) && revNum > maxRevisionNumber) {
+                            maxRevisionNumber = revNum;
+                        }
+                    });
+                }
+                
+                const nextRevisionNumber = maxRevisionNumber + 1;
                 
                 // Revizyon modunda modal'ı aç
                 const docWithNewRevision = {
                     ...doc,
                     document_revisions: {
-                        ...currentRevision,
+                        ...doc.document_revisions,
                         revision_number: nextRevisionNumber.toString(),
                         revision_date: new Date().toISOString().slice(0, 10),
                     }
