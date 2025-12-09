@@ -580,12 +580,8 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         </div>
                     )}
 
-                    {!isEditMode && creationMode === 'manual' && (
-                        <div className="grid md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="request_no">Talep Numarası <span className="text-red-500">*</span></Label>
-                            <Input id="request_no" value={formData.request_no || ''} onChange={handleInputChange} required readOnly />
-                        </div>
+                    {(isEditMode || creationMode === 'from_record') && (
+                        <div className="grid md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="requesting_unit">Talep Eden Birim</Label>
                             <Select onValueChange={(value) => handleSelectChange('requesting_unit', value)} value={formData.requesting_unit || ''}>
@@ -601,6 +597,26 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                             </Select>
                         </div>
                     </div>
+                    )}
+
+                    {!isEditMode && creationMode === 'manual' && (
+                        <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="requesting_unit_manual">Talep Eden Birim</Label>
+                            <Select onValueChange={(value) => handleSelectChange('requesting_unit', value)} value={formData.requesting_unit || ''}>
+                                <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
+                                <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="requesting_person_manual">Talep Eden Personel</Label>
+                            <Select onValueChange={(value) => handleSelectChange('requesting_person', value)} value={formData.requesting_person || ''}>
+                                <SelectTrigger><SelectValue placeholder="Personel seçin..." /></SelectTrigger>
+                                <SelectContent>{personnel.map(p => <SelectItem key={p.id} value={p.full_name}>{p.full_name}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    )}
 
                     <div className="grid md:grid-cols-3 gap-4">
                          <div className="space-y-2">
