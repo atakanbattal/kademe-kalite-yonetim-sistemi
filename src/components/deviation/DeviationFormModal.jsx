@@ -190,34 +190,43 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 // Yeni format numaralarını kontrol et
                 if (currentYearNumbers.length > 0) {
                     const sameTypeNumbers = currentYearNumbers.filter(d => {
-                        // Tip kontrolü: eğer deviation_type yoksa eski kayıt olabilir
-                        if (!d.deviation_type) {
-                            // Eski kayıtlar için tip tahmini yap
-                            if (type === 'Üretim') {
-                                return d.request_no.includes('-U');
-                            } else {
-                                return !d.request_no.includes('-U') && !d.request_no.match(/^SAP-/);
-                            }
+                        // Tip kontrolü: numaraya göre tip belirle
+                        const isProduction = d.request_no && d.request_no.includes('-U');
+                        const isInputControl = d.request_no && d.request_no.match(/^\d{4}-\d+$/) && !d.request_no.includes('-U');
+                        
+                        if (type === 'Üretim') {
+                            return isProduction || d.deviation_type === 'Üretim';
+                        } else {
+                            return isInputControl || (d.deviation_type === 'Girdi Kontrolü' && !isProduction);
                         }
-                        return d.deviation_type === type;
                     });
 
                     if (sameTypeNumbers.length > 0) {
-                        const lastNo = sameTypeNumbers[0].request_no;
-                        if (type === 'Üretim') {
-                            // Üretim: 2025-U001 formatı
-                            const match = lastNo.match(/\d{4}-U(\d+)/);
-                            if (match) {
-                                newNumber = parseInt(match[1]) + 1;
-                                foundCurrentYearNumber = true;
+                        // En yüksek numarayı bul
+                        let maxNumber = 0;
+                        sameTypeNumbers.forEach(d => {
+                            if (type === 'Üretim') {
+                                const match = d.request_no.match(/\d{4}-U(\d+)/);
+                                if (match) {
+                                    const num = parseInt(match[1]);
+                                    if (num > maxNumber) {
+                                        maxNumber = num;
+                                    }
+                                }
+                            } else {
+                                const match = d.request_no.match(/\d{4}-(\d+)/);
+                                if (match && !d.request_no.includes('-U')) {
+                                    const num = parseInt(match[1]);
+                                    if (num > maxNumber) {
+                                        maxNumber = num;
+                                    }
+                                }
                             }
-                        } else {
-                            // Girdi Kontrolü: 2025-001 formatı
-                            const match = lastNo.match(/\d{4}-(\d+)/);
-                            if (match && !lastNo.includes('-U')) {
-                                newNumber = parseInt(match[1]) + 1;
-                                foundCurrentYearNumber = true;
-                            }
+                        });
+                        
+                        if (maxNumber > 0) {
+                            newNumber = maxNumber + 1;
+                            foundCurrentYearNumber = true;
                         }
                     }
                 }
@@ -492,32 +501,87 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                 </TabsTrigger>
                             </TabsList>
                             
+                            <TabsContent value="manual" className="mt-4">
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="deviation_type">Sapma Tipi <span className="text-red-500">*</span></Label>
+                                        <Select 
+                                            onValueChange={(value) => handleSelectChange('deviation_type', value)} 
+                                            value={formData.deviation_type || deviationType || 'Girdi Kontrolü'} 
+                                            required
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Sapma tipini seçin..." /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Girdi Kontrolü">Girdi Kontrolü</SelectItem>
+                                                <SelectItem value="Üretim">Üretim</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="request_no">Talep Numarası <span className="text-red-500">*</span></Label>
+                                        <Input id="request_no" value={formData.request_no || ''} onChange={handleInputChange} required readOnly />
+                                    </div>
+                                </div>
+                            </TabsContent>
+                            
                             <TabsContent value="from_record" className="mt-4">
-                                <SourceRecordSelector
-                                    onSelect={handleSourceRecordSelect}
-                                    initialSourceType={formData.source_type}
-                                    initialSourceId={formData.source_record_id}
-                                />
+                                <div className="space-y-4">
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="deviation_type_from_record">Sapma Tipi <span className="text-red-500">*</span></Label>
+                                            <Select 
+                                                onValueChange={(value) => handleSelectChange('deviation_type', value)} 
+                                                value={formData.deviation_type || deviationType || 'Girdi Kontrolü'} 
+                                                required
+                                            >
+                                                <SelectTrigger><SelectValue placeholder="Sapma tipini seçin..." /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Girdi Kontrolü">Girdi Kontrolü</SelectItem>
+                                                    <SelectItem value="Üretim">Üretim</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="request_no_from_record">Talep Numarası <span className="text-red-500">*</span></Label>
+                                            <Input id="request_no_from_record" value={formData.request_no || ''} onChange={handleInputChange} required readOnly />
+                                        </div>
+                                    </div>
+                                    <SourceRecordSelector
+                                        onSelect={handleSourceRecordSelect}
+                                        initialSourceType={formData.source_type}
+                                        initialSourceId={formData.source_record_id}
+                                    />
+                                </div>
                             </TabsContent>
                         </Tabs>
                     )}
 
-                    <div className="grid md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="deviation_type">Sapma Tipi <span className="text-red-500">*</span></Label>
-                            <Select 
-                                onValueChange={(value) => handleSelectChange('deviation_type', value)} 
-                                value={formData.deviation_type || deviationType || 'Girdi Kontrolü'} 
-                                required
-                                disabled={isEditMode}
-                            >
-                                <SelectTrigger><SelectValue placeholder="Sapma tipini seçin..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Girdi Kontrolü">Girdi Kontrolü</SelectItem>
-                                    <SelectItem value="Üretim">Üretim</SelectItem>
-                                </SelectContent>
-                            </Select>
+                    {isEditMode && (
+                        <div className="grid md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="deviation_type">Sapma Tipi <span className="text-red-500">*</span></Label>
+                                <Select 
+                                    onValueChange={(value) => handleSelectChange('deviation_type', value)} 
+                                    value={formData.deviation_type || deviationType || 'Girdi Kontrolü'} 
+                                    required
+                                    disabled={isEditMode}
+                                >
+                                    <SelectTrigger><SelectValue placeholder="Sapma tipini seçin..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Girdi Kontrolü">Girdi Kontrolü</SelectItem>
+                                        <SelectItem value="Üretim">Üretim</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="request_no">Talep Numarası <span className="text-red-500">*</span></Label>
+                                <Input id="request_no" value={formData.request_no || ''} onChange={handleInputChange} required readOnly />
+                            </div>
                         </div>
+                    )}
+
+                    {!isEditMode && creationMode === 'manual' && (
+                        <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="request_no">Talep Numarası <span className="text-red-500">*</span></Label>
                             <Input id="request_no" value={formData.request_no || ''} onChange={handleInputChange} required readOnly />
