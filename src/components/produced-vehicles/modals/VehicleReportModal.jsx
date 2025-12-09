@@ -14,7 +14,7 @@ import { generateVehicleReport } from '@/lib/pdfGenerator';
 
 const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
     const { toast } = useToast();
-    const [selectedStatus, setSelectedStatus] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState('all');
     const [dateFilterType, setDateFilterType] = useState('all'); // 'all', 'preset', 'custom'
     const [datePreset, setDatePreset] = useState('all');
     const [dateFrom, setDateFrom] = useState(null);
@@ -65,7 +65,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
 
     useEffect(() => {
         if (isOpen) {
-            setSelectedStatus('');
+            setSelectedStatus('all');
             setDateFilterType('all');
             setDatePreset('all');
             setDateFrom(null);
@@ -105,7 +105,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
             }
 
             // Durum filtresi
-            if (selectedStatus) {
+            if (selectedStatus && selectedStatus !== 'all') {
                 const statusOption = statusOptions.find(opt => opt.value === selectedStatus);
                 if (statusOption) {
                     // Timeline eventlerini al
