@@ -25,7 +25,7 @@ const DASHBOARD_FETCH_LIMIT = 1000;
 
 const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { toast } = useToast();
-    const { suppliers, incomingControlPlans, refreshData: globalRefresh, characteristics, equipment } = useData();
+    const { suppliers, incomingControlPlans, inkrReports, refreshData: globalRefresh, characteristics, equipment } = useData();
     
     const [inspections, setInspections] = useState([]);
     const [dashboardData, setDashboardData] = useState(null);
@@ -54,6 +54,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         decision: 'all',
         supplier: 'all',
         controlPlanStatus: 'all',
+        inkrStatus: 'all',
     });
 
     const buildFilterQuery = useCallback((query, currentFilters) => {
@@ -93,8 +94,26 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 // Eğer hiç kontrol planı yoksa, tüm kayıtlar "Mevcut Değil" demektir, filtre eklemeye gerek yok
             }
         }
+        if (currentFilters.inkrStatus !== 'all') {
+            const partCodesWithInkr = (inkrReports || []).map(r => r.part_code);
+            if (currentFilters.inkrStatus === 'Mevcut') {
+                if (partCodesWithInkr.length > 0) {
+                    query = query.in('part_code', partCodesWithInkr);
+                } else {
+                    // Hiç INKR yoksa hiçbir kayıt döndürme
+                    query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+                }
+            } else if (currentFilters.inkrStatus === 'Mevcut Değil') {
+                // INKR olmayan kayıtları getir
+                if (partCodesWithInkr.length > 0) {
+                    // Supabase'de NOT IN için doğru syntax
+                    query = query.not('part_code', 'in', `(${partCodesWithInkr.join(',')})`);
+                }
+                // Eğer hiç INKR yoksa, tüm kayıtlar "Mevcut Değil" demektir, filtre eklemeye gerek yok
+            }
+        }
         return query;
-    }, [incomingControlPlans]);
+    }, [incomingControlPlans, inkrReports]);
 
     const fetchDashboardData = useCallback(async (currentFilters) => {
         setDashboardLoading(true);
@@ -126,9 +145,11 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             }
 
             const controlPlanMap = new Map((incomingControlPlans || []).map(p => [p.part_code, true]));
+            const inkrMap = new Map((inkrReports || []).map(r => [r.part_code, true]));
             const inspectionsWithPlanStatus = allInspections.map(inspection => ({
                 ...inspection,
                 control_plan_status: controlPlanMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
+                inkr_status: inkrMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
             }));
 
             setDashboardData(inspectionsWithPlanStatus);
@@ -141,7 +162,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         } finally {
             setDashboardLoading(false);
         }
-    }, [toast, buildFilterQuery, incomingControlPlans]);
+    }, [toast, buildFilterQuery, incomingControlPlans, inkrReports]);
 
     const fetchInspections = useCallback(async (page, currentFilters) => {
         setLoading(true);
@@ -167,10 +188,12 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             setInspections([]);
         } else {
             const controlPlanMap = new Map((incomingControlPlans || []).map(p => [p.part_code, true]));
+            const inkrMap = new Map((inkrReports || []).map(r => [r.part_code, true]));
             const dataWithPlanStatus = data.map(inspection => ({
                 ...inspection,
                 supplier_name: inspection.supplier_name || '-',
                 control_plan_status: controlPlanMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
+                inkr_status: inkrMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
             }));
             setInspections(dataWithPlanStatus);
             setTotalCount(count || 0);
@@ -253,6 +276,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             ...prev,
             decision: 'all',
             controlPlanStatus: 'all',
+            inkrStatus: 'all',
             ...filter
         }));
         setCurrentPage(0);

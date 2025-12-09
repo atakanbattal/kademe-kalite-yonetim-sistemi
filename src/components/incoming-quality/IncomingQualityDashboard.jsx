@@ -8,17 +8,19 @@ import React from 'react';
 
     const IncomingQualityDashboard = ({ inspections, loading, onCardClick }) => {
         const stats = React.useMemo(() => {
-            if (!inspections) return { totalInspections: 0, rejectionRate: 0, conditionalAcceptance: 0, missingControlPlans: 0, rejectedCount: 0 };
+            if (!inspections) return { totalInspections: 0, rejectionRate: 0, conditionalAcceptance: 0, missingControlPlans: 0, missingInkr: 0, rejectedCount: 0 };
             const totalInspections = inspections.length;
             const rejectedCount = inspections.filter(i => i.decision === 'Ret').length;
             const conditionalAcceptance = inspections.filter(i => i.decision === 'Şartlı Kabul').length;
             const missingControlPlans = inspections.filter(i => i.control_plan_status === 'Mevcut Değil').length;
+            const missingInkr = inspections.filter(i => i.inkr_status === 'Mevcut Değil').length;
 
             return {
                 totalInspections,
                 rejectedCount,
                 conditionalAcceptance,
-                missingControlPlans
+                missingControlPlans,
+                missingInkr
             };
         }, [inspections]);
 
@@ -61,11 +63,12 @@ import React from 'react';
 
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard icon={ListChecks} title="Toplam Kontrol" value={stats.totalInspections} loading={loading} onClick={() => onCardClick({ decision: 'all', controlPlanStatus: 'all' })} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <StatCard icon={ListChecks} title="Toplam Kontrol" value={stats.totalInspections} loading={loading} onClick={() => onCardClick({ decision: 'all', controlPlanStatus: 'all', inkrStatus: 'all' })} />
                     <StatCard icon={AlertTriangle} title="Ret" value={stats.rejectedCount} loading={loading} color="text-destructive" onClick={() => onCardClick({ decision: 'Ret' })} />
                     <StatCard icon={FileWarning} title="Şartlı Kabul" value={stats.conditionalAcceptance} loading={loading} color="text-yellow-500" onClick={() => onCardClick({ decision: 'Şartlı Kabul' })} />
                     <StatCard icon={CheckCircle} title="Kontrol Planı Eksik" value={stats.missingControlPlans} loading={loading} color={stats.missingControlPlans > 0 ? "text-destructive" : "text-green-500"} onClick={() => onCardClick({ controlPlanStatus: 'Mevcut Değil' })} />
+                    <StatCard icon={FileWarning} title="INKR Eksik" value={stats.missingInkr} loading={loading} color={stats.missingInkr > 0 ? "text-destructive" : "text-green-500"} onClick={() => onCardClick({ inkrStatus: 'Mevcut Değil' })} />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card className="dashboard-widget">
