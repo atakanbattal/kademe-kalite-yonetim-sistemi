@@ -1728,7 +1728,40 @@ const generatePrintableReportHtml = (record, type) => {
 	let cssOverrides = ''; // CSS overrides for specific report types
 	
 	if (type === 'nonconformity_executive') {
-		reportContentHtml = generateListReportHtml(record, type);
+		const contentHtml = generateListReportHtml(record, type);
+		// nonconformity_executive için tam HTML formatı (başlık ve imza dahil)
+		const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
+		reportContentHtml = `
+			<div class="report-header">
+				<div class="report-logo">
+					<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+				</div>
+				<div class="company-title">
+					<h1>KADEME A.Ş.</h1>
+					<p>Kalite Yönetim Sistemi</p>
+				</div>
+				<div class="print-info">
+					Rapor Tarihi: ${formatDateTime(new Date())}
+				</div>
+			</div>
+
+			<div class="meta-box">
+				<div class="meta-item"><strong>Belge Türü:</strong> DF/8D Yönetici Özet Raporu</div>
+			</div>
+
+			${contentHtml}
+
+			<div class="section signature-section">
+				<h2 class="section-title dark">İMZA VE ONAY</h2>
+				<div class="signature-area">
+					<div class="signature-box">
+						<p class="role">HAZIRLAYAN</p>
+						<div class="signature-line"></div>
+						<p class="name">Atakan BATTAL</p>
+					</div>
+				</div>
+			</div>
+		`;
 	} else if (type === 'document_list') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type.endsWith('_list')) {
