@@ -57,6 +57,53 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
         
         const initialLoadRef = useRef(true);
 
+        // Revizyon modunda tüm revizyonları çek ve en yüksek numarayı bul
+        useEffect(() => {
+            if (isOpen && isRevisionMode && existingDocument?.id) {
+                const fetchMaxRevisionNumber = async () => {
+                    try {
+                        const { data: allRevisions, error: revError } = await supabase
+                            .from('document_revisions')
+                            .select('revision_number')
+                            .eq('document_id', existingDocument.id)
+                            .order('revision_number', { ascending: false });
+
+                        if (revError) throw revError;
+
+                        // En yüksek revizyon numarasını bul
+                        let maxRevisionNumber = 0;
+                        if (allRevisions && allRevisions.length > 0) {
+                            allRevisions.forEach(rev => {
+                                const revNum = parseInt(rev.revision_number, 10);
+                                if (!isNaN(revNum) && revNum > maxRevisionNumber) {
+                                    maxRevisionNumber = revNum;
+                                }
+                            });
+                        }
+                        
+                        const nextRevisionNumber = (maxRevisionNumber + 1).toString();
+                        
+                        // FormData'yı güncelle
+                        setFormData(prev => ({
+                            ...prev,
+                            revision_number: nextRevisionNumber
+                        }));
+                    } catch (error) {
+                        console.error('Revizyon numarası hesaplanamadı:', error);
+                        // Hata durumunda mevcut revizyon numarasına +1 ekle
+                        const revision = existingDocument.document_revisions;
+                        const currentRevNum = parseInt(revision?.revision_number || '0', 10);
+                        setFormData(prev => ({
+                            ...prev,
+                            revision_number: (currentRevNum + 1).toString()
+                        }));
+                    }
+                };
+                
+                fetchMaxRevisionNumber();
+            }
+        }, [isOpen, isRevisionMode, existingDocument?.id]);
+
         useEffect(() => {
             if (isOpen) {
                 if (initialLoadRef.current) {
@@ -74,10 +121,15 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 
                     if (existingDocument) {
                          const revision = existingDocument.document_revisions;
-                         const currentRevisionNumber = revision?.revision_number || '0';
-                         const nextRevisionNumber = isRevisionMode 
-                             ? (parseInt(currentRevisionNumber, 10) + 1).toString()
-                             : currentRevisionNumber;
+                         
+                         // Revizyon modunda başlangıç değeri (async useEffect ile güncellenecek)
+                         let nextRevisionNumber = revision?.revision_number || '1';
+                         if (isRevisionMode) {
+                             // Geçici olarak mevcut revizyon numarasını kullan
+                             // Async useEffect ile doğru değer hesaplanacak
+                             const currentRevNum = parseInt(revision?.revision_number || '0', 10);
+                             nextRevisionNumber = currentRevNum.toString(); // Geçici değer
+                         }
                          
                          setFormData({
                             id: existingDocument.id,
