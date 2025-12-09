@@ -17,10 +17,11 @@ import React, { useState, useMemo, useCallback } from 'react';
     import PartCostLeaders from '@/components/quality-cost/PartCostLeaders';
     import CostAnomalyDetector from '@/components/quality-cost/CostAnomalyDetector';
     import CostTrendAnalysis from '@/components/quality-cost/CostTrendAnalysis';
-    import UnitCostDistribution from '@/components/quality-cost/UnitCostDistribution';
-    import { ScrollArea } from '@/components/ui/scroll-area';
-    import { useAuth } from '@/contexts/SupabaseAuthContext';
-    import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import UnitCostDistribution from '@/components/quality-cost/UnitCostDistribution';
+import UnitReportModal from '@/components/quality-cost/UnitReportModal';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useData } from '@/contexts/DataContext';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,6 +47,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
         const [detailModalContent, setDetailModalContent] = useState({ title: '', costs: [] });
         const [searchTerm, setSearchTerm] = useState('');
         const [unitFilter, setUnitFilter] = useState('all');
+        const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
         const hasNCAccess = useMemo(() => {
             return profile?.role === 'admin';
@@ -160,12 +162,24 @@ import { openPrintableReport } from '@/lib/reportUtils';
             return [...new Set(qualityCosts.map(cost => cost.unit).filter(Boolean))];
         }, [qualityCosts]);
 
-        const handleGenerateReport = useCallback(() => {
+        const handleOpenReportModal = useCallback(() => {
             if (filteredCosts.length === 0) {
                 toast({
                     variant: 'destructive',
                     title: 'Hata',
                     description: 'Rapor oluşturmak için en az bir maliyet kaydı olmalıdır.',
+                });
+                return;
+            }
+            setIsReportModalOpen(true);
+        }, [filteredCosts.length, toast]);
+
+        const handleGenerateReport = useCallback((selectedUnits) => {
+            if (!selectedUnits || selectedUnits.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Lütfen en az bir birim seçin.',
                 });
                 return;
             }
@@ -179,18 +193,14 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 }
             };
 
-            // Birim bazlı gruplama
-            const costsByUnit = {};
-            filteredCosts.forEach(cost => {
-                const unit = cost.unit || 'Belirtilmemiş';
-                if (!costsByUnit[unit]) {
-                    costsByUnit[unit] = [];
+            // Seçilen birimler için rapor oluştur
+            selectedUnits.forEach((unit, index) => {
+                const unitCosts = filteredCosts.filter(cost => cost.unit === unit);
+                
+                if (unitCosts.length === 0) {
+                    return;
                 }
-                costsByUnit[unit].push(cost);
-            });
 
-            // Her birim için ayrı rapor oluştur
-            Object.entries(costsByUnit).forEach(([unit, unitCosts]) => {
                 const totalAmount = unitCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
                 
                 // Maliyet türü bazlı gruplama
@@ -239,15 +249,15 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     })).sort((a, b) => b.totalAmount - a.totalAmount)
                 };
 
-                // Her birim için ayrı rapor aç
+                // Her birim için ayrı rapor aç (500ms arayla)
                 setTimeout(() => {
                     openPrintableReport(reportData, 'quality_cost_list', true);
-                }, Object.keys(costsByUnit).indexOf(unit) * 500); // Her raporu 500ms arayla aç
+                }, index * 500);
             });
 
             toast({
                 title: 'Başarılı',
-                description: `${Object.keys(costsByUnit).length} birim için rapor oluşturuldu.`,
+                description: `${selectedUnits.length} birim için rapor oluşturuldu.`,
             });
         }, [filteredCosts, dateRange, toast]);
 
@@ -276,6 +286,13 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     title={detailModalContent.title}
                     costs={detailModalContent.costs}
                 />
+                <UnitReportModal
+                    isOpen={isReportModalOpen}
+                    setIsOpen={setIsReportModalOpen}
+                    units={uniqueUnits}
+                    costs={filteredCosts}
+                    onGenerate={handleGenerateReport}
+                />
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -284,7 +301,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     </div>
                     <div className="mt-4 sm:mt-0 flex items-center gap-2">
                         <CostFilters dateRange={dateRange} setDateRange={setDateRange} />
-                        <Button onClick={handleGenerateReport} variant="outline">
+                        <Button onClick={handleOpenReportModal} variant="outline">
                             <FileText className="w-4 h-4 mr-2" />
                             Rapor Al
                         </Button>
