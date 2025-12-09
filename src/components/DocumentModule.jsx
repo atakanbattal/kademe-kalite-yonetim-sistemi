@@ -344,7 +344,7 @@ import { Label } from '@/components/ui/label';
                                                 department_name: doc.departments?.unit_name || doc.personnel?.full_name || '-',
                                                 revision_number: doc.document_revisions?.revision_number || '1',
                                                 publish_date: doc.document_revisions?.publish_date || doc.created_at,
-                                                revision_date: doc.document_revisions?.created_at || doc.updated_at,
+                                                revision_date: doc.document_revisions?.revision_date || doc.document_revisions?.created_at || doc.updated_at,
                                                 valid_until: doc.valid_until
                                             })),
                                             categoryName: currentCategory?.label || activeTab
