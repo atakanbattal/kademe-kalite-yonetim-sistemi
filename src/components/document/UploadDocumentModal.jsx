@@ -120,6 +120,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         document_type: preselectedCategory || '', 
                         revision_number: '1', 
                         publish_date: new Date().toISOString().slice(0, 10), 
+                        revision_date: '', // Yeni kayıtlarda revizyon tarihi boş bırakılacak (manuel girilecek)
                         personnel_id: null,
                         revision_reason: 'İlk Yayın',
                         valid_until: '',
@@ -152,6 +153,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                             valid_until: existingDocument.valid_until ? new Date(existingDocument.valid_until).toISOString().slice(0, 10) : '',
                             revision_number: nextRevisionNumber,
                             publish_date: publishDate, // Revizyon modunda da ilk yayın tarihini koru
+                            revision_date: isRevisionMode ? '' : (revision?.revision_date ? new Date(revision.revision_date).toISOString().slice(0, 10) : (revision?.created_at ? new Date(revision.created_at).toISOString().slice(0, 10) : '')),
                             revision_reason: isRevisionMode ? '' : (revision?.revision_reason || ''),
                             file_name: revision?.attachments?.[0]?.name,
                             department_id: existingDocument.department_id || null,
@@ -274,6 +276,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     revision_number: parseInt(formData.revision_number, 10) || 1,
                     revision_reason: formData.revision_reason || (isRevisionMode ? 'Revizyon' : 'İlk Yayın'),
                     publish_date: formData.publish_date,
+                    revision_date: formData.revision_date || null, // Revizyon tarihi manuel girilecek (yeni kayıtlarda boş olabilir)
                     prepared_by_id: currentUserPersonnelRecord?.id || null,
                     user_id: user.id,
                     attachments: attachmentData ? [attachmentData] : ((isEditMode || isRevisionMode) ? existingDocument.document_revisions?.attachments : null),
