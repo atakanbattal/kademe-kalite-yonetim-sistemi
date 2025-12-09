@@ -33,6 +33,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const [suppliers, setSuppliers] = useState([]);
     const [creationMode, setCreationMode] = useState('manual'); // 'manual' veya 'from_record'
     const [selectedSourceRecord, setSelectedSourceRecord] = useState(null);
+    const [deviationType, setDeviationType] = useState('Girdi Kontrolü'); // 'Girdi Kontrolü' veya 'Üretim'
     
     useEffect(() => {
         const fetchSettingsData = async () => {
@@ -68,7 +69,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
 
                 // Yeni sapma için otomatik talep numarası oluştur
                 if (!isEditMode) {
-                    await generateRequestNumber();
+                    await generateRequestNumber(deviationType);
                 }
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Ayarlar yüklenemedi.' });
@@ -90,6 +91,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             source: '',
             requesting_unit: '',
             requesting_person: '',
+            deviation_type: 'Girdi Kontrolü',
             created_at: new Date(),
         };
 
@@ -104,8 +106,10 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             const { deviation_vehicles, deviation_attachments, ...rest } = existingDeviation;
             setFormData({
                 ...rest,
+                deviation_type: rest.deviation_type || 'Girdi Kontrolü',
                 created_at: rest.created_at ? new Date(rest.created_at) : new Date(),
             });
+            setDeviationType(rest.deviation_type || 'Girdi Kontrolü');
             if (deviation_vehicles && deviation_vehicles.length > 0) {
                 setVehicles(deviation_vehicles.map(({ customer_name, chassis_no, vehicle_serial_no }) => ({ customer_name: customer_name || '', chassis_no: chassis_no || '', vehicle_serial_no: vehicle_serial_no || '' })));
                 console.log('✅ Araç bilgileri yüklendi:', deviation_vehicles.length);
@@ -116,6 +120,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             // Yeni sapma modu: Sadece modal YENİ açıldığında sıfırla
             console.log('➕ Yeni sapma kaydı modu');
             setFormData(initialData);
+            setDeviationType('Girdi Kontrolü');
             setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
         }
         setFiles([]);
@@ -143,7 +148,14 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         setFormData(prev => ({ ...prev, [id]: value }));
     };
 
-    const handleSelectChange = (id, value) => {
+    const handleSelectChange = async (id, value) => {
+        if (id === 'deviation_type') {
+            setDeviationType(value);
+            // Tip değiştiğinde numara yeniden oluştur (sadece yeni kayıt için)
+            if (!isEditMode) {
+                await generateRequestNumber(value);
+            }
+        }
         setFormData(prev => ({ ...prev, [id]: value }));
     };
 
@@ -151,35 +163,64 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         setFormData(prev => ({ ...prev, created_at: date }));
     };
 
-    const generateRequestNumber = async () => {
+    const generateRequestNumber = async (type = 'Girdi Kontrolü') => {
         try {
-            // Son sapma kaydının numarasını al
+            const currentYear = new Date().getFullYear();
+            
+            // Aynı yıl ve aynı tip için son numarayı bul
             const { data, error } = await supabase
                 .from('deviations')
-                .select('request_no')
-                .order('created_at', { ascending: false })
-                .limit(1);
+                .select('request_no, deviation_type, created_at')
+                .eq('deviation_type', type)
+                .order('created_at', { ascending: false });
 
             if (error) throw error;
 
             let newNumber = 1;
-            if (data && data.length > 0 && data[0].request_no) {
-                // Mevcut numaradan sonraki numarayı al
-                const lastNo = data[0].request_no;
-                const match = lastNo.match(/SAP-(\d+)/);
-                if (match) {
-                    newNumber = parseInt(match[1]) + 1;
+            
+            // Bu yıl ve bu tip için numara bul
+            if (data && data.length > 0) {
+                const currentYearNumbers = data.filter(d => {
+                    if (!d.request_no) return false;
+                    const yearMatch = d.request_no.match(/(\d{4})/);
+                    if (!yearMatch) return false;
+                    return parseInt(yearMatch[1]) === currentYear;
+                });
+
+                if (currentYearNumbers.length > 0) {
+                    const lastNo = currentYearNumbers[0].request_no;
+                    if (type === 'Üretim') {
+                        // Üretim: 2025-U001 formatı
+                        const match = lastNo.match(/\d{4}-U(\d+)/);
+                        if (match) {
+                            newNumber = parseInt(match[1]) + 1;
+                        }
+                    } else {
+                        // Girdi Kontrolü: 2025-001 formatı
+                        const match = lastNo.match(/\d{4}-(\d+)/);
+                        if (match && !lastNo.includes('-U')) {
+                            newNumber = parseInt(match[1]) + 1;
+                        }
+                    }
                 }
             }
 
-            // Yeni talep numarasını oluştur (SAP-0001 formatında)
-            const requestNo = `SAP-${String(newNumber).padStart(4, '0')}`;
-            setFormData(prev => ({ ...prev, request_no: requestNo }));
+            // Yeni talep numarasını oluştur
+            let requestNo;
+            if (type === 'Üretim') {
+                requestNo = `${currentYear}-U${String(newNumber).padStart(3, '0')}`;
+            } else {
+                requestNo = `${currentYear}-${String(newNumber).padStart(3, '0')}`;
+            }
+            
+            setFormData(prev => ({ ...prev, request_no: requestNo, deviation_type: type }));
         } catch (error) {
             console.error('Talep numarası oluşturulamadı:', error);
-            // Hata durumunda rastgele numara
-            const fallbackNo = `SAP-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
-            setFormData(prev => ({ ...prev, request_no: fallbackNo }));
+            const currentYear = new Date().getFullYear();
+            const fallbackNo = type === 'Üretim' 
+                ? `${currentYear}-U001`
+                : `${currentYear}-001`;
+            setFormData(prev => ({ ...prev, request_no: fallbackNo, deviation_type: type }));
         }
     };
 
@@ -402,8 +443,23 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
 
                     <div className="grid md:grid-cols-3 gap-4">
                         <div className="space-y-2">
+                            <Label htmlFor="deviation_type">Sapma Tipi <span className="text-red-500">*</span></Label>
+                            <Select 
+                                onValueChange={(value) => handleSelectChange('deviation_type', value)} 
+                                value={formData.deviation_type || deviationType || 'Girdi Kontrolü'} 
+                                required
+                                disabled={isEditMode}
+                            >
+                                <SelectTrigger><SelectValue placeholder="Sapma tipini seçin..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Girdi Kontrolü">Girdi Kontrolü</SelectItem>
+                                    <SelectItem value="Üretim">Üretim</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="request_no">Talep Numarası <span className="text-red-500">*</span></Label>
-                            <Input id="request_no" value={formData.request_no || ''} onChange={handleInputChange} required />
+                            <Input id="request_no" value={formData.request_no || ''} onChange={handleInputChange} required readOnly />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="requesting_unit">Talep Eden Birim</Label>
