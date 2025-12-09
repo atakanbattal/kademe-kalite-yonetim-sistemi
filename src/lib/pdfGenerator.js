@@ -334,23 +334,55 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
     const calculateQualityTimes = () => {
         let totalControlMillis = 0;
         let totalReworkMillis = 0;
+        let waitingForShippingStart = null;
         
         if (timeline && timeline.length > 0) {
+            // "Sevk Bilgisi Bekleniyor" durumunun başlangıcını bul
+            const waitingEvent = timeline.find(e => e.event_type === 'waiting_for_shipping_info');
+            if (waitingEvent) {
+                waitingForShippingStart = new Date(waitingEvent.event_timestamp);
+            }
+
             for (let i = 0; i < timeline.length; i++) {
                 const currentEvent = timeline[i];
+                const currentEventTime = new Date(currentEvent.event_timestamp);
+                
+                // "Sevk Bilgisi Bekleniyor" durumundan sonraki süreleri sayma
+                if (waitingForShippingStart && currentEventTime >= waitingForShippingStart) {
+                    continue;
+                }
+
                 if (currentEvent.event_type === 'control_start') {
-                    const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'control_end');
+                    const nextEnd = timeline.slice(i + 1).find(e => {
+                        const endTime = new Date(e.event_timestamp);
+                        if (waitingForShippingStart && endTime >= waitingForShippingStart) {
+                            return false;
+                        }
+                        return e.event_type === 'control_end';
+                    });
                     if (nextEnd) {
-                        const startTime = new Date(currentEvent.event_timestamp);
-                        const endTime = new Date(nextEnd.event_timestamp);
-                        totalControlMillis += (endTime - startTime);
+                        const endTime = waitingForShippingStart && new Date(nextEnd.event_timestamp) > waitingForShippingStart 
+                            ? waitingForShippingStart 
+                            : new Date(nextEnd.event_timestamp);
+                        totalControlMillis += (endTime - currentEventTime);
+                    } else if (waitingForShippingStart) {
+                        totalControlMillis += (waitingForShippingStart - currentEventTime);
                     }
                 } else if (currentEvent.event_type === 'rework_start') {
-                    const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'rework_end');
+                    const nextEnd = timeline.slice(i + 1).find(e => {
+                        const endTime = new Date(e.event_timestamp);
+                        if (waitingForShippingStart && endTime >= waitingForShippingStart) {
+                            return false;
+                        }
+                        return e.event_type === 'rework_end';
+                    });
                     if (nextEnd) {
-                        const startTime = new Date(currentEvent.event_timestamp);
-                        const endTime = new Date(nextEnd.event_timestamp);
-                        totalReworkMillis += (endTime - startTime);
+                        const endTime = waitingForShippingStart && new Date(nextEnd.event_timestamp) > waitingForShippingStart 
+                            ? waitingForShippingStart 
+                            : new Date(nextEnd.event_timestamp);
+                        totalReworkMillis += (endTime - currentEventTime);
+                    } else if (waitingForShippingStart) {
+                        totalReworkMillis += (waitingForShippingStart - currentEventTime);
                     }
                 }
             }

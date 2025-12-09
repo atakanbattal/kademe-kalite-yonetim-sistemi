@@ -135,32 +135,65 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const summaryStats = useMemo(() => {
             let totalControlMillis = 0;
             let totalReworkMillis = 0;
+            let waitingForShippingStart = null;
 
             if (timeline.length > 0) {
+                // "Sevk Bilgisi Bekleniyor" durumunun başlangıcını bul
+                const waitingEvent = timeline.find(e => e.event_type === 'waiting_for_shipping_info');
+                if (waitingEvent) {
+                    waitingForShippingStart = parseISO(waitingEvent.event_timestamp);
+                }
+
                 for (let i = 0; i < timeline.length; i++) {
                     const currentEvent = timeline[i];
+                    const currentEventTime = parseISO(currentEvent.event_timestamp);
                     
+                    // "Sevk Bilgisi Bekleniyor" durumundan sonraki süreleri sayma
+                    if (waitingForShippingStart && currentEventTime >= waitingForShippingStart) {
+                        continue;
+                    }
+
                     if (currentEvent.event_type === 'control_start') {
-                        const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'control_end');
+                        const nextEnd = timeline.slice(i + 1).find(e => {
+                            const endTime = parseISO(e.event_timestamp);
+                            if (waitingForShippingStart && endTime >= waitingForShippingStart) {
+                                return false;
+                            }
+                            return e.event_type === 'control_end';
+                        });
                         if (nextEnd) {
-                            totalControlMillis += differenceInMilliseconds(parseISO(nextEnd.event_timestamp), parseISO(currentEvent.event_timestamp));
+                            const endTime = waitingForShippingStart && parseISO(nextEnd.event_timestamp) > waitingForShippingStart 
+                                ? waitingForShippingStart 
+                                : parseISO(nextEnd.event_timestamp);
+                            totalControlMillis += differenceInMilliseconds(endTime, currentEventTime);
+                        } else if (waitingForShippingStart) {
+                            totalControlMillis += differenceInMilliseconds(waitingForShippingStart, currentEventTime);
                         } else {
-                            totalControlMillis += differenceInMilliseconds(new Date(), parseISO(currentEvent.event_timestamp));
+                            totalControlMillis += differenceInMilliseconds(new Date(), currentEventTime);
                         }
                     } else if (currentEvent.event_type === 'rework_start') {
-                        const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'rework_end');
+                        const nextEnd = timeline.slice(i + 1).find(e => {
+                            const endTime = parseISO(e.event_timestamp);
+                            if (waitingForShippingStart && endTime >= waitingForShippingStart) {
+                                return false;
+                            }
+                            return e.event_type === 'rework_end';
+                        });
                         if (nextEnd) {
-                            totalReworkMillis += differenceInMilliseconds(parseISO(nextEnd.event_timestamp), parseISO(currentEvent.event_timestamp));
+                            const endTime = waitingForShippingStart && parseISO(nextEnd.event_timestamp) > waitingForShippingStart 
+                                ? waitingForShippingStart 
+                                : parseISO(nextEnd.event_timestamp);
+                            totalReworkMillis += differenceInMilliseconds(endTime, currentEventTime);
+                        } else if (waitingForShippingStart) {
+                            totalReworkMillis += differenceInMilliseconds(waitingForShippingStart, currentEventTime);
                         } else {
-                            totalReworkMillis += differenceInMilliseconds(new Date(), parseISO(currentEvent.event_timestamp));
+                            totalReworkMillis += differenceInMilliseconds(new Date(), currentEventTime);
                         }
                     }
                 }
             }
             
-            // Kalitede geçen toplam süre sadece kontrol başladı-bitti arasındaki sürelerdir
-            // Yeniden işlem süresi dahil edilmez
-            const totalQualityMillis = totalControlMillis;
+            const totalQualityMillis = totalControlMillis + totalReworkMillis;
 
             return {
                 totalControlTime: formatDuration(totalControlMillis),
