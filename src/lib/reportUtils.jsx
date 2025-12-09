@@ -15,14 +15,16 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 		return;
 	}
 
-	// Kontrol planları ve diğer tipler için farklı ID field'leri
+	// Liste tipleri için özel ID kontrolü (id olmasa da devam et)
+	const isListType = type.endsWith('_list') || type === 'document_list';
 	const hasValidId = record.id || record.delivery_note_number;
-	if (!hasValidId) {
+	
+	if (!isListType && !hasValidId) {
 		console.error("openPrintableReport: record has no valid ID field:", record);
 		return;
 	}
 
-	const reportId = type === 'sheet_metal_entry' ? record.delivery_note_number : (record.id || record.delivery_note_number);
+	const reportId = type === 'sheet_metal_entry' ? record.delivery_note_number : (record.id || record.delivery_note_number || `list-${Date.now()}`);
 	
 	if (useUrlParams) {
 		try {

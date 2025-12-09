@@ -337,6 +337,7 @@ import { Label } from '@/components/ui/label';
                                     variant="outline" 
                                     onClick={() => {
                                         const reportData = {
+                                            id: `document-list-${activeTab}-${Date.now()}`,
                                             items: filteredDocuments.map(doc => ({
                                                 title: doc.title || '-',
                                                 document_number: doc.document_number || '-',
@@ -348,7 +349,7 @@ import { Label } from '@/components/ui/label';
                                             })),
                                             categoryName: currentCategory?.label || activeTab
                                         };
-                                        openPrintableReport({ items: reportData.items, categoryName: reportData.categoryName }, 'document_list');
+                                        openPrintableReport(reportData, 'document_list', true);
                                     }}
                                     className="flex items-center gap-2"
                                 >
