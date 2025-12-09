@@ -235,7 +235,7 @@ const InkrManagement = ({ onViewPdf }) => {
     }, [inkrReports, toast]);
 
     // Filtrelenmiş parçalar
-    const filteredParts = React.useMemo(() => {
+    const filteredParts = useMemo(() => {
         let filtered = allParts;
 
         // Arama filtresi
