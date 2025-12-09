@@ -115,7 +115,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) =>
                     <ScrollArea className="h-[70vh] p-4">
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div><Label>Parça Kodu</Label><Input value={formData.part_code || ''} onChange={(e) => setFormData(f => ({ ...f, part_code: e.target.value }))} required disabled={isEditMode} /></div>
+                                <div><Label>Parça Kodu</Label><Input value={formData.part_code || ''} onChange={(e) => setFormData(f => ({ ...f, part_code: e.target.value }))} required disabled={isEditMode || !!(existingReport && existingReport.part_code && !existingReport.id)} /></div>
                                 <div><Label>Parça Adı</Label><Input value={formData.part_name || ''} onChange={(e) => setFormData(f => ({ ...f, part_name: e.target.value }))} required /></div>
                                 <div className="col-span-2"><Label>Tedarikçi</Label><Select value={formData.supplier_id || ''} onValueChange={(v) => handleSelectChange('supplier_id', v)}><SelectTrigger><SelectValue placeholder="Tedarikçi seçin..." /></SelectTrigger><SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
                                 <div><Label>Rapor Tarihi</Label><Input type="date" value={formData.report_date || ''} onChange={(e) => setFormData(f => ({ ...f, report_date: e.target.value }))} required /></div>
