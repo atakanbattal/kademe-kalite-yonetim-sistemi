@@ -16,6 +16,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
 import { useData } from '@/contexts/DataContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { parseISO, isAfter, isBefore } from 'date-fns';
+import { normalizeTurkishForSearch } from '@/lib/utils';
 
 const DeviationModule = ({ onOpenNCForm }) => {
     const { toast } = useToast();

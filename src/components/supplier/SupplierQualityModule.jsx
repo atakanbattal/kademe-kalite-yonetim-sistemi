@@ -42,17 +42,20 @@ import SupplierDocumentsTab from '@/components/supplier/SupplierDocumentsTab';
       useEffect(() => {
         let tempSuppliers = [...mergedSuppliers];
         if (filters.searchTerm) {
-            const term = filters.searchTerm.toLowerCase();
+            const normalizedSearchTerm = normalizeTurkishForSearch(filters.searchTerm);
             // Kapsamlı arama: tedarikçi adı, ürün grubu, kod, adres, iletişim bilgileri, uygunsuzluk başlıkları
             tempSuppliers = tempSuppliers.filter(s => 
-                s.name.toLowerCase().includes(term) || 
-                s.product_group?.toLowerCase().includes(term) ||
-                s.code?.toLowerCase().includes(term) ||
-                s.address?.toLowerCase().includes(term) ||
-                s.contact_person?.toLowerCase().includes(term) ||
-                s.email?.toLowerCase().includes(term) ||
-                s.phone?.toLowerCase().includes(term) ||
-                s.supplier_non_conformities?.some(nc => nc.title?.toLowerCase().includes(term) || nc.description?.toLowerCase().includes(term))
+                normalizeTurkishForSearch(s.name).includes(normalizedSearchTerm) || 
+                normalizeTurkishForSearch(s.product_group).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(s.code).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(s.address).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(s.contact_person).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(s.email).includes(normalizedSearchTerm) ||
+                normalizeTurkishForSearch(s.phone).includes(normalizedSearchTerm) ||
+                s.supplier_non_conformities?.some(nc => 
+                    normalizeTurkishForSearch(nc.title).includes(normalizedSearchTerm) || 
+                    normalizeTurkishForSearch(nc.description).includes(normalizedSearchTerm)
+                )
             );
         }
         if (filters.status !== 'all') {

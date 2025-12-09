@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Package, AlertTriangle, DollarSign, CheckCircle2, FileCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, normalizeTurkishForSearch } from '@/lib/utils';
 
 const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) => {
     const { toast } = useToast();
@@ -174,29 +174,29 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
     // Filtreleme
     const filteredIncoming = useMemo(() => {
         if (!searchTerm) return incomingInspections;
-        const search = searchTerm.toLowerCase();
+        const normalizedSearch = normalizeTurkishForSearch(searchTerm);
         return incomingInspections.filter(r => 
-            r.part_code?.toLowerCase().includes(search) ||
-            r.part_name?.toLowerCase().includes(search) ||
-            r.supplier_name?.toLowerCase().includes(search) ||
-            r.supplier?.name?.toLowerCase().includes(search) ||
-            r.record_no?.toLowerCase().includes(search) ||
-            r.delivery_note_number?.toLowerCase().includes(search) ||
-            r.description?.toLowerCase().includes(search) ||
-            r.notes?.toLowerCase().includes(search)
+            normalizeTurkishForSearch(r.part_code).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.part_name).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.supplier_name).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.supplier?.name).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.record_no).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.delivery_note_number).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.description).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.notes).includes(normalizedSearch)
         );
     }, [incomingInspections, searchTerm]);
 
     const filteredQuarantine = useMemo(() => {
         if (!searchTerm) return quarantineRecords;
-        const search = searchTerm.toLowerCase();
+        const normalizedSearch = normalizeTurkishForSearch(searchTerm);
         return quarantineRecords.filter(r => 
-            r.part_code?.toLowerCase().includes(search) ||
-            r.part_name?.toLowerCase().includes(search) ||
-            r.lot_no?.toLowerCase().includes(search) ||
-            r.description?.toLowerCase().includes(search) ||
-            r.source_department?.toLowerCase().includes(search) ||
-            r.requesting_department?.toLowerCase().includes(search)
+            normalizeTurkishForSearch(r.part_code).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.part_name).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.lot_no).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.description).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.source_department).includes(normalizedSearch) ||
+            normalizeTurkishForSearch(r.requesting_department).includes(normalizedSearch)
         );
     }, [quarantineRecords, searchTerm]);
 
