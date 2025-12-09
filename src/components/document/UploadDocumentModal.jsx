@@ -57,22 +57,28 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
         
         const initialLoadRef = useRef(true);
 
-        // Revizyon modunda tüm revizyonları çek ve en yüksek numarayı bul
+        // Revizyon modunda tüm revizyonları çek ve en yüksek numarayı bul, ilk yayın tarihini al
         useEffect(() => {
             if (isOpen && isRevisionMode && existingDocument?.id) {
-                const fetchMaxRevisionNumber = async () => {
+                const fetchRevisionData = async () => {
                     try {
                         const { data: allRevisions, error: revError } = await supabase
                             .from('document_revisions')
-                            .select('revision_number')
+                            .select('revision_number, publish_date')
                             .eq('document_id', existingDocument.id)
-                            .order('revision_number', { ascending: false });
+                            .order('revision_number', { ascending: true }); // İlk revizyonu bulmak için ascending
 
                         if (revError) throw revError;
 
                         // En yüksek revizyon numarasını bul
                         let maxRevisionNumber = 0;
+                        let firstPublishDate = null;
+                        
                         if (allRevisions && allRevisions.length > 0) {
+                            // İlk revizyonun publish_date'ini al (ilk yayın tarihi)
+                            firstPublishDate = allRevisions[0].publish_date;
+                            
+                            // En yüksek revizyon numarasını bul
                             allRevisions.forEach(rev => {
                                 const revNum = parseInt(rev.revision_number, 10);
                                 if (!isNaN(revNum) && revNum > maxRevisionNumber) {
@@ -83,24 +89,26 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         
                         const nextRevisionNumber = (maxRevisionNumber + 1).toString();
                         
-                        // FormData'yı güncelle
+                        // FormData'yı güncelle - revizyon numarası ve ilk yayın tarihi
                         setFormData(prev => ({
                             ...prev,
-                            revision_number: nextRevisionNumber
+                            revision_number: nextRevisionNumber,
+                            publish_date: firstPublishDate || prev.publish_date // İlk yayın tarihini koru
                         }));
                     } catch (error) {
-                        console.error('Revizyon numarası hesaplanamadı:', error);
-                        // Hata durumunda mevcut revizyon numarasına +1 ekle
+                        console.error('Revizyon verileri hesaplanamadı:', error);
+                        // Hata durumunda mevcut revizyon numarasına +1 ekle ve mevcut publish_date'i koru
                         const revision = existingDocument.document_revisions;
                         const currentRevNum = parseInt(revision?.revision_number || '0', 10);
                         setFormData(prev => ({
                             ...prev,
-                            revision_number: (currentRevNum + 1).toString()
+                            revision_number: (currentRevNum + 1).toString(),
+                            publish_date: revision?.publish_date || prev.publish_date // Mevcut publish_date'i koru
                         }));
                     }
                 };
                 
-                fetchMaxRevisionNumber();
+                fetchRevisionData();
             }
         }, [isOpen, isRevisionMode, existingDocument?.id]);
 
@@ -131,6 +139,11 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                              nextRevisionNumber = currentRevNum.toString(); // Geçici değer
                          }
                          
+                         // Revizyon modunda publish_date'i koru (ilk yayın tarihi)
+                         const publishDate = isRevisionMode 
+                             ? (revision?.publish_date ? new Date(revision.publish_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))
+                             : (revision?.publish_date ? new Date(revision.publish_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+                         
                          setFormData({
                             id: existingDocument.id,
                             title: existingDocument.title || '',
@@ -138,9 +151,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                             personnel_id: existingDocument.personnel_id || null,
                             valid_until: existingDocument.valid_until ? new Date(existingDocument.valid_until).toISOString().slice(0, 10) : '',
                             revision_number: nextRevisionNumber,
-                            publish_date: isRevisionMode 
-                                ? new Date().toISOString().slice(0, 10) 
-                                : (revision?.publish_date ? new Date(revision.publish_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)),
+                            publish_date: publishDate, // Revizyon modunda da ilk yayın tarihini koru
                             revision_reason: isRevisionMode ? '' : (revision?.revision_reason || ''),
                             file_name: revision?.attachments?.[0]?.name,
                             department_id: existingDocument.department_id || null,
@@ -407,7 +418,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         </div>
 
                         <div>
-                            <Label htmlFor="publish_date">Yayın Tarihi <span className="text-red-500">*</span> {isRevisionMode && <span className="text-xs text-muted-foreground">(Otomatik)</span>}</Label>
+                            <Label htmlFor="publish_date">Yayın Tarihi <span className="text-red-500">*</span> {isRevisionMode && <span className="text-xs text-muted-foreground">(İlk Yayın Tarihi - Değiştirilemez)</span>}</Label>
                             <Input id="publish_date" type="date" value={formData.publish_date || ''} onChange={handleInputChange} required disabled={isRevisionMode} />
                         </div>
 
