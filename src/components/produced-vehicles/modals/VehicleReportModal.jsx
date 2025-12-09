@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, FileText } from 'lucide-react';
 import { format, subDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { generateVehicleReport } from '@/lib/pdfGenerator';
+import { generateVehicleSummaryReport } from '@/lib/pdfGenerator';
 
 const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
     const { toast } = useToast();
@@ -29,7 +29,6 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
         { value: 'Sevk Bilgisi Bekleniyor', label: 'Sevk Bilgisi Bekleniyor', eventTypes: ['waiting_for_shipping_info'] },
         { value: 'Sevke Hazır', label: 'Sevke Hazır', eventTypes: ['ready_to_ship'] },
         { value: 'Sevk Edildi', label: 'Sevk Edildi', eventTypes: ['shipped'] },
-        { value: 'Kaliteye Giriş', label: 'Kaliteye Giriş', eventTypes: ['quality_entry'] },
     ];
 
     const datePresets = [
@@ -195,17 +194,12 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                 faultsByVehicle[fault.inspection_id].push(fault);
             });
 
-            for (const vehicle of filteredVehicles) {
-                const timeline = timelineByVehicle[vehicle.id] || [];
-                const faults = faultsByVehicle[vehicle.id] || [];
-                
-                generateVehicleReport(vehicle, timeline, faults);
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
+            // Tek bir özet rapor oluştur
+            generateVehicleSummaryReport(filteredVehicles, timelineByVehicle, faultsByVehicle);
 
             toast({ 
                 title: 'Başarılı', 
-                description: `${filteredVehicles.length} araç için rapor oluşturuldu. Yazdırma pencereleri açılıyor...` 
+                description: `${filteredVehicles.length} araç için özet rapor oluşturuldu. Yazdırma penceresi açılıyor...` 
             });
             setIsOpen(false);
         } catch (error) {
