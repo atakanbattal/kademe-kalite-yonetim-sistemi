@@ -141,7 +141,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) =>
 
 const InkrManagement = ({ onViewPdf }) => {
     const { toast } = useToast();
-    const { inkrReports, loading, refreshData } = useData();
+    const { loading: globalLoading, refreshData } = useData();
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedInkrDetail, setSelectedInkrDetail] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -150,6 +150,8 @@ const InkrManagement = ({ onViewPdf }) => {
     const [allParts, setAllParts] = useState([]);
     const [partsLoading, setPartsLoading] = useState(true);
     const [inkrStatusFilter, setInkrStatusFilter] = useState('all'); // 'all', 'Mevcut', 'Mevcut Değil'
+    const [inkrReports, setInkrReports] = useState([]);
+    const [inkrReportsLoading, setInkrReportsLoading] = useState(true);
 
     const handleEdit = (report) => {
         setSelectedReport(report);
@@ -189,6 +191,30 @@ const InkrManagement = ({ onViewPdf }) => {
             default: return 'secondary';
         }
     };
+
+    // INKR raporlarını doğrudan çek
+    useEffect(() => {
+        const fetchInkrReports = async () => {
+            setInkrReportsLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('inkr_reports')
+                    .select('*, supplier:supplier_id(name)')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                setInkrReports(data || []);
+            } catch (error) {
+                console.error('INKR raporları alınamadı:', error);
+                toast({ variant: 'destructive', title: 'Hata', description: `INKR raporları alınamadı: ${error.message}` });
+                setInkrReports([]);
+            } finally {
+                setInkrReportsLoading(false);
+            }
+        };
+
+        fetchInkrReports();
+    }, [toast]);
 
     // Tüm parçaları ve INKR durumlarını çek
     useEffect(() => {
@@ -258,8 +284,10 @@ const InkrManagement = ({ onViewPdf }) => {
             }
         };
 
-        fetchAllParts();
-    }, [inkrReports, toast]);
+        if (!inkrReportsLoading) {
+            fetchAllParts();
+        }
+    }, [inkrReports, inkrReportsLoading, toast]);
 
     // Filtrelenmiş parçalar
     const filteredParts = useMemo(() => {
@@ -286,7 +314,7 @@ const InkrManagement = ({ onViewPdf }) => {
 
     return (
         <div className="dashboard-widget">
-            <InkrFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} existingReport={selectedReport} refreshReports={refreshData} />
+            <InkrFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} existingReport={selectedReport} refreshReports={refreshData} onReportSaved={setInkrReports} />
             <InkrDetailModal
                 isOpen={isDetailModalOpen}
                 setIsOpen={setIsDetailModalOpen}
@@ -326,7 +354,7 @@ const InkrManagement = ({ onViewPdf }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {partsLoading || loading ? (
+                        {partsLoading || inkrReportsLoading || globalLoading ? (
                             <tr><td colSpan="7" className="text-center py-8">Yükleniyor...</td></tr>
                         ) : filteredParts.length === 0 ? (
                             <tr><td colSpan="7" className="text-center py-8">Parça bulunamadı.</td></tr>
