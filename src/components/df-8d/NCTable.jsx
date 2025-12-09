@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Edit, FileDown, CheckCircle, RotateCcw, Trash2, Eye, XCircle, Share2, PlayCircle } from 'lucide-react';
+import { MoreHorizontal, Edit, FileDown, CheckCircle, RotateCcw, Trash2, Eye, XCircle, Share2, PlayCircle, Calendar } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format, parseISO, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getStatusBadge } from '@/lib/statusUtils';
 
-const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDelete, onReject, onForward, onInProgress }) => {
+const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDelete, onReject, onForward, onInProgress, onUpdateDueDate }) => {
     const { profile } = useAuth();
     const userRole = profile?.role;
     const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, recordId: null });
@@ -115,7 +115,9 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                     </td>
                                     <td className="border-t border-border px-4 py-2 text-sm max-w-xs truncate">{record.title}</td>
                                     <td className="border-t border-border px-4 py-2 text-sm">{record.department}</td>
-                                    <td className="border-t border-border px-4 py-2 text-sm">{formatDate(record.due_at)}</td>
+                                    <td className="border-t border-border px-4 py-2 text-sm">
+                                        {record.status === 'Reddedildi' ? '-' : formatDate(record.due_at)}
+                                    </td>
                                     <td className="border-t border-border px-4 py-2 text-sm">
                                         <div className="flex flex-col gap-1">
                                             {getStatusBadge(record)}
@@ -139,6 +141,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                                 <DropdownMenuSeparator />
                                                 
                                                 <ActionItem onClick={() => onInProgress(record)} label="İşleme Al" icon={<PlayCircle className="mr-2 h-4 w-4" />} condition={record.status === 'Açık'} />
+                                                <ActionItem onClick={() => onUpdateDueDate(record)} label="Termin Tarihi Güncelle" icon={<Calendar className="mr-2 h-4 w-4" />} condition={isOpen} />
                                                 <ActionItem onClick={() => onToggleStatus(record)} label="Kapat" icon={<CheckCircle className="mr-2 h-4 w-4" />} condition={isOpen} />
                                                 <ActionItem onClick={() => onReject(record)} label="Reddet" icon={<XCircle className="mr-2 h-4 w-4" />} isDestructive condition={isOpen} />
                                                 <ActionItem onClick={() => onForward(record)} label="Yönlendir" icon={<Share2 className="mr-2 h-4 w-4" />} condition={isOpen} />

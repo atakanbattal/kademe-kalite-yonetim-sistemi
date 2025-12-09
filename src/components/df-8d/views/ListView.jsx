@@ -39,8 +39,12 @@ const ListView = ({ setView, setFilter, filter, filteredRecords, handleExport, h
                                 <p className="text-sm text-foreground max-w-lg truncate">{record.problem_definition}</p>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                     <span>Birim: {record.department || '-'}</span>
-                                    <span>|</span>
-                                    <span>Termin: {record.due_date ? new Date(record.due_date).toLocaleDateString('tr-TR') : '-'}</span>
+                                    {record.status !== 'Reddedildi' && (
+                                        <>
+                                            <span>|</span>
+                                            <span>Termin: {record.due_date ? new Date(record.due_date).toLocaleDateString('tr-TR') : '-'}</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             <TooltipProvider>

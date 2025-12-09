@@ -267,11 +267,13 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                     label="Öncelik"
                     value={<div className="flex">{getPriorityBadge(record.priority)}</div>}
                   />
-                  <InfoItem
-                    icon={Clock}
-                    label="Termin Tarihi"
-                    value={formatDate(record.due_at || record.due_date)}
-                  />
+                  {record.status !== 'Reddedildi' && (
+                    <InfoItem
+                      icon={Clock}
+                      label="Termin Tarihi"
+                      value={formatDate(record.due_at || record.due_date)}
+                    />
+                  )}
                   <InfoItem
                     icon={Building}
                     label="İlgili Birim"

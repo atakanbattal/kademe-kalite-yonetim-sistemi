@@ -9,7 +9,7 @@ import React, { useState, useMemo, useCallback } from 'react';
     import NCDashboard from '@/components/df-8d/NCDashboard';
     import NCTable from '@/components/df-8d/NCTable';
     import NCFilters from '@/components/df-8d/NCFilters';
-    import { RejectModal, ForwardNCModal, InProgressModal } from '@/components/df-8d/modals/ActionModals';
+    import { RejectModal, ForwardNCModal, InProgressModal, UpdateDueDateModal } from '@/components/df-8d/modals/ActionModals';
     import CloseNCModal from '@/components/df-8d/modals/CloseNCModal';
     import RecordListModal from '@/components/df-8d/modals/RecordListModal';
     import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import React, { useState, useMemo, useCallback } from 'react';
             close: { isOpen: false, record: null },
             forward: { isOpen: false, record: null },
             inProgress: { isOpen: false, record: null },
+            updateDueDate: { isOpen: false, record: null },
         });
 
         const handleAction = (action, record) => {
@@ -164,6 +165,7 @@ import React, { useState, useMemo, useCallback } from 'react';
                                 onReject={(record) => handleAction('reject', record)}
                                 onForward={(record) => handleAction('forward', record)}
                                 onInProgress={(record) => handleAction('inProgress', record)}
+                                onUpdateDueDate={(record) => handleAction('updateDueDate', record)}
                             />
                         </TabsContent>
                     </Tabs>
@@ -181,7 +183,7 @@ import React, { useState, useMemo, useCallback } from 'react';
                     <RejectModal
                         isOpen={actionModals.reject.isOpen}
                         setIsOpen={() => handleCloseActionModal('reject')}
-                        onSave={() => handleCloseActionModal('reject')}
+                        onSave={() => { handleCloseActionModal('reject'); refreshData(); }}
                         record={actionModals.reject.record}
                     />
                 )}
@@ -205,8 +207,16 @@ import React, { useState, useMemo, useCallback } from 'react';
                     <InProgressModal
                         isOpen={actionModals.inProgress.isOpen}
                         setIsOpen={() => handleCloseActionModal('inProgress')}
-                        onSave={() => handleCloseActionModal('inProgress')}
+                        onSave={() => { handleCloseActionModal('inProgress'); refreshData(); }}
                         record={actionModals.inProgress.record}
+                    />
+                )}
+                {actionModals.updateDueDate.isOpen && (
+                    <UpdateDueDateModal
+                        isOpen={actionModals.updateDueDate.isOpen}
+                        setIsOpen={() => handleCloseActionModal('updateDueDate')}
+                        onSave={() => { handleCloseActionModal('updateDueDate'); refreshData(); }}
+                        record={actionModals.updateDueDate.record}
                     />
                 )}
             </>

@@ -129,11 +129,11 @@ const DetailView = ({ record, onClose, onEdit, onReject, onConvertTo8D, onToggle
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <InfoItem label="Açılış Tarihi" value={formatDate(record.opening_date)} />
-                <InfoItem label="Termin Tarihi" value={formatDate(record.due_date)} />
+                {record.status !== 'Reddedildi' && <InfoItem label="Termin Tarihi" value={formatDate(record.due_date)} />}
                 <InfoItem label="Kapanış Tarihi" value={formatDate(record.closed_at)} />
                 <InfoItem label="Sorumlu Birim" value={record.department} />
                 <InfoItem label="Kapatma Süresi" value={calculateDuration(record.opening_date, record.closed_at)} />
-                <InfoItem label="Gecikme Süresi" value={calculateDelay(record.due_date, record.closed_at)} />
+                {record.status !== 'Reddedildi' && <InfoItem label="Gecikme Süresi" value={calculateDelay(record.due_date, record.closed_at)} />}
             </div>
             
             <Separator />

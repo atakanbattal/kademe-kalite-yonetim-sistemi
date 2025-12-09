@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { UploadCloud, File as FileIcon, X as XIcon } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
@@ -23,13 +24,19 @@ export const RejectModal = ({ isOpen, setIsOpen, record, onSave }) => {
         setIsSubmitting(true);
         const { error } = await supabase
             .from('non_conformities')
-            .update({ status: 'Reddedildi', rejection_reason: notes, rejected_at: new Date().toISOString() })
+            .update({ 
+                status: 'Reddedildi', 
+                rejection_reason: notes, 
+                rejected_at: new Date().toISOString(),
+                due_date: null,
+                due_at: null
+            })
             .eq('id', record.id);
 
         if (error) {
             toast({ variant: 'destructive', title: 'Hata!', description: `Kayıt reddedilemedi: ${error.message}` });
         } else {
-            toast({ title: 'Başarılı!', description: 'Kayıt başarıyla reddedildi.' });
+            toast({ title: 'Başarılı!', description: 'Kayıt başarıyla reddedildi ve termin tarihi kaldırıldı.' });
             if (onSave) onSave();
             setIsOpen(false);
         }
@@ -397,6 +404,94 @@ export const InProgressModal = ({ isOpen, setIsOpen, record, onSave }) => {
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>İptal</Button>
                     <Button onClick={handleSetInProgress} disabled={isSubmitting}>{isSubmitting ? 'Güncelleniyor...' : 'İşleme Al'}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+export const UpdateDueDateModal = ({ isOpen, setIsOpen, record, onSave }) => {
+    const { toast } = useToast();
+    const [dueDate, setDueDate] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && record) {
+            // due_at varsa onu kullan, yoksa due_date'i kullan
+            const dateValue = record.due_at || record.due_date;
+            if (dateValue) {
+                const date = new Date(dateValue);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                setDueDate(`${year}-${month}-${day}`);
+            } else {
+                setDueDate('');
+            }
+        } else {
+            setDueDate('');
+        }
+    }, [isOpen, record]);
+
+    const handleUpdate = async () => {
+        if (!dueDate) {
+            toast({ variant: 'destructive', title: 'Tarih Gerekli', description: 'Lütfen bir termin tarihi seçin.' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const dueDateObj = new Date(dueDate);
+            const dueDateString = dueDateObj.toISOString().split('T')[0];
+            const dueAtISO = dueDateObj.toISOString();
+
+            const { error } = await supabase
+                .from('non_conformities')
+                .update({ 
+                    due_date: dueDateString,
+                    due_at: dueAtISO
+                })
+                .eq('id', record.id);
+
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata!', description: `Termin tarihi güncellenemedi: ${error.message}` });
+            } else {
+                toast({ title: 'Başarılı!', description: 'Termin tarihi başarıyla güncellendi.' });
+                if (onSave) onSave();
+                setIsOpen(false);
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Hata!', description: `Tarih işlenirken hata oluştu: ${error.message}` });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Termin Tarihi Güncelle</DialogTitle>
+                    <DialogDescription>
+                        {record?.nc_number || record?.mdi_no} kaydının termin tarihini güncelleyin.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="due_date">Termin Tarihi <span className="text-red-500">*</span></Label>
+                    <Input
+                        id="due_date"
+                        type="date"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        className="mt-2"
+                        required
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>İptal</Button>
+                    <Button onClick={handleUpdate} disabled={isSubmitting || !dueDate}>
+                        {isSubmitting ? 'Güncelleniyor...' : 'Güncelle'}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
