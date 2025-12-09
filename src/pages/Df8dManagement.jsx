@@ -13,7 +13,7 @@ import React, { useState, useMemo, useCallback } from 'react';
     import CloseNCModal from '@/components/df-8d/modals/CloseNCModal';
     import RecordListModal from '@/components/df-8d/modals/RecordListModal';
     import { Button } from '@/components/ui/button';
-import { parseISO, isAfter, format } from 'date-fns';
+import { parseISO, isAfter, format, differenceInDays, isValid } from 'date-fns';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 import { openPrintableReport } from '@/lib/reportUtils';
 
@@ -220,6 +220,146 @@ import { openPrintableReport } from '@/lib/reportUtils';
             openPrintableReport(reportData, 'nonconformity_list', true);
         };
 
+        const handleGenerateExecutiveReport = useCallback(() => {
+            if (filteredRecords.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor oluşturmak için en az bir kayıt olmalıdır.',
+                });
+                return;
+            }
+
+            const formatDate = (dateString) => {
+                if (!dateString) return '-';
+                try {
+                    return format(parseISO(dateString), 'dd.MM.yyyy');
+                } catch {
+                    return '-';
+                }
+            };
+
+            const now = new Date();
+            const counts = { DF: 0, '8D': 0, MDI: 0, open: 0, closed: 0, rejected: 0, overdue: 0 };
+            const deptPerf = {};
+            const requesterContrib = {};
+            const statusCounts = {};
+            const typeCounts = {};
+
+            filteredRecords.forEach(rec => {
+                const isClosed = rec.status === 'Kapatıldı';
+                const isRejected = rec.status === 'Reddedildi';
+                const isOpen = !isClosed && !isRejected;
+
+                if (isOpen) counts.open++;
+                if (isClosed) counts.closed++;
+                if (isRejected) counts.rejected++;
+                if (rec.type in counts) counts[rec.type]++;
+
+                const dueAt = rec.due_at ? parseISO(rec.due_at) : null;
+                const isOverdue = isOpen && dueAt && isValid(dueAt) && now > dueAt;
+                if (isOverdue) counts.overdue++;
+
+                const responsibleDept = rec.department || 'Belirtilmemiş';
+                if (!deptPerf[responsibleDept]) {
+                    deptPerf[responsibleDept] = { open: 0, closed: 0, overdue: 0, totalClosureDays: 0, closedCount: 0 };
+                }
+                if (isOpen) {
+                    deptPerf[responsibleDept].open++;
+                    if (isOverdue) deptPerf[responsibleDept].overdue++;
+                }
+                if (isClosed) {
+                    deptPerf[responsibleDept].closed++;
+                    const openedAtDate = rec.df_opened_at ? parseISO(rec.df_opened_at) : null;
+                    const closedAtDate = parseISO(rec.closed_at);
+                    if (openedAtDate && isValid(openedAtDate) && isValid(closedAtDate)) {
+                        const closureDays = differenceInDays(closedAtDate, openedAtDate);
+                        if (closureDays >= 0) {
+                            deptPerf[responsibleDept].totalClosureDays += closureDays;
+                            deptPerf[responsibleDept].closedCount++;
+                        }
+                    }
+                }
+
+                const requesterUnit = rec.requesting_unit || 'Belirtilmemiş';
+                if (!requesterContrib[requesterUnit]) {
+                    requesterContrib[requesterUnit] = { total: 0, DF: 0, '8D': 0, MDI: 0 };
+                }
+                requesterContrib[requesterUnit].total++;
+                if (rec.type in requesterContrib[requesterUnit]) {
+                    requesterContrib[requesterUnit][rec.type]++;
+                }
+
+                statusCounts[rec.status] = (statusCounts[rec.status] || 0) + 1;
+                typeCounts[rec.type] = (typeCounts[rec.type] || 0) + 1;
+            });
+
+            const deptPerformance = Object.entries(deptPerf).map(([name, data]) => ({
+                unit: name,
+                open: data.open,
+                closed: data.closed,
+                overdue: data.overdue,
+                avgClosureTime: data.closedCount > 0 ? (data.totalClosureDays / data.closedCount).toFixed(1) : "N/A"
+            })).sort((a, b) => b.open - a.open);
+
+            const requesterContribution = Object.entries(requesterContrib).map(([name, data]) => ({
+                unit: name,
+                total: data.total,
+                DF: data.DF,
+                '8D': data['8D'],
+                MDI: data.MDI,
+                contribution: filteredRecords.length > 0 ? ((data.total / filteredRecords.length) * 100).toFixed(1) : '0'
+            })).sort((a, b) => b.total - a.total);
+
+            const overdueRecords = filteredRecords.filter(r => {
+                const dueAt = r.due_at ? parseISO(r.due_at) : null;
+                return r.status !== 'Kapatıldı' && r.status !== 'Reddedildi' && dueAt && isValid(dueAt) && now > dueAt;
+            }).slice(0, 20); // İlk 20 geciken kayıt
+
+            const reportData = {
+                id: `nc-executive-${Date.now()}`,
+                reportType: 'executive_summary',
+                totalRecords: filteredRecords.length,
+                kpiStats: {
+                    open: counts.open,
+                    closed: counts.closed,
+                    rejected: counts.rejected,
+                    overdue: counts.overdue,
+                    DF: counts.DF,
+                    '8D': counts['8D'],
+                    MDI: counts.MDI
+                },
+                statusDistribution: statusCounts,
+                typeDistribution: typeCounts,
+                deptPerformance: deptPerformance,
+                requesterContribution: requesterContribution,
+                overdueRecords: overdueRecords.map(record => ({
+                    nc_number: record.nc_number || record.mdi_no || '-',
+                    type: record.type || '-',
+                    title: record.title || '-',
+                    department: record.department || '-',
+                    due_date: formatDate(record.due_at),
+                    days_overdue: record.due_at ? differenceInDays(now, parseISO(record.due_at)) : 0,
+                    status: record.status || '-'
+                })),
+                allRecords: filteredRecords.map(record => ({
+                    nc_number: record.nc_number || record.mdi_no || '-',
+                    type: record.type || '-',
+                    title: record.title || '-',
+                    department: record.department || '-',
+                    opening_date: formatDate(record.df_opened_at || record.opening_date || record.created_at),
+                    closing_date: record.closed_at ? formatDate(record.closed_at) : '-',
+                    due_date: record.status === 'Reddedildi' ? '-' : formatDate(record.due_at),
+                    status: record.status || '-',
+                    responsible_person: record.responsible_person || '-',
+                    requesting_person: record.requesting_person || '-',
+                    requesting_unit: record.requesting_unit || '-',
+                }))
+            };
+
+            openPrintableReport(reportData, 'nonconformity_executive', true);
+        }, [filteredRecords, toast]);
+
         return (
             <>
                 <Helmet>
@@ -238,12 +378,10 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                 <TabsTrigger value="list"><List className="mr-2 h-4 w-4" /> Liste</TabsTrigger>
                             </TabsList>
                             <div className="flex items-center gap-2">
-                                {activeTab === 'list' && (
-                                    <Button onClick={handleGenerateReport} size="sm" variant="outline">
-                                        <FileText className="mr-2 h-4 w-4" />
-                                        Rapor Al
-                                    </Button>
-                                )}
+                                <Button onClick={activeTab === 'dashboard' ? handleGenerateExecutiveReport : handleGenerateReport} size="sm" variant="outline">
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Rapor Al
+                                </Button>
                                 <Button onClick={onAddNC} size="sm">
                                     <Plus className="mr-2 h-4 w-4" />
                                     Yeni Kayıt

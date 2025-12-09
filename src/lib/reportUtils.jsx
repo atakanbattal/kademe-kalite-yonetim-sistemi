@@ -1727,7 +1727,9 @@ const generatePrintableReportHtml = (record, type) => {
 	let reportContentHtml = '';
 	let cssOverrides = ''; // CSS overrides for specific report types
 	
-	if (type === 'document_list') {
+	if (type === 'nonconformity_executive') {
+		reportContentHtml = generateListReportHtml(record, type);
+	} else if (type === 'document_list') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
