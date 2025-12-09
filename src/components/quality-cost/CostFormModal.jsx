@@ -485,10 +485,11 @@ import React, { useState, useEffect, useCallback } from 'react';
             delete submissionData.quality_control_duration;
             delete submissionData.unit_cost;
 
-            // İlişkili verileri temizle (sadece ID'ler gönderilmeli)
+            // İlişkili verileri temizle (sadece ID'ler gönderilmeli - join edilmiş objeler)
             delete submissionData.responsible_personnel;
             delete submissionData.non_conformities;
             delete submissionData.suppliers;
+            delete submissionData.supplier; // Join edilmiş supplier objesi
             
             if (isEditMode) {
                 const { error } = await supabase.from('quality_costs').update(submissionData).eq('id', existingCost.id);
