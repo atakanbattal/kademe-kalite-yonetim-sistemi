@@ -19,7 +19,7 @@ import { sanitizeFileName } from '@/lib/utils';
 
 const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports }) => {
     const { toast } = useToast();
-    const isEditMode = !!existingReport;
+    const isEditMode = !!(existingReport && existingReport.id);
     const [formData, setFormData] = useState({});
     const [suppliers, setSuppliers] = useState([]);
     const [file, setFile] = useState(null);
