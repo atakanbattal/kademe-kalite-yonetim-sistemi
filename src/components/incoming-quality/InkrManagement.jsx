@@ -196,18 +196,18 @@ const InkrManagement = ({ onViewPdf }) => {
             setPartsLoading(true);
             try {
                 // Tüm unique parça kodlarını ve adlarını al
-                const { data: inspections, error } = await supabase
+                const { data: inspections, error: inspectionsError } = await supabase
                     .from('incoming_inspections_with_supplier')
                     .select('part_code, part_name')
                     .not('part_code', 'is', null)
                     .not('part_code', 'eq', '')
                     .order('part_code');
 
-                if (error) throw error;
+                if (inspectionsError) throw inspectionsError;
 
                 // Unique parçaları al (part_code bazında)
                 const uniquePartsMap = new Map();
-                inspections.forEach(inspection => {
+                (inspections || []).forEach(inspection => {
                     if (inspection.part_code && !uniquePartsMap.has(inspection.part_code)) {
                         uniquePartsMap.set(inspection.part_code, {
                             part_code: inspection.part_code,
@@ -218,6 +218,8 @@ const InkrManagement = ({ onViewPdf }) => {
 
                 // INKR raporları ile eşleştir
                 const inkrMap = new Map((inkrReports || []).map(r => [r.part_code, r]));
+                
+                // Önce incoming_inspections'tan gelen parçaları ekle
                 const partsWithInkrStatus = Array.from(uniquePartsMap.values()).map(part => {
                     const inkrReport = inkrMap.get(part.part_code);
                     return {
@@ -225,6 +227,25 @@ const InkrManagement = ({ onViewPdf }) => {
                         hasInkr: !!inkrReport,
                         inkrReport: inkrReport || null,
                     };
+                });
+
+                // INKR raporlarındaki ama incoming_inspections'ta olmayan parçaları da ekle
+                (inkrReports || []).forEach(inkrReport => {
+                    if (inkrReport.part_code && !uniquePartsMap.has(inkrReport.part_code)) {
+                        partsWithInkrStatus.push({
+                            part_code: inkrReport.part_code,
+                            part_name: inkrReport.part_name || '-',
+                            hasInkr: true,
+                            inkrReport: inkrReport,
+                        });
+                    }
+                });
+
+                // Parça koduna göre sırala
+                partsWithInkrStatus.sort((a, b) => {
+                    if (a.part_code < b.part_code) return -1;
+                    if (a.part_code > b.part_code) return 1;
+                    return 0;
                 });
 
                 setAllParts(partsWithInkrStatus);
