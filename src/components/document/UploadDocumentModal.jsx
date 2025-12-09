@@ -221,8 +221,9 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 
             try {
                 const currentUserPersonnelRecord = personnelList.find(p => p.email === user.email);
+                // Personel kaydı bulunamazsa null olarak devam et (prepared_by_id opsiyonel)
                 if (!currentUserPersonnelRecord) {
-                    throw new Error("Mevcut kullanıcı için personel kaydı bulunamadı. Lütfen yöneticinizle iletişime geçin.");
+                    console.warn(`Personel kaydı bulunamadı: ${user.email}. prepared_by_id null olarak kaydedilecek.`);
                 }
 
                 const documentId = (isEditMode || isRevisionMode) ? existingDocument.id : uuidv4();
@@ -273,7 +274,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     revision_number: parseInt(formData.revision_number, 10) || 1,
                     revision_reason: formData.revision_reason || (isRevisionMode ? 'Revizyon' : 'İlk Yayın'),
                     publish_date: formData.publish_date,
-                    prepared_by_id: currentUserPersonnelRecord.id,
+                    prepared_by_id: currentUserPersonnelRecord?.id || null,
                     user_id: user.id,
                     attachments: attachmentData ? [attachmentData] : ((isEditMode || isRevisionMode) ? existingDocument.document_revisions?.attachments : null),
                 };
