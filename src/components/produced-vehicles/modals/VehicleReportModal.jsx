@@ -8,45 +8,66 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, subDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { generateVehicleReport } from '@/lib/pdfGenerator';
 
 const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
     const { toast } = useToast();
-    const [reportType, setReportType] = useState('status'); // 'status', 'date', 'all'
     const [selectedStatus, setSelectedStatus] = useState('');
-    const [selectedEventType, setSelectedEventType] = useState('');
+    const [dateFilterType, setDateFilterType] = useState('all'); // 'all', 'preset', 'custom'
+    const [datePreset, setDatePreset] = useState('all');
     const [dateFrom, setDateFrom] = useState(null);
     const [dateTo, setDateTo] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [filteredVehicles, setFilteredVehicles] = useState([]);
 
+    // Aralık bazlı durum seçenekleri
     const statusOptions = [
-        { value: 'Kaliteye Giriş', label: 'Kaliteye Giriş' },
-        { value: 'Kontrol Başladı', label: 'Kontrol Başladı' },
-        { value: 'Kontrol Bitti', label: 'Kontrol Bitti' },
-        { value: 'Yeniden İşlem Başladı', label: 'Yeniden İşlem Başladı' },
-        { value: 'Yeniden İşlem Bitti', label: 'Yeniden İşlem Bitti' },
-        { value: 'Sevke Hazır', label: 'Sevke Hazır' },
-        { value: 'Sevk Edildi', label: 'Sevk Edildi' }
+        { value: 'Kalite Kontrolde', label: 'Kalite Kontrolde', eventTypes: ['control_start'], checkEnd: 'control_end' },
+        { value: 'Yeniden İşlemde', label: 'Yeniden İşlemde', eventTypes: ['rework_start'], checkEnd: 'rework_end' },
+        { value: 'Sevk Bilgisi Bekleniyor', label: 'Sevk Bilgisi Bekleniyor', eventTypes: ['waiting_for_shipping_info'] },
+        { value: 'Sevke Hazır', label: 'Sevke Hazır', eventTypes: ['ready_to_ship'] },
+        { value: 'Sevk Edildi', label: 'Sevk Edildi', eventTypes: ['shipped'] },
+        { value: 'Kaliteye Giriş', label: 'Kaliteye Giriş', eventTypes: ['quality_entry'] },
     ];
 
-    const eventTypeMap = {
-        'Kaliteye Giriş': 'quality_entry',
-        'Kontrol Başladı': 'control_start',
-        'Kontrol Bitti': 'control_end',
-        'Yeniden İşlem Başladı': 'rework_start',
-        'Yeniden İşlem Bitti': 'rework_end',
-        'Sevke Hazır': 'ready_to_ship',
-        'Sevk Edildi': 'shipped'
+    const datePresets = [
+        { value: 'all', label: 'Tüm Zamanlar' },
+        { value: 'thisMonth', label: 'Bu Ay' },
+        { value: 'lastMonth', label: 'Geçen Ay' },
+        { value: 'last3Months', label: 'Son 3 Ay' },
+        { value: 'last6Months', label: 'Son 6 Ay' },
+        { value: 'thisYear', label: 'Bu Yıl' },
+        { value: 'custom', label: 'Özel Tarih Aralığı' },
+    ];
+
+    const getDateRangeFromPreset = (preset) => {
+        const now = new Date();
+        switch (preset) {
+            case 'all':
+                return null;
+            case 'thisMonth':
+                return { from: startOfMonth(now), to: endOfMonth(now) };
+            case 'lastMonth':
+                const lastMonth = subMonths(now, 1);
+                return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
+            case 'last3Months':
+                return { from: subMonths(now, 3), to: now };
+            case 'last6Months':
+                return { from: subMonths(now, 6), to: now };
+            case 'thisYear':
+                return { from: startOfYear(now), to: endOfYear(now) };
+            default:
+                return null;
+        }
     };
 
     useEffect(() => {
         if (isOpen) {
-            setReportType('status');
             setSelectedStatus('');
-            setSelectedEventType('');
+            setDateFilterType('all');
+            setDatePreset('all');
             setDateFrom(null);
             setDateTo(null);
             setFilteredVehicles([]);
@@ -63,35 +84,65 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
         try {
             let filtered = [...vehicles];
 
-            if (reportType === 'status' && selectedStatus) {
-                const eventType = eventTypeMap[selectedStatus];
-                if (eventType) {
-                    // Bu duruma sahip araçları bul
-                    const { data: timelineEvents, error } = await supabase
-                        .from('vehicle_timeline_events')
-                        .select('inspection_id, event_timestamp')
-                        .eq('event_type', eventType)
-                        .order('event_timestamp', { ascending: false });
+            // Tarih filtresi
+            let dateRange = null;
+            if (dateFilterType === 'preset' && datePreset !== 'all') {
+                dateRange = getDateRangeFromPreset(datePreset);
+            } else if (dateFilterType === 'custom' && dateFrom && dateTo) {
+                dateRange = { from: dateFrom, to: dateTo };
+            }
 
-                    if (error) throw error;
-
-                    const vehicleIds = new Set(timelineEvents.map(e => e.inspection_id));
-                    filtered = filtered.filter(v => vehicleIds.has(v.id));
-                }
-            } else if (reportType === 'date' && dateFrom && dateTo) {
-                // Tarih aralığına göre filtrele
-                const fromDate = new Date(dateFrom);
+            if (dateRange) {
+                const fromDate = new Date(dateRange.from);
                 fromDate.setHours(0, 0, 0, 0);
-                const toDate = new Date(dateTo);
+                const toDate = new Date(dateRange.to);
                 toDate.setHours(23, 59, 59, 999);
 
                 filtered = filtered.filter(v => {
                     const createdAt = new Date(v.created_at);
                     return createdAt >= fromDate && createdAt <= toDate;
                 });
-            } else if (reportType === 'all') {
-                // Tüm araçlar
-                filtered = vehicles;
+            }
+
+            // Durum filtresi
+            if (selectedStatus) {
+                const statusOption = statusOptions.find(opt => opt.value === selectedStatus);
+                if (statusOption) {
+                    // Timeline eventlerini al
+                    const { data: timelineEvents, error } = await supabase
+                        .from('vehicle_timeline_events')
+                        .select('inspection_id, event_type, event_timestamp')
+                        .in('event_type', statusOption.eventTypes)
+                        .order('event_timestamp', { ascending: false });
+
+                    if (error) throw error;
+
+                    const vehicleIds = new Set();
+                    
+                    if (statusOption.checkEnd) {
+                        // Aralık kontrolü: Başlangıç var ama bitiş yok
+                        timelineEvents.forEach(event => {
+                            if (statusOption.eventTypes.includes(event.event_type)) {
+                                // Bu araç için bitiş eventi var mı kontrol et
+                                const hasEnd = timelineEvents.some(e => 
+                                    e.inspection_id === event.inspection_id && 
+                                    e.event_type === statusOption.checkEnd &&
+                                    new Date(e.event_timestamp) > new Date(event.event_timestamp)
+                                );
+                                if (!hasEnd) {
+                                    vehicleIds.add(event.inspection_id);
+                                }
+                            }
+                        });
+                    } else {
+                        // Tekil event: Sadece bu evente sahip araçlar
+                        timelineEvents.forEach(event => {
+                            vehicleIds.add(event.inspection_id);
+                        });
+                    }
+
+                    filtered = filtered.filter(v => vehicleIds.has(v.id));
+                }
             }
 
             setFilteredVehicles(filtered);
@@ -111,7 +162,6 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
 
         setIsGenerating(true);
         try {
-            // Her araç için timeline ve faults verilerini al
             const vehicleIds = filteredVehicles.map(v => v.id);
             
             const [timelineData, faultsData] = await Promise.all([
@@ -129,7 +179,6 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
             if (timelineData.error) throw timelineData.error;
             if (faultsData.error) throw faultsData.error;
 
-            // Araç bazında grupla
             const timelineByVehicle = {};
             timelineData.data.forEach(event => {
                 if (!timelineByVehicle[event.inspection_id]) {
@@ -146,14 +195,11 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                 faultsByVehicle[fault.inspection_id].push(fault);
             });
 
-            // Her araç için rapor oluştur
             for (const vehicle of filteredVehicles) {
                 const timeline = timelineByVehicle[vehicle.id] || [];
                 const faults = faultsByVehicle[vehicle.id] || [];
                 
                 generateVehicleReport(vehicle, timeline, faults);
-                
-                // Her rapor arasında kısa bir gecikme (tarayıcı pencerelerinin çakışmaması için)
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
 
@@ -178,42 +224,61 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                         Araç İşlemleri Raporu
                     </DialogTitle>
                     <DialogDescription>
-                        Hangi durumdaki veya tarih aralığındaki araçlar için rapor almak istediğinizi seçin.
+                        Durum ve tarih filtrelerini birlikte kullanarak rapor alabilirsiniz.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <Label>Rapor Tipi</Label>
-                        <Select value={reportType} onValueChange={(value) => {
-                            setReportType(value);
-                            setSelectedStatus('');
-                            setDateFrom(null);
-                            setDateTo(null);
-                            setFilteredVehicles([]);
-                        }}>
+                        <Label>Durum Seçin (Opsiyonel)</Label>
+                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Rapor tipi seçin..." />
+                                <SelectValue placeholder="Durum seçin (boş bırakabilirsiniz)..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="status">Durum Bazlı</SelectItem>
-                                <SelectItem value="date">Tarih Aralığı</SelectItem>
-                                <SelectItem value="all">Tüm Araçlar</SelectItem>
+                                <SelectItem value="">Tüm Durumlar</SelectItem>
+                                {statusOptions.map(option => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
 
-                    {reportType === 'status' && (
+                    <div className="space-y-2">
+                        <Label>Tarih Filtresi</Label>
+                        <Select value={dateFilterType} onValueChange={(value) => {
+                            setDateFilterType(value);
+                            if (value === 'preset') {
+                                setDatePreset('all');
+                            } else if (value === 'custom') {
+                                setDateFrom(null);
+                                setDateTo(null);
+                            }
+                        }}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Tarih filtresi seçin..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tüm Zamanlar</SelectItem>
+                                <SelectItem value="preset">Hızlı Filtreler</SelectItem>
+                                <SelectItem value="custom">Özel Tarih Aralığı</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {dateFilterType === 'preset' && (
                         <div className="space-y-2">
-                            <Label>Durum Seçin</Label>
-                            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                            <Label>Hızlı Tarih Filtresi</Label>
+                            <Select value={datePreset} onValueChange={setDatePreset}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Durum seçin..." />
+                                    <SelectValue placeholder="Tarih filtresi seçin..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {statusOptions.map(option => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                            {option.label}
+                                    {datePresets.map(preset => (
+                                        <SelectItem key={preset.value} value={preset.value}>
+                                            {preset.label}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -221,7 +286,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                         </div>
                     )}
 
-                    {reportType === 'date' && (
+                    {dateFilterType === 'custom' && (
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Başlangıç Tarihi</Label>
@@ -285,7 +350,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                     </Button>
                     <Button 
                         onClick={filterVehicles} 
-                        disabled={isGenerating || (reportType === 'status' && !selectedStatus) || (reportType === 'date' && (!dateFrom || !dateTo))}
+                        disabled={isGenerating || (dateFilterType === 'custom' && (!dateFrom || !dateTo))}
                         variant="secondary"
                     >
                         {isGenerating ? 'Filtreleniyor...' : 'Filtrele'}
@@ -303,4 +368,3 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
 };
 
 export default VehicleReportModal;
-

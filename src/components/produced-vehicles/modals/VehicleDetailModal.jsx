@@ -21,6 +21,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
       control_end: { label: 'Kontrol Bitti', icon: <CheckCircle className="h-4 w-4 text-green-500" /> },
       rework_start: { label: 'Yeniden İşlem Başladı', icon: <Wrench className="h-4 w-4 text-orange-500" /> },
       rework_end: { label: 'Yeniden İşlem Bitti', icon: <Wrench className="h-4 w-4 text-red-500" /> },
+      waiting_for_shipping_info: { label: 'Sevk Bilgisi Bekleniyor', icon: <Clock className="h-4 w-4 text-orange-500" /> },
       ready_to_ship: { label: 'Sevke Hazır', icon: <PackageCheck className="h-4 w-4 text-purple-500" /> },
       shipped: { label: 'Sevk Edildi', icon: <Ship className="h-4 w-4 text-gray-500" /> },
     };

@@ -325,6 +325,7 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
         control_end: 'Kontrol Bitti',
         rework_start: 'Yeniden İşlem Başladı',
         rework_end: 'Yeniden İşlem Bitti',
+        waiting_for_shipping_info: 'Sevk Bilgisi Bekleniyor',
         ready_to_ship: 'Sevke Hazır',
         shipped: 'Sevk Edildi'
     };
