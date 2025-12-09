@@ -8,11 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VEHICLE_TYPES } from '@/components/quality-cost/constants';
+import { useData } from '@/contexts/DataContext';
 
 const DMO_STATUS_OPTIONS = ['DMO Bekliyor', 'DMO Geçti', 'DMO Kaldı'];
 
 const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     const { toast } = useToast();
+    const { refreshProducedVehicles } = useData();
     const [formData, setFormData] = useState({
         chassis_no: '',
         serial_no: '',
@@ -87,7 +89,14 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                 title: 'Başarılı!',
                 description: 'Araç bilgileri başarıyla güncellendi.',
             });
-            refreshVehicles();
+            // Önce özel refresh fonksiyonunu çağır (daha hızlı)
+            if (refreshProducedVehicles) {
+                refreshProducedVehicles();
+            }
+            // Sonra genel refresh'i de çağır (fallback)
+            if (refreshVehicles) {
+                refreshVehicles();
+            }
             setIsOpen(false);
         }
         setIsSubmitting(false);

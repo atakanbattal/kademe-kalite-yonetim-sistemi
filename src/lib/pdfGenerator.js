@@ -304,6 +304,20 @@ export const generate8DPDF = (record) => {
 
 export const generateVehicleReport = (vehicle, timeline, faults) => {
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
+    
+    // formatDuration fonksiyonunu import etmek yerine burada basit bir versiyonunu kullanıyoruz
+    const formatDuration = (milliseconds) => {
+        if (!milliseconds || milliseconds < 0) return '0 dk';
+        const seconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        
+        if (days > 0) return `${days} gün ${hours % 24} saat`;
+        if (hours > 0) return `${hours} saat ${minutes % 60} dk`;
+        if (minutes > 0) return `${minutes} dk ${seconds % 60} sn`;
+        return `${seconds} sn`;
+    };
 
     const eventTypeLabels = {
         quality_entry: 'Kaliteye Giriş',
@@ -314,6 +328,44 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
         ready_to_ship: 'Sevke Hazır',
         shipped: 'Sevk Edildi'
     };
+    
+    // Kalite sürelerini hesapla
+    const calculateQualityTimes = () => {
+        let totalControlMillis = 0;
+        let totalReworkMillis = 0;
+        
+        if (timeline && timeline.length > 0) {
+            for (let i = 0; i < timeline.length; i++) {
+                const currentEvent = timeline[i];
+                if (currentEvent.event_type === 'control_start') {
+                    const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'control_end');
+                    if (nextEnd) {
+                        const startTime = new Date(currentEvent.event_timestamp);
+                        const endTime = new Date(nextEnd.event_timestamp);
+                        totalControlMillis += (endTime - startTime);
+                    }
+                } else if (currentEvent.event_type === 'rework_start') {
+                    const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'rework_end');
+                    if (nextEnd) {
+                        const startTime = new Date(currentEvent.event_timestamp);
+                        const endTime = new Date(nextEnd.event_timestamp);
+                        totalReworkMillis += (endTime - startTime);
+                    }
+                }
+            }
+        }
+        
+        // Kalitede geçen toplam süre sadece kontrol başladı-bitti arasındaki sürelerdir
+        const totalQualityMillis = totalControlMillis;
+        
+        return {
+            totalControlTime: formatDuration(totalControlMillis),
+            totalReworkTime: formatDuration(totalReworkMillis),
+            totalQualityTime: formatDuration(totalQualityMillis)
+        };
+    };
+    
+    const qualityTimes = calculateQualityTimes();
 
     const timelineHtml = timeline && timeline.length > 0 ? `
         <div class="section">
@@ -532,6 +584,24 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 </div>
 
                 ${timelineHtml}
+                
+                <div class="section">
+                    <h2 class="section-title">Kalite Süre Özeti</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="label">Toplam Kontrol Süresi</span>
+                            <span class="value">${qualityTimes.totalControlTime}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Toplam Yeniden İşlem Süresi</span>
+                            <span class="value">${qualityTimes.totalReworkTime}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">Kalitede Geçen Toplam Süre</span>
+                            <span class="value" style="color: #1e40af; font-weight: 700;">${qualityTimes.totalQualityTime}</span>
+                        </div>
+                    </div>
+                </div>
                 
                 ${faultsHtml}
                 

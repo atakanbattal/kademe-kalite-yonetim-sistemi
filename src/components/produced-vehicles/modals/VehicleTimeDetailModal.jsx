@@ -157,7 +157,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 }
             }
             
-            const totalQualityMillis = totalControlMillis + totalReworkMillis;
+            // Kalitede geçen toplam süre sadece kontrol başladı-bitti arasındaki sürelerdir
+            // Yeniden işlem süresi dahil edilmez
+            const totalQualityMillis = totalControlMillis;
 
             return {
                 totalControlTime: formatDuration(totalControlMillis),

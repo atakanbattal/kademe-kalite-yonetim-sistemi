@@ -21,7 +21,7 @@ import React, { useState, useMemo } from 'react';
 
     const ProducedVehiclesModule = ({ onOpenNCForm }) => {
         const { toast } = useToast();
-        const { producedVehicles, productionDepartments, loading, refreshData } = useData();
+        const { producedVehicles, productionDepartments, loading, refreshData, refreshProducedVehicles } = useData();
         const [searchTerm, setSearchTerm] = useState('');
         const { profile } = useAuth();
         
@@ -71,6 +71,11 @@ import React, { useState, useMemo } from 'react';
                 toast({ variant: 'destructive', title: 'Silme Hatası', description: 'Araç kaydı silinemedi: ' + error.message });
             } else {
                 toast({ title: 'Başarılı', description: 'Araç kaydı başarıyla silindi.' });
+                // Önce özel refresh fonksiyonunu çağır (daha hızlı)
+                if (refreshProducedVehicles) {
+                    refreshProducedVehicles();
+                }
+                // Sonra genel refresh'i de çağır (fallback)
                 refreshData();
             }
         };
@@ -87,6 +92,11 @@ import React, { useState, useMemo } from 'react';
                 if (error) throw error;
         
                 toast({ title: 'Başarılı!', description: `Yeni işlem eklendi ve durum güncellendi.` });
+                // Önce özel refresh fonksiyonunu çağır (daha hızlı)
+                if (refreshProducedVehicles) {
+                    refreshProducedVehicles();
+                }
+                // Sonra genel refresh'i de çağır (fallback)
                 refreshData();
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Hata!', description: `İşlem eklenemedi: ${error.message}` });
@@ -110,10 +120,10 @@ import React, { useState, useMemo } from 'react';
                 <AddVehicleModal isOpen={isAddModalOpen} setIsOpen={setAddModalOpen} refreshVehicles={refreshData} />
                 {selectedVehicle && (
                     <>
-                        <EditVehicleModal isOpen={isEditModalOpen} setIsOpen={setEditModalOpen} vehicle={selectedVehicle} refreshVehicles={refreshData} />
-                        <VehicleFaultsModal isOpen={isFaultsModalOpen} setIsOpen={setFaultsModalOpen} vehicle={selectedVehicle} departments={productionDepartments} onUpdate={refreshData} onOpenNCForm={onOpenNCForm}/>
-                        <VehicleDetailModal isOpen={isDetailModalOpen} setIsOpen={setDetailModalOpen} vehicle={selectedVehicle} onUpdate={refreshData} />
-                        <VehicleTimeDetailModal isOpen={isTimeDetailModalOpen} setIsOpen={setTimeDetailModalOpen} vehicle={selectedVehicle} onUpdate={refreshData} />
+                        <EditVehicleModal isOpen={isEditModalOpen} setIsOpen={setEditModalOpen} vehicle={selectedVehicle} refreshVehicles={refreshProducedVehicles || refreshData} />
+                        <VehicleFaultsModal isOpen={isFaultsModalOpen} setIsOpen={setFaultsModalOpen} vehicle={selectedVehicle} departments={productionDepartments} onUpdate={refreshProducedVehicles || refreshData} onOpenNCForm={onOpenNCForm}/>
+                        <VehicleDetailModal isOpen={isDetailModalOpen} setIsOpen={setDetailModalOpen} vehicle={selectedVehicle} onUpdate={refreshProducedVehicles || refreshData} />
+                        <VehicleTimeDetailModal isOpen={isTimeDetailModalOpen} setIsOpen={setTimeDetailModalOpen} vehicle={selectedVehicle} onUpdate={refreshProducedVehicles || refreshData} />
                     </>
                 )}
                  <VehicleStatusDetailModal 

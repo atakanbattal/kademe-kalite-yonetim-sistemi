@@ -394,10 +394,31 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             };
         }, [session, logAudit]);
 
+        const refreshProducedVehicles = useCallback(async () => {
+            if (!session) return;
+            try {
+                const { data, error } = await supabase
+                    .from('quality_inspections')
+                    .select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)')
+                    .limit(500);
+                
+                if (error) {
+                    console.error('❌ Produced vehicles refresh failed:', error);
+                    return;
+                }
+                
+                setData(prev => ({ ...prev, producedVehicles: data || [] }));
+                console.log('✅ Produced vehicles refreshed:', data?.length || 0, 'vehicles');
+            } catch (error) {
+                console.error('❌ Produced vehicles refresh error:', error);
+            }
+        }, [session]);
+
         const value = {
             ...data,
             loading,
             refreshData: () => fetchData(true), // Force refresh
+            refreshProducedVehicles, // Sadece produced vehicles'ı yenile
             logAudit,
         };
 
