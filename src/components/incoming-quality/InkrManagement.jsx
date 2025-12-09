@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import InkrDetailModal from './InkrDetailModal';
@@ -141,6 +141,9 @@ const InkrManagement = ({ onViewPdf }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [allParts, setAllParts] = useState([]);
+    const [partsLoading, setPartsLoading] = useState(true);
+    const [inkrStatusFilter, setInkrStatusFilter] = useState('all'); // 'all', 'Mevcut', 'Mevcut Değil'
 
     const handleEdit = (report) => {
         setSelectedReport(report);
@@ -181,6 +184,79 @@ const InkrManagement = ({ onViewPdf }) => {
         }
     };
 
+    // Tüm parçaları ve INKR durumlarını çek
+    useEffect(() => {
+        const fetchAllParts = async () => {
+            setPartsLoading(true);
+            try {
+                // Tüm unique parça kodlarını ve adlarını al
+                const { data: inspections, error } = await supabase
+                    .from('incoming_inspections_with_supplier')
+                    .select('part_code, part_name')
+                    .not('part_code', 'is', null)
+                    .not('part_code', 'eq', '')
+                    .order('part_code');
+
+                if (error) throw error;
+
+                // Unique parçaları al (part_code bazında)
+                const uniquePartsMap = new Map();
+                inspections.forEach(inspection => {
+                    if (inspection.part_code && !uniquePartsMap.has(inspection.part_code)) {
+                        uniquePartsMap.set(inspection.part_code, {
+                            part_code: inspection.part_code,
+                            part_name: inspection.part_name || '-',
+                        });
+                    }
+                });
+
+                // INKR raporları ile eşleştir
+                const inkrMap = new Map((inkrReports || []).map(r => [r.part_code, r]));
+                const partsWithInkrStatus = Array.from(uniquePartsMap.values()).map(part => {
+                    const inkrReport = inkrMap.get(part.part_code);
+                    return {
+                        ...part,
+                        hasInkr: !!inkrReport,
+                        inkrReport: inkrReport || null,
+                    };
+                });
+
+                setAllParts(partsWithInkrStatus);
+            } catch (error) {
+                console.error('Parça listesi alınamadı:', error);
+                toast({ variant: 'destructive', title: 'Hata', description: 'Parça listesi alınamadı.' });
+                setAllParts([]);
+            } finally {
+                setPartsLoading(false);
+            }
+        };
+
+        fetchAllParts();
+    }, [inkrReports, toast]);
+
+    // Filtrelenmiş parçalar
+    const filteredParts = React.useMemo(() => {
+        let filtered = allParts;
+
+        // Arama filtresi
+        if (searchTerm) {
+            const normalizedSearch = searchTerm.toLowerCase();
+            filtered = filtered.filter(part =>
+                part.part_code.toLowerCase().includes(normalizedSearch) ||
+                (part.part_name && part.part_name.toLowerCase().includes(normalizedSearch))
+            );
+        }
+
+        // INKR durumu filtresi
+        if (inkrStatusFilter === 'Mevcut') {
+            filtered = filtered.filter(part => part.hasInkr);
+        } else if (inkrStatusFilter === 'Mevcut Değil') {
+            filtered = filtered.filter(part => !part.hasInkr);
+        }
+
+        return filtered;
+    }, [allParts, searchTerm, inkrStatusFilter]);
+
     return (
         <div className="dashboard-widget">
             <InkrFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} existingReport={selectedReport} refreshReports={refreshData} />
@@ -190,10 +266,22 @@ const InkrManagement = ({ onViewPdf }) => {
                 report={selectedInkrDetail}
                 onDownloadPDF={handleDownloadDetailPDF}
             />
-            <div className="flex justify-between items-center mb-4">
-                <div className="relative w-full max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Parça kodu veya adı ile ara..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                    <div className="relative w-full sm:w-auto sm:max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Parça kodu veya adı ile ara..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
+                    <Select value={inkrStatusFilter} onValueChange={setInkrStatusFilter}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="INKR Durumu" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tümü</SelectItem>
+                            <SelectItem value="Mevcut">INKR Mevcut</SelectItem>
+                            <SelectItem value="Mevcut Değil">INKR Eksik</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 <Button onClick={handleNew}><Plus className="w-4 h-4 mr-2" /> Yeni INKR Raporu</Button>
             </div>
@@ -203,6 +291,7 @@ const InkrManagement = ({ onViewPdf }) => {
                         <tr>
                             <th>Parça Kodu</th>
                             <th>Parça Adı</th>
+                            <th>INKR Durumu</th>
                             <th>Tedarikçi</th>
                             <th>Rapor Tarihi</th>
                             <th>Durum</th>
@@ -210,33 +299,59 @@ const InkrManagement = ({ onViewPdf }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {loading ? (
-                            <tr><td colSpan="6" className="text-center py-8">Yükleniyor...</td></tr>
-                        ) : inkrReports.length === 0 ? (
-                            <tr><td colSpan="6" className="text-center py-8">INKR raporu bulunamadı.</td></tr>
+                        {partsLoading || loading ? (
+                            <tr><td colSpan="7" className="text-center py-8">Yükleniyor...</td></tr>
+                        ) : filteredParts.length === 0 ? (
+                            <tr><td colSpan="7" className="text-center py-8">Parça bulunamadı.</td></tr>
                         ) : (
-                            inkrReports.map((report, index) => (
+                            filteredParts.map((part, index) => (
                                 <tr 
-                                    key={report.id} 
-                                    onClick={() => handleViewRecord(report)}
-                                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                    key={part.part_code} 
+                                    onClick={() => part.inkrReport && handleViewRecord(part.inkrReport)}
+                                    className={`transition-colors ${part.inkrReport ? 'cursor-pointer hover:bg-muted/50' : ''}`}
                                     style={{
                                         opacity: 0,
                                         animation: `fadeIn 0.3s ease-in forwards ${index * 0.05}s`
                                     }}
                                 >
-                                    <td className="font-medium text-foreground">{report.part_code}</td>
-                                    <td className="text-foreground">{report.part_name}</td>
-                                    <td className="text-muted-foreground">{report.supplier?.name || '-'}</td>
-                                    <td className="text-muted-foreground">{new Date(report.report_date).toLocaleDateString('tr-TR')}</td>
-                                    <td><Badge variant={getStatusVariant(report.status)}>{report.status}</Badge></td>
-                                    <td className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                                        {report.file_path && (
-                                            <Button variant="ghost" size="icon" onClick={() => onViewPdf(report.file_path)}><Eye className="h-4 w-4" /></Button>
+                                    <td className="font-medium text-foreground">{part.part_code}</td>
+                                    <td className="text-foreground">{part.part_name}</td>
+                                    <td>
+                                        {part.hasInkr ? (
+                                            <Badge variant="success" className="bg-green-500">Mevcut</Badge>
+                                        ) : (
+                                            <Badge variant="destructive" className="bg-red-500">Eksik</Badge>
                                         )}
-                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(report)}><Edit className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleViewRecord(report)}><FileText className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(report.id)}><Trash2 className="h-4 w-4" /></Button>
+                                    </td>
+                                    <td className="text-muted-foreground">{part.inkrReport?.supplier?.name || '-'}</td>
+                                    <td className="text-muted-foreground">
+                                        {part.inkrReport?.report_date ? new Date(part.inkrReport.report_date).toLocaleDateString('tr-TR') : '-'}
+                                    </td>
+                                    <td>
+                                        {part.inkrReport ? (
+                                            <Badge variant={getStatusVariant(part.inkrReport.status)}>{part.inkrReport.status}</Badge>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </td>
+                                    <td className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                        {part.inkrReport ? (
+                                            <>
+                                                {part.inkrReport.file_path && (
+                                                    <Button variant="ghost" size="icon" onClick={() => onViewPdf(part.inkrReport.file_path)}><Eye className="h-4 w-4" /></Button>
+                                                )}
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(part.inkrReport)}><Edit className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleViewRecord(part.inkrReport)}><FileText className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(part.inkrReport.id)}><Trash2 className="h-4 w-4" /></Button>
+                                            </>
+                                        ) : (
+                                            <Button variant="outline" size="sm" onClick={() => {
+                                                setSelectedReport({ part_code: part.part_code, part_name: part.part_name });
+                                                setIsModalOpen(true);
+                                            }}>
+                                                <Plus className="h-4 w-4 mr-1" /> Ekle
+                                            </Button>
+                                        )}
                                     </td>
                                 </tr>
                             ))
