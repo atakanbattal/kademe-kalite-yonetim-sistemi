@@ -427,6 +427,11 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         </div>
 
                         <div>
+                            <Label htmlFor="revision_date">Revizyon Tarihi</Label>
+                            <Input id="revision_date" type="date" value={formData.revision_date || ''} onChange={handleInputChange} />
+                        </div>
+
+                        <div>
                             <Label htmlFor="valid_until">Geçerlilik Süresi</Label>
                             <Input id="valid_until" type="date" value={formData.valid_until || ''} onChange={handleInputChange} />
                         </div>
