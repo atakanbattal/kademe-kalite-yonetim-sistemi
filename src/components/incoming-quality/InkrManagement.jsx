@@ -94,7 +94,17 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
             toast({ variant: 'destructive', title: 'Hata!', description: `INKR Raporu kaydedilemedi: ${error.message}` });
         } else {
             toast({ title: 'Başarılı!', description: `INKR Raporu başarıyla kaydedildi.` });
-            refreshReports();
+            if (refreshReports) refreshReports();
+            if (onReportSaved) {
+                // INKR raporlarını yeniden çek
+                const { data, error: fetchError } = await supabase
+                    .from('inkr_reports')
+                    .select('*, supplier:supplier_id(name)')
+                    .order('created_at', { ascending: false });
+                if (!fetchError) {
+                    onReportSaved(data || []);
+                }
+            }
             setIsOpen(false);
         }
         setIsUploading(false);
