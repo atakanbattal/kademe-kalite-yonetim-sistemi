@@ -810,6 +810,61 @@ const generateListReportHtml = (record, type) => {
 			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
 			<p><strong>Tip Dağılımı:</strong> ${typeSummary}</p>
 		`;
+	} else if (type === 'quality_cost_list') {
+		title = record.unit ? `${record.unit} Birimi - Kalitesizlik Maliyetleri Raporu` : 'Kalitesizlik Maliyetleri Raporu';
+		headers = ['Tarih', 'Maliyet Türü', 'Parça Adı', 'Parça Kodu', 'Araç Tipi', 'Miktar', 'Tutar', 'Açıklama', 'Sorumlu'];
+		
+		rowsHtml = record.items.map(item => {
+			const amountFormatted = typeof item.amount === 'number' 
+				? item.amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+				: '-';
+			
+			const quantityText = item.quantity && item.quantity !== '-' 
+				? `${item.quantity} ${item.measurement_unit || ''}`.trim()
+				: '-';
+			
+			const supplierBadge = item.is_supplier_nc && item.supplier_name
+				? `<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #fef3c7; color: #92400e;">Tedarikçi: ${item.supplier_name}</span>`
+				: '';
+			
+			return `
+				<tr>
+					<td style="width: 8%; white-space: nowrap;">${item.cost_date}</td>
+					<td style="width: 15%;"><strong>${item.cost_type}</strong>${supplierBadge ? '<br>' + supplierBadge : ''}</td>
+					<td style="width: 15%;">${item.part_name}</td>
+					<td style="width: 10%; font-size: 0.85em;">${item.part_code}</td>
+					<td style="width: 10%; font-size: 0.85em;">${item.vehicle_type}</td>
+					<td style="width: 8%; text-align: center; white-space: nowrap;">${quantityText}</td>
+					<td style="width: 10%; text-align: right; font-weight: 600; color: #dc2626;">${amountFormatted}</td>
+					<td style="width: 19%; font-size: 0.85em;"><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${item.description}</pre></td>
+					<td style="width: 5%; font-size: 0.85em;">${item.responsible_personnel}</td>
+				</tr>
+			`;
+		}).join('');
+		
+		// Maliyet türü bazlı özet
+		const typeSummary = record.costsByType && record.costsByType.length > 0
+			? record.costsByType.map(typeData => {
+				const typeAmountFormatted = typeData.totalAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+				return `<span style="margin-right: 15px;"><strong>${typeData.type}:</strong> ${typeAmountFormatted} (${typeData.count} kayıt, %${typeData.percentage.toFixed(1)})</span>`;
+			}).join('')
+			: '';
+		
+		const totalAmountFormatted = record.totalAmount 
+			? record.totalAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+			: '0,00 ₺';
+		
+		const periodInfo = record.periodStart && record.periodEnd
+			? `${record.periodStart} - ${record.periodEnd}`
+			: record.period || 'Tüm Zamanlar';
+		
+		summaryHtml = `
+			<p><strong>Birim:</strong> ${record.unit || 'Belirtilmemiş'}</p>
+			<p><strong>Dönem:</strong> ${periodInfo}</p>
+			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
+			<p><strong>Toplam Maliyet:</strong> <span style="font-size: 1.2em; font-weight: 700; color: #dc2626;">${totalAmountFormatted}</span></p>
+			${typeSummary ? `<p><strong>Maliyet Türü Dağılımı:</strong><br>${typeSummary}</p>` : ''}
+		`;
 	}
 
 	return `

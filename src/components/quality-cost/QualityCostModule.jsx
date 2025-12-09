@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
     import { motion } from 'framer-motion';
-    import { Plus, MoreHorizontal, Edit, Trash2, Eye, Link as LinkIcon, Search } from 'lucide-react';
+    import { Plus, MoreHorizontal, Edit, Trash2, Eye, Link as LinkIcon, Search, FileText } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
@@ -21,9 +21,12 @@ import React, { useState, useMemo, useCallback } from 'react';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-    import { useData } from '@/contexts/DataContext';
-    import { Input } from '@/components/ui/input';
-    import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useData } from '@/contexts/DataContext';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { openPrintableReport } from '@/lib/reportUtils';
 
     const formatCurrency = (value) => {
         if (typeof value !== 'number') return '-';
@@ -157,6 +160,97 @@ import React, { useState, useMemo, useCallback } from 'react';
             return [...new Set(qualityCosts.map(cost => cost.unit).filter(Boolean))];
         }, [qualityCosts]);
 
+        const handleGenerateReport = useCallback(() => {
+            if (filteredCosts.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor oluşturmak için en az bir maliyet kaydı olmalıdır.',
+                });
+                return;
+            }
+
+            const formatDate = (dateString) => {
+                if (!dateString) return '-';
+                try {
+                    return format(new Date(dateString), 'dd.MM.yyyy', { locale: tr });
+                } catch {
+                    return '-';
+                }
+            };
+
+            // Birim bazlı gruplama
+            const costsByUnit = {};
+            filteredCosts.forEach(cost => {
+                const unit = cost.unit || 'Belirtilmemiş';
+                if (!costsByUnit[unit]) {
+                    costsByUnit[unit] = [];
+                }
+                costsByUnit[unit].push(cost);
+            });
+
+            // Her birim için ayrı rapor oluştur
+            Object.entries(costsByUnit).forEach(([unit, unitCosts]) => {
+                const totalAmount = unitCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
+                
+                // Maliyet türü bazlı gruplama
+                const costsByType = {};
+                unitCosts.forEach(cost => {
+                    const costType = cost.cost_type || 'Belirtilmemiş';
+                    if (!costsByType[costType]) {
+                        costsByType[costType] = {
+                            count: 0,
+                            totalAmount: 0,
+                            costs: []
+                        };
+                    }
+                    costsByType[costType].count += 1;
+                    costsByType[costType].totalAmount += cost.amount || 0;
+                    costsByType[costType].costs.push(cost);
+                });
+
+                const reportData = {
+                    id: `quality-cost-${unit}-${Date.now()}`,
+                    unit: unit,
+                    period: dateRange.label || 'Tüm Zamanlar',
+                    periodStart: dateRange.startDate ? formatDate(dateRange.startDate) : null,
+                    periodEnd: dateRange.endDate ? formatDate(dateRange.endDate) : null,
+                    totalAmount: totalAmount,
+                    totalCount: unitCosts.length,
+                    items: unitCosts.map(cost => ({
+                        cost_date: formatDate(cost.cost_date),
+                        cost_type: cost.cost_type || '-',
+                        part_name: cost.part_name || '-',
+                        part_code: cost.part_code || '-',
+                        vehicle_type: cost.vehicle_type || '-',
+                        amount: cost.amount || 0,
+                        quantity: cost.quantity || '-',
+                        measurement_unit: cost.measurement_unit || '-',
+                        description: cost.description || '-',
+                        responsible_personnel: cost.responsible_personnel?.full_name || '-',
+                        is_supplier_nc: cost.is_supplier_nc || false,
+                        supplier_name: cost.supplier?.name || '-',
+                    })),
+                    costsByType: Object.entries(costsByType).map(([type, data]) => ({
+                        type,
+                        count: data.count,
+                        totalAmount: data.totalAmount,
+                        percentage: totalAmount > 0 ? (data.totalAmount / totalAmount) * 100 : 0
+                    })).sort((a, b) => b.totalAmount - a.totalAmount)
+                };
+
+                // Her birim için ayrı rapor aç
+                setTimeout(() => {
+                    openPrintableReport(reportData, 'quality_cost_list', true);
+                }, Object.keys(costsByUnit).indexOf(unit) * 500); // Her raporu 500ms arayla aç
+            });
+
+            toast({
+                title: 'Başarılı',
+                description: `${Object.keys(costsByUnit).length} birim için rapor oluşturuldu.`,
+            });
+        }, [filteredCosts, dateRange, toast]);
+
         return (
             <div className="space-y-6">
                 <CostFormModal 
@@ -190,6 +284,10 @@ import React, { useState, useMemo, useCallback } from 'react';
                     </div>
                     <div className="mt-4 sm:mt-0 flex items-center gap-2">
                         <CostFilters dateRange={dateRange} setDateRange={setDateRange} />
+                        <Button onClick={handleGenerateReport} variant="outline">
+                            <FileText className="w-4 h-4 mr-2" />
+                            Rapor Al
+                        </Button>
                         <Button onClick={() => handleOpenFormModal()}><Plus className="w-4 h-4 mr-2" />Yeni Maliyet Kaydı</Button>
                     </div>
                 </div>
