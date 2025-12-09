@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { motion } from 'framer-motion';
-    import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit } from 'lucide-react';
+    import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
@@ -21,6 +21,22 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       { value: 'Prosedürler', label: 'Prosedürler', icon: FileText, addText: 'Yeni Prosedür Ekle' },
       { value: 'Talimatlar', label: 'Talimatlar', icon: FileText, addText: 'Yeni Talimat Ekle' },
       { value: 'Formlar', label: 'Formlar', icon: FileText, addText: 'Yeni Form Ekle' },
+      { value: 'El Kitapları', label: 'El Kitapları', icon: FileText, addText: 'Yeni El Kitabı Ekle' },
+      { value: 'Şemalar', label: 'Şemalar', icon: FileText, addText: 'Yeni Şema Ekle' },
+      { value: 'Görev Tanımları', label: 'Görev Tanımları', icon: FileText, addText: 'Yeni Görev Tanımı Ekle' },
+      { value: 'Süreçler', label: 'Süreçler', icon: FileText, addText: 'Yeni Süreç Ekle' },
+      { value: 'Planlar', label: 'Planlar', icon: FileText, addText: 'Yeni Plan Ekle' },
+      { value: 'Listeler', label: 'Listeler', icon: FileText, addText: 'Yeni Liste Ekle' },
+      { value: 'Şartnameler', label: 'Şartnameler', icon: FileText, addText: 'Yeni Şartname Ekle' },
+      { value: 'Politikalar', label: 'Politikalar', icon: FileText, addText: 'Yeni Politika Ekle' },
+      { value: 'Tablolar', label: 'Tablolar', icon: FileText, addText: 'Yeni Tablo Ekle' },
+      { value: 'Antetler', label: 'Antetler', icon: FileText, addText: 'Yeni Antet Ekle' },
+      { value: 'Sözleşmeler', label: 'Sözleşmeler', icon: FileText, addText: 'Yeni Sözleşme Ekle' },
+      { value: 'Yönetmelikler', label: 'Yönetmelikler', icon: FileText, addText: 'Yeni Yönetmelik Ekle' },
+      { value: 'Kontrol Planları', label: 'Kontrol Planları', icon: FileText, addText: 'Yeni Kontrol Planı Ekle' },
+      { value: 'FMEA Planları', label: 'FMEA Planları', icon: FileText, addText: 'Yeni FMEA Planı Ekle' },
+      { value: 'Proses Kontrol Kartları', label: 'Proses Kontrol Kartları', icon: FileText, addText: 'Yeni Proses Kontrol Kartı Ekle' },
+      { value: 'Görsel Yardımcılar', label: 'Görsel Yardımcılar', icon: FileText, addText: 'Yeni Görsel Yardımcı Ekle' },
       { value: 'Diğer', label: 'Diğer', icon: FileText, addText: 'Yeni Doküman Ekle' },
     ];
 
@@ -34,6 +50,22 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             'Prosedürler': 'documents',
             'Talimatlar': 'documents',
             'Formlar': 'documents',
+            'El Kitapları': 'documents',
+            'Şemalar': 'documents',
+            'Görev Tanımları': 'documents',
+            'Süreçler': 'documents',
+            'Planlar': 'documents',
+            'Listeler': 'documents',
+            'Şartnameler': 'documents',
+            'Politikalar': 'documents',
+            'Tablolar': 'documents',
+            'Antetler': 'documents',
+            'Sözleşmeler': 'documents',
+            'Yönetmelikler': 'documents',
+            'Kontrol Planları': 'documents',
+            'FMEA Planları': 'documents',
+            'Proses Kontrol Kartları': 'documents',
+            'Görsel Yardımcılar': 'documents',
             'Diğer': 'documents',
         };
         return folderMap[documentType] || 'documents';
@@ -81,6 +113,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         const { documents, personnel, loading, refreshData, unitCostSettings } = useData();
         const [isUploadModalOpen, setUploadModalOpen] = useState(false);
         const [editingDocument, setEditingDocument] = useState(null);
+        const [isRevisionMode, setIsRevisionMode] = useState(false);
         const [searchTerm, setSearchTerm] = useState('');
         const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
         const [activeTab, setActiveTab] = useState(DOCUMENT_CATEGORIES[0].value);
@@ -93,6 +126,22 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 'Prosedürler': ['Prosedürler', 'Prosedür'],
                 'Talimatlar': ['Talimatlar', 'Talimat'],
                 'Formlar': ['Formlar', 'Form'],
+                'El Kitapları': ['El Kitapları', 'El Kitabı'],
+                'Şemalar': ['Şemalar', 'Şema'],
+                'Görev Tanımları': ['Görev Tanımları', 'Görev Tanımı'],
+                'Süreçler': ['Süreçler', 'Süreç'],
+                'Planlar': ['Planlar', 'Plan'],
+                'Listeler': ['Listeler', 'Liste'],
+                'Şartnameler': ['Şartnameler', 'Şartname'],
+                'Politikalar': ['Politikalar', 'Politika'],
+                'Tablolar': ['Tablolar', 'Tablo'],
+                'Antetler': ['Antetler', 'Antet'],
+                'Sözleşmeler': ['Sözleşmeler', 'Sözleşme'],
+                'Yönetmelikler': ['Yönetmelikler', 'Yönetmelik'],
+                'Kontrol Planları': ['Kontrol Planları', 'Kontrol Planı'],
+                'FMEA Planları': ['FMEA Planları', 'FMEA Planı'],
+                'Proses Kontrol Kartları': ['Proses Kontrol Kartları', 'Proses Kontrol Kartı'],
+                'Görsel Yardımcılar': ['Görsel Yardımcılar', 'Görsel Yardımcı'],
                 'Kalite Sertifikaları': ['Kalite Sertifikaları', 'Kalite Sertifikası'],
                 'Personel Sertifikaları': ['Personel Sertifikaları', 'Personel Sertifikası'],
                 'Diğer': ['Diğer']
@@ -119,8 +168,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 })
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
             
-            // Birim filtresi (sadece Prosedürler, Talimatlar ve Formlar için)
-            if (selectedDepartmentId && (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar')) {
+            // Birim filtresi (belirli kategoriler için)
+            const categoriesWithDepartmentFilter = [
+                'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 
+                'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 
+                'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 
+                'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'
+            ];
+            if (selectedDepartmentId && categoriesWithDepartmentFilter.includes(activeTab)) {
                 docs = docs.filter(doc => doc.department_id === selectedDepartmentId);
             }
             
@@ -179,9 +234,33 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             }
         };
 
-        const handleOpenUploadModal = (doc = null) => {
+        const handleOpenUploadModal = (doc = null, revisionMode = false) => {
             setEditingDocument(doc);
+            setIsRevisionMode(revisionMode);
             setUploadModalOpen(true);
+        };
+
+        const handleReviseDocument = async (doc) => {
+            try {
+                // Mevcut revizyon numarasını al
+                const currentRevision = doc.document_revisions;
+                const currentRevisionNumber = currentRevision?.revision_number || 0;
+                const nextRevisionNumber = parseInt(currentRevisionNumber, 10) + 1;
+                
+                // Revizyon modunda modal'ı aç
+                const docWithNewRevision = {
+                    ...doc,
+                    document_revisions: {
+                        ...currentRevision,
+                        revision_number: nextRevisionNumber.toString(),
+                        revision_date: new Date().toISOString().slice(0, 10),
+                    }
+                };
+                
+                handleOpenUploadModal(docWithNewRevision, true);
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: `Revizyon başlatılamadı: ${error.message}` });
+            }
         };
 
         const handleViewPdf = async (revision, title, documentType) => {
@@ -231,6 +310,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                     personnelList={personnel}
                     existingDocument={editingDocument}
                     preselectedCategory={activeTab}
+                    isRevisionMode={isRevisionMode}
                 />
                 <PdfViewerModal 
                     isOpen={pdfViewerState.isOpen}
@@ -247,7 +327,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
                         {DOCUMENT_CATEGORIES.map(({ value, label, icon: Icon }) => (
                             <TabsTrigger
                                 key={value}
@@ -298,7 +378,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                         <tr>
                                             <th>Doküman Adı / Numarası</th>
                                             {activeTab === 'Personel Sertifikaları' && <th>Personel</th>}
-                                            {(activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') && <th>Birim</th>}
+                                            {['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) && <th>Birim</th>}
                                             <th>Versiyon</th>
                                             <th>Yayın Tarihi</th>
                                             <th>Revizyon Tarihi</th>
@@ -308,9 +388,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') ? '8' : '7'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) ? '8' : '7'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
                                         ) : filteredDocuments.length === 0 ? (
-                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') ? '8' : '7'} className="text-center py-8 text-muted-foreground">Bu kategoride doküman bulunmuyor.</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) ? '8' : '7'} className="text-center py-8 text-muted-foreground">Bu kategoride doküman bulunmuyor.</td></tr>
                                         ) : (
                                             filteredDocuments.map((doc, index) => {
                                                 const revision = doc.document_revisions;
@@ -329,16 +409,17 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                                         <div className="text-xs text-muted-foreground">{doc.document_number}</div>
                                                     </td>
                                                     {activeTab === 'Personel Sertifikaları' && <td>{doc.personnel?.full_name || doc.owner?.full_name || 'N/A'}</td>}
-                                                    {(activeTab === 'Prosedürler' || activeTab === 'Talimatlar' || activeTab === 'Formlar') && (
+                                                    {['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) && (
                                                         <td className="text-muted-foreground">{doc.department?.unit_name || '-'}</td>
                                                     )}
                                                     <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
                                                     <td className="text-muted-foreground">{revision ? format(new Date(revision.publish_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
                                                     <td className="text-muted-foreground">{revision?.created_at ? format(new Date(revision.created_at), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
-                                                    <td className="flex items-center gap-2">
+                                                    <td className="flex items-center gap-2 flex-wrap">
                                                         <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>
                                                         <Button variant="ghost" size="sm" onClick={() => downloadPdf(revision, fileName, doc.document_type)} disabled={!hasFile}><FileDown className="w-4 h-4 mr-1" /> İndir</Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => handleReviseDocument(doc)}><RefreshCw className="w-4 h-4 mr-1" /> Revize Et</Button>
                                                         <Button variant="ghost" size="icon" onClick={() => handleOpenUploadModal(doc)}><Edit className="w-4 h-4" /></Button>
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>

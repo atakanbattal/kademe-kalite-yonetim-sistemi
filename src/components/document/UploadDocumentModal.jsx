@@ -24,16 +24,32 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
             'Prosedürler': 'documents',
             'Talimatlar': 'documents',
             'Formlar': 'documents',
+            'El Kitapları': 'documents',
+            'Şemalar': 'documents',
+            'Görev Tanımları': 'documents',
+            'Süreçler': 'documents',
+            'Planlar': 'documents',
+            'Listeler': 'documents',
+            'Şartnameler': 'documents',
+            'Politikalar': 'documents',
+            'Tablolar': 'documents',
+            'Antetler': 'documents',
+            'Sözleşmeler': 'documents',
+            'Yönetmelikler': 'documents',
+            'Kontrol Planları': 'documents',
+            'FMEA Planları': 'documents',
+            'Proses Kontrol Kartları': 'documents',
+            'Görsel Yardımcılar': 'documents',
             'Diğer': 'documents',
         };
         return folderMap[documentType] || 'documents';
     };
 
-    const UploadDocumentModal = ({ isOpen, setIsOpen, refreshDocuments, existingDocument, categories, preselectedCategory }) => {
+    const UploadDocumentModal = ({ isOpen, setIsOpen, refreshDocuments, existingDocument, categories, preselectedCategory, isRevisionMode = false }) => {
         const { toast } = useToast();
         const { user, profile } = useAuth();
         const { personnel: personnelList, unitCostSettings } = useData();
-        const isEditMode = !!existingDocument;
+        const isEditMode = !!existingDocument && !isRevisionMode;
 
         const [formData, setFormData] = useState({});
         const [file, setFile] = useState(null);
@@ -56,17 +72,24 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         department_id: null,
                     };
 
-                    if (isEditMode && existingDocument) {
+                    if (existingDocument) {
                          const revision = existingDocument.document_revisions;
+                         const currentRevisionNumber = revision?.revision_number || '0';
+                         const nextRevisionNumber = isRevisionMode 
+                             ? (parseInt(currentRevisionNumber, 10) + 1).toString()
+                             : currentRevisionNumber;
+                         
                          setFormData({
                             id: existingDocument.id,
                             title: existingDocument.title || '',
                             document_type: existingDocument.document_type || '',
                             personnel_id: existingDocument.personnel_id || null,
                             valid_until: existingDocument.valid_until ? new Date(existingDocument.valid_until).toISOString().slice(0, 10) : '',
-                            revision_number: revision?.revision_number || '1',
-                            publish_date: revision?.publish_date ? new Date(revision.publish_date).toISOString().slice(0, 10) : '',
-                            revision_reason: revision?.revision_reason || '',
+                            revision_number: nextRevisionNumber,
+                            publish_date: isRevisionMode 
+                                ? new Date().toISOString().slice(0, 10) 
+                                : (revision?.publish_date ? new Date(revision.publish_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)),
+                            revision_reason: isRevisionMode ? '' : (revision?.revision_reason || ''),
                             file_name: revision?.attachments?.[0]?.name,
                             department_id: existingDocument.department_id || null,
                          });
@@ -112,8 +135,18 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen tüm zorunlu alanları doldurun.' });
                 return;
             }
-            // Prosedürler, Talimatlar ve Formlar için birim zorunlu
-            if ((formData.document_type === 'Prosedürler' || formData.document_type === 'Talimatlar' || formData.document_type === 'Formlar') && !formData.department_id) {
+            if (isRevisionMode && !formData.revision_reason?.trim()) {
+                toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen revizyon nedenini belirtin.' });
+                return;
+            }
+            // Belirli kategoriler için birim zorunlu
+            const categoriesRequiringDepartment = [
+                'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 
+                'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 
+                'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 
+                'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'
+            ];
+            if (categoriesRequiringDepartment.includes(formData.document_type) && !formData.department_id) {
                 toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen birim seçiniz.' });
                 return;
             }
@@ -162,14 +195,29 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 
                 const revisionPayload = {
                     revision_number: parseInt(formData.revision_number, 10) || 1,
-                    revision_reason: formData.revision_reason,
+                    revision_reason: formData.revision_reason || (isRevisionMode ? 'Revizyon' : 'İlk Yayın'),
                     publish_date: formData.publish_date,
                     prepared_by_id: currentUserPersonnelRecord.id,
                     user_id: user.id,
                     attachments: attachmentData ? [attachmentData] : (isEditMode ? existingDocument.document_revisions?.attachments : null),
                 };
                 
-                if (isEditMode) {
+                if (isRevisionMode) {
+                    // Yeni revizyon oluştur
+                    const { data: revData, error: revError } = await supabase
+                        .from('document_revisions')
+                        .insert({ ...revisionPayload, document_id: documentId })
+                        .select('id')
+                        .single();
+                    if (revError) throw revError;
+
+                    // Dokümanı güncelle ve current_revision_id'yi yeni revizyona ayarla
+                    const { error: docUpdateError } = await supabase
+                        .from('documents')
+                        .update({ ...documentPayload, current_revision_id: revData.id })
+                        .eq('id', documentId);
+                    if (docUpdateError) throw docUpdateError;
+                } else if (isEditMode) {
                     const { data: docUpdateData, error: docUpdateError } = await supabase
                         .from('documents')
                         .update(documentPayload)
@@ -181,7 +229,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     const { error: revUpdateError } = await supabase
                         .from('document_revisions')
                         .update(revisionPayload)
-                        .eq('document_id', documentId);
+                        .eq('id', existingDocument.current_revision_id);
                      if (revUpdateError) throw revUpdateError;
                 } else {
                     const { data: docData, error: docError } = await supabase
@@ -205,7 +253,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     if (updateDocError) throw updateDocError;
                 }
 
-                toast({ title: 'Başarılı!', description: `Doküman başarıyla ${isEditMode ? 'güncellendi' : 'yüklendi'}.` });
+                toast({ title: 'Başarılı!', description: `Doküman başarıyla ${isRevisionMode ? 'revize edildi' : (isEditMode ? 'güncellendi' : 'yüklendi')}.` });
                 refreshDocuments();
                 setIsOpen(false);
             } catch (error) {
@@ -220,8 +268,12 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-3xl">
                     <DialogHeader>
-                        <DialogTitle className="text-foreground">{isEditMode ? 'Dokümanı Düzenle' : 'Yeni Doküman Yükle'}</DialogTitle>
-                        <DialogDescription className="text-muted-foreground">{isEditMode ? 'Mevcut doküman bilgilerini güncelleyin.' : 'Sisteme yeni bir doküman ekleyin.'}</DialogDescription>
+                        <DialogTitle className="text-foreground">{isRevisionMode ? 'Dokümanı Revize Et' : (isEditMode ? 'Dokümanı Düzenle' : 'Yeni Doküman Yükle')}</DialogTitle>
+                        <DialogDescription className="text-muted-foreground">
+                            {isRevisionMode 
+                                ? 'Bu doküman için yeni bir revizyon oluşturun. Revizyon numarası ve tarihi otomatik olarak ayarlanacaktır.' 
+                                : (isEditMode ? 'Mevcut doküman bilgilerini güncelleyin.' : 'Sisteme yeni bir doküman ekleyin.')}
+                        </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                         <div className="md:col-span-2">
@@ -258,7 +310,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                             </div>
                         )}
 
-                        {(formData.document_type === 'Prosedürler' || formData.document_type === 'Talimatlar' || formData.document_type === 'Formlar') && (
+                        {['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(formData.document_type) && (
                             <div>
                                 <Label htmlFor="department_id">Birim <span className="text-red-500">*</span></Label>
                                 <Select
@@ -285,13 +337,13 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         )}
                         
                         <div>
-                            <Label htmlFor="revision_number">Versiyon</Label>
-                            <Input id="revision_number" value={formData.revision_number || ''} onChange={handleInputChange} />
+                            <Label htmlFor="revision_number">Versiyon {isRevisionMode && <span className="text-xs text-muted-foreground">(Otomatik)</span>}</Label>
+                            <Input id="revision_number" value={formData.revision_number || ''} onChange={handleInputChange} disabled={isRevisionMode} />
                         </div>
 
                         <div>
-                            <Label htmlFor="publish_date">Yayın Tarihi <span className="text-red-500">*</span></Label>
-                            <Input id="publish_date" type="date" value={formData.publish_date || ''} onChange={handleInputChange} required />
+                            <Label htmlFor="publish_date">Yayın Tarihi <span className="text-red-500">*</span> {isRevisionMode && <span className="text-xs text-muted-foreground">(Otomatik)</span>}</Label>
+                            <Input id="publish_date" type="date" value={formData.publish_date || ''} onChange={handleInputChange} required disabled={isRevisionMode} />
                         </div>
 
                         <div>
@@ -300,8 +352,8 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         </div>
                         
                         <div className="md:col-span-2">
-                            <Label htmlFor="revision_reason">Revizyon Nedeni</Label>
-                            <Textarea id="revision_reason" value={formData.revision_reason || ''} onChange={handleInputChange} rows={3} />
+                            <Label htmlFor="revision_reason">Revizyon Nedeni {isRevisionMode && <span className="text-red-500">*</span>}</Label>
+                            <Textarea id="revision_reason" value={formData.revision_reason || ''} onChange={handleInputChange} rows={3} placeholder={isRevisionMode ? 'Revizyon nedenini açıklayın...' : ''} required={isRevisionMode} />
                         </div>
 
                         <div className="md:col-span-2">
