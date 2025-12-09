@@ -49,21 +49,74 @@ import React, { useState, useMemo, useCallback } from 'react';
         };
 
         const filteredRecords = useMemo(() => {
+            // Boş arama terimi için tüm kayıtları göster
+            if (!filters.searchTerm || filters.searchTerm.trim() === '') {
+                const filtered = nonConformities.filter(record => {
+                    let matchesStatus = true;
+                    if (filters.status !== 'all') {
+                        if (filters.status === 'Gecikmiş') {
+                            const isOverdue = record.status !== 'Kapatıldı' && record.status !== 'Reddedildi' && record.due_at && isAfter(new Date(), parseISO(record.due_at));
+                            matchesStatus = isOverdue;
+                        } else {
+                            matchesStatus = record.status === filters.status;
+                        }
+                    }
+
+                    const matchesType = filters.type === 'all' || record.type === filters.type;
+                    const matchesDepartment = filters.department === 'all' || record.department === filters.department;
+
+                    return matchesStatus && matchesType && matchesDepartment;
+                });
+
+                return filtered.sort((a, b) => {
+                    const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
+                    const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
+                    
+                    if (dateB - dateA !== 0) {
+                        return dateB - dateA;
+                    }
+
+                    const numA = a.nc_number || a.mdi_no || '';
+                    const numB = b.nc_number || b.mdi_no || '';
+                    return numB.localeCompare(numA, undefined, { numeric: true });
+                });
+            }
+
+            const searchTermLower = filters.searchTerm.toLowerCase().trim();
+            // Arama terimini kelimelere böl (daha esnek arama için)
+            const searchWords = searchTermLower.split(/\s+/).filter(word => word.length > 0);
+            
             const filtered = nonConformities.filter(record => {
-                const searchTermLower = filters.searchTerm.toLowerCase();
-                // Kapsamlı arama: NC no, MDI no, başlık, açıklama, departman, sorumlu, tedarikçi, parça kodu, parça adı, kaynak bilgisi
-                const matchesSearch =
-                    (record.nc_number && record.nc_number.toLowerCase().includes(searchTermLower)) ||
-                    (record.mdi_no && record.mdi_no.toLowerCase().includes(searchTermLower)) ||
-                    (record.title && record.title.toLowerCase().includes(searchTermLower)) ||
-                    (record.description && record.description.toLowerCase().includes(searchTermLower)) ||
-                    (record.department && record.department.toLowerCase().includes(searchTermLower)) ||
-                    (record.responsible_person && record.responsible_person.toLowerCase().includes(searchTermLower)) ||
-                    (record.supplier_name && record.supplier_name.toLowerCase().includes(searchTermLower)) ||
-                    (record.part_code && record.part_code.toLowerCase().includes(searchTermLower)) ||
-                    (record.part_name && record.part_name.toLowerCase().includes(searchTermLower)) ||
-                    (record.source && record.source.toLowerCase().includes(searchTermLower)) ||
-                    (record.requesting_person && record.requesting_person.toLowerCase().includes(searchTermLower));
+                // Tüm alanları birleştir ve arama yap
+                const searchableText = [
+                    record.nc_number,
+                    record.mdi_no,
+                    record.title,
+                    record.description,
+                    record.problem_definition,
+                    record.department,
+                    record.responsible_person,
+                    record.supplier_name,
+                    record.part_code,
+                    record.part_name,
+                    record.source,
+                    record.requesting_person,
+                    record.requesting_unit,
+                    record.rejection_reason,
+                    record.rejection_notes,
+                    record.closing_notes,
+                    record.notes,
+                    record.priority,
+                    record.status,
+                    // JSON alanlarından da arama yap
+                    record.eight_d_progress ? JSON.stringify(record.eight_d_progress) : null,
+                ]
+                .filter(Boolean)
+                .map(val => String(val).toLowerCase())
+                .join(' ');
+
+                // Tüm kelimelerin eşleşmesi gerekiyor (AND mantığı)
+                const matchesSearch = searchWords.every(word => searchableText.includes(word));
 
                 let matchesStatus = true;
                 if (filters.status !== 'all') {

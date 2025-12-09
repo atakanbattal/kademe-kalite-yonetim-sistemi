@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { motion } from 'framer-motion';
-    import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw } from 'lucide-react';
+    import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw, FileSpreadsheet } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
     import { tr } from 'date-fns/locale';
     import { useData } from '@/contexts/DataContext';
     import PdfViewerModal from '@/components/document/PdfViewerModal';
+    import { openPrintableReport } from '@/lib/reportUtils';
 
     const DOCUMENT_CATEGORIES = [
       { value: 'Kalite Sertifikaları', label: 'Kalite Sertifikaları', icon: Certificate, addText: 'Yeni Kalite Sertifikası Ekle' },
@@ -318,10 +319,7 @@ import { Label } from '@/components/ui/label';
                             <Label htmlFor="category-select" className="text-base font-semibold whitespace-nowrap">Kategori:</Label>
                             <Select value={activeTab} onValueChange={setActiveTab}>
                                 <SelectTrigger id="category-select" className="w-full sm:w-[300px]">
-                                    <div className="flex items-center gap-2">
-                                        {currentCategory && React.createElement(currentCategory.icon, { className: "w-4 h-4" })}
-                                        <SelectValue placeholder="Kategori seçin..." />
-                                    </div>
+                                    <SelectValue placeholder="Kategori seçin..." />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-[400px]">
                                     {DOCUMENT_CATEGORIES.map(({ value, label, icon: Icon }) => (
@@ -334,6 +332,30 @@ import { Label } from '@/components/ui/label';
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {filteredDocuments.length > 0 && (
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => {
+                                        const reportData = {
+                                            items: filteredDocuments.map(doc => ({
+                                                title: doc.title || '-',
+                                                document_number: doc.document_number || '-',
+                                                department_name: doc.departments?.unit_name || doc.personnel?.full_name || '-',
+                                                revision_number: doc.document_revisions?.revision_number || '1',
+                                                publish_date: doc.document_revisions?.publish_date || doc.created_at,
+                                                revision_date: doc.document_revisions?.created_at || doc.updated_at,
+                                                valid_until: doc.valid_until
+                                            })),
+                                            categoryName: currentCategory?.label || activeTab
+                                        };
+                                        openPrintableReport({ items: reportData.items, categoryName: reportData.categoryName }, 'document_list');
+                                    }}
+                                    className="flex items-center gap-2"
+                                >
+                                    <FileSpreadsheet className="w-4 h-4" />
+                                    Rapor Al
+                                </Button>
+                            )}
                         </div>
                     </div>
                     

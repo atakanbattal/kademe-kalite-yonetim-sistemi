@@ -710,6 +710,42 @@ const generateListReportHtml = (record, type) => {
 			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
 			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
 		`;
+	} else if (type === 'document_list') {
+		title = record.categoryName || 'Doküman Listesi Raporu';
+		headers = ['Doküman Adı / Numarası', 'Birim', 'Versiyon', 'Yayın Tarihi', 'Revizyon Tarihi', 'Geçerlilik Durumu'];
+		rowsHtml = record.items.map(item => {
+			const validUntil = item.valid_until ? formatDate(item.valid_until) : 'Süresiz';
+			const validUntilDate = item.valid_until ? new Date(item.valid_until) : null;
+			const now = new Date();
+			let statusBadge = '';
+			if (!validUntilDate) {
+				statusBadge = '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Süresiz</span>';
+			} else {
+				const diffDays = Math.ceil((validUntilDate - now) / (1000 * 60 * 60 * 24));
+				if (diffDays < 0) {
+					statusBadge = `<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Süresi Doldu</span>`;
+				} else if (diffDays <= 30) {
+					statusBadge = `<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">${diffDays} gün kaldı</span>`;
+				} else {
+					statusBadge = `<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">${diffDays} gün kaldı</span>`;
+				}
+			}
+			return `
+				<tr>
+					<td style="width: 30%;"><strong>${item.title || '-'}</strong><br><small class="muted" style="font-size: 0.75em;">${item.document_number || '-'}</small></td>
+					<td style="width: 15%;">${item.department_name || '-'}</td>
+					<td style="width: 10%; text-align: center;">${item.revision_number || '1'}</td>
+					<td style="width: 12%; white-space: nowrap;">${formatDate(item.publish_date)}</td>
+					<td style="width: 12%; white-space: nowrap;">${formatDate(item.revision_date)}</td>
+					<td style="width: 21%;">${statusBadge}</td>
+				</tr>
+			`;
+		}).join('');
+		
+		summaryHtml = `
+			<p><strong>Toplam Doküman Sayısı:</strong> ${totalCount}</p>
+			<p><strong>Kategori:</strong> ${record.categoryName || '-'}</p>
+		`;
 	}
 
 	return `

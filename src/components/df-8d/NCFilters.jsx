@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
@@ -6,27 +6,55 @@ import { supabase } from '@/lib/customSupabaseClient';
 
 const NCFilters = ({ filters, setFilters }) => {
     const [departments, setDepartments] = useState([]);
+    const [localSearchTerm, setLocalSearchTerm] = useState(filters.searchTerm || '');
 
     useEffect(() => {
         const fetchDepartments = async () => {
-            // Fetch departments from personnel table to get unique, active departments
-            const { data, error } = await supabase
-                .from('personnel')
-                .select('department')
-                .neq('department', null);
+            // Fetch departments from cost_settings table (daha güvenilir)
+            const { data: costSettingsData, error: costError } = await supabase
+                .from('cost_settings')
+                .select('unit_name')
+                .order('unit_name');
 
-            if (!error && data) {
-                const departmentNames = [...new Set(data.map(d => d.department))].sort();
+            if (!costError && costSettingsData) {
+                const departmentNames = costSettingsData.map(d => d.unit_name).filter(Boolean);
                 setDepartments(['all', ...departmentNames]);
             } else {
-                 setDepartments(['all']);
+                // Fallback: personnel tablosundan al
+                const { data, error } = await supabase
+                    .from('personnel')
+                    .select('department')
+                    .neq('department', null);
+
+                if (!error && data) {
+                    const departmentNames = [...new Set(data.map(d => d.department))].sort();
+                    setDepartments(['all', ...departmentNames]);
+                } else {
+                    setDepartments(['all']);
+                }
             }
         };
         fetchDepartments();
     }, []);
 
+    // Local search term'i senkronize et
+    useEffect(() => {
+        setLocalSearchTerm(filters.searchTerm || '');
+    }, [filters.searchTerm]);
+
+    // Debounce ile arama terimini güncelle (100ms gecikme)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (localSearchTerm !== filters.searchTerm) {
+                setFilters(prev => ({ ...prev, searchTerm: localSearchTerm }));
+            }
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, [localSearchTerm, filters.searchTerm, setFilters]);
+
     const handleInputChange = (e) => {
-        setFilters(prev => ({ ...prev, searchTerm: e.target.value }));
+        setLocalSearchTerm(e.target.value);
     };
 
     const handleSelectChange = (filterName, value) => {
@@ -39,8 +67,8 @@ const NCFilters = ({ filters, setFilters }) => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="text"
-                    placeholder="Ara (No, Başlık, Sorumlu...)"
-                    value={filters.searchTerm}
+                    placeholder="Ara (No, Başlık, Açıklama, Sorumlu, Birim, Tedarikçi, Parça...)"
+                    value={localSearchTerm}
                     onChange={handleInputChange}
                     className="pl-10 w-full"
                 />
