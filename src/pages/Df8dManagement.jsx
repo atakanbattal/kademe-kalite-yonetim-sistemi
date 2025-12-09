@@ -25,6 +25,10 @@ import React, { useState, useMemo, useCallback } from 'react';
             status: 'all',
             type: 'all',
             department: 'all',
+            openingDateFrom: null,
+            openingDateTo: null,
+            closingDateFrom: null,
+            closingDateTo: null,
         });
         
         const [recordListModal, setRecordListModal] = useState({ isOpen: false, title: '', records: [] });
@@ -63,10 +67,51 @@ import React, { useState, useMemo, useCallback } from 'react';
                         }
                     }
 
-                    const matchesType = filters.type === 'all' || record.type === filters.type;
-                    const matchesDepartment = filters.department === 'all' || record.department === filters.department;
+                const matchesType = filters.type === 'all' || record.type === filters.type;
+                const matchesDepartment = filters.department === 'all' || record.department === filters.department;
 
-                    return matchesStatus && matchesType && matchesDepartment;
+                // Açılış tarihi filtresi
+                let matchesOpeningDate = true;
+                if (filters.openingDateFrom || filters.openingDateTo) {
+                    const openingDate = record.df_opened_at || record.opening_date || record.created_at;
+                    if (openingDate) {
+                        const openingDateObj = parseISO(openingDate);
+                        if (filters.openingDateFrom) {
+                            const fromDate = new Date(filters.openingDateFrom);
+                            fromDate.setHours(0, 0, 0, 0);
+                            matchesOpeningDate = matchesOpeningDate && openingDateObj >= fromDate;
+                        }
+                        if (filters.openingDateTo) {
+                            const toDate = new Date(filters.openingDateTo);
+                            toDate.setHours(23, 59, 59, 999);
+                            matchesOpeningDate = matchesOpeningDate && openingDateObj <= toDate;
+                        }
+                    } else {
+                        matchesOpeningDate = false;
+                    }
+                }
+
+                // Kapanış tarihi filtresi
+                let matchesClosingDate = true;
+                if (filters.closingDateFrom || filters.closingDateTo) {
+                    if (record.closed_at) {
+                        const closingDateObj = parseISO(record.closed_at);
+                        if (filters.closingDateFrom) {
+                            const fromDate = new Date(filters.closingDateFrom);
+                            fromDate.setHours(0, 0, 0, 0);
+                            matchesClosingDate = matchesClosingDate && closingDateObj >= fromDate;
+                        }
+                        if (filters.closingDateTo) {
+                            const toDate = new Date(filters.closingDateTo);
+                            toDate.setHours(23, 59, 59, 999);
+                            matchesClosingDate = matchesClosingDate && closingDateObj <= toDate;
+                        }
+                    } else {
+                        matchesClosingDate = false;
+                    }
+                }
+
+                return matchesStatus && matchesType && matchesDepartment && matchesOpeningDate && matchesClosingDate;
                 });
 
                 return filtered.sort((a, b) => {
@@ -132,7 +177,48 @@ import React, { useState, useMemo, useCallback } from 'react';
                 const matchesType = filters.type === 'all' || record.type === filters.type;
                 const matchesDepartment = filters.department === 'all' || record.department === filters.department;
 
-                return matchesSearch && matchesStatus && matchesType && matchesDepartment;
+                // Açılış tarihi filtresi
+                let matchesOpeningDate = true;
+                if (filters.openingDateFrom || filters.openingDateTo) {
+                    const openingDate = record.df_opened_at || record.opening_date || record.created_at;
+                    if (openingDate) {
+                        const openingDateObj = parseISO(openingDate);
+                        if (filters.openingDateFrom) {
+                            const fromDate = new Date(filters.openingDateFrom);
+                            fromDate.setHours(0, 0, 0, 0);
+                            matchesOpeningDate = matchesOpeningDate && openingDateObj >= fromDate;
+                        }
+                        if (filters.openingDateTo) {
+                            const toDate = new Date(filters.openingDateTo);
+                            toDate.setHours(23, 59, 59, 999);
+                            matchesOpeningDate = matchesOpeningDate && openingDateObj <= toDate;
+                        }
+                    } else {
+                        matchesOpeningDate = false;
+                    }
+                }
+
+                // Kapanış tarihi filtresi
+                let matchesClosingDate = true;
+                if (filters.closingDateFrom || filters.closingDateTo) {
+                    if (record.closed_at) {
+                        const closingDateObj = parseISO(record.closed_at);
+                        if (filters.closingDateFrom) {
+                            const fromDate = new Date(filters.closingDateFrom);
+                            fromDate.setHours(0, 0, 0, 0);
+                            matchesClosingDate = matchesClosingDate && closingDateObj >= fromDate;
+                        }
+                        if (filters.closingDateTo) {
+                            const toDate = new Date(filters.closingDateTo);
+                            toDate.setHours(23, 59, 59, 999);
+                            matchesClosingDate = matchesClosingDate && closingDateObj <= toDate;
+                        }
+                    } else {
+                        matchesClosingDate = false;
+                    }
+                }
+
+                return matchesSearch && matchesStatus && matchesType && matchesDepartment && matchesOpeningDate && matchesClosingDate;
             });
 
             return filtered.sort((a, b) => {

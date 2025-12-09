@@ -86,6 +86,8 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                             <th className="px-4 py-2 text-left">Tip</th>
                             <th className="px-4 py-2 text-left">Problem</th>
                             <th className="px-4 py-2 text-left">Departman</th>
+                            <th className="px-4 py-2 text-left">Açılış Tarihi</th>
+                            <th className="px-4 py-2 text-left">Kapanış Tarihi</th>
                             <th className="px-4 py-2 text-left">Termin Tarihi</th>
                             <th className="px-4 py-2 text-left">Durum</th>
                             <th className="px-4 py-2 text-center">İşlemler</th>
@@ -115,6 +117,12 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                     </td>
                                     <td className="border-t border-border px-4 py-2 text-sm max-w-xs truncate">{record.title}</td>
                                     <td className="border-t border-border px-4 py-2 text-sm">{record.department}</td>
+                                    <td className="border-t border-border px-4 py-2 text-sm">
+                                        {formatDate(record.df_opened_at || record.opening_date || record.created_at)}
+                                    </td>
+                                    <td className="border-t border-border px-4 py-2 text-sm">
+                                        {record.closed_at ? formatDate(record.closed_at) : '-'}
+                                    </td>
                                     <td className="border-t border-border px-4 py-2 text-sm">
                                         {record.status === 'Reddedildi' ? '-' : formatDate(record.due_at)}
                                     </td>
