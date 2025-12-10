@@ -174,20 +174,12 @@ import React, { useState, useEffect } from 'react';
 
             let result;
             if (isEditMode) {
-                // Düzenleme modunda report_number'ı güncelleme (standart veya tür değiştiyse)
-                const updateData = { ...formData };
-                // Eğer standart veya tür değiştiyse, yeni rapor numarası oluştur
-                if (formData.audit_standard_id && formData.audit_type_id && 
-                    (formData.audit_standard_id !== auditToEdit.audit_standard_id || 
-                     formData.audit_type_id !== auditToEdit.audit_type_id)) {
-                    // Rapor numarasını null yap, trigger otomatik oluşturacak
-                    updateData.report_number = null;
-                }
-                const { error } = await supabase.from('audits').update(updateData).eq('id', auditToEdit.id);
+                // Düzenleme modunda - trigger otomatik olarak rapor numarasını güncelleyecek
+                const { error } = await supabase.from('audits').update(formData).eq('id', auditToEdit.id);
                 result = { error };
             } else {
                 // Yeni kayıt - report_number trigger tarafından otomatik oluşturulacak
-                const { error } = await supabase.from('audits').insert({ ...formData, status: 'Planlandı', report_number: null });
+                const { error } = await supabase.from('audits').insert({ ...formData, status: 'Planlandı' });
                 result = { error };
             }
 
@@ -226,7 +218,7 @@ import React, { useState, useEffect } from 'react';
                             <div>
                                 <div className="flex items-center justify-between mb-2">
                                     <Label htmlFor="audit_type_id">Denetim Türü <span className="text-red-500">*</span></Label>
-                                    {formData.audit_standard_id && (
+                                    {formData.audit_standard_id && !isEditMode && (
                                         <Button
                                             type="button"
                                             variant="ghost"
