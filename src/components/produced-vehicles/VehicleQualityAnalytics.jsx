@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line } from 'recharts';
 import { useData } from '@/contexts/DataContext';
-import { Car, TrendingUp, AlertTriangle, CheckCircle, Percent, Factory } from 'lucide-react';
+import { Car, TrendingUp, AlertTriangle, CheckCircle, Percent, Factory, HelpCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -320,7 +321,27 @@ const VehicleQualityAnalytics = () => {
                                             <TableHead className="text-right">Sevk Edildi</TableHead>
                                             <TableHead className="text-right">Sevk Hazır</TableHead>
                                             <TableHead className="text-right">Yeniden İşlemde</TableHead>
-                                            <TableHead className="text-right">Kalite İndeksi</TableHead>
+                                            <TableHead className="text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    Kalite İndeksi
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="max-w-xs">
+                                                                <p className="font-semibold mb-2">Kalite İndeksi</p>
+                                                                <p className="text-sm">
+                                                                    Üretilen araçların ne kadarının başarıyla sevk edilebilir duruma geldiğini gösterir.
+                                                                </p>
+                                                                <p className="text-sm mt-2">
+                                                                    <strong>Hesaplama:</strong> (Sevk Edilen + Sevk Hazır) / Toplam × 100
+                                                                </p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </div>
+                                            </TableHead>
                                             <TableHead className="text-right">Hata Oranı</TableHead>
                                             <TableHead className="text-right">Araç Başı Hata</TableHead>
                                         </TableRow>
