@@ -47,9 +47,10 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
 
         const { data: existingResults, error: resultsError } = await supabase
             .from('audit_results')
-            .select('*')
+            .select('*, question:audit_question_bank!question_id(order_number)')
             .eq('audit_id', auditId)
-            .order('created_at');
+            .order('question.order_number', { ascending: true, nullsFirst: false })
+            .order('created_at', { ascending: true });
 
         if (resultsError) {
             toast({ variant: 'destructive', title: 'Hata', description: `Tetkik soruları alınamadı: ${resultsError.message}` });
@@ -65,7 +66,9 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                 .select('*')
                 .eq('department_id', auditData.department_id)
                 .eq('audit_standard_id', auditData.audit_standard_id)
-                .eq('is_active', true);
+                .eq('is_active', true)
+                .order('order_number', { ascending: true, nullsFirst: false })
+                .order('created_at', { ascending: true });
 
             if (bankError) {
                 toast({ variant: 'destructive', title: 'Hata', description: `Soru bankası alınamadı: ${bankError.message}` });

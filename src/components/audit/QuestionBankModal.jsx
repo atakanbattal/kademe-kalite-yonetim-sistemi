@@ -91,7 +91,8 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
             .select('*, audit_standard:audit_standards(code, name)')
             .eq('department_id', departmentId)
             .eq('audit_standard_id', standardId)
-            .order('created_at');
+            .order('order_number', { ascending: true, nullsFirst: false })
+            .order('created_at', { ascending: true });
         
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Sorular yüklenemedi.' });
@@ -201,12 +202,26 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
             return;
         }
         
+        // Mevcut soruların maksimum order_number'ını bul
+        const { data: existingQuestions } = await supabase
+            .from('audit_question_bank')
+            .select('order_number')
+            .eq('department_id', selectedDeptId)
+            .eq('audit_standard_id', selectedStandardId)
+            .order('order_number', { ascending: false })
+            .limit(1);
+        
+        const nextOrderNumber = existingQuestions && existingQuestions.length > 0 
+            ? (existingQuestions[0].order_number || 0) + 1 
+            : 1;
+        
         const { data, error } = await supabase
             .from('audit_question_bank')
             .insert([{ 
                 department_id: selectedDeptId, 
                 audit_standard_id: selectedStandardId,
-                question_text: newQuestion.trim() 
+                question_text: newQuestion.trim(),
+                order_number: nextOrderNumber
             }])
             .select('*, audit_standard:audit_standards(code, name)');
 
