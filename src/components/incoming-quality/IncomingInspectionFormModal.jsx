@@ -547,13 +547,18 @@ setShowRiskyStockAlert(false);
             setCheckingRiskyStock(true);
 
             try {
+                // Mevcut kaydın muayene tarihini al
+                const currentInspectionDate = formData.inspection_date 
+                    ? format(new Date(formData.inspection_date), 'yyyy-MM-dd')
+                    : format(new Date(), 'yyyy-MM-dd');
+                
                 let query = supabase
                     .from('incoming_inspections')
                     .select('*, supplier:suppliers!left(id, name)')
                     .eq('part_code', formData.part_code)
                     .in('decision', ['Kabul', 'Kabul Edildi'])
                     .gt('quantity_accepted', 0)
-                    .gte('inspection_date', format(subMonths(new Date(), 6), 'yyyy-MM-dd'))
+                    .lte('inspection_date', currentInspectionDate) // Sadece mevcut kayıt tarihi ve öncesi
                     .order('inspection_date', { ascending: false })
                     .limit(10);
                 

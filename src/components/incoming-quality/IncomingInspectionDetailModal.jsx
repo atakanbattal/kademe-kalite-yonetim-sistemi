@@ -89,13 +89,20 @@ const IncomingInspectionDetailModal = ({
             setCheckingRiskyStock(true);
             try {
                 console.log('📊 Önceki kabul edilen kayıtlar aranıyor:', enrichedInspection.part_code);
-                // Bu part_code'dan daha önce kabul edilen kayıtları kontrol et
+                
+                // Mevcut kaydın muayene tarihini al
+                const currentInspectionDate = enrichedInspection.inspection_date 
+                    ? format(new Date(enrichedInspection.inspection_date), 'yyyy-MM-dd')
+                    : format(new Date(), 'yyyy-MM-dd');
+                
+                // Bu part_code'dan mevcut kaydın muayene tarihi ve öncesi kabul edilen kayıtları kontrol et
                 const { data: previousAccepted, error } = await supabase
                     .from('incoming_inspections')
                     .select('id, record_no, inspection_date, supplier:suppliers(name), quantity_accepted')
                     .eq('part_code', enrichedInspection.part_code)
                     .eq('decision', 'Kabul')
                     .neq('id', enrichedInspection.id)
+                    .lte('inspection_date', currentInspectionDate) // Sadece mevcut kayıt tarihi ve öncesi
                     .order('inspection_date', { ascending: false });
                 
                 if (error) {
