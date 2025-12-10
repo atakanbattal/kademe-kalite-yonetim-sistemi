@@ -19,7 +19,12 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
         setLoading(true);
         const { data: auditData, error: auditError } = await supabase
             .from('audits')
-            .select('*, department:cost_settings(id, unit_name)')
+            .select(`
+                *,
+                department:cost_settings(id, unit_name),
+                audit_standard:audit_standards(id, code, name),
+                audit_type:audit_types(id, name)
+            `)
             .eq('id', auditId)
             .single();
 
@@ -60,7 +65,8 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                 .from('audit_question_bank')
                 .select('*')
                 .eq('department_id', auditData.department_id)
-                .is('is_active', true);
+                .eq('audit_standard_id', auditData.audit_standard_id)
+                .eq('is_active', true);
 
             if (bankError) {
                 toast({ variant: 'destructive', title: 'Hata', description: `Soru bankası alınamadı: ${bankError.message}` });
@@ -228,7 +234,11 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                             <h1 className="text-3xl font-bold text-foreground">{audit.report_number}</h1>
                             <Badge variant={getStatusVariant(audit.status)}>{audit.status}</Badge>
                         </div>
-                        <p className="text-muted-foreground">{audit.title} - {audit.department?.unit_name || 'N/A'}</p>
+                        <p className="text-muted-foreground">
+                            {audit.title} - {audit.department?.unit_name || 'N/A'}
+                            {audit.audit_standard && ` | ${audit.audit_standard.code} - ${audit.audit_standard.name}`}
+                            {audit.audit_type && ` | ${audit.audit_type.name}`}
+                        </p>
                     </div>
                 </div>
                 <Button variant="outline" onClick={handlePrint}>

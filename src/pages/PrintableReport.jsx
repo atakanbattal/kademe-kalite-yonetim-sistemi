@@ -152,7 +152,13 @@ import React, { useEffect, useState } from 'react';
                         case 'internal_audit': {
                             const { data: auditData, error: auditError } = await supabase
                                 .from('audits')
-                                .select('*, department:department_id!left(unit_name), audit_results:audit_results!left(*)')
+                                .select(`
+                                    *,
+                                    department:department_id!left(unit_name),
+                                    audit_standard:audit_standards!audit_standard_id(id, code, name),
+                                    audit_type:audit_types!audit_type_id(id, name),
+                                    audit_results:audit_results!left(*)
+                                `)
                                 .eq('id', id)
                                 .maybeSingle();
                             recordData = auditData;

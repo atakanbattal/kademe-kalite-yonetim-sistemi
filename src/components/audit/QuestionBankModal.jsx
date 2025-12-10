@@ -11,11 +11,14 @@ import { PlusCircle, Trash2 } from 'lucide-react';
 const QuestionBankModal = ({ isOpen, setIsOpen }) => {
     const { toast } = useToast();
     const [departments, setDepartments] = useState([]);
+    const [auditStandards, setAuditStandards] = useState([]);
     const [selectedDeptId, setSelectedDeptId] = useState('');
+    const [selectedStandardId, setSelectedStandardId] = useState('');
     const [questions, setQuestions] = useState([]);
     const [newQuestion, setNewQuestion] = useState('');
     const [loading, setLoading] = useState(false);
     const [loadingDepartments, setLoadingDepartments] = useState(true);
+    const [loadingStandards, setLoadingStandards] = useState(true);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -34,11 +37,35 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
             }
             setLoadingDepartments(false);
         };
+        
+        const fetchStandards = async () => {
+            setLoadingStandards(true);
+            const { data, error } = await supabase
+                .from('audit_standards')
+                .select('id, code, name')
+                .eq('is_active', true)
+                .order('code');
+
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Standartlar yüklenemedi.' });
+                setAuditStandards([]);
+            } else {
+                setAuditStandards(data);
+                // Varsayılan olarak 9001'i seç
+                if (data && data.length > 0) {
+                    const defaultStandard = data.find(s => s.code === '9001') || data[0];
+                    setSelectedStandardId(defaultStandard.id);
+                }
+            }
+            setLoadingStandards(false);
+        };
+        
         fetchDepartments();
+        fetchStandards();
     }, [isOpen, toast]);
 
-    const fetchQuestions = useCallback(async (departmentId) => {
-        if (!departmentId) {
+    const fetchQuestions = useCallback(async (departmentId, standardId) => {
+        if (!departmentId || !standardId) {
             setQuestions([]);
             return;
         }
@@ -46,8 +73,9 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
 
         const { data, error } = await supabase
             .from('audit_question_bank')
-            .select('*')
+            .select('*, audit_standard:audit_standards(code, name)')
             .eq('department_id', departmentId)
+            .eq('audit_standard_id', standardId)
             .order('created_at');
         
         if (error) {
@@ -60,19 +88,26 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
     }, [toast]);
 
     useEffect(() => {
-        fetchQuestions(selectedDeptId);
-    }, [selectedDeptId, fetchQuestions]);
+        fetchQuestions(selectedDeptId, selectedStandardId);
+    }, [selectedDeptId, selectedStandardId, fetchQuestions]);
 
     const handleAddQuestion = async () => {
-        if (!newQuestion.trim() || !selectedDeptId) return;
+        if (!newQuestion.trim() || !selectedDeptId || !selectedStandardId) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Lütfen birim ve standart seçin.' });
+            return;
+        }
         
         const { data, error } = await supabase
             .from('audit_question_bank')
-            .insert([{ department_id: selectedDeptId, question_text: newQuestion.trim() }])
-            .select();
+            .insert([{ 
+                department_id: selectedDeptId, 
+                audit_standard_id: selectedStandardId,
+                question_text: newQuestion.trim() 
+            }])
+            .select('*, audit_standard:audit_standards(code, name)');
 
         if (error) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'Soru eklenemedi.' });
+            toast({ variant: 'destructive', title: 'Hata', description: 'Soru eklenemedi: ' + error.message });
         } else {
             setQuestions([...questions, ...data]);
             setNewQuestion('');
@@ -102,23 +137,42 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                     <DialogDescription>Birimler için tetkik sorularını yönetin.</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
-                    <div>
-                        <Label htmlFor="department-select">Birim Seçin</Label>
-                        <Select value={selectedDeptId} onValueChange={setSelectedDeptId} disabled={loadingDepartments}>
-                            <SelectTrigger id="department-select">
-                                <SelectValue placeholder={loadingDepartments ? "Birimler yükleniyor..." : "Soruları görmek için birim seçin"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {!loadingDepartments && departments.map(dept => (
-                                    <SelectItem key={dept.id} value={dept.id}>{dept.unit_name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="standard-select">İç Tetkik Standartı <span className="text-red-500">*</span></Label>
+                            <Select value={selectedStandardId} onValueChange={setSelectedStandardId} disabled={loadingStandards}>
+                                <SelectTrigger id="standard-select">
+                                    <SelectValue placeholder={loadingStandards ? "Standartlar yükleniyor..." : "Standart seçin"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {!loadingStandards && auditStandards.map(standard => (
+                                        <SelectItem key={standard.id} value={standard.id}>
+                                            {standard.code} - {standard.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="department-select">Birim Seçin <span className="text-red-500">*</span></Label>
+                            <Select value={selectedDeptId} onValueChange={setSelectedDeptId} disabled={loadingDepartments}>
+                                <SelectTrigger id="department-select">
+                                    <SelectValue placeholder={loadingDepartments ? "Birimler yükleniyor..." : "Birim seçin"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {!loadingDepartments && departments.map(dept => (
+                                        <SelectItem key={dept.id} value={dept.id}>{dept.unit_name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
-                    {selectedDeptId && (
+                    {selectedDeptId && selectedStandardId && (
                         <div className="space-y-4 pt-4 border-t border-border">
-                            <h4 className="font-semibold text-foreground">Sorular</h4>
+                            <h4 className="font-semibold text-foreground">
+                                Sorular ({auditStandards.find(s => s.id === selectedStandardId)?.code || ''} - {departments.find(d => d.id === selectedDeptId)?.unit_name || ''})
+                            </h4>
                             <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
                                 {loading && <p>Yükleniyor...</p>}
                                 {!loading && questions.length === 0 && <p className="text-muted-foreground text-sm">Bu birim için soru bulunmuyor.</p>}

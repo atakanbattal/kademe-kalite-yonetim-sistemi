@@ -1473,6 +1473,8 @@ const generateGenericReportHtml = (record, type) => {
 		}
 		case 'internal_audit': {
 					return `
+						<tr><td>İç Tetkik Standartı</td><td>${record.audit_standard ? `${record.audit_standard.code} - ${record.audit_standard.name}` : '-'}</td></tr>
+						<tr><td>Denetim Türü</td><td>${record.audit_type?.name || '-'}</td></tr>
 						<tr><td>Tetkik Başlığı</td><td>${record.title || '-'}</td></tr>
 						<tr><td>Denetlenen Birim</td><td>${record.department?.unit_name || '-'}</td></tr>
 						<tr><td>Tetkik Tarihi</td><td>${formatDate(record.audit_date)}</td></tr>
