@@ -3,10 +3,11 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Plus } from 'lucide-react';
 
 const QuestionBankModal = ({ isOpen, setIsOpen }) => {
     const { toast } = useToast();
@@ -19,6 +20,9 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
     const [loading, setLoading] = useState(false);
     const [loadingDepartments, setLoadingDepartments] = useState(true);
     const [loadingStandards, setLoadingStandards] = useState(true);
+    const [isAddingAuditStandard, setIsAddingAuditStandard] = useState(false);
+    const [newAuditStandardCode, setNewAuditStandardCode] = useState('');
+    const [newAuditStandardName, setNewAuditStandardName] = useState('');
 
     useEffect(() => {
         if (!isOpen) return;
@@ -129,6 +133,33 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
         }
     };
 
+    const handleAddAuditStandard = async () => {
+        if (!newAuditStandardCode.trim() || !newAuditStandardName.trim()) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Lütfen standart kodu ve adı girin.' });
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('audit_standards')
+            .insert([{
+                code: newAuditStandardCode.trim(),
+                name: newAuditStandardName.trim()
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Standart eklenemedi: ' + error.message });
+        } else {
+            setAuditStandards([...auditStandards, data]);
+            setSelectedStandardId(data.id);
+            setNewAuditStandardCode('');
+            setNewAuditStandardName('');
+            setIsAddingAuditStandard(false);
+            toast({ title: 'Başarılı', description: 'Standart eklendi.' });
+        }
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-2xl">
@@ -139,19 +170,55 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                 <div className="py-4 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="standard-select">İç Tetkik Standartı <span className="text-red-500">*</span></Label>
-                            <Select value={selectedStandardId} onValueChange={setSelectedStandardId} disabled={loadingStandards}>
-                                <SelectTrigger id="standard-select">
-                                    <SelectValue placeholder={loadingStandards ? "Standartlar yükleniyor..." : "Standart seçin"} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {!loadingStandards && auditStandards.map(standard => (
-                                        <SelectItem key={standard.id} value={standard.id}>
-                                            {standard.code} - {standard.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="flex items-center justify-between mb-2">
+                                <Label htmlFor="standard-select">İç Tetkik Standartı <span className="text-red-500">*</span></Label>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsAddingAuditStandard(!isAddingAuditStandard)}
+                                    className="h-7 text-xs"
+                                >
+                                    <Plus className="w-3 h-3 mr-1" />
+                                    {isAddingAuditStandard ? 'İptal' : 'Yeni Ekle'}
+                                </Button>
+                            </div>
+                            {isAddingAuditStandard ? (
+                                <div className="space-y-2">
+                                    <Input
+                                        placeholder="Standart Kodu (örn: 9001, 14001)"
+                                        value={newAuditStandardCode}
+                                        onChange={(e) => setNewAuditStandardCode(e.target.value)}
+                                    />
+                                    <Input
+                                        placeholder="Standart Adı (örn: ISO 9001:2015)"
+                                        value={newAuditStandardName}
+                                        onChange={(e) => setNewAuditStandardName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleAddAuditStandard();
+                                            }
+                                        }}
+                                    />
+                                    <Button type="button" onClick={handleAddAuditStandard} size="sm" className="w-full">
+                                        Ekle
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Select value={selectedStandardId} onValueChange={setSelectedStandardId} disabled={loadingStandards}>
+                                    <SelectTrigger id="standard-select">
+                                        <SelectValue placeholder={loadingStandards ? "Standartlar yükleniyor..." : "Standart seçin"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {!loadingStandards && auditStandards.map(standard => (
+                                            <SelectItem key={standard.id} value={standard.id}>
+                                                {standard.code} - {standard.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
                         <div>
                             <Label htmlFor="department-select">Birim Seçin <span className="text-red-500">*</span></Label>
