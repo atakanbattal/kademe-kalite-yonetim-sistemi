@@ -61,15 +61,20 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
             supplier_id: item.supplier_id,
             results: item.results,
             decision: item.overall_decision,
-            controlled_by_id: user.id
+            controlled_by_id: user.id,
+            status: 'Beklemede'
         }));
 
         const { error } = await supabase.from('stock_risk_controls').insert(recordsToInsert);
 
         if (error) {
-            toast({ variant: 'destructive', title: 'Hata', description: `Stok kontrol sonuçları kaydedilemedi: ${error.message}` });
+            toast({ variant: 'destructive', title: 'Hata', description: `Stok risk kontrolü başlatılamadı: ${error.message}` });
         } else {
-            toast({ title: 'Başarılı', description: 'Stok kontrol sonuçları başarıyla kaydedildi.' });
+            toast({ 
+                title: 'Stok Risk Kontrolü Başlatıldı', 
+                description: `${controlResults.length} adet stok risk kontrol kaydı oluşturuldu. Kontrolleri tamamlamak için "Stok Risk Kontrolleri" sekmesinden devam edebilirsiniz.`,
+                duration: 5000
+            });
             refreshData();
             setIsOpen(false);
         }

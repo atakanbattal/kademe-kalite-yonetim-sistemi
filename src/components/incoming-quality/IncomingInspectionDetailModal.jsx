@@ -270,6 +270,11 @@ const IncomingInspectionDetailModal = ({
             // StockRiskModal'ı aç - Form modal ile aynı yapı
             if (onOpenStockRiskModal) {
                 onOpenStockRiskModal(enrichedInspection, fullRiskyStock);
+                toast({
+                    title: 'Stok Risk Kontrolü Başlatılıyor',
+                    description: `${fullRiskyStock.length} adet riskli stok kaydı için kontrol başlatılıyor. Kontrol sonuçlarını kaydedebilirsiniz.`,
+                    duration: 4000
+                });
                 setIsOpen(false); // Bu modalı kapat
             } else {
                 toast({
