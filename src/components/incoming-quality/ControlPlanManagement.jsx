@@ -610,22 +610,24 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         const handleRevise = async (plan) => {
             const newRevisionNumber = (plan.revision_number || 0) + 1;
             
-            const { id, created_at, ...restOfPlan } = plan;
-
-            const newPlanData = {
-                ...restOfPlan,
+            const updateData = {
                 revision_number: newRevisionNumber,
                 revision_date: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
             
-            const { data: newPlan, error } = await supabase.from('incoming_control_plans').insert(newPlanData).select().single();
+            const { data: updatedPlan, error } = await supabase
+                .from('incoming_control_plans')
+                .update(updateData)
+                .eq('id', plan.id)
+                .select()
+                .single();
 
             if (error) {
-                toast({ variant: 'destructive', title: 'Hata!', description: `Revizyon oluşturulamadı: ${error.message}` });
+                toast({ variant: 'destructive', title: 'Hata!', description: `Revizyon güncellenemedi: ${error.message}` });
             } else {
-                toast({ title: 'Başarılı!', description: 'Yeni revizyon oluşturuldu. Şimdi düzenleyebilirsiniz.' });
-                handleEdit(newPlan);
+                toast({ title: 'Başarılı!', description: `Kontrol planı Rev. ${newRevisionNumber} olarak revize edildi. Şimdi düzenleyebilirsiniz.` });
+                handleEdit(updatedPlan);
                 fetchPlans(); 
             }
         };
