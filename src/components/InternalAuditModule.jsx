@@ -81,7 +81,7 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
                  <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={() => setIsQuestionBankModalOpen(true)}>
                         <ListChecks className="w-4 h-4 mr-2" />
-                        Soru Bankası
+                        Tetkik Yönetimi
                     </Button>
                     <Button onClick={handleOpenNewPlan}>
                         <Plus className="w-4 h-4 mr-2" />
