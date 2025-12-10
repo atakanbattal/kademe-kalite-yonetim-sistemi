@@ -405,7 +405,31 @@ const VehicleQualityAnalytics = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Üretim Hattı Kalite İndeksi</CardTitle>
+                                <CardTitle className="flex items-center gap-2">
+                                    Üretim Hattı Kalite İndeksi
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-xs">
+                                                <p className="font-semibold mb-2">Kalite İndeksi Nedir?</p>
+                                                <p className="text-sm">
+                                                    Kalite İndeksi, üretilen araçların ne kadarının başarıyla sevk edilebilir duruma geldiğini gösterir.
+                                                </p>
+                                                <p className="text-sm mt-2">
+                                                    <strong>Hesaplama:</strong> (Sevk Edilen + Sevk Hazır) / Toplam Araç Sayısı × 100
+                                                </p>
+                                                <p className="text-sm mt-2">
+                                                    <strong>Yorumlama:</strong><br />
+                                                    • %90 ve üzeri: Mükemmel (Yeşil)<br />
+                                                    • %75-89: İyi (Sarı)<br />
+                                                    • %75 altı: İyileştirme Gerekli (Kırmızı)
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <ResponsiveContainer width="100%" height={400}>
