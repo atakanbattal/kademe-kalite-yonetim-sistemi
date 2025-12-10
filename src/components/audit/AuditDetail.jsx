@@ -47,9 +47,9 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
 
         const { data: existingResults, error: resultsError } = await supabase
             .from('audit_results')
-            .select('*, question:audit_question_bank!question_id(order_number)')
+            .select('*')
             .eq('audit_id', auditId)
-            .order('question.order_number', { ascending: true, nullsFirst: false })
+            .order('order_number', { ascending: true, nullsFirst: false })
             .order('created_at', { ascending: true });
 
         if (resultsError) {
@@ -78,7 +78,8 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                     question_id: q.id,
                     question_text: q.question_text,
                     answer: null,
-                    notes: ''
+                    notes: '',
+                    order_number: q.order_number || 0
                 }));
 
                 const { data: insertedResults, error: insertError } = await supabase
