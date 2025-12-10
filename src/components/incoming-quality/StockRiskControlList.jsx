@@ -94,10 +94,34 @@ const StockRiskControlList = () => {
                 description: `Kontrol başlatılamadı: ${error.message}`,
             });
         } else {
-            toast({
-                title: 'Başarılı',
-                description: 'Kontrol başlatıldı.',
-            });
+            // Güncellenmiş kontrol verisini çek
+            const { data: updatedControl, error: fetchError } = await supabase
+                .from('stock_risk_controls')
+                .select(`
+                    *,
+                    supplier:suppliers!stock_risk_controls_supplier_id_fkey(id, name),
+                    source_inspection:incoming_inspections!stock_risk_controls_source_inspection_id_fkey(id, record_no, part_code, part_name),
+                    controlled_inspection:incoming_inspections!stock_risk_controls_controlled_inspection_id_fkey(id, record_no, part_code, part_name),
+                    controlled_by:profiles!stock_risk_controls_controlled_by_id_fkey(id, full_name)
+                `)
+                .eq('id', control.id)
+                .single();
+
+            if (fetchError) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: `Kontrol başlatıldı ancak veri yüklenemedi: ${fetchError.message}`,
+                });
+            } else {
+                toast({
+                    title: 'Başarılı',
+                    description: 'Kontrol başlatıldı. Sonuçları girebilirsiniz.',
+                });
+                // Kontrol sonuçlarını girebilmek için düzenleme modalını aç
+                setSelectedEditControl(updatedControl);
+                setIsEditModalOpen(true);
+            }
             refreshData();
         }
     };

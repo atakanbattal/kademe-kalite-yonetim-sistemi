@@ -80,9 +80,11 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: `Kontrol başlatılamadı: ${error.message}` });
         } else {
-            toast({ title: 'Başarılı', description: 'Kontrol başlatıldı.' });
+            toast({ title: 'Başarılı', description: 'Kontrol başlatıldı. Sonuçları girebilirsiniz.' });
+            // Status'ü güncelle ki modal içinde de görünsün
+            setStatus('Başlatıldı');
             refreshData();
-            setIsOpen(false);
+            // Modalı kapatma, kullanıcı sonuçları girebilsin
         }
 
         setIsSubmitting(false);
