@@ -94,10 +94,34 @@ const StockRiskControlList = () => {
                 description: `Kontrol başlatılamadı: ${error.message}`,
             });
         } else {
-            toast({
-                title: 'Başarılı',
-                description: 'Kontrol başlatıldı. Sonuçları girmek için "Düzenle" butonunu kullanabilirsiniz.',
-            });
+            // Güncellenmiş kontrol verisini çek
+            const { data: updatedControl, error: fetchError } = await supabase
+                .from('stock_risk_controls')
+                .select(`
+                    *,
+                    supplier:suppliers!stock_risk_controls_supplier_id_fkey(id, name),
+                    source_inspection:incoming_inspections!stock_risk_controls_source_inspection_id_fkey(id, record_no, part_code, part_name),
+                    controlled_inspection:incoming_inspections!stock_risk_controls_controlled_inspection_id_fkey(id, record_no, part_code, part_name),
+                    controlled_by:profiles!stock_risk_controls_controlled_by_id_fkey(id, full_name)
+                `)
+                .eq('id', control.id)
+                .single();
+
+            if (fetchError) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: `Kontrol başlatıldı ancak veri yüklenemedi: ${fetchError.message}`,
+                });
+            } else {
+                toast({
+                    title: 'Başarılı',
+                    description: 'Kontrol başlatıldı. Sonuçları girebilirsiniz.',
+                });
+                // Kontrol sonuçlarını girebilmek için düzenleme modalını aç
+                setSelectedEditControl(updatedControl);
+                setIsEditModalOpen(true);
+            }
             refreshData();
         }
     };
@@ -218,12 +242,11 @@ const StockRiskControlList = () => {
                             filteredControls.map((control, index) => (
                                 <tr 
                                     key={control.id} 
-                                    className="hover:bg-muted/50 cursor-pointer transition-colors"
+                                    className="hover:bg-muted/50 transition-colors"
                                     style={{
                                         opacity: 0,
                                         animation: `fadeIn 0.3s ease-in forwards ${index * 0.05}s`
                                     }}
-                                    onClick={() => handleViewRecord(control)}
                                 >
                                     <TableCell>
                                         <div className="font-medium">{control.part_name}</div>
