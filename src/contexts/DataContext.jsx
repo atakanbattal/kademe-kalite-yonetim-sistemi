@@ -175,8 +175,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 audits: supabase.from('audits').select(`
                     *,
                     department:cost_settings(id, unit_name),
-                    audit_standard:audit_standards!audit_standard_id(id, code, name),
-                    audit_type:audit_types!audit_type_id(id, name)
+                    audit_standard:audit_standards!audit_standard_id(id, code, name)
                 `).order('report_number', { ascending: false }),
                 auditFindings: supabase.from('audit_findings').select('*, audits(report_number), non_conformities!source_finding_id(id, nc_number, status)'),
                 quarantineRecords: supabase.from('quarantine_records_api').select('*').limit(500),

@@ -22,8 +22,7 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
             .select(`
                 *,
                 department:cost_settings(id, unit_name),
-                audit_standard:audit_standards(id, code, name),
-                audit_type:audit_types(id, name)
+                audit_standard:audit_standards(id, code, name)
             `)
             .eq('id', auditId)
             .single();
@@ -237,7 +236,6 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                         <p className="text-muted-foreground">
                             {audit.title} - {audit.department?.unit_name || 'N/A'}
                             {audit.audit_standard && ` | ${audit.audit_standard.code} - ${audit.audit_standard.name}`}
-                            {audit.audit_type && ` | ${audit.audit_type.name}`}
                         </p>
                     </div>
                 </div>
