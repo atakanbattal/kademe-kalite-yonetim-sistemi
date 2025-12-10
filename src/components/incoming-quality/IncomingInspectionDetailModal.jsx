@@ -388,17 +388,24 @@ const IncomingInspectionDetailModal = ({
                     
                     // actual_value öncelikli kontrol (veritabanında actual_value olarak kaydediliyor)
                     // measured_value veya actual_value kontrolü (0 geçerli bir ölçüm!)
-                    const measuredValue = (result.actual_value !== null && 
-                                          result.actual_value !== undefined && 
-                                          String(result.actual_value).trim() !== '') 
-                                        ? result.actual_value 
-                                        : (result.measured_value !== null && 
-                                           result.measured_value !== undefined && 
-                                           String(result.measured_value).trim() !== '' 
-                                           ? result.measured_value 
-                                           : null);
+                    // Önce actual_value kontrol et (veritabanında bu alan kullanılıyor)
+                    let measuredValue = null;
+                    if (result.actual_value !== null && result.actual_value !== undefined) {
+                        const actualValueStr = String(result.actual_value).trim();
+                        // Boş string değilse ve '0' da geçerli bir değer
+                        if (actualValueStr !== '' && actualValueStr !== 'null' && actualValueStr !== 'undefined') {
+                            measuredValue = result.actual_value;
+                        }
+                    }
+                    // Eğer actual_value yoksa measured_value'yu kontrol et
+                    if (measuredValue === null && result.measured_value !== null && result.measured_value !== undefined) {
+                        const measuredValueStr = String(result.measured_value).trim();
+                        if (measuredValueStr !== '' && measuredValueStr !== 'null' && measuredValueStr !== 'undefined') {
+                            measuredValue = result.measured_value;
+                        }
+                    }
                     
-                    console.log(`🔍 Ölçüm ${idx + 1} - raw actual_value:`, result.actual_value, 'raw measured_value:', result.measured_value, 'parsed:', measuredValue);
+                    console.log(`🔍 Ölçüm ${idx + 1} - actual_value:`, result.actual_value, 'measured_value:', result.measured_value, 'parsed:', measuredValue, 'result:', result);
                     
                     description += `\n${idx + 1}. ${result.characteristic_name || 'Özellik'}`;
                     if (result.measurement_number && result.total_measurements) {
