@@ -24,10 +24,7 @@ import React, { useState, useEffect } from 'react';
         const [auditTypes, setAuditTypes] = useState([]);
         const [isSubmitting, setIsSubmitting] = useState(false);
         const [isAddingAuditType, setIsAddingAuditType] = useState(false);
-        const [isAddingAuditStandard, setIsAddingAuditStandard] = useState(false);
         const [newAuditTypeName, setNewAuditTypeName] = useState('');
-        const [newAuditStandardCode, setNewAuditStandardCode] = useState('');
-        const [newAuditStandardName, setNewAuditStandardName] = useState('');
         const isEditMode = !!auditToEdit;
 
         useEffect(() => {
@@ -136,33 +133,6 @@ import React, { useState, useEffect } from 'react';
             }
         }, [formData.audit_type_id, auditTypes, isEditMode]);
 
-        const handleAddAuditStandard = async () => {
-            if (!newAuditStandardCode.trim() || !newAuditStandardName.trim()) {
-                toast({ variant: 'destructive', title: 'Hata', description: 'Lütfen standart kodu ve adı girin.' });
-                return;
-            }
-
-            const { data, error } = await supabase
-                .from('audit_standards')
-                .insert([{
-                    code: newAuditStandardCode.trim(),
-                    name: newAuditStandardName.trim()
-                }])
-                .select()
-                .single();
-
-            if (error) {
-                toast({ variant: 'destructive', title: 'Hata', description: 'Standart eklenemedi: ' + error.message });
-            } else {
-                setAuditStandards([...auditStandards, data]);
-                setFormData(prev => ({ ...prev, audit_standard_id: data.id }));
-                setNewAuditStandardCode('');
-                setNewAuditStandardName('');
-                setIsAddingAuditStandard(false);
-                toast({ title: 'Başarılı', description: 'Standart eklendi.' });
-            }
-        };
-
         const handleAddAuditType = async () => {
             if (!newAuditTypeName.trim() || !formData.audit_standard_id) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Lütfen denetim türü adı girin ve standart seçin.' });
@@ -204,10 +174,20 @@ import React, { useState, useEffect } from 'react';
 
             let result;
             if (isEditMode) {
-                const { error } = await supabase.from('audits').update(formData).eq('id', auditToEdit.id);
+                // Düzenleme modunda report_number'ı güncelleme (standart veya tür değiştiyse)
+                const updateData = { ...formData };
+                // Eğer standart veya tür değiştiyse, yeni rapor numarası oluştur
+                if (formData.audit_standard_id && formData.audit_type_id && 
+                    (formData.audit_standard_id !== auditToEdit.audit_standard_id || 
+                     formData.audit_type_id !== auditToEdit.audit_type_id)) {
+                    // Rapor numarasını null yap, trigger otomatik oluşturacak
+                    updateData.report_number = null;
+                }
+                const { error } = await supabase.from('audits').update(updateData).eq('id', auditToEdit.id);
                 result = { error };
             } else {
-                const { error } = await supabase.from('audits').insert({ ...formData, status: 'Planlandı' });
+                // Yeni kayıt - report_number trigger tarafından otomatik oluşturulacak
+                const { error } = await supabase.from('audits').insert({ ...formData, status: 'Planlandı', report_number: null });
                 result = { error };
             }
 
@@ -231,53 +211,17 @@ import React, { useState, useEffect } from 'react';
                     <form onSubmit={handleSubmit} className="space-y-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <Label htmlFor="audit_standard_id">İç Tetkik Standartı <span className="text-red-500">*</span></Label>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setIsAddingAuditStandard(!isAddingAuditStandard)}
-                                        className="h-7 text-xs"
-                                    >
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        {isAddingAuditStandard ? 'İptal' : 'Yeni Ekle'}
-                                    </Button>
-                                </div>
-                                {isAddingAuditStandard ? (
-                                    <div className="space-y-2">
-                                        <Input
-                                            placeholder="Standart Kodu (örn: 9001, 14001)"
-                                            value={newAuditStandardCode}
-                                            onChange={(e) => setNewAuditStandardCode(e.target.value)}
-                                        />
-                                        <Input
-                                            placeholder="Standart Adı (örn: ISO 9001:2015)"
-                                            value={newAuditStandardName}
-                                            onChange={(e) => setNewAuditStandardName(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleAddAuditStandard();
-                                                }
-                                            }}
-                                        />
-                                        <Button type="button" onClick={handleAddAuditStandard} size="sm" className="w-full">
-                                            Ekle
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <Select value={formData.audit_standard_id} onValueChange={(v) => handleSelectChange('audit_standard_id', v)} required>
-                                        <SelectTrigger><SelectValue placeholder="Standart seçin..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {auditStandards.map((standard) => (
-                                                <SelectItem key={standard.id} value={standard.id}>
-                                                    {standard.code} - {standard.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
+                                <Label htmlFor="audit_standard_id">İç Tetkik Standartı <span className="text-red-500">*</span></Label>
+                                <Select value={formData.audit_standard_id} onValueChange={(v) => handleSelectChange('audit_standard_id', v)} required>
+                                    <SelectTrigger><SelectValue placeholder="Standart seçin..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {auditStandards.map((standard) => (
+                                            <SelectItem key={standard.id} value={standard.id}>
+                                                {standard.code} - {standard.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div>
                                 <div className="flex items-center justify-between mb-2">
