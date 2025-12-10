@@ -160,6 +160,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     toast({ variant: 'destructive', title: 'Hata', description: `Durum güncellenemedi: ${error.message}` });
                 } else {
                     toast({ title: 'Başarılı', description: 'Uygunsuzluk tekrar açıldı.' });
+                    refreshData(); // Listeyi otomatik yenile
                 }
             } else {
                 handleAction('close', record);
