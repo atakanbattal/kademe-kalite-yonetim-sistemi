@@ -94,34 +94,10 @@ const StockRiskControlList = () => {
                 description: `Kontrol başlatılamadı: ${error.message}`,
             });
         } else {
-            // Güncellenmiş kontrol verisini çek
-            const { data: updatedControl, error: fetchError } = await supabase
-                .from('stock_risk_controls')
-                .select(`
-                    *,
-                    supplier:suppliers!stock_risk_controls_supplier_id_fkey(id, name),
-                    source_inspection:incoming_inspections!stock_risk_controls_source_inspection_id_fkey(id, record_no, part_code, part_name),
-                    controlled_inspection:incoming_inspections!stock_risk_controls_controlled_inspection_id_fkey(id, record_no, part_code, part_name),
-                    controlled_by:profiles!stock_risk_controls_controlled_by_id_fkey(id, full_name)
-                `)
-                .eq('id', control.id)
-                .single();
-
-            if (fetchError) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Hata',
-                    description: `Kontrol başlatıldı ancak veri yüklenemedi: ${fetchError.message}`,
-                });
-            } else {
-                toast({
-                    title: 'Başarılı',
-                    description: 'Kontrol başlatıldı. Sonuçları girebilirsiniz.',
-                });
-                // Kontrol sonuçlarını girebilmek için düzenleme modalını aç
-                setSelectedEditControl(updatedControl);
-                setIsEditModalOpen(true);
-            }
+            toast({
+                title: 'Başarılı',
+                description: 'Kontrol başlatıldı. Sonuçları girmek için "Düzenle" butonunu kullanabilirsiniz.',
+            });
             refreshData();
         }
     };
@@ -268,32 +244,32 @@ const StockRiskControlList = () => {
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
+                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => handleViewRecord(control)}>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewRecord(control); }}>
                                                     <Eye className="mr-2 h-4 w-4" />
                                                     <span>Görüntüle</span>
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleEditControl(control)}>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditControl(control); }}>
                                                     <Edit className="mr-2 h-4 w-4" />
                                                     <span>Düzenle</span>
                                                 </DropdownMenuItem>
                                                 {(!control.status || control.status === 'Beklemede') && (
-                                                    <DropdownMenuItem onClick={() => handleStartControl(control)}>
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStartControl(control); }}>
                                                         <Play className="mr-2 h-4 w-4" />
                                                         <span>Kontrolü Başlat</span>
                                                     </DropdownMenuItem>
                                                 )}
                                                 {(control.status === 'Başlatıldı' || control.status === 'Devam Ediyor') && (
-                                                    <DropdownMenuItem onClick={() => handleCompleteControl(control)}>
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleCompleteControl(control); }}>
                                                         <CheckCircle className="mr-2 h-4 w-4" />
                                                         <span>Tamamla</span>
                                                     </DropdownMenuItem>
                                                 )}
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem
-                                                    onClick={() => handleDeleteClick(control)}
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteClick(control); }}
                                                     className="text-destructive focus:text-destructive"
                                                 >
                                                     <Trash2 className="mr-2 h-4 w-4" />
