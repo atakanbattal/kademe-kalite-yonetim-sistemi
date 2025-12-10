@@ -612,7 +612,7 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                     >
                         <X className="w-6 h-6" />
                     </Button>
-                </div>
+              </div>
             )}
         </motion.div>
     );

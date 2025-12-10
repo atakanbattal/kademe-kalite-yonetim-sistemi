@@ -64,16 +64,16 @@ import React, { useState, useEffect } from 'react';
                 
                 if (standardsData) {
                     setAuditStandards(standardsData);
-                    
-                    if (isEditMode) {
-                        setFormData({
-                            title: auditToEdit.title || '',
-                            department_id: auditToEdit.department_id || '',
-                            audit_date: auditToEdit.audit_date ? format(new Date(auditToEdit.audit_date), 'yyyy-MM-dd') : '',
-                            auditor_name: auditToEdit.auditor_name || '',
+
+            if (isEditMode) {
+                setFormData({
+                    title: auditToEdit.title || '',
+                    department_id: auditToEdit.department_id || '',
+                    audit_date: auditToEdit.audit_date ? format(new Date(auditToEdit.audit_date), 'yyyy-MM-dd') : '',
+                    auditor_name: auditToEdit.auditor_name || '',
                             audit_standard_id: auditToEdit.audit_standard_id || auditToEdit.audit_standard?.id || '',
-                        });
-                    } else {
+                });
+            } else {
                         // Varsayılan olarak 9001'i seç
                         const defaultStandard = standardsData.find(s => s.code === '9001');
                         setFormData({ 
@@ -83,7 +83,7 @@ import React, { useState, useEffect } from 'react';
                             auditor_name: '',
                             audit_standard_id: defaultStandard?.id || '',
                         });
-                    }
+            }
                 }
             };
             

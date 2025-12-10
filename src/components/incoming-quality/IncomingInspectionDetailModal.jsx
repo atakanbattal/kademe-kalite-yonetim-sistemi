@@ -359,9 +359,9 @@ const IncomingInspectionDetailModal = ({
                     
                     // measured_value veya actual_value kontrolü (0 geçerli bir ölçüm!)
                     const measuredValue = result.measured_value !== null && 
-                                        result.measured_value !== undefined && 
+                                     result.measured_value !== undefined && 
                                         result.measured_value !== '' 
-                                        ? result.measured_value 
+                                    ? result.measured_value 
                                         : (result.actual_value !== null && 
                                            result.actual_value !== undefined && 
                                            result.actual_value !== '' 
@@ -385,7 +385,7 @@ const IncomingInspectionDetailModal = ({
                     // Gerçek ölçülen değer
                     if (measuredValue !== null && measuredValue !== '') {
                         description += `   Gerçek Ölçülen Değer: ${measuredValue} mm\n`;
-                        
+                    
                         // Hatalı değer kontrolü ve sapma analizi
                         const measuredNum = parseFloat(String(measuredValue).replace(',', '.'));
                         const isOutOfTolerance = (min !== null && measuredNum < parseFloat(min)) || 
@@ -395,28 +395,28 @@ const IncomingInspectionDetailModal = ({
                             description += `   ⚠ HATALI DEĞER: Tolerans dışında!\n`;
                             
                             if (nominal !== null && !isNaN(measuredNum) && !isNaN(parseFloat(nominal))) {
-                                const nominalNum = parseFloat(nominal);
-                                const deviation = measuredNum - nominalNum;
+                        const nominalNum = parseFloat(nominal);
+                        const deviation = measuredNum - nominalNum;
                                 description += `   → Nominal Değerden Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm\n`;
                             }
-                            
+                        
                             // Tolerans dışına çıkma detayları
-                            if (min !== null && measuredNum < parseFloat(min)) {
-                                const underTolerance = parseFloat(min) - measuredNum;
+                        if (min !== null && measuredNum < parseFloat(min)) {
+                            const underTolerance = parseFloat(min) - measuredNum;
                                 description += `   → Alt Tolerans Aşımı: ${min} mm'den ${underTolerance.toFixed(3)} mm küçük (${((underTolerance / parseFloat(min)) * 100).toFixed(2)}%)\n`;
-                            }
-                            if (max !== null && measuredNum > parseFloat(max)) {
-                                const overTolerance = measuredNum - parseFloat(max);
+                        }
+                        if (max !== null && measuredNum > parseFloat(max)) {
+                            const overTolerance = measuredNum - parseFloat(max);
                                 description += `   → Üst Tolerans Aşımı: ${max} mm'den ${overTolerance.toFixed(3)} mm büyük (${((overTolerance / parseFloat(max)) * 100).toFixed(2)}%)\n`;
-                            }
+                        }
                         } else if (nominal !== null && !isNaN(measuredNum) && !isNaN(parseFloat(nominal))) {
                             // Tolerans içinde ama nominal değerden sapma var
                             const nominalNum = parseFloat(nominal);
                             const deviation = measuredNum - nominalNum;
                             if (Math.abs(deviation) > 0.001) { // 0.001 mm'den büyük sapma varsa göster
                                 description += `   → Nominal Değerden Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm (Tolerans içinde)\n`;
-                            }
                         }
+                    }
                     } else {
                         description += `   Gerçek Ölçülen Değer: Ölçülmemiş\n`;
                     }

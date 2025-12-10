@@ -42,21 +42,21 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
         fetchStandards();
     }, [isOpen]);
 
-    const fetchDepartments = async () => {
-        setLoadingDepartments(true);
-        const { data, error } = await supabase
-            .from('cost_settings')
-            .select('id, unit_name')
-            .order('unit_name');
+        const fetchDepartments = async () => {
+            setLoadingDepartments(true);
+            const { data, error } = await supabase
+                .from('cost_settings')
+                .select('id, unit_name')
+                .order('unit_name');
 
-        if (error) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'Birimler yüklenemedi.' });
-            setDepartments([]);
-        } else {
-            setDepartments(data);
-        }
-        setLoadingDepartments(false);
-    };
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Birimler yüklenemedi.' });
+                setDepartments([]);
+            } else {
+                setDepartments(data);
+            }
+            setLoadingDepartments(false);
+        };
     
     const fetchStandards = async () => {
         setLoadingStandards(true);
@@ -440,21 +440,21 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
+                    <div>
                                         <Label>İç Tetkik Standartı <span className="text-red-500">*</span></Label>
                                         <Select value={selectedStandardId} onValueChange={setSelectedStandardId} disabled={loadingStandards}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder={loadingStandards ? "Yükleniyor..." : "Standart seçin"} />
-                                            </SelectTrigger>
-                                            <SelectContent>
+                            </SelectTrigger>
+                            <SelectContent>
                                                 {auditStandards.filter(s => s.is_active).map(standard => (
                                                     <SelectItem key={standard.id} value={standard.id}>
                                                         {standard.code} - {standard.name}
                                                     </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                                     <div>
                                         <Label>Birim <span className="text-red-500">*</span></Label>
                                         <Select value={selectedDeptId} onValueChange={setSelectedDeptId} disabled={loadingDepartments}>
@@ -470,16 +470,16 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                </div>
+                            </div>
 
                                 {selectedDeptId && selectedStandardId && (
                                     <>
                                         <div className="space-y-2">
                                             <Label>Soru Ekle</Label>
-                                            <div className="flex gap-2">
-                                                <Textarea
+                            <div className="flex gap-2">
+                                <Textarea
                                                     placeholder="Yeni soru metni girin..."
-                                                    value={newQuestion}
+                                    value={newQuestion}
                                                     onChange={(e) => setNewQuestion(e.target.value)}
                                                     className="flex-1 min-h-[100px]"
                                                     onKeyDown={(e) => {
@@ -488,9 +488,9 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                                                             handleAddQuestion();
                                                         }
                                                     }}
-                                                />
+                                />
                                                 <Button onClick={handleAddQuestion} size="icon" className="h-auto">
-                                                    <PlusCircle className="w-5 h-5" />
+                                    <PlusCircle className="w-5 h-5" />
                                                 </Button>
                                             </div>
                                             <p className="text-xs text-muted-foreground">Ctrl+Enter ile hızlı ekleme</p>
@@ -568,16 +568,16 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                                                                                 onClick={() => handleDeleteQuestion(q.id)}
                                                                             >
                                                                                 <Trash2 className="w-4 h-4" />
-                                                                            </Button>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                                                             </CardContent>
                                                         </Card>
                                                     ))
                                                 )}
                                             </div>
-                                        </div>
+                </div>
                                     </>
                                 )}
                             </CardContent>
