@@ -63,7 +63,14 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
         }
         
         if (existingResults && existingResults.length > 0) {
-            setQuestions(existingResults);
+            // attachments JSONB alanını parse et
+            const parsedResults = existingResults.map(result => ({
+                ...result,
+                attachments: result.attachments 
+                    ? (typeof result.attachments === 'string' ? JSON.parse(result.attachments) : result.attachments)
+                    : []
+            }));
+            setQuestions(parsedResults);
         } else if (auditData && (auditData.status === 'Devam Ediyor' || auditData.status === 'Planlandı')) {
              const { data: questionsFromBank, error: bankError } = await supabase
                 .from('audit_question_bank')
