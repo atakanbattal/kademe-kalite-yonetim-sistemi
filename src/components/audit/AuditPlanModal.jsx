@@ -56,26 +56,26 @@ import React, { useState, useEffect } from 'react';
                 await Promise.all([fetchDepartments(), fetchStandards()]);
                 
                 // Standartlar yüklendikten sonra formData'yı set et
-                const standardsData = await supabase
+                const { data: standardsData } = await supabase
                     .from('audit_standards')
                     .select('id, code, name')
                     .eq('is_active', true)
                     .order('code');
                 
-                if (standardsData.data) {
-                    setAuditStandards(standardsData.data);
+                if (standardsData) {
+                    setAuditStandards(standardsData);
                     
                     if (isEditMode) {
-                    setFormData({
-                        title: auditToEdit.title || '',
-                        department_id: auditToEdit.department_id || '',
-                        audit_date: auditToEdit.audit_date ? format(new Date(auditToEdit.audit_date), 'yyyy-MM-dd') : '',
-                        auditor_name: auditToEdit.auditor_name || '',
-                        audit_standard_id: auditToEdit.audit_standard_id || auditToEdit.audit_standard?.id || '',
-                    });
+                        setFormData({
+                            title: auditToEdit.title || '',
+                            department_id: auditToEdit.department_id || '',
+                            audit_date: auditToEdit.audit_date ? format(new Date(auditToEdit.audit_date), 'yyyy-MM-dd') : '',
+                            auditor_name: auditToEdit.auditor_name || '',
+                            audit_standard_id: auditToEdit.audit_standard_id || auditToEdit.audit_standard?.id || '',
+                        });
                     } else {
                         // Varsayılan olarak 9001'i seç
-                        const defaultStandard = standardsData.data.find(s => s.code === '9001');
+                        const defaultStandard = standardsData.find(s => s.code === '9001');
                         setFormData({ 
                             title: '', 
                             department_id: '', 
