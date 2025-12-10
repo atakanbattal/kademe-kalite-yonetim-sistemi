@@ -172,6 +172,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 toast({ variant: 'destructive', title: 'Hata', description: `Kayıt silinemedi: ${error.message}` });
             } else {
                 toast({ title: 'Başarılı', description: 'Kayıt başarıyla silindi.' });
+                refreshData(); // Listeyi otomatik yenile
             }
         };
 
@@ -429,7 +430,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     <CloseNCModal
                         isOpen={actionModals.close.isOpen}
                         setIsOpen={() => handleCloseActionModal('close')}
-                        onSave={() => handleCloseActionModal('close')}
+                        onSave={() => { handleCloseActionModal('close'); refreshData(); }}
                         record={actionModals.close.record}
                     />
                 )}
@@ -437,7 +438,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     <ForwardNCModal
                         isOpen={actionModals.forward.isOpen}
                         setIsOpen={() => handleCloseActionModal('forward')}
-                        onSave={() => handleCloseActionModal('forward')}
+                        onSave={() => { handleCloseActionModal('forward'); refreshData(); }}
                         record={actionModals.forward.record}
                     />
                 )}
