@@ -6,6 +6,7 @@ import React, { useState, useMemo } from 'react';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    import { normalizeTurkishForSearch } from '@/lib/utils';
 
     import VehicleDashboard from '@/components/produced-vehicles/VehicleDashboard';
     import VehicleTable from '@/components/produced-vehicles/VehicleTable';

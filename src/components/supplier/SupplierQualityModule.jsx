@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Button } from '@/components/ui/button';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
     import { useData } from '@/contexts/DataContext';
+    import { normalizeTurkishForSearch } from '@/lib/utils';
 
 import SupplierDashboard from '@/components/supplier/SupplierDashboard';
 import SupplierList from '@/components/supplier/SupplierList';
