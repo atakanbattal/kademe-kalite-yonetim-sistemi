@@ -106,20 +106,20 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 
             // ORTA ÖNCELİKLİ TABLOLAR (İkinci dalga)
             const mediumPromises = {
-                nonConformities: supabase.from('non_conformities').select('*'),
-                deviations: supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)'),
-                kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
-                tasks: supabase.from('tasks').select('*, owner:owner_id(full_name, email), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)'),
-                qualityCosts: supabase.from('quality_costs').select('*, responsible_personnel:personnel!responsible_personnel_id(full_name), non_conformities(nc_number, id), supplier:suppliers!supplier_id(name)'),
-                kpis: supabase.from('kpis').select('*'),
-                materialCostSettings: supabase.from('material_costs').select('*'),
+                nonConformities: supabase.from('non_conformities').select('id, nc_number, title, status, type, opening_date, due_date, department_id').order('opening_date', { ascending: false }).limit(300),
+                deviations: supabase.from('deviations').select('id, request_no, title, status, created_at, deviation_approvals(id, status)').order('created_at', { ascending: false }).limit(200),
+                kaizenEntries: supabase.from('kaizen_entries').select('id, kaizen_no, title, status, proposer:proposer_id(full_name), department:department_id(unit_name)').order('created_at', { ascending: false }).limit(200),
+                tasks: supabase.from('tasks').select('id, title, status, priority, due_date, owner:owner_id(full_name), assignees:task_assignees(personnel(id, full_name))').order('created_at', { ascending: false }).limit(200),
+                qualityCosts: supabase.from('quality_costs').select('id, cost_type, amount, date, responsible_personnel:personnel!responsible_personnel_id(full_name)').order('date', { ascending: false }).limit(200),
+                kpis: supabase.from('kpis').select('id, name, current_value, target_value, unit').limit(100),
+                materialCostSettings: supabase.from('material_costs').select('id, material_name, unit_cost').limit(100),
             };
 
             // AĞIR TABLOLAR (Üçüncü dalga - limit ile)
             const heavyPromises = {
-                suppliers: supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)'),
-                producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').limit(500),
-                equipments: supabase.from('equipments').select('*, equipment_calibrations(*), equipment_assignments(*, personnel(full_name))'),
+                suppliers: supabase.from('suppliers').select('id, name, code, is_active, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_scores(final_score, grade, period)').limit(200),
+                producedVehicles: supabase.from('quality_inspections').select('id, vehicle_vin, vehicle_model, inspection_date, status, quality_inspection_faults(id, fault_description)').order('inspection_date', { ascending: false }).limit(200),
+                equipments: supabase.from('equipments').select('id, name, serial_number, status, responsible_unit, equipment_calibrations(id, calibration_date, next_calibration_date)').limit(200),
                 // Documents sorgusu - önce documents çek, sonra document_revisions ayrı çekilecek
                 documents: (async () => {
                     try {
@@ -171,30 +171,29 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 
             // DÜŞÜK ÖNCELİKLİ TABLOLAR (Son dalga - limit ile)
             const lowPriorityPromises = {
-                supplierNonConformities: supabase.from('supplier_non_conformities').select('*'),
+                supplierNonConformities: supabase.from('supplier_non_conformities').select('id, supplier_id, nc_number, status, created_at').limit(200),
                 audits: supabase.from('audits').select(`
-                    *,
+                    id, report_number, title, status, audit_date, department_id,
                     department:cost_settings(id, unit_name),
                     audit_standard:audit_standards!audit_standard_id(id, code, name)
-                `).order('report_number', { ascending: false }),
-                auditFindings: supabase.from('audit_findings').select('*, audits(report_number), non_conformities!source_finding_id(id, nc_number, status)'),
-                quarantineRecords: supabase.from('quarantine_records_api').select('*').limit(500),
-                incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*').limit(500),
-                incomingControlPlans: supabase.from('incoming_control_plans').select('part_code, is_current'),
-                questions: supabase.from('supplier_audit_questions').select('*'),
-                auditLogs: supabase.from('audit_log_entries').select('*').order('created_at', { ascending: false }).limit(200),
+                `).order('report_number', { ascending: false }).limit(100),
+                auditFindings: supabase.from('audit_findings').select('id, audit_id, description, status, audits(report_number), non_conformities!source_finding_id(id, nc_number, status)').limit(200),
+                quarantineRecords: supabase.from('quarantine_records_api').select('id, part_code, part_name, lot_no, quantity, status, created_at').order('created_at', { ascending: false }).limit(200),
+                incomingInspections: supabase.from('incoming_inspections_with_supplier').select('id, record_no, part_code, part_name, inspection_date, decision, supplier_id').order('inspection_date', { ascending: false }).limit(200),
+                incomingControlPlans: supabase.from('incoming_control_plans').select('id, part_code, is_current').limit(100),
+                questions: supabase.from('supplier_audit_questions').select('id, question_text, points').limit(100),
+                auditLogs: supabase.from('audit_log_entries').select('id, action, table_name, created_at, user_full_name').order('created_at', { ascending: false }).limit(100),
                 stockRiskControls: supabase.from('stock_risk_controls').select(`
-                    *,
+                    id, part_code, part_name, status, decision, created_at,
                     supplier:suppliers!stock_risk_controls_supplier_id_fkey(id, name),
-                    source_inspection:incoming_inspections!stock_risk_controls_source_inspection_id_fkey(id, record_no, part_code, part_name),
-                    controlled_inspection:incoming_inspections!stock_risk_controls_controlled_inspection_id_fkey(id, record_no, part_code, part_name),
+                    source_inspection:incoming_inspections!stock_risk_controls_source_inspection_id_fkey(id, record_no),
                     controlled_by:profiles!stock_risk_controls_controlled_by_id_fkey(id, full_name)
-                `).order('created_at', { ascending: false }).limit(200),
-                inkrReports: supabase.from('inkr_reports').select('*, supplier:supplier_id(name)').order('created_at', { ascending: false }),
-                customerComplaints: supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500),
-                complaintAnalyses: supabase.from('complaint_analyses').select('*'),
-                complaintActions: supabase.from('complaint_actions').select('*, responsible_person:responsible_person_id(full_name), responsible_department:responsible_department_id(unit_name)'),
-                complaintDocuments: supabase.from('complaint_documents').select('*')
+                `).order('created_at', { ascending: false }).limit(100),
+                inkrReports: supabase.from('inkr_reports').select('id, report_number, supplier_id, created_at, supplier:supplier_id(name)').order('created_at', { ascending: false }).limit(100),
+                customerComplaints: supabase.from('customer_complaints').select('id, complaint_number, complaint_date, status, customer_id, customer:customer_id(name, customer_code)').order('complaint_date', { ascending: false }).limit(200),
+                complaintAnalyses: supabase.from('complaint_analyses').select('id, complaint_id, analysis_type').limit(100),
+                complaintActions: supabase.from('complaint_actions').select('id, complaint_id, action_type, status, responsible_person:responsible_person_id(full_name)').limit(200),
+                complaintDocuments: supabase.from('complaint_documents').select('id, complaint_id, file_name').limit(100)
             };
 
             try {
