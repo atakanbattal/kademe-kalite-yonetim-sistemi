@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Search, MoreHorizontal, Trash2, Eye } from 'lucide-react';
+import { Search, MoreHorizontal, Trash2, Eye, Edit, Play, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
     DropdownMenu,
@@ -28,6 +28,7 @@ import {
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import StockRiskDetailModal from './StockRiskDetailModal';
+import StockRiskControlEditModal from './StockRiskControlEditModal';
 import { openPrintableReport } from '@/lib/reportUtils';
 
 const StockRiskControlList = () => {
@@ -38,6 +39,8 @@ const StockRiskControlList = () => {
     const [selectedControl, setSelectedControl] = useState(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedStockRiskDetail, setSelectedStockRiskDetail] = useState(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedEditControl, setSelectedEditControl] = useState(null);
 
     const filteredControls = useMemo(() => {
         if (!stockRiskControls) return [];
@@ -57,6 +60,70 @@ const StockRiskControlList = () => {
             case 'Uygun': return <Badge variant="success">Uygun</Badge>;
             case 'Uygun Değil': return <Badge variant="destructive">Uygun Değil</Badge>;
             default: return <Badge variant="secondary">{decision || 'Beklemede'}</Badge>;
+        }
+    };
+
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'Başlatıldı': return <Badge className="bg-blue-500">Başlatıldı</Badge>;
+            case 'Devam Ediyor': return <Badge className="bg-yellow-500">Devam Ediyor</Badge>;
+            case 'Tamamlandı': return <Badge className="bg-green-500">Tamamlandı</Badge>;
+            default: return <Badge variant="secondary">{status || 'Beklemede'}</Badge>;
+        }
+    };
+
+    const handleEditControl = (control) => {
+        setSelectedEditControl(control);
+        setIsEditModalOpen(true);
+    };
+
+    const handleStartControl = async (control) => {
+        const { error } = await supabase
+            .from('stock_risk_controls')
+            .update({
+                status: 'Başlatıldı',
+                started_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', control.id);
+
+        if (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: `Kontrol başlatılamadı: ${error.message}`,
+            });
+        } else {
+            toast({
+                title: 'Başarılı',
+                description: 'Kontrol başlatıldı.',
+            });
+            refreshData();
+        }
+    };
+
+    const handleCompleteControl = async (control) => {
+        const { error } = await supabase
+            .from('stock_risk_controls')
+            .update({
+                status: 'Tamamlandı',
+                completed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', control.id);
+
+        if (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: `Kontrol tamamlanamadı: ${error.message}`,
+            });
+        } else {
+            toast({
+                title: 'Başarılı',
+                description: 'Kontrol tamamlandı.',
+            });
+            refreshData();
         }
     };
 
@@ -108,6 +175,12 @@ const StockRiskControlList = () => {
                     record={selectedStockRiskDetail}
                     onDownloadPDF={handleDownloadDetailPDF}
                 />
+                <StockRiskControlEditModal
+                    isOpen={isEditModalOpen}
+                    setIsOpen={setIsEditModalOpen}
+                    record={selectedEditControl}
+                    refreshData={refreshData}
+                />
                 <div className="dashboard-widget">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="widget-title">Stok Risk Kontrol Kayıtları</h2>
@@ -131,15 +204,16 @@ const StockRiskControlList = () => {
                             <TableHead>Kontrol Edilen GKK No</TableHead>
                             <TableHead>Kontrol Tarihi</TableHead>
                             <TableHead>Kontrol Eden</TableHead>
+                            <TableHead>Durum</TableHead>
                             <TableHead>Karar</TableHead>
                             <TableHead className="text-right">İşlemler</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan="8" className="text-center">Yükleniyor...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan="9" className="text-center">Yükleniyor...</TableCell></TableRow>
                         ) : filteredControls.length === 0 ? (
-                            <TableRow><TableCell colSpan="8" className="text-center">Kayıt bulunamadı.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan="9" className="text-center">Kayıt bulunamadı.</TableCell></TableRow>
                         ) : (
                             filteredControls.map((control, index) => (
                                 <tr 
@@ -160,6 +234,7 @@ const StockRiskControlList = () => {
                                     <TableCell>{control.controlled_inspection?.record_no}</TableCell>
                                     <TableCell>{control.created_at ? format(new Date(control.created_at), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
                                     <TableCell>{control.controlled_by?.full_name || '-'}</TableCell>
+                                    <TableCell>{getStatusBadge(control.status)}</TableCell>
                                     <TableCell>{getDecisionBadge(control.decision)}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
@@ -176,6 +251,23 @@ const StockRiskControlList = () => {
                                                     <Eye className="mr-2 h-4 w-4" />
                                                     <span>Görüntüle</span>
                                                 </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleEditControl(control)}>
+                                                    <Edit className="mr-2 h-4 w-4" />
+                                                    <span>Düzenle</span>
+                                                </DropdownMenuItem>
+                                                {(!control.status || control.status === 'Beklemede') && (
+                                                    <DropdownMenuItem onClick={() => handleStartControl(control)}>
+                                                        <Play className="mr-2 h-4 w-4" />
+                                                        <span>Kontrolü Başlat</span>
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {(control.status === 'Başlatıldı' || control.status === 'Devam Ediyor') && (
+                                                    <DropdownMenuItem onClick={() => handleCompleteControl(control)}>
+                                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                                        <span>Tamamla</span>
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuSeparator />
                                                 <DropdownMenuItem
                                                     onClick={() => handleDeleteClick(control)}
                                                     className="text-destructive focus:text-destructive"
