@@ -180,17 +180,19 @@ import React, { useEffect, useState } from 'react';
                             if (!inspectionData) throw new Error('Muayene kaydı bulunamadı.');
                             
                             // Related data'yı ayrı ayrı çek
-                            const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
+                            const [attachmentsRes, defectsRes, resultsRes, stockRiskControlsRes] = await Promise.all([
                                 supabase.from('incoming_inspection_attachments').select('*').eq('inspection_id', id),
                                 supabase.from('incoming_inspection_defects').select('*').eq('inspection_id', id),
-                                supabase.from('incoming_inspection_results').select('*').eq('inspection_id', id)
+                                supabase.from('incoming_inspection_results').select('*').eq('inspection_id', id),
+                                supabase.from('stock_risk_controls').select('id, status, decision, created_at').eq('source_inspection_id', id)
                             ]);
                             
                             recordData = {
                                 ...inspectionData,
                                 attachments: attachmentsRes.data || [],
                                 defects: defectsRes.data || [],
-                                results: resultsRes.data || []
+                                results: resultsRes.data || [],
+                                stock_risk_controls: stockRiskControlsRes.data || []
                             };
                             
                             // Measurement numbers regenerate et (eski kayıtlarda NULL olabilir)
