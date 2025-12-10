@@ -187,7 +187,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                     *,
                     supplier:suppliers!stock_risk_controls_supplier_id_fkey(id, name),
                     source_inspection:incoming_inspections!stock_risk_controls_source_inspection_id_fkey(id, record_no, part_code, part_name),
-                    controlled_inspection:incoming_inspections!stock_risk_controls_controlled_inspection_id_fkey(id, record_no, part_code, part_name),
+                    controlled_inspection:incoming_inspections!stock_risk_controls_controlled_inspection_id_fkey(id, record_no, part_code, part_name, delivery_note_number),
                     controlled_by:profiles!stock_risk_controls_controlled_by_id_fkey(id, full_name)
                 `).order('created_at', { ascending: false }).limit(200),
                 inkrReports: supabase.from('inkr_reports').select('*, supplier:supplier_id(name)').order('created_at', { ascending: false }),

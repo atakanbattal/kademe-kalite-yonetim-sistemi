@@ -226,6 +226,7 @@ const StockRiskControlList = () => {
                             <TableHead>Tedarikçi</TableHead>
                             <TableHead>Kaynak GKK No</TableHead>
                             <TableHead>Kontrol Edilen GKK No</TableHead>
+                            <TableHead>İrsaliye No</TableHead>
                             <TableHead>Kontrol Tarihi</TableHead>
                             <TableHead>Kontrol Eden</TableHead>
                             <TableHead>Durum</TableHead>
@@ -235,9 +236,9 @@ const StockRiskControlList = () => {
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan="9" className="text-center">Yükleniyor...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan="10" className="text-center">Yükleniyor...</TableCell></TableRow>
                         ) : filteredControls.length === 0 ? (
-                            <TableRow><TableCell colSpan="9" className="text-center">Kayıt bulunamadı.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan="10" className="text-center">Kayıt bulunamadı.</TableCell></TableRow>
                         ) : (
                             filteredControls.map((control, index) => (
                                 <tr 
@@ -255,6 +256,7 @@ const StockRiskControlList = () => {
                                     <TableCell>{control.supplier?.name || '-'}</TableCell>
                                     <TableCell>{control.source_inspection?.record_no}</TableCell>
                                     <TableCell>{control.controlled_inspection?.record_no}</TableCell>
+                                    <TableCell>{control.controlled_inspection?.delivery_note_number || '-'}</TableCell>
                                     <TableCell>{control.created_at ? format(new Date(control.created_at), 'dd.MM.yyyy HH:mm') : '-'}</TableCell>
                                     <TableCell>{control.controlled_by?.full_name || '-'}</TableCell>
                                     <TableCell>{getStatusBadge(control.status)}</TableCell>

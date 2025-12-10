@@ -44,13 +44,37 @@ const IncomingInspectionDetailModal = ({
     const [isCreatingNC, setIsCreatingNC] = useState(false);
     const [linkedNonConformities, setLinkedNonConformities] = useState([]);
     const [loadingNCs, setLoadingNCs] = useState(false);
+    const [hasStockRiskControl, setHasStockRiskControl] = useState(false);
+    const [stockRiskControlInfo, setStockRiskControlInfo] = useState(null);
 
-    // Check for risky stock when modal opens or inspection data changes
+        // Check for risky stock when modal opens or inspection data changes
     useEffect(() => {
         if (!isOpen || !enrichedInspection || !enrichedInspection.part_code) {
             setRiskyStockData(null);
+            setHasStockRiskControl(false);
             return;
         }
+        
+        // Stok risk kontrolü başlatılmış mı kontrol et
+        const checkStockRiskControl = async () => {
+            if (!enrichedInspection?.id) return;
+            
+            const { data: stockControls, error } = await supabase
+                .from('stock_risk_controls')
+                .select('id, status, created_at, decision')
+                .eq('source_inspection_id', enrichedInspection.id)
+                .limit(1);
+            
+            if (!error && stockControls && stockControls.length > 0) {
+                setHasStockRiskControl(true);
+                setStockRiskControlInfo(stockControls[0]);
+            } else {
+                setHasStockRiskControl(false);
+                setStockRiskControlInfo(null);
+            }
+        };
+
+        checkStockRiskControl();
         
         console.log('🔍 Risk kontrolü yapılıyor - Karar:', enrichedInspection.decision);
         
@@ -961,14 +985,31 @@ const IncomingInspectionDetailModal = ({
                                         </ul>
                                     </div>
                                     <div className="pt-3 border-t border-red-200">
-                                        <Button
-                                            onClick={handleStartStockControl}
-                                            disabled={!onOpenStockRiskModal}
-                                            className="w-full bg-orange-600 hover:bg-orange-700"
-                                        >
-                                            <AlertCircle className="h-4 w-4 mr-2" />
-                                            Stok Kontrol Başlat
-                                        </Button>
+                                        {hasStockRiskControl ? (
+                                            <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                                                <div className="flex items-center gap-2 text-blue-700">
+                                                    <CheckCircle className="h-4 w-4" />
+                                                    <span className="font-semibold">Stok Risk Kontrolü Başlatıldı</span>
+                                                </div>
+                                                {stockRiskControlInfo && (
+                                                    <div className="text-sm text-blue-600 mt-2">
+                                                        Durum: <strong>{stockRiskControlInfo.status || 'Beklemede'}</strong>
+                                                        {stockRiskControlInfo.decision && (
+                                                            <> | Karar: <strong>{stockRiskControlInfo.decision}</strong></>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                onClick={handleStartStockControl}
+                                                disabled={!onOpenStockRiskModal}
+                                                className="w-full bg-orange-600 hover:bg-orange-700"
+                                            >
+                                                <AlertCircle className="h-4 w-4 mr-2" />
+                                                Stok Kontrol Başlat
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>

@@ -1308,6 +1308,23 @@ const generateGenericReportHtml = (record, type) => {
 				</table>`
 				: '<p>Muayene sonuçları bulunamadı.</p>';
 
+			// Stok risk kontrolü bilgisi
+			let stockRiskControlHtml = '';
+			if (record.stock_risk_controls && Array.isArray(record.stock_risk_controls) && record.stock_risk_controls.length > 0) {
+				const controls = record.stock_risk_controls;
+				stockRiskControlHtml = `
+					<tr><td colspan="2">
+						<h3 style="margin-top: 15px; margin-bottom: 10px; color: #dc2626;">Stok Risk Kontrolü</h3>
+						<div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 10px; margin: 10px 0;">
+							<p style="margin: 5px 0;"><strong>Durum:</strong> ${controls[0].status || 'Beklemede'}</p>
+							${controls[0].decision ? `<p style="margin: 5px 0;"><strong>Karar:</strong> ${controls[0].decision}</p>` : ''}
+							${controls[0].created_at ? `<p style="margin: 5px 0;"><strong>Başlatma Tarihi:</strong> ${formatDate(controls[0].created_at)}</p>` : ''}
+							<p style="margin: 5px 0;"><strong>Kontrol Sayısı:</strong> ${controls.length} adet</p>
+						</div>
+					</td></tr>
+				`;
+			}
+
 					return `
 			<tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
 			<tr><td>İrsaliye Numarası</td><td>${record.delivery_note_number || '-'}</td></tr>
@@ -1318,6 +1335,7 @@ const generateGenericReportHtml = (record, type) => {
 			<tr><td>Kabul Edilen</td><td>${record.quantity_accepted || 0} ${record.unit || 'Adet'}</td></tr>
 			<tr><td>Şartlı Kabul</td><td>${record.quantity_conditional || 0} ${record.unit || 'Adet'}</td></tr>
 			<tr><td>Reddedilen</td><td>${record.quantity_rejected || 0} ${record.unit || 'Adet'}</td></tr>
+			${stockRiskControlHtml}
 			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
 			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları (Ölçüm Detayları)</h3>${resultsTableHtml}</td></tr>
 		`;
