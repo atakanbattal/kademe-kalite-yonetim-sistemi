@@ -289,6 +289,12 @@ const NCFormGeneral = ({
                 <Label htmlFor="due_date">Termin Tarihi <span className="text-red-500">*</span></Label>
                 <Input id="due_date" type="date" value={toInputDateString(formData.due_date)} onChange={handleInputChange} required />
             </div>
+            {isEditMode && formData.status === 'Kapatıldı' && (
+                <div>
+                    <Label htmlFor="closing_date">Kapanış Tarihi</Label>
+                    <Input id="closing_date" type="date" value={toInputDateString(formData.closing_date || formData.closed_at)} onChange={handleInputChange} />
+                </div>
+            )}
              <div className="flex items-center space-x-2">
                 <Switch id="shipment_impact" checked={!!formData.shipment_impact} onCheckedChange={(checked) => setFormData(prev => ({...prev, shipment_impact: checked}))} />
                 <Label htmlFor="shipment_impact">Sevkiyat Etkisi Var</Label>

@@ -301,6 +301,8 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                     }, {});
                 }
 
+                const closedAtValue = initialRecord.closed_at;
+                
                 finalData = {
                     ...mergedRecord,
                     type: initialRecord.type || 'DF',
@@ -308,6 +310,8 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                     df_opened_at: safeParseDate(openingDateValue).toISOString(),
                     due_date: toISODateString(safeParseDate(dueDateValue)),
                     due_at: safeParseDate(dueDateValue).toISOString(),
+                    closed_at: closedAtValue || null,
+                    closing_date: closedAtValue ? toISODateString(safeParseDate(closedAtValue)) : '',
                     eight_d_steps: mergedEightD,
                     eight_d_progress: eightDProgress,
                     attachments: initialRecord.attachments || [],

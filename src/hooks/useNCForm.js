@@ -122,6 +122,13 @@ import { useContext, useEffect, useCallback } from 'react';
                     console.warn('Due date conversion error:', error);
                     newFormData.due_at = null;
                 }
+            } else if (id === 'closing_date') {
+                try {
+                    newFormData.closed_at = value ? new Date(value).toISOString() : null;
+                } catch (error) {
+                    console.warn('Closing date conversion error:', error);
+                    newFormData.closed_at = null;
+                }
             }
 
             setFormData(newFormData);
