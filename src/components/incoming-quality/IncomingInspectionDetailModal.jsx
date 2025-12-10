@@ -386,18 +386,19 @@ const IncomingInspectionDetailModal = ({
                     const min = planItem?.min_value ?? result.min_value ?? null;
                     const max = planItem?.max_value ?? result.max_value ?? null;
                     
+                    // actual_value öncelikli kontrol (veritabanında actual_value olarak kaydediliyor)
                     // measured_value veya actual_value kontrolü (0 geçerli bir ölçüm!)
-                    const measuredValue = result.measured_value !== null && 
-                                     result.measured_value !== undefined && 
-                                        result.measured_value !== '' 
-                                    ? result.measured_value 
-                                        : (result.actual_value !== null && 
-                                           result.actual_value !== undefined && 
-                                           result.actual_value !== '' 
-                                           ? result.actual_value 
+                    const measuredValue = (result.actual_value !== null && 
+                                          result.actual_value !== undefined && 
+                                          String(result.actual_value).trim() !== '') 
+                                        ? result.actual_value 
+                                        : (result.measured_value !== null && 
+                                           result.measured_value !== undefined && 
+                                           String(result.measured_value).trim() !== '' 
+                                           ? result.measured_value 
                                            : null);
                     
-                    console.log(`🔍 Ölçüm ${idx + 1} - raw measured_value:`, result.measured_value, 'raw actual_value:', result.actual_value, 'parsed:', measuredValue);
+                    console.log(`🔍 Ölçüm ${idx + 1} - raw actual_value:`, result.actual_value, 'raw measured_value:', result.measured_value, 'parsed:', measuredValue);
                     
                     description += `\n${idx + 1}. ${result.characteristic_name || 'Özellik'}`;
                     if (result.measurement_number && result.total_measurements) {
