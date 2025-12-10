@@ -283,7 +283,21 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 }, {});
 
                 const openingDateValue = initialRecord.df_opened_at || initialRecord.opening_date || initialRecord.created_at;
+                const parsedOpeningDate = safeParseDate(openingDateValue);
+                
+                // Termin tarihi: eğer initialRecord'da varsa onu kullan, yoksa açılış tarihinden 1 ay sonrasını hesapla
+                let parsedDueDate;
                 const dueDateValue = initialRecord.due_at || initialRecord.due_date;
+                if (dueDateValue) {
+                    parsedDueDate = safeParseDate(dueDateValue);
+                    // Eğer termin tarihi açılış tarihinden önce veya aynı günse, açılış tarihinden 1 ay sonrasını kullan
+                    if (parsedDueDate <= parsedOpeningDate) {
+                        parsedDueDate = addMonths(parsedOpeningDate, 1);
+                    }
+                } else {
+                    // Termin tarihi yoksa, açılış tarihinden 1 ay sonrasını hesapla
+                    parsedDueDate = addMonths(parsedOpeningDate, 1);
+                }
 
                 // eight_d_progress'i yükle veya eight_d_steps'ten oluştur
                 let eightDProgress = initialRecord.eight_d_progress;
@@ -306,10 +320,10 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 finalData = {
                     ...mergedRecord,
                     type: initialRecord.type || 'DF',
-                    opening_date: toISODateString(safeParseDate(openingDateValue)),
-                    df_opened_at: safeParseDate(openingDateValue).toISOString(),
-                    due_date: toISODateString(safeParseDate(dueDateValue)),
-                    due_at: safeParseDate(dueDateValue).toISOString(),
+                    opening_date: toISODateString(parsedOpeningDate),
+                    df_opened_at: parsedOpeningDate.toISOString(),
+                    due_date: toISODateString(parsedDueDate),
+                    due_at: parsedDueDate.toISOString(),
                     closed_at: closedAtValue || null,
                     closing_date: closedAtValue ? toISODateString(safeParseDate(closedAtValue)) : '',
                     eight_d_steps: mergedEightD,

@@ -357,14 +357,18 @@ const IncomingInspectionDetailModal = ({
                     const min = planItem?.min_value ?? result.min_value ?? null;
                     const max = planItem?.max_value ?? result.max_value ?? null;
                     
-                    // measured_value: null, undefined, boş string kontrolü (0 geçerli bir ölçüm!)
-                    const measured = (result.measured_value !== null && 
-                                     result.measured_value !== undefined && 
-                                     result.measured_value !== '') 
-                                    ? result.measured_value 
-                                    : null;
+                    // measured_value veya actual_value kontrolü (0 geçerli bir ölçüm!)
+                    const measuredValue = result.measured_value !== null && 
+                                        result.measured_value !== undefined && 
+                                        result.measured_value !== '' 
+                                        ? result.measured_value 
+                                        : (result.actual_value !== null && 
+                                           result.actual_value !== undefined && 
+                                           result.actual_value !== '' 
+                                           ? result.actual_value 
+                                           : null);
                     
-                    console.log(`🔍 Ölçüm ${idx + 1} - raw measured_value:`, result.measured_value, 'parsed:', measured);
+                    console.log(`🔍 Ölçüm ${idx + 1} - raw measured_value:`, result.measured_value, 'raw actual_value:', result.actual_value, 'parsed:', measuredValue);
                     
                     description += `\n${idx + 1}. ${result.characteristic_name || 'Özellik'}`;
                     if (result.measurement_number && result.total_measurements) {
@@ -372,42 +376,52 @@ const IncomingInspectionDetailModal = ({
                     }
                     description += `:\n`;
                     
-                    // TÜM ÖLÇÜMLER İÇİN DETAY GÖSTER (Tip bakmaksızın)
+                    // Beklenen değer ve tolerans bilgileri
                     if (nominal !== null || min !== null || max !== null) {
-                        description += `   Beklenen: ${nominal !== null ? nominal : '-'} mm (Tolerans: ${min !== null ? min : '-'} ~ ${max !== null ? max : '-'} mm)\n`;
-                    }
-                    description += `   Ölçülen: ${measured !== null && measured !== '' ? measured + ' mm' : 'Ölçülmemiş'}\n`;
-                    
-                    // Detaylı sapma analizi ve açıklama
-                    if (measured !== null && nominal !== null) {
-                        const measuredNum = parseFloat(measured);
-                        const nominalNum = parseFloat(nominal);
-                        const deviation = measuredNum - nominalNum;
-                        
-                        // Açıklayıcı ifade
-                        description += `   → SAPMA: ${nominal} mm olması gerekirken ${measured} mm ölçülmüştür\n`;
-                        description += `   → Fark: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm\n`;
-                        
-                        // Tolerans dışına çıkma açıklaması
-                        if (min !== null && measuredNum < parseFloat(min)) {
-                            const underTolerance = parseFloat(min) - measuredNum;
-                            description += `   ⚠ ALT TOLERANS AŞILDI: ${min} mm'den ${underTolerance.toFixed(3)} mm küçük!\n`;
-                        }
-                        if (max !== null && measuredNum > parseFloat(max)) {
-                            const overTolerance = measuredNum - parseFloat(max);
-                            description += `   ⚠ ÜST TOLERANS AŞILDI: ${max} mm'den ${overTolerance.toFixed(3)} mm büyük!\n`;
-                        }
-                    } else if (measured !== null && (min !== null || max !== null)) {
-                        // Nominal yok ama toleranslar var
-                        if (min !== null && parseFloat(measured) < parseFloat(min)) {
-                            description += `   ⚠ UYGUNSUZ: ${measured} mm < ${min} mm (alt sınır)\n`;
-                        }
-                        if (max !== null && parseFloat(measured) > parseFloat(max)) {
-                            description += `   ⚠ UYGUNSUZ: ${measured} mm > ${max} mm (üst sınır)\n`;
-                        }
+                        description += `   Beklenen Değer (Nominal): ${nominal !== null ? nominal + ' mm' : '-'}\n`;
+                        description += `   Tolerans Aralığı: ${min !== null ? min : '-'} mm ~ ${max !== null ? max : '-'} mm\n`;
                     }
                     
-                    // Result değerini daha okunabilir göster
+                    // Gerçek ölçülen değer
+                    if (measuredValue !== null && measuredValue !== '') {
+                        description += `   Gerçek Ölçülen Değer: ${measuredValue} mm\n`;
+                        
+                        // Hatalı değer kontrolü ve sapma analizi
+                        const measuredNum = parseFloat(String(measuredValue).replace(',', '.'));
+                        const isOutOfTolerance = (min !== null && measuredNum < parseFloat(min)) || 
+                                                (max !== null && measuredNum > parseFloat(max));
+                        
+                        if (isOutOfTolerance) {
+                            description += `   ⚠ HATALI DEĞER: Tolerans dışında!\n`;
+                            
+                            if (nominal !== null && !isNaN(measuredNum) && !isNaN(parseFloat(nominal))) {
+                                const nominalNum = parseFloat(nominal);
+                                const deviation = measuredNum - nominalNum;
+                                description += `   → Nominal Değerden Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm\n`;
+                            }
+                            
+                            // Tolerans dışına çıkma detayları
+                            if (min !== null && measuredNum < parseFloat(min)) {
+                                const underTolerance = parseFloat(min) - measuredNum;
+                                description += `   → Alt Tolerans Aşımı: ${min} mm'den ${underTolerance.toFixed(3)} mm küçük (${((underTolerance / parseFloat(min)) * 100).toFixed(2)}%)\n`;
+                            }
+                            if (max !== null && measuredNum > parseFloat(max)) {
+                                const overTolerance = measuredNum - parseFloat(max);
+                                description += `   → Üst Tolerans Aşımı: ${max} mm'den ${overTolerance.toFixed(3)} mm büyük (${((overTolerance / parseFloat(max)) * 100).toFixed(2)}%)\n`;
+                            }
+                        } else if (nominal !== null && !isNaN(measuredNum) && !isNaN(parseFloat(nominal))) {
+                            // Tolerans içinde ama nominal değerden sapma var
+                            const nominalNum = parseFloat(nominal);
+                            const deviation = measuredNum - nominalNum;
+                            if (Math.abs(deviation) > 0.001) { // 0.001 mm'den büyük sapma varsa göster
+                                description += `   → Nominal Değerden Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm (Tolerans içinde)\n`;
+                            }
+                        }
+                    } else {
+                        description += `   Gerçek Ölçülen Değer: Ölçülmemiş\n`;
+                    }
+                    
+                    // Sonuç durumu
                     const resultDisplay = typeof result.result === 'boolean' ? (result.result ? 'OK' : 'NOK') : result.result;
                     description += `   Sonuç: ${resultDisplay}\n`;
                 });
