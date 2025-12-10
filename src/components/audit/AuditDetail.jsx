@@ -2,11 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, X, Eye, Save, CheckCircle, GitBranch, Printer } from 'lucide-react';
+import { ArrowLeft, Check, X, Eye, Save, CheckCircle, GitBranch, Printer, UploadCloud, File as FileIcon, Trash2, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Textarea } from '@/components/ui/textarea';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
     const { toast } = useToast();
@@ -14,6 +16,8 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
     const [questions, setQuestions] = useState([]);
     const [findings, setFindings] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [uploadingFiles, setUploadingFiles] = useState({});
+    const [lightboxUrl, setLightboxUrl] = useState(null);
 
     const fetchAuditData = useCallback(async () => {
         setLoading(true);
@@ -143,6 +147,233 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
             toast({ variant: 'destructive', title: 'Hata', description: `Not güncellenemedi: ${error.message}` });
             setQuestions(originalQuestions);
         }
+    };
+
+    const sanitizeFileName = (fileName) => {
+        return fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    };
+
+    const handleFileUpload = async (resultId, files) => {
+        if (!files || files.length === 0) return;
+
+        setUploadingFiles(prev => ({ ...prev, [resultId]: true }));
+        const question = questions.find(q => q.id === resultId);
+        if (!question) return;
+
+        const currentAttachments = question.attachments || [];
+        const newAttachments = [];
+
+        try {
+            for (const file of files) {
+                const sanitizedFileName = sanitizeFileName(file.name);
+                const timestamp = Date.now();
+                const randomStr = Math.random().toString(36).substring(2, 9);
+                const filePath = `audit_evidence/${auditId}/${resultId}/${timestamp}-${randomStr}-${sanitizedFileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('audit_attachments')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false,
+                        contentType: file.type || 'application/octet-stream'
+                    });
+
+                if (uploadError) {
+                    toast({ variant: 'destructive', title: 'Hata', description: `${file.name} yüklenemedi: ${uploadError.message}` });
+                    continue;
+                }
+
+                newAttachments.push({
+                    path: filePath,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    uploaded_at: new Date().toISOString()
+                });
+            }
+
+            if (newAttachments.length > 0) {
+                const updatedAttachments = [...currentAttachments, ...newAttachments];
+                const { error } = await supabase
+                    .from('audit_results')
+                    .update({ attachments: updatedAttachments })
+                    .eq('id', resultId);
+
+                if (error) {
+                    toast({ variant: 'destructive', title: 'Hata', description: `Dosya bilgileri kaydedilemedi: ${error.message}` });
+                } else {
+                    setQuestions(questions.map(q => 
+                        q.id === resultId 
+                            ? { ...q, attachments: updatedAttachments }
+                            : q
+                    ));
+                    toast({ title: 'Başarılı', description: `${newAttachments.length} dosya eklendi.` });
+                }
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: `Dosya yükleme hatası: ${error.message}` });
+        } finally {
+            setUploadingFiles(prev => ({ ...prev, [resultId]: false }));
+        }
+    };
+
+    const handleRemoveAttachment = async (resultId, attachmentPath) => {
+        const question = questions.find(q => q.id === resultId);
+        if (!question) return;
+
+        const updatedAttachments = (question.attachments || []).filter(att => att.path !== attachmentPath);
+
+        // Storage'dan dosyayı sil
+        const { error: deleteError } = await supabase.storage
+            .from('audit_attachments')
+            .remove([attachmentPath]);
+
+        if (deleteError) {
+            toast({ variant: 'destructive', title: 'Hata', description: `Dosya silinemedi: ${deleteError.message}` });
+            return;
+        }
+
+        // Veritabanını güncelle
+        const { error } = await supabase
+            .from('audit_results')
+            .update({ attachments: updatedAttachments })
+            .eq('id', resultId);
+
+        if (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: `Dosya bilgileri güncellenemedi: ${error.message}` });
+        } else {
+            setQuestions(questions.map(q => 
+                q.id === resultId 
+                    ? { ...q, attachments: updatedAttachments }
+                    : q
+            ));
+            toast({ title: 'Başarılı', description: 'Dosya silindi.' });
+        }
+    };
+
+    const handleDownloadAttachment = async (attachment) => {
+        try {
+            const { data, error } = await supabase.storage
+                .from('audit_attachments')
+                .download(attachment.path);
+
+            if (error) throw error;
+
+            const url = window.URL.createObjectURL(data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = attachment.name;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Hata', description: `Dosya indirilemedi: ${error.message}` });
+        }
+    };
+
+    const AttachmentItem = ({ attachment, resultId }) => {
+        const [signedUrl, setSignedUrl] = useState(null);
+        const [loadingUrl, setLoadingUrl] = useState(true);
+
+        useEffect(() => {
+            const fetchSignedUrl = async () => {
+                try {
+                    const { data, error } = await supabase.storage
+                        .from('audit_attachments')
+                        .createSignedUrl(attachment.path, 3600);
+                    
+                    if (!error && data?.signedUrl) {
+                        setSignedUrl(data.signedUrl);
+                    }
+                } catch (err) {
+                    console.error('Signed URL fetch error:', err);
+                } finally {
+                    setLoadingUrl(false);
+                }
+            };
+            
+            if (attachment.path) {
+                fetchSignedUrl();
+            }
+        }, [attachment.path]);
+
+        if (loadingUrl) {
+            return (
+                <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center">
+                    <FileIcon className="w-6 h-6 text-muted-foreground animate-pulse" />
+                </div>
+            );
+        }
+
+        if (!signedUrl) return null;
+
+        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(attachment.name || attachment.path);
+        const isPdf = /\.pdf$/i.test(attachment.name || attachment.path);
+        const isVideo = /\.(mp4|avi|mov|wmv|flv|webm)$/i.test(attachment.name || attachment.path);
+
+        return (
+            <div className="relative group w-24 h-24">
+                {isImage ? (
+                    <img
+                        src={signedUrl}
+                        alt={attachment.name || 'Ek'}
+                        className="rounded-lg object-cover w-full h-full cursor-pointer border border-border"
+                        onClick={() => setLightboxUrl(signedUrl)}
+                    />
+                ) : isPdf ? (
+                    <a 
+                        href={signedUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="flex flex-col items-center justify-center gap-2 p-2 bg-red-50 dark:bg-red-950 rounded-lg h-full text-center border border-border hover:bg-red-100 dark:hover:bg-red-900 transition-colors"
+                    >
+                        <FileIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
+                        <span className="text-xs text-foreground truncate w-full">{attachment.name?.substring(0, 10) || 'PDF'}</span>
+                    </a>
+                ) : isVideo ? (
+                    <a 
+                        href={signedUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="flex flex-col items-center justify-center gap-2 p-2 bg-purple-50 dark:bg-purple-950 rounded-lg h-full text-center border border-border hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors"
+                    >
+                        <FileIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                        <span className="text-xs text-foreground truncate w-full">{attachment.name?.substring(0, 10) || 'Video'}</span>
+                    </a>
+                ) : (
+                    <a 
+                        href={signedUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center border border-border hover:bg-muted transition-colors"
+                    >
+                        <FileIcon className="w-6 h-6 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground truncate w-full">{attachment.name?.substring(0, 10) || 'Dosya'}</span>
+                    </a>
+                )}
+                <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="h-6 w-6 rounded-full"
+                        onClick={() => handleDownloadAttachment(attachment)}
+                    >
+                        <Download className="h-3 w-3" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="h-6 w-6 rounded-full"
+                        onClick={() => handleRemoveAttachment(resultId, attachment.path)}
+                    >
+                        <Trash2 className="h-3 w-3" />
+                    </Button>
+                </div>
+            </div>
+        );
     };
 
     const handleOpenNCModal = (finding) => {
@@ -285,6 +516,53 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                                 />
                             </div>
                         </div>
+                        
+                        {/* Kanıt Dokümanları */}
+                        <div className="mt-4 pt-4 border-t border-border">
+                            <div className="flex items-center justify-between mb-3">
+                                <Label className="text-sm font-medium">Kanıt Dokümanları</Label>
+                                <div className="relative">
+                                    <Input
+                                        type="file"
+                                        multiple
+                                        accept="*/*"
+                                        className="hidden"
+                                        id={`file-input-${q.id}`}
+                                        onChange={(e) => {
+                                            const files = Array.from(e.target.files || []);
+                                            if (files.length > 0) {
+                                                handleFileUpload(q.id, files);
+                                            }
+                                            e.target.value = '';
+                                        }}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => document.getElementById(`file-input-${q.id}`)?.click()}
+                                        disabled={uploadingFiles[q.id]}
+                                    >
+                                        <UploadCloud className="w-4 h-4 mr-2" />
+                                        {uploadingFiles[q.id] ? 'Yükleniyor...' : 'Dosya Ekle'}
+                                    </Button>
+                                </div>
+                            </div>
+                            {q.attachments && q.attachments.length > 0 ? (
+                                <div className="flex flex-wrap gap-3">
+                                    {q.attachments.map((attachment, attIndex) => (
+                                        <AttachmentItem 
+                                            key={attIndex} 
+                                            attachment={attachment} 
+                                            resultId={q.id}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">Henüz kanıt dokümanı eklenmemiş.</p>
+                            )}
+                        </div>
+
                         {q.answer === 'Uygunsuz' && finding && (
                             <div className="mt-3 text-right">
                                <Button variant={hasNC ? 'success' : 'destructive'} size="sm" onClick={() => handleOpenNCModal(finding)} disabled={!!hasNC}>
@@ -305,6 +583,29 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                     )}
                 </div>
               </div>
+            )}
+            
+            {/* Lightbox Modal */}
+            {lightboxUrl && (
+                <div 
+                    className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+                    onClick={() => setLightboxUrl(null)}
+                >
+                    <img 
+                        src={lightboxUrl} 
+                        alt="Kanıt" 
+                        className="max-w-full max-h-full object-contain"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-4 right-4 text-white hover:bg-white/20"
+                        onClick={() => setLightboxUrl(null)}
+                    >
+                        <X className="w-6 h-6" />
+                    </Button>
+                </div>
             )}
         </motion.div>
     );
