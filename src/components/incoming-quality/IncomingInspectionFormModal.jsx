@@ -778,6 +778,11 @@ setShowRiskyStockAlert(false);
                             }}
                             onViewStock={() => {
                                 onOpenStockRiskModal(formData, riskyStockData);
+                                toast({
+                                    title: 'Stok Risk Kontrolü Başlatılıyor',
+                                    description: `${riskyStockData.length} adet riskli stok kaydı için kontrol başlatılıyor. Kontrol sonuçlarını kaydedebilirsiniz.`,
+                                    duration: 4000
+                                });
                                 setIsOpen(false);
                             }}
                             onClose={() => {
