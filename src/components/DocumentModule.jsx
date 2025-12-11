@@ -96,9 +96,15 @@ import { Label } from '@/components/ui/label';
             return <Badge variant="secondary">Süresiz</Badge>;
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const expiryDate = new Date(validUntil);
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const expiryDate = new Date(validUntil);
+            
+            // Geçersiz tarih kontrolü
+            if (isNaN(expiryDate.getTime())) {
+                return <Badge variant="secondary">Geçersiz Tarih</Badge>;
+            }
         const diffTime = expiryDate - today;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
