@@ -27,16 +27,32 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
         
         setLoading(true);
         try {
-            const { data, error } = await supabase
+            // Önce revizyonları çek
+            const { data: revisionsData, error: revisionsError } = await supabase
                 .from('document_revisions')
-                .select(`
-                    *,
-                    created_by_user:profiles!document_revisions_created_by_fkey(id, full_name),
-                    approved_by_user:profiles!document_revisions_approved_by_id_fkey(id, full_name),
-                    reviewed_by_user:profiles!document_revisions_reviewed_by_id_fkey(id, full_name)
-                `)
+                .select('*')
                 .eq('document_id', document.id)
                 .order('revision_number', { ascending: false });
+
+            if (revisionsError) throw revisionsError;
+
+            // Her revizyon için kullanıcı bilgilerini çek
+            const revisionsWithUsers = await Promise.all((revisionsData || []).map(async (revision) => {
+                const [createdBy, approvedBy, reviewedBy] = await Promise.all([
+                    revision.created_by ? supabase.from('profiles').select('id, full_name').eq('id', revision.created_by).single() : Promise.resolve({ data: null }),
+                    revision.approved_by_id ? supabase.from('profiles').select('id, full_name').eq('id', revision.approved_by_id).single() : Promise.resolve({ data: null }),
+                    revision.reviewed_by_id ? supabase.from('profiles').select('id, full_name').eq('id', revision.reviewed_by_id).single() : Promise.resolve({ data: null })
+                ]);
+
+                return {
+                    ...revision,
+                    created_by_user: createdBy.data,
+                    approved_by_user: approvedBy.data,
+                    reviewed_by_user: reviewedBy.data
+                };
+            }));
+
+            setRevisions(revisionsWithUsers);
 
             if (error) throw error;
             setRevisions(data || []);
