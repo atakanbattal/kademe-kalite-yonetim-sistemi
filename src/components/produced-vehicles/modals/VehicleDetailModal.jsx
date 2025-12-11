@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
     import { Button } from '@/components/ui/button';
     import { Badge } from '@/components/ui/badge';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { Skeleton } from '@/components/ui/skeleton';
+    import { Card, CardContent } from '@/components/ui/card';
+    import { Separator } from '@/components/ui/separator';
+    import { InfoCard } from '@/components/ui/InfoCard';
     import { format, parseISO, differenceInMilliseconds } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { formatDuration } from '@/lib/formatDuration.js';
-    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText } from 'lucide-react';
+    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText, Car, Hash, Calendar, User, Building2 } from 'lucide-react';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { generateVehicleReport } from '@/lib/pdfGenerator';
 
@@ -25,13 +28,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
       ready_to_ship: { label: 'Sevke Hazır', icon: <PackageCheck className="h-4 w-4 text-purple-500" /> },
       shipped: { label: 'Sevk Edildi', icon: <Ship className="h-4 w-4 text-gray-500" /> },
     };
-
-    const DetailItem = ({ label, value }) => (
-        <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">{label}</span>
-            <span className="font-semibold">{value || '-'}</span>
-        </div>
-    );
 
     const TimelineTab = ({ vehicle, onUpdate }) => {
         const { toast } = useToast();
@@ -205,14 +201,19 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         </TableBody>
                     </Table>
                 </ScrollArea>
-                <div className="p-4 border rounded-lg bg-background">
-                    <h4 className="font-semibold mb-3">Özet İstatistikler</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <DetailItem label="Toplam Kontrol Süresi" value={summaryStats.totalControlTime} />
-                        <DetailItem label="Toplam Yeniden İşlem Süresi" value={summaryStats.totalReworkTime} />
-                        <DetailItem label="Kalitede Geçen Toplam Süre" value={summaryStats.totalQualityTime} />
-                    </div>
-                </div>
+                <Card>
+                    <CardContent className="p-6">
+                        <h4 className="font-semibold mb-4 flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-primary" />
+                            Özet İstatistikler
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <InfoCard icon={Clock} label="Toplam Kontrol Süresi" value={summaryStats.totalControlTime} variant="info" />
+                            <InfoCard icon={Wrench} label="Toplam Yeniden İşlem Süresi" value={summaryStats.totalReworkTime} variant="warning" />
+                            <InfoCard icon={CheckCircle} label="Kalitede Geçen Toplam Süre" value={summaryStats.totalQualityTime} variant="success" />
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         );
     };
@@ -302,18 +303,22 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-3xl">
+                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
                     <DialogHeader>
                         <div className="flex items-center justify-between">
                             <div>
-                                <DialogTitle className="text-2xl">{vehicle.chassis_no}</DialogTitle>
-                                <DialogDescription>Araç Detayları ve İşlem Geçmişi</DialogDescription>
+                                <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
+                                    <Car className="h-6 w-6" />
+                                    Üretilen Araç Detayı
+                                </DialogTitle>
+                                <DialogDescription className="mt-2">
+                                    Araç kaydına ait tüm bilgiler aşağıda listelenmiştir.
+                                </DialogDescription>
                             </div>
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={generateReport}
-                                className="ml-4"
                             >
                                 <FileText className="w-4 h-4 mr-2" />
                                 Rapor Al
@@ -321,36 +326,104 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         </div>
                     </DialogHeader>
                     
-                    <Tabs defaultValue="details" className="w-full mt-4">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="details">Temel Bilgiler</TabsTrigger>
-                            <TabsTrigger value="history">İşlem Geçmişi</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="details" className="py-4">
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                <DetailItem label="Şasi Numarası" value={vehicle.chassis_no} />
-                                <DetailItem label="Seri Numarası" value={vehicle.serial_no} />
-                                <DetailItem label="Araç Tipi" value={vehicle.vehicle_type} />
-                                <DetailItem label="Müşteri" value={vehicle.customer_name} />
-                                <DetailItem label="Durum" value={<Badge variant="outline">{vehicle.status}</Badge>} />
-                                <DetailItem label="DMO Durumu" value={vehicle.dmo_status ? <Badge variant="secondary">{vehicle.dmo_status}</Badge> : '-'} />
-                                <DetailItem label="Oluşturulma Tarihi" value={format(parseISO(vehicle.created_at), 'dd.MM.yyyy HH:mm', { locale: tr })} />
-                                <DetailItem label="Son Güncelleme" value={format(parseISO(vehicle.updated_at), 'dd.MM.yyyy HH:mm', { locale: tr })} />
-                            </div>
-                            <div className="mt-6">
-                                <h4 className="font-semibold mb-2">Notlar</h4>
-                                <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md min-h-[60px]">
-                                    {vehicle.notes || 'Bu araç için not bulunmamaktadır.'}
-                                </p>
-                            </div>
-                        </TabsContent>
-                        <TabsContent value="history" className="py-4">
-                            <TimelineTab vehicle={vehicle} onUpdate={onUpdate} />
-                        </TabsContent>
-                    </Tabs>
+                    <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
+                        <Tabs defaultValue="details" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="details">Temel Bilgiler</TabsTrigger>
+                                <TabsTrigger value="history">İşlem Geçmişi</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="details" className="space-y-6 mt-6">
+                                {/* Önemli Bilgiler */}
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <Car className="h-5 w-5 text-primary" />
+                                        Önemli Bilgiler
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <InfoCard 
+                                            icon={Hash} 
+                                            label="Şasi Numarası" 
+                                            value={vehicle.chassis_no} 
+                                            variant="primary"
+                                        />
+                                        <InfoCard 
+                                            icon={Hash} 
+                                            label="Seri Numarası" 
+                                            value={vehicle.serial_no} 
+                                        />
+                                        <InfoCard 
+                                            icon={Car} 
+                                            label="Araç Tipi" 
+                                            value={vehicle.vehicle_type} 
+                                            variant="warning"
+                                        />
+                                    </div>
+                                </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
+                                <Separator />
+
+                                {/* Genel Bilgiler */}
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <FileText className="h-5 w-5 text-primary" />
+                                        Genel Bilgiler
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <InfoCard icon={User} label="Müşteri" value={vehicle.customer_name} />
+                                        <InfoCard 
+                                            icon={CheckCircle} 
+                                            label="Durum" 
+                                            value={vehicle.status}
+                                            variant={vehicle.status === 'Sevk Edildi' ? 'success' : 'default'}
+                                        />
+                                        {vehicle.dmo_status && (
+                                            <InfoCard 
+                                                icon={Building2} 
+                                                label="DMO Durumu" 
+                                                value={vehicle.dmo_status}
+                                                variant="info"
+                                            />
+                                        )}
+                                        <InfoCard 
+                                            icon={Calendar} 
+                                            label="Oluşturulma Tarihi" 
+                                            value={format(parseISO(vehicle.created_at), 'dd.MM.yyyy HH:mm', { locale: tr })} 
+                                        />
+                                        <InfoCard 
+                                            icon={Calendar} 
+                                            label="Son Güncelleme" 
+                                            value={format(parseISO(vehicle.updated_at), 'dd.MM.yyyy HH:mm', { locale: tr })} 
+                                        />
+                                    </div>
+                                </div>
+
+                                <Separator />
+
+                                {/* Notlar */}
+                                {vehicle.notes && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                            <FileText className="h-5 w-5 text-primary" />
+                                            Notlar
+                                        </h3>
+                                        <Card>
+                                            <CardContent className="p-6">
+                                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{vehicle.notes}</p>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                )}
+                            </TabsContent>
+                            <TabsContent value="history" className="mt-6">
+                                <TimelineTab vehicle={vehicle} onUpdate={onUpdate} />
+                            </TabsContent>
+                        </Tabs>
+                    </ScrollArea>
+
+                    <DialogFooter className="mt-6">
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary" size="lg">Kapat</Button>
+                        </DialogClose>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

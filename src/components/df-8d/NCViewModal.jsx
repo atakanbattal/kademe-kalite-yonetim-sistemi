@@ -38,7 +38,8 @@ import {
   CalendarCheck2,
   Paperclip,
   Printer,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Lightbox } from 'react-modal-image';
@@ -47,18 +48,9 @@ import { getStatusBadge } from '@/lib/statusUtils';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RevisionHistory from './RevisionHistory';
-
-const InfoItem = ({ icon: Icon, label, value, className }) => (
-  <div
-    className={`flex flex-col gap-1 p-3 bg-secondary/50 rounded-lg ${className}`}
-  >
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Icon className="w-4 h-4" />
-      <span>{label}</span>
-    </div>
-    <p className="text-md font-semibold text-foreground">{value || '-'}</p>
-  </div>
-);
+import { InfoCard } from '@/components/ui/InfoCard';
+import { Card, CardContent } from '@/components/ui/card';
+import { DialogClose } from '@/components/ui/dialog';
 
 const EightDStepView = ({ stepKey, step }) => (
   <div className="p-4 border-l-2 border-primary/50 bg-secondary/30 rounded-r-lg">
@@ -234,18 +226,25 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         onConfirm={handleRejectConfirm}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-              {record.nc_number || record.mdi_no}
-              {getStatusBadge(record)}
-              {record.is_major && (
-                <Badge variant="destructive" className="text-sm">MAJOR UYGUNSUZLUK</Badge>
-              )}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              {record.title}
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
+                  <AlertTriangle className="h-6 w-6" />
+                  Uygunsuzluk Detayı
+                </DialogTitle>
+                <DialogDescription className="mt-2">
+                  {record.nc_number || record.mdi_no} - {record.title}
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {getStatusBadge(record)}
+                {record.is_major && (
+                  <Badge variant="destructive" className="text-sm">MAJOR</Badge>
+                )}
+              </div>
+            </div>
           </DialogHeader>
 
           <ScrollArea className="flex-grow pr-4">
@@ -256,94 +255,119 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
               </TabsList>
               
               <TabsContent value="general" className="space-y-6">
+              {/* Önemli Bilgiler */}
               <div>
-                <h3 className="text-lg font-semibold text-foreground mb-3">
-                  Genel Bilgiler
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Önemli Bilgiler
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <InfoItem icon={Type} label="Tip" value={record.type} />
-                  <InfoItem
-                    icon={Flag}
-                    label="Öncelik"
-                    value={<div className="flex">{getPriorityBadge(record.priority)}</div>}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <InfoCard icon={Tag} label="Uygunsuzluk No" value={record.nc_number || record.mdi_no} variant="primary" />
+                  <InfoCard icon={Type} label="Tip" value={record.type} />
+                  <InfoCard 
+                    icon={Flag} 
+                    label="Öncelik" 
+                    value={record.priority} 
+                    variant={record.priority === 'Kritik' ? 'danger' : record.priority === 'Yüksek' ? 'warning' : 'default'}
                   />
                   {record.status !== 'Reddedildi' && (
-                    <InfoItem
+                    <InfoCard
                       icon={Clock}
                       label="Termin Tarihi"
                       value={formatDate(record.due_at || record.due_date)}
+                      variant="warning"
                     />
                   )}
-                  <InfoItem
+                  <InfoCard
                     icon={Building}
                     label="İlgili Birim"
                     value={supplierName || record.department}
                   />
-                  <InfoItem
+                  <InfoCard
                     icon={User}
                     label="Sorumlu Kişi"
                     value={record.responsible_person}
                   />
-                  <InfoItem icon={Tag} label="MDI No" value={record.mdi_no} />
-                  <InfoItem
-                    icon={Building}
-                    label="Talep Eden Birim"
-                    value={record.requesting_unit}
-                  />
-                  <InfoItem
-                    icon={User}
-                    label="Talep Eden Kişi"
-                    value={record.requesting_person}
-                  />
-                  <InfoItem
-                    icon={CalendarCheck2}
-                    label="Açılış Tarihi"
-                    value={formatDate(record.df_opened_at)}
-                  />
-                  {record.audit_title && <InfoItem icon={FileSearch} label="Tetkik Başlığı" value={record.audit_title} />}
-                   {record.vehicle_type && <InfoItem icon={Truck} label="Araç Tipi" value={record.vehicle_type} />}
-                  {record.part_name && <InfoItem icon={Box} label="Parça Adı" value={record.part_name} />}
-                  {record.part_code && <InfoItem icon={Scan} label="Parça Kodu" value={record.part_code} />}
-                  {record.part_location && <InfoItem icon={MapPin} label="Parça Konumu" value={record.part_location} />}
-                  {record.amount != null && <InfoItem icon={DollarSign} label="Maliyet Tutarı" value={formatCurrency(record.amount)} />}
-                  {record.cost_date && <InfoItem icon={CalendarDays} label="Maliyet Tarihi" value={formatDate(record.cost_date)} />}
-                  {record.cost_type && <InfoItem icon={ClipboardType} label="Maliyet Türü" value={record.cost_type} />}
-                  {record.material_type && <InfoItem icon={Package} label="Malzeme Türü" value={record.material_type} />}
-                  {record.measurement_unit && <InfoItem icon={Ruler} label="Ölçü Birimi" value={record.measurement_unit} />}
-                  {record.quantity != null && <InfoItem icon={Hash} label="Miktar" value={record.quantity} />}
-                  {record.scrap_weight != null && <InfoItem icon={Weight} label="Hurda Ağırlığı (kg)" value={record.scrap_weight} />}
-                  {record.rework_duration != null && <InfoItem icon={Timer} label="Yeniden İşlem Süresi (dk)" value={record.rework_duration} />}
-                  {record.quality_control_duration != null && <InfoItem icon={Timer} label="Kalite Kontrol Süresi (dk)" value={record.quality_control_duration} />}
                 </div>
               </div>
 
               <Separator />
 
+              {/* Genel Bilgiler */}
               <div>
-                <h3 className="text-lg font-semibold text-foreground mb-3">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Genel Bilgiler
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <InfoCard icon={Tag} label="MDI No" value={record.mdi_no} />
+                  <InfoCard
+                    icon={Building}
+                    label="Talep Eden Birim"
+                    value={record.requesting_unit}
+                  />
+                  <InfoCard
+                    icon={User}
+                    label="Talep Eden Kişi"
+                    value={record.requesting_person}
+                  />
+                  <InfoCard
+                    icon={CalendarCheck2}
+                    label="Açılış Tarihi"
+                    value={formatDate(record.df_opened_at)}
+                  />
+                  {record.audit_title && <InfoCard icon={FileSearch} label="Tetkik Başlığı" value={record.audit_title} />}
+                  {record.vehicle_type && <InfoCard icon={Truck} label="Araç Tipi" value={record.vehicle_type} />}
+                  {record.part_name && <InfoCard icon={Box} label="Parça Adı" value={record.part_name} />}
+                  {record.part_code && <InfoCard icon={Scan} label="Parça Kodu" value={record.part_code} />}
+                  {record.part_location && <InfoCard icon={MapPin} label="Parça Konumu" value={record.part_location} />}
+                  {record.amount != null && <InfoCard icon={DollarSign} label="Maliyet Tutarı" value={formatCurrency(record.amount)} variant="warning" />}
+                  {record.cost_date && <InfoCard icon={CalendarDays} label="Maliyet Tarihi" value={formatDate(record.cost_date)} />}
+                  {record.cost_type && <InfoCard icon={ClipboardType} label="Maliyet Türü" value={record.cost_type} />}
+                  {record.material_type && <InfoCard icon={Package} label="Malzeme Türü" value={record.material_type} />}
+                  {record.measurement_unit && <InfoCard icon={Ruler} label="Ölçü Birimi" value={record.measurement_unit} />}
+                  {record.quantity != null && <InfoCard icon={Hash} label="Miktar" value={record.quantity} />}
+                  {record.scrap_weight != null && <InfoCard icon={Weight} label="Hurda Ağırlığı (kg)" value={record.scrap_weight} />}
+                  {record.rework_duration != null && <InfoCard icon={Timer} label="Yeniden İşlem Süresi (dk)" value={record.rework_duration} />}
+                  {record.quality_control_duration != null && <InfoCard icon={Timer} label="Kalite Kontrol Süresi (dk)" value={record.quality_control_duration} />}
+                </div>
+              </div>
+
+              <Separator />
+
+              <Separator />
+
+              {/* Problem Tanımı */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
                   Problem Tanımı
                 </h3>
-                <div className="p-4 bg-secondary/50 rounded-lg text-sm text-foreground/90 whitespace-pre-wrap">
-                  {record.description || 'Açıklama girilmemiş.'}
-                </div>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{record.description || 'Açıklama girilmemiş.'}</p>
+                  </CardContent>
+                </Card>
               </div>
               
               {record.closing_notes && (
                 <>
                  <Separator />
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
                       İlerleme Notları / Yapılan Çalışmalar
                     </h3>
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-foreground/90 whitespace-pre-wrap">
-                      {record.closing_notes}
-                    </div>
-                    {record.status === 'İşlemde' && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        💡 İpucu: Bu notları düzenlemek için "Düzenle" butonuna tıklayın veya uygunsuzluğu "İşlemde" olarak güncelleyin.
-                      </p>
-                    )}
+                    <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                      <CardContent className="p-6">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{record.closing_notes}</p>
+                        {record.status === 'İşlemde' && (
+                          <p className="text-xs text-muted-foreground mt-4">
+                            💡 İpucu: Bu notları düzenlemek için "Düzenle" butonuna tıklayın veya uygunsuzluğu "İşlemde" olarak güncelleyin.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
                 </>
               )}
@@ -386,13 +410,20 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                 <>
                   <Separator />
                   <div>
-                    <h3 className="text-lg font-semibold text-destructive mb-3">Reddetme Detayları</h3>
-                    <InfoItem
-                        icon={XCircle}
-                        label="Reddetme Gerekçesi"
-                        value={record.rejection_reason}
-                        className="col-span-full"
-                    />
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-destructive">
+                      <XCircle className="h-5 w-5" />
+                      Reddetme Detayları
+                    </h3>
+                    <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900">
+                      <CardContent className="p-6">
+                        <InfoCard
+                            icon={XCircle}
+                            label="Reddetme Gerekçesi"
+                            value={record.rejection_reason}
+                            variant="danger"
+                        />
+                      </CardContent>
+                    </Card>
                   </div>
                 </>
               )}
@@ -401,14 +432,16 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                 <>
                   <Separator />
                   <div>
-                    <h3 className="text-lg font-semibold text-green-600 mb-3">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-green-600">
+                      <CheckSquare className="h-5 w-5" />
                       Kapanış Bilgileri
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <InfoItem
+                      <InfoCard
                         icon={CheckSquare}
                         label="Kapatma Tarihi"
                         value={formatDate(record.closed_at)}
+                        variant="success"
                       />
                     </div>
                   </div>
@@ -424,23 +457,23 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
             </Tabs>
           </ScrollArea>
 
-          <DialogFooter className="pt-4 border-t flex-shrink-0 justify-between">
-            <div>
-                 {onReject && <Button variant="destructive" onClick={() => setRejectModalOpen(true)} className="mr-2">
+          <DialogFooter className="mt-6">
+            <div className="flex gap-2">
+                 {onReject && <Button variant="destructive" onClick={() => setRejectModalOpen(true)}>
                     <XCircle className="mr-2 h-4 w-4" /> Reddet
                 </Button>}
                 {onEdit && <Button variant="secondary" onClick={() => onEdit(record)}>
                     <Edit className="mr-2 h-4 w-4" /> Düzenle
                 </Button>}
             </div>
-            <div>
-                <Button onClick={handlePrint} variant="outline" className="mr-2" disabled={isPrinting}>
+            <div className="flex gap-2">
+                <Button onClick={handlePrint} variant="outline" disabled={isPrinting}>
                   {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
                   Yazdır / PDF
                 </Button>
-              <Button onClick={() => setIsOpen(false)}>
-                Kapat
-              </Button>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary" size="lg">Kapat</Button>
+              </DialogClose>
             </div>
           </DialogFooter>
         </DialogContent>

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Edit, X, FileText, Users, Calendar, Package, AlertCircle, AlertTriangle,
     CheckCircle2, Clock, Download, Upload, Trash2, Plus,
-    BarChart3, MessageSquare, Activity, ExternalLink
+    BarChart3, MessageSquare, Activity, ExternalLink, User, Hash
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { InfoCard } from '@/components/ui/InfoCard';
+import { DialogClose } from '@/components/ui/dialog';
 import AnalysisTab from './AnalysisTab';
 import ActionsTab from './ActionsTab';
 import DocumentsTab from './DocumentsTab';
@@ -150,43 +152,30 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
                 <DialogHeader>
-                    <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                                <DialogTitle className="text-2xl">
-                                    {complaintData?.complaint_number || 'Yükleniyor...'}
-                                </DialogTitle>
-                                {complaintData && (
-                                    <>
-                                        <Badge variant={SEVERITY_COLORS[complaintData.severity]}>
-                                            {complaintData.severity}
-                                        </Badge>
-                                        <Badge variant={STATUS_COLORS[complaintData.status]}>
-                                            {complaintData.status}
-                                        </Badge>
-                                    </>
-                                )}
-                            </div>
-                            {complaintData && (
-                                <div className="text-sm text-muted-foreground">
-                                    <div className="font-medium">{complaintData.title}</div>
-                                    <div className="flex items-center gap-4 mt-1">
-                                        <span className="flex items-center gap-1">
-                                            <Users className="w-3 h-3" />
-                                            {complaintData.customer?.customer_name}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <Calendar className="w-3 h-3" />
-                                            {new Date(complaintData.complaint_date).toLocaleDateString('tr-TR')}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <Clock className="w-3 h-3" />
-                                            {getDaysOpen(complaintData.complaint_date, complaintData.actual_close_date)} gün
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
+                                <AlertCircle className="h-6 w-6" />
+                                Müşteri Şikayeti Detayı
+                            </DialogTitle>
+                            <DialogDescription className="mt-2">
+                                {complaintData?.complaint_number || 'Yükleniyor...'} - {complaintData?.title || ''}
+                            </DialogDescription>
                         </div>
+                        {complaintData && (
+                            <div className="flex items-center gap-2">
+                                <Badge variant={SEVERITY_COLORS[complaintData.severity]}>
+                                    {complaintData.severity}
+                                </Badge>
+                                <Badge variant={STATUS_COLORS[complaintData.status]}>
+                                    {complaintData.status}
+                                </Badge>
+                            </div>
+                        )}
+                    </div>
+                </DialogHeader>
+                
+                <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
                         {complaintData && (
                             <div className="flex gap-2">
                                 <Button
@@ -274,65 +263,80 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                             </TabsTrigger>
                         </TabsList>
 
-                        <div className="flex-1 overflow-y-auto mt-4">
-                            {/* Genel Bakış */}
-                            <TabsContent value="overview" className="mt-0 space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {/* Müşteri Bilgileri */}
+                        {/* Genel Bakış */}
+                        <TabsContent value="overview" className="space-y-6">
+                            {/* Önemli Bilgiler */}
+                            <div>
+                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <AlertCircle className="h-5 w-5 text-primary" />
+                                    Önemli Bilgiler
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <InfoCard 
+                                        icon={Hash} 
+                                        label="Şikayet No" 
+                                        value={complaintData?.complaint_number} 
+                                        variant="primary"
+                                    />
+                                    <InfoCard 
+                                        icon={Calendar} 
+                                        label="Şikayet Tarihi" 
+                                        value={complaintData?.complaint_date ? new Date(complaintData.complaint_date).toLocaleDateString('tr-TR') : '-'} 
+                                    />
+                                    <InfoCard 
+                                        icon={Clock} 
+                                        label="Açık Süre" 
+                                        value={`${getDaysOpen(complaintData?.complaint_date, complaintData?.actual_close_date)} gün`}
+                                        variant="warning"
+                                    />
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Müşteri Bilgileri */}
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <Users className="h-5 w-5 text-primary" />
+                                        Müşteri Bilgileri
+                                    </h3>
                                     <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2 text-lg">
-                                                <Users className="w-5 h-5" />
-                                                Müşteri Bilgileri
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            <div>
-                                                <div className="text-sm font-medium text-muted-foreground">
-                                                    Müşteri Adı
-                                                </div>
-                                                <div className="font-medium">
-                                                    {complaintData.customer?.customer_name}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div className="text-sm font-medium text-muted-foreground">
-                                                    Müşteri Kodu
-                                                </div>
-                                                <div className="font-mono text-sm">
-                                                    {complaintData.customer?.customer_code}
-                                                </div>
-                                            </div>
+                                        <CardContent className="p-6 space-y-4">
+                                            <InfoCard 
+                                                icon={Users} 
+                                                label="Müşteri Adı" 
+                                                value={complaintData.customer?.customer_name} 
+                                            />
+                                            <InfoCard 
+                                                icon={Hash} 
+                                                label="Müşteri Kodu" 
+                                                value={complaintData.customer?.customer_code} 
+                                            />
                                             {complaintData.customer?.contact_person && (
-                                                <div>
-                                                    <div className="text-sm font-medium text-muted-foreground">
-                                                        Yetkili Kişi
-                                                    </div>
-                                                    <div>{complaintData.customer.contact_person}</div>
-                                                </div>
+                                                <InfoCard 
+                                                    icon={User} 
+                                                    label="Yetkili Kişi" 
+                                                    value={complaintData.customer.contact_person} 
+                                                />
                                             )}
                                             {complaintData.customer?.contact_email && (
-                                                <div>
-                                                    <div className="text-sm font-medium text-muted-foreground">
-                                                        Email
-                                                    </div>
-                                                    <div className="text-sm">
-                                                        {complaintData.customer.contact_email}
-                                                    </div>
-                                                </div>
+                                                <InfoCard 
+                                                    icon={Package} 
+                                                    label="Email" 
+                                                    value={complaintData.customer.contact_email} 
+                                                />
                                             )}
                                             {complaintData.customer?.contact_phone && (
-                                                <div>
-                                                    <div className="text-sm font-medium text-muted-foreground">
-                                                        Telefon
-                                                    </div>
-                                                    <div className="text-sm">
-                                                        {complaintData.customer.contact_phone}
-                                                    </div>
-                                                </div>
+                                                <InfoCard 
+                                                    icon={Package} 
+                                                    label="Telefon" 
+                                                    value={complaintData.customer.contact_phone} 
+                                                />
                                             )}
                                         </CardContent>
                                     </Card>
+                                </div>
 
                                     {/* SLA Bilgileri */}
                                     {complaintData.sla_status && (

@@ -13,12 +13,20 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { InfoCard } from '@/components/ui/InfoCard';
+import { DialogClose } from '@/components/ui/dialog';
 import {
     FileDown,
     X,
     AlertCircle,
     CheckCircle,
     Eye,
+    Package,
+    Calendar,
+    Building2,
+    Hash,
+    CheckCircle2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -618,21 +626,27 @@ const IncomingInspectionDetailModal = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Eye className="h-5 w-5" />
-                        Muayene Kaydı Detayları
-                    </DialogTitle>
-                    <DialogDescription>
-                        Kayıt No: {enrichedInspection.record_no} • Tarih:{' '}
-                        {format(
-                            new Date(enrichedInspection.inspection_date),
-                            'dd MMMM yyyy',
-                            { locale: tr }
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
+                                <Eye className="h-6 w-6" />
+                                Girdi Kalite Kontrol Detayı
+                            </DialogTitle>
+                            <DialogDescription className="mt-2">
+                                Muayene kaydına ait tüm bilgiler aşağıda listelenmiştir.
+                            </DialogDescription>
+                        </div>
+                        {enrichedInspection.decision && (
+                            <div>
+                                {getDecisionBadge(enrichedInspection.decision)}
+                            </div>
                         )}
-                    </DialogDescription>
+                    </div>
                 </DialogHeader>
+                
+                <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
 
                 <Tabs defaultValue="main" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
@@ -642,126 +656,134 @@ const IncomingInspectionDetailModal = ({
                     </TabsList>
 
                     {/* TAB 1: TEMEL BİLGİLER */}
-                    <TabsContent value="main" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">
-                                    Tedarikçi Bilgileri
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">
-                                        Tedarikçi Adı
-                                    </Label>
-                                    <p className="font-medium">
-                                        {enrichedInspection.supplier?.name || enrichedInspection.supplier_name || '-'}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">
-                                        İrsaliye Numarası
-                                    </Label>
-                                    <p className="font-medium">
-                                        {enrichedInspection.delivery_note_number || '-'}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                    <TabsContent value="main" className="space-y-6">
+                        {/* Önemli Bilgiler */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                <Eye className="h-5 w-5 text-primary" />
+                                Önemli Bilgiler
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <InfoCard 
+                                    icon={Hash} 
+                                    label="Kayıt No" 
+                                    value={enrichedInspection.record_no} 
+                                    variant="primary"
+                                />
+                                <InfoCard 
+                                    icon={Calendar} 
+                                    label="Muayene Tarihi" 
+                                    value={format(
+                                        new Date(enrichedInspection.inspection_date),
+                                        'dd MMMM yyyy',
+                                        { locale: tr }
+                                    )} 
+                                />
+                                <InfoCard 
+                                    icon={Building2} 
+                                    label="Tedarikçi" 
+                                    value={enrichedInspection.supplier?.name || enrichedInspection.supplier_name || '-'} 
+                                    variant="warning"
+                                />
+                            </div>
+                        </div>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">
-                                    Parça Bilgileri
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">
-                                        Parça Adı
-                                    </Label>
-                                    <p className="font-medium">
-                                        {enrichedInspection.part_name || '-'}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">
-                                        Parça Kodu
-                                    </Label>
-                                    <p className="font-medium">
-                                        {enrichedInspection.part_code || '-'}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">
-                                        Gelen Miktar
-                                    </Label>
-                                    <p className="font-medium">
-                                        {enrichedInspection.quantity_received}{' '}
-                                        {enrichedInspection.unit}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground">
-                                        Kabul Tarihi
-                                    </Label>
-                                    <p className="font-medium">
-                                        {format(
-                                            new Date(
-                                                enrichedInspection.inspection_date
-                                            ),
-                                            'dd.MM.yyyy'
-                                        )}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <Separator />
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">
-                                    Muayene Sonucu
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-semibold">
-                                        Karar
-                                    </Label>
-                                    {getDecisionBadge(enrichedInspection.decision)}
-                                </div>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <Label className="text-xs text-green-600 font-semibold">
-                                            Kabul Edilen
+                        {/* Tedarikçi Bilgileri */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                <Building2 className="h-5 w-5 text-primary" />
+                                Tedarikçi Bilgileri
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <InfoCard 
+                                    icon={Building2} 
+                                    label="Tedarikçi Adı" 
+                                    value={enrichedInspection.supplier?.name || enrichedInspection.supplier_name || '-'} 
+                                />
+                                <InfoCard 
+                                    icon={Hash} 
+                                    label="İrsaliye Numarası" 
+                                    value={enrichedInspection.delivery_note_number || '-'} 
+                                />
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Parça Bilgileri */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                <Package className="h-5 w-5 text-primary" />
+                                Parça Bilgileri
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <InfoCard 
+                                    icon={Package} 
+                                    label="Parça Adı" 
+                                    value={enrichedInspection.part_name || '-'} 
+                                />
+                                <InfoCard 
+                                    icon={Hash} 
+                                    label="Parça Kodu" 
+                                    value={enrichedInspection.part_code || '-'} 
+                                />
+                                <InfoCard 
+                                    icon={Package} 
+                                    label="Gelen Miktar" 
+                                    value={`${enrichedInspection.quantity_received || 0} ${enrichedInspection.unit || ''}`} 
+                                />
+                                <InfoCard 
+                                    icon={Calendar} 
+                                    label="Kabul Tarihi" 
+                                    value={format(
+                                        new Date(enrichedInspection.inspection_date),
+                                        'dd.MM.yyyy'
+                                    )} 
+                                />
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Muayene Sonucu */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                                Muayene Sonucu
+                            </h3>
+                            <Card>
+                                <CardContent className="p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <Label className="text-sm font-semibold">
+                                            Karar
                                         </Label>
-                                        <p className="text-lg font-bold">
-                                            {enrichedInspection.quantity_accepted || 0}{' '}
-                                            {enrichedInspection.unit}
-                                        </p>
+                                        {getDecisionBadge(enrichedInspection.decision)}
                                     </div>
-                                    <div>
-                                        <Label className="text-xs text-yellow-600 font-semibold">
-                                            Şartlı Kabul
-                                        </Label>
-                                        <p className="text-lg font-bold">
-                                            {enrichedInspection.quantity_conditional ||
-                                                0}{' '}
-                                            {enrichedInspection.unit}
-                                        </p>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <InfoCard 
+                                            icon={CheckCircle} 
+                                            label="Kabul Edilen" 
+                                            value={`${enrichedInspection.quantity_accepted || 0} ${enrichedInspection.unit || ''}`}
+                                            variant="success"
+                                        />
+                                        <InfoCard 
+                                            icon={AlertCircle} 
+                                            label="Şartlı Kabul" 
+                                            value={`${enrichedInspection.quantity_conditional || 0} ${enrichedInspection.unit || ''}`}
+                                            variant="warning"
+                                        />
+                                        <InfoCard 
+                                            icon={X} 
+                                            label="Reddedilen" 
+                                            value={`${enrichedInspection.quantity_rejected || 0} ${enrichedInspection.unit || ''}`}
+                                            variant="danger"
+                                        />
                                     </div>
-                                    <div>
-                                        <Label className="text-xs text-red-600 font-semibold">
-                                            Reddedilen
-                                        </Label>
-                                        <p className="text-lg font-bold">
-                                            {enrichedInspection.quantity_rejected || 0}{' '}
-                                            {enrichedInspection.unit}
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </TabsContent>
 
                     {/* TAB 2: MUAYENE DETAYLARı */}
@@ -1180,14 +1202,9 @@ const IncomingInspectionDetailModal = ({
                         )}
                     </TabsContent>
                 </Tabs>
+                </ScrollArea>
 
-                <DialogFooter className="gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => setIsOpen(false)}
-                    >
-                        Kapat
-                    </Button>
+                <DialogFooter className="mt-6">
                     <Button
                         onClick={handleGenerateReport}
                         className="gap-2"
@@ -1195,6 +1212,9 @@ const IncomingInspectionDetailModal = ({
                         <FileDown className="h-4 w-4" />
                         Rapor Oluştur & İndir
                     </Button>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary" size="lg">Kapat</Button>
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

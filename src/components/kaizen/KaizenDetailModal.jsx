@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { InfoCard } from '@/components/ui/InfoCard';
 import { format, differenceInDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Printer, ExternalLink, BrainCircuit, Fish, HelpCircle, Sigma, Loader2, File as FileIcon } from 'lucide-react';
+import { Printer, ExternalLink, BrainCircuit, Fish, HelpCircle, Sigma, Loader2, File as FileIcon, User, Calendar, Building2, Hash, Users, AlertTriangle } from 'lucide-react';
 
 const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
     const [activeTab, setActiveTab] = useState("general");
@@ -23,13 +26,6 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
             default: return 'secondary';
         }
     };
-
-    const InfoItem = ({ label, value, className = '' }) => (
-        <div className={`bg-muted/50 p-3 rounded-lg ${className}`}>
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-sm font-semibold">{value || '-'}</p>
-        </div>
-    );
     
     const AnalysisItem = ({ label, value }) => (
       <div className="py-2">
@@ -80,17 +76,22 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-5xl">
+            <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex items-center justify-between">
                         <div>
-                            <DialogTitle className="text-2xl">{kaizen.title}</DialogTitle>
-                            <DialogDescription>Kaizen No: {kaizen.kaizen_no}</DialogDescription>
+                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
+                                <AlertTriangle className="h-6 w-6" />
+                                Kaizen Detayı
+                            </DialogTitle>
+                            <DialogDescription className="mt-2">
+                                {kaizen.kaizen_no} - {kaizen.title}
+                            </DialogDescription>
                         </div>
                         <Badge variant={getStatusVariant(kaizen.status)} className="text-sm">{kaizen.status}</Badge>
                     </div>
                 </DialogHeader>
-                <ScrollArea className="max-h-[70vh] p-1">
+                <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
@@ -98,26 +99,67 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
                             <TabsTrigger value="solution">Çözüm & Kanıtlar</TabsTrigger>
                             <TabsTrigger value="cost">Maliyet</TabsTrigger>
                         </TabsList>
-                        <div className="p-4">
-                            <TabsContent value="general">
-                                <div className="space-y-6">
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        <InfoItem label="Öneri Sahibi" value={kaizen.proposer?.full_name} />
-                                        <InfoItem label="Sorumlu Kişi" value={kaizen.responsible_person?.full_name} />
-                                        <InfoItem label="Departman" value={kaizen.department?.unit_name} />
-                                        <InfoItem label="Öncelik" value={kaizen.priority} />
-                                        <InfoItem label="Başlangıç Tarihi" value={kaizen.start_date ? format(new Date(kaizen.start_date), 'dd.MM.yyyy') : '-'} />
-                                        <InfoItem label="Bitiş Tarihi" value={kaizen.end_date ? format(new Date(kaizen.end_date), 'dd.MM.yyyy') : '-'} />
-                                        <InfoItem label="Süre" value={duration} />
-                                        <InfoItem label="Kaizen Konuları" value={formatArrayToString(kaizen.kaizen_topic)} />
-                                        <InfoItem label="Kaizen Ekibi" value={teamMemberNames} className="col-span-2 md:col-span-4" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold mb-2">Problem Tanımı</h4>
-                                        <p className="text-sm p-3 bg-muted/50 rounded-lg whitespace-pre-wrap">{kaizen.description || '-'}</p>
-                                    </div>
+                        <TabsContent value="general" className="space-y-6">
+                            {/* Önemli Bilgiler */}
+                            <div>
+                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-primary" />
+                                    Önemli Bilgiler
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <InfoCard 
+                                        icon={Hash} 
+                                        label="Kaizen No" 
+                                        value={kaizen.kaizen_no} 
+                                        variant="primary"
+                                    />
+                                    <InfoCard 
+                                        icon={Calendar} 
+                                        label="Başlangıç Tarihi" 
+                                        value={kaizen.start_date ? format(new Date(kaizen.start_date), 'dd.MM.yyyy', { locale: tr }) : '-'} 
+                                    />
+                                    <InfoCard 
+                                        icon={Calendar} 
+                                        label="Bitiş Tarihi" 
+                                        value={kaizen.end_date ? format(new Date(kaizen.end_date), 'dd.MM.yyyy', { locale: tr }) : '-'} 
+                                    />
                                 </div>
-                            </TabsContent>
+                            </div>
+
+                            <Separator />
+
+                            {/* Genel Bilgiler */}
+                            <div>
+                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-primary" />
+                                    Genel Bilgiler
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <InfoCard icon={User} label="Öneri Sahibi" value={kaizen.proposer?.full_name} />
+                                    <InfoCard icon={User} label="Sorumlu Kişi" value={kaizen.responsible_person?.full_name} />
+                                    <InfoCard icon={Building2} label="Departman" value={kaizen.department?.unit_name} />
+                                    <InfoCard icon={AlertTriangle} label="Öncelik" value={kaizen.priority} variant="warning" />
+                                    <InfoCard icon={Clock} label="Süre" value={duration} />
+                                    <InfoCard icon={Hash} label="Kaizen Konuları" value={formatArrayToString(kaizen.kaizen_topic)} />
+                                    <InfoCard icon={Users} label="Kaizen Ekibi" value={teamMemberNames} variant="info" />
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* Problem Tanımı */}
+                            <div>
+                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-primary" />
+                                    Problem Tanımı
+                                </h3>
+                                <Card>
+                                    <CardContent className="p-6">
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{kaizen.description || '-'}</p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </TabsContent>
                             <TabsContent value="analysis">
                                 <div className="space-y-6">
                                     <div className="p-4 border rounded-lg">
