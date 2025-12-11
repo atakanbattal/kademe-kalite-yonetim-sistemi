@@ -32,8 +32,21 @@ const openPrintableReport = (record, type, useUrlParams = false) => {
 			// Benzersiz bir key oluştur
 			const storageKey = `report_${type}_${reportId}_${Date.now()}`;
 			
+			// Deviation için deviation_vehicles'ı da dahil et
+			let recordToStore = record;
+			if (type === 'deviation' && record.id && (!record.deviation_vehicles || record.deviation_vehicles.length === 0)) {
+				// Eğer deviation_vehicles yoksa, database'den çek
+				const { data: vehiclesData } = await supabase
+					.from('deviation_vehicles')
+					.select('*')
+					.eq('deviation_id', record.id);
+				if (vehiclesData) {
+					recordToStore = { ...record, deviation_vehicles: vehiclesData };
+				}
+			}
+			
 			// Veriyi localStorage'a kaydet
-			localStorage.setItem(storageKey, JSON.stringify(record));
+			localStorage.setItem(storageKey, JSON.stringify(recordToStore));
 			
 			// Sadece storage key'ini URL'de gönder
 			const params = new URLSearchParams({
