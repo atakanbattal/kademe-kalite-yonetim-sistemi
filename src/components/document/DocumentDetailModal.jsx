@@ -26,8 +26,12 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
     }, [isOpen, document?.id]);
 
     const loadRevisions = async () => {
-        if (!document?.id) return;
+        if (!document?.id) {
+            console.warn('DocumentDetailModal: document.id yok', document);
+            return;
+        }
         
+        console.log('DocumentDetailModal: Revizyonlar yükleniyor, document_id:', document.id);
         setLoading(true);
         try {
             // Önce revizyonları çek
@@ -43,6 +47,17 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
             }
 
             console.log('Çekilen revizyonlar:', revisionsData?.length || 0, 'document_id:', document.id, revisionsData);
+            
+            // Eğer revizyon yoksa ve document_revisions array'i varsa, onu kullan
+            if ((!revisionsData || revisionsData.length === 0) && document.document_revisions) {
+                console.log('Supabase\'den revizyon gelmedi, document.document_revisions kullanılıyor:', document.document_revisions);
+                const docRevisions = Array.isArray(document.document_revisions) 
+                    ? document.document_revisions 
+                    : [document.document_revisions].filter(Boolean);
+                setRevisions(docRevisions);
+                setLoading(false);
+                return;
+            }
 
             // Her revizyon için kullanıcı bilgilerini çek (hata olsa bile revizyonları göster)
             const revisionsWithUsers = await Promise.all((revisionsData || []).map(async (revision) => {
