@@ -175,8 +175,6 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                     </div>
                 </DialogHeader>
                 
-                </DialogHeader>
-                
                 {complaintData && (
                     <div className="flex gap-2 px-6 pb-4 border-b">
                         <Button
