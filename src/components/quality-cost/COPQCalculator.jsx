@@ -24,6 +24,14 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                     externalFailure: [],
                     appraisal: [],
                     prevention: []
+                },
+                totalVehicles: 0,
+                finalFaultsBreakdown: {
+                    byUnit: {},
+                    byVehicleType: {},
+                    totalFaults: 0,
+                    totalQualityControlDuration: 0,
+                    totalReworkDuration: 0
                 }
             };
         }

@@ -65,7 +65,37 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                         {cost.quantity && <DetailItem label="Miktar" value={cost.quantity} />}
                         {cost.measurement_unit && <DetailItem label="Ölçü Birimi" value={cost.measurement_unit} />}
                         {cost.scrap_weight && <DetailItem label="Hurda Ağırlığı (kg)" value={cost.scrap_weight} />}
-                        <DetailItem label="Açıklama" value={cost.description} />
+                        
+                        {/* Final Hataları Maliyeti için özel görünüm */}
+                        {cost.cost_type === 'Final Hataları Maliyeti' && (
+                            <>
+                                {cost.rework_duration && (
+                                    <DetailItem label="Giderilme Süresi" value={`${cost.rework_duration} dakika`} />
+                                )}
+                                {cost.quality_control_duration && (
+                                    <DetailItem label="Kalite Kontrol Süresi" value={`${cost.quality_control_duration} dakika`} />
+                                )}
+                                {cost.affected_units && Array.isArray(cost.affected_units) && cost.affected_units.length > 0 && (
+                                    <div className="grid grid-cols-3 gap-2 py-3 border-b border-border">
+                                        <Label className="font-semibold text-muted-foreground col-span-1">Etkilenen Birimler</Label>
+                                        <div className="col-span-2 space-y-1">
+                                            {cost.affected_units.map((au, idx) => (
+                                                <Badge key={idx} variant="outline" className="mr-1">
+                                                    {au.unit}: {au.duration} dk
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                        
+                        <div className="grid grid-cols-3 gap-2 py-3 border-b border-border">
+                            <Label className="font-semibold text-muted-foreground col-span-1">Açıklama</Label>
+                            <div className="col-span-2">
+                                <p className="text-foreground whitespace-pre-wrap text-sm leading-relaxed">{cost.description || '-'}</p>
+                            </div>
+                        </div>
                     </div>
                 </ScrollArea>
                 <DialogFooter>
