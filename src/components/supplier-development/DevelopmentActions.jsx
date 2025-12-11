@@ -132,7 +132,7 @@ const DevelopmentActions = () => {
                                                 Aksiyon #{action.action_number}: {action.action_description}
                                             </h4>
                                             <p className="text-sm text-muted-foreground">
-                                                {action.supplier_development_plans?.plan_name} | {action.supplier_development_plans?.suppliers?.name}
+                                                {action.supplier_development_plans?.plan_name || 'Plan bilgisi yok'} | {action.supplier_development_plans?.supplier?.name || 'Tedarikçi bilgisi yok'}
                                             </p>
                                         </div>
                                         <Badge>{action.status}</Badge>
