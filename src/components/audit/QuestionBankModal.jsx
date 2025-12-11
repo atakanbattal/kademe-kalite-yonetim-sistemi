@@ -289,6 +289,236 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
         setEditQuestionText('');
     };
 
+    const handleGenerateReport = () => {
+        if (!selectedDeptId || !selectedStandardId || questions.length === 0) {
+            toast({ 
+                variant: 'destructive', 
+                title: 'Hata', 
+                description: 'Rapor oluşturmak için birim, standart seçilmeli ve sorular bulunmalıdır.' 
+            });
+            return;
+        }
+
+        const selectedDept = departments.find(d => d.id === selectedDeptId);
+        const selectedStandard = auditStandards.find(s => s.id === selectedStandardId);
+        
+        if (!selectedDept || !selectedStandard) {
+            toast({ 
+                variant: 'destructive', 
+                title: 'Hata', 
+                description: 'Birim veya standart bilgisi bulunamadı.' 
+            });
+            return;
+        }
+
+        // Rapor HTML'i oluştur
+        const reportDate = format(new Date(), 'dd MMMM yyyy', { locale: tr });
+        
+        const questionsHtml = questions.map((q, index) => `
+            <div style="margin-bottom: 20px; padding: 15px; background-color: #f9fafb; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                <div style="display: flex; align-items: start; gap: 10px;">
+                    <div style="min-width: 30px; height: 30px; background-color: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px;">
+                        ${index + 1}
+                    </div>
+                    <div style="flex: 1;">
+                        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #1f2937;">
+                            ${q.question_text}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="tr">
+            <head>
+                <meta charset="UTF-8">
+                <title>İç Tetkik Soruları - ${selectedDept.unit_name}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+                    
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    
+                    body {
+                        font-family: 'Inter', sans-serif;
+                        color: #1f2937;
+                        background-color: #f3f4f6;
+                        padding: 20px;
+                    }
+                    
+                    .page {
+                        background-color: white;
+                        width: 210mm;
+                        min-height: 297mm;
+                        margin: 0 auto;
+                        padding: 20mm;
+                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    }
+                    
+                    .header {
+                        text-align: center;
+                        border-bottom: 3px solid #3b82f6;
+                        padding-bottom: 20px;
+                        margin-bottom: 30px;
+                    }
+                    
+                    .header h1 {
+                        font-size: 28px;
+                        font-weight: 700;
+                        color: #111827;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .header p {
+                        font-size: 16px;
+                        color: #6b7280;
+                        margin-top: 5px;
+                    }
+                    
+                    .info-section {
+                        background-color: #f9fafb;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        padding: 20px;
+                        margin-bottom: 30px;
+                    }
+                    
+                    .info-grid {
+                        display: grid;
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 15px;
+                    }
+                    
+                    .info-item {
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    
+                    .info-label {
+                        font-size: 12px;
+                        color: #6b7280;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .info-value {
+                        font-size: 16px;
+                        color: #1f2937;
+                        font-weight: 600;
+                    }
+                    
+                    .questions-section {
+                        margin-top: 30px;
+                    }
+                    
+                    .section-title {
+                        font-size: 18px;
+                        font-weight: 600;
+                        color: #1e40af;
+                        border-bottom: 2px solid #bfdbfe;
+                        padding-bottom: 10px;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .footer {
+                        margin-top: 40px;
+                        padding-top: 20px;
+                        border-top: 2px solid #e5e7eb;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #9ca3af;
+                    }
+                    
+                    @media print {
+                        body {
+                            background-color: white;
+                            padding: 0;
+                        }
+                        
+                        .page {
+                            margin: 0;
+                            box-shadow: none;
+                            border: none;
+                        }
+                        
+                        @page {
+                            size: A4;
+                            margin: 20mm;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="page">
+                    <div class="header">
+                        <h1>KADEME A.Ş.</h1>
+                        <p>Kalite Yönetim Sistemi</p>
+                    </div>
+                    
+                    <div class="info-section">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Birim</span>
+                                <span class="info-value">${selectedDept.unit_name}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Tetkik Standartı</span>
+                                <span class="info-value">${selectedStandard.code} - ${selectedStandard.name}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Soru Sayısı</span>
+                                <span class="info-value">${questions.length} adet</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Rapor Tarihi</span>
+                                <span class="info-value">${reportDate}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="questions-section">
+                        <h2 class="section-title">İç Tetkik Soruları</h2>
+                        ${questionsHtml}
+                    </div>
+                    
+                    <div class="footer">
+                        Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.<br>
+                        Denetim öncesi hazırlık için birimlerle paylaşılabilir.
+                    </div>
+                </div>
+                
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                        }, 500);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        // Yeni pencerede aç ve yazdır
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+        } else {
+            toast({ 
+                variant: 'destructive', 
+                title: 'Hata', 
+                description: 'Pop-up engelleyici nedeniyle rapor açılamadı. Lütfen pop-up izinlerini kontrol edin.' 
+            });
+        }
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
