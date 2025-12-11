@@ -13,6 +13,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     const { toast } = useToast();
     const { unitCostSettings, refreshData } = useData();
     const [faultDurations, setFaultDurations] = useState({});
+    const [qualityControlDurations, setQualityControlDurations] = useState({});
     const [loading, setLoading] = useState(false);
     const [calculations, setCalculations] = useState({});
 
@@ -30,6 +31,21 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         return unitSetting ? parseFloat(unitSetting.cost_per_minute) || 0 : 0;
     };
 
+    // Kalite kontrol birimi maliyetini bul
+    const getQualityControlUnitCost = () => {
+        const qualityUnitNames = ['Kalite Kontrol', 'Kalite', 'Kalite Kontrolü', 'Quality Control'];
+        for (const name of qualityUnitNames) {
+            const unitSetting = unitCostSettings?.find(u => u.unit_name === name);
+            if (unitSetting) {
+                return parseFloat(unitSetting.cost_per_minute) || 0;
+            }
+        }
+        // Bulunamazsa varsayılan birim maliyetini kullan
+        return unitCostSettings && unitCostSettings.length > 0 
+            ? parseFloat(unitCostSettings[0].cost_per_minute) || 0 
+            : 0;
+    };
+
     // Hesaplamaları güncelle
     useEffect(() => {
         const newCalculations = {};
@@ -37,18 +53,25 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         let totalFaultCount = 0;
         let totalDuration = 0;
 
+        const qualityControlUnitCost = getQualityControlUnitCost();
+
         unresolvedFaults.forEach(fault => {
             const duration = parseFloat(faultDurations[fault.id]) || 0;
+            const qualityDuration = parseFloat(qualityControlDurations[fault.id]) || 0;
             const departmentName = fault.department?.name || fault.department_name || 'Üretim';
             const unitCost = getUnitCost(departmentName);
             const faultCost = duration * unitCost;
+            const qualityControlCost = qualityDuration * qualityControlUnitCost;
             const faultQuantity = fault.quantity || 1;
-            const totalFaultCost = faultCost * faultQuantity;
+            const totalFaultCost = (faultCost + qualityControlCost) * faultQuantity;
 
             newCalculations[fault.id] = {
                 duration,
+                qualityDuration,
                 unitCost,
+                qualityControlUnitCost,
                 faultCost,
+                qualityControlCost,
                 faultQuantity,
                 totalFaultCost,
                 departmentName
@@ -56,7 +79,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
 
             totalCost += totalFaultCost;
             totalFaultCount += faultQuantity;
-            totalDuration += duration * faultQuantity;
+            totalDuration += (duration + qualityDuration) * faultQuantity;
         });
 
         setCalculations(newCalculations);
@@ -66,10 +89,13 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     useEffect(() => {
         if (isOpen) {
             const initialDurations = {};
+            const initialQualityDurations = {};
             unresolvedFaults.forEach(fault => {
                 initialDurations[fault.id] = '';
+                initialQualityDurations[fault.id] = '';
             });
             setFaultDurations(initialDurations);
+            setQualityControlDurations(initialQualityDurations);
         }
     }, [isOpen, unresolvedFaults]);
 
@@ -80,18 +106,26 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         }));
     };
 
+    const handleQualityControlDurationChange = (faultId, value) => {
+        setQualityControlDurations(prev => ({
+            ...prev,
+            [faultId]: value
+        }));
+    };
+
     const handleSubmit = async () => {
         // Validasyon
         const missingDurations = unresolvedFaults.filter(fault => {
             const duration = parseFloat(faultDurations[fault.id]);
-            return !duration || duration <= 0;
+            const qualityDuration = parseFloat(qualityControlDurations[fault.id]);
+            return (!duration || duration <= 0) || (!qualityDuration || qualityDuration <= 0);
         });
 
         if (missingDurations.length > 0) {
             toast({
                 variant: 'destructive',
                 title: 'Eksik Bilgi',
-                description: 'Lütfen tüm hatalar için giderilme süresi girin.'
+                description: 'Lütfen tüm hatalar için giderilme süresi ve kalite kontrol süresi girin.'
             });
             return;
         }
@@ -232,8 +266,8 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
 
                                     return (
                                         <div key={fault.id} className="p-4 border rounded-lg bg-card">
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                <div className="md:col-span-2">
+                                            <div className="space-y-4">
+                                                <div>
                                                     <Label className="text-sm font-semibold mb-2 block">
                                                         {fault.description}
                                                     </Label>
@@ -241,28 +275,61 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                                                         <p>Birim: {departmentName}</p>
                                                         <p>Adet: {fault.quantity || 1}</p>
                                                         <p>Birim Maliyeti: {unitCost.toFixed(2)} ₺/dk</p>
+                                                        <p>Kalite Kontrol Maliyeti: {calc.qualityControlUnitCost?.toFixed(2) || '0.00'} ₺/dk</p>
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <Label htmlFor={`duration-${fault.id}`}>
-                                                        Giderilme Süresi (dk) <span className="text-red-500">*</span>
-                                                    </Label>
-                                                    <Input
-                                                        id={`duration-${fault.id}`}
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.5"
-                                                        value={faultDurations[fault.id] || ''}
-                                                        onChange={(e) => handleDurationChange(fault.id, e.target.value)}
-                                                        placeholder="0"
-                                                        className="mt-1"
-                                                    />
-                                                    {calc.totalFaultCost > 0 && (
-                                                        <p className="text-xs text-muted-foreground mt-1">
-                                                            Maliyet: {calc.totalFaultCost.toFixed(2)} ₺
-                                                        </p>
-                                                    )}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <Label htmlFor={`duration-${fault.id}`}>
+                                                            Giderilme Süresi (dk) <span className="text-red-500">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            id={`duration-${fault.id}`}
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.5"
+                                                            value={faultDurations[fault.id] || ''}
+                                                            onChange={(e) => handleDurationChange(fault.id, e.target.value)}
+                                                            placeholder="0"
+                                                            className="mt-1"
+                                                        />
+                                                        {calc.faultCost > 0 && (
+                                                            <p className="text-xs text-muted-foreground mt-1">
+                                                                Birim Maliyeti: {calc.faultCost.toFixed(2)} ₺
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <Label htmlFor={`quality-duration-${fault.id}`}>
+                                                            Kalite Kontrol Süresi (dk) <span className="text-red-500">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            id={`quality-duration-${fault.id}`}
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.5"
+                                                            value={qualityControlDurations[fault.id] || ''}
+                                                            onChange={(e) => handleQualityControlDurationChange(fault.id, e.target.value)}
+                                                            placeholder="0"
+                                                            className="mt-1"
+                                                        />
+                                                        {calc.qualityControlCost > 0 && (
+                                                            <p className="text-xs text-muted-foreground mt-1">
+                                                                Kalite Maliyeti: {calc.qualityControlCost.toFixed(2)} ₺
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
+                                                {calc.totalFaultCost > 0 && (
+                                                    <div className="pt-2 border-t">
+                                                        <p className="text-sm font-semibold">
+                                                            Toplam Maliyet: {calc.totalFaultCost.toFixed(2)} ₺
+                                                            <span className="text-xs text-muted-foreground ml-2">
+                                                                ({calc.faultCost.toFixed(2)} ₺ birim + {calc.qualityControlCost.toFixed(2)} ₺ kalite) × {calc.faultQuantity} adet
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     );
