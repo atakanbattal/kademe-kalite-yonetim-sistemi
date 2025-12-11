@@ -513,6 +513,7 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                                <AnswerButton question={q} currentAnswer={q.answer} newAnswer="Uygun" icon={Check} colorClass="bg-green-600 hover:bg-green-700" text="Uygun" />
                                <AnswerButton question={q} currentAnswer={q.answer} newAnswer="Uygunsuz" icon={X} colorClass="bg-red-600 hover:bg-red-700" text="Uygunsuz" />
                                <AnswerButton question={q} currentAnswer={q.answer} newAnswer="Gözlem" icon={Eye} colorClass="bg-yellow-500 hover:bg-yellow-600" text="Gözlem" />
+                               <AnswerButton question={q} currentAnswer={q.answer} newAnswer="Uygulanamaz" icon={Ban} colorClass="bg-gray-500 hover:bg-gray-600" text="Uygulanamaz" />
                             </div>
                             <div className="flex-grow">
                                 <Textarea 
