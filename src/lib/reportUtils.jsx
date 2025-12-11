@@ -1770,7 +1770,12 @@ const generateGenericReportHtml = (record, type) => {
 				// Her kategori için tablo oluştur
 				Object.entries(categorizedResults).forEach(([category, categoryResults]) => {
 					html += `<h3 style="font-size: 1.1em; font-weight: 700; color: #1f2937; margin-top: 15px; margin-bottom: 10px; padding: 8px; background-color: #f3f4f6; border-left: 4px solid #2563eb;">${category}</h3>`;
-					html += `<table class="info-table results-table" style="margin-bottom: 20px;"><thead><tr><th style="width: 10%;">Puan</th><th style="width: 40%;">Soru</th><th style="width: 15%;">Cevap</th><th style="width: 35%;">Denetçi Notları / Bulgular</th></tr></thead><tbody>`;
+					// İç tetkik için puan sütunu yok, tedarikçi denetimi için var
+					if (type === 'internal_audit') {
+						html += `<table class="info-table results-table" style="margin-bottom: 20px;"><thead><tr><th style="width: 50%;">Soru</th><th style="width: 15%;">Cevap</th><th style="width: 35%;">Denetçi Notları / Bulgular</th></tr></thead><tbody>`;
+					} else {
+						html += `<table class="info-table results-table" style="margin-bottom: 20px;"><thead><tr><th style="width: 10%;">Puan</th><th style="width: 40%;">Soru</th><th style="width: 15%;">Cevap</th><th style="width: 35%;">Denetçi Notları / Bulgular</th></tr></thead><tbody>`;
+					}
 					
 					categoryResults.forEach((result) => {
 						const answerValue = result.answer;
@@ -1790,16 +1795,29 @@ const generateGenericReportHtml = (record, type) => {
 							answerBg = '#e5e7eb';
 						}
 						
-						html += `<tr style="vertical-align: top;">
-							<td style="text-align: center; font-weight: bold; color: #2563eb;">${result.points || 0}</td>
-							<td style="line-height: 1.5;">${result.question_text || '-'}</td>
-							<td style="text-align: center;">
-								<span style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.9em; background-color: ${answerBg}; color: ${answerColor};">
-									${answerValue || '-'}
-								</span>
-							</td>
-							<td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.4; font-size: 9px; background-color: #fafafa; padding: 8px; border-radius: 4px; border-left: 3px solid ${answerColor};">${result.notes || 'Not bulunmuyor.'}</pre></td>
-						</tr>`;
+						// İç tetkik için puan sütunu yok
+						if (type === 'internal_audit') {
+							html += `<tr style="vertical-align: top;">
+								<td style="line-height: 1.5;">${result.question_text || '-'}</td>
+								<td style="text-align: center;">
+									<span style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.9em; background-color: ${answerBg}; color: ${answerColor};">
+										${answerValue || '-'}
+									</span>
+								</td>
+								<td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.4; font-size: 9px; background-color: #fafafa; padding: 8px; border-radius: 4px; border-left: 3px solid ${answerColor};">${result.notes || 'Not bulunmuyor.'}</pre></td>
+							</tr>`;
+						} else {
+							html += `<tr style="vertical-align: top;">
+								<td style="text-align: center; font-weight: bold; color: #2563eb;">${result.points || 0}</td>
+								<td style="line-height: 1.5;">${result.question_text || '-'}</td>
+								<td style="text-align: center;">
+									<span style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.9em; background-color: ${answerBg}; color: ${answerColor};">
+										${answerValue || '-'}
+									</span>
+								</td>
+								<td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.4; font-size: 9px; background-color: #fafafa; padding: 8px; border-radius: 4px; border-left: 3px solid ${answerColor};">${result.notes || 'Not bulunmuyor.'}</pre></td>
+							</tr>`;
+						}
 					});
 					html += `</tbody></table>`;
 				});
