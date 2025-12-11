@@ -621,15 +621,31 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         <div className="grid md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="requesting_unit">Talep Eden Birim</Label>
-                            <Select onValueChange={(value) => handleSelectChange('requesting_unit', value)} value={formData.requesting_unit || ''}>
-                                <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
+                            <Select 
+                                onValueChange={(value) => handleSelectChange('requesting_unit', value)} 
+                                value={formData.requesting_unit || ''}
+                                key={`requesting_unit-${formData.requesting_unit || 'empty'}`}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Birim seçin...">
+                                        {formData.requesting_unit || 'Birim seçin...'}
+                                    </SelectValue>
+                                </SelectTrigger>
                                 <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="requesting_person">Talep Eden Personel</Label>
-                            <Select onValueChange={(value) => handleSelectChange('requesting_person', value)} value={formData.requesting_person || ''}>
-                                <SelectTrigger><SelectValue placeholder="Personel seçin..." /></SelectTrigger>
+                            <Select 
+                                onValueChange={(value) => handleSelectChange('requesting_person', value)} 
+                                value={formData.requesting_person || ''}
+                                key={`requesting_person-${formData.requesting_person || 'empty'}`}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Personel seçin...">
+                                        {formData.requesting_person || 'Personel seçin...'}
+                                    </SelectValue>
+                                </SelectTrigger>
                                 <SelectContent>{personnel.map(p => <SelectItem key={p.id} value={p.full_name}>{p.full_name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
