@@ -698,25 +698,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <div><Label htmlFor="part_name">Parça Adı</Label><Input id="part_name" value={formData.part_name || ''} onChange={handleInputChange} /></div>
                         <div><Label htmlFor="cost_date">Tarih <span className="text-red-500">*</span></Label><Input id="cost_date" type="date" value={formData.cost_date || ''} onChange={handleInputChange} required /></div>
                         <div><Label>Durum</Label><SearchableSelect value={formData.status || 'Aktif'} onValueChange={(v) => handleSelectChange('status', v)} placeholder="Seçiniz..." items={['Aktif', 'Kapatıldı']} searchPlaceholder="Durum ara..." /></div>
-                        <div className="md:col-span-3"><Label htmlFor="description">Açıklama</Label><Textarea id="description" value={formData.description || ''} onChange={handleInputChange} rows={3} placeholder="Maliyet kaydı ile ilgili detaylı açıklama yazın. Bu bilgiler uygunsuzluk kaydına otomatik aktarılacaktır." /></div>
-
-                        {!isEditMode && onOpenNCForm && (
-                            <div className="md:col-span-3 flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                <Switch
-                                    id="create-nc"
-                                    checked={createNC}
-                                    onCheckedChange={setCreateNC}
-                                />
-                                <div className="flex-1">
-                                    <Label htmlFor="create-nc" className="cursor-pointer font-medium text-blue-900">
-                                        Kayıt sonrası uygunsuzluk oluştur
-                                    </Label>
-                                    <p className="text-xs text-blue-700 mt-1">
-                                        İşaretlerseniz, maliyet kaydı kaydedildikten sonra tüm bilgiler uygunsuzluk formuna otomatik aktarılır.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                        <div className="md:col-span-3"><Label htmlFor="description">Açıklama</Label><Textarea id="description" value={formData.description || ''} onChange={handleInputChange} rows={3} placeholder="Maliyet kaydı ile ilgili detaylı açıklama yazın." /></div>
 
                         <DialogFooter className="col-span-1 md:col-span-3 mt-4">
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>İptal</Button>
