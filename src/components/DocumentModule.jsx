@@ -105,16 +105,21 @@ import { Label } from '@/components/ui/label';
             if (isNaN(expiryDate.getTime())) {
                 return <Badge variant="secondary">Geçersiz Tarih</Badge>;
             }
-        const diffTime = expiryDate - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            const diffTime = expiryDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        if (diffDays < 0) {
-            return <Badge variant="destructive">Süresi Doldu ({Math.abs(diffDays)} gün önce)</Badge>;
+            if (diffDays < 0) {
+                return <Badge variant="destructive">Süresi Doldu ({Math.abs(diffDays)} gün önce)</Badge>;
+            }
+            if (diffDays <= 30) {
+                return <Badge variant="warning" className="bg-yellow-500 text-white">{diffDays} gün kaldı</Badge>;
+            }
+            return <Badge variant="success" className="bg-green-600 text-white">{diffDays} gün kaldı</Badge>;
+        } catch (error) {
+            console.error('ValidityStatus error:', error, validUntil);
+            return <Badge variant="secondary">Geçersiz Tarih</Badge>;
         }
-        if (diffDays <= 30) {
-            return <Badge variant="warning" className="bg-yellow-500 text-white">{diffDays} gün kaldı</Badge>;
-        }
-        return <Badge variant="success" className="bg-green-600 text-white">{diffDays} gün kaldı</Badge>;
     };
 
     const DocumentModule = () => {
