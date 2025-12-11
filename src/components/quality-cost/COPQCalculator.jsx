@@ -80,6 +80,41 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
             const amount = cost.amount || 0;
             const costType = cost.cost_type || '';
             
+            // Final Hataları Maliyeti için detaylı analiz
+            if (costType === 'Final Hataları Maliyeti') {
+                finalFaultsBreakdown.totalFaults += (cost.quantity || 1);
+                
+                // Birim bazında analiz
+                const unit = cost.unit || 'Bilinmeyen';
+                if (!finalFaultsBreakdown.byUnit[unit]) {
+                    finalFaultsBreakdown.byUnit[unit] = {
+                        count: 0,
+                        amount: 0,
+                        qualityControlDuration: 0,
+                        reworkDuration: 0
+                    };
+                }
+                finalFaultsBreakdown.byUnit[unit].count += (cost.quantity || 1);
+                finalFaultsBreakdown.byUnit[unit].amount += amount;
+                finalFaultsBreakdown.byUnit[unit].qualityControlDuration += (cost.quality_control_duration || 0);
+                finalFaultsBreakdown.byUnit[unit].reworkDuration += (cost.rework_duration || 0);
+                
+                // Araç tipi bazında analiz
+                const vehicleType = cost.vehicle_type || 'Bilinmeyen';
+                if (!finalFaultsBreakdown.byVehicleType[vehicleType]) {
+                    finalFaultsBreakdown.byVehicleType[vehicleType] = {
+                        count: 0,
+                        amount: 0
+                    };
+                }
+                finalFaultsBreakdown.byVehicleType[vehicleType].count += (cost.quantity || 1);
+                finalFaultsBreakdown.byVehicleType[vehicleType].amount += amount;
+                
+                // Toplam süreler
+                finalFaultsBreakdown.totalQualityControlDuration += (cost.quality_control_duration || 0);
+                finalFaultsBreakdown.totalReworkDuration += (cost.rework_duration || 0);
+            }
+            
             // Tedarikçi kaynaklı maliyetler otomatik olarak External Failure
             if (cost.is_supplier_nc && cost.supplier_id) {
                 externalFailure += amount;
@@ -306,6 +341,107 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Final Hataları Detaylı Analizi */}
+            {copqData.finalFaultsBreakdown && copqData.finalFaultsBreakdown.totalFaults > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-orange-500" />
+                            Final Hataları Detaylı Analizi
+                        </CardTitle>
+                        <CardDescription>
+                            Final hataları için birim, araç tipi ve süre bazlı detaylı analiz
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {/* Özet İstatistikler */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-900">
+                                <p className="text-xs text-muted-foreground">Toplam Hata</p>
+                                <p className="text-xl font-bold text-orange-900 dark:text-orange-200">
+                                    {copqData.finalFaultsBreakdown.totalFaults}
+                                </p>
+                            </div>
+                            <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900">
+                                <p className="text-xs text-muted-foreground">Toplam Kalite Kontrol Süresi</p>
+                                <p className="text-xl font-bold text-blue-900 dark:text-blue-200">
+                                    {copqData.finalFaultsBreakdown.totalQualityControlDuration} dk
+                                </p>
+                            </div>
+                            <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+                                <p className="text-xs text-muted-foreground">Toplam Giderilme Süresi</p>
+                                <p className="text-xl font-bold text-green-900 dark:text-green-200">
+                                    {copqData.finalFaultsBreakdown.totalReworkDuration} dk
+                                </p>
+                            </div>
+                            <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-900">
+                                <p className="text-xs text-muted-foreground">Toplam Final Hataları Maliyeti</p>
+                                <p className="text-xl font-bold text-purple-900 dark:text-purple-200">
+                                    {formatCurrency(
+                                        copqData.breakdown.internalFailure
+                                            .filter(c => c.cost_type === 'Final Hataları Maliyeti')
+                                            .reduce((sum, c) => sum + (c.amount || 0), 0)
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Birim Bazında Analiz */}
+                        {Object.keys(copqData.finalFaultsBreakdown.byUnit).length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-semibold mb-2">Birim Bazında Final Hataları</h4>
+                                <div className="space-y-2">
+                                    {Object.entries(copqData.finalFaultsBreakdown.byUnit)
+                                        .sort((a, b) => b[1].amount - a[1].amount)
+                                        .map(([unit, data]) => (
+                                            <div key={unit} className="p-3 bg-muted/50 rounded-lg border">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="font-semibold">{unit}</span>
+                                                    <Badge variant="outline">{data.count} hata</Badge>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                                    <div>
+                                                        <p className="text-muted-foreground">Maliyet</p>
+                                                        <p className="font-semibold">{formatCurrency(data.amount)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-muted-foreground">Kalite Kontrol</p>
+                                                        <p className="font-semibold">{data.qualityControlDuration} dk</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-muted-foreground">Giderilme</p>
+                                                        <p className="font-semibold">{data.reworkDuration} dk</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Araç Tipi Bazında Analiz */}
+                        {Object.keys(copqData.finalFaultsBreakdown.byVehicleType).length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-semibold mb-2">Araç Tipi Bazında Final Hataları</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {Object.entries(copqData.finalFaultsBreakdown.byVehicleType)
+                                        .sort((a, b) => b[1].amount - a[1].amount)
+                                        .map(([vehicleType, data]) => (
+                                            <div key={vehicleType} className="p-3 bg-muted/50 rounded-lg border">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-semibold">{vehicleType}</span>
+                                                    <Badge variant="outline">{data.count} hata</Badge>
+                                                </div>
+                                                <p className="text-sm text-primary mt-1">{formatCurrency(data.amount)}</p>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 };
