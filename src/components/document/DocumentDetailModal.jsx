@@ -42,7 +42,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                 throw revisionsError;
             }
 
-            console.log('Çekilen revizyonlar:', revisionsData?.length || 0, revisionsData);
+            console.log('Çekilen revizyonlar:', revisionsData?.length || 0, 'document_id:', document.id, revisionsData);
 
             // Her revizyon için kullanıcı bilgilerini çek (hata olsa bile revizyonları göster)
             const revisionsWithUsers = await Promise.all((revisionsData || []).map(async (revision) => {
