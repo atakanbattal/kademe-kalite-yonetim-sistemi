@@ -137,8 +137,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                         // Her doküman için document_revisions ve personel bilgilerini çek
                         const docsWithRevisions = await Promise.all(docsData.map(async (doc) => {
                             const [revisionsResult, personnelResult, ownerResult] = await Promise.all([
-                                // Document revisions
-                                supabase.from('document_revisions').select('*').eq('document_id', doc.id),
+                                // Document revisions with user information
+                                supabase.from('document_revisions').select(`
+                                    *,
+                                    created_by_user:profiles!document_revisions_created_by_fkey(id, full_name),
+                                    approved_by_user:profiles!document_revisions_approved_by_id_fkey(id, full_name),
+                                    reviewed_by_user:profiles!document_revisions_reviewed_by_id_fkey(id, full_name)
+                                `).eq('document_id', doc.id),
                                 // Personnel bilgisi (eğer personnel_id varsa)
                                 doc.personnel_id ? supabase.from('personnel').select('id, full_name').eq('id', doc.personnel_id).single() : Promise.resolve({ data: null, error: null }),
                                 // Owner bilgisi (eğer owner_id varsa)

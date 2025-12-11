@@ -13,9 +13,10 @@ import { Label } from '@/components/ui/label';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { useData } from '@/contexts/DataContext';
-    import PdfViewerModal from '@/components/document/PdfViewerModal';
-    import { openPrintableReport } from '@/lib/reportUtils';
-    import { normalizeTurkishForSearch } from '@/lib/utils';
+import PdfViewerModal from '@/components/document/PdfViewerModal';
+import DocumentDetailModal from '@/components/document/DocumentDetailModal';
+import { openPrintableReport } from '@/lib/reportUtils';
+import { normalizeTurkishForSearch } from '@/lib/utils';
 
     const DOCUMENT_CATEGORIES = [
       { value: 'Tümü', label: 'Tümü', icon: FileText, addText: 'Yeni Doküman Ekle' },
@@ -132,6 +133,8 @@ import { Label } from '@/components/ui/label';
         const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
         const [activeTab, setActiveTab] = useState('Tümü');
         const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
+        const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+        const [selectedDocument, setSelectedDocument] = useState(null);
 
 
         const filteredDocuments = useMemo(() => {
@@ -341,6 +344,11 @@ import { Label } from '@/components/ui/label';
                     pdfUrl={pdfViewerState.url}
                     title={pdfViewerState.title}
                 />
+                <DocumentDetailModal 
+                    isOpen={isDetailModalOpen}
+                    setIsOpen={setIsDetailModalOpen}
+                    document={selectedDocument}
+                />
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
@@ -462,7 +470,13 @@ import { Label } from '@/components/ui/label';
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ duration: 0.3, delay: index * 0.05 }}
                                                 >
-                                                    <td className="font-medium text-foreground">
+                                                    <td 
+                                                        className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
+                                                        onClick={() => {
+                                                            setSelectedDocument(doc);
+                                                            setIsDetailModalOpen(true);
+                                                        }}
+                                                    >
                                                         <div>{doc.title}</div>
                                                         <div className="text-xs text-muted-foreground">{doc.document_number}</div>
                                                     </td>
