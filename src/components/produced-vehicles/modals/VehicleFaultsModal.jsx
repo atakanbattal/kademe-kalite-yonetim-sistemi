@@ -34,7 +34,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             const specialQualityEmails = [
               'atakan.battal@kademe.com.tr',
               'yunus.senel@kademe.com.tr',
-              'safa.bagci@kademe.com.tr'
+              'safa.bagci@kademe.com.tr',
+              'ramazan.boztilki@kademe.com.tr'
             ];
             return userRole === 'admin' || specialQualityEmails.includes(userEmail);
         };
