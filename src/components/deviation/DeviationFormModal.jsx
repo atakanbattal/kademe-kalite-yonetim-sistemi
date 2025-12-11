@@ -118,7 +118,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 'requesting_person type': typeof formDataToSet.requesting_person,
             });
             
-            // FormData'yı set et
+            // FormData'yı set et - departments ve personnel yüklendikten sonra da güncelle
             setFormData(formDataToSet);
             setDeviationType(rest.deviation_type || 'Girdi Kontrolü');
             
@@ -162,6 +162,28 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
         setFiles([]);
     }, [isOpen, existingDeviation]); // existingDeviation objesi değiştiğinde çalış
+
+    // Departments ve personnel yüklendikten sonra formData'yı güncelle (Select component'leri için)
+    useEffect(() => {
+        if (isEditMode && existingDeviation && existingDeviation.id && departments.length > 0 && personnel.length > 0) {
+            // FormData'yı tekrar set et - Select component'lerinin doğru şekilde render olması için
+            setFormData(prev => {
+                // Eğer formData zaten doğru değerlere sahipse, tekrar set etme
+                if (prev.requesting_unit === existingDeviation.requesting_unit && 
+                    prev.requesting_person === existingDeviation.requesting_person && 
+                    prev.source === existingDeviation.source) {
+                    return prev;
+                }
+                // Değerler farklıysa güncelle
+                return {
+                    ...prev,
+                    requesting_unit: existingDeviation.requesting_unit || prev.requesting_unit || '',
+                    requesting_person: existingDeviation.requesting_person || prev.requesting_person || '',
+                    source: existingDeviation.source || prev.source || '',
+                };
+            });
+        }
+    }, [departments.length, personnel.length, isEditMode, existingDeviation?.id]);
     
     const handleVehicleChange = (index, field, value) => {
         const newVehicles = [...vehicles];
