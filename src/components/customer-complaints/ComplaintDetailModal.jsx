@@ -659,14 +659,14 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                     onRefresh={handleRefresh}
                                 />
                             </TabsContent>
-                        </div>
                     </Tabs>
+                    </ScrollArea>
                 )}
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setOpen(false)}>
-                        Kapat
-                    </Button>
+                <DialogFooter className="mt-6">
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary" size="lg">Kapat</Button>
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
 
