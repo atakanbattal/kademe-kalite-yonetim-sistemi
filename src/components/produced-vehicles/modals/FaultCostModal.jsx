@@ -83,7 +83,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         });
 
         setCalculations(newCalculations);
-    }, [faultDurations, unresolvedFaults, unitCostSettings]);
+    }, [faultDurations, qualityControlDurations, unresolvedFaults, unitCostSettings]);
 
     // Modal açıldığında formu sıfırla
     useEffect(() => {
@@ -146,14 +146,21 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
             let totalAmount = 0;
             let totalQuantity = 0;
 
+            const qualityControlUnitCost = getQualityControlUnitCost();
+            const qualityControlUnitName = unitCostSettings?.find(u => 
+                ['Kalite Kontrol', 'Kalite', 'Kalite Kontrolü', 'Quality Control'].includes(u.unit_name)
+            )?.unit_name || 'Kalite Kontrol';
+
             // Her hata için ayrı maliyet kaydı oluştur
             for (const fault of unresolvedFaults) {
                 const duration = parseFloat(faultDurations[fault.id]) || 0;
+                const qualityDuration = parseFloat(qualityControlDurations[fault.id]) || 0;
                 const departmentName = fault.department?.name || fault.department_name || 'Üretim';
                 const unitCost = getUnitCost(departmentName);
                 const faultCost = duration * unitCost;
+                const qualityControlCost = qualityDuration * qualityControlUnitCost;
                 const faultQuantity = fault.quantity || 1;
-                const totalFaultCost = faultCost * faultQuantity;
+                const totalFaultCost = (faultCost + qualityControlCost) * faultQuantity;
 
                 const faultDescriptions = unresolvedFaults.map(f => 
                     `- ${f.description} (${f.quantity || 1} adet)`
@@ -167,6 +174,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     `- ${fault.description} (${faultQuantity} adet)\n` +
                     `- İlgili Birim: ${departmentName}\n` +
                     `- Giderilme Süresi: ${duration} dakika\n` +
+                    `- Kalite Kontrol Süresi: ${qualityDuration} dakika\n` +
                     `\nTüm Hatalar:\n${faultDescriptions}`;
 
                 const costRecord = {
@@ -180,14 +188,20 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     description: description,
                     rework_duration: duration,
                     quantity: faultQuantity,
-                    affected_units: [{
-                        unit: departmentName,
-                        duration: duration
-                    }],
+                    affected_units: [
+                        {
+                            unit: departmentName,
+                            duration: duration
+                        },
+                        {
+                            unit: qualityControlUnitName,
+                            duration: qualityDuration
+                        }
+                    ],
                     status: 'Aktif',
                     source_type: 'produced_vehicle_final_faults',
                     source_record_id: vehicle?.id,
-                    quality_control_duration: null
+                    quality_control_duration: qualityDuration
                 };
 
                 costRecords.push(costRecord);
