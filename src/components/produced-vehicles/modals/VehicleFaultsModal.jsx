@@ -234,8 +234,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         };
 
         return (
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-4xl">
+            <>
+                <Dialog open={isOpen} onOpenChange={setIsOpen}>
+                    <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
                         <DialogTitle>Hataları Yönet: {vehicle?.chassis_no}</DialogTitle>
                         <DialogDescription>Bu araç için tespit edilen hataları ekleyin, düzenleyin veya silin.</DialogDescription>
@@ -342,6 +343,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                             )}
                         </div>
                         <div className="flex gap-2">
+                            {canManage && faults.filter(f => !f.is_resolved).length > 0 && (
+                                <Button 
+                                    variant="default" 
+                                    onClick={() => setIsFaultCostModalOpen(true)} 
+                                    disabled={loading}
+                                    className="bg-green-600 hover:bg-green-700"
+                                >
+                                    <Calculator className="mr-2 h-4 w-4" />
+                                    Hatalar için Maliyet Kaydı Oluştur
+                                </Button>
+                            )}
                             {canManage && (
                                 <Button variant="secondary" onClick={handleCreateNC} disabled={loading}>
                                     Uygunsuzluk Oluştur
@@ -352,7 +364,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        );
-    };
+            <FaultCostModal
+                isOpen={isFaultCostModalOpen}
+                setIsOpen={setIsFaultCostModalOpen}
+                vehicle={vehicle}
+                faults={faults}
+                onSuccess={() => {
+                    if (onUpdate) onUpdate();
+                }}
+            />
+        </>
+    );
+};
 
-    export default VehicleFaultsModal;
+export default VehicleFaultsModal;

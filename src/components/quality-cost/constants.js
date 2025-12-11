@@ -1,4 +1,4 @@
-export const COST_TYPES = ["Hurda Maliyeti", "Yeniden İşlem Maliyeti", "Fire Maliyeti", "Dış Hata Maliyeti", "Garanti Maliyeti", "İade Maliyeti", "Şikayet Maliyeti", "Önleme Maliyeti"];
+export const COST_TYPES = ["Hurda Maliyeti", "Yeniden İşlem Maliyeti", "Fire Maliyeti", "Final Hataları Maliyeti", "Dış Hata Maliyeti", "Garanti Maliyeti", "İade Maliyeti", "Şikayet Maliyeti", "Önleme Maliyeti"];
 
 export const VEHICLE_TYPES = ["FTH-240", "Çelik-2000", "AGA2100", "AGA3000", "AGA6000", "Kompost Makinesi", "Çay Toplama Makinesi", "KDM 35", "KDM 70", "KDM 80", "Rusya Motor Odası", "Ural", "HSCK (Hidrolik Sıkıştırmalı Çöp Kamyonu)", "Traktör Kabin", "Genel Hurda"];
 
