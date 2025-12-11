@@ -90,12 +90,86 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                             </>
                         )}
                         
-                        <div className="grid grid-cols-3 gap-2 py-3 border-b border-border">
-                            <Label className="font-semibold text-muted-foreground col-span-1">Açıklama</Label>
-                            <div className="col-span-2">
-                                <p className="text-foreground whitespace-pre-wrap text-sm leading-relaxed">{cost.description || '-'}</p>
+                        {/* Açıklama - Final Hataları için özel formatlama */}
+                        {cost.cost_type === 'Final Hataları Maliyeti' ? (
+                            <div className="grid grid-cols-3 gap-2 py-3 border-b border-border">
+                                <Label className="font-semibold text-muted-foreground col-span-1">Hata Açıklaması</Label>
+                                <div className="col-span-2 space-y-3">
+                                    {cost.description ? (
+                                        <div className="bg-muted/50 p-4 rounded-lg border space-y-2">
+                                            {cost.description.split('\n').map((line, idx) => {
+                                                // Boş satırları atla
+                                                if (!line.trim()) return null;
+                                                
+                                                // Başlık satırları
+                                                if (line.includes('Final Hataları Maliyeti')) {
+                                                    return (
+                                                        <div key={idx} className="mb-3 pb-2 border-b">
+                                                            <p className="font-bold text-lg text-primary">{line}</p>
+                                                        </div>
+                                                    );
+                                                }
+                                                
+                                                // Araç bilgileri
+                                                if (line.includes('Araç:') || line.includes('Araç Tipi:') || line.includes('Müşteri:')) {
+                                                    const [label, value] = line.split(':').map(s => s.trim());
+                                                    return (
+                                                        <div key={idx} className="flex items-center gap-2">
+                                                            <span className="text-xs font-semibold text-muted-foreground w-24">{label}:</span>
+                                                            <span className="text-sm font-medium">{value}</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                
+                                                // Hata Detayı başlığı
+                                                if (line.includes('Hata Detayı:')) {
+                                                    return (
+                                                        <div key={idx} className="mt-4 mb-2">
+                                                            <p className="font-semibold text-primary text-base">{line}</p>
+                                                        </div>
+                                                    );
+                                                }
+                                                
+                                                // Hata açıklaması (başında - olan)
+                                                if (line.trim().startsWith('-')) {
+                                                    return (
+                                                        <div key={idx} className="flex items-start gap-2 pl-2">
+                                                            <span className="text-primary mt-1">•</span>
+                                                            <span className="text-sm leading-relaxed flex-1">{line.replace(/^-/, '').trim()}</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                
+                                                // İlgili Birim, Giderilme Süresi, Kalite Kontrol Süresi
+                                                if (line.includes('İlgili Birim:') || line.includes('Giderilme Süresi:') || line.includes('Kalite Kontrol Süresi:')) {
+                                                    const [label, value] = line.split(':').map(s => s.trim());
+                                                    return (
+                                                        <div key={idx} className="flex items-center gap-2">
+                                                            <Badge variant="outline" className="text-xs">{label}:</Badge>
+                                                            <span className="text-sm font-medium">{value}</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                
+                                                // Diğer satırlar
+                                                return (
+                                                    <p key={idx} className="text-sm text-muted-foreground">{line}</p>
+                                                );
+                                            }).filter(Boolean)}
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted-foreground">-</p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-2 py-3 border-b border-border">
+                                <Label className="font-semibold text-muted-foreground col-span-1">Açıklama</Label>
+                                <div className="col-span-2">
+                                    <p className="text-foreground whitespace-pre-wrap text-sm leading-relaxed">{cost.description || '-'}</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </ScrollArea>
                 <DialogFooter>
