@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calculator, Save } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
+import { cn } from '@/lib/utils';
 
 const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     const { toast } = useToast();
@@ -19,9 +20,9 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     const [existingCostRecords, setExistingCostRecords] = useState([]);
     const [isEditMode, setIsEditMode] = useState(false);
 
-    // Sadece çözülmemiş hataları kullan
-    const unresolvedFaults = useMemo(() => {
-        return faults.filter(f => !f.is_resolved);
+    // Tüm hataları kullan (çözülen ve çözülmemiş)
+    const allFaults = useMemo(() => {
+        return faults || [];
     }, [faults]);
 
     // Her hata için birim maliyetini bul
@@ -85,7 +86,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         });
 
         setCalculations(newCalculations);
-    }, [faultDurations, qualityControlDurations, unresolvedFaults, unitCostSettings]);
+    }, [faultDurations, qualityControlDurations, allFaults, unitCostSettings]);
 
     // Mevcut maliyet kayıtlarını kontrol et ve formu yükle
     useEffect(() => {
@@ -105,7 +106,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 existing.forEach(costRecord => {
                     // Açıklamadan hata açıklamasını eşleştir
                     const description = costRecord.description || '';
-                    const faultMatch = unresolvedFaults.find(fault => 
+                    const faultMatch = allFaults.find(fault => 
                         description.includes(fault.description)
                     );
                     
@@ -121,7 +122,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 // Yeni kayıt modu
                 const initialDurations = {};
                 const initialQualityDurations = {};
-                unresolvedFaults.forEach(fault => {
+                allFaults.forEach(fault => {
                     initialDurations[fault.id] = '';
                     initialQualityDurations[fault.id] = '';
                 });
@@ -129,7 +130,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 setQualityControlDurations(initialQualityDurations);
             }
         }
-    }, [isOpen, unresolvedFaults, vehicle?.id, qualityCosts]);
+    }, [isOpen, allFaults, vehicle?.id, qualityCosts]);
 
     const handleDurationChange = (faultId, value) => {
         setFaultDurations(prev => ({
@@ -157,7 +158,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         }
 
         // Validasyon
-        const missingDurations = unresolvedFaults.filter(fault => {
+        const missingDurations = allFaults.filter(fault => {
             const duration = parseFloat(faultDurations[fault.id]);
             const qualityDuration = parseFloat(qualityControlDurations[fault.id]);
             return (!duration || duration <= 0) || (!qualityDuration || qualityDuration <= 0);
@@ -172,11 +173,11 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
             return;
         }
 
-        if (unresolvedFaults.length === 0) {
+        if (allFaults.length === 0) {
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Maliyet kaydı oluşturmak için en az bir çözülmemiş hata olmalıdır.'
+                description: 'Maliyet kaydı oluşturmak için en az bir hata olmalıdır.'
             });
             return;
         }
@@ -195,7 +196,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
             // Düzenleme modu: Mevcut kayıtları güncelle
             if (isEditMode && existingCostRecords.length > 0) {
                 // Her hata için mevcut kaydı bul ve güncelle
-                for (const fault of unresolvedFaults) {
+                for (const fault of allFaults) {
                     const duration = parseFloat(faultDurations[fault.id]) || 0;
                     const qualityDuration = parseFloat(qualityControlDurations[fault.id]) || 0;
                     const departmentName = fault.department?.name || fault.department_name || 'Üretim';
@@ -330,7 +331,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 const costRecords = [];
 
                 // Her hata için ayrı maliyet kaydı oluştur
-                for (const fault of unresolvedFaults) {
+                for (const fault of allFaults) {
                     const duration = parseFloat(faultDurations[fault.id]) || 0;
                 const qualityDuration = parseFloat(qualityControlDurations[fault.id]) || 0;
                 const departmentName = fault.department?.name || fault.department_name || 'Üretim';
@@ -465,8 +466,8 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     }, [calculations]);
 
     const totalQuantity = useMemo(() => {
-        return unresolvedFaults.reduce((sum, fault) => sum + (fault.quantity || 1), 0);
-    }, [unresolvedFaults]);
+        return allFaults.reduce((sum, fault) => sum + (fault.quantity || 1), 0);
+    }, [allFaults]);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -496,25 +497,32 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
 
                 <ScrollArea className="max-h-[60vh] pr-4">
                     <div className="space-y-4 py-4">
-                        {unresolvedFaults.length === 0 ? (
+                        {allFaults.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
-                                <p>Çözülmemiş hata bulunmuyor.</p>
-                                <p className="text-sm mt-2">Maliyet kaydı oluşturmak için en az bir çözülmemiş hata olmalıdır.</p>
+                                <p>Hata bulunmuyor.</p>
+                                <p className="text-sm mt-2">Maliyet kaydı oluşturmak için en az bir hata olmalıdır.</p>
                             </div>
                         ) : (
                             <>
-                                {unresolvedFaults.map(fault => {
+                                {allFaults.map(fault => {
                                     const calc = calculations[fault.id] || {};
                                     const departmentName = fault.department?.name || fault.department_name || 'Üretim';
                                     const unitCost = getUnitCost(departmentName);
 
                                     return (
-                                        <div key={fault.id} className="p-4 border rounded-lg bg-card">
+                                        <div key={fault.id} className={cn("p-4 border rounded-lg bg-card", fault.is_resolved && "opacity-75 border-green-300 bg-green-50/30")}>
                                             <div className="space-y-4">
                                                 <div>
-                                                    <Label className="text-sm font-semibold mb-2 block">
-                                                        {fault.description}
-                                                    </Label>
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Label className="text-sm font-semibold block">
+                                                            {fault.description}
+                                                        </Label>
+                                                        {fault.is_resolved && (
+                                                            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                                                                Çözüldü
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div className="text-xs text-muted-foreground space-y-1">
                                                         <p>Birim: {departmentName}</p>
                                                         <p>Adet: {fault.quantity || 1}</p>
@@ -602,13 +610,13 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     <Button variant="outline" onClick={() => setIsOpen(false)} disabled={loading}>
                         İptal
                     </Button>
-                    <Button onClick={handleSubmit} disabled={loading || unresolvedFaults.length === 0}>
+                    <Button onClick={handleSubmit} disabled={loading || allFaults.length === 0}>
                         <Save className="mr-2 h-4 w-4" />
                         {loading 
                             ? (isEditMode ? 'Güncelleniyor...' : 'Kaydediliyor...') 
                             : (isEditMode 
-                                ? `${unresolvedFaults.length} Hata için Maliyet Kayıtlarını Güncelle` 
-                                : `${unresolvedFaults.length} Hata için Maliyet Kaydet`)
+                                ? `${allFaults.length} Hata için Maliyet Kayıtlarını Güncelle` 
+                                : `${allFaults.length} Hata için Maliyet Kaydet`)
                         }
                     </Button>
                 </DialogFooter>
