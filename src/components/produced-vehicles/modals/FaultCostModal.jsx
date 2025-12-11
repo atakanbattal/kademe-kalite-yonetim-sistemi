@@ -11,11 +11,13 @@ import { useData } from '@/contexts/DataContext';
 
 const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     const { toast } = useToast();
-    const { unitCostSettings, refreshData } = useData();
+    const { unitCostSettings, refreshData, qualityCosts } = useData();
     const [faultDurations, setFaultDurations] = useState({});
     const [qualityControlDurations, setQualityControlDurations] = useState({});
     const [loading, setLoading] = useState(false);
     const [calculations, setCalculations] = useState({});
+    const [existingCostRecords, setExistingCostRecords] = useState([]);
+    const [isEditMode, setIsEditMode] = useState(false);
 
     // Sadece çözülmemiş hataları kullan
     const unresolvedFaults = useMemo(() => {
@@ -293,9 +295,32 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-4xl max-h-[90vh]">
                 <DialogHeader>
-                    <DialogTitle>Final Hataları için Maliyet Kaydı Oluştur</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                        {isEditMode ? (
+                            <>
+                                <Calculator className="h-5 w-5 text-primary" />
+                                Final Hataları Maliyet Kayıtlarını Düzenle
+                            </>
+                        ) : (
+                            <>
+                                <Calculator className="h-5 w-5 text-primary" />
+                                Final Hataları için Maliyet Kaydı Oluştur
+                            </>
+                        )}
+                    </DialogTitle>
                     <DialogDescription>
-                        Her hata için giderilme süresini girin. Maliyet otomatik olarak hesaplanacak ve kaydedilecektir.
+                        {isEditMode ? (
+                            <>
+                                Mevcut maliyet kayıtlarını düzenleyebilirsiniz. Süreleri güncelleyin, maliyetler otomatik olarak yeniden hesaplanacaktır.
+                                {existingCostRecords.length > 0 && (
+                                    <span className="block mt-2 text-orange-600 font-medium">
+                                        Bu araç için {existingCostRecords.length} adet mevcut maliyet kaydı bulundu.
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            'Her hata için giderilme süresini girin. Maliyet otomatik olarak hesaplanacak ve kaydedilecektir.'
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
