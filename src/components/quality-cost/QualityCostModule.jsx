@@ -325,7 +325,18 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                                     <tr><td colSpan="6" className="text-center p-8 text-muted-foreground">Seçili dönem için maliyet kaydı bulunamadı.</td></tr>
                                                 ) : (
                                                     filteredCosts.map((cost, index) => (
-                                                        <tr key={cost.id}>
+                                                        <tr 
+                                                            key={cost.id}
+                                                            className="cursor-pointer hover:bg-accent/50 transition-colors"
+                                                            onClick={(e) => {
+                                                                // Dropdown menüye tıklanırsa modal açılmasın
+                                                                if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) {
+                                                                    return;
+                                                                }
+                                                                handleOpenViewModal(cost);
+                                                            }}
+                                                            title="Detayları görüntülemek için tıklayın"
+                                                        >
                                                             <td>{index + 1}</td>
                                                             <td className="text-foreground">
                                                                 {new Date(cost.cost_date).toLocaleDateString('tr-TR')}
@@ -341,7 +352,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                                                 {cost.is_supplier_nc && cost.supplier?.name ? cost.supplier.name : cost.unit}
                                                             </td>
                                                             <td className="font-semibold text-foreground">{formatCurrency(cost.amount)}</td>
-                                                            <td>
+                                                            <td onClick={(e) => e.stopPropagation()}>
                                                                 <AlertDialog>
                                                                     <DropdownMenu>
                                                                         <DropdownMenuTrigger asChild>
