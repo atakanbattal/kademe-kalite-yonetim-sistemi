@@ -459,20 +459,8 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                                             <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '8' : '7'} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
                                         ) : (
                                             filteredDocuments.map((doc, index) => {
-                                                // document_revisions bir array ise, current_revision_id ile eşleşeni bul
-                                                let revision = doc.document_revisions;
-                                                if (Array.isArray(revision)) {
-                                                    if (doc.current_revision_id) {
-                                                        revision = revision.find(r => r.id === doc.current_revision_id) || null;
-                                                    } else {
-                                                        // current_revision_id yoksa en son revizyonu al (revision_number'a göre)
-                                                        revision = revision.length > 0 ? revision.sort((a, b) => {
-                                                            const numA = parseInt(a.revision_number) || 0;
-                                                            const numB = parseInt(b.revision_number) || 0;
-                                                            return numB - numA;
-                                                        })[0] : null;
-                                                    }
-                                                }
+                                                // filteredDocuments içinde zaten revision tek bir obje olarak set edilmiş
+                                                const revision = doc.document_revisions;
                                                 const fileName = revision?.attachments?.[0]?.name;
                                                 const hasFile = !!revision?.attachments?.[0]?.path;
 
