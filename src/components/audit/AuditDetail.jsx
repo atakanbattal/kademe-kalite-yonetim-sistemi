@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, X, Eye, Save, CheckCircle, GitBranch, Printer, UploadCloud, File as FileIcon, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, Check, X, Eye, Save, CheckCircle, GitBranch, Printer, UploadCloud, File as FileIcon, Trash2, Download, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Textarea } from '@/components/ui/textarea';
