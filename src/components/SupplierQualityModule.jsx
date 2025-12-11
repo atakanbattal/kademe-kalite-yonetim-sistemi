@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText } from 'lucide-react';
+import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText, TrendingUp, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useData } from '@/contexts/DataContext';
@@ -13,6 +13,9 @@ import SupplierNCTab from '@/components/supplier/SupplierNCTab';
 import AuditTrackingTab from '@/components/supplier/AuditTrackingTab';
 import SupplierQuestionBank from '@/components/supplier/SupplierQuestionBank';
 import SupplierDocumentsTab from '@/components/supplier/SupplierDocumentsTab';
+import DevelopmentPlans from '@/components/supplier-development/DevelopmentPlans';
+import DevelopmentActions from '@/components/supplier-development/DevelopmentActions';
+import DevelopmentAssessments from '@/components/supplier-development/DevelopmentAssessments';
 
 
 const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) => {
@@ -100,13 +103,14 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
       </div>
       
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 gap-1 overflow-x-auto">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 gap-1 overflow-x-auto">
             <TabsTrigger value="dashboard" className="text-xs md:text-sm"><BarChart className="w-4 h-4 mr-1 md:mr-2" />Genel Bakış</TabsTrigger>
             <TabsTrigger value="list" className="text-xs md:text-sm"><List className="w-4 h-4 mr-1 md:mr-2" />Tedarikçi Listesi</TabsTrigger>
             <TabsTrigger value="audits" className="text-xs md:text-sm"><CalendarCheck className="w-4 h-4 mr-1 md:mr-2" />Denetim Takibi</TabsTrigger>
             <TabsTrigger value="question-bank" className="text-xs md:text-sm"><HelpCircle className="w-4 h-4 mr-1 md:mr-2" />Soru Bankası</TabsTrigger>
             <TabsTrigger value="ncs" className="text-xs md:text-sm"><AlertTriangle className="w-4 h-4 mr-1 md:mr-2" />Uygunsuzluklar & DF</TabsTrigger>
             <TabsTrigger value="documents" className="text-xs md:text-sm"><FileText className="w-4 h-4 mr-1 md:mr-2" />Dokümanlar</TabsTrigger>
+            <TabsTrigger value="development" className="text-xs md:text-sm"><TrendingUp className="w-4 h-4 mr-1 md:mr-2" />Geliştirme</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="mt-6">
             <SupplierDashboard 
@@ -156,6 +160,33 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
               loading={loading} 
               refreshData={refreshData}
             />
+        </TabsContent>
+        <TabsContent value="development" className="mt-6">
+            <Tabs defaultValue="plans" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="plans">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Geliştirme Planları
+                    </TabsTrigger>
+                    <TabsTrigger value="actions">
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        Aksiyonlar
+                    </TabsTrigger>
+                    <TabsTrigger value="assessments">
+                        <TrendingUp className="w-4 h-4 mr-2" />
+                        Değerlendirmeler
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="plans" className="mt-6">
+                    <DevelopmentPlans />
+                </TabsContent>
+                <TabsContent value="actions" className="mt-6">
+                    <DevelopmentActions />
+                </TabsContent>
+                <TabsContent value="assessments" className="mt-6">
+                    <DevelopmentAssessments />
+                </TabsContent>
+            </Tabs>
         </TabsContent>
       </Tabs>
     </div>
