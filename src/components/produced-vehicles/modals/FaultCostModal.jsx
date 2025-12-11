@@ -209,95 +209,53 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 totalQuantity += faultQuantity;
             }
 
-            // Önce kolonların varlığını kontrol et ve gerekirse temizle
-            // Schema cache sorununu önlemek için
-            const testRecord = { ...costRecords[0] };
+            // Tüm kayıtları ekle
+            let insertedCosts;
+            let insertError;
             
-            // Test insert yaparak kolonların varlığını kontrol et
-            const { error: testError } = await supabase
-                .from('quality_costs')
-                .insert([{
-                    cost_type: testRecord.cost_type,
-                    unit: testRecord.unit,
-                    vehicle_type: testRecord.vehicle_type,
-                    amount: testRecord.amount,
-                    cost_date: testRecord.cost_date,
-                    description: testRecord.description,
-                    status: testRecord.status
-                }])
-                .select()
-                .limit(1);
-
-            // Eğer test başarısız olursa ve schema cache hatası varsa, kolonları çıkar
-            if (testError && testError.message.includes('source_type')) {
-                console.warn('⚠️ Schema cache hatası tespit edildi, kolonlar çıkarılıyor...');
-                // Test kaydını sil
-                await supabase.from('quality_costs').delete().eq('cost_date', testRecord.cost_date).eq('amount', testRecord.amount).limit(1);
+            try {
+                const result = await supabase
+                    .from('quality_costs')
+                    .insert(costRecords)
+                    .select();
                 
-                // Kolonları çıkararak tekrar dene
+                insertedCosts = result.data;
+                insertError = result.error;
+            } catch (err) {
+                insertError = err;
+            }
+
+            // Eğer schema cache hatası varsa, kolonları çıkar ve tekrar dene
+            if (insertError && (insertError.message.includes('source_type') || insertError.message.includes('schema cache') || insertError.message.includes('column'))) {
+                console.warn('⚠️ Schema cache hatası tespit edildi, kolonlar çıkarılıyor...');
+                
+                // Kolonları çıkararak güvenli kayıtlar oluştur
                 const safeCostRecords = costRecords.map(record => {
                     const { source_type, source_record_id, quality_control_duration, ...safeRecord } = record;
+                    // Açıklamaya bu bilgileri ekle
+                    safeRecord.description = safeRecord.description + `\n\n[Not: Schema cache güncellenmediği için source_type, source_record_id ve quality_control_duration kolonları kaydedilemedi. Lütfen Supabase Dashboard'da SQL migration'ını çalıştırın.]`;
                     return safeRecord;
                 });
                 
-                const { data: insertedCosts, error } = await supabase
+                const { data: retryCosts, error: retryError } = await supabase
                     .from('quality_costs')
                     .insert(safeCostRecords)
                     .select();
 
-                if (error) {
-                    throw error;
+                if (retryError) {
+                    throw retryError;
                 }
 
+                insertedCosts = retryCosts;
+                
                 toast({
                     title: 'Uyarı',
                     description: 'Schema cache güncellenmediği için bazı kolonlar kaydedilmedi. Lütfen sayfayı yenileyin ve Supabase Dashboard\'da SQL migration\'ını çalıştırın.',
                     variant: 'destructive',
                     duration: 8000
                 });
-            } else {
-                // Normal insert
-                const { data: insertedCosts, error } = await supabase
-                    .from('quality_costs')
-                    .insert(costRecords)
-                    .select();
-
-                if (error) {
-                    // Eğer schema cache hatası varsa, kolonları çıkar ve tekrar dene
-                    if (error.message.includes('source_type') || error.message.includes('schema cache')) {
-                        console.warn('⚠️ Schema cache hatası, kolonlar çıkarılıyor...');
-                        const safeCostRecords = costRecords.map(record => {
-                            const { source_type, source_record_id, quality_control_duration, ...safeRecord } = record;
-                            return safeRecord;
-                        });
-                        
-                        const { data: retryCosts, error: retryError } = await supabase
-                            .from('quality_costs')
-                            .insert(safeCostRecords)
-                            .select();
-
-                        if (retryError) {
-                            throw retryError;
-                        }
-
-                        toast({
-                            title: 'Uyarı',
-                            description: 'Schema cache güncellenmediği için bazı kolonlar kaydedilmedi. Lütfen sayfayı yenileyin ve Supabase Dashboard\'da SQL migration\'ını çalıştırın.',
-                            variant: 'destructive',
-                            duration: 8000
-                        });
-                        
-                        if (refreshData) {
-                            refreshData();
-                        }
-                        if (onSuccess) {
-                            onSuccess();
-                        }
-                        setIsOpen(false);
-                        return;
-                    }
-                    throw error;
-                }
+            } else if (insertError) {
+                throw insertError;
             }
 
             toast({
