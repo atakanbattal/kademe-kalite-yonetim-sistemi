@@ -450,8 +450,32 @@ import { Label } from '@/components/ui/label';
                                                         <td className="text-muted-foreground">{doc.department?.unit_name || doc.personnel?.full_name || '-'}</td>
                                                     )}
                                                     <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
-                                                    <td className="text-muted-foreground">{revision ? format(new Date(revision.publish_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
-                                                    <td className="text-muted-foreground">{revision?.revision_date ? format(new Date(revision.revision_date), 'dd.MM.yyyy', { locale: tr }) : (revision?.created_at ? format(new Date(revision.created_at), 'dd.MM.yyyy', { locale: tr }) : '-')}</td>
+                                                    <td className="text-muted-foreground">
+                                                        {revision?.publish_date ? (() => {
+                                                            try {
+                                                                const date = new Date(revision.publish_date);
+                                                                return isNaN(date.getTime()) ? '-' : format(date, 'dd.MM.yyyy', { locale: tr });
+                                                            } catch {
+                                                                return '-';
+                                                            }
+                                                        })() : '-'}
+                                                    </td>
+                                                    <td className="text-muted-foreground">
+                                                        {(() => {
+                                                            try {
+                                                                if (revision?.revision_date) {
+                                                                    const date = new Date(revision.revision_date);
+                                                                    return isNaN(date.getTime()) ? '-' : format(date, 'dd.MM.yyyy', { locale: tr });
+                                                                } else if (revision?.created_at) {
+                                                                    const date = new Date(revision.created_at);
+                                                                    return isNaN(date.getTime()) ? '-' : format(date, 'dd.MM.yyyy', { locale: tr });
+                                                                }
+                                                                return '-';
+                                                            } catch {
+                                                                return '-';
+                                                            }
+                                                        })()}
+                                                    </td>
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
                                                     <td className="flex items-center gap-2 flex-wrap">
                                                         <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>
