@@ -47,7 +47,7 @@ const IncomingInspectionDetailModal = ({
     const [hasStockRiskControl, setHasStockRiskControl] = useState(false);
     const [stockRiskControlInfo, setStockRiskControlInfo] = useState(null);
 
-        // Check for risky stock when modal opens or inspection data changes
+    // Check for risky stock when modal opens or inspection data changes
     useEffect(() => {
         if (!isOpen || !enrichedInspection || !enrichedInspection.part_code) {
             setRiskyStockData(null);
@@ -1016,14 +1016,14 @@ const IncomingInspectionDetailModal = ({
                                                 )}
                                             </div>
                                         ) : (
-                                            <Button
-                                                onClick={handleStartStockControl}
-                                                disabled={!onOpenStockRiskModal}
-                                                className="w-full bg-orange-600 hover:bg-orange-700"
-                                            >
-                                                <AlertCircle className="h-4 w-4 mr-2" />
-                                                Stok Kontrol Başlat
-                                            </Button>
+                                        <Button
+                                            onClick={handleStartStockControl}
+                                            disabled={!onOpenStockRiskModal}
+                                            className="w-full bg-orange-600 hover:bg-orange-700"
+                                        >
+                                            <AlertCircle className="h-4 w-4 mr-2" />
+                                            Stok Kontrol Başlat
+                                        </Button>
                                         )}
                                     </div>
                                 </CardContent>
