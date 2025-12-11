@@ -75,8 +75,16 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         });
     }, [allCosts, dateRange]);
 
-    const handleOpenFormModal = (cost = null) => {
+    const handleOpenFormModal = async (cost = null) => {
         setSelectedCost(cost);
+        // Modal açıldığında malzeme maliyetlerini yeniden yükle
+        const { data: materialSettingsData, error: materialError } = await supabase
+            .from('material_costs')
+            .select('*')
+            .order('material_name');
+        if (!materialError && materialSettingsData) {
+            setMaterialCostSettings(materialSettingsData);
+        }
         setFormModalOpen(true);
     };
     
