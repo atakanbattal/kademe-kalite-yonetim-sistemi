@@ -343,17 +343,42 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                             )}
                         </div>
                         <div className="flex gap-2">
-                            {canManage && faults.filter(f => !f.is_resolved).length > 0 && (
-                                <Button 
-                                    variant="default" 
-                                    onClick={() => setIsFaultCostModalOpen(true)} 
-                                    disabled={loading}
-                                    className="bg-green-600 hover:bg-green-700"
-                                >
-                                    <Calculator className="mr-2 h-4 w-4" />
-                                    Hatalar için Maliyet Kaydı Oluştur
-                                </Button>
-                            )}
+                            {canManage && faults.filter(f => !f.is_resolved).length > 0 && (() => {
+                                // Mevcut maliyet kayıtlarını kontrol et
+                                const existingCostRecords = qualityCosts?.filter(cost => 
+                                    cost.source_type === 'produced_vehicle_final_faults' && 
+                                    cost.source_record_id === vehicle?.id
+                                ) || [];
+                                const hasExistingCosts = existingCostRecords.length > 0;
+
+                                if (hasExistingCosts) {
+                                    // Mevcut kayıt varsa düzenleme butonu göster
+                                    return (
+                                        <Button 
+                                            variant="default" 
+                                            onClick={() => setIsFaultCostModalOpen(true)} 
+                                            disabled={loading}
+                                            className="bg-blue-600 hover:bg-blue-700"
+                                        >
+                                            <Calculator className="mr-2 h-4 w-4" />
+                                            Maliyet Kayıtlarını Düzenle
+                                        </Button>
+                                    );
+                                } else {
+                                    // Mevcut kayıt yoksa oluşturma butonu göster
+                                    return (
+                                        <Button 
+                                            variant="default" 
+                                            onClick={() => setIsFaultCostModalOpen(true)} 
+                                            disabled={loading}
+                                            className="bg-green-600 hover:bg-green-700"
+                                        >
+                                            <Calculator className="mr-2 h-4 w-4" />
+                                            Hatalar için Maliyet Kaydı Oluştur
+                                        </Button>
+                                    );
+                                }
+                            })()}
                             {canManage && (
                                 <Button variant="secondary" onClick={handleCreateNC} disabled={loading}>
                                     Uygunsuzluk Oluştur
