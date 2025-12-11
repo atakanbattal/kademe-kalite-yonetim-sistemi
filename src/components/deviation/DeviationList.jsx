@@ -44,6 +44,15 @@ const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove, onCrea
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: index * 0.05 }}
+                            className="cursor-pointer hover:bg-accent/50 transition-colors"
+                            onClick={(e) => {
+                                // Dropdown menüye tıklanırsa modal açılmasın
+                                if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) {
+                                    return;
+                                }
+                                onView(d);
+                            }}
+                            title="Detayları görüntülemek için tıklayın"
                         >
                             <td className="font-mono text-primary">{d.request_no}</td>
                             <td className="font-medium text-foreground max-w-sm truncate">{d.description}</td>
@@ -52,7 +61,7 @@ const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove, onCrea
                             <td>
                                 <Badge variant={getStatusVariant(d.status)}>{d.status}</Badge>
                             </td>
-                            <td>
+                            <td onClick={(e) => e.stopPropagation()}>
                                 <AlertDialog>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
