@@ -252,7 +252,8 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
                         </div>
                     </Tabs>
                 </ScrollArea>
-                <DialogFooter className="p-4 border-t">
+                </ScrollArea>
+                <DialogFooter className="mt-6">
                     <Button variant="outline" onClick={handlePrint} disabled={isPrinting}>
                         {isPrinting ? (
                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Yazdırılıyor...</>
@@ -260,7 +261,9 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
                             <><Printer className="mr-2 h-4 w-4" /> Yazdır / PDF</>
                         )}
                     </Button>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary" size="lg">Kapat</Button>
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

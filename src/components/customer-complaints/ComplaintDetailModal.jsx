@@ -175,62 +175,63 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                     </div>
                 </DialogHeader>
                 
-                <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
-                        {complaintData && (
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setNCModalOpen(true)}
-                                >
-                                    <AlertTriangle className="w-4 h-4 mr-2" />
-                                    Uygunsuzluk Oluştur
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setOpen(false);
-                                        onEdit(complaintData);
-                                    }}
-                                >
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Düzenle
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    onClick={async () => {
-                                        if (window.confirm('Bu şikayeti silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
-                                            try {
-                                                const { error } = await supabase
-                                                    .from('customer_complaints')
-                                                    .delete()
-                                                    .eq('id', complaintData.id);
-                                                
-                                                if (error) throw error;
-                                                
-                                                toast({
-                                                    title: 'Başarılı',
-                                                    description: 'Şikayet başarıyla silindi.'
-                                                });
-                                                setOpen(false);
-                                                onRefresh();
-                                            } catch (error) {
-                                                console.error('Error deleting complaint:', error);
-                                                toast({
-                                                    variant: 'destructive',
-                                                    title: 'Hata',
-                                                    description: 'Şikayet silinirken hata oluştu.'
-                                                });
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Sil
-                                </Button>
-                            </div>
-                        )}
-                    </div>
                 </DialogHeader>
+                
+                {complaintData && (
+                    <div className="flex gap-2 px-6 pb-4 border-b">
+                        <Button
+                            variant="outline"
+                            onClick={() => setNCModalOpen(true)}
+                        >
+                            <AlertTriangle className="w-4 h-4 mr-2" />
+                            Uygunsuzluk Oluştur
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setOpen(false);
+                                onEdit(complaintData);
+                            }}
+                        >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Düzenle
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={async () => {
+                                if (window.confirm('Bu şikayeti silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+                                    try {
+                                        const { error } = await supabase
+                                            .from('customer_complaints')
+                                            .delete()
+                                            .eq('id', complaintData.id);
+                                        
+                                        if (error) throw error;
+                                        
+                                        toast({
+                                            title: 'Başarılı',
+                                            description: 'Şikayet başarıyla silindi.'
+                                        });
+                                        setOpen(false);
+                                        onRefresh();
+                                    } catch (error) {
+                                        console.error('Error deleting complaint:', error);
+                                        toast({
+                                            variant: 'destructive',
+                                            title: 'Hata',
+                                            description: 'Şikayet silinirken hata oluştu.'
+                                        });
+                                    }
+                                }
+                            }}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Sil
+                        </Button>
+                    </div>
+                )}
+
+                <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
 
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
