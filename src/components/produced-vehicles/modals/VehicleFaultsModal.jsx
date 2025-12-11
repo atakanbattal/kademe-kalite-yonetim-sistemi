@@ -29,15 +29,28 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [isFaultCostModalOpen, setIsFaultCostModalOpen] = useState(false);
 
         const hasSpecialAccess = () => {
-            const userEmail = user?.email?.toLowerCase();
+            const userEmail = user?.email?.toLowerCase()?.trim();
             const userRole = profile?.role;
             const specialQualityEmails = [
               'atakan.battal@kademe.com.tr',
               'yunus.senel@kademe.com.tr',
               'safa.bagci@kademe.com.tr',
               'ramazan.boztilki@kademe.com.tr'
-            ].map(email => email.toLowerCase());
-            return userRole === 'admin' || specialQualityEmails.includes(userEmail);
+            ].map(email => email.toLowerCase().trim());
+            
+            const hasAccess = userRole === 'admin' || specialQualityEmails.includes(userEmail);
+            
+            // Debug için (production'da kaldırılabilir)
+            if (!hasAccess && userEmail) {
+                console.log('🔒 Yetki kontrolü:', {
+                    userEmail,
+                    userRole,
+                    specialQualityEmails,
+                    hasAccess
+                });
+            }
+            
+            return hasAccess;
         };
         const canManage = hasSpecialAccess();
 
