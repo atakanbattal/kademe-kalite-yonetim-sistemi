@@ -36,7 +36,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import ProcessValidationModule from '@/components/process-validation/ProcessValidationModule';
     import AdvancedAnalyticsModule from '@/components/advanced-analytics/AdvancedAnalyticsModule';
     import CustomerSatisfactionModule from '@/components/customer-satisfaction/CustomerSatisfactionModule';
-    import SupplierDevelopmentModule from '@/components/supplier-development/SupplierDevelopmentModule';
     import DMAICModule from '@/components/dmaic/DMAICModule';
     import { Menu, X } from 'lucide-react';
     import { Button } from '@/components/ui/button';
@@ -84,7 +83,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
       'process-validation': 'Proses Validasyonu',
       'advanced-analytics': 'Gelişmiş Analiz',
       'customer-satisfaction': 'Müşteri Memnuniyeti',
-      'supplier-development': 'Tedarikçi Geliştirme',
       'dmaic': 'DMAIC Projeleri',
     };
 
@@ -424,7 +422,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'process-validation': return <ProcessValidationModule />;
               case 'advanced-analytics': return <AdvancedAnalyticsModule />;
               case 'customer-satisfaction': return <CustomerSatisfactionModule />;
-              case 'supplier-development': return <SupplierDevelopmentModule />;
               case 'dmaic': return <DMAICModule />;
               default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
           }

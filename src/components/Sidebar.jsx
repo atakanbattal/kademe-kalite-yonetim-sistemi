@@ -31,7 +31,6 @@ const navItems = [
   { id: 'mpc', icon: Factory, label: 'Üretim Planlama' },
   { id: 'process-validation', icon: CheckSquare, label: 'Proses Validasyonu' },
   { id: 'customer-satisfaction', icon: Smile, label: 'Müşteri Memnuniyeti' },
-  { id: 'supplier-development', icon: TrendingUp, label: 'Tedarikçi Geliştirme' },
   { id: 'dmaic', icon: Target, label: 'DMAIC Projeleri' },
   { id: 'settings', icon: Settings, label: 'Ayarlar' },
 ];
