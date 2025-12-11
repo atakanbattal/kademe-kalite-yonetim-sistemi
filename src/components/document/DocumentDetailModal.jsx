@@ -40,8 +40,8 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
             const revisionsWithUsers = await Promise.all((revisionsData || []).map(async (revision) => {
                 const [createdBy, approvedBy, reviewedBy] = await Promise.all([
                     revision.created_by ? supabase.from('profiles').select('id, full_name').eq('id', revision.created_by).single() : Promise.resolve({ data: null }),
-                    revision.approved_by_id ? supabase.from('profiles').select('id, full_name').eq('id', revision.approved_by_id).single() : Promise.resolve({ data: null }),
-                    revision.reviewed_by_id ? supabase.from('profiles').select('id, full_name').eq('id', revision.reviewed_by_id).single() : Promise.resolve({ data: null })
+                    revision.approved_by_id ? supabase.from('personnel').select('id, full_name').eq('id', revision.approved_by_id).single() : Promise.resolve({ data: null }),
+                    revision.reviewed_by_id ? supabase.from('personnel').select('id, full_name').eq('id', revision.reviewed_by_id).single() : Promise.resolve({ data: null })
                 ]);
 
                 return {
