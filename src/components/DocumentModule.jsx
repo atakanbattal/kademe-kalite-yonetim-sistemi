@@ -124,6 +124,11 @@ import { Label } from '@/components/ui/label';
 
 
         const filteredDocuments = useMemo(() => {
+            // documents array'i kontrolü
+            if (!documents || !Array.isArray(documents)) {
+                return [];
+            }
+            
             // Doküman tipi eşleştirme mapping'i (veritabanındaki farklı formatları desteklemek için)
             const documentTypeMapping = {
                 'Prosedürler': ['Prosedürler', 'Prosedür'],
@@ -410,7 +415,7 @@ import { Label } from '@/components/ui/label';
                                         <tr>
                                             <th>Doküman Adı / Numarası</th>
                                             {activeTab === 'Personel Sertifikaları' && <th>Personel</th>}
-                                            {['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) && <th>Birim</th>}
+                                            {(activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) && <th>Birim</th>}
                                             <th>Versiyon</th>
                                             <th>Yayın Tarihi</th>
                                             <th>Revizyon Tarihi</th>
@@ -420,9 +425,9 @@ import { Label } from '@/components/ui/label';
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) ? '8' : '7'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '8' : '7'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
                                         ) : filteredDocuments.length === 0 ? (
-                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) ? '8' : '7'} className="text-center py-8 text-muted-foreground">Bu kategoride doküman bulunmuyor.</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '8' : '7'} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
                                         ) : (
                                             filteredDocuments.map((doc, index) => {
                                                 const revision = doc.document_revisions;
@@ -441,8 +446,8 @@ import { Label } from '@/components/ui/label';
                                                         <div className="text-xs text-muted-foreground">{doc.document_number}</div>
                                                     </td>
                                                     {activeTab === 'Personel Sertifikaları' && <td>{doc.personnel?.full_name || doc.owner?.full_name || 'N/A'}</td>}
-                                                    {['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) && (
-                                                        <td className="text-muted-foreground">{doc.department?.unit_name || '-'}</td>
+                                                    {(activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) && (
+                                                        <td className="text-muted-foreground">{doc.department?.unit_name || doc.personnel?.full_name || '-'}</td>
                                                     )}
                                                     <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
                                                     <td className="text-muted-foreground">{revision ? format(new Date(revision.publish_date), 'dd.MM.yyyy', { locale: tr }) : '-'}</td>
