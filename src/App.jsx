@@ -29,14 +29,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import CustomerComplaintsModule from '@/components/CustomerComplaintsModule';
     import PolyvalenceModule from '@/components/PolyvalenceModule';
     import BenchmarkModule from '@/components/benchmark/BenchmarkModule';
-    import SPCModule from '@/components/spc/SPCModule';
-    import PPAPModule from '@/components/ppap/PPAPModule';
-    import FMEAModule from '@/components/fmea/FMEAModule';
-    import MPCModule from '@/components/mpc/MPCModule';
-    import ProcessValidationModule from '@/components/process-validation/ProcessValidationModule';
-    import AdvancedAnalyticsModule from '@/components/advanced-analytics/AdvancedAnalyticsModule';
-    import CustomerSatisfactionModule from '@/components/customer-satisfaction/CustomerSatisfactionModule';
-    import DMAICModule from '@/components/dmaic/DMAICModule';
     import { Menu, X } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { cn } from '@/lib/utils';
@@ -76,14 +68,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
       'training': 'Eğitim Yönetimi',
       'polyvalence': 'Polivalans Matrisi',
       'benchmark': 'Benchmark Yönetimi',
-      'spc': 'SPC (İstatistiksel Kontrol)',
-      'ppap': 'PPAP/APQP',
-      'fmea': 'FMEA Yönetimi',
-      'mpc': 'Üretim Planlama',
-      'process-validation': 'Proses Validasyonu',
-      'advanced-analytics': 'Gelişmiş Analiz',
-      'customer-satisfaction': 'Müşteri Memnuniyeti',
-      'dmaic': 'DMAIC Projeleri',
     };
 
     const ALL_MODULES = Object.keys(moduleTitles);
@@ -415,14 +399,6 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'training': return <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />;
               case 'polyvalence': return <PolyvalenceModule />;
               case 'benchmark': return <BenchmarkModule />;
-              case 'spc': return <SPCModule />;
-              case 'ppap': return <PPAPModule />;
-              case 'fmea': return <FMEAModule />;
-              case 'mpc': return <MPCModule />;
-              case 'process-validation': return <ProcessValidationModule />;
-              case 'advanced-analytics': return <AdvancedAnalyticsModule />;
-              case 'customer-satisfaction': return <CustomerSatisfactionModule />;
-              case 'dmaic': return <DMAICModule />;
               default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
           }
       };
