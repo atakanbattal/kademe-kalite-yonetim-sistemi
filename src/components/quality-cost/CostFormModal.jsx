@@ -192,7 +192,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         }
     };
 
-    export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost, onOpenNCForm }) => {
+    export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost }) => {
         const { toast } = useToast();
         const isEditMode = !!existingCost;
         const [formData, setFormData] = useState({});
@@ -204,7 +204,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [isSupplierNC, setIsSupplierNC] = useState(false);
         const [suppliers, setSuppliers] = useState([]);
         const [selectedSupplierStatus, setSelectedSupplierStatus] = useState(null);
-        const [createNC, setCreateNC] = useState(false);
+        // createNC kaldırıldı - kalitesizlik maliyeti uygunsuzluktan bağımsızdır
 
         const materialTypes = materialCostSettings.map(m => m.material_name);
         const departments = unitCostSettings.map(u => u.unit_name);
@@ -529,51 +529,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                     refreshCosts();
                     setOpen(false);
                     
-                    // Uygunsuzluk oluştur checkbox'ı işaretliyse
-                    if (createNC && onOpenNCForm && insertedCost) {
-                        console.log('📋 Kayıt sonrası uygunsuzluk oluşturuluyor:', insertedCost);
-                        
-                        // Comprehensive record oluştur
-                        const ncRecord = {
-                            id: insertedCost.id,
-                            source: 'cost',
-                            source_cost_id: insertedCost.id,
-                            
-                            // Parça/Ürün Bilgileri
-                            part_name: insertedCost.part_name || '',
-                            part_code: insertedCost.part_code || '',
-                            vehicle_type: insertedCost.vehicle_type || '',
-                            part_location: insertedCost.part_location || '',
-                            
-                            // Maliyet Bilgileri
-                            cost_type: insertedCost.cost_type || '',
-                            amount: insertedCost.amount || 0,
-                            unit: insertedCost.unit || '',
-                            cost_date: insertedCost.cost_date || '',
-                            
-                            // Miktar Bilgileri
-                            quantity: insertedCost.quantity || null,
-                            measurement_unit: insertedCost.measurement_unit || '',
-                            scrap_weight: insertedCost.scrap_weight || null,
-                            material_type: insertedCost.material_type || '',
-                            affected_units: insertedCost.affected_units || null,
-                            
-                            // Süre Bilgileri (Yedekten al)
-                            rework_duration: insertedCost.rework_duration || null,
-                            quality_control_duration: quality_control_duration_backup || null,
-                            
-                            // Açıklama ve Sorumlu
-                            description: insertedCost.description || '',
-                            responsible_personnel_id: insertedCost.responsible_personnel_id || null,
-                        };
-                        
-                        // Uygunsuzluk formunu aç
-                        setTimeout(() => {
-                            onOpenNCForm(ncRecord, () => {
-                                refreshCosts();
-                            });
-                        }, 300);
-                    }
+                    // Kalitesizlik maliyeti uygunsuzluktan bağımsızdır
+                    // Otomatik uygunsuzluk oluşturma kaldırıldı
                 }
             }
             setIsSubmitting(false);
@@ -764,7 +721,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <DialogFooter className="col-span-1 md:col-span-3 mt-4">
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>İptal</Button>
                             <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Değişiklikleri Kaydet' : (createNC ? 'Kaydet ve Uygunsuzluk Oluştur' : 'Maliyet Kaydet'))}
+                                {isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Değişiklikleri Kaydet' : 'Maliyet Kaydet')}
                             </Button>
                         </DialogFooter>
                     </form>

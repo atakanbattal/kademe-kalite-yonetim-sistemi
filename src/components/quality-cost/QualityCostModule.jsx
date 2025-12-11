@@ -35,7 +35,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
         return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
     };
 
-    const QualityCostModule = ({ onOpenNCForm }) => {
+    const QualityCostModule = () => {
         const { toast } = useToast();
         const { profile } = useAuth();
         const { qualityCosts, personnel, unitCostSettings, materialCostSettings, producedVehicles, loading, refreshData } = useData();
