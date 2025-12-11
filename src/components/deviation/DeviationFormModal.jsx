@@ -624,12 +624,10 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                             <Select 
                                 onValueChange={(value) => handleSelectChange('requesting_unit', value)} 
                                 value={formData.requesting_unit || ''}
-                                key={`requesting_unit-${formData.requesting_unit || 'empty'}`}
+                                key={`requesting_unit-${formData.requesting_unit || 'empty'}-${departments.length}`}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Birim seçin...">
-                                        {formData.requesting_unit || 'Birim seçin...'}
-                                    </SelectValue>
+                                    <SelectValue placeholder="Birim seçin..." />
                                 </SelectTrigger>
                                 <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                             </Select>
@@ -639,12 +637,10 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                             <Select 
                                 onValueChange={(value) => handleSelectChange('requesting_person', value)} 
                                 value={formData.requesting_person || ''}
-                                key={`requesting_person-${formData.requesting_person || 'empty'}`}
+                                key={`requesting_person-${formData.requesting_person || 'empty'}-${personnel.length}`}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Personel seçin...">
-                                        {formData.requesting_person || 'Personel seçin...'}
-                                    </SelectValue>
+                                    <SelectValue placeholder="Personel seçin..." />
                                 </SelectTrigger>
                                 <SelectContent>{personnel.map(p => <SelectItem key={p.id} value={p.full_name}>{p.full_name}</SelectItem>)}</SelectContent>
                             </Select>
