@@ -340,13 +340,13 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                                             )}
                                                         </div>
 
-                                                        {revision.change_summary && (
+                                                        {(revision.revision_reason || revision.change_summary) && (
                                                             <>
                                                                 <Separator />
                                                                 <div>
-                                                                    <p className="text-sm font-medium text-muted-foreground mb-2">Değişiklik Özeti</p>
+                                                                    <p className="text-sm font-medium text-muted-foreground mb-2">Revizyon Nedeni</p>
                                                                     <p className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md">
-                                                                        {revision.change_summary}
+                                                                        {revision.revision_reason || revision.change_summary}
                                                                     </p>
                                                                 </div>
                                                             </>
