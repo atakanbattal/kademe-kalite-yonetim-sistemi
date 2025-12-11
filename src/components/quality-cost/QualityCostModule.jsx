@@ -327,7 +327,15 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                                     filteredCosts.map((cost, index) => (
                                                         <tr key={cost.id}>
                                                             <td>{index + 1}</td>
-                                                            <td className="text-foreground">{new Date(cost.cost_date).toLocaleDateString('tr-TR')}</td>
+                                                            <td className="text-foreground">
+                                                                {new Date(cost.cost_date).toLocaleDateString('tr-TR')}
+                                                                {cost.source_type === 'produced_vehicle' && (
+                                                                    <Badge variant="secondary" className="ml-2 text-xs">Araç</Badge>
+                                                                )}
+                                                                {cost.source_type === 'produced_vehicle_final_faults' && (
+                                                                    <Badge variant="outline" className="ml-2 text-xs bg-orange-50 text-orange-700 border-orange-200">Final</Badge>
+                                                                )}
+                                                            </td>
                                                             <td className="text-foreground">{cost.cost_type}</td>
                                                             <td className="text-foreground">
                                                                 {cost.is_supplier_nc && cost.supplier?.name ? cost.supplier.name : cost.unit}
