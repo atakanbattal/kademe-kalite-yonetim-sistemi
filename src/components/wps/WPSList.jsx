@@ -42,7 +42,18 @@ const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData 
                         <TableRow><TableCell colSpan="7" className="text-center">Kayıtlı WPS bulunamadı.</TableCell></TableRow>
                     ) : (
                         wpsList.map(wps => (
-                            <TableRow key={wps.id}>
+                            <TableRow 
+                                key={wps.id}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={(e) => {
+                                    // Dropdown menüye tıklanırsa modal açılmasın
+                                    if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) {
+                                        return;
+                                    }
+                                    onView(wps);
+                                }}
+                                title="Detayları görüntülemek için tıklayın"
+                            >
                                 <TableCell className="font-medium">{wps.wps_no}</TableCell>
                                 <TableCell>{wps.revision}</TableCell>
                                 <TableCell>{format(new Date(wps.wps_date), 'dd.MM.yyyy')}</TableCell>

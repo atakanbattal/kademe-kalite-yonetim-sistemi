@@ -229,8 +229,6 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                     </div>
                 )}
 
-                <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
-
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="text-center text-muted-foreground">
@@ -238,7 +236,8 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                         </div>
                     </div>
                 ) : (
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                    <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-5">
                             <TabsTrigger value="overview">
                                 <FileText className="w-4 h-4 mr-2" />

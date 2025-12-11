@@ -434,7 +434,18 @@ export default function ComplaintsList({
                                 </thead>
                                 <tbody className="divide-y">
                                     {filteredComplaints.map((complaint) => (
-                                        <tr key={complaint.id} className="hover:bg-gray-50">
+                                        <tr 
+                                            key={complaint.id} 
+                                            className="hover:bg-gray-50 cursor-pointer"
+                                            onClick={(e) => {
+                                                // Butonlara tıklanırsa modal açılmasın
+                                                if (e.target.closest('button')) {
+                                                    return;
+                                                }
+                                                onView(complaint);
+                                            }}
+                                            title="Detayları görüntülemek için tıklayın"
+                                        >
                                             <td className="px-4 py-3">
                                                 <span className="font-mono text-sm font-semibold text-blue-600">
                                                     {complaint.complaint_number}

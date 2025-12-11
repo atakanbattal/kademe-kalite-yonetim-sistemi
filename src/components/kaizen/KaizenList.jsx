@@ -105,9 +105,20 @@ const KaizenList = ({ type, data, loading, onEdit, onDelete, onAdd, onView }) =>
                             <tr><td colSpan="8" className="text-center">Kayıt bulunamadı.</td></tr>
                         ) : (
                             filteredData.map(item => (
-                                <tr key={item.id} className="hover:bg-muted/50">
-                                    <td onClick={() => onView(item)} className="cursor-pointer text-primary font-semibold">{item.kaizen_no}</td>
-                                    <td onClick={() => onView(item)} className="cursor-pointer font-medium">{item.title}</td>
+                                <tr 
+                                    key={item.id} 
+                                    className="hover:bg-muted/50 cursor-pointer"
+                                    onClick={(e) => {
+                                        // Butonlara tıklanırsa modal açılmasın
+                                        if (e.target.closest('button') || e.target.closest('[role="menuitem"]')) {
+                                            return;
+                                        }
+                                        onView(item);
+                                    }}
+                                    title="Detayları görüntülemek için tıklayın"
+                                >
+                                    <td className="text-primary font-semibold">{item.kaizen_no}</td>
+                                    <td className="font-medium">{item.title}</td>
                                     <td>{item.proposer?.full_name || '-'}</td>
                                     <td>{item.responsible_person?.full_name || '-'}</td>
                                     <td className="font-semibold text-green-600">{(item.total_yearly_gain || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</td>

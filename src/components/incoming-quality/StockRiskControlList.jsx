@@ -243,11 +243,19 @@ const StockRiskControlList = () => {
                             filteredControls.map((control, index) => (
                                 <tr 
                                     key={control.id} 
-                                    className="hover:bg-muted/50 transition-colors"
+                                    className="hover:bg-muted/50 transition-colors cursor-pointer"
                                     style={{
                                         opacity: 0,
                                         animation: `fadeIn 0.3s ease-in forwards ${index * 0.05}s`
                                     }}
+                                    onClick={(e) => {
+                                        // Dropdown menüye tıklanırsa modal açılmasın
+                                        if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) {
+                                            return;
+                                        }
+                                        handleViewRecord(control);
+                                    }}
+                                    title="Detayları görüntülemek için tıklayın"
                                 >
                                     <TableCell>
                                         <div className="font-medium">{control.part_name}</div>
