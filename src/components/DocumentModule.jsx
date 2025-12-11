@@ -189,7 +189,17 @@ import { Label } from '@/components/ui/label';
                     }
                     return { ...doc, document_revisions: revision };
                 })
-                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+                .sort((a, b) => {
+                    try {
+                        const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+                        const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+                        if (isNaN(dateA.getTime())) return 1;
+                        if (isNaN(dateB.getTime())) return -1;
+                        return dateB - dateA;
+                    } catch {
+                        return 0;
+                    }
+                });
             
             // Birim filtresi (belirli kategoriler için veya "Tümü" seçildiğinde)
             const categoriesWithDepartmentFilter = [
