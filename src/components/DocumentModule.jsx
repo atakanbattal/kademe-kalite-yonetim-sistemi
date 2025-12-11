@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
     import { normalizeTurkishForSearch } from '@/lib/utils';
 
     const DOCUMENT_CATEGORIES = [
+      { value: 'Tümü', label: 'Tümü', icon: FileText, addText: 'Yeni Doküman Ekle' },
       { value: 'Kalite Sertifikaları', label: 'Kalite Sertifikaları', icon: Certificate, addText: 'Yeni Kalite Sertifikası Ekle' },
       { value: 'Personel Sertifikaları', label: 'Personel Sertifikaları', icon: HardHat, addText: 'Yeni Personel Sertifikası Ekle' },
       { value: 'Prosedürler', label: 'Prosedürler', icon: FileText, addText: 'Yeni Prosedür Ekle' },
@@ -118,7 +119,7 @@ import { Label } from '@/components/ui/label';
         const [isRevisionMode, setIsRevisionMode] = useState(false);
         const [searchTerm, setSearchTerm] = useState('');
         const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
-        const [activeTab, setActiveTab] = useState(DOCUMENT_CATEGORIES[0].value);
+        const [activeTab, setActiveTab] = useState('Tümü');
         const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
 
 
@@ -151,6 +152,10 @@ import { Label } from '@/components/ui/label';
             
             let docs = documents
                 .filter(doc => {
+                    // "Tümü" seçildiğinde tüm dokümanları göster
+                    if (activeTab === 'Tümü') {
+                        return true;
+                    }
                     // Aktif tab için geçerli olan tüm tip varyasyonlarını kontrol et
                     const validTypes = documentTypeMapping[activeTab] || [activeTab];
                     const matches = validTypes.includes(doc.document_type);
@@ -170,9 +175,9 @@ import { Label } from '@/components/ui/label';
                 })
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
             
-            // Birim filtresi (belirli kategoriler için)
+            // Birim filtresi (belirli kategoriler için veya "Tümü" seçildiğinde)
             const categoriesWithDepartmentFilter = [
-                'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 
+                'Tümü', 'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 
                 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 
                 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 
                 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'
@@ -185,12 +190,15 @@ import { Label } from '@/components/ui/label';
                 const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
                 docs = docs.filter(doc => {
                     const normalizedTitle = normalizeTurkishForSearch(doc.title);
+                    const normalizedDocType = normalizeTurkishForSearch(doc.document_type || '');
                     const titleMatch = normalizedTitle.includes(normalizedSearchTerm);
-                    const personnelMatch = activeTab === 'Personel Sertifikaları' && (
-                        normalizeTurkishForSearch(doc.personnel?.full_name).includes(normalizedSearchTerm) ||
-                        normalizeTurkishForSearch(doc.owner?.full_name).includes(normalizedSearchTerm)
+                    const typeMatch = normalizedDocType.includes(normalizedSearchTerm);
+                    const personnelMatch = (
+                        normalizeTurkishForSearch(doc.personnel?.full_name || '').includes(normalizedSearchTerm) ||
+                        normalizeTurkishForSearch(doc.owner?.full_name || '').includes(normalizedSearchTerm)
                     );
-                    return titleMatch || personnelMatch;
+                    const departmentMatch = normalizeTurkishForSearch(doc.department?.unit_name || '').includes(normalizedSearchTerm);
+                    return titleMatch || typeMatch || personnelMatch || departmentMatch;
                 });
             }
             
