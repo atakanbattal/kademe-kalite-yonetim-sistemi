@@ -96,7 +96,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             // Tüm form verilerini set et - TÜM alanları dahil et
             const formDataToSet = {
                 ...rest, // Önce tüm alanları kopyala
-                // Sonra önemli alanları açıkça set et (eğer undefined ise boş string)
+                // Sonra önemli alanları açıkça set et (eğer undefined/null ise boş string)
                 request_no: rest.request_no || '',
                 vehicle_type: rest.vehicle_type || '',
                 part_code: rest.part_code || '',
@@ -109,6 +109,16 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             };
             
             console.log('📋 Form verileri set ediliyor:', formDataToSet);
+            console.log('🔍 Önemli alanlar:', {
+                source: formDataToSet.source,
+                requesting_unit: formDataToSet.requesting_unit,
+                requesting_person: formDataToSet.requesting_person,
+                'source type': typeof formDataToSet.source,
+                'requesting_unit type': typeof formDataToSet.requesting_unit,
+                'requesting_person type': typeof formDataToSet.requesting_person,
+            });
+            
+            // FormData'yı set et
             setFormData(formDataToSet);
             setDeviationType(rest.deviation_type || 'Girdi Kontrolü');
             
@@ -151,7 +161,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
         }
         setFiles([]);
-    }, [isOpen, existingDeviation?.id]); // Sadece isOpen ve existingDeviation.id değiştiğinde çalış
+    }, [isOpen, existingDeviation]); // existingDeviation objesi değiştiğinde çalış
     
     const handleVehicleChange = (index, field, value) => {
         const newVehicles = [...vehicles];
