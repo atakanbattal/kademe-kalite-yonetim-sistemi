@@ -249,9 +249,7 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
                                     </div>
                                 </div>
                             </TabsContent>
-                        </div>
                     </Tabs>
-                </ScrollArea>
                 </ScrollArea>
                 <DialogFooter className="mt-6">
                     <Button variant="outline" onClick={handlePrint} disabled={isPrinting}>
