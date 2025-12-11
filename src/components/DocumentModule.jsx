@@ -377,7 +377,7 @@ import { Label } from '@/components/ui/label';
                                     <div className="relative w-full sm:max-w-sm">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input 
-                                            placeholder="Doküman veya personel adı ile ara..." 
+                                            placeholder={activeTab === 'Tümü' ? "Tüm kategorilerde ara (başlık, kategori, personel, birim)..." : "Doküman veya personel adı ile ara..."}
                                             className="pl-10"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
