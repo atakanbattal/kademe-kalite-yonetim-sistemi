@@ -18,7 +18,10 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
 
     useEffect(() => {
         if (isOpen && document?.id) {
+            console.log('DocumentDetailModal açıldı, document:', document);
             loadRevisions();
+        } else {
+            console.log('DocumentDetailModal açılmadı veya document.id yok:', { isOpen, documentId: document?.id });
         }
     }, [isOpen, document?.id]);
 
