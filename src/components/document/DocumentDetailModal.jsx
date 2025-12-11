@@ -53,11 +53,8 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
             }));
 
             setRevisions(revisionsWithUsers);
-
-            if (error) throw error;
-            setRevisions(data || []);
-        } catch (error) {
-            console.error('Revizyon geçmişi yüklenemedi:', error);
+        } catch (err) {
+            console.error('Revizyon geçmişi yüklenemedi:', err);
             setRevisions([]);
         } finally {
             setLoading(false);
