@@ -181,14 +181,25 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                     return matches;
                 })
                 .map(doc => {
-                    // document_revisions bir array ise, current_revision_id ile eşleşeni bul
+                    // document_revisions bir array ise, current_revision_id ile eşleşeni bul veya en son revizyonu al
                     let revision = doc.document_revisions;
-                    if (Array.isArray(revision) && doc.current_revision_id) {
-                        revision = revision.find(r => r.id === doc.current_revision_id) || revision[0] || null;
-                    }
-                    // Eğer revision yoksa ve current_revision_id varsa, direkt fetch et
-                    if (!revision && doc.current_revision_id) {
-                        console.warn(`⚠️ Revision bulunamadı: ${doc.title} - current_revision_id: ${doc.current_revision_id}`);
+                    if (Array.isArray(revision) && revision.length > 0) {
+                        if (doc.current_revision_id) {
+                            revision = revision.find(r => r.id === doc.current_revision_id) || null;
+                        }
+                        // current_revision_id yoksa veya bulunamadıysa, en son revizyonu al (revision_number'a göre)
+                        if (!revision) {
+                            revision = revision.sort((a, b) => {
+                                const numA = parseInt(a.revision_number) || 0;
+                                const numB = parseInt(b.revision_number) || 0;
+                                return numB - numA;
+                            })[0] || null;
+                        }
+                    } else if (!Array.isArray(revision)) {
+                        // Zaten tek bir obje ise olduğu gibi bırak
+                        revision = revision || null;
+                    } else {
+                        revision = null;
                     }
                     return { ...doc, document_revisions: revision };
                 })
