@@ -25,6 +25,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 import { useData } from '@/contexts/DataContext';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { openPrintableReport } from '@/lib/reportUtils';
@@ -47,6 +48,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
         const [detailModalContent, setDetailModalContent] = useState({ title: '', costs: [] });
         const [searchTerm, setSearchTerm] = useState('');
         const [unitFilter, setUnitFilter] = useState('all');
+        const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'produced_vehicle', 'manual', vb.
         const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
         const hasNCAccess = useMemo(() => {
@@ -65,6 +67,10 @@ import { openPrintableReport } from '@/lib/reportUtils';
 
             if (unitFilter !== 'all') {
                 costs = costs.filter(cost => cost.unit === unitFilter);
+            }
+
+            if (sourceFilter !== 'all') {
+                costs = costs.filter(cost => cost.source_type === sourceFilter);
             }
 
             if (searchTerm) {
