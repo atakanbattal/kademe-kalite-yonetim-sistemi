@@ -36,20 +36,31 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
 
             if (revisionsError) throw revisionsError;
 
-            // Her revizyon için kullanıcı bilgilerini çek
+            // Her revizyon için kullanıcı bilgilerini çek (hata olsa bile revizyonları göster)
             const revisionsWithUsers = await Promise.all((revisionsData || []).map(async (revision) => {
-                const [createdBy, approvedBy, reviewedBy] = await Promise.all([
-                    revision.created_by ? supabase.from('profiles').select('id, full_name').eq('id', revision.created_by).single() : Promise.resolve({ data: null }),
-                    revision.approved_by_id ? supabase.from('personnel').select('id, full_name').eq('id', revision.approved_by_id).single() : Promise.resolve({ data: null }),
-                    revision.reviewed_by_id ? supabase.from('personnel').select('id, full_name').eq('id', revision.reviewed_by_id).single() : Promise.resolve({ data: null })
-                ]);
+                try {
+                    const [createdBy, approvedBy, reviewedBy] = await Promise.all([
+                        revision.created_by ? supabase.from('profiles').select('id, full_name').eq('id', revision.created_by).single().catch(() => ({ data: null, error: null })) : Promise.resolve({ data: null, error: null }),
+                        revision.approved_by_id ? supabase.from('personnel').select('id, full_name').eq('id', revision.approved_by_id).single().catch(() => ({ data: null, error: null })) : Promise.resolve({ data: null, error: null }),
+                        revision.reviewed_by_id ? supabase.from('personnel').select('id, full_name').eq('id', revision.reviewed_by_id).single().catch(() => ({ data: null, error: null })) : Promise.resolve({ data: null, error: null })
+                    ]);
 
-                return {
-                    ...revision,
-                    created_by_user: createdBy.data,
-                    approved_by_user: approvedBy.data,
-                    reviewed_by_user: reviewedBy.data
-                };
+                    return {
+                        ...revision,
+                        created_by_user: createdBy?.data || null,
+                        approved_by_user: approvedBy?.data || null,
+                        reviewed_by_user: reviewedBy?.data || null
+                    };
+                } catch (err) {
+                    // Kullanıcı bilgileri çekilemese bile revizyonu göster
+                    console.warn('Revizyon kullanıcı bilgileri çekilemedi:', err);
+                    return {
+                        ...revision,
+                        created_by_user: null,
+                        approved_by_user: null,
+                        reviewed_by_user: null
+                    };
+                }
             }));
 
             setRevisions(revisionsWithUsers);
