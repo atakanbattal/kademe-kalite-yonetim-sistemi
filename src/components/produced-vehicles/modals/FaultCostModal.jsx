@@ -162,10 +162,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 const faultQuantity = fault.quantity || 1;
                 const totalFaultCost = (faultCost + qualityControlCost) * faultQuantity;
 
-                const faultDescriptions = unresolvedFaults.map(f => 
-                    `- ${f.description} (${f.quantity || 1} adet)`
-                ).join('\n');
-
+                // Sadece bu hatanın açıklamasını oluştur
                 const description = `Final Hataları Maliyeti - Üretilen Araç\n` +
                     `Araç: ${vehicle?.chassis_no || vehicle?.serial_no || 'Bilinmeyen'}\n` +
                     `Araç Tipi: ${vehicle?.vehicle_type || 'Bilinmeyen'}\n` +
@@ -174,8 +171,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     `- ${fault.description} (${faultQuantity} adet)\n` +
                     `- İlgili Birim: ${departmentName}\n` +
                     `- Giderilme Süresi: ${duration} dakika\n` +
-                    `- Kalite Kontrol Süresi: ${qualityDuration} dakika\n` +
-                    `\nTüm Hatalar:\n${faultDescriptions}`;
+                    `- Kalite Kontrol Süresi: ${qualityDuration} dakika`;
 
                 const costRecord = {
                     cost_type: 'Final Hataları Maliyeti',

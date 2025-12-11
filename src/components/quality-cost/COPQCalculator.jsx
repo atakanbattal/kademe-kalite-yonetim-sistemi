@@ -33,7 +33,8 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
             'Hurda Maliyeti',
             'Yeniden İşlem Maliyeti',
             'Fire Maliyeti',
-            'İç Kalite Kontrol Maliyeti'
+            'İç Kalite Kontrol Maliyeti',
+            'Final Hataları Maliyeti'
         ];
 
         // External Failure kategorileri
@@ -127,7 +128,8 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
             totalCOPQ,
             costPerVehicle,
             breakdown,
-            totalVehicles
+            totalVehicles,
+            finalFaultsBreakdown
         };
     }, [costs, producedVehicles, dateRange]);
 
