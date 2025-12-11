@@ -381,7 +381,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'tasks': return <TaskModule />;
               case 'kpi': return <KPIModule />;
               case 'kaizen': return <KaizenManagement />;
-              case 'quality-cost': return <QualityCostModule onOpenNCForm={handleOpenNCForm} />;
+              case 'quality-cost': return <QualityCostModule />;
               case 'quarantine': return <QuarantineModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
               case 'df-8d': return <Df8dManagement onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onDownloadPDF={handleDownloadPDF} />;
               case 'internal-audit': return <InternalAuditModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;

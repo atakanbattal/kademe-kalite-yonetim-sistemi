@@ -109,60 +109,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
             setDetailModalOpen(true);
         }, []);
         
-        const handleCreateNC = (cost) => {
-            console.log('🔍 ORIJINAL COST OBJESİ:', cost);
-            
-            // affected_units array ise string'e çevir
-            let affectedUnitsText = null;
-            if (Array.isArray(cost.affected_units) && cost.affected_units.length > 0) {
-                affectedUnitsText = cost.affected_units.map(u => `${u.unit} (${u.duration} dk)`).join(', ');
-            } else if (typeof cost.affected_units === 'string') {
-                affectedUnitsText = cost.affected_units;
-            } else if (typeof cost.affected_units === 'number') {
-                affectedUnitsText = cost.affected_units.toString();
-            }
-            
-            // TÜM bilgileri içeren comprehensive record
-            const ncRecord = {
-                // Temel Bilgiler
-                id: cost.id,
-                source: 'cost',
-                source_cost_id: cost.id,
-                
-                // Parça/Ürün Bilgileri
-                part_name: cost.part_name || '',
-                part_code: cost.part_code || '',
-                vehicle_type: cost.vehicle_type || '',
-                part_location: cost.part_location || '',
-                
-                // Maliyet Bilgileri
-                cost_type: cost.cost_type || '',
-                amount: cost.amount || 0,
-                unit: cost.unit || '',
-                cost_date: cost.cost_date || '',
-                
-                // Miktar Bilgileri
-                quantity: cost.quantity || null,
-                measurement_unit: cost.measurement_unit || '',
-                scrap_weight: cost.scrap_weight || null,
-                material_type: cost.material_type || '',
-                affected_units: affectedUnitsText, // Array yerine string
-                
-                // Süre Bilgileri (ÖNEMLI!)
-                rework_duration: cost.rework_duration || null,
-                quality_control_duration: cost.quality_control_duration || null,
-                
-                // Açıklama ve Sorumlu
-                description: cost.description || '',
-                responsible_personnel_id: cost.responsible_personnel_id || null,
-            };
-            
-            console.log('📋 NC Record oluşturuldu:', ncRecord);
-            
-            onOpenNCForm(ncRecord, () => {
-                refreshData();
-            });
-        };
+        // handleCreateNC kaldırıldı - kalitesizlik maliyeti uygunsuzluktan bağımsızdır
 
         const uniqueUnits = useMemo(() => {
             return [...new Set(qualityCosts.map(cost => cost.unit).filter(Boolean))];
@@ -277,7 +224,6 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     materialCostSettings={materialCostSettings}
                     personnelList={personnel}
                     existingCost={selectedCost}
-                    onOpenNCForm={onOpenNCForm}
                 />
                 {selectedCost && (
                     <CostViewModal 
@@ -401,8 +347,12 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                                                                 <Tooltip>
                                                                                     <TooltipTrigger asChild>
                                                                                         <DropdownMenuItem 
-                                                                                            onClick={() => handleCreateNC(cost)}
-                                                                                            disabled={!hasNCAccess}
+                                                                                            onClick={() => {
+                                                                                                toast({ 
+                                                                                                    title: 'Bilgi', 
+                                                                                                    description: 'Kalitesizlik maliyeti uygunsuzluktan bağımsızdır. İsterseniz manuel olarak uygunsuzluk oluşturabilirsiniz.' 
+                                                                                                });
+                                                                                            }}
                                                                                             onSelect={(e) => e.preventDefault()}
                                                                                         >
                                                                                             <LinkIcon className="mr-2 h-4 w-4" />
