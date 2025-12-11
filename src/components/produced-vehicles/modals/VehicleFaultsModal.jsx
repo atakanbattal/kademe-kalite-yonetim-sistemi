@@ -19,7 +19,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate, onOpenNCForm }) => {
         const { toast } = useToast();
         const { user, profile } = useAuth();
-        const { unitCostSettings, refreshData } = useData();
+        const { unitCostSettings, refreshData, qualityCosts } = useData();
         const [faults, setFaults] = useState([]);
         const [newFault, setNewFault] = useState({ description: '', department_id: '', category_id: '', quantity: 1 });
         const [loading, setLoading] = useState(false);

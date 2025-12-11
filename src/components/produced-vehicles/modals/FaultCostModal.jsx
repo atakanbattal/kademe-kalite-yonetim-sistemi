@@ -487,14 +487,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     </DialogTitle>
                     <DialogDescription>
                         {isEditMode ? (
-                            <>
-                                Mevcut maliyet kayıtlarını düzenleyebilirsiniz. Süreleri güncelleyin, maliyetler otomatik olarak yeniden hesaplanacaktır.
-                                {existingCostRecords.length > 0 && (
-                                    <span className="block mt-2 text-orange-600 font-medium">
-                                        Bu araç için {existingCostRecords.length} adet mevcut maliyet kaydı bulundu.
-                                    </span>
-                                )}
-                            </>
+                            'Mevcut maliyet kayıtlarını düzenleyebilirsiniz. Süreleri güncelleyin, maliyetler otomatik olarak yeniden hesaplanacaktır.'
                         ) : (
                             'Her hata için giderilme süresini girin. Maliyet otomatik olarak hesaplanacak ve kaydedilecektir.'
                         )}
