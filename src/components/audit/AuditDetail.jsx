@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, X, Eye, Save, CheckCircle, GitBranch, Printer, UploadCloud, File as FileIcon, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, Check, X, Eye, Save, CheckCircle, GitBranch, Printer, UploadCloud, File as FileIcon, Trash2, Download, FileDown } from 'lucide-react';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Textarea } from '@/components/ui/textarea';
@@ -487,10 +489,35 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
             </div>
 
             {audit.status === 'Planlandı' && (
-                <div className="dashboard-widget text-center p-8">
-                    <h2 className="text-xl font-semibold mb-2 text-foreground">Bu tetkik henüz başlamadı.</h2>
-                    <p className="text-muted-foreground mb-4">Tetkiki başlatarak soruları cevaplamaya başlayabilirsiniz.</p>
-                    <Button onClick={startAudit}>Tetkiki Başlat</Button>
+                <div className="space-y-4">
+                    <div className="dashboard-widget text-center p-8">
+                        <h2 className="text-xl font-semibold mb-2 text-foreground">Bu tetkik henüz başlamadı.</h2>
+                        <p className="text-muted-foreground mb-4">Tetkiki başlatarak soruları cevaplamaya başlayabilirsiniz.</p>
+                        <div className="flex gap-3 justify-center">
+                            <Button onClick={startAudit}>Tetkiki Başlat</Button>
+                            {plannedQuestions.length > 0 && (
+                                <Button variant="outline" onClick={() => handleGenerateQuestionsReport()}>
+                                    <FileDown className="w-4 h-4 mr-2" /> Sorular Raporunu Al
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {plannedQuestions.length > 0 && (
+                        <div className="dashboard-widget p-6">
+                            <h3 className="text-lg font-semibold mb-4">Tetkik Soruları ({plannedQuestions.length} adet)</h3>
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                                {plannedQuestions.map((q, index) => (
+                                    <div key={q.id} className="border-l-4 border-blue-500 pl-4 py-2 bg-muted/30 rounded-r">
+                                        <div className="flex items-start gap-2">
+                                            <span className="font-semibold text-blue-600 min-w-[30px]">{index + 1}.</span>
+                                            <p className="text-sm flex-1">{q.question_text}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
             
