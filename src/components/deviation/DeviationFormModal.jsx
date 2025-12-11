@@ -103,11 +103,20 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         if (isEditMode && existingDeviation) {
             // Düzenleme modu: Mevcut sapma verilerini yükle
             console.log('📝 Sapma düzenleme modu:', existingDeviation.id, existingDeviation);
-            const { deviation_vehicles, deviation_attachments, ...rest } = existingDeviation;
+            const { deviation_vehicles, deviation_attachments, deviation_approvals, ...rest } = existingDeviation;
+            
+            // Tüm form verilerini set et - özellikle requesting_person, requesting_unit, source gibi alanlar
             setFormData({
-                ...rest,
+                request_no: rest.request_no || '',
+                vehicle_type: rest.vehicle_type || '',
+                part_code: rest.part_code || '',
+                description: rest.description || '',
+                source: rest.source || '',
+                requesting_unit: rest.requesting_unit || '',
+                requesting_person: rest.requesting_person || '',
                 deviation_type: rest.deviation_type || 'Girdi Kontrolü',
                 created_at: rest.created_at ? new Date(rest.created_at) : new Date(),
+                ...rest, // Diğer tüm alanları da ekle
             });
             setDeviationType(rest.deviation_type || 'Girdi Kontrolü');
             if (deviation_vehicles && deviation_vehicles.length > 0) {
@@ -116,6 +125,11 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             } else {
                 setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
             }
+            console.log('✅ Form verileri yüklendi:', {
+                requesting_person: rest.requesting_person,
+                requesting_unit: rest.requesting_unit,
+                source: rest.source,
+            });
         } else if (isOpen && !isEditMode) {
             // Yeni sapma modu: Sadece modal YENİ açıldığında sıfırla
             console.log('➕ Yeni sapma kaydı modu');

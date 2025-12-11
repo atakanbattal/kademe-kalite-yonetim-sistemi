@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
-import { getReportContent } from '@/lib/reportUtils';
+import { generatePrintableReportHtml } from '@/lib/reportUtils';
 import { Loader2 } from 'lucide-react';
 
 const PrintableReportLayout = () => {
@@ -65,7 +65,7 @@ const PrintableReportLayout = () => {
                     record.personnel_team = teamMembersData || [];
                 }
                 
-                const content = getReportContent(record, type);
+                const content = generatePrintableReportHtml(record, type);
                 setHtmlContent(content);
 
             } catch (e) {
