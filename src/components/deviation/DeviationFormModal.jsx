@@ -731,8 +731,15 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     
                      <div className="space-y-2">
                         <Label htmlFor="source">Sapma Kaynağı <span className="text-red-500">*</span></Label>
-                         <Select onValueChange={(value) => handleSelectChange('source', value)} value={formData.source || ''} required>
-                            <SelectTrigger><SelectValue placeholder="Sapma kaynağını seçin..." /></SelectTrigger>
+                         <Select 
+                            onValueChange={(value) => handleSelectChange('source', value)} 
+                            value={formData.source || ''} 
+                            required
+                            key={`source-${formData.source || 'empty'}-${departments.length}-${suppliers.length}`}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Sapma kaynağını seçin..." />
+                            </SelectTrigger>
                             <SelectContent>
                                 <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Birimler</div>
                                 {departments.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
