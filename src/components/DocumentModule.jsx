@@ -383,7 +383,7 @@ import { Label } from '@/components/ui/label';
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-                                    {['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) && (
+                                    {['Tümü', 'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) && (
                                         <Select value={selectedDepartmentId || 'all'} onValueChange={(value) => setSelectedDepartmentId(value === 'all' ? '' : value)}>
                                             <SelectTrigger className="w-full sm:w-[200px]">
                                                 <SelectValue placeholder="Birim seçin..." />
