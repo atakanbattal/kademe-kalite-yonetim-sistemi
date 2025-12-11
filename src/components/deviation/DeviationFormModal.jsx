@@ -95,9 +95,14 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             created_at: new Date(),
         };
 
+        if (!isOpen) {
+            // Modal kapalıyken hiçbir şey yapma
+            return;
+        }
+
         if (isEditMode && existingDeviation) {
             // Düzenleme modu: Mevcut sapma verilerini yükle
-            console.log('📝 Sapma düzenleme modu:', existingDeviation.id);
+            console.log('📝 Sapma düzenleme modu:', existingDeviation.id, existingDeviation);
             const { deviation_vehicles, deviation_attachments, ...rest } = existingDeviation;
             setFormData({
                 ...rest,
@@ -111,7 +116,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             } else {
                 setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
             }
-        } else if (isOpen) {
+        } else if (isOpen && !isEditMode) {
             // Yeni sapma modu: Sadece modal YENİ açıldığında sıfırla
             console.log('➕ Yeni sapma kaydı modu');
             setFormData(initialData);
