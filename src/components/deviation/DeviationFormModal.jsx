@@ -81,32 +81,22 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
     }, [isOpen, toast, isEditMode]);
 
-    // ÖNEMLİ: Modal verilerini koru - sadece existingDeviation değiştiğinde yükle
+    // ÖNEMLİ: Modal açıldığında verileri yükle
     useEffect(() => {
-        const initialData = {
-            request_no: '',
-            vehicle_type: '',
-            part_code: '',
-            description: '',
-            source: '',
-            requesting_unit: '',
-            requesting_person: '',
-            deviation_type: 'Girdi Kontrolü',
-            created_at: new Date(),
-        };
-
         if (!isOpen) {
             // Modal kapalıyken hiçbir şey yapma
             return;
         }
 
-        if (isEditMode && existingDeviation) {
-            // Düzenleme modu: Mevcut sapma verilerini yükle
-            console.log('📝 Sapma düzenleme modu:', existingDeviation.id, existingDeviation);
+        // Düzenleme modu: Mevcut sapma verilerini yükle
+        if (existingDeviation && existingDeviation.id) {
+            console.log('📝 Sapma düzenleme modu - Veriler yükleniyor:', existingDeviation);
             const { deviation_vehicles, deviation_attachments, deviation_approvals, ...rest } = existingDeviation;
             
-            // Tüm form verilerini set et - özellikle requesting_person, requesting_unit, source gibi alanlar
-            setFormData({
+            // Tüm form verilerini set et - TÜM alanları dahil et
+            const formDataToSet = {
+                ...rest, // Önce tüm alanları kopyala
+                // Sonra önemli alanları açıkça set et (eğer undefined ise boş string)
                 request_no: rest.request_no || '',
                 vehicle_type: rest.vehicle_type || '',
                 part_code: rest.part_code || '',
@@ -116,29 +106,52 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 requesting_person: rest.requesting_person || '',
                 deviation_type: rest.deviation_type || 'Girdi Kontrolü',
                 created_at: rest.created_at ? new Date(rest.created_at) : new Date(),
-                ...rest, // Diğer tüm alanları da ekle
-            });
+            };
+            
+            console.log('📋 Form verileri set ediliyor:', formDataToSet);
+            setFormData(formDataToSet);
             setDeviationType(rest.deviation_type || 'Girdi Kontrolü');
-            if (deviation_vehicles && deviation_vehicles.length > 0) {
-                setVehicles(deviation_vehicles.map(({ customer_name, chassis_no, vehicle_serial_no }) => ({ customer_name: customer_name || '', chassis_no: chassis_no || '', vehicle_serial_no: vehicle_serial_no || '' })));
-                console.log('✅ Araç bilgileri yüklendi:', deviation_vehicles.length);
+            
+            // Araç bilgilerini yükle
+            if (deviation_vehicles && Array.isArray(deviation_vehicles) && deviation_vehicles.length > 0) {
+                const vehiclesToSet = deviation_vehicles.map(({ customer_name, chassis_no, vehicle_serial_no }) => ({
+                    customer_name: customer_name || '',
+                    chassis_no: chassis_no || '',
+                    vehicle_serial_no: vehicle_serial_no || ''
+                }));
+                setVehicles(vehiclesToSet);
+                console.log('✅ Araç bilgileri yüklendi:', vehiclesToSet.length, vehiclesToSet);
             } else {
                 setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
             }
+            
             console.log('✅ Form verileri yüklendi:', {
-                requesting_person: rest.requesting_person,
-                requesting_unit: rest.requesting_unit,
-                source: rest.source,
+                requesting_person: formDataToSet.requesting_person,
+                requesting_unit: formDataToSet.requesting_unit,
+                source: formDataToSet.source,
+                vehicle_type: formDataToSet.vehicle_type,
+                part_code: formDataToSet.part_code,
             });
-        } else if (isOpen && !isEditMode) {
+        } else {
             // Yeni sapma modu: Sadece modal YENİ açıldığında sıfırla
             console.log('➕ Yeni sapma kaydı modu');
+            const initialData = {
+                request_no: '',
+                vehicle_type: '',
+                part_code: '',
+                description: '',
+                source: '',
+                requesting_unit: '',
+                requesting_person: '',
+                deviation_type: 'Girdi Kontrolü',
+                created_at: new Date(),
+            };
             setFormData(initialData);
             setDeviationType('Girdi Kontrolü');
             setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
         }
         setFiles([]);
-    }, [existingDeviation, isOpen, isEditMode]);
+    }, [isOpen, existingDeviation?.id]); // Sadece isOpen ve existingDeviation.id değiştiğinde çalış
     
     const handleVehicleChange = (index, field, value) => {
         const newVehicles = [...vehicles];
