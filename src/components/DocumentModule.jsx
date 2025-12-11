@@ -189,11 +189,12 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                         }
                         // current_revision_id yoksa veya bulunamadıysa, en son revizyonu al (revision_number'a göre)
                         if (!revision) {
-                            revision = revision.sort((a, b) => {
+                            const sortedRevisions = [...revision].sort((a, b) => {
                                 const numA = parseInt(a.revision_number) || 0;
                                 const numB = parseInt(b.revision_number) || 0;
                                 return numB - numA;
-                            })[0] || null;
+                            });
+                            revision = sortedRevisions[0] || null;
                         }
                     } else if (!Array.isArray(revision)) {
                         // Zaten tek bir obje ise olduğu gibi bırak
