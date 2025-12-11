@@ -84,6 +84,15 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
             prevention: []
         };
 
+        // Final hataları için detaylı analiz
+        const finalFaultsBreakdown = {
+            byUnit: {},
+            byVehicleType: {},
+            totalFaults: 0,
+            totalQualityControlDuration: 0,
+            totalReworkDuration: 0
+        };
+
         costs.forEach(cost => {
             const amount = cost.amount || 0;
             const costType = cost.cost_type || '';
