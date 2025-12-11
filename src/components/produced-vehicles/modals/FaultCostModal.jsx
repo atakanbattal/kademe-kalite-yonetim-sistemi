@@ -90,6 +90,14 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
 
     // Mevcut maliyet kayıtlarını kontrol et ve formu yükle
     useEffect(() => {
+        if (!isOpen || !vehicle?.id) {
+            setFaultDurations({});
+            setQualityControlDurations({});
+            setExistingCostRecords([]);
+            setIsEditMode(false);
+            return;
+        }
+
         if (isOpen && vehicle?.id && qualityCosts) {
             const existing = qualityCosts.filter(cost => 
                 cost.source_type === 'produced_vehicle_final_faults' && 

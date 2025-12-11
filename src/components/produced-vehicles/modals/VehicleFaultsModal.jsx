@@ -41,21 +41,32 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const canManage = hasSpecialAccess();
 
         const fetchFaults = useCallback(async () => {
-            if (!vehicle) return;
-            const { data, error } = await supabase
-                .from('quality_inspection_faults')
-                .select('*, department:production_departments(name)')
-                .eq('inspection_id', vehicle.id)
-                .order('created_at', { ascending: false });
+            if (!vehicle || !vehicle.id) {
+                setFaults([]);
+                return;
+            }
+            try {
+                const { data, error } = await supabase
+                    .from('quality_inspection_faults')
+                    .select('*, department:production_departments(name)')
+                    .eq('inspection_id', vehicle.id)
+                    .order('created_at', { ascending: false });
 
-            if (error) {
-                toast({ variant: 'destructive', title: 'Hata', description: 'Hatalar alınamadı.' });
-            } else {
-                 const enrichedFaults = data.map(f => ({
-                    ...f,
-                    department_name: f.department?.name || 'Bilinmeyen'
-                }));
-                setFaults(enrichedFaults);
+                if (error) {
+                    console.error('❌ Hatalar alınamadı:', error);
+                    toast({ variant: 'destructive', title: 'Hata', description: 'Hatalar alınamadı: ' + error.message });
+                    setFaults([]);
+                } else {
+                    const enrichedFaults = (data || []).map(f => ({
+                        ...f,
+                        department_name: f.department?.name || 'Bilinmeyen'
+                    }));
+                    setFaults(enrichedFaults);
+                }
+            } catch (err) {
+                console.error('❌ Hatalar yüklenirken beklenmeyen hata:', err);
+                toast({ variant: 'destructive', title: 'Hata', description: 'Hatalar yüklenirken bir hata oluştu.' });
+                setFaults([]);
             }
         }, [vehicle, toast]);
 
@@ -233,12 +244,16 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             setIsOpen(false);
         };
 
+        if (!vehicle) {
+            return null;
+        }
+
         return (
             <>
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
                     <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>Hataları Yönet: {vehicle?.chassis_no}</DialogTitle>
+                        <DialogTitle>Hataları Yönet: {vehicle?.chassis_no || vehicle?.serial_no || 'Bilinmeyen'}</DialogTitle>
                         <DialogDescription>Bu araç için tespit edilen hataları ekleyin, düzenleyin veya silin.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -389,15 +404,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <FaultCostModal
-                isOpen={isFaultCostModalOpen}
-                setIsOpen={setIsFaultCostModalOpen}
-                vehicle={vehicle}
-                faults={faults}
-                onSuccess={() => {
-                    if (onUpdate) onUpdate();
-                }}
-            />
+            {vehicle && (
+                <FaultCostModal
+                    isOpen={isFaultCostModalOpen}
+                    setIsOpen={setIsFaultCostModalOpen}
+                    vehicle={vehicle}
+                    faults={faults || []}
+                    onSuccess={() => {
+                        if (onUpdate) onUpdate();
+                    }}
+                />
+            )}
         </>
     );
 };
