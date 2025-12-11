@@ -29,14 +29,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [isFaultCostModalOpen, setIsFaultCostModalOpen] = useState(false);
 
         const hasSpecialAccess = () => {
-            const userEmail = user?.email;
+            const userEmail = user?.email?.toLowerCase();
             const userRole = profile?.role;
             const specialQualityEmails = [
               'atakan.battal@kademe.com.tr',
               'yunus.senel@kademe.com.tr',
               'safa.bagci@kademe.com.tr',
               'ramazan.boztilki@kademe.com.tr'
-            ];
+            ].map(email => email.toLowerCase());
             return userRole === 'admin' || specialQualityEmails.includes(userEmail);
         };
         const canManage = hasSpecialAccess();
