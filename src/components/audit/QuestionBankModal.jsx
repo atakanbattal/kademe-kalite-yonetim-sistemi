@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Trash2, Plus, Edit2, Save, X } from 'lucide-react';
+import { PlusCircle, Trash2, Plus, Edit2, Save, X, FileDown } from 'lucide-react';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -497,14 +499,27 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label>
-                                                Sorular ({questions.length} adet)
-                                                {auditStandards.find(s => s.id === selectedStandardId) && (
-                                                    <span className="text-muted-foreground ml-2">
-                                                        - {auditStandards.find(s => s.id === selectedStandardId).code}
-                                                    </span>
+                                            <div className="flex items-center justify-between">
+                                                <Label>
+                                                    Sorular ({questions.length} adet)
+                                                    {auditStandards.find(s => s.id === selectedStandardId) && (
+                                                        <span className="text-muted-foreground ml-2">
+                                                            - {auditStandards.find(s => s.id === selectedStandardId).code}
+                                                        </span>
+                                                    )}
+                                                </Label>
+                                                {questions.length > 0 && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={handleGenerateReport}
+                                                        className="gap-2"
+                                                    >
+                                                        <FileDown className="w-4 h-4" />
+                                                        Rapor Al
+                                                    </Button>
                                                 )}
-                                            </Label>
+                                            </div>
                                             <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
                                                 {loading ? (
                                                     <p className="text-muted-foreground text-center py-4">Yükleniyor...</p>
