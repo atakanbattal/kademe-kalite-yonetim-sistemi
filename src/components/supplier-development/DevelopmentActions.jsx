@@ -37,7 +37,11 @@ const DevelopmentActions = () => {
                 .from('supplier_development_actions')
                 .select(`
                     *,
-                    supplier_development_plans!plan_id(plan_name, suppliers!supplier_id(id, name))
+                    supplier_development_plans!supplier_development_actions_plan_id_fkey(
+                        id,
+                        plan_name,
+                        supplier:suppliers!supplier_development_plans_supplier_id_fkey(id, name)
+                    )
                 `)
                 .order('due_date', { ascending: true });
 
@@ -48,7 +52,7 @@ const DevelopmentActions = () => {
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Aksiyonlar yüklenirken hata oluştu.'
+                description: `Aksiyonlar yüklenirken hata oluştu: ${error.message}`
             });
         } finally {
             setLoading(false);
