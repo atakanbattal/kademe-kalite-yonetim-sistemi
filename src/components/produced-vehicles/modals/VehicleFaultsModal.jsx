@@ -13,6 +13,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
     import { createVehicleQualityCostRecord } from '@/lib/vehicleCostCalculator';
+    import FaultCostModal from './FaultCostModal';
+    import { Calculator } from 'lucide-react';
 
     const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate, onOpenNCForm }) => {
         const { toast } = useToast();
@@ -24,6 +26,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [categories, setCategories] = useState([]);
         const [filteredCategories, setFilteredCategories] = useState([]);
         const [autoCreateCost, setAutoCreateCost] = useState(true); // Otomatik maliyet kaydı oluşturma toggle
+        const [isFaultCostModalOpen, setIsFaultCostModalOpen] = useState(false);
 
         const hasSpecialAccess = () => {
             const userEmail = user?.email;

@@ -70,7 +70,15 @@ import { openPrintableReport } from '@/lib/reportUtils';
             }
 
             if (sourceFilter !== 'all') {
-                costs = costs.filter(cost => cost.source_type === sourceFilter);
+                if (sourceFilter === 'produced_vehicle') {
+                    // produced_vehicle ve produced_vehicle_final_faults'u birlikte göster
+                    costs = costs.filter(cost => 
+                        cost.source_type === 'produced_vehicle' || 
+                        cost.source_type === 'produced_vehicle_final_faults'
+                    );
+                } else {
+                    costs = costs.filter(cost => cost.source_type === sourceFilter);
+                }
             }
 
             if (searchTerm) {
