@@ -192,13 +192,17 @@ const SupplierNCTab = ({ allSuppliers, loading, onOpenNCForm, onOpenNCView }) =>
                             <TableRow><TableCell colSpan="7" className="text-center p-8 text-muted-foreground">Kayıt bulunamadı.</TableCell></TableRow>
                         ) : (
                             filteredNcs.map(nc => (
-                                <TableRow key={nc.id} className={cn(nc.delay_days > 0 && nc.status !== 'Kapatıldı' && "bg-destructive/10")}>
+                                <TableRow 
+                                    key={nc.id} 
+                                    className={cn(
+                                        "cursor-pointer hover:bg-accent/50 transition-colors",
+                                        nc.delay_days > 0 && nc.status !== 'Kapatıldı' && "bg-destructive/10"
+                                    )}
+                                    onClick={() => handleView(nc)}
+                                    title="Detayları görüntülemek için tıklayın"
+                                >
                                     <TableCell className="font-medium">{nc.supplier_name}</TableCell>
-                                    <TableCell 
-                                        className="cursor-pointer hover:bg-accent/50 transition-colors" 
-                                        onClick={() => handleView(nc)}
-                                        title="Detayları görüntülemek için tıklayın"
-                                    >
+                                    <TableCell>
                                         <div className="font-mono text-primary font-semibold underline decoration-dotted">{nc.nc_number || nc.mdi_no || '-'}</div>
                                         <div className="text-xs text-muted-foreground">{nc.type}</div>
                                     </TableCell>
