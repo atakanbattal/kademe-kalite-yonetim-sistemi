@@ -331,7 +331,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
 
                 // Her hata için ayrı maliyet kaydı oluştur
                 for (const fault of unresolvedFaults) {
-                const duration = parseFloat(faultDurations[fault.id]) || 0;
+                    const duration = parseFloat(faultDurations[fault.id]) || 0;
                 const qualityDuration = parseFloat(qualityControlDurations[fault.id]) || 0;
                 const departmentName = fault.department?.name || fault.department_name || 'Üretim';
                 const unitCost = getUnitCost(departmentName);
@@ -432,11 +432,12 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 throw insertError;
             }
 
-            toast({
-                title: 'Başarılı!',
-                description: `${insertedCosts.length} adet final hataları maliyet kaydı oluşturuldu. Toplam: ${totalAmount.toFixed(2)} ₺`,
-                duration: 5000
-            });
+                toast({
+                    title: 'Başarılı!',
+                    description: `${insertedCosts.length} adet final hataları maliyet kaydı oluşturuldu. Toplam: ${totalAmount.toFixed(2)} ₺`,
+                    duration: 5000
+                });
+            }
 
             if (refreshData) {
                 refreshData();
