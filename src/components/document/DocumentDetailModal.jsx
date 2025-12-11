@@ -34,7 +34,12 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                 .eq('document_id', document.id)
                 .order('revision_number', { ascending: false });
 
-            if (revisionsError) throw revisionsError;
+            if (revisionsError) {
+                console.error('Revizyon çekme hatası:', revisionsError);
+                throw revisionsError;
+            }
+
+            console.log('Çekilen revizyonlar:', revisionsData?.length || 0, revisionsData);
 
             // Her revizyon için kullanıcı bilgilerini çek (hata olsa bile revizyonları göster)
             const revisionsWithUsers = await Promise.all((revisionsData || []).map(async (revision) => {
