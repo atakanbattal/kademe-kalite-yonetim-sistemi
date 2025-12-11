@@ -36,12 +36,16 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			let recordToStore = record;
 			if (type === 'deviation' && record.id && (!record.deviation_vehicles || record.deviation_vehicles.length === 0)) {
 				// Eğer deviation_vehicles yoksa, database'den çek
-				const { data: vehiclesData } = await supabase
-					.from('deviation_vehicles')
-					.select('*')
-					.eq('deviation_id', record.id);
-				if (vehiclesData) {
-					recordToStore = { ...record, deviation_vehicles: vehiclesData };
+				try {
+					const { data: vehiclesData } = await supabase
+						.from('deviation_vehicles')
+						.select('*')
+						.eq('deviation_id', record.id);
+					if (vehiclesData && vehiclesData.length > 0) {
+						recordToStore = { ...record, deviation_vehicles: vehiclesData };
+					}
+				} catch (vehiclesError) {
+					console.warn('Deviation vehicles çekilemedi:', vehiclesError);
 				}
 			}
 			
