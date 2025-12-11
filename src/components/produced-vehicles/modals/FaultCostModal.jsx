@@ -58,7 +58,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
 
         const qualityControlUnitCost = getQualityControlUnitCost();
 
-        unresolvedFaults.forEach(fault => {
+        allFaults.forEach(fault => {
             const duration = parseFloat(faultDurations[fault.id]) || 0;
             const qualityDuration = parseFloat(qualityControlDurations[fault.id]) || 0;
             const departmentName = fault.department?.name || fault.department_name || 'Üretim';
