@@ -343,7 +343,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                             )}
                         </div>
                         <div className="flex gap-2">
-                            {canManage && faults.filter(f => !f.is_resolved).length > 0 && (() => {
+                            {canManage && faults.length > 0 && (() => {
                                 // Mevcut maliyet kayıtlarını kontrol et
                                 const existingCostRecords = qualityCosts?.filter(cost => 
                                     cost.source_type === 'produced_vehicle_final_faults' && 
