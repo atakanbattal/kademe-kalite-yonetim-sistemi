@@ -9,7 +9,7 @@ const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.y
 const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
 
-const openPrintableReport = (record, type, useUrlParams = false) => {
+const openPrintableReport = async (record, type, useUrlParams = false) => {
 	if (!record) {
 		console.error("openPrintableReport called with invalid record:", record);
 		return;
