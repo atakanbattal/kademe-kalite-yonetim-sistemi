@@ -37,7 +37,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
     const handlePrint = async () => {
         setIsPrinting(true);
         try {
-            openPrintableReport(deviation, 'deviation');
+            await openPrintableReport(deviation, 'deviation', true);
         } catch (error) {
             console.error("PDF generation failed:", error);
         } finally {
