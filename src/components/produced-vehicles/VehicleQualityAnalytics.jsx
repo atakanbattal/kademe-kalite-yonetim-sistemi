@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line } from 'recharts';
 import { useData } from '@/contexts/DataContext';
 import { Car, TrendingUp, AlertTriangle, CheckCircle, Percent, Factory, HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -245,7 +245,7 @@ const VehicleQualityAnalytics = () => {
                                             tick={{ fontSize: 11 }}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
-                                        <Tooltip 
+                                        <RechartsTooltip 
                                             contentStyle={{ 
                                                 backgroundColor: 'hsl(var(--background))', 
                                                 border: '1px solid hsl(var(--border))',
@@ -283,7 +283,7 @@ const VehicleQualityAnalytics = () => {
                                             tick={{ fontSize: 11 }}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
-                                        <Tooltip 
+                                        <RechartsTooltip 
                                             contentStyle={{ 
                                                 backgroundColor: 'hsl(var(--background))', 
                                                 border: '1px solid hsl(var(--border))',
@@ -442,7 +442,7 @@ const VehicleQualityAnalytics = () => {
                                             tick={{ fontSize: 11 }}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
-                                        <Tooltip 
+                                        <RechartsTooltip 
                                             contentStyle={{ 
                                                 backgroundColor: 'hsl(var(--background))', 
                                                 border: '1px solid hsl(var(--border))',
@@ -480,7 +480,7 @@ const VehicleQualityAnalytics = () => {
                                             tick={{ fontSize: 11 }}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
-                                        <Tooltip 
+                                        <RechartsTooltip 
                                             contentStyle={{ 
                                                 backgroundColor: 'hsl(var(--background))', 
                                                 border: '1px solid hsl(var(--border))',
