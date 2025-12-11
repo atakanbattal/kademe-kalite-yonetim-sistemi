@@ -1231,12 +1231,41 @@ const generateGenericReportHtml = (record, type) => {
 					<tr><td>Termin Tarihi</td><td>${formatDate(record.due_at || record.due_date)}</td></tr>
 				`;
 			case 'deviation':
+				// Etkilenen Araçlar tablosu
+				let vehiclesHtml = '';
+				if (record.deviation_vehicles && Array.isArray(record.deviation_vehicles) && record.deviation_vehicles.length > 0) {
+					vehiclesHtml = `
+						<tr><td colspan="2">
+							<h3 style="margin-top: 15px; margin-bottom: 10px;">Etkilenen Araçlar</h3>
+							<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+								<thead>
+									<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
+										<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Müşteri Adı</th>
+										<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Şasi No</th>
+										<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Araç Seri No</th>
+									</tr>
+								</thead>
+								<tbody>
+									${record.deviation_vehicles.map(v => `
+										<tr style="border-bottom: 1px solid #d1d5db;">
+											<td style="border: 1px solid #d1d5db; padding: 8px;">${v.customer_name || '-'}</td>
+											<td style="border: 1px solid #d1d5db; padding: 8px;">${v.chassis_no || '-'}</td>
+											<td style="border: 1px solid #d1d5db; padding: 8px;">${v.vehicle_serial_no || '-'}</td>
+										</tr>
+									`).join('')}
+								</tbody>
+							</table>
+						</td></tr>
+					`;
+				}
+				
 				return `
 					<tr><td>Sapma Açıklaması</td><td><pre>${record.description || '-'}</pre></td></tr>
 					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
 					<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
 					<tr><td>Sapma Kaynağı</td><td>${record.source || '-'}</td></tr>
 					<tr><td>Araç Tipi</td><td>${record.vehicle_type || '-'}</td></tr>
+					${vehiclesHtml}
 				`;
 			case 'kaizen':
 				const teamMembers = record.team_members_profiles?.map(p => p.full_name).join(', ') || '-';

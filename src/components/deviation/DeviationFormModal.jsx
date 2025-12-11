@@ -95,11 +95,6 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             created_at: new Date(),
         };
 
-        if (!isOpen) {
-            // Modal kapalıyken hiçbir şey yapma - veriler korunmalı
-            return;
-        }
-
         if (isEditMode && existingDeviation) {
             // Düzenleme modu: Mevcut sapma verilerini yükle
             console.log('📝 Sapma düzenleme modu:', existingDeviation.id);
