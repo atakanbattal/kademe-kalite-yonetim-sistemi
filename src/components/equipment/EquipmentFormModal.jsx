@@ -195,11 +195,9 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
     }, [calibrationData.calibration_date, formData.calibration_frequency_months]);
 
     const handlePersonnelChange = (personnelId) => {
-        console.log('🔄 handlePersonnelChange çağrıldı:', personnelId);
         // String UUID'yi sakla
         const id = personnelId ? String(personnelId) : null;
         setAssignedPersonnelId(id);
-        console.log('✅ assignedPersonnelId state güncellendi:', id);
         const selectedPersonnel = personnelList.find(p => String(p.id) === String(personnelId));
         if (selectedPersonnel) {
             setFormData(prev => ({
@@ -293,7 +291,6 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                          <div className="space-y-1"><Label htmlFor="assigned_personnel_id">Zimmetli Personel</Label>
                             {(() => {
                                 const selectValue = assignedPersonnelId ? String(assignedPersonnelId) : undefined;
-                                console.log('🎯 Select render - assignedPersonnelId:', assignedPersonnelId, 'selectValue:', selectValue, 'personnelList.length:', personnelList.length);
                                 return (
                                     <Select 
                                         onValueChange={handlePersonnelChange} 
