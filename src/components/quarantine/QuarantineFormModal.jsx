@@ -124,19 +124,26 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
         delete submissionData.created_at;
         delete submissionData.updated_at;
 
+        // Undefined key'leri ve geçersiz kolonları temizle
+        const cleanedData = {};
+        for (const key in submissionData) {
+            if (submissionData[key] !== undefined && key !== 'undefined') {
+                cleanedData[key] = submissionData[key];
+            }
+        }
 
         let error;
 
         if (isEditMode) {
             const { error: updateError } = await supabase
                 .from('quarantine_records')
-                .update(submissionData)
+                .update(cleanedData)
                 .eq('id', existingRecord.id);
             error = updateError;
         } else {
             const { error: insertError } = await supabase
                 .from('quarantine_records')
-                .insert([submissionData]);
+                .insert([cleanedData]);
             error = insertError;
         }
 

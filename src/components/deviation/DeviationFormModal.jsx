@@ -475,9 +475,17 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         delete submissionData.deviation_vehicles;
         delete submissionData.customer_name; 
 
+        // Undefined key'leri ve geçersiz kolonları temizle
+        const cleanedData = {};
+        for (const key in submissionData) {
+            if (submissionData[key] !== undefined && key !== 'undefined') {
+                cleanedData[key] = submissionData[key];
+            }
+        }
+
         const { data: deviationData, error: deviationError } = isEditMode
-            ? await supabase.from('deviations').update(submissionData).eq('id', existingDeviation.id).select().single()
-            : await supabase.from('deviations').insert(submissionData).select().single();
+            ? await supabase.from('deviations').update(cleanedData).eq('id', existingDeviation.id).select().single()
+            : await supabase.from('deviations').insert(cleanedData).select().single();
         
         if (deviationError) {
             toast({ variant: 'destructive', title: 'Hata!', description: `Sapma kaydı kaydedilemedi: ${deviationError.message}` });

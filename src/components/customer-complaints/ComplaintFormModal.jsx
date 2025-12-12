@@ -152,21 +152,29 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
                 dataToSubmit.financial_impact = parseFloat(dataToSubmit.financial_impact);
             }
 
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in dataToSubmit) {
+                if (dataToSubmit[key] !== undefined && key !== 'undefined') {
+                    cleanedData[key] = dataToSubmit[key];
+                }
+            }
+
             let result;
             if (isEditMode) {
                 result = await supabase
                     .from('customer_complaints')
-                    .update(dataToSubmit)
+                    .update(cleanedData)
                     .eq('id', existingComplaint.id)
                     .select()
                     .single();
             } else {
                 // Yeni şikayet için created_by ekle
-                dataToSubmit.created_by = user?.id;
+                cleanedData.created_by = user?.id;
                 
                 result = await supabase
                     .from('customer_complaints')
-                    .insert([dataToSubmit])
+                    .insert([cleanedData])
                     .select()
                     .single();
             }

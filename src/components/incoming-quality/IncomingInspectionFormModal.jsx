@@ -658,13 +658,21 @@ setShowRiskyStockAlert(false);
             const fieldsToDelete = ['created_at', 'updated_at', 'record_no', 'is_first_sample', 'non_conformity', 'supplier', 'defects', 'results', 'attachments'];
             fieldsToDelete.forEach(field => delete dataToSubmit[field]);
 
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in dataToSubmit) {
+                if (dataToSubmit[key] !== undefined && key !== 'undefined') {
+                    cleanedData[key] = dataToSubmit[key];
+                }
+            }
+
             let error, inspectionRecord;
             if (existingInspection) {
-                const { data, error: updateError } = await supabase.from('incoming_inspections').update(dataToSubmit).eq('id', existingInspection.id).select().single();
+                const { data, error: updateError } = await supabase.from('incoming_inspections').update(cleanedData).eq('id', existingInspection.id).select().single();
                 error = updateError;
                 inspectionRecord = data;
             } else {
-                 const { data, error: insertError } = await supabase.from('incoming_inspections').insert(dataToSubmit).select().single();
+                 const { data, error: insertError } = await supabase.from('incoming_inspections').insert(cleanedData).select().single();
                 error = insertError;
                 inspectionRecord = data;
             }

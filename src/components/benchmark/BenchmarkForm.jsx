@@ -331,13 +331,21 @@ const BenchmarkForm = ({
                 created_by: user?.id
             };
 
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in dataToSave) {
+                if (dataToSave[key] !== undefined && key !== 'undefined') {
+                    cleanedData[key] = dataToSave[key];
+                }
+            }
+
             let result;
 
             if (benchmark?.id) {
                 // Update existing
                 const { data, error } = await supabase
                     .from('benchmarks')
-                    .update(dataToSave)
+                    .update(cleanedData)
                     .eq('id', benchmark.id)
                     .select()
                     .single();
@@ -359,12 +367,12 @@ const BenchmarkForm = ({
 
                 if (numberError) throw numberError;
 
-                dataToSave.benchmark_number = numberData;
+                cleanedData.benchmark_number = numberData;
 
                 // Create new
                 const { data, error } = await supabase
                     .from('benchmarks')
-                    .insert(dataToSave)
+                    .insert(cleanedData)
                     .select()
                     .single();
 

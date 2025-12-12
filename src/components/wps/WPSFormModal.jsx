@@ -197,13 +197,26 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
             }
         }
 
+        // Undefined key'leri ve geçersiz kolonları temizle
+        const cleanData = (data) => {
+            const cleaned = {};
+            for (const key in data) {
+                if (data[key] !== undefined && key !== 'undefined') {
+                    cleaned[key] = data[key];
+                }
+            }
+            return cleaned;
+        };
+
         let result;
         if (existingWPS?.id) {
             const { id, created_at, wps_no, ...updateData } = dbData;
-            result = await supabase.from('wps_procedures').update(updateData).eq('id', id);
+            const cleanedUpdateData = cleanData(updateData);
+            result = await supabase.from('wps_procedures').update(cleanedUpdateData).eq('id', id);
         } else {
             const { id, ...insertData } = dbData;
-            result = await supabase.from('wps_procedures').insert(insertData);
+            const cleanedInsertData = cleanData(insertData);
+            result = await supabase.from('wps_procedures').insert(cleanedInsertData);
         }
 
         if (result.error) {

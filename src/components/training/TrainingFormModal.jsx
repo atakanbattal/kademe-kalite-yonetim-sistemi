@@ -119,8 +119,16 @@ import React, { useState, useEffect, useCallback } from 'react';
             let training_id = training?.id;
             const { training_participants, ...dbData } = formData;
 
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in dbData) {
+                if (dbData[key] !== undefined && key !== 'undefined') {
+                    cleanedData[key] = dbData[key];
+                }
+            }
+
             if (training) {
-                const { error } = await supabase.from('trainings').update(dbData).eq('id', training.id);
+                const { error } = await supabase.from('trainings').update(cleanedData).eq('id', training.id);
                 if (error) {
                     toast({ variant: 'destructive', title: 'Hata', description: `Eğitim güncellenemedi: ${error.message}` });
                     setIsSubmitting(false);
@@ -133,8 +141,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                     setIsSubmitting(false);
                     return;
                 }
-                dbData.training_code = codeData;
-                const { data, error } = await supabase.from('trainings').insert(dbData).select().single();
+                cleanedData.training_code = codeData;
+                const { data, error } = await supabase.from('trainings').insert(cleanedData).select().single();
                 if (error) {
                     toast({ variant: 'destructive', title: 'Hata', description: `Eğitim oluşturulamadı: ${error.message}` });
                     setIsSubmitting(false);

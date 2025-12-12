@@ -505,8 +505,16 @@ import React, { useState, useEffect, useCallback } from 'react';
             delete submissionData.suppliers;
             delete submissionData.supplier; // Join edilmiş supplier objesi
             
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in submissionData) {
+                if (submissionData[key] !== undefined && key !== 'undefined') {
+                    cleanedData[key] = submissionData[key];
+                }
+            }
+            
             if (isEditMode) {
-                const { error } = await supabase.from('quality_costs').update(submissionData).eq('id', existingCost.id);
+                const { error } = await supabase.from('quality_costs').update(cleanedData).eq('id', existingCost.id);
                 if (error) {
                      toast({ variant: 'destructive', title: 'Hata!', description: `Maliyet güncellenemedi: ${error.message}` });
                 } else {
@@ -515,10 +523,10 @@ import React, { useState, useEffect, useCallback } from 'react';
                     setOpen(false);
                 }
             } else {
-                delete submissionData.id;
+                delete cleanedData.id;
                 const { data: insertedCost, error } = await supabase
                     .from('quality_costs')
-                    .insert([submissionData])
+                    .insert([cleanedData])
                     .select()
                     .single();
                     

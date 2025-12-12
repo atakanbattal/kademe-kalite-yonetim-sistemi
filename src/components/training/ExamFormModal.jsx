@@ -64,7 +64,15 @@ import React, { useState, useEffect, useCallback } from 'react';
         const handleSubmit = async () => {
             let examId = exam?.id;
             
-            const { error: examError, data: examData } = await supabase.from('training_exams').upsert({ id: examId, ...formData }).select().single();
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedFormData = {};
+            for (const key in formData) {
+                if (formData[key] !== undefined && key !== 'undefined') {
+                    cleanedFormData[key] = formData[key];
+                }
+            }
+            
+            const { error: examError, data: examData } = await supabase.from('training_exams').upsert({ id: examId, ...cleanedFormData }).select().single();
             if (examError) { toast({ variant: 'destructive', title: 'Hata', description: examError.message }); return; }
             examId = examData.id;
 

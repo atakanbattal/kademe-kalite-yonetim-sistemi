@@ -69,7 +69,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
             return;
         }
 
-        let result;
+        // Undefined key'leri ve geçersiz kolonları temizle
         const dataToSave = { 
             chassis_no, 
             serial_no, 
@@ -80,18 +80,26 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
             dmo_status,
             updated_at: new Date().toISOString() 
         };
+        
+        const cleanedData = {};
+        for (const key in dataToSave) {
+            if (dataToSave[key] !== undefined && key !== 'undefined') {
+                cleanedData[key] = dataToSave[key];
+            }
+        }
 
+        let result;
         if (vehicle) {
             result = await supabase
                 .from('quality_inspections')
-                .update(dataToSave)
+                .update(cleanedData)
                 .eq('id', vehicle.id);
         } else {
-            dataToSave.quality_entry_at = new Date().toISOString();
-            dataToSave.status_entered_at = new Date().toISOString();
+            cleanedData.quality_entry_at = new Date().toISOString();
+            cleanedData.status_entered_at = new Date().toISOString();
             result = await supabase
                 .from('quality_inspections')
-                .insert([dataToSave]);
+                .insert([cleanedData]);
         }
 
         const { error } = result;

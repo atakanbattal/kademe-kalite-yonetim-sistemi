@@ -72,11 +72,19 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
                 department: formData.department || null
             };
 
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in dataToSave) {
+                if (dataToSave[key] !== undefined && key !== 'undefined') {
+                    cleanedData[key] = dataToSave[key];
+                }
+            }
+
             if (skill) {
                 // Update existing
                 const { error } = await supabase
                     .from('skills')
-                    .update(dataToSave)
+                    .update(cleanedData)
                     .eq('id', skill.id);
 
                 if (error) throw error;
@@ -89,7 +97,7 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
                 // Insert new
                 const { error } = await supabase
                     .from('skills')
-                    .insert([dataToSave]);
+                    .insert([cleanedData]);
 
                 if (error) throw error;
 

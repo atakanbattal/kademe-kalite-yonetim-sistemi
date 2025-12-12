@@ -338,12 +338,20 @@ import React, { useState, useEffect, useCallback } from 'react';
                 dataToSubmit.attachments_before = attachments_before_objects;
                 dataToSubmit.attachments_after = attachments_after_objects;
 
+                // Undefined key'leri ve geçersiz kolonları temizle
+                const cleanedData = {};
+                for (const key in dataToSubmit) {
+                    if (dataToSubmit[key] !== undefined && key !== 'undefined') {
+                        cleanedData[key] = dataToSubmit[key];
+                    }
+                }
+
                 let error;
                 if (isEditMode) {
-                    const { error: updateError } = await supabase.from('kaizen_entries').update(dataToSubmit).eq('id', id);
+                    const { error: updateError } = await supabase.from('kaizen_entries').update(cleanedData).eq('id', id);
                     error = updateError;
                 } else {
-                    const { error: insertError } = await supabase.from('kaizen_entries').insert([dataToSubmit]);
+                    const { error: insertError } = await supabase.from('kaizen_entries').insert([cleanedData]);
                     error = insertError;
                 }
 

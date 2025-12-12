@@ -113,14 +113,29 @@ import React, { useState, useEffect, useCallback } from 'react';
             const { created_at, updated_at, task_no, ...dbData } = taskCoreData;
             if (dbData.due_date === '') dbData.due_date = null;
 
+            // Geçerli tasks tablosu kolonlarını tanımla
+            const validColumns = new Set([
+                'title', 'description', 'owner_id', 'approver_id', 'start_date', 'due_date',
+                'completed_at', 'priority', 'status', 'wip_limit', 'blocked_reason',
+                'related_df_id', 'related_vehicle_id', 'related_kaizen_id', 'assignees_text', 'tags_text'
+            ]);
+
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in dbData) {
+                if (dbData[key] !== undefined && key !== 'undefined' && validColumns.has(key)) {
+                    cleanedData[key] = dbData[key];
+                }
+            }
+
             try {
                 let savedTask;
                 if (isEditMode) {
-                    const { data, error } = await supabase.from('tasks').update(dbData).eq('id', id).select().single();
+                    const { data, error } = await supabase.from('tasks').update(cleanedData).eq('id', id).select().single();
                     if (error) throw error;
                     savedTask = data;
                 } else {
-                    const { data, error } = await supabase.from('tasks').insert(dbData).select().single();
+                    const { data, error } = await supabase.from('tasks').insert(cleanedData).select().single();
                     if (error) throw error;
                     savedTask = data;
                 }

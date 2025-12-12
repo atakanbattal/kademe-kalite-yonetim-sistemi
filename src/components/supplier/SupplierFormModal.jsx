@@ -80,9 +80,17 @@ import React, { useState, useEffect } from 'react';
                 ...dbData 
             } = formData;
             
+            // Undefined key'leri ve geçersiz kolonları temizle
+            const cleanedData = {};
+            for (const key in dbData) {
+                if (dbData[key] !== undefined && key !== 'undefined') {
+                    cleanedData[key] = dbData[key];
+                }
+            }
+            
             const { data, error } = isEditMode
-                ? await supabase.from('suppliers').update(dbData).eq('id', supplier.id).select().single()
-                : await supabase.from('suppliers').insert(dbData).select().single();
+                ? await supabase.from('suppliers').update(cleanedData).eq('id', supplier.id).select().single()
+                : await supabase.from('suppliers').insert(cleanedData).select().single();
 
             if (error) {
                 toast({ variant: 'destructive', title: 'Hata!', description: `Tedarikçi ${isEditMode ? 'güncellenemedi' : 'oluşturulamadı'}: ${error.message}` });
