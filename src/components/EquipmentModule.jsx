@@ -149,6 +149,9 @@ const EquipmentModule = () => {
                                             };
                                         };
                                         const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
+                                        // Zimmetli personel bilgisini al
+                                        const activeAssignment = eq.equipment_assignments?.find(a => a.is_active);
+                                        const assignedPersonnel = activeAssignment?.personnel?.full_name || '-';
                                         return {
                                             name: eq.name || '-',
                                             serial_number: eq.serial_number || '-',
@@ -157,7 +160,7 @@ const EquipmentModule = () => {
                                             next_calibration_date: calStatus.date || '-',
                                             model: eq.model || eq.brand_model || '-',
                                             responsible_unit: eq.responsible_unit || '-',
-                                            location: eq.location || '-'
+                                            assigned_personnel: assignedPersonnel
                                         };
                                     }),
                                     filterInfo: searchTerm ? `Arama: "${searchTerm}"` : (statusFilter !== 'all' || calibrationFilter !== 'all' ? `Filtreler: ${statusFilter !== 'all' ? `Durum: ${statusFilter}` : ''} ${calibrationFilter !== 'all' ? `Kalibrasyon: ${calibrationFilter === 'due' ? 'Geçmiş' : calibrationFilter === 'approaching' ? 'Yaklaşan' : 'Girilmemiş'}` : ''}` : 'Tüm Ekipmanlar')
