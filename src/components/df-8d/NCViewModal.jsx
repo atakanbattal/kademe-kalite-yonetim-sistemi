@@ -41,7 +41,6 @@ import {
   Loader2,
   AlertTriangle
 } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Lightbox } from 'react-modal-image';
 import { RejectModal } from '@/components/df-8d/modals/ActionModals';
 import { getStatusBadge } from '@/lib/statusUtils';
@@ -226,8 +225,8 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         onConfirm={handleRejectConfirm}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden">
-          <DialogHeader className="flex-shrink-0 pb-4">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden p-0">
+          <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4">
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -247,10 +246,9 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
             </div>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-            <ScrollArea className="flex-1 pr-4">
-              <div className="py-4">
-              <Tabs defaultValue="general" className="w-full">
+          <div className="flex-1 overflow-y-auto px-6" style={{ maxHeight: 'calc(95vh - 200px)' }}>
+            <div className="py-4">
+            <Tabs defaultValue="general" className="w-full">
               <TabsList>
                 <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
                 {record.type === '8D' && <TabsTrigger value="revisions">Revizyon Geçmişi</TabsTrigger>}
@@ -458,10 +456,9 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
               )}
             </Tabs>
             </div>
-            </ScrollArea>
           </div>
 
-          <DialogFooter className="flex-shrink-0 mt-4 pt-4 border-t">
+          <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t">
             <div className="flex gap-2">
                  {onReject && <Button variant="destructive" onClick={() => setRejectModalOpen(true)}>
                     <XCircle className="mr-2 h-4 w-4" /> Reddet
