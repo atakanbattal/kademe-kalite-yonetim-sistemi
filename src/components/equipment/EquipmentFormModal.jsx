@@ -65,6 +65,29 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
         }
     }, [isOpen, toast]);
 
+    // Personel listesi yüklendikten sonra assignedPersonnelId'yi kontrol et ve güncelle
+    useEffect(() => {
+        if (personnelList.length > 0 && isEditMode && existingEquipment) {
+            // Aktif zimmet kaydını bul
+            const activeAssignment = existingEquipment.equipment_assignments?.find(a => a.is_active !== false);
+            if (activeAssignment?.assigned_personnel_id) {
+                const personnelId = String(activeAssignment.assigned_personnel_id);
+                // Personel listesinde bu ID var mı kontrol et
+                const foundPersonnel = personnelList.find(p => String(p.id) === personnelId);
+                if (foundPersonnel) {
+                    // Eğer assignedPersonnelId farklıysa veya null ise, güncelle
+                    if (assignedPersonnelId !== personnelId) {
+                        setAssignedPersonnelId(personnelId);
+                        console.log('✅ Personel listesi yüklendikten sonra assignedPersonnelId güncellendi:', foundPersonnel.full_name);
+                    }
+                } else {
+                    console.log('⚠️ Personel listesinde assignedPersonnelId bulunamadı:', personnelId);
+                    console.log('📋 Mevcut personel listesi:', personnelList.map(p => ({ id: p.id, name: p.full_name })));
+                }
+            }
+        }
+    }, [personnelList, isEditMode, existingEquipment]);
+
     // ÖNEMLİ: Modal verilerini koru - sadece existingEquipment değiştiğinde yükle
     useEffect(() => {
         const initialEqData = {
@@ -96,9 +119,9 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
             console.log('🔍 Active assignment:', activeAssignment);
             
             if (activeAssignment?.assigned_personnel_id) {
-                const personnelId = activeAssignment.assigned_personnel_id;
+                const personnelId = String(activeAssignment.assigned_personnel_id); // String'e çevir
                 setAssignedPersonnelId(personnelId);
-                console.log('✅ Zimmetli personel ID set edildi:', personnelId);
+                console.log('✅ Zimmetli personel ID set edildi (string):', personnelId);
             } else {
                 setAssignedPersonnelId(null);
                 console.log('⚠️ Aktif zimmet kaydı bulunamadı veya personel ID yok');
@@ -178,8 +201,8 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
     }, [calibrationData.calibration_date, formData.calibration_frequency_months]);
 
     const handlePersonnelChange = (personnelId) => {
-        // String UUID'yi UUID'ye çevir (eğer string ise)
-        const id = personnelId || null;
+        // String UUID'yi sakla
+        const id = personnelId ? String(personnelId) : null;
         setAssignedPersonnelId(id);
         const selectedPersonnel = personnelList.find(p => String(p.id) === String(personnelId));
         if (selectedPersonnel) {
@@ -272,9 +295,21 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                      <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-1"><Label htmlFor="brand_model">Marka/Model</Label><Input id="brand_model" value={formData.brand_model || ''} onChange={handleInputChange} /></div>
                          <div className="space-y-1"><Label htmlFor="assigned_personnel_id">Zimmetli Personel</Label>
-                            <Select onValueChange={handlePersonnelChange} value={assignedPersonnelId ? String(assignedPersonnelId) : ''}>
-                                <SelectTrigger><SelectValue placeholder="Personel seçin..." /></SelectTrigger>
-                                <SelectContent>{personnelList.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.full_name}</SelectItem>)}</SelectContent>
+                            <Select 
+                                onValueChange={handlePersonnelChange} 
+                                value={assignedPersonnelId ? String(assignedPersonnelId) : undefined}
+                                key={`personnel-select-${personnelList.length}-${assignedPersonnelId || 'empty'}-${isOpen}`}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Personel seçin..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {personnelList.map(p => (
+                                        <SelectItem key={p.id} value={String(p.id)}>
+                                            {p.full_name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
                             </Select>
                         </div>
                     </div>
