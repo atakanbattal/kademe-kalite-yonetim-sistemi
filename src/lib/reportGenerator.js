@@ -127,6 +127,70 @@ const getNCContent = (record, dataContext) => {
         }
     ];
 
+    // Kök Neden Analizleri (sadece veri varsa göster)
+    const hasAnalysis = (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) ||
+        (record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) ||
+        (record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) ||
+        (record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== ''));
+    
+    if (hasAnalysis) {
+        const analysisData = [];
+        
+        // 5N1K Analizi
+        if (record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) {
+            const analysis = record.five_n1k_analysis;
+            if (analysis.what) analysisData.push({ label: '5N1K - Ne', value: analysis.what });
+            if (analysis.where) analysisData.push({ label: '5N1K - Nerede', value: analysis.where });
+            if (analysis.when) analysisData.push({ label: '5N1K - Ne Zaman', value: analysis.when });
+            if (analysis.who) analysisData.push({ label: '5N1K - Kim', value: analysis.who });
+            if (analysis.how) analysisData.push({ label: '5N1K - Nasıl', value: analysis.how });
+            if (analysis.why) analysisData.push({ label: '5N1K - Neden Önemli', value: analysis.why });
+        }
+        
+        // 5 Neden Analizi
+        if (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) {
+            const analysis = record.five_why_analysis;
+            if (analysis.why1) analysisData.push({ label: '5 Neden - 1. Neden', value: analysis.why1 });
+            if (analysis.why2) analysisData.push({ label: '5 Neden - 2. Neden', value: analysis.why2 });
+            if (analysis.why3) analysisData.push({ label: '5 Neden - 3. Neden', value: analysis.why3 });
+            if (analysis.why4) analysisData.push({ label: '5 Neden - 4. Neden', value: analysis.why4 });
+            if (analysis.why5) analysisData.push({ label: '5 Neden - 5. Neden (Kök Neden)', value: analysis.why5 });
+            if (analysis.rootCause) analysisData.push({ label: 'Kök Neden Özeti', value: analysis.rootCause });
+            if (analysis.immediateAction) analysisData.push({ label: 'Anlık Aksiyon', value: analysis.immediateAction });
+            if (analysis.preventiveAction) analysisData.push({ label: 'Önleyici Aksiyon', value: analysis.preventiveAction });
+        }
+        
+        // Ishikawa Analizi
+        if (record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) {
+            const analysis = record.ishikawa_analysis;
+            if (analysis.man) analysisData.push({ label: 'Ishikawa - İnsan', value: analysis.man });
+            if (analysis.machine) analysisData.push({ label: 'Ishikawa - Makine', value: analysis.machine });
+            if (analysis.method) analysisData.push({ label: 'Ishikawa - Metot', value: analysis.method });
+            if (analysis.material) analysisData.push({ label: 'Ishikawa - Malzeme', value: analysis.material });
+            if (analysis.environment) analysisData.push({ label: 'Ishikawa - Çevre', value: analysis.environment });
+            if (analysis.measurement) analysisData.push({ label: 'Ishikawa - Ölçüm', value: analysis.measurement });
+        }
+        
+        // FTA Analizi
+        if (record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== '')) {
+            const analysis = record.fta_analysis;
+            if (analysis.topEvent) analysisData.push({ label: 'FTA - Üst Olay', value: analysis.topEvent });
+            if (analysis.intermediateEvents) analysisData.push({ label: 'FTA - Ara Olaylar', value: analysis.intermediateEvents });
+            if (analysis.basicEvents) analysisData.push({ label: 'FTA - Temel Olaylar', value: analysis.basicEvents });
+            if (analysis.gates) analysisData.push({ label: 'FTA - Kapılar', value: analysis.gates });
+            if (analysis.rootCauses) analysisData.push({ label: 'FTA - Kök Nedenler', value: analysis.rootCauses });
+            if (analysis.summary) analysisData.push({ label: 'FTA - Özet', value: analysis.summary });
+        }
+        
+        if (analysisData.length > 0) {
+            content.push({
+                title: 'Kök Neden Analizi',
+                type: 'grid',
+                data: analysisData
+            });
+        }
+    }
+
     if (record.type === '8D' && record.eight_d_steps) {
         content.push({
             title: '8D Adımları',

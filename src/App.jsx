@@ -303,13 +303,38 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               uploadedFilePaths = [...(formData.attachments || []), ...newPaths];
           }
           
-          const { id, created_at, updated_at, nc_number: old_nc_number, personnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, closing_date, responsible_person_details, requesting_person_details, supplier_name, five_why_analysis, five_n1k_analysis, ishikawa_analysis, fta_analysis, ...dbData } = formData;
+          const { id, created_at, updated_at, nc_number: old_nc_number, personnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, closing_date, responsible_person_details, requesting_person_details, supplier_name, ...dbData } = formData;
           
           dbData.attachments = uploadedFilePaths;
           const fieldsToNullify = ['cost_date', 'measurement_unit', 'part_location', 'quantity', 'scrap_weight', 'rework_duration', 'quality_control_duration'];
           fieldsToNullify.forEach(field => {
               if (dbData[field] === '' || dbData[field] === undefined) dbData[field] = null;
           });
+          
+          // Kök neden analizlerini kaydet (eğer varsa ve boş değilse)
+          if (formData.five_why_analysis && Object.keys(formData.five_why_analysis).length > 0 && Object.values(formData.five_why_analysis).some(v => v && v.toString().trim() !== '')) {
+              dbData.five_why_analysis = formData.five_why_analysis;
+          } else {
+              dbData.five_why_analysis = null;
+          }
+          
+          if (formData.five_n1k_analysis && Object.keys(formData.five_n1k_analysis).length > 0 && Object.values(formData.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) {
+              dbData.five_n1k_analysis = formData.five_n1k_analysis;
+          } else {
+              dbData.five_n1k_analysis = null;
+          }
+          
+          if (formData.ishikawa_analysis && Object.keys(formData.ishikawa_analysis).length > 0 && Object.values(formData.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) {
+              dbData.ishikawa_analysis = formData.ishikawa_analysis;
+          } else {
+              dbData.ishikawa_analysis = null;
+          }
+          
+          if (formData.fta_analysis && Object.keys(formData.fta_analysis).length > 0 && Object.values(formData.fta_analysis).some(v => v && v.toString().trim() !== '')) {
+              dbData.fta_analysis = formData.fta_analysis;
+          } else {
+              dbData.fta_analysis = null;
+          }
           
           // Geçerli non_conformities tablosu kolonlarını tanımla
           const validColumns = new Set([
@@ -326,7 +351,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               'quality_control_duration', 'responsible_personnel_id', 'chassis_no',
               'supplier_id', 'shipment_impact', 'df_opened_at', 'status_entered_at',
               'due_at', 'reopened_at', 'forwarded_to', 'forwarded_to_personnel_id',
-              'forwarded_unit', 'eight_d_progress'
+              'forwarded_unit', 'eight_d_progress', 'five_why_analysis', 'five_n1k_analysis',
+              'ishikawa_analysis', 'fta_analysis'
           ]);
           
           // Undefined key'leri ve geçersiz kolonları temizle

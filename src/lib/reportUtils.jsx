@@ -1774,8 +1774,93 @@ const generateGenericReportHtml = (record, type) => {
 			</div>`;
 		}
 		
+		// Kök Neden Analizleri (sadece veri varsa göster)
+		if (type === 'nonconformity') {
+			const hasAnalysis = (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) ||
+				(record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) ||
+				(record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) ||
+				(record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== ''));
+			
+			if (hasAnalysis) {
+				let sectionNumber = record.closing_notes ? '3' : '2';
+				if (record.eight_d_steps) {
+					sectionNumber = record.closing_notes ? '4' : '3';
+				}
+				
+				html += `<div class="section"><h2 class="section-title red">${sectionNumber}. KÖK NEDEN ANALİZİ</h2>`;
+				
+				// 5N1K Analizi
+				if (record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) {
+					const analysis = record.five_n1k_analysis;
+					html += `<div class="analysis-box">
+						<h4>5N1K Analizi</h4>
+						${analysis.what ? `<p><strong>Ne:</strong> ${analysis.what}</p>` : ''}
+						${analysis.where ? `<p><strong>Nerede:</strong> ${analysis.where}</p>` : ''}
+						${analysis.when ? `<p><strong>Ne Zaman:</strong> ${analysis.when}</p>` : ''}
+						${analysis.who ? `<p><strong>Kim:</strong> ${analysis.who}</p>` : ''}
+						${analysis.how ? `<p><strong>Nasıl:</strong> ${analysis.how}</p>` : ''}
+						${analysis.why ? `<p><strong>Neden Önemli:</strong> ${analysis.why}</p>` : ''}
+					</div>`;
+				}
+				
+				// 5 Neden Analizi
+				if (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) {
+					const analysis = record.five_why_analysis;
+					html += `<div class="analysis-box">
+						<h4>5 Neden Analizi</h4>
+						${analysis.why1 ? `<p><strong>1. Neden:</strong> ${analysis.why1}</p>` : ''}
+						${analysis.why2 ? `<p><strong>2. Neden:</strong> ${analysis.why2}</p>` : ''}
+						${analysis.why3 ? `<p><strong>3. Neden:</strong> ${analysis.why3}</p>` : ''}
+						${analysis.why4 ? `<p><strong>4. Neden:</strong> ${analysis.why4}</p>` : ''}
+						${analysis.why5 ? `<p><strong>5. Neden (Kök Neden):</strong> ${analysis.why5}</p>` : ''}
+						${analysis.rootCause ? `<p><strong>Kök Neden Özeti:</strong> ${analysis.rootCause}</p>` : ''}
+						${analysis.immediateAction ? `<p><strong>Anlık Aksiyon:</strong> ${analysis.immediateAction}</p>` : ''}
+						${analysis.preventiveAction ? `<p><strong>Önleyici Aksiyon:</strong> ${analysis.preventiveAction}</p>` : ''}
+					</div>`;
+				}
+				
+				// Ishikawa (Balık Kılçığı) Analizi
+				if (record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) {
+					const analysis = record.ishikawa_analysis;
+					html += `<div class="analysis-box">
+						<h4>Ishikawa (Balık Kılçığı) Analizi</h4>
+						${analysis.man ? `<p><strong>İnsan:</strong> ${analysis.man}</p>` : ''}
+						${analysis.machine ? `<p><strong>Makine:</strong> ${analysis.machine}</p>` : ''}
+						${analysis.method ? `<p><strong>Metot:</strong> ${analysis.method}</p>` : ''}
+						${analysis.material ? `<p><strong>Malzeme:</strong> ${analysis.material}</p>` : ''}
+						${analysis.environment ? `<p><strong>Çevre:</strong> ${analysis.environment}</p>` : ''}
+						${analysis.measurement ? `<p><strong>Ölçüm:</strong> ${analysis.measurement}</p>` : ''}
+					</div>`;
+				}
+				
+				// FTA (Hata Ağacı) Analizi
+				if (record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== '')) {
+					const analysis = record.fta_analysis;
+					html += `<div class="analysis-box">
+						<h4>FTA (Hata Ağacı) Analizi</h4>
+						${analysis.topEvent ? `<p><strong>Üst Olay:</strong> ${analysis.topEvent}</p>` : ''}
+						${analysis.intermediateEvents ? `<p><strong>Ara Olaylar:</strong> ${analysis.intermediateEvents}</p>` : ''}
+						${analysis.basicEvents ? `<p><strong>Temel Olaylar:</strong> ${analysis.basicEvents}</p>` : ''}
+						${analysis.gates ? `<p><strong>Kapılar:</strong> ${analysis.gates}</p>` : ''}
+						${analysis.rootCauses ? `<p><strong>Kök Nedenler:</strong> ${analysis.rootCauses}</p>` : ''}
+						${analysis.summary ? `<p><strong>Özet:</strong> ${analysis.summary}</p>` : ''}
+					</div>`;
+				}
+				
+				html += `</div>`;
+			}
+		}
+		
 		if (type === 'nonconformity' && record.eight_d_steps) {
-			html += `<div class="section"><h2 class="section-title red">${record.closing_notes ? '3' : '2'}. 8D ADIMLARI</h2>`;
+			let sectionNumber = record.closing_notes ? '3' : '2';
+			const hasAnalysis = (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) ||
+				(record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) ||
+				(record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) ||
+				(record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== ''));
+			if (hasAnalysis) {
+				sectionNumber = record.closing_notes ? '4' : '3';
+			}
+			html += `<div class="section"><h2 class="section-title red">${sectionNumber}. 8D ADIMLARI</h2>`;
 			Object.entries(record.eight_d_steps).forEach(([key, step]) => {
 				html += `<div class="step-section">
 					<h3 class="step-title">${key}: ${step.title || ''}</h3>
