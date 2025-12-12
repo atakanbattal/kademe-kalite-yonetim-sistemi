@@ -990,7 +990,7 @@ const generateListReportHtml = (record, type) => {
 					<td style="width: 10%; font-size: 0.85em;">${item.model}</td>
 					<td style="width: 10%; font-size: 0.85em;">${item.responsible_unit}</td>
 					<td style="width: 8%; font-size: 0.85em;">${item.location}</td>
-					<td style="width: 5%; white-space: nowrap; font-size: 0.85em;">${formatDate(item.acquisition_date)}</td>
+					<td style="width: 5%; white-space: nowrap; font-size: 0.85em;">${item.acquisition_date && item.acquisition_date !== '-' ? formatDate(item.acquisition_date) : '-'}</td>
 				</tr>
 			`;
 		}).join('');

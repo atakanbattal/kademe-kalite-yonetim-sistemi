@@ -41,9 +41,14 @@ import React, { useEffect, useState } from 'react';
                                 supplier_name: recordData.supplier_name
                             });
                             
+                            // Liste tipleri için localStorage'dan veri okunduysa direkt kullan
+                            if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list') {
+                                // Liste tipleri için ek işlem gerekmez, veri zaten hazır
+                                console.log(`✅ Liste tipi (${type}) verisi localStorage'dan okundu`);
+                            }
                             // ÖNEMLİ: Nonconformity için attachments ve closing_attachments kontrolü
                             // localStorage'dan gelen veride bu alanlar undefined olabilir
-                            if (type === 'nonconformity' && id) {
+                            else if (type === 'nonconformity' && id) {
                                 console.log('🔍 Nonconformity tipi tespit edildi, attachments kontrol ediliyor...');
                                 
                                 // supplier_name yoksa çek
