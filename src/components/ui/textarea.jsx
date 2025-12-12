@@ -1,29 +1,11 @@
 import React from 'react';
 
-import { cn, formatTextInput, normalizeToSentenceCase } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
-const Textarea = React.forwardRef(({ className, autoFormat = true, onBlur, onChange, ...props }, ref) => {
-  const handleBlur = (e) => {
-    if (autoFormat) {
-      // Textarea genellikle uzun metinler için kullanılır, sentence case kullan
-      const formatted = normalizeToSentenceCase(e.target.value);
-      if (formatted !== e.target.value) {
-        e.target.value = formatted;
-        // onChange event'ini tetikle ki form state güncellensin
-        if (onChange) {
-          const syntheticEvent = {
-            ...e,
-            target: { ...e.target, value: formatted }
-          };
-          onChange(syntheticEvent);
-        }
-      }
-    }
-    if (onBlur) {
-      onBlur(e);
-    }
-  };
-
+const Textarea = React.forwardRef(({ className, autoFormat = false, onBlur, onChange, ...props }, ref) => {
+  // autoFormat artık varsayılan olarak false - uzun metinler için formatlama yapılmaz
+  // Eğer formatlama isteniyorsa, açıkça autoFormat={true} verilmeli
+  
   return (
     <textarea
       className={cn(
@@ -31,7 +13,7 @@ const Textarea = React.forwardRef(({ className, autoFormat = true, onBlur, onCha
         className
       )}
       ref={ref}
-      onBlur={handleBlur}
+      onBlur={onBlur}
       onChange={onChange}
       {...props}
     />
