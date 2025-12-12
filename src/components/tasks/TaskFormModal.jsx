@@ -64,11 +64,55 @@ import React, { useState, useEffect } from 'react';
             };
         };
 
+        // Modal açıldığında form verilerini initialize et, ama modal açıkken form verilerini koru
+        const prevIsOpenRef = React.useRef(false);
+        const prevTaskIdRef = React.useRef(null);
+        const initializedRef = React.useRef(false);
+        
         useEffect(() => {
-            if (isOpen && user && personnel.length > 0) {
-                setFormData(initializeFormData(task));
+            // Modal yeni açıldığında (kapalıdan açığa geçiş) form verilerini initialize et
+            if (isOpen && !prevIsOpenRef.current) {
+                initializedRef.current = false;
+                // user ve personnel hazır olana kadar bekle
+                if (user && personnel && personnel.length > 0) {
+                    setFormData(initializeFormData(task));
+                    prevTaskIdRef.current = task?.id || null;
+                    initializedRef.current = true;
+                }
             }
-        }, [task, isOpen, user, personnel]);
+            // Modal açıkken ve henüz initialize edilmemişse, user/personnel yüklendiğinde initialize et
+            else if (isOpen && prevIsOpenRef.current && !initializedRef.current) {
+                if (user && personnel && personnel.length > 0) {
+                    setFormData(initializeFormData(task));
+                    prevTaskIdRef.current = task?.id || null;
+                    initializedRef.current = true;
+                }
+            }
+            // Modal açıkken task değiştiğinde (farklı bir görev seçildiğinde) form verilerini güncelle
+            else if (isOpen && prevIsOpenRef.current && task?.id !== prevTaskIdRef.current) {
+                if (user && personnel && personnel.length > 0) {
+                    setFormData(initializeFormData(task));
+                    prevTaskIdRef.current = task?.id || null;
+                }
+            }
+            // Modal kapandığında form verilerini temizle
+            else if (!isOpen && prevIsOpenRef.current) {
+                setFormData({});
+                prevTaskIdRef.current = null;
+                initializedRef.current = false;
+            }
+            
+            prevIsOpenRef.current = isOpen;
+        }, [isOpen, task?.id]); // Sadece modal açılıp kapanmasını ve task değişimini dinle - personnel/user değişiklikleri form verilerini sıfırlamaz
+        
+        // user ve personnel yüklendiğinde, modal açıksa ve henüz initialize edilmemişse initialize et
+        useEffect(() => {
+            if (isOpen && !initializedRef.current && user && personnel && personnel.length > 0) {
+                setFormData(initializeFormData(task));
+                prevTaskIdRef.current = task?.id || null;
+                initializedRef.current = true;
+            }
+        }, [user, personnel.length]); // Sadece user ve personnel yüklendiğinde çalış
 
         const handleInputChange = (e) => {
             const { name, value } = e.target;
