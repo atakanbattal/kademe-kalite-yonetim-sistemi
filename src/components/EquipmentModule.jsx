@@ -116,44 +116,8 @@ const EquipmentModule = () => {
 
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <h1 className="text-3xl font-bold text-foreground">Ekipman & Kalibrasyon</h1>
-                <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" /> Yeni Ekipman</Button>
-            </div>
-
-            <EquipmentDashboard equipments={allEquipments} loading={loading} />
-            
-            <div className="bg-card p-4 rounded-lg border">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Ekipman, seri no, sertifika no, personel, konum vb. ile ara..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger><SelectValue placeholder="Duruma Göre Filtrele" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tüm Durumlar</SelectItem>
-                            <SelectItem value="Aktif">Aktif</SelectItem>
-                            <SelectItem value="Zimmetli">Zimmetli</SelectItem>
-                            <SelectItem value="Bakımda">Bakımda</SelectItem>
-                            <SelectItem value="Kullanım Dışı">Kullanım Dışı</SelectItem>
-                        </SelectContent>
-                    </Select>
-                     <Select value={calibrationFilter} onValueChange={setCalibrationFilter}>
-                        <SelectTrigger><SelectValue placeholder="Kalibrasyon Durumuna Göre Filtrele" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tüm Kalibrasyon Durumları</SelectItem>
-                            <SelectItem value="due">Geçmiş</SelectItem>
-                            <SelectItem value="approaching">Yaklaşan (30 gün)</SelectItem>
-                            <SelectItem value="missing">Girilmemiş</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                {filteredEquipments.length > 0 && (
-                    <div className="mt-4 flex justify-end">
+                <div className="flex gap-2 w-full sm:w-auto">
+                    {filteredEquipments.length > 0 && (
                         <Button 
                             variant="outline" 
                             onClick={() => {
@@ -208,8 +172,44 @@ const EquipmentModule = () => {
                             <FileSpreadsheet className="w-4 h-4" />
                             Rapor Al
                         </Button>
+                    )}
+                    <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" /> Yeni Ekipman</Button>
+                </div>
+            </div>
+
+            <EquipmentDashboard equipments={allEquipments} loading={loading} />
+            
+            <div className="bg-card p-4 rounded-lg border">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Ekipman, seri no, sertifika no, personel, konum vb. ile ara..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10"
+                        />
                     </div>
-                )}
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger><SelectValue placeholder="Duruma Göre Filtrele" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tüm Durumlar</SelectItem>
+                            <SelectItem value="Aktif">Aktif</SelectItem>
+                            <SelectItem value="Zimmetli">Zimmetli</SelectItem>
+                            <SelectItem value="Bakımda">Bakımda</SelectItem>
+                            <SelectItem value="Kullanım Dışı">Kullanım Dışı</SelectItem>
+                        </SelectContent>
+                    </Select>
+                     <Select value={calibrationFilter} onValueChange={setCalibrationFilter}>
+                        <SelectTrigger><SelectValue placeholder="Kalibrasyon Durumuna Göre Filtrele" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tüm Kalibrasyon Durumları</SelectItem>
+                            <SelectItem value="due">Geçmiş</SelectItem>
+                            <SelectItem value="approaching">Yaklaşan (30 gün)</SelectItem>
+                            <SelectItem value="missing">Girilmemiş</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             <EquipmentList
