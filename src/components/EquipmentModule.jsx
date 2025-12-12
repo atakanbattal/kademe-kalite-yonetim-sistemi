@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, FileSpreadsheet } from 'lucide-react';
 import EquipmentList from '@/components/equipment/EquipmentList';
 import EquipmentFormModal from '@/components/equipment/EquipmentFormModal';
 import EquipmentDetailModal from '@/components/equipment/EquipmentDetailModal';
@@ -152,6 +152,64 @@ const EquipmentModule = () => {
                         </SelectContent>
                     </Select>
                 </div>
+                {filteredEquipments.length > 0 && (
+                    <div className="mt-4 flex justify-end">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => {
+                                const reportData = {
+                                    id: `equipment-list-${Date.now()}`,
+                                    items: filteredEquipments.map(eq => {
+                                        // Kalibrasyon durumunu hesapla
+                                        const getCalibrationStatus = (calibrations, equipmentStatus) => {
+                                            if (equipmentStatus === 'Hurdaya Ayrıldı') {
+                                                return { text: 'Hurdaya Ayrıldı', date: null, daysLeft: null };
+                                            }
+                                            if (!calibrations || calibrations.length === 0) {
+                                                return { text: 'Girilmemiş', date: null, daysLeft: null };
+                                            }
+                                            const activeCalibrations = calibrations.filter(cal => cal.is_active !== false);
+                                            if (activeCalibrations.length === 0) {
+                                                return { text: 'Pasif', date: null, daysLeft: null };
+                                            }
+                                            const latestCalibration = [...activeCalibrations].sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
+                                            const nextDate = new Date(latestCalibration.next_calibration_date);
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const timeDiff = nextDate.getTime() - today.getTime();
+                                            const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                                            return { 
+                                                text: daysLeft < 0 ? `Geçmiş (${Math.abs(daysLeft)} gün)` : daysLeft <= 30 ? `Yaklaşıyor (${daysLeft} gün)` : 'Tamam',
+                                                date: nextDate.toLocaleDateString('tr-TR'),
+                                                daysLeft
+                                            };
+                                        };
+                                        const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
+                                        return {
+                                            name: eq.name || '-',
+                                            serial_number: eq.serial_number || '-',
+                                            status: eq.status || '-',
+                                            calibration_status: calStatus.text,
+                                            next_calibration_date: calStatus.date || '-',
+                                            manufacturer: eq.manufacturer || '-',
+                                            model: eq.model || eq.brand_model || '-',
+                                            responsible_unit: eq.responsible_unit || '-',
+                                            location: eq.location || '-',
+                                            acquisition_date: eq.acquisition_date || '-',
+                                            notes: eq.notes || '-'
+                                        };
+                                    }),
+                                    filterInfo: searchTerm ? `Arama: "${searchTerm}"` : (statusFilter !== 'all' || calibrationFilter !== 'all' ? `Filtreler: ${statusFilter !== 'all' ? `Durum: ${statusFilter}` : ''} ${calibrationFilter !== 'all' ? `Kalibrasyon: ${calibrationFilter === 'due' ? 'Geçmiş' : calibrationFilter === 'approaching' ? 'Yaklaşan' : 'Girilmemiş'}` : ''}` : 'Tüm Ekipmanlar')
+                                };
+                                openPrintableReport(reportData, 'equipment_list', true);
+                            }}
+                            className="flex items-center gap-2"
+                        >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            Rapor Al
+                        </Button>
+                    </div>
+                )}
             </div>
 
             <EquipmentList
