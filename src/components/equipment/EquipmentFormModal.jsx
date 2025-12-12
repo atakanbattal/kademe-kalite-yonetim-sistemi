@@ -214,22 +214,40 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
 
         try {
             const { equipment_calibrations, equipment_assignments, ...eqData } = formData;
-            if (eqData.measurement_uncertainty) eqData.measurement_uncertainty = `± ${eqData.measurement_uncertainty}`;
+            
+            // Geçerli equipments tablosu kolonlarını tanımla
+            const validColumns = [
+                'name', 'serial_number', 'brand_model', 'responsible_unit', 'location', 
+                'description', 'status', 'measurement_range', 'measurement_uncertainty', 
+                'calibration_frequency_months', 'category', 'parent_equipment_id', 
+                'criticality', 'image_url', 'documents', 'scrap_date', 'scrap_reason', 
+                'scrap_document_path'
+            ];
+            
+            // Sadece geçerli kolonları ve undefined olmayan değerleri tut
+            const cleanData = {};
+            validColumns.forEach(col => {
+                if (eqData.hasOwnProperty(col) && eqData[col] !== undefined) {
+                    cleanData[col] = eqData[col];
+                }
+            });
+            
+            // measurement_uncertainty formatla
+            if (cleanData.measurement_uncertainty) {
+                cleanData.measurement_uncertainty = `± ${cleanData.measurement_uncertainty}`;
+            }
             
             // responsible_unit ve brand_model'i normalize et
-            if (eqData.responsible_unit) {
-                eqData.responsible_unit = normalizeToTitleCase(eqData.responsible_unit);
+            if (cleanData.responsible_unit) {
+                cleanData.responsible_unit = normalizeToTitleCase(cleanData.responsible_unit);
             }
-            if (eqData.brand_model) {
-                eqData.brand_model = normalizeToTitleCase(eqData.brand_model);
-            }
-            if (eqData.model) {
-                eqData.model = normalizeToTitleCase(eqData.model);
+            if (cleanData.brand_model) {
+                cleanData.brand_model = normalizeToTitleCase(cleanData.brand_model);
             }
 
             const { data: equipment, error: equipmentError } = isEditMode
-                ? await supabase.from('equipments').update(eqData).eq('id', existingEquipment.id).select().single()
-                : await supabase.from('equipments').insert(eqData).select().single();
+                ? await supabase.from('equipments').update(cleanData).eq('id', existingEquipment.id).select().single()
+                : await supabase.from('equipments').insert(cleanData).select().single();
 
             if (equipmentError) throw equipmentError;
 

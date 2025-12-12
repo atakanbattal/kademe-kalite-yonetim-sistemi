@@ -103,18 +103,27 @@ const CalibrationModal = ({ isOpen, setIsOpen, equipment, refreshData, existingC
                 finalCertificatePath = newPath;
             }
             
+            // Geçerli equipment_calibrations tablosu kolonlarını tanımla
+            const validColumns = [
+                'equipment_id', 'calibration_date', 'next_calibration_date', 
+                'certificate_path', 'notes', 'last_calibration_date', 
+                'certificate_number', 'is_active'
+            ];
+            
+            // Sadece geçerli kolonları ve undefined olmayan değerleri tut
             const dataToSubmit = {
-                ...formData,
                 equipment_id: equipment.id,
                 certificate_path: finalCertificatePath,
                 last_calibration_date: formData.calibration_date,
             };
             
-            // Clean up unnecessary fields before submission
-            delete dataToSubmit.id;
-            delete dataToSubmit.equipment_calibrations;
-            delete dataToSubmit.equipment_assignments;
-
+            validColumns.forEach(col => {
+                if (col !== 'equipment_id' && col !== 'certificate_path' && col !== 'last_calibration_date') {
+                    if (formData.hasOwnProperty(col) && formData[col] !== undefined) {
+                        dataToSubmit[col] = formData[col];
+                    }
+                }
+            });
 
             const { error } = isEditMode
                 ? await supabase.from('equipment_calibrations').update(dataToSubmit).eq('id', existingCalibration.id)
