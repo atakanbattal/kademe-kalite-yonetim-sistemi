@@ -79,6 +79,7 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
                         <th>Ekipman Adı</th>
                         <th>Seri Numarası</th>
                         <th>Durum</th>
+                        <th>Zimmet Durumu</th>
                         <th>Kalibrasyon Durumu</th>
                         <th>Sonraki Kalibrasyon</th>
                         <th>İşlemler</th>
@@ -87,6 +88,13 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
                 <tbody>
                     {equipments.map((eq, index) => {
                         const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
+                        // Aktif zimmet kontrolü
+                        const activeAssignment = eq.equipment_assignments?.find(a => a.is_active);
+                        const assignedPersonnel = activeAssignment?.personnel?.full_name;
+                        
+                        // Durum belirleme: Eğer aktif zimmet varsa durum "Zimmetli" olmalı
+                        const displayStatus = assignedPersonnel ? 'Zimmetli' : eq.status;
+                        
                         return (
                         <motion.tr
                             key={eq.id}
@@ -98,7 +106,14 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
                         >
                             <td className="font-medium text-foreground">{eq.name}</td>
                             <td className="font-mono text-muted-foreground">{eq.serial_number}</td>
-                            <td><Badge variant={getStatusVariant(eq.status)}>{eq.status}</Badge></td>
+                            <td><Badge variant={getStatusVariant(displayStatus)}>{displayStatus}</Badge></td>
+                            <td>
+                                {assignedPersonnel ? (
+                                    <span className="text-sm text-foreground">{assignedPersonnel}</span>
+                                ) : (
+                                    <span className="text-sm text-muted-foreground">-</span>
+                                )}
+                            </td>
                             <td>
                                 <Badge variant={calStatus.variant}>{calStatus.text}</Badge>
                             </td>

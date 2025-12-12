@@ -55,7 +55,24 @@ const EquipmentModule = () => {
         }
 
         if (statusFilter !== 'all') {
-            filtered = filtered.filter(eq => eq.status === statusFilter);
+            filtered = filtered.filter(eq => {
+                // Aktif zimmet kontrolü
+                const activeAssignment = eq.equipment_assignments?.find(a => a.is_active);
+                const hasActiveAssignment = !!activeAssignment;
+                
+                // Zimmetli filtresi: Aktif zimmeti olan ekipmanlar
+                if (statusFilter === 'Zimmetli') {
+                    return hasActiveAssignment;
+                }
+                
+                // Aktif filtresi: Zimmeti olmayan aktif ekipmanlar
+                if (statusFilter === 'Aktif') {
+                    return eq.status === 'Aktif' && !hasActiveAssignment;
+                }
+                
+                // Diğer durumlar için normal kontrol
+                return eq.status === statusFilter;
+            });
         }
 
         if (calibrationFilter !== 'all') {
@@ -151,16 +168,20 @@ const EquipmentModule = () => {
                                         const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
                                         // Zimmetli personel bilgisini al
                                         const activeAssignment = eq.equipment_assignments?.find(a => a.is_active);
-                                        const assignedPersonnel = activeAssignment?.personnel?.full_name || '-';
+                                        const assignedPersonnel = activeAssignment?.personnel?.full_name;
+                                        
+                                        // Durum belirleme: Eğer aktif zimmet varsa durum "Zimmetli" olmalı
+                                        const displayStatus = assignedPersonnel ? 'Zimmetli' : eq.status;
+                                        
                                         return {
                                             name: eq.name || '-',
                                             serial_number: eq.serial_number || '-',
-                                            status: eq.status || '-',
+                                            status: displayStatus || '-',
                                             calibration_status: calStatus.text,
                                             next_calibration_date: calStatus.date || '-',
                                             model: eq.model || eq.brand_model || '-',
                                             responsible_unit: eq.responsible_unit || '-',
-                                            assigned_personnel: assignedPersonnel
+                                            assigned_personnel: assignedPersonnel || '-'
                                         };
                                     }),
                                     filterInfo: searchTerm ? `Arama: "${searchTerm}"` : (statusFilter !== 'all' || calibrationFilter !== 'all' ? `Filtreler: ${statusFilter !== 'all' ? `Durum: ${statusFilter}` : ''} ${calibrationFilter !== 'all' ? `Kalibrasyon: ${calibrationFilter === 'due' ? 'Geçmiş' : calibrationFilter === 'approaching' ? 'Yaklaşan' : 'Girilmemiş'}` : ''}` : 'Tüm Ekipmanlar')
