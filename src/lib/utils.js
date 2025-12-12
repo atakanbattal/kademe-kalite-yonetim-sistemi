@@ -61,3 +61,56 @@ export function normalizeTurkishForSearch(text) {
         .replace(/ç/g, 'c')
         .replace(/Ç/g, 'c');
 }
+
+/**
+ * Metni camelCase formatına normalize eder (Türkçe karakterler için optimize edilmiş)
+ * Örnek: "BOYAHANE" -> "Boyahane", "AR-GE DİREKTÖRLÜĞÜ" -> "Ar-Ge Direktörlüğü"
+ */
+export function normalizeToTitleCase(text) {
+    if (!text) return '';
+    
+    // Önce trim yap
+    let normalized = String(text).trim();
+    
+    // Tab ve fazla boşlukları temizle
+    normalized = normalized.replace(/\s+/g, ' ');
+    normalized = normalized.replace(/\t/g, '');
+    
+    // Özel durumlar için önce kontrol et
+    const specialCases = {
+        'AR-GE DİREKTÖRLÜĞÜ': 'Ar-Ge Direktörlüğü',
+        'ELEKTRİKHANE': 'Elektrikhane',
+        'KALİTE KONTROL MÜDÜRLÜĞÜ': 'Kalite Kontrol Müdürlüğü',
+        'LOJİSTİK OPERASYON YÖNETİCİLİĞİ': 'Lojistik Operasyon Yöneticiliği',
+        'SATIŞ SONRASI HİZMETLER ŞEFLİĞİ': 'Satış Sonrası Hizmetler Şefliği',
+        'ÜRETİM MÜDÜRLÜĞÜ': 'Üretim Müdürlüğü',
+        'ASIMETO': 'Asimeto',
+        'BOSCH': 'Bosch',
+        'CETA-FORM': 'Ceta Form',
+        'INSIZE': 'İnsize',
+        'YAMER': 'Yamer',
+        'STARLINE': 'Starline',
+        'UNI-T': 'Uni-T',
+        'Mitutuyo': 'Mitutoyo'
+    };
+    
+    if (specialCases[normalized]) {
+        return specialCases[normalized];
+    }
+    
+    // Genel durum için: Her kelimenin ilk harfini büyük, geri kalanını küçük yap
+    return normalized
+        .split(' ')
+        .map(word => {
+            if (!word) return '';
+            // Özel durumlar: Ar-Ge, Ceta Form gibi
+            if (word.includes('-')) {
+                return word.split('-').map(part => {
+                    if (!part) return '';
+                    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+                }).join('-');
+            }
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join(' ');
+}

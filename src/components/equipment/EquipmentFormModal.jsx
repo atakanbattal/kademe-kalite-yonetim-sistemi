@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useDropzone } from 'react-dropzone';
 import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
-import { sanitizeFileName } from '@/lib/utils';
+import { sanitizeFileName, normalizeToTitleCase } from '@/lib/utils';
 
 const STATUS_OPTIONS = ['Aktif', 'Zimmetli', 'Bakımda', 'Kullanım Dışı', 'Kalibrasyonda'];
 
@@ -183,6 +183,17 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
         try {
             const { equipment_calibrations, equipment_assignments, ...eqData } = formData;
             if (eqData.measurement_uncertainty) eqData.measurement_uncertainty = `± ${eqData.measurement_uncertainty}`;
+            
+            // responsible_unit ve brand_model'i normalize et
+            if (eqData.responsible_unit) {
+                eqData.responsible_unit = normalizeToTitleCase(eqData.responsible_unit);
+            }
+            if (eqData.brand_model) {
+                eqData.brand_model = normalizeToTitleCase(eqData.brand_model);
+            }
+            if (eqData.model) {
+                eqData.model = normalizeToTitleCase(eqData.model);
+            }
 
             const { data: equipment, error: equipmentError } = isEditMode
                 ? await supabase.from('equipments').update(eqData).eq('id', existingEquipment.id).select().single()
