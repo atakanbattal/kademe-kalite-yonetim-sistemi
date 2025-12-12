@@ -312,7 +312,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
           });
           
           // Geçerli non_conformities tablosu kolonlarını tanımla
-          const validColumns = [
+          const validColumns = new Set([
               'nc_number', 'audit_title', 'title', 'description', 'category', 'department',
               'requesting_person', 'requesting_unit', 'responsible_person', 'status', 'type',
               'opening_date', 'due_date', 'closed_at', 'rejected_at', 'rejection_reason',
@@ -327,30 +327,14 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               'supplier_id', 'shipment_impact', 'df_opened_at', 'status_entered_at',
               'due_at', 'reopened_at', 'forwarded_to', 'forwarded_to_personnel_id',
               'forwarded_unit', 'eight_d_progress'
-          ];
+          ]);
           
-          // Sadece geçerli kolonları ve undefined olmayan değerleri tut
-          const cleanData = {};
-          validColumns.forEach(col => {
-              if (dbData.hasOwnProperty(col) && dbData[col] !== undefined) {
-                  cleanData[col] = dbData[col];
-              }
-          });
-          
-          // attachments her zaman eklenmeli (yukarıda set edildi)
-          if (uploadedFilePaths !== undefined) {
-              cleanData.attachments = uploadedFilePaths;
-          }
-          
-          // dbData yerine cleanData kullan
-          Object.assign(dbData, cleanData);
-          
-          // Undefined key'leri temizle (ek güvenlik)
-          Object.keys(dbData).forEach(key => {
-              if (dbData[key] === undefined || key === 'undefined' || !validColumns.includes(key)) {
+          // Undefined key'leri ve geçersiz kolonları temizle
+          for (const key in dbData) {
+              if (dbData[key] === undefined || key === 'undefined' || !validColumns.has(key)) {
                   delete dbData[key];
               }
-          });
+          }
           
           if (dbData.type !== '8D') {
               dbData.eight_d_steps = null;
