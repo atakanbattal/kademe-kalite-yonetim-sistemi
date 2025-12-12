@@ -114,6 +114,8 @@ const getReportTitle = (record, type) => {
 			return `Kaynak Prosedür Şartnamesi (WPS) - ${record.wps_no || 'Bilinmiyor'}`;
 		case 'equipment':
 			return `Ekipman Raporu - ${record.serial_number || 'Bilinmiyor'}`;
+		case 'equipment_list':
+			return 'Ekipman ve Kalibrasyon Listesi Raporu';
 		case 'certificate':
 			return `Başarı Sertifikası - ${record.personnelName || ''}`;
 		case 'exam_paper':
