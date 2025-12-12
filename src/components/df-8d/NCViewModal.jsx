@@ -390,6 +390,220 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
               )}
 
 
+              {/* Kök Neden Analizleri */}
+              {(() => {
+                const hasAnalysis = (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) ||
+                  (record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) ||
+                  (record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => {
+                    if (Array.isArray(v)) return v.length > 0 && v.some(item => item && item.toString().trim() !== '');
+                    return v && v.toString().trim() !== '';
+                  })) ||
+                  (record.fta_analysis && Object.values(record.fta_analysis).some(v => {
+                    if (Array.isArray(v)) return v.length > 0;
+                    return v && v.toString().trim() !== '';
+                  }));
+                
+                if (!hasAnalysis) return null;
+                
+                return (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Kök Neden Analizleri
+                      </h3>
+                      <div className="space-y-4">
+                        {/* 5N1K Analizi */}
+                        {record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '') && (
+                          <Card>
+                            <CardContent className="p-6">
+                              <h4 className="font-semibold mb-4 text-primary">5N1K Analizi</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {(record.five_n1k_analysis.what || record.five_n1k_analysis.ne) && (
+                                  <InfoCard label="Ne" value={record.five_n1k_analysis.what || record.five_n1k_analysis.ne} />
+                                )}
+                                {(record.five_n1k_analysis.where || record.five_n1k_analysis.nerede) && (
+                                  <InfoCard label="Nerede" value={record.five_n1k_analysis.where || record.five_n1k_analysis.nerede} />
+                                )}
+                                {(record.five_n1k_analysis.when || record.five_n1k_analysis.neZaman) && (
+                                  <InfoCard label="Ne Zaman" value={record.five_n1k_analysis.when || record.five_n1k_analysis.neZaman} />
+                                )}
+                                {(record.five_n1k_analysis.who || record.five_n1k_analysis.kim) && (
+                                  <InfoCard label="Kim" value={record.five_n1k_analysis.who || record.five_n1k_analysis.kim} />
+                                )}
+                                {(record.five_n1k_analysis.how || record.five_n1k_analysis.nasil) && (
+                                  <InfoCard label="Nasıl" value={record.five_n1k_analysis.how || record.five_n1k_analysis.nasil} />
+                                )}
+                                {(record.five_n1k_analysis.why || record.five_n1k_analysis.neden) && (
+                                  <InfoCard label="Neden Önemli" value={record.five_n1k_analysis.why || record.five_n1k_analysis.neden} />
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                        
+                        {/* 5 Neden Analizi */}
+                        {record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '') && (
+                          <Card>
+                            <CardContent className="p-6">
+                              <h4 className="font-semibold mb-4 text-primary">5 Neden Analizi</h4>
+                              <div className="space-y-3">
+                                {record.five_why_analysis.why1 && (
+                                  <div className="p-3 bg-secondary/50 rounded-md">
+                                    <strong className="text-muted-foreground">1. Neden:</strong> {record.five_why_analysis.why1}
+                                  </div>
+                                )}
+                                {record.five_why_analysis.why2 && (
+                                  <div className="p-3 bg-secondary/50 rounded-md">
+                                    <strong className="text-muted-foreground">2. Neden:</strong> {record.five_why_analysis.why2}
+                                  </div>
+                                )}
+                                {record.five_why_analysis.why3 && (
+                                  <div className="p-3 bg-secondary/50 rounded-md">
+                                    <strong className="text-muted-foreground">3. Neden:</strong> {record.five_why_analysis.why3}
+                                  </div>
+                                )}
+                                {record.five_why_analysis.why4 && (
+                                  <div className="p-3 bg-secondary/50 rounded-md">
+                                    <strong className="text-muted-foreground">4. Neden:</strong> {record.five_why_analysis.why4}
+                                  </div>
+                                )}
+                                {record.five_why_analysis.why5 && (
+                                  <div className="p-3 bg-destructive/10 border-l-4 border-destructive rounded-md">
+                                    <strong className="text-destructive">5. Neden (Kök Neden):</strong> {record.five_why_analysis.why5}
+                                  </div>
+                                )}
+                                {record.five_why_analysis.rootCause && (
+                                  <div className="p-3 bg-primary/10 border-l-4 border-primary rounded-md mt-4">
+                                    <strong className="text-primary">Kök Neden Özeti:</strong> {record.five_why_analysis.rootCause}
+                                  </div>
+                                )}
+                                {record.five_why_analysis.immediateAction && (
+                                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border-l-4 border-yellow-500 rounded-md mt-4">
+                                    <strong className="text-yellow-700 dark:text-yellow-400">Anlık Aksiyon:</strong> {record.five_why_analysis.immediateAction}
+                                  </div>
+                                )}
+                                {record.five_why_analysis.preventiveAction && (
+                                  <div className="p-3 bg-green-50 dark:bg-green-950/20 border-l-4 border-green-500 rounded-md mt-4">
+                                    <strong className="text-green-700 dark:text-green-400">Önleyici Aksiyon:</strong> {record.five_why_analysis.preventiveAction}
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                        
+                        {/* Ishikawa Analizi */}
+                        {record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => {
+                          if (Array.isArray(v)) return v.length > 0 && v.some(item => item && item.toString().trim() !== '');
+                          return v && v.toString().trim() !== '';
+                        }) && (
+                          <Card>
+                            <CardContent className="p-6">
+                              <h4 className="font-semibold mb-4 text-primary">Ishikawa (Balık Kılçığı) Analizi</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {(() => {
+                                  const analysis = record.ishikawa_analysis;
+                                  const items = [];
+                                  
+                                  if (analysis.man) {
+                                    const manValue = Array.isArray(analysis.man) ? analysis.man.filter(v => v && v.toString().trim() !== '').join(', ') : analysis.man;
+                                    if (manValue) items.push(<InfoCard key="man" label="İnsan" value={manValue} />);
+                                  }
+                                  if (analysis.machine) {
+                                    const machineValue = Array.isArray(analysis.machine) ? analysis.machine.filter(v => v && v.toString().trim() !== '').join(', ') : analysis.machine;
+                                    if (machineValue) items.push(<InfoCard key="machine" label="Makine" value={machineValue} />);
+                                  }
+                                  if (analysis.method) {
+                                    const methodValue = Array.isArray(analysis.method) ? analysis.method.filter(v => v && v.toString().trim() !== '').join(', ') : analysis.method;
+                                    if (methodValue) items.push(<InfoCard key="method" label="Metot" value={methodValue} />);
+                                  }
+                                  if (analysis.material) {
+                                    const materialValue = Array.isArray(analysis.material) ? analysis.material.filter(v => v && v.toString().trim() !== '').join(', ') : analysis.material;
+                                    if (materialValue) items.push(<InfoCard key="material" label="Malzeme" value={materialValue} />);
+                                  }
+                                  if (analysis.environment) {
+                                    const envValue = Array.isArray(analysis.environment) ? analysis.environment.filter(v => v && v.toString().trim() !== '').join(', ') : analysis.environment;
+                                    if (envValue) items.push(<InfoCard key="environment" label="Çevre" value={envValue} />);
+                                  }
+                                  if (analysis.measurement) {
+                                    const measValue = Array.isArray(analysis.measurement) ? analysis.measurement.filter(v => v && v.toString().trim() !== '').join(', ') : analysis.measurement;
+                                    if (measValue) items.push(<InfoCard key="measurement" label="Ölçüm" value={measValue} />);
+                                  }
+                                  if (analysis.management) {
+                                    const mgmtValue = Array.isArray(analysis.management) ? analysis.management.filter(v => v && v.toString().trim() !== '').join(', ') : analysis.management;
+                                    if (mgmtValue) items.push(<InfoCard key="management" label="Yönetim" value={mgmtValue} />);
+                                  }
+                                  
+                                  return items.length > 0 ? items : null;
+                                })()}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                        
+                        {/* FTA Analizi */}
+                        {record.fta_analysis && Object.values(record.fta_analysis).some(v => {
+                          if (Array.isArray(v)) return v.length > 0;
+                          return v && v.toString().trim() !== '';
+                        }) && (
+                          <Card>
+                            <CardContent className="p-6">
+                              <h4 className="font-semibold mb-4 text-primary">FTA (Hata Ağacı) Analizi</h4>
+                              <div className="space-y-3">
+                                {record.fta_analysis.topEvent && (
+                                  <div className="p-3 bg-secondary/50 rounded-md">
+                                    <strong className="text-muted-foreground">Üst Olay:</strong> {record.fta_analysis.topEvent}
+                                  </div>
+                                )}
+                                {record.fta_analysis.events && Array.isArray(record.fta_analysis.events) && record.fta_analysis.events.length > 0 && (
+                                  <div className="space-y-2">
+                                    <strong className="text-muted-foreground block mb-2">Olaylar:</strong>
+                                    {record.fta_analysis.events.map((event, idx) => (
+                                      <div key={idx} className="p-3 bg-secondary/50 rounded-md">
+                                        <div><strong>Tip:</strong> {event.type || '-'}</div>
+                                        <div><strong>Açıklama:</strong> {event.description || '-'}</div>
+                                        {event.gate && <div><strong>Kapı:</strong> {event.gate}</div>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {record.fta_analysis.intermediateEvents && (
+                                  <div className="p-3 bg-secondary/50 rounded-md">
+                                    <strong className="text-muted-foreground">Ara Olaylar:</strong> {record.fta_analysis.intermediateEvents}
+                                  </div>
+                                )}
+                                {record.fta_analysis.basicEvents && (
+                                  <div className="p-3 bg-secondary/50 rounded-md">
+                                    <strong className="text-muted-foreground">Temel Olaylar:</strong> {record.fta_analysis.basicEvents}
+                                  </div>
+                                )}
+                                {record.fta_analysis.gates && (
+                                  <div className="p-3 bg-secondary/50 rounded-md">
+                                    <strong className="text-muted-foreground">Kapılar:</strong> {record.fta_analysis.gates}
+                                  </div>
+                                )}
+                                {record.fta_analysis.rootCauses && (
+                                  <div className="p-3 bg-destructive/10 border-l-4 border-destructive rounded-md">
+                                    <strong className="text-destructive">Kök Nedenler:</strong> {record.fta_analysis.rootCauses}
+                                  </div>
+                                )}
+                                {record.fta_analysis.summary && (
+                                  <div className="p-3 bg-primary/10 border-l-4 border-primary rounded-md mt-4">
+                                    <strong className="text-primary">Özet:</strong> {record.fta_analysis.summary}
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+
               {record.type === '8D' && record.eight_d_steps && (
                 <>
                   <Separator />
