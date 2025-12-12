@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, SlidersHorizontal, Search } from 'lucide-react';
+import { Plus, SlidersHorizontal, Search, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -136,6 +136,62 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                     <Button variant="outline">
                         <SlidersHorizontal className="w-4 h-4 mr-2" /> Filtrele
                     </Button>
+                    {equipments.length > 0 && (
+                        <Button 
+                            variant="outline" 
+                            onClick={() => {
+                                const reportData = {
+                                    id: `equipment-list-${Date.now()}`,
+                                    items: equipments.map(eq => {
+                                        // Kalibrasyon durumunu hesapla
+                                        const getCalibrationStatus = (calibrations, equipmentStatus) => {
+                                            if (equipmentStatus === 'Hurdaya Ayrıldı') {
+                                                return { text: 'Hurdaya Ayrıldı', date: null, daysLeft: null };
+                                            }
+                                            if (!calibrations || calibrations.length === 0) {
+                                                return { text: 'Girilmemiş', date: null, daysLeft: null };
+                                            }
+                                            const activeCalibrations = calibrations.filter(cal => cal.is_active !== false);
+                                            if (activeCalibrations.length === 0) {
+                                                return { text: 'Pasif', date: null, daysLeft: null };
+                                            }
+                                            const latestCalibration = [...activeCalibrations].sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
+                                            const nextDate = new Date(latestCalibration.next_calibration_date);
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const timeDiff = nextDate.getTime() - today.getTime();
+                                            const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                                            return { 
+                                                text: daysLeft < 0 ? `Geçmiş (${Math.abs(daysLeft)} gün)` : daysLeft <= 30 ? `Yaklaşıyor (${daysLeft} gün)` : 'Tamam',
+                                                date: nextDate.toLocaleDateString('tr-TR'),
+                                                daysLeft
+                                            };
+                                        };
+                                        const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
+                                        return {
+                                            name: eq.name || '-',
+                                            serial_number: eq.serial_number || '-',
+                                            status: eq.status || '-',
+                                            calibration_status: calStatus.text,
+                                            next_calibration_date: calStatus.date || '-',
+                                            manufacturer: eq.manufacturer || '-',
+                                            model: eq.model || '-',
+                                            responsible_unit: eq.responsible_unit || '-',
+                                            location: eq.location || '-',
+                                            acquisition_date: eq.acquisition_date || '-',
+                                            notes: eq.notes || '-'
+                                        };
+                                    }),
+                                    filterInfo: searchTerm ? `Arama: "${searchTerm}"` : 'Tüm Ekipmanlar'
+                                };
+                                openPrintableReport(reportData, 'equipment_list', true);
+                            }}
+                            className="flex items-center gap-2"
+                        >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            Rapor Al
+                        </Button>
+                    )}
                 </div>
                 {loading ? (
                     <div className="text-center py-10 text-muted-foreground">Yükleniyor...</div>

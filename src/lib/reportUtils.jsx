@@ -953,6 +953,71 @@ const generateListReportHtml = (record, type) => {
 			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
 			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
 		`;
+	} else if (type === 'equipment_list') {
+		title = 'Ekipman ve Kalibrasyon Listesi Raporu';
+		headers = ['Ekipman Adı', 'Seri No', 'Durum', 'Kalibrasyon Durumu', 'Sonraki Kalibrasyon', 'Üretici', 'Model', 'Sorumlu Birim', 'Lokasyon', 'Satın Alma Tarihi'];
+		rowsHtml = record.items.map(item => {
+			const statusBadge = item.status === 'Aktif' 
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Aktif</span>'
+				: item.status === 'Zimmetli'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Zimmetli</span>'
+				: item.status === 'Bakımda'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">Bakımda</span>'
+				: item.status === 'Kullanım Dışı'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Kullanım Dışı</span>'
+				: item.status === 'Hurdaya Ayrıldı'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Hurdaya Ayrıldı</span>'
+				: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (item.status || '-') + '</span>';
+			
+			const calStatusBadge = item.calibration_status?.includes('Geçmiş')
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">' + item.calibration_status + '</span>'
+				: item.calibration_status?.includes('Yaklaşıyor')
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">' + item.calibration_status + '</span>'
+				: item.calibration_status === 'Tamam'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Tamam</span>'
+				: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (item.calibration_status || '-') + '</span>';
+			
+			return `
+				<tr>
+					<td style="width: 15%; font-weight: 600;">${item.name}</td>
+					<td style="width: 10%; font-family: monospace; font-size: 0.9em;">${item.serial_number}</td>
+					<td style="width: 10%;">${statusBadge}</td>
+					<td style="width: 12%;">${calStatusBadge}</td>
+					<td style="width: 10%; white-space: nowrap;">${item.next_calibration_date}</td>
+					<td style="width: 10%; font-size: 0.85em;">${item.manufacturer}</td>
+					<td style="width: 10%; font-size: 0.85em;">${item.model}</td>
+					<td style="width: 10%; font-size: 0.85em;">${item.responsible_unit}</td>
+					<td style="width: 8%; font-size: 0.85em;">${item.location}</td>
+					<td style="width: 5%; white-space: nowrap; font-size: 0.85em;">${formatDate(item.acquisition_date)}</td>
+				</tr>
+			`;
+		}).join('');
+		
+		// Durum bazlı özet
+		const statusCounts = record.items.reduce((acc, item) => {
+			acc[item.status] = (acc[item.status] || 0) + 1;
+			return acc;
+		}, {});
+		const statusSummary = Object.entries(statusCounts)
+			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
+			.join('');
+		
+		// Kalibrasyon durumu bazlı özet
+		const calStatusCounts = record.items.reduce((acc, item) => {
+			const calStatus = item.calibration_status || 'Bilinmiyor';
+			acc[calStatus] = (acc[calStatus] || 0) + 1;
+			return acc;
+		}, {});
+		const calStatusSummary = Object.entries(calStatusCounts)
+			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
+			.join('');
+		
+		summaryHtml = `
+			<p><strong>Toplam Ekipman Sayısı:</strong> ${totalCount}</p>
+			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
+			${calStatusSummary ? `<p><strong>Kalibrasyon Durumu:</strong> ${calStatusSummary}</p>` : ''}
+			${record.filterInfo ? `<p><strong>Filtre:</strong> ${record.filterInfo}</p>` : ''}
+		`;
 	} else if (type === 'document_list') {
 		title = record.categoryName || 'Doküman Listesi Raporu';
 		headers = ['Doküman Adı / Numarası', 'Birim', 'Versiyon', 'Yayın Tarihi', 'Revizyon Tarihi', 'Geçerlilik Durumu'];
@@ -2069,7 +2134,7 @@ const generatePrintableReportHtml = (record, type) => {
 				</div>
 			</div>
 		`;
-	} else if (type === 'document_list') {
+	} else if (type === 'document_list' || type === 'equipment_list') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
