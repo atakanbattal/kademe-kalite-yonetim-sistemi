@@ -416,15 +416,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             const hasMainRework = parseFloat(formData.rework_duration) > 0;
             
             if (isRework) {
-                if (!hasMainRework && affectedUnits.length === 0) {
-                    toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'En az bir yeniden işlem süresi veya etkilenen birim girmelisiniz.' });
-                    return;
-                }
-                // Birim kontrolü: Ana işlem süresi girildiğinde zorunlu
-                if(hasMainRework && !formData.unit) {
-                     toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Ana işlem süresi girildiğinde "Birim (Kaynak)" seçimi zorunludur.' });
-                     return;
-                }
+                // Süre zorunluluğu kaldırıldı - kullanıcı isterse boş bırakabilir
                 // Adet zorunlu kontrolü
                 if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
                     toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Yeniden işlem maliyeti için adet girmek zorunludur.' });
@@ -694,9 +686,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
                         <div>
                             <Label>Birim (Kaynak) 
-                                <span className={!isReworkCost ? "text-red-500" : (parseFloat(formData.rework_duration) > 0 ? "text-red-500" : "")}>
-                                    {!isReworkCost || (parseFloat(formData.rework_duration) > 0) ? ' *' : ''}
-                                </span>
+                                {!isReworkCost && <span className="text-red-500"> *</span>}
                                 {isSupplierNC && <span className="text-xs text-muted-foreground ml-2">(Maliyet bu birime, sorumluluk tedarikçiye)</span>}
                             </Label>
                             <SearchableSelect value={formData.unit || ''} onValueChange={(v) => handleSelectChange('unit', v)} placeholder="Birim seçin..." items={departments} searchPlaceholder="Birim ara..." />

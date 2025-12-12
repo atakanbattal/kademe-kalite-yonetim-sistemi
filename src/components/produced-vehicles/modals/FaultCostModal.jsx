@@ -165,21 +165,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
             return;
         }
 
-        // Validasyon
-        const missingDurations = allFaults.filter(fault => {
-            const duration = parseFloat(faultDurations[fault.id]);
-            const qualityDuration = parseFloat(qualityControlDurations[fault.id]);
-            return (!duration || duration <= 0) || (!qualityDuration || qualityDuration <= 0);
-        });
-
-        if (missingDurations.length > 0) {
-            toast({
-                variant: 'destructive',
-                title: 'Eksik Bilgi',
-                description: 'Lütfen tüm hatalar için giderilme süresi ve kalite kontrol süresi girin.'
-            });
-            return;
-        }
+        // Süre zorunluluğu kaldırıldı - kullanıcı isterse boş bırakabilir
 
         if (allFaults.length === 0) {
             toast({
@@ -541,7 +527,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <Label htmlFor={`duration-${fault.id}`}>
-                                                            Giderilme Süresi (dk) <span className="text-red-500">*</span>
+                                                            Giderilme Süresi (dk)
                                                         </Label>
                                                         <Input
                                                             id={`duration-${fault.id}`}
@@ -561,7 +547,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                                                     </div>
                                                     <div>
                                                         <Label htmlFor={`quality-duration-${fault.id}`}>
-                                                            Kalite Kontrol Süresi (dk) <span className="text-red-500">*</span>
+                                                            Kalite Kontrol Süresi (dk)
                                                         </Label>
                                                         <Input
                                                             id={`quality-duration-${fault.id}`}
