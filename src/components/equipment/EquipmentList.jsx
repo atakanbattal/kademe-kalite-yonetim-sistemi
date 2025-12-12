@@ -78,6 +78,7 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
                     <tr>
                         <th>Ekipman Adı</th>
                         <th>Seri Numarası</th>
+                        <th>Model</th>
                         <th>Durum</th>
                         <th>Zimmet Durumu</th>
                         <th>Kalibrasyon Durumu</th>
@@ -106,6 +107,7 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
                         >
                             <td className="font-medium text-foreground">{eq.name}</td>
                             <td className="font-mono text-muted-foreground">{eq.serial_number}</td>
+                            <td className="text-sm text-muted-foreground">{eq.brand_model || eq.model || '-'}</td>
                             <td><Badge variant={getStatusVariant(displayStatus)}>{displayStatus}</Badge></td>
                             <td>
                                 {assignedPersonnel ? (
