@@ -112,10 +112,14 @@ const PersonnelSkillModal = ({ isOpen, onClose, person, skill, personnelSkill, o
 
             toast({
                 title: 'Başarılı!',
-                description: 'Yetkinlik bilgisi kaydedildi.'
+                description: 'Yetkinlik bilgisi kaydedildi. Polivalans skorları güncelleniyor...'
             });
             
-            onRefresh();
+            // Kısa bir gecikme ile refresh yap - view'in güncellenmesi için zaman tanı
+            setTimeout(() => {
+                onRefresh();
+            }, 300);
+            
             onClose();
         } catch (error) {
             console.error('Save error:', error);

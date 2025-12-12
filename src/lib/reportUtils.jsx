@@ -439,11 +439,14 @@ const generatePolyvalenceMatrixHtml = (record) => {
 	});
 	
 	// Polivalans skoru hesaplama
+	// Polivalans skoru: Kişinin sahip olduğu yetkinlikler içinde seviye 3+ olanların oranı
 	const calculatePolyvalenceScore = (personnelId) => {
 		const personSkills = (record.personnelSkills || []).filter(ps => ps.personnel_id === personnelId);
-		if (personSkills.length === 0 || !record.skills || record.skills.length === 0) return 0;
+		if (personSkills.length === 0) return 0;
+		// Seviye 3 ve üzeri yetkin kabul edilir
 		const proficientSkills = personSkills.filter(ps => ps.current_level >= 3).length;
-		return Math.round((proficientSkills / record.skills.length) * 100);
+		// Kişinin sahip olduğu yetkinlikler içinde yetkin olanların oranı
+		return Math.round((proficientSkills / personSkills.length) * 100);
 	};
 	
 	// Personel-Skill mapping

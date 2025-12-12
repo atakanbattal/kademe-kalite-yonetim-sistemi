@@ -69,12 +69,15 @@ const PolyvalenceMatrix = ({ personnel, skills, personnelSkills, skillCategories
     };
 
     // Calculate polyvalence score for a person
+    // Polivalans skoru: Kişinin sahip olduğu yetkinlikler içinde seviye 3+ olanların oranı
     const calculatePolyvalenceScore = (personnelId) => {
         const personSkills = personnelSkills.filter(ps => ps.personnel_id === personnelId);
         if (personSkills.length === 0) return 0;
         
+        // Seviye 3 ve üzeri yetkin kabul edilir
         const proficientSkills = personSkills.filter(ps => ps.current_level >= 3).length;
-        return Math.round((proficientSkills / skills.length) * 100);
+        // Kişinin sahip olduğu yetkinlikler içinde yetkin olanların oranı
+        return Math.round((proficientSkills / personSkills.length) * 100);
     };
 
     // Handle cell click

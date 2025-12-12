@@ -207,34 +207,24 @@ const PolyvalenceModule = () => {
         }).length;
         const trainingNeeds = filteredPersonnelSkills.filter(ps => ps.training_required).length;
         
-        // ✅ Polivalans skorunu manuel hesapla (view yoksa)
-        let avgPolyvalence = 0;
-        
-        if (polyvalenceSummary && polyvalenceSummary.length > 0) {
-            // View'den gelen veri varsa kullan
-            const filteredPersonnelIds = filteredPersonnel.map(p => p.id);
-            const filteredSummary = polyvalenceSummary.filter(ps => filteredPersonnelIds.includes(ps.personnel_id));
-            avgPolyvalence = filteredSummary.length > 0
-                ? (filteredSummary.reduce((sum, p) => sum + (parseFloat(p.polyvalence_score) || 0), 0) / filteredSummary.length).toFixed(1)
-                : 0;
-        } else {
-            // View yoksa manuel hesapla
-            const personnelScores = filteredPersonnel.map(person => {
-                const personSkills = filteredPersonnelSkills.filter(ps => ps.personnel_id === person.id);
-                const totalSkillsCount = personSkills.length;
-                
-                if (totalSkillsCount === 0) return 0;
-                
-                // Seviye 3 ve üzeri yetkin kabul edilir
-                const proficientCount = personSkills.filter(ps => ps.current_level >= 3).length;
-                
-                return (proficientCount / totalSkillsCount) * 100;
-            });
+        // ✅ Polivalans skorunu manuel hesapla (her zaman güncel verilerle)
+        // View'den gelen veriler cache'lenmiş olabilir, bu yüzden her zaman manuel hesaplama yapıyoruz
+        const personnelScores = filteredPersonnel.map(person => {
+            const personSkills = filteredPersonnelSkills.filter(ps => ps.personnel_id === person.id);
+            const totalSkillsCount = personSkills.length;
             
-            avgPolyvalence = personnelScores.length > 0
-                ? (personnelScores.reduce((sum, score) => sum + score, 0) / personnelScores.length).toFixed(1)
-                : 0;
-        }
+            if (totalSkillsCount === 0) return 0;
+            
+            // Seviye 3 ve üzeri yetkin kabul edilir
+            // Polivalans skoru: Kişinin sahip olduğu yetkinlikler içinde seviye 3+ olanların oranı
+            const proficientCount = personSkills.filter(ps => ps.current_level >= 3).length;
+            
+            return (proficientCount / totalSkillsCount) * 100;
+        });
+        
+        const avgPolyvalence = personnelScores.length > 0
+            ? (personnelScores.reduce((sum, score) => sum + score, 0) / personnelScores.length).toFixed(1)
+            : 0;
 
         return {
             totalPersonnel,
