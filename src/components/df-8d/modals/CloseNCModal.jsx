@@ -176,7 +176,7 @@ const CloseNCModal = ({ isOpen, setIsOpen, record, onSave }) => {
                 <div className="py-4 space-y-4">
                     <div>
                         <Label htmlFor="closing_notes">Kapatma Açıklaması <span className="text-red-500">*</span></Label>
-                        <Textarea id="closing_notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Yapılan iyileştirmeleri ve sonucu açıklayın..." />
+                        <Textarea id="closing_notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Yapılan iyileştirmeleri ve sonucu açıklayın..." autoFormat={false} />
                     </div>
                     <div>
                         <Label>Kanıt Dokümanları (Opsiyonel)</Label>

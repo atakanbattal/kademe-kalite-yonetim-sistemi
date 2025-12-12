@@ -212,7 +212,7 @@ const NCFormGeneral = ({
             </div>
             <div className="md:col-span-2">
                 <Label htmlFor="description">Açıklama / Problem Tanımı <span className="text-red-500">*</span></Label>
-                <Textarea id="description" value={formData.description || ''} onChange={handleInputChange} required />
+                <Textarea id="description" value={formData.description || ''} onChange={handleInputChange} required autoFormat={false} />
             </div>
             <div>
                 <Label htmlFor="type">Tip <span className="text-red-500">*</span></Label>

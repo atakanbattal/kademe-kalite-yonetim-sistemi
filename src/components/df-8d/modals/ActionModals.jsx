@@ -52,7 +52,7 @@ export const RejectModal = ({ isOpen, setIsOpen, record, onSave }) => {
                 </DialogHeader>
                 <div className="py-4">
                     <Label htmlFor="rejection_notes">Reddetme Gerekçesi <span className="text-red-500">*</span></Label>
-                    <Textarea id="rejection_notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Örn: Bu uygunsuzluk bizim birimimizle ilgili değildir." />
+                    <Textarea id="rejection_notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Örn: Bu uygunsuzluk bizim birimimizle ilgili değildir." autoFormat={false} />
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>İptal</Button>
@@ -230,7 +230,7 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
                 <div className="py-4 space-y-4">
                     <div>
                         <Label htmlFor="closing_notes">Kapatma Açıklaması <span className="text-red-500">*</span></Label>
-                        <Textarea id="closing_notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Yapılan iyileştirmeleri ve sonucu açıklayın..." />
+                        <Textarea id="closing_notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Yapılan iyileştirmeleri ve sonucu açıklayın..." autoFormat={false} />
                     </div>
                     <div>
                         <Label>Kanıt Dokümanları (Opsiyonel)</Label>

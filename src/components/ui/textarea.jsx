@@ -1,11 +1,12 @@
 import React from 'react';
 
-import { cn, formatTextInput } from '@/lib/utils';
+import { cn, formatTextInput, normalizeToSentenceCase } from '@/lib/utils';
 
 const Textarea = React.forwardRef(({ className, autoFormat = true, onBlur, onChange, ...props }, ref) => {
   const handleBlur = (e) => {
     if (autoFormat) {
-      const formatted = formatTextInput(e.target.value);
+      // Textarea genellikle uzun metinler için kullanılır, sentence case kullan
+      const formatted = normalizeToSentenceCase(e.target.value);
       if (formatted !== e.target.value) {
         e.target.value = formatted;
         // onChange event'ini tetikle ki form state güncellensin

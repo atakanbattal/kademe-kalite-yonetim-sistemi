@@ -117,8 +117,81 @@ export function normalizeToTitleCase(text) {
 }
 
 /**
+ * Özel isimler listesi (büyük harfle korunmalı)
+ */
+const PROPER_NOUNS = new Set([
+    'Ar-Ge', 'Asimeto', 'Bosch', 'Ceta Form', 'İnsize', 'Yamer', 'Starline', 'Uni-T', 'Mitutoyo',
+    'Kademe', 'KADEME', 'KALİTE', 'KONTROL', 'MÜDÜRLÜĞÜ', 'DİREKTÖRLÜĞÜ',
+    'Elektrikhane', 'Kalite Kontrol Müdürlüğü', 'Lojistik Operasyon Yöneticiliği',
+    'Satış Sonrası Hizmetler Şefliği', 'Üretim Müdürlüğü'
+]);
+
+/**
+ * Bir kelimenin özel isim olup olmadığını kontrol eder
+ */
+function isProperNoun(word) {
+    if (!word) return false;
+    const normalized = word.trim();
+    return PROPER_NOUNS.has(normalized) || PROPER_NOUNS.has(normalized.toUpperCase());
+}
+
+/**
+ * Metni sentence case formatına çevirir (uzun metinler için)
+ * Sadece cümle başlarında ve noktadan sonra büyük harf kullanır
+ * Özel isimleri korur
+ * Örnek: "bu bir test. başka bir cümle." -> "Bu bir test. Başka bir cümle."
+ */
+export function normalizeToSentenceCase(text) {
+    if (!text) return '';
+    
+    let normalized = String(text).trim();
+    normalized = normalized.replace(/\s+/g, ' ');
+    normalized = normalized.replace(/\t/g, '');
+    
+    // Cümleleri ayır (nokta, ünlem, soru işareti)
+    const sentences = normalized.split(/([.!?]\s+)/);
+    
+    return sentences.map((sentence, index) => {
+        if (!sentence.trim()) return sentence;
+        
+        // Noktalama işaretleri için boşluk koru
+        if (/^[.!?]\s+$/.test(sentence)) return sentence;
+        
+        // Cümle başını büyük harfle başlat
+        let processed = sentence.trim();
+        if (processed.length === 0) return sentence;
+        
+        // İlk karakteri büyük yap
+        processed = processed.charAt(0).toUpperCase() + processed.slice(1).toLowerCase();
+        
+        // Kelimelere ayır ve özel isimleri kontrol et
+        const words = processed.split(/(\s+)/);
+        const processedWords = words.map((word, wordIndex) => {
+            // Boşlukları koru
+            if (/^\s+$/.test(word)) return word;
+            
+            // Özel isimleri koru
+            const cleanWord = word.replace(/[.,!?;:]$/, '');
+            const punctuation = word.replace(cleanWord, '');
+            
+            if (isProperNoun(cleanWord)) {
+                // Özel isimleri orijinal haliyle koru (büyük harfle)
+                const properNoun = Array.from(PROPER_NOUNS).find(pn => 
+                    cleanWord.toLowerCase() === pn.toLowerCase()
+                );
+                return (properNoun || cleanWord) + punctuation;
+            }
+            
+            return word;
+        });
+        
+        return processedWords.join('');
+    }).join('');
+}
+
+/**
  * Metni camelCase formatına çevirir (Türkçe karakter desteği ile)
- * Tüm metin girişleri için kullanılmalı - her kelimenin ilk harfi büyük
+ * Kısa alanlar için kullanılmalı - her kelimenin ilk harfi büyük (Title Case)
  * Örnek: "test metni" -> "Test Metni", "ÜRETİM MÜDÜRLÜĞÜ" -> "Üretim Müdürlüğü"
  */
 export function toCamelCase(text) {
@@ -128,9 +201,18 @@ export function toCamelCase(text) {
 
 /**
  * Metin alanlarını otomatik olarak camelCase formatına çevirir
- * Input onChange handler'larında kullanılabilir
+ * Input onChange handler'larında kullanılabilir (kısa alanlar için)
  */
 export function formatTextInput(value) {
     if (!value || typeof value !== 'string') return value;
     return toCamelCase(value);
+}
+
+/**
+ * Uzun metin alanlarını sentence case formatına çevirir
+ * Textarea ve uzun açıklama alanları için kullanılmalı
+ */
+export function formatLongTextInput(value) {
+    if (!value || typeof value !== 'string') return value;
+    return normalizeToSentenceCase(value);
 }
