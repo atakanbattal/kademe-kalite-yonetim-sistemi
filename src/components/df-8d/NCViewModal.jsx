@@ -226,8 +226,8 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         onConfirm={handleRejectConfirm}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0 pb-4">
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -247,8 +247,10 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
             </div>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 min-h-0 pr-4">
-            <Tabs defaultValue="general" className="w-full py-4">
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <ScrollArea className="flex-1 pr-4">
+              <div className="py-4">
+              <Tabs defaultValue="general" className="w-full">
               <TabsList>
                 <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
                 {record.type === '8D' && <TabsTrigger value="revisions">Revizyon Geçmişi</TabsTrigger>}
@@ -455,9 +457,11 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                 </TabsContent>
               )}
             </Tabs>
-          </ScrollArea>
+            </div>
+            </ScrollArea>
+          </div>
 
-          <DialogFooter className="mt-6">
+          <DialogFooter className="flex-shrink-0 mt-4 pt-4 border-t">
             <div className="flex gap-2">
                  {onReject && <Button variant="destructive" onClick={() => setRejectModalOpen(true)}>
                     <XCircle className="mr-2 h-4 w-4" /> Reddet
