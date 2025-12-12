@@ -81,6 +81,7 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
         if (isEditMode && existingEquipment) {
             // Düzenleme modu: Mevcut ekipman verilerini yükle
             console.log('📝 Ekipman düzenleme modu:', existingEquipment.id);
+            console.log('🔍 Equipment assignments:', existingEquipment.equipment_assignments);
             // equipment_calibrations ve equipment_assignments'ı hariç tut - bunlar veritabanı kolonları değil
             const { equipment_calibrations, equipment_assignments, ...cleanEquipmentData } = existingEquipment;
             setFormData({
@@ -88,8 +89,20 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                 measurement_uncertainty: existingEquipment.measurement_uncertainty?.replace('±', '').trim() || ''
             });
             setAddInitialCalibration(false);
-            const activeAssignment = existingEquipment.equipment_assignments?.find(a => a.is_active);
-            setAssignedPersonnelId(activeAssignment ? activeAssignment.assigned_personnel_id : null);
+            
+            // Aktif zimmet kaydını bul (is_active !== false kontrolü daha güvenli)
+            const activeAssignment = existingEquipment.equipment_assignments?.find(a => a.is_active !== false);
+            console.log('🔍 Equipment assignments:', existingEquipment.equipment_assignments);
+            console.log('🔍 Active assignment:', activeAssignment);
+            
+            if (activeAssignment?.assigned_personnel_id) {
+                const personnelId = activeAssignment.assigned_personnel_id;
+                setAssignedPersonnelId(personnelId);
+                console.log('✅ Zimmetli personel ID set edildi:', personnelId);
+            } else {
+                setAssignedPersonnelId(null);
+                console.log('⚠️ Aktif zimmet kaydı bulunamadı veya personel ID yok');
+            }
             console.log('✅ Ekipman verileri yüklendi');
         } else if (isOpen) {
             // Yeni ekipman modu: Sadece modal YENİ açıldığında sıfırla
@@ -165,8 +178,10 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
     }, [calibrationData.calibration_date, formData.calibration_frequency_months]);
 
     const handlePersonnelChange = (personnelId) => {
-        setAssignedPersonnelId(personnelId);
-        const selectedPersonnel = personnelList.find(p => p.id === personnelId);
+        // String UUID'yi UUID'ye çevir (eğer string ise)
+        const id = personnelId || null;
+        setAssignedPersonnelId(id);
+        const selectedPersonnel = personnelList.find(p => String(p.id) === String(personnelId));
         if (selectedPersonnel) {
             setFormData(prev => ({
                 ...prev,
@@ -257,9 +272,9 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                      <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-1"><Label htmlFor="brand_model">Marka/Model</Label><Input id="brand_model" value={formData.brand_model || ''} onChange={handleInputChange} /></div>
                          <div className="space-y-1"><Label htmlFor="assigned_personnel_id">Zimmetli Personel</Label>
-                            <Select onValueChange={handlePersonnelChange} value={assignedPersonnelId || ''}>
+                            <Select onValueChange={handlePersonnelChange} value={assignedPersonnelId ? String(assignedPersonnelId) : ''}>
                                 <SelectTrigger><SelectValue placeholder="Personel seçin..." /></SelectTrigger>
-                                <SelectContent>{personnelList.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
+                                <SelectContent>{personnelList.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.full_name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                     </div>
