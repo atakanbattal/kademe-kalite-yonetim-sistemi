@@ -311,11 +311,47 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               if (dbData[field] === '' || dbData[field] === undefined) dbData[field] = null;
           });
           
-          // Analiz kolonlarını temizle (veritabanında bu kolonlar yok)
-          delete dbData.five_why_analysis;
-          delete dbData.five_n1k_analysis;
-          delete dbData.ishikawa_analysis;
-          delete dbData.fta_analysis;
+          // Geçerli non_conformities tablosu kolonlarını tanımla
+          const validColumns = [
+              'nc_number', 'audit_title', 'title', 'description', 'category', 'department',
+              'requesting_person', 'requesting_unit', 'responsible_person', 'status', 'type',
+              'opening_date', 'due_date', 'closed_at', 'rejected_at', 'rejection_reason',
+              'rejection_notes', 'related_vehicle_id', 'source_cost_id', 'source_finding_id',
+              'source_inspection_id', 'source_quarantine_id', 'source_supplier_nc_id',
+              'source_inspection_fault_id', 'audit_id', 'created_by', 'updated_by', 'priority',
+              'problem_definition', 'closing_notes', 'closing_attachments', 'eight_d_steps',
+              'mdi_no', 'attachments', 'part_name', 'part_code', 'vehicle_type', 'affected_units',
+              'amount', 'cost_date', 'cost_type', 'material_type', 'measurement_unit',
+              'part_location', 'quantity', 'scrap_weight', 'rework_duration',
+              'quality_control_duration', 'responsible_personnel_id', 'chassis_no',
+              'supplier_id', 'shipment_impact', 'df_opened_at', 'status_entered_at',
+              'due_at', 'reopened_at', 'forwarded_to', 'forwarded_to_personnel_id',
+              'forwarded_unit', 'eight_d_progress'
+          ];
+          
+          // Sadece geçerli kolonları ve undefined olmayan değerleri tut
+          const cleanData = {};
+          validColumns.forEach(col => {
+              if (dbData.hasOwnProperty(col) && dbData[col] !== undefined) {
+                  cleanData[col] = dbData[col];
+              }
+          });
+          
+          // attachments her zaman eklenmeli (yukarıda set edildi)
+          if (uploadedFilePaths !== undefined) {
+              cleanData.attachments = uploadedFilePaths;
+          }
+          
+          // dbData yerine cleanData kullan
+          Object.assign(dbData, cleanData);
+          
+          // Undefined key'leri temizle (ek güvenlik)
+          Object.keys(dbData).forEach(key => {
+              if (dbData[key] === undefined || key === 'undefined' || !validColumns.includes(key)) {
+                  delete dbData[key];
+              }
+          });
+          
           if (dbData.type !== '8D') {
               dbData.eight_d_steps = null;
               dbData.eight_d_progress = null;
