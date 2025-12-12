@@ -65,9 +65,9 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
         }
     }, [isOpen, toast]);
 
-    // Personel listesi yüklendikten sonra assignedPersonnelId'yi kontrol et ve güncelle
+    // Personel listesi yüklendikten sonra assignedPersonnelId'yi set et (ÖNEMLİ: Bu, assignedPersonnelId'nin doğru şekilde set edilmesini garanti eder)
     useEffect(() => {
-        if (personnelList.length > 0 && isEditMode && existingEquipment) {
+        if (personnelList.length > 0 && isOpen && isEditMode && existingEquipment) {
             // Aktif zimmet kaydını bul
             const activeAssignment = existingEquipment.equipment_assignments?.find(a => a.is_active !== false);
             if (activeAssignment?.assigned_personnel_id) {
@@ -75,18 +75,23 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                 // Personel listesinde bu ID var mı kontrol et
                 const foundPersonnel = personnelList.find(p => String(p.id) === personnelId);
                 if (foundPersonnel) {
-                    // Eğer assignedPersonnelId farklıysa veya null ise, güncelle
-                    if (assignedPersonnelId !== personnelId) {
-                        setAssignedPersonnelId(personnelId);
-                        console.log('✅ Personel listesi yüklendikten sonra assignedPersonnelId güncellendi:', foundPersonnel.full_name);
-                    }
+                    // Her zaman güncelle (personnelList yüklendikten sonra)
+                    setAssignedPersonnelId(personnelId);
+                    console.log('✅ Personel listesi yüklendikten sonra assignedPersonnelId set edildi:', foundPersonnel.full_name, 'ID:', personnelId);
                 } else {
                     console.log('⚠️ Personel listesinde assignedPersonnelId bulunamadı:', personnelId);
                     console.log('📋 Mevcut personel listesi:', personnelList.map(p => ({ id: p.id, name: p.full_name })));
+                    setAssignedPersonnelId(null);
                 }
+            } else {
+                // Aktif zimmet yoksa null set et
+                setAssignedPersonnelId(null);
             }
+        } else if (isOpen && !isEditMode) {
+            // Yeni ekipman modunda null set et
+            setAssignedPersonnelId(null);
         }
-    }, [personnelList, isEditMode, existingEquipment]);
+    }, [personnelList, isOpen, isEditMode, existingEquipment]);
 
     // ÖNEMLİ: Modal verilerini koru - sadece existingEquipment değiştiğinde yükle
     useEffect(() => {
@@ -113,20 +118,9 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
             });
             setAddInitialCalibration(false);
             
-            // Aktif zimmet kaydını bul (is_active !== false kontrolü daha güvenli)
-            const activeAssignment = existingEquipment.equipment_assignments?.find(a => a.is_active !== false);
-            console.log('🔍 Equipment assignments:', existingEquipment.equipment_assignments);
-            console.log('🔍 Active assignment:', activeAssignment);
-            
-            if (activeAssignment?.assigned_personnel_id) {
-                const personnelId = String(activeAssignment.assigned_personnel_id); // String'e çevir
-                setAssignedPersonnelId(personnelId);
-                console.log('✅ Zimmetli personel ID set edildi (string):', personnelId);
-            } else {
-                setAssignedPersonnelId(null);
-                console.log('⚠️ Aktif zimmet kaydı bulunamadı veya personel ID yok');
-            }
-            console.log('✅ Ekipman verileri yüklendi');
+            // NOT: assignedPersonnelId'yi burada set etmiyoruz - personnelList yüklendikten sonra set edilecek
+            // Bu, Select component'inin doğru değeri göstermesini garanti eder
+            console.log('✅ Ekipman verileri yüklendi (assignedPersonnelId personnelList yüklendikten sonra set edilecek)');
         } else if (isOpen) {
             // Yeni ekipman modu: Sadece modal YENİ açıldığında sıfırla
             console.log('➕ Yeni ekipman modu');
@@ -201,9 +195,11 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
     }, [calibrationData.calibration_date, formData.calibration_frequency_months]);
 
     const handlePersonnelChange = (personnelId) => {
+        console.log('🔄 handlePersonnelChange çağrıldı:', personnelId);
         // String UUID'yi sakla
         const id = personnelId ? String(personnelId) : null;
         setAssignedPersonnelId(id);
+        console.log('✅ assignedPersonnelId state güncellendi:', id);
         const selectedPersonnel = personnelList.find(p => String(p.id) === String(personnelId));
         if (selectedPersonnel) {
             setFormData(prev => ({
@@ -295,22 +291,32 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                      <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-1"><Label htmlFor="brand_model">Marka/Model</Label><Input id="brand_model" value={formData.brand_model || ''} onChange={handleInputChange} /></div>
                          <div className="space-y-1"><Label htmlFor="assigned_personnel_id">Zimmetli Personel</Label>
-                            <Select 
-                                onValueChange={handlePersonnelChange} 
-                                value={assignedPersonnelId ? String(assignedPersonnelId) : undefined}
-                                key={`personnel-select-${personnelList.length}-${assignedPersonnelId || 'empty'}-${isOpen}`}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Personel seçin..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {personnelList.map(p => (
-                                        <SelectItem key={p.id} value={String(p.id)}>
-                                            {p.full_name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {(() => {
+                                const selectValue = assignedPersonnelId ? String(assignedPersonnelId) : "";
+                                console.log('🎯 Select render - assignedPersonnelId:', assignedPersonnelId, 'selectValue:', selectValue, 'personnelList.length:', personnelList.length);
+                                return (
+                                    <Select 
+                                        onValueChange={handlePersonnelChange} 
+                                        value={selectValue}
+                                        key={`personnel-select-${isOpen}-${assignedPersonnelId || 'empty'}`}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Personel seçin..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {personnelList.length > 0 ? (
+                                                personnelList.map(p => (
+                                                    <SelectItem key={p.id} value={String(p.id)}>
+                                                        {p.full_name}
+                                                    </SelectItem>
+                                                ))
+                                            ) : (
+                                                <SelectItem value="" disabled>Personel listesi yükleniyor...</SelectItem>
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                );
+                            })()}
                         </div>
                     </div>
                      <div className="grid md:grid-cols-2 gap-4">
