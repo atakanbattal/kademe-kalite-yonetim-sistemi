@@ -71,7 +71,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 });
 
                 return filtered.sort((a, b) => {
-                    // En son açılan kayıt en üstte (tarihe göre sırala - en yeni önce)
+                    // En son açılan kayıt en üstte - önce tarihe göre sırala (en yeni önce)
                     const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
                     const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
                     
@@ -80,9 +80,20 @@ import { openPrintableReport } from '@/lib/reportUtils';
                         return dateB - dateA;
                     }
                     
-                    // Tarihler eşitse numaraya göre sırala (en yeni numara önce)
+                    // Tarihler eşitse en son numaraya göre sırala (en yüksek numara en üstte)
                     const numA = a.nc_number || a.mdi_no || '';
                     const numB = b.nc_number || b.mdi_no || '';
+                    
+                    // Numaraları sayısal olarak karşılaştır (en yüksek numara önce)
+                    // Önce sayısal kısmı çıkar (örn: "DF-195" -> 195)
+                    const numAValue = parseInt(numA.replace(/\D/g, '')) || 0;
+                    const numBValue = parseInt(numB.replace(/\D/g, '')) || 0;
+                    
+                    if (numBValue !== numAValue) {
+                        return numBValue - numAValue; // En yüksek numara önce
+                    }
+                    
+                    // Sayısal değerler eşitse string karşılaştırma yap
                     return numB.localeCompare(numA, undefined, { numeric: true, sensitivity: 'base' });
                 });
             }
@@ -140,7 +151,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
             });
 
             return filtered.sort((a, b) => {
-                // En son açılan kayıt en üstte (tarihe göre sırala - en yeni önce)
+                // En son açılan kayıt en üstte - önce tarihe göre sırala (en yeni önce)
                 const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
                 const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
                 
@@ -149,9 +160,20 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     return dateB - dateA;
                 }
                 
-                // Tarihler eşitse numaraya göre sırala (en yeni numara önce)
+                // Tarihler eşitse en son numaraya göre sırala (en yüksek numara en üstte)
                 const numA = a.nc_number || a.mdi_no || '';
                 const numB = b.nc_number || b.mdi_no || '';
+                
+                // Numaraları sayısal olarak karşılaştır (en yüksek numara önce)
+                // Önce sayısal kısmı çıkar (örn: "DF-195" -> 195)
+                const numAValue = parseInt(numA.replace(/\D/g, '')) || 0;
+                const numBValue = parseInt(numB.replace(/\D/g, '')) || 0;
+                
+                if (numBValue !== numAValue) {
+                    return numBValue - numAValue; // En yüksek numara önce
+                }
+                
+                // Sayısal değerler eşitse string karşılaştırma yap
                 return numB.localeCompare(numA, undefined, { numeric: true, sensitivity: 'base' });
             });
         }, [nonConformities, filters]);
