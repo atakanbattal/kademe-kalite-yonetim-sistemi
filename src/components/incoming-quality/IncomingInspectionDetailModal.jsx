@@ -46,7 +46,16 @@ const IncomingInspectionDetailModal = ({
     const [preparedBy, setPreparedBy] = useState('');
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
-    const [enrichedInspection, setEnrichedInspection] = useState(inspection);
+    const [enrichedInspection, setEnrichedInspection] = useState(inspection || null);
+
+    // inspection prop'u değiştiğinde enrichedInspection'i güncelle
+    useEffect(() => {
+        if (inspection) {
+            setEnrichedInspection(inspection);
+        } else {
+            setEnrichedInspection(null);
+        }
+    }, [inspection]);
     const [riskyStockData, setRiskyStockData] = useState(null);
     const [checkingRiskyStock, setCheckingRiskyStock] = useState(false);
     const [isCreatingNC, setIsCreatingNC] = useState(false);
@@ -148,7 +157,7 @@ const IncomingInspectionDetailModal = ({
     React.useEffect(() => {
         const enrichResults = async () => {
             if (!inspection || !inspection.results) {
-                setEnrichedInspection(inspection);
+                setEnrichedInspection(inspection || null);
                 return;
             }
 
@@ -158,7 +167,7 @@ const IncomingInspectionDetailModal = ({
             );
 
             if (!hasNullMeasurements) {
-                setEnrichedInspection(inspection);
+                setEnrichedInspection(inspection || null);
                 return;
             }
 
@@ -205,7 +214,7 @@ const IncomingInspectionDetailModal = ({
                 });
             } catch (error) {
                 console.error('Error enriching results:', error);
-                setEnrichedInspection(inspection);
+                setEnrichedInspection(inspection || null);
             }
         };
 
@@ -263,6 +272,14 @@ const IncomingInspectionDetailModal = ({
     };
 
     const handleGenerateReport = async () => {
+        if (!enrichedInspection) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Muayene verisi bulunamadı!',
+            });
+            return;
+        }
         try {
             const enrichedData = {
                 ...enrichedInspection,
