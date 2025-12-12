@@ -1,7 +1,5 @@
 import { toCamelCase } from './utils';
 
-import { toCamelCase } from './utils';
-
 const generatePrintableReport = (record) => {
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
     
