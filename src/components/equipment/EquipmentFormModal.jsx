@@ -292,7 +292,7 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                         <div className="space-y-1"><Label htmlFor="brand_model">Marka/Model</Label><Input id="brand_model" value={formData.brand_model || ''} onChange={handleInputChange} /></div>
                          <div className="space-y-1"><Label htmlFor="assigned_personnel_id">Zimmetli Personel</Label>
                             {(() => {
-                                const selectValue = assignedPersonnelId ? String(assignedPersonnelId) : "";
+                                const selectValue = assignedPersonnelId ? String(assignedPersonnelId) : undefined;
                                 console.log('🎯 Select render - assignedPersonnelId:', assignedPersonnelId, 'selectValue:', selectValue, 'personnelList.length:', personnelList.length);
                                 return (
                                     <Select 
@@ -311,7 +311,7 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                                                     </SelectItem>
                                                 ))
                                             ) : (
-                                                <SelectItem value="" disabled>Personel listesi yükleniyor...</SelectItem>
+                                                <div className="px-2 py-1.5 text-sm text-muted-foreground">Personel listesi yükleniyor...</div>
                                             )}
                                         </SelectContent>
                                     </Select>
