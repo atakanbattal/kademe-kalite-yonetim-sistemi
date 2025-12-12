@@ -1,6 +1,7 @@
 import { format, differenceInDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
+import { toCamelCase } from './utils';
 
 // Global formatter helpers
 const formatDateHelper = (dateStr, style = 'dd.MM.yyyy') => dateStr ? format(new Date(dateStr), style, { locale: tr }) : '-';
@@ -1935,10 +1936,20 @@ const generateGenericReportHtml = (record, type) => {
 				
 				// Özet İstatistikler
 				const totalQuestions = resultsArray.length;
-				const yesCount = resultsArray.filter(r => r.answer === 'Evet').length;
-				const noCount = resultsArray.filter(r => r.answer === 'Hayır').length;
-				const partialCount = resultsArray.filter(r => r.answer === 'Kısmen').length;
-				const naCount = resultsArray.filter(r => r.answer === 'Uygulanamaz').length;
+				// İç tetkik için cevaplar: 'Uygun', 'Uygunsuz', 'Gözlem', 'Kısmen Uygun', 'Uygulanamaz'
+				// Tedarikçi tetkik için cevaplar: 'Evet', 'Hayır', 'Kısmen', 'Uygulanamaz'
+				let yesCount, noCount, partialCount, naCount;
+				if (type === 'internal_audit') {
+					yesCount = resultsArray.filter(r => r.answer === 'Uygun').length;
+					noCount = resultsArray.filter(r => r.answer === 'Uygunsuz').length;
+					partialCount = resultsArray.filter(r => r.answer === 'Gözlem' || r.answer === 'Kısmen Uygun' || r.answer === 'Kısmen').length;
+					naCount = resultsArray.filter(r => r.answer === 'Uygulanamaz').length;
+				} else {
+					yesCount = resultsArray.filter(r => r.answer === 'Evet' || r.answer === 'Uygun').length;
+					noCount = resultsArray.filter(r => r.answer === 'Hayır' || r.answer === 'Uygunsuz').length;
+					partialCount = resultsArray.filter(r => r.answer === 'Kısmen' || r.answer === 'Gözlem' || r.answer === 'Kısmen Uygun').length;
+					naCount = resultsArray.filter(r => r.answer === 'Uygulanamaz').length;
+				}
 				
 				html += `<div style="margin-top: 20px; padding: 15px; background-color: #eff6ff; border-radius: 8px; border: 2px solid #3b82f6;">
 					<h4 style="margin: 0 0 10px 0; color: #1e40af; font-size: 1.1em;">Denetim Özeti</h4>

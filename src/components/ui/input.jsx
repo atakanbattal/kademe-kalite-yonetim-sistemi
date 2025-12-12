@@ -1,8 +1,31 @@
 import React from 'react';
 
-import { cn } from '@/lib/utils';
+import { cn, formatTextInput } from '@/lib/utils';
 
-const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+const Input = React.forwardRef(({ className, type, autoFormat = true, onBlur, onChange, ...props }, ref) => {
+  const handleBlur = (e) => {
+    // Sadece text input'lar için formatlama yap (number, date, email, password vb. hariç)
+    if (autoFormat && type !== 'number' && type !== 'date' && type !== 'datetime-local' && 
+        type !== 'email' && type !== 'password' && type !== 'url' && type !== 'tel' && 
+        type !== 'time' && type !== 'month' && type !== 'week' && !type) {
+      const formatted = formatTextInput(e.target.value);
+      if (formatted !== e.target.value) {
+        e.target.value = formatted;
+        // onChange event'ini tetikle ki form state güncellensin
+        if (onChange) {
+          const syntheticEvent = {
+            ...e,
+            target: { ...e.target, value: formatted }
+          };
+          onChange(syntheticEvent);
+        }
+      }
+    }
+    if (onBlur) {
+      onBlur(e);
+    }
+  };
+
   return (
     <input
       type={type}
@@ -11,6 +34,8 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
         className
       )}
       ref={ref}
+      onBlur={handleBlur}
+      onChange={onChange}
       {...props}
     />
   );

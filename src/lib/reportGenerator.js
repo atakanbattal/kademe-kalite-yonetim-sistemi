@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { sanitizeFileName } from './utils';
+import { sanitizeFileName, toCamelCase } from './utils';
 
 const generatePdf = async (doc, { title, reportNo, record, contentSections, dataContext }) => {
     const { personnel, departments } = dataContext;
@@ -59,7 +59,7 @@ const generatePdf = async (doc, { title, reportNo, record, contentSections, data
         if (section.type === 'grid') {
             const body = section.data.map(item => [
                 { content: item.label, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
-                { content: item.value || '-' }
+                { content: (typeof item.value === 'string' ? toCamelCase(item.value) : item.value) || '-' }
             ]);
             doc.autoTable({
                 startY: y,
@@ -76,7 +76,8 @@ const generatePdf = async (doc, { title, reportNo, record, contentSections, data
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(50);
-            const text = doc.splitTextToSize(section.content || '-', 170);
+            const content = typeof section.content === 'string' ? toCamelCase(section.content) : (section.content || '-');
+            const text = doc.splitTextToSize(content, 170);
             doc.text(text, 20, y);
             y += (text.length * 5) + 5;
         } else if (section.type === 'table') {
@@ -132,10 +133,10 @@ const getNCContent = (record, dataContext) => {
             type: 'table',
             head: ['Adım', 'Sorumlu', 'Tarih', 'Açıklama'],
             body: Object.entries(record.eight_d_steps).map(([key, step]) => [
-                `${key}: ${step.title}`,
-                step.responsible || '-',
+                `${key}: ${toCamelCase(step.title || '')}`,
+                typeof step.responsible === 'string' ? toCamelCase(step.responsible) : (step.responsible || '-'),
                 formatDate(step.completionDate),
-                step.description || '-'
+                typeof step.description === 'string' ? toCamelCase(step.description) : (step.description || '-')
             ])
         });
     }

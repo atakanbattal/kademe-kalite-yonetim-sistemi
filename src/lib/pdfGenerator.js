@@ -1,5 +1,12 @@
+import { toCamelCase } from './utils';
+
+import { toCamelCase } from './utils';
+
 const generatePrintableReport = (record) => {
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
+    
+    // Metin alanlarını camelCase formatına çevir
+    const formatText = (text) => typeof text === 'string' ? toCamelCase(text) : text;
 
     const getStatusBadge = (status) => {
         let bgColor, textColor;
@@ -23,11 +30,11 @@ const generatePrintableReport = (record) => {
     
     const eightDStepsHtml = record.type === '8D' && record.eight_d_steps ? Object.entries(record.eight_d_steps).map(([key, step]) => `
         <div class="step-section">
-            <h3 class="step-title">${key}: ${step.title || ''}</h3>
+            <h3 class="step-title">${key}: ${formatText(step.title || '')}</h3>
             <div class="step-content">
-                <p><strong>Sorumlu:</strong> ${step.responsible || '-'}</p>
+                <p><strong>Sorumlu:</strong> ${formatText(step.responsible || '-')}</p>
                 <p><strong>Tamamlanma Tarihi:</strong> ${formatDate(step.completionDate)}</p>
-                <p class="step-description"><strong>Açıklama:</strong> ${step.description || '-'}</p>
+                <p class="step-description"><strong>Açıklama:</strong> ${formatText(step.description || '-')}</p>
             </div>
         </div>
     `).join('') : '';
@@ -42,7 +49,7 @@ const generatePrintableReport = (record) => {
                 </div>
                  <div class="info-item full-width">
                     <span class="label">Kapanış Notları</span>
-                    <span class="value">${record.closing_notes || '-'}</span>
+                    <span class="value">${formatText(record.closing_notes || '-')}</span>
                 </div>
             </div>
         </div>
@@ -54,7 +61,7 @@ const generatePrintableReport = (record) => {
             <div class="info-grid">
                 <div class="info-item full-width">
                     <span class="label">Reddetme Gerekçesi</span>
-                    <span class="value">${record.rejection_reason || '-'}</span>
+                    <span class="value">${formatText(record.rejection_reason || '-')}</span>
                 </div>
             </div>
         </div>
@@ -221,7 +228,7 @@ const generatePrintableReport = (record) => {
                 <div class="report-title-section">
                     <div class="report-title">
                         <h2>${record.type} Raporu</h2>
-                        <p>${record.title || '-'}</p>
+                        <p>${formatText(record.title || '-')}</p>
                     </div>
                     <div>
                         ${getStatusBadge(record.status)}
@@ -235,15 +242,15 @@ const generatePrintableReport = (record) => {
                         <div class="info-item"><span class="label">MDI Numarası</span><span class="value">${record.mdi_no || '-'}</span></div>
                         <div class="info-item"><span class="label">Açılış Tarihi</span><span class="value">${formatDate(record.opening_date)}</span></div>
                         <div class="info-item"><span class="label">Termin Tarihi</span><span class="value">${formatDate(record.due_date)}</span></div>
-                        <div class="info-item"><span class="label">Talep Eden Kişi / Birim</span><span class="value">${record.requesting_person || '-'} / ${record.requesting_unit || '-'}</span></div>
-                        <div class="info-item"><span class="label">Sorumlu Kişi / Birim</span><span class="value">${record.responsible_person || '-'} / ${record.department || '-'}</span></div>
+                        <div class="info-item"><span class="label">Talep Eden Kişi / Birim</span><span class="value">${formatText(record.requesting_person || '-')} / ${formatText(record.requesting_unit || '-')}</span></div>
+                        <div class="info-item"><span class="label">Sorumlu Kişi / Birim</span><span class="value">${formatText(record.responsible_person || '-')} / ${formatText(record.department || '-')}</span></div>
                     </div>
                 </div>
 
                 <div class="section">
                     <h2 class="section-title">Problem Tanımı</h2>
                     <div class="info-item full-width">
-                        <p class="problem-description">${record.description || record.problem_definition || '-'}</p>
+                        <p class="problem-description">${formatText(record.description || record.problem_definition || '-')}</p>
                     </div>
                 </div>
 

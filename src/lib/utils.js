@@ -64,6 +64,7 @@ export function normalizeTurkishForSearch(text) {
 
 /**
  * Metni camelCase formatına normalize eder (Türkçe karakterler için optimize edilmiş)
+ * Her kelimenin ilk harfi büyük, geri kalanı küçük (Title Case)
  * Örnek: "BOYAHANE" -> "Boyahane", "AR-GE DİREKTÖRLÜĞÜ" -> "Ar-Ge Direktörlüğü"
  */
 export function normalizeToTitleCase(text) {
@@ -113,4 +114,23 @@ export function normalizeToTitleCase(text) {
             return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
         })
         .join(' ');
+}
+
+/**
+ * Metni camelCase formatına çevirir (Türkçe karakter desteği ile)
+ * Tüm metin girişleri için kullanılmalı - her kelimenin ilk harfi büyük
+ * Örnek: "test metni" -> "Test Metni", "ÜRETİM MÜDÜRLÜĞÜ" -> "Üretim Müdürlüğü"
+ */
+export function toCamelCase(text) {
+    if (!text || typeof text !== 'string') return text;
+    return normalizeToTitleCase(text);
+}
+
+/**
+ * Metin alanlarını otomatik olarak camelCase formatına çevirir
+ * Input onChange handler'larında kullanılabilir
+ */
+export function formatTextInput(value) {
+    if (!value || typeof value !== 'string') return value;
+    return toCamelCase(value);
 }

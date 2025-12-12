@@ -1,8 +1,28 @@
 import React from 'react';
 
-import { cn } from '@/lib/utils';
+import { cn, formatTextInput } from '@/lib/utils';
 
-const Textarea = React.forwardRef(({ className, ...props }, ref) => {
+const Textarea = React.forwardRef(({ className, autoFormat = true, onBlur, onChange, ...props }, ref) => {
+  const handleBlur = (e) => {
+    if (autoFormat) {
+      const formatted = formatTextInput(e.target.value);
+      if (formatted !== e.target.value) {
+        e.target.value = formatted;
+        // onChange event'ini tetikle ki form state güncellensin
+        if (onChange) {
+          const syntheticEvent = {
+            ...e,
+            target: { ...e.target, value: formatted }
+          };
+          onChange(syntheticEvent);
+        }
+      }
+    }
+    if (onBlur) {
+      onBlur(e);
+    }
+  };
+
   return (
     <textarea
       className={cn(
@@ -10,6 +30,8 @@ const Textarea = React.forwardRef(({ className, ...props }, ref) => {
         className
       )}
       ref={ref}
+      onBlur={handleBlur}
+      onChange={onChange}
       {...props}
     />
   );

@@ -179,6 +179,43 @@ import React, { useState, useEffect, useRef } from 'react';
                                     </div>
                                 ))}
                             </div>
+                            
+                            {/* Özet İstatistikler */}
+                            {(() => {
+                                const totalQuestions = results.length;
+                                const yesCount = results.filter(r => r.answer === 'Uygun').length;
+                                const noCount = results.filter(r => r.answer === 'Uygunsuz').length;
+                                const partialCount = results.filter(r => r.answer === 'Gözlem' || r.answer === 'Kısmen Uygun' || r.answer === 'Kısmen').length;
+                                const naCount = results.filter(r => r.answer === 'Uygulanamaz').length;
+                                
+                                return (
+                                    <div style={{ marginTop: '30px', padding: '20px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '2px solid #3b82f6' }}>
+                                        <h4 style={{ margin: '0 0 15px 0', color: '#1e40af', fontSize: '1.1em', fontWeight: '600' }}>Denetim Özeti</h4>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px', textAlign: 'center' }}>
+                                            <div style={{ padding: '15px', background: 'white', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                                                <div style={{ fontSize: '1.8em', fontWeight: '700', color: '#2563eb' }}>{totalQuestions}</div>
+                                                <div style={{ fontSize: '0.9em', color: '#6b7280', marginTop: '5px' }}>Toplam Soru</div>
+                                            </div>
+                                            <div style={{ padding: '15px', background: '#d1fae5', borderRadius: '6px', border: '1px solid #16a34a' }}>
+                                                <div style={{ fontSize: '1.8em', fontWeight: '700', color: '#16a34a' }}>{yesCount}</div>
+                                                <div style={{ fontSize: '0.9em', color: '#065f46', marginTop: '5px' }}>Uygun</div>
+                                            </div>
+                                            <div style={{ padding: '15px', background: '#fee2e2', borderRadius: '6px', border: '1px solid #dc2626' }}>
+                                                <div style={{ fontSize: '1.8em', fontWeight: '700', color: '#dc2626' }}>{noCount}</div>
+                                                <div style={{ fontSize: '0.9em', color: '#991b1b', marginTop: '5px' }}>Uygunsuz</div>
+                                            </div>
+                                            <div style={{ padding: '15px', background: '#fef3c7', borderRadius: '6px', border: '1px solid #f59e0b' }}>
+                                                <div style={{ fontSize: '1.8em', fontWeight: '700', color: '#f59e0b' }}>{partialCount}</div>
+                                                <div style={{ fontSize: '0.9em', color: '#92400e', marginTop: '5px' }}>Kısmen / Gözlem</div>
+                                            </div>
+                                            <div style={{ padding: '15px', background: '#e5e7eb', borderRadius: '6px', border: '1px solid #6b7280' }}>
+                                                <div style={{ fontSize: '1.8em', fontWeight: '700', color: '#6b7280' }}>{naCount}</div>
+                                                <div style={{ fontSize: '0.9em', color: '#374151', marginTop: '5px' }}>Uygulanamaz</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {findings.length > 0 && (
