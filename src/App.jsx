@@ -303,13 +303,19 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               uploadedFilePaths = [...(formData.attachments || []), ...newPaths];
           }
           
-          const { id, created_at, updated_at, nc_number: old_nc_number, personnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, closing_date, responsible_person_details, requesting_person_details, supplier_name, ...dbData } = formData;
+          const { id, created_at, updated_at, nc_number: old_nc_number, personnel, unit, department_name, responsible_person_name, is_supplier_nc, opening_date, due_date, closing_date, responsible_person_details, requesting_person_details, supplier_name, five_why_analysis, five_n1k_analysis, ishikawa_analysis, fta_analysis, ...dbData } = formData;
           
           dbData.attachments = uploadedFilePaths;
           const fieldsToNullify = ['cost_date', 'measurement_unit', 'part_location', 'quantity', 'scrap_weight', 'rework_duration', 'quality_control_duration'];
           fieldsToNullify.forEach(field => {
               if (dbData[field] === '' || dbData[field] === undefined) dbData[field] = null;
           });
+          
+          // Analiz kolonlarını temizle (veritabanında bu kolonlar yok)
+          delete dbData.five_why_analysis;
+          delete dbData.five_n1k_analysis;
+          delete dbData.ishikawa_analysis;
+          delete dbData.fta_analysis;
           if (dbData.type !== '8D') {
               dbData.eight_d_steps = null;
               dbData.eight_d_progress = null;
