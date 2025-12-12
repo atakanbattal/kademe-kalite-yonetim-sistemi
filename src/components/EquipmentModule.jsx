@@ -155,12 +155,9 @@ const EquipmentModule = () => {
                                             status: eq.status || '-',
                                             calibration_status: calStatus.text,
                                             next_calibration_date: calStatus.date || '-',
-                                            manufacturer: eq.manufacturer || '-',
                                             model: eq.model || eq.brand_model || '-',
                                             responsible_unit: eq.responsible_unit || '-',
-                                            location: eq.location || '-',
-                                            acquisition_date: eq.acquisition_date || '-',
-                                            notes: eq.notes || '-'
+                                            location: eq.location || '-'
                                         };
                                     }),
                                     filterInfo: searchTerm ? `Arama: "${searchTerm}"` : (statusFilter !== 'all' || calibrationFilter !== 'all' ? `Filtreler: ${statusFilter !== 'all' ? `Durum: ${statusFilter}` : ''} ${calibrationFilter !== 'all' ? `Kalibrasyon: ${calibrationFilter === 'due' ? 'Geçmiş' : calibrationFilter === 'approaching' ? 'Yaklaşan' : 'Girilmemiş'}` : ''}` : 'Tüm Ekipmanlar')
