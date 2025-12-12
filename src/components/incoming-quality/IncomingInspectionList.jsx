@@ -125,40 +125,56 @@ import React from 'react';
         };
 
         const handleViewDetail = async (inspection) => {
-            // incoming_inspections tablosundan tüm alanlar dahil veriyi çek (delivery_note_number dahil)
-            const { data: inspectionFull, error: fullError } = await supabase
-                .from('incoming_inspections')
-                .select('*, supplier:suppliers(id, name)')
-                .eq('id', inspection.id)
-                .single();
-            
-            if (fullError) {
-                toast({ variant: 'destructive', title: 'Hata', description: 'Muayene detayları alınamadı.' });
+            if (!inspection || !inspection.id) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Geçersiz muayene kaydı.' });
                 return;
             }
-            
-            // supplier_name'i ekle
-            const inspectionWithSupplier = {
-                ...inspectionFull,
-                supplier_name: inspectionFull.supplier?.name || '-'
-            };
-            
-            // Related data'yı ayrı ayrı çek
-            const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
-                supabase.from('incoming_inspection_attachments').select('*').eq('inspection_id', inspection.id),
-                supabase.from('incoming_inspection_defects').select('*').eq('inspection_id', inspection.id),
-                supabase.from('incoming_inspection_results').select('*').eq('inspection_id', inspection.id)
-            ]);
-            
-            const fullData = {
-                ...inspectionWithSupplier,
-                attachments: attachmentsRes.data || [],
-                defects: defectsRes.data || [],
-                results: resultsRes.data || []
-            };
-            
-            setSelectedInspection(fullData);
-            setIsDetailModalOpen(true);
+
+            try {
+                // incoming_inspections tablosundan tüm alanlar dahil veriyi çek (delivery_note_number dahil)
+                const { data: inspectionFull, error: fullError } = await supabase
+                    .from('incoming_inspections')
+                    .select('*, supplier:suppliers(id, name)')
+                    .eq('id', inspection.id)
+                    .single();
+                
+                if (fullError) {
+                    console.error('❌ Muayene detayları alınamadı:', fullError);
+                    toast({ variant: 'destructive', title: 'Hata', description: 'Muayene detayları alınamadı: ' + fullError.message });
+                    return;
+                }
+
+                if (!inspectionFull) {
+                    toast({ variant: 'destructive', title: 'Hata', description: 'Muayene kaydı bulunamadı.' });
+                    return;
+                }
+                
+                // supplier_name'i ekle
+                const inspectionWithSupplier = {
+                    ...inspectionFull,
+                    supplier_name: inspectionFull.supplier?.name || '-'
+                };
+                
+                // Related data'yı ayrı ayrı çek
+                const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
+                    supabase.from('incoming_inspection_attachments').select('*').eq('inspection_id', inspection.id),
+                    supabase.from('incoming_inspection_defects').select('*').eq('inspection_id', inspection.id),
+                    supabase.from('incoming_inspection_results').select('*').eq('inspection_id', inspection.id)
+                ]);
+                
+                const fullData = {
+                    ...inspectionWithSupplier,
+                    attachments: attachmentsRes.data || [],
+                    defects: defectsRes.data || [],
+                    results: resultsRes.data || []
+                };
+                
+                setSelectedInspection(fullData);
+                setIsDetailModalOpen(true);
+            } catch (error) {
+                console.error('❌ handleViewDetail hatası:', error);
+                toast({ variant: 'destructive', title: 'Hata', description: 'Muayene detayları açılırken bir hata oluştu: ' + error.message });
+            }
         };
 
         // Same logic for edit - fetch full data with results/defects/attachments
