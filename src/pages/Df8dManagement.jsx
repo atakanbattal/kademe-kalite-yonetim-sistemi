@@ -71,16 +71,20 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 });
 
                 return filtered.sort((a, b) => {
-                    const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
-                    const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
-                    
-                    if (dateB - dateA !== 0) {
-                        return dateB - dateA;
-                    }
-
+                    // Önce numaraya göre sırala (numeric: true ile sayısal sıralama)
                     const numA = a.nc_number || a.mdi_no || '';
                     const numB = b.nc_number || b.mdi_no || '';
-                    return numB.localeCompare(numA, undefined, { numeric: true });
+                    
+                    // Numaraları sayısal olarak karşılaştır
+                    const numCompare = numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+                    if (numCompare !== 0) {
+                        return numCompare;
+                    }
+                    
+                    // Numaralar eşitse tarihe göre sırala (en yeni önce)
+                    const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
+                    const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
+                    return dateB - dateA;
                 });
             }
 
@@ -137,16 +141,20 @@ import { openPrintableReport } from '@/lib/reportUtils';
             });
 
             return filtered.sort((a, b) => {
-                const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
-                const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
-                
-                if (dateB - dateA !== 0) {
-                    return dateB - dateA;
-                }
-
+                // Önce numaraya göre sırala (numeric: true ile sayısal sıralama)
                 const numA = a.nc_number || a.mdi_no || '';
                 const numB = b.nc_number || b.mdi_no || '';
-                return numB.localeCompare(numA, undefined, { numeric: true });
+                
+                // Numaraları sayısal olarak karşılaştır
+                const numCompare = numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+                if (numCompare !== 0) {
+                    return numCompare;
+                }
+                
+                // Numaralar eşitse tarihe göre sırala (en yeni önce)
+                const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
+                const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
+                return dateB - dateA;
             });
         }, [nonConformities, filters]);
 

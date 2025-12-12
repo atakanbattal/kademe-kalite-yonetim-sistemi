@@ -226,8 +226,8 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         onConfirm={handleRejectConfirm}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -247,7 +247,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
             </div>
           </DialogHeader>
 
-          <ScrollArea className="flex-grow pr-4">
+          <ScrollArea className="flex-1 min-h-0 pr-4">
             <Tabs defaultValue="general" className="w-full py-4">
               <TabsList>
                 <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
