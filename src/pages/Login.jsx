@@ -41,16 +41,47 @@ const Login = () => {
     
     const emailToLogin = email.includes('@') ? email : `${email}@kademe.com`;
 
-    const { error } = await signIn(emailToLogin, password);
-    
-    if (error) {
-      setLoading(false);
-    } else {
-      toast({
+    try {
+      const { data, error } = await signIn(emailToLogin, password);
+      
+      if (error) {
+        setLoading(false);
+        // Kullanıcıya anlamlı hata mesajı göster
+        let errorMessage = "Giriş başarısız. Lütfen bilgilerinizi kontrol edin.";
+        
+        if (error.message) {
+          if (error.message.includes("Invalid login credentials") || error.message.includes("invalid_credentials")) {
+            errorMessage = "Geçersiz kullanıcı adı veya şifre. Lütfen tekrar deneyin.";
+          } else if (error.message.includes("Email not confirmed")) {
+            errorMessage = "E-posta adresiniz henüz onaylanmamış. Lütfen e-postanızı kontrol edin.";
+          } else if (error.message.includes("Too many requests")) {
+            errorMessage = "Çok fazla deneme yapıldı. Lütfen bir süre sonra tekrar deneyin.";
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
+        toast({
+          variant: "destructive",
+          title: "Giriş Başarısız",
+          description: errorMessage,
+        });
+      } else {
+        // Başarılı giriş - toast göster ve redirect için bekle
+        toast({
           title: "Giriş Başarılı!",
           description: "Kalite Yönetim Sistemine hoş geldiniz.",
+        });
+        // Loading'i false yapma, useEffect session değiştiğinde redirect yapacak
+        // Session state'i auth context'te güncellenecek ve useEffect tetiklenecek
+      }
+    } catch (err) {
+      setLoading(false);
+      toast({
+        variant: "destructive",
+        title: "Hata",
+        description: "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
       });
-      // Do not set loading to false here, let the useEffect handle redirection
     }
   };
 

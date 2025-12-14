@@ -1,5 +1,5 @@
 
-    import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
+    import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useNavigate } from 'react-router-dom';
 
@@ -64,14 +64,29 @@
         }
       }, [user]);
 
+      const signIn = useCallback(async (email, password) => {
+        const result = await supabase.auth.signInWithPassword({ email, password });
+        // Session state'i onAuthStateChange listener'ı otomatik güncelleyecek
+        // Ancak hemen güncellemek için manuel kontrol edelim
+        if (result.data?.session) {
+          setSession(result.data.session);
+          setUser(result.data.session.user);
+        }
+        return result;
+      }, []);
+
+      const signOut = useCallback(() => {
+        return supabase.auth.signOut();
+      }, []);
+
       const value = useMemo(() => ({
         user,
         profile,
         session,
         loading,
-        signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
-        signOut: () => supabase.auth.signOut(),
-      }), [user, profile, session, loading]);
+        signIn,
+        signOut,
+      }), [user, profile, session, loading, signIn, signOut]);
 
       return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
     };

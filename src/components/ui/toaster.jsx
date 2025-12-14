@@ -14,7 +14,9 @@ export function Toaster() {
 
 	return (
 		<ToastProvider>
-			{toasts.map(({ id, title, description, action, ...props }) => {
+			{toasts.map(({ id, title, description, action, dismiss, update, ...props }) => {
+				// dismiss ve update fonksiyonlarını props'tan çıkar
+				// çünkü bunlar HTML elementine geçirilmemeli
 				return (
 					<Toast key={id} {...props}>
 						<div className="grid gap-1">
