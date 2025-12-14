@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
     import Sidebar from '@/components/Sidebar';
     import Dashboard from '@/components/Dashboard';
-    import KPIModule from '@/components/KPIModule';
+    import KPIModule from '@/components/kpi/KPIModule';
     import QualityCostModule from '@/components/quality-cost/QualityCostModule';
     import QuarantineModule from '@/components/quarantine/QuarantineModule';
     import Df8dManagement from '@/pages/Df8dManagement';
