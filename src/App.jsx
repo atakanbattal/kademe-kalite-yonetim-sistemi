@@ -12,7 +12,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import DocumentModule from '@/components/DocumentModule';
     import SupplierQualityModule from '@/components/SupplierQualityModule';
     import DeviationModule from '@/components/deviation/DeviationModule';
-    import EquipmentModule from '@/components/EquipmentModule';
+    import EquipmentModule from '@/components/equipment/EquipmentModule';
     import ProducedVehiclesModule from '@/components/produced-vehicles/ProducedVehiclesModule';
     import CostSettingsModule from '@/components/CostSettingsModule';
     import IncomingQualityModule from '@/components/incoming-quality/IncomingQualityModule';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import EquipmentModule from '@/components/EquipmentModule';
+import EquipmentModule from '@/components/equipment/EquipmentModule';
 
 const EquipmentCalibrationPage = () => {
   return (
