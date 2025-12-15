@@ -648,27 +648,36 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         };
 
         const handleDownloadDetailPDF = (planData) => {
-            // Karakteristik ve ekipman bilgilerini ekle (process control gibi)
-            const enrichedData = {
-                ...planData,
-                items: (planData.items || []).map(item => {
-                    // Standart bilgisini işle - standard_class varsa onu kullan, yoksa standard_name
-                    let standardName = null;
-                    if (item.standard_class) {
-                        standardName = item.standard_class;
-                    } else if (item.standard_id) {
-                        standardName = standards?.find(s => s.value === item.standard_id)?.label || item.standard_id;
-                    }
-                    
-                    return {
-                        ...item,
-                        characteristic_name: characteristics?.find(c => c.value === item.characteristic_id)?.label || item.characteristic_id,
-                        equipment_name: equipment?.find(e => e.value === item.equipment_id)?.label || item.equipment_id,
-                        standard_name: standardName,
-                    };
-                })
-            };
-            openPrintableReport(enrichedData, 'incoming_control_plans', true);
+            try {
+                // Karakteristik ve ekipman bilgilerini ekle (process control gibi)
+                const enrichedData = {
+                    ...planData,
+                    items: (planData.items || []).map(item => {
+                        // Standart bilgisini işle - standard_class varsa onu kullan, yoksa standard_name
+                        let standardName = null;
+                        if (item.standard_class) {
+                            standardName = item.standard_class;
+                        } else if (item.standard_id) {
+                            standardName = standards?.find(s => s.value === item.standard_id)?.label || item.standard_id;
+                        }
+                        
+                        return {
+                            ...item,
+                            characteristic_name: characteristics?.find(c => c.value === item.characteristic_id)?.label || item.characteristic_id || '-',
+                            equipment_name: equipment?.find(e => e.value === item.equipment_id)?.label || item.equipment_id || '-',
+                            standard_name: standardName || '-',
+                        };
+                    })
+                };
+                openPrintableReport(enrichedData, 'incoming_control_plans', true);
+            } catch (error) {
+                console.error('Rapor oluşturma hatası:', error);
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Hata!', 
+                    description: `Rapor oluşturulamadı: ${error.message}` 
+                });
+            }
         };
 
         return (
