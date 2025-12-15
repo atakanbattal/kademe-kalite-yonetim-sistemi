@@ -533,16 +533,9 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
                                     {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                                     <span className="sr-only">Menüyü Aç/Kapat</span>
                                 </Button>
-                                <div className="flex-1 min-w-0 flex items-center gap-2">
-                                    <h1 className="text-base font-semibold sm:text-lg md:text-xl lg:text-2xl text-foreground truncate">
-                                        {moduleTitles[activeModule] || 'Ana Panel'}
-                                    </h1>
-                                    {activeModule && (
-                                        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                                            {activeModule}
-                                        </span>
-                                    )}
-                                </div>
+                                <h1 className="flex-1 text-base font-semibold sm:text-lg md:text-xl lg:text-2xl text-foreground truncate">
+                                    {moduleTitles[activeModule] || 'Ana Panel'}
+                                </h1>
                             </header>
                             
                             {/* Main Content Area */}
