@@ -441,6 +441,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             plan.plan_name?.toLowerCase().includes(searchLower) ||
             plan.part_code?.toLowerCase().includes(searchLower) ||
             plan.part_name?.toLowerCase().includes(searchLower) ||
+            plan.vehicle_type?.toLowerCase().includes(searchLower) ||
             plan.process_control_equipment?.equipment_name?.toLowerCase().includes(searchLower)
         );
     });
