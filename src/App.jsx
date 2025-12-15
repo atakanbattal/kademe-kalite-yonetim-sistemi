@@ -157,8 +157,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
                 setActiveModule(path);
             } else if (path !== '' && !path.startsWith('print')) {
                  navigate(`/${DEFAULT_MODULE}`, { replace: true });
-                 // Only show warning if it's an actual access denial, not just restricted access
-                 if(moduleTitles[path] && !profile?.permissions?.[path]) {
+                 // Only show warning if module exists but user has no permission at all (not 'read' or 'full')
+                 if(moduleTitles[path] && (!profile?.permissions?.[path] || profile?.permissions?.[path] === 'none')) {
                     toast({ variant: 'destructive', title: 'Yetkisiz Erişim', description: `"${moduleTitles[path] || path}" modülüne erişim izniniz yok.` });
                  }
             } else if (location.pathname === '/') {
@@ -170,8 +170,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
             if (PERMITTED_MODULES.includes(module)) {
                 setActiveModule(module);
                 navigate(`/${module}`);
-            } else if (!profile?.permissions?.[module]) {
-                // Only show warning if module is completely denied
+            } else if (!profile?.permissions?.[module] || profile?.permissions?.[module] === 'none') {
+                // Only show warning if module is completely denied (not 'read' or 'full')
                 toast({ variant: 'destructive', title: 'Yetkisiz Erişim', description: 'Bu modüle erişim izniniz yok.' });
             }
         };
