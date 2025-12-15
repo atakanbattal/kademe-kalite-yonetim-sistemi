@@ -70,12 +70,21 @@ const TS_9013_TOLERANCES = {
 
 // Process Control'e özel standartlar (13920 ve 9013 sadece burada)
 const STANDARD_OPTIONS = [
+    // ISO 2768-1 standartları
     { value: 'ISO 2768-1_f', label: 'ISO 2768-1 f (Fine - İnce)' },
     { value: 'ISO 2768-1_m', label: 'ISO 2768-1 m (Medium - Orta)' },
     { value: 'ISO 2768-1_c', label: 'ISO 2768-1 c (Coarse - Kaba)' },
     { value: 'ISO 2768-1_v', label: 'ISO 2768-1 v (Very Coarse - Çok Kaba)' },
-    { value: 'TS 13920', label: 'TS EN ISO 13920 (Kaynak Toleransları)' },
-    { value: 'TS 9013', label: 'TS EN ISO 9013 (Isıl Kesim Toleransları)' },
+    // TS EN ISO 13920 - Kaynak Toleransları (A, B, C, D sınıfları)
+    { value: 'TS 13920_A', label: 'TS 13920 A (En Hassas)' },
+    { value: 'TS 13920_B', label: 'TS 13920 B (Hassas)' },
+    { value: 'TS 13920_C', label: 'TS 13920 C (Normal)' },
+    { value: 'TS 13920_D', label: 'TS 13920 D (Kaba)' },
+    // TS EN ISO 9013 - Isıl Kesim Toleransları (Range 1, 2, 3, 4)
+    { value: 'TS 9013_1', label: 'TS 9013 Range 1 (En Hassas)' },
+    { value: 'TS 9013_2', label: 'TS 9013 Range 2 (Hassas)' },
+    { value: 'TS 9013_3', label: 'TS 9013 Range 3 (Normal)' },
+    { value: 'TS 9013_4', label: 'TS 9013 Range 4 (Kaba)' },
 ];
 
 const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, standards }) => {
@@ -85,13 +94,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
     const autoCalculateTolerance = useCallback((currentItem) => {
         const { nominal_value, tolerance_class, tolerance_direction, standard_class } = currentItem;
         
-        // TS 13920 ve TS 9013 için tolerance_class olmadan hesaplama yapma
-        if (!isDimensional || !nominal_value) {
-            return { ...currentItem };
-        }
-        
-        // ISO 2768-1 için tolerance_class şart, TS standartları için de şart
-        if (!tolerance_class) {
+        if (!isDimensional || !nominal_value || !tolerance_class || !standard_class) {
             return { ...currentItem };
         }
 
@@ -101,12 +104,13 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         }
 
         // Standarta göre tolerans tablosunu seç
+        // standard_class formatı: "ISO 2768-1_f", "TS 13920_A", "TS 9013_1"
         let toleranceTable = null;
-        if (standard_class === 'TS 13920') {
+        if (standard_class.startsWith('TS 13920')) {
             toleranceTable = TS_13920_TOLERANCES;
-        } else if (standard_class === 'TS 9013') {
+        } else if (standard_class.startsWith('TS 9013')) {
             toleranceTable = TS_9013_TOLERANCES;
-        } else if (standard_class && standard_class.startsWith('ISO 2768-1')) {
+        } else if (standard_class.startsWith('ISO 2768-1')) {
             toleranceTable = ISO_2768_1_TOLERANCES;
         } else {
             // Varsayılan olarak ISO 2768-1 kullan
@@ -151,35 +155,31 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         
         if (field === 'standard_class') {
             if (value) {
-                // TS 13920 ve TS 9013 için özel işlem (bunlar tolerance_standards tablosunda yok)
-                if (value === 'TS 13920' || value === 'TS 9013') {
-                    // TS standartları için tolerance_class yok, sadece standard_class olarak saklanacak
-                    // Ancak kullanıcı tolerans sınıfı seçebilir (f, m, c, v)
-                    newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: value };
-                    onUpdate(index, newItem);
-                    return;
+                // Tüm standartlar için aynı işlem: value formatı "STANDART_SINIF" şeklinde
+                // Örn: "ISO 2768-1_f", "TS 13920_A", "TS 9013_1"
+                const parts = value.split('_');
+                const toleranceClass = parts.pop(); // Son kısım tolerans sınıfı
+                const standardName = parts.join('_'); // Geri kalan standart adı
+                
+                // ISO 2768-1 için standard_id'yi bul (tolerance_standards tablosundan)
+                let standardId = null;
+                if (standardName.startsWith('ISO 2768-1') && standards) {
+                    const standard = standards.find(s => s.label.startsWith('ISO 2768-1'));
+                    standardId = standard ? standard.value : null;
                 }
                 
-                // ISO 2768-1 standartları için normal işlem
-                if (standards) {
-                    const [standardName, toleranceClass] = value.split('_');
-                    const standard = standards.find(s => s.label.startsWith(standardName));
-                    newItem = { ...newItem, standard_id: standard ? standard.value : null, tolerance_class: toleranceClass, standard_class: value };
-                    const calculatedItem = autoCalculateTolerance(newItem);
-                    onUpdate(index, calculatedItem);
-                    return;
-                }
+                newItem = { 
+                    ...newItem, 
+                    standard_id: standardId, 
+                    tolerance_class: toleranceClass, 
+                    standard_class: value 
+                };
+                const calculatedItem = autoCalculateTolerance(newItem);
+                onUpdate(index, calculatedItem);
+                return;
             } else {
                 newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null };
             }
-        }
-        
-        // TS 13920 ve TS 9013 için tolerance_class değiştiğinde de tolerans hesapla
-        if (field === 'tolerance_class' && (item.standard_class === 'TS 13920' || item.standard_class === 'TS 9013')) {
-            newItem = { ...newItem, standard_class: item.standard_class }; // standard_class'ı koru
-            const calculatedItem = autoCalculateTolerance(newItem);
-            onUpdate(index, calculatedItem);
-            return;
         }
     
         if (field === 'equipment_id' && equipment) {
@@ -206,47 +206,6 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
     };
 
     const selectedCharacteristic = characteristics?.find(c => c.value === item.characteristic_id);
-    
-    const standardClassValue = useMemo(() => {
-        // TS 13920 veya TS 9013 ise sadece standart değerini döndür (tolerans ayrı combobox'ta)
-        if (item.standard_class === 'TS 13920' || item.standard_class === 'TS 9013') {
-            return item.standard_class;
-        }
-        
-        // ISO 2768-1 standartları için
-        if (!standards) return item.standard_class || '';
-        const standard = standards.find(s => s.value === item.standard_id);
-        if (standard && item.tolerance_class) {
-            const standardBaseName = standard.label.split(' ')[0];
-            return `${standardBaseName}_${item.tolerance_class}`;
-        }
-        return item.standard_class || '';
-    }, [item.standard_id, item.tolerance_class, standards, item.standard_class]);
-    
-    // TS 13920 için tolerans sınıfı seçenekleri (A, B, C, D)
-    const ts13920ToleranceOptions = [
-        { value: 'A', label: 'A (En Hassas)' },
-        { value: 'B', label: 'B (Hassas)' },
-        { value: 'C', label: 'C (Normal)' },
-        { value: 'D', label: 'D (Kaba)' },
-    ];
-    
-    // TS 9013 için tolerans sınıfı seçenekleri (Range 1, 2, 3, 4)
-    const ts9013ToleranceOptions = [
-        { value: '1', label: 'Range 1 (En Hassas)' },
-        { value: '2', label: 'Range 2 (Hassas)' },
-        { value: '3', label: 'Range 3 (Normal)' },
-        { value: '4', label: 'Range 4 (Kaba)' },
-    ];
-    
-    // Standarda göre tolerans sınıfı seçeneklerini belirle
-    const toleranceClassOptions = item.standard_class === 'TS 13920' 
-        ? ts13920ToleranceOptions 
-        : item.standard_class === 'TS 9013' 
-            ? ts9013ToleranceOptions 
-            : [];
-    
-    const isTSStandard = item.standard_class === 'TS 13920' || item.standard_class === 'TS 9013';
 
     return (
         <tr className="border-b transition-colors hover:bg-muted/50 text-sm">
@@ -261,23 +220,13 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                 <div className="space-y-1">
                     <Combobox 
                         options={STANDARD_OPTIONS} 
-                        value={standardClassValue} 
+                        value={item.standard_class || ''} 
                         onChange={(v) => handleFieldChange('standard_class', v)} 
                         placeholder="Standart seçin..." 
                         searchPlaceholder="Ara..." 
                         notFoundText="Bulunamadı." 
                         disabled={!isDimensional}
                     />
-                    {isTSStandard && isDimensional && (
-                        <Combobox 
-                            options={toleranceClassOptions} 
-                            value={item.tolerance_class || ''} 
-                            onChange={(v) => handleFieldChange('tolerance_class', v)} 
-                            placeholder="Tolerans Sınıfı..." 
-                            searchPlaceholder="Ara..." 
-                            notFoundText="Bulunamadı."
-                        />
-                    )}
                 </div>
             </td>
             <td className="p-2 align-top min-w-[120px]">
