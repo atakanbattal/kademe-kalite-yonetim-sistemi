@@ -601,18 +601,17 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="7" className="p-8 text-center text-muted-foreground">Yükleniyor...</td>
+                                <td colSpan="6" className="p-8 text-center text-muted-foreground">Yükleniyor...</td>
                             </tr>
                         ) : filteredPlans.length === 0 ? (
                             <tr>
-                                <td colSpan="7" className="p-8 text-center text-muted-foreground">Kontrol planı bulunamadı.</td>
+                                <td colSpan="6" className="p-8 text-center text-muted-foreground">Kontrol planı bulunamadı.</td>
                             </tr>
                         ) : (
                             filteredPlans.map((plan) => (
                                 <tr key={plan.id} className="border-t hover:bg-muted/50">
                                     <td className="p-3">{plan.vehicle_type || plan.process_control_equipment?.equipment_name || '-'}</td>
                                     <td className="p-3 font-medium">{plan.part_code}</td>
-                                    <td className="p-3">{plan.part_name}</td>
                                     <td className="p-3">{plan.part_name}</td>
                                     <td className="p-3">Rev.{plan.revision_number || 0}</td>
                                     <td className="p-3 text-center">{(plan.items || []).length}</td>
