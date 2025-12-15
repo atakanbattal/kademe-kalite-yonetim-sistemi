@@ -19,7 +19,7 @@ const ALL_MODULES = [
     'dashboard', 'kpi', 'kaizen', 'df-8d', 'quality-cost', 
     'supplier-quality', 'customer-complaints', 'incoming-quality', 'produced-vehicles', 
     'internal-audit', 'deviation', 'equipment', 'quarantine', 
-    'training', 'polyvalence', 'document', 'wps', 'tasks', 'settings', 'audit-logs'
+    'training', 'polyvalence', 'document', 'wps', 'tasks', 'process-control', 'settings', 'audit-logs'
 ];
 
 const moduleLabels = {
@@ -28,7 +28,7 @@ const moduleLabels = {
     'incoming-quality': 'Girdi Kalite', 'produced-vehicles': 'Üretilen Araçlar', 
     'internal-audit': 'İç Tetkik', deviation: 'Sapma', equipment: 'Ekipman', 
     quarantine: 'Karantina', training: 'Eğitim', polyvalence: 'Polivalans',
-    document: 'Doküman', wps: 'WPS', tasks: 'Görevler', settings: 'Ayarlar', 'audit-logs': 'Denetim Kayıtları'
+    document: 'Doküman', wps: 'WPS', tasks: 'Görevler', 'process-control': 'Proses Kontrol', settings: 'Ayarlar', 'audit-logs': 'Denetim Kayıtları'
 };
 
 const NewUserModal = ({ open, setOpen, onUserAdded }) => {

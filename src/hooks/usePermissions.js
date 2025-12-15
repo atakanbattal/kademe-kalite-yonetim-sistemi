@@ -15,8 +15,8 @@
 
         const hasFullAccess = modulePermission === 'full';
         const canRead = modulePermission === 'full' || modulePermission === 'read';
-        // Users with read permission can also write (create/update records)
-        const canWrite = modulePermission === 'full' || modulePermission === 'read';
+        // Only users with 'full' permission can write (create/update records)
+        const canWrite = modulePermission === 'full';
 
         return {
           canRead,
