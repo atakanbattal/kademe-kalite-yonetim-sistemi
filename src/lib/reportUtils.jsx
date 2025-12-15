@@ -1246,6 +1246,7 @@ const generateGenericReportHtml = (record, type) => {
 			case 'quarantine': return record.lot_no || '-';
 			case 'incoming_inspection': return record.record_no || '-';
 		case 'incoming_control_plans': return record.part_code || '-';
+		case 'process_control_plans': return record.part_code || '-';
 			case 'sheet_metal_entry': return record.delivery_note_number || '-';
 			case 'supplier_audit': return `TDA-${format(new Date(record.planned_date || record.actual_date || new Date()), 'yyyy-MM')}-${record.id.substring(0, 4)}`;
 			case 'internal_audit': return record.report_number || '-';
@@ -1262,6 +1263,7 @@ const generateGenericReportHtml = (record, type) => {
 			case 'quarantine': return 'Karantina Raporu';
 			case 'incoming_inspection': return 'Girdi Kontrol Raporu';
 		case 'incoming_control_plans': return 'Kontrol Planı Raporu';
+		case 'process_control_plans': return 'Proses Kontrol Planı Raporu';
 			case 'sheet_metal_entry': return 'Sac Metal Giriş Raporu';
 			case 'supplier_audit': return 'Tedarikçi Denetim Raporu';
 			case 'internal_audit': return 'İç Tetkik Raporu';
@@ -1657,6 +1659,62 @@ const generateGenericReportHtml = (record, type) => {
 				<tr><td>Revizyon No</td><td>${record.revision_number || 0}</td></tr>
 				<tr><td>Revizyon Tarihi</td><td>${formatDate(record.revision_date)}</td></tr>
 				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Örnekleme Özellikleri</h3>${itemsTableHtml}</td></tr>
+			`;
+			break;
+			}
+		case 'process_control_plans': {
+			// Ölçülmesi gereken noktalar ve ölçüleri net bir şekilde göster
+			const itemsTableHtml = record.items && record.items.length > 0
+				? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+					<thead>
+						<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Sıra</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Karakteristik</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Ölçüm Ekipmanı</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Standart</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Nominal Değer</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Min Tolerans</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Max Tolerans</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Tolerans Yönü</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.items.map((item, idx) => {
+							// Karakteristik tipi ve tolerans sınıfı bilgilerini göster
+							const characteristicInfo = item.characteristic_type ? `<div style="font-weight: 600; margin-bottom: 4px;">${item.characteristic_type}</div>` : '';
+							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.9em; color: #6b7280;">Tolerans: ${item.tolerance_class}</div>` : '';
+							const standardInfo = item.standard_class ? `<div style="font-size: 0.9em; color: #6b7280;">Standart: ${item.standard_class}</div>` : '';
+							
+							return `
+								<tr style="border-bottom: 1px solid #d1d5db;">
+									<td style="border: 1px solid #d1d5db; padding: 8px; font-weight: 600; text-align: center;">${idx + 1}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px;">
+										${characteristicInfo}
+										${toleranceInfo}
+									</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px;">${item.equipment_id || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px;">
+										${item.standard_id || '-'}
+										${standardInfo}
+									</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600; background-color: #eff6ff;">${item.nominal_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; background-color: #fef3c7;">${item.min_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; background-color: #fef3c7;">${item.max_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600;">${item.tolerance_direction || '±'}</td>
+								</tr>
+							`;
+						}).join('')}
+					</tbody>
+				</table>`
+				: '<p style="color: #6b7280; padding: 20px; text-align: center;">Ölçüm noktası bulunamadı.</p>';
+			
+			return `
+				<tr><td>Araç Tipi</td><td><strong>${record.vehicle_type || '-'}</strong></td></tr>
+				<tr><td>Parça Kodu</td><td><strong>${record.part_code || '-'}</strong></td></tr>
+				<tr><td>Parça Adı</td><td><strong>${record.part_name || '-'}</strong></td></tr>
+				<tr><td>Revizyon No</td><td>${record.revision_number || 0}</td></tr>
+				<tr><td>Revizyon Tarihi</td><td>${formatDate(record.revision_date)}</td></tr>
+				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
 			`;
 			break;
 			}

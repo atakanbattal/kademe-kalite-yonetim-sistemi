@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit, Trash2, Search, FilePlus, History, Eye, Minus, ChevronsRight, ArrowLeft } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FilePlus, History, Eye, Minus, ChevronsRight, ArrowLeft, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { sanitizeFileName } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { useData } from '@/contexts/DataContext';
+import { openPrintableReport } from '@/lib/reportUtils';
+import ControlPlanDetailModal from './ControlPlanDetailModal';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme", 
@@ -465,6 +467,15 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
         );
     });
 
+    const handleViewDetail = (plan) => {
+        setSelectedPlanDetail(plan);
+        setIsDetailModalOpen(true);
+    };
+
+    const handleDownloadDetailPDF = (enrichedData) => {
+        openPrintableReport(enrichedData, 'process_control_plans', true);
+    };
+
     return (
         <div className="space-y-4">
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -637,26 +648,32 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                     <td className="p-3 text-center">{(plan.items || []).length}</td>
                                     <td className="p-3 text-right">
                                         <div className="flex justify-end gap-2">
+                                            <Button variant="ghost" size="icon" onClick={() => handleViewDetail(plan)} title="Detayları Görüntüle">
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleDownloadDetailPDF(plan)} title="Rapor Al">
+                                                <FileSpreadsheet className="h-4 w-4" />
+                                            </Button>
                                             {plan.file_path && (
                                                 <Button variant="ghost" size="icon" onClick={() => {
                                                     supabase.storage.from('process_control').createSignedUrl(plan.file_path, 3600).then(({ data }) => {
                                                         if (data) window.open(data.signedUrl, '_blank');
                                                     });
-                                                }}>
-                                                    <Eye className="h-4 w-4" />
+                                                }} title="PDF Dosyasını Görüntüle">
+                                                    <FilePlus className="h-4 w-4" />
                                                 </Button>
                                             )}
                                             <Button variant="ghost" size="icon" onClick={() => {
                                                 setSelectedPlan(plan);
                                                 setIsFormOpen(true);
-                                            }}>
+                                            }} title="Düzenle">
                                                 <Edit className="h-4 w-4" />
                                             </Button>
                                             <Button variant="ghost" size="icon" onClick={() => {
                                                 const newRevisionNumber = (plan.revision_number || 0) + 1;
                                                 setSelectedPlan({ ...plan, revision_number: newRevisionNumber });
                                                 setIsFormOpen(true);
-                                            }}>
+                                            }} title="Revize Et">
                                                 <History className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -667,6 +684,16 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                     </tbody>
                 </table>
             </div>
+
+            {/* Detay Modal */}
+            {isDetailModalOpen && (
+                <ControlPlanDetailModal
+                    isOpen={isDetailModalOpen}
+                    setIsOpen={setIsDetailModalOpen}
+                    plan={selectedPlanDetail}
+                    onDownloadPDF={handleDownloadDetailPDF}
+                />
+            )}
         </div>
     );
 };
