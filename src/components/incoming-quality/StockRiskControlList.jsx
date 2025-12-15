@@ -231,7 +231,7 @@ const StockRiskControlList = () => {
                             <TableHead>Kontrol Eden</TableHead>
                             <TableHead>Durum</TableHead>
                             <TableHead>Karar</TableHead>
-                            <TableHead className="text-right">İşlemler</TableHead>
+                            <TableHead className="sticky right-0 bg-card text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -269,7 +269,7 @@ const StockRiskControlList = () => {
                                     <TableCell>{control.controlled_by?.full_name || '-'}</TableCell>
                                     <TableCell>{getStatusBadge(control.status)}</TableCell>
                                     <TableCell>{getDecisionBadge(control.decision)}</TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>

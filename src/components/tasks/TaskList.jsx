@@ -41,7 +41,7 @@ import React from 'react';
                                 <TableHead>Öncelik</TableHead>
                                 <TableHead>Durum</TableHead>
                                 <TableHead>Bitiş Tarihi</TableHead>
-                                <TableHead className="text-right w-[120px]">İşlemler</TableHead>
+                                <TableHead className="sticky right-0 bg-card text-right w-[120px] z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -74,7 +74,7 @@ import React from 'react';
                                     <TableCell>
                                         {task.due_date ? format(new Date(task.due_date), 'dd.MM.yyyy', { locale: tr }) : '-'}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="sticky right-0 bg-card text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="icon">

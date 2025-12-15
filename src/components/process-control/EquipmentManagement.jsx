@@ -275,7 +275,7 @@ const EquipmentManagement = ({ equipment, loading, refreshEquipment }) => {
                             <th className="p-3 text-left">Lokasyon</th>
                             <th className="p-3 text-left">Sorumlu Birim</th>
                             <th className="p-3 text-left">Durum</th>
-                            <th className="p-3 text-right">İşlemler</th>
+                            <th className="sticky right-0 bg-card p-3 text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -308,7 +308,7 @@ const EquipmentManagement = ({ equipment, loading, refreshEquipment }) => {
                                             {eq.status}
                                         </span>
                                     </td>
-                                    <td className="p-3 text-right">
+                                    <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] p-3 text-right">
                                         <div className="flex justify-end gap-2">
                                             <Button
                                                 variant="ghost"

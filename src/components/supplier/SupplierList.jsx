@@ -172,7 +172,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                                 <th>İlişki</th>
                                 <th>Yaklaşan Denetim</th>
                                 <th>Durum</th>
-                                <th>İşlemler</th>
+                                <th className="sticky right-0 bg-card px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -298,7 +298,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                                         ) : '-'}
                                     </td>
                                     <td>{getStatusBadge(supplier.status)}</td>
-                                    <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                                    <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-center" onClick={(e) => e.stopPropagation()}>
                                         <AlertDialog>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>

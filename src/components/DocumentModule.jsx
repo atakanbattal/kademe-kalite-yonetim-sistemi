@@ -463,7 +463,7 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                                             <th>Yayın Tarihi</th>
                                             <th>Revizyon Tarihi</th>
                                             <th>Geçerlilik Durumu</th>
-                                            <th>İşlemler</th>
+                                            <th className="sticky right-0 bg-card px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -521,7 +521,7 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                                                         })() : '-'}
                                                     </td>
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
-                                                    <td className="flex items-center gap-2 flex-wrap">
+                                                    <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] flex items-center gap-2 flex-wrap">
                                                         <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>
                                                         <Button variant="ghost" size="sm" onClick={() => downloadPdf(revision, fileName, doc.document_type)} disabled={!hasFile}><FileDown className="w-4 h-4 mr-1" /> İndir</Button>
                                                         <Button variant="ghost" size="sm" onClick={() => handleReviseDocument(doc)}><RefreshCw className="w-4 h-4 mr-1" /> Revize Et</Button>

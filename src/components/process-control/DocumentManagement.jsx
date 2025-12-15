@@ -327,7 +327,7 @@ const DocumentManagement = ({ equipment, documents, loading, refreshDocuments, r
                             <th className="p-3 text-left">Tip</th>
                             <th className="p-3 text-left">Doküman No</th>
                             <th className="p-3 text-left">Revizyon</th>
-                            <th className="p-3 text-right">İşlemler</th>
+                            <th className="sticky right-0 bg-card p-3 text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -353,7 +353,7 @@ const DocumentManagement = ({ equipment, documents, loading, refreshDocuments, r
                                     <td className="p-3">{doc.document_type}</td>
                                     <td className="p-3">{doc.document_number || '-'}</td>
                                     <td className="p-3">Rev.{doc.revision_number || 0}</td>
-                                    <td className="p-3 text-right">
+                                    <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] p-3 text-right">
                                         <div className="flex justify-end gap-2">
                                             <Button
                                                 variant="ghost"

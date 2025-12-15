@@ -95,7 +95,7 @@ const KaizenList = ({ type, data, loading, onEdit, onDelete, onAdd, onView }) =>
                             <th>Yıllık Kazanç</th>
                             <th>Tarih</th>
                             <th>Durum</th>
-                            <th>İşlemler</th>
+                            <th className="sticky right-0 bg-card px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -124,7 +124,7 @@ const KaizenList = ({ type, data, loading, onEdit, onDelete, onAdd, onView }) =>
                                     <td className="font-semibold text-green-600">{(item.total_yearly_gain || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</td>
                                     <td>{format(new Date(item.created_at), 'dd.MM.yyyy')}</td>
                                     <td><Badge variant={getStatusVariant(item.status)}>{item.status}</Badge></td>
-                                    <td className="flex gap-1">
+                                    <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] flex gap-1">
                                         <Button size="icon" variant="ghost" onClick={() => onView(item)}><Eye className="w-4 h-4" /></Button>
                                         <Button size="icon" variant="ghost" onClick={() => onEdit(item)}><Edit className="w-4 h-4" /></Button>
                                         <AlertDialog>

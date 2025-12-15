@@ -32,7 +32,7 @@ const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData 
                         <TableHead>Ana Malzeme</TableHead>
                         <TableHead>Kaynak Prosesi</TableHead>
                         <TableHead>Durum</TableHead>
-                        <TableHead className="text-right">İşlemler</TableHead>
+                        <TableHead className="sticky right-0 bg-card text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -60,7 +60,7 @@ const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData 
                                 <TableCell>{wps.base_material_1?.name || '-'}</TableCell>
                                 <TableCell>{wps.welding_process_code || '-'}</TableCell>
                                 <TableCell>{wps.status}</TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-right">
                                     <AlertDialog>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
