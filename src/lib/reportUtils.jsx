@@ -1688,11 +1688,13 @@ const generateGenericReportHtml = (record, type) => {
 				</table>`
 				: '<p style="color: #6b7280; padding: 20px; text-align: center;">Ölçüm noktası bulunamadı.</p>';
 			
+			const formatDate = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+			
 			return `
 				<tr><td>Parça Kodu</td><td><strong>${record.part_code || '-'}</strong></td></tr>
 				<tr><td>Parça Adı</td><td><strong>${record.part_name || '-'}</strong></td></tr>
 				<tr><td>Revizyon No</td><td>${record.revision_number || 0}</td></tr>
-				<tr><td>Revizyon Tarihi</td><td>${formatDate(record.revision_date)}</td></tr>
+				<tr><td>Revizyon Tarihi</td><td>${record.revision_date ? formatDate(record.revision_date) : (record.updated_at ? formatDate(record.updated_at) : (record.created_at ? formatDate(record.created_at) : '-'))}</td></tr>
 				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
 			`;
 			break;
