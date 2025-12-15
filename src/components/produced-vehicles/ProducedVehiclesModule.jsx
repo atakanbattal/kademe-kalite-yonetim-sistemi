@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
     import { motion } from 'framer-motion';
     import { Plus, SlidersHorizontal, Search, BarChart2, List } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
@@ -39,6 +39,16 @@ import React, { useState, useMemo } from 'react';
 
         const [selectedVehicle, setSelectedVehicle] = useState(null);
         const [activeTab, setActiveTab] = useState('operations');
+        
+        // selectedVehicle'ı producedVehicles güncellendiğinde senkronize tut
+        useEffect(() => {
+            if (selectedVehicle && producedVehicles.length > 0) {
+                const updatedVehicle = producedVehicles.find(v => v.id === selectedVehicle.id);
+                if (updatedVehicle && JSON.stringify(updatedVehicle) !== JSON.stringify(selectedVehicle)) {
+                    setSelectedVehicle(updatedVehicle);
+                }
+            }
+        }, [producedVehicles, selectedVehicle]);
 
         const filteredVehicles = useMemo(() => {
             let sortedVehicles = [...producedVehicles].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
