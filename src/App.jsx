@@ -515,7 +515,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
                                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                                 className="fixed top-0 left-0 w-[280px] sm:w-64 h-screen z-40 lg:relative lg:z-auto flex-shrink-0 shadow-xl lg:shadow-none"
                             >
-                                <Sidebar activeModule={activeModule} setActiveModule={handleModuleChange} permittedModules={PERMITTED_MODULES} setSidebarOpen={setSidebarOpen} />
+                                <Sidebar activeModule={activeModule} setActiveModule={handleModuleChange} permittedModules={PERMITTED_MODULES} setSidebarOpen={setSidebarOpen} moduleTitles={moduleTitles} />
                             </motion.aside>
                             )}
                         </AnimatePresence>
@@ -523,7 +523,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
                         {/* Main Content */}
                         <div className="flex flex-1 flex-col min-w-0 w-full">
                             {/* Mobile Header */}
-                            <header className="mobile-sticky-header flex h-14 items-center gap-3 px-3 sm:px-4 md:px-6 lg:h-16">
+                            <header className="mobile-sticky-header flex h-14 items-center gap-3 px-3 sm:px-4 md:px-6 lg:h-16 bg-card border-b border-border">
                                 <Button 
                                     size="icon" 
                                     variant="outline" 
@@ -533,12 +533,16 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
                                     {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                                     <span className="sr-only">Menüyü Aç/Kapat</span>
                                 </Button>
-                                <h1 className={cn(
-                                    "text-base font-semibold sm:text-lg md:text-xl lg:text-2xl text-foreground truncate",
-                                    isSidebarOpen && "lg:opacity-0"
-                                )}>
-                                    {moduleTitles[activeModule] || 'Ana Panel'}
-                                </h1>
+                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                    <h1 className="text-base font-semibold sm:text-lg md:text-xl lg:text-2xl text-foreground truncate">
+                                        {moduleTitles[activeModule] || 'Ana Panel'}
+                                    </h1>
+                                    {activeModule && (
+                                        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                            {activeModule}
+                                        </span>
+                                    )}
+                                </div>
                             </header>
                             
                             {/* Main Content Area */}

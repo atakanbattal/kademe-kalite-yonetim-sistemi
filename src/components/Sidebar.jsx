@@ -81,7 +81,8 @@ const Sidebar = ({
   activeModule,
   setActiveModule,
   permittedModules,
-  setSidebarOpen
+  setSidebarOpen,
+  moduleTitles
 }) => {
   const {
     user,
@@ -102,23 +103,34 @@ const Sidebar = ({
   return (
     <div className="flex flex-col h-full bg-card text-card-foreground border-r border-border">
       {/* Header - Mobil için güvenli alan */}
-      <div className="flex items-center justify-between p-3 sm:p-4 border-b border-border shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 0.75rem)' }}>
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <ShieldCheck className="h-8 w-8 sm:h-10 sm:w-10 text-primary shrink-0" />
-          <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-bold leading-tight truncate">Kademe A.Ş.</h1>
-            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Kalite Yönetim Sistemi</p>
+      <div className="flex flex-col gap-2 p-3 sm:p-4 border-b border-border shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 0.75rem)' }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <ShieldCheck className="h-8 w-8 sm:h-10 sm:w-10 text-primary shrink-0" />
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base sm:text-lg font-bold leading-tight truncate">Kademe A.Ş.</h1>
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Kalite Yönetim Sistemi</p>
+            </div>
           </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="lg:hidden h-9 w-9 shrink-0" 
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-5 w-5" />
+            <span className="sr-only">Menüyü kapat</span>
+          </Button>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="lg:hidden h-9 w-9 shrink-0" 
-          onClick={() => setSidebarOpen(false)}
-        >
-          <X className="h-5 w-5" />
-          <span className="sr-only">Menüyü kapat</span>
-        </Button>
+        {/* Aktif Modül Göstergesi */}
+        {activeModule && moduleTitles?.[activeModule] && (
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/10">
+            <div className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0"></div>
+            <p className="text-xs sm:text-sm font-semibold text-primary truncate flex-1">
+              {moduleTitles[activeModule]}
+            </p>
+          </div>
+        )}
       </div>
       
       {/* Navigation - Scrollable */}
