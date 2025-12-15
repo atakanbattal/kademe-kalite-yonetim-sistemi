@@ -79,18 +79,18 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
     return (
         <>
             <div className="overflow-x-auto bg-card p-4 rounded-lg border">
-                <table className="data-table w-full" style={{ minWidth: '1600px', tableLayout: 'fixed' }}>
+                <table className="data-table" style={{ minWidth: '1600px', width: '100%' }}>
                     <thead>
                         <tr>
-                            <th className="px-4 py-2 text-left" style={{ width: '130px' }}>No</th>
-                            <th className="px-4 py-2 text-left" style={{ width: '90px' }}>Tip</th>
-                            <th className="px-4 py-2 text-left" style={{ width: '380px' }}>Problem</th>
-                            <th className="px-4 py-2 text-left" style={{ width: '160px' }}>Departman</th>
-                            <th className="px-4 py-2 text-left whitespace-nowrap" style={{ width: '140px' }}>Açılış Tarihi</th>
-                            <th className="px-4 py-2 text-left whitespace-nowrap" style={{ width: '140px' }}>Kapanış Tarihi</th>
-                            <th className="px-4 py-2 text-left whitespace-nowrap" style={{ width: '140px' }}>Termin Tarihi</th>
-                            <th className="px-4 py-2 text-left" style={{ width: '140px' }}>Durum</th>
-                            <th className="px-4 py-2 text-center whitespace-nowrap" style={{ width: '120px' }}>İşlemler</th>
+                            <th className="px-4 py-2 text-left">No</th>
+                            <th className="px-4 py-2 text-left">Tip</th>
+                            <th className="px-4 py-2 text-left min-w-[350px]">Problem</th>
+                            <th className="px-4 py-2 text-left">Departman</th>
+                            <th className="px-4 py-2 text-left whitespace-nowrap">Açılış Tarihi</th>
+                            <th className="px-4 py-2 text-left whitespace-nowrap">Kapanış Tarihi</th>
+                            <th className="px-4 py-2 text-left whitespace-nowrap">Termin Tarihi</th>
+                            <th className="px-4 py-2 text-left">Durum</th>
+                            <th className="px-4 py-2 text-center whitespace-nowrap min-w-[100px]">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
