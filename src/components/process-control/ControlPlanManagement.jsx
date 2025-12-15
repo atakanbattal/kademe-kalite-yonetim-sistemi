@@ -474,7 +474,17 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
         setIsDetailModalOpen(true);
     };
 
-    const handleDownloadDetailPDF = (enrichedData) => {
+    const handleDownloadDetailPDF = (planData) => {
+        // Karakteristik ve ekipman bilgilerini ekle
+        const enrichedData = {
+            ...planData,
+            items: (planData.items || []).map(item => ({
+                ...item,
+                characteristic_name: characteristics?.find(c => c.value === item.characteristic_id)?.label || item.characteristic_id,
+                equipment_name: measurementEquipment?.find(e => e.value === item.equipment_id)?.label || item.equipment_id,
+                standard_name: standards?.find(s => s.value === item.standard_id)?.label || item.standard_id,
+            }))
+        };
         openPrintableReport(enrichedData, 'process_control_plans', true);
     };
 
