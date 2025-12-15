@@ -328,8 +328,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         </div>
                     </DialogHeader>
                     
-                    <div className="flex-1 overflow-hidden min-h-0 mt-4">
-                        <ScrollArea className="h-full w-full pr-4">
+                    <div className="flex-1 overflow-y-auto min-h-0 mt-4 pr-2">
                         <Tabs defaultValue="details" className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="details">Temel Bilgiler</TabsTrigger>
@@ -461,7 +460,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 <TimelineTab vehicle={vehicle} onUpdate={onUpdate} />
                             </TabsContent>
                         </Tabs>
-                        </ScrollArea>
                     </div>
 
                     <DialogFooter className="flex-shrink-0 mt-4 pt-4 border-t">
