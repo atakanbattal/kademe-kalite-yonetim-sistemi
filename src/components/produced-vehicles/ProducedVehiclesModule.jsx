@@ -238,11 +238,12 @@ import React, { useState, useMemo, useEffect } from 'react';
                             transition={{ delay: 0.2 }}
                         >
                             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
-                                <div className="relative flex-grow">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
+                                <div className="search-box flex-grow">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                                    <input
+                                        type="text"
                                         placeholder="Şasi, Tip veya Müşteri Ara..."
-                                        className="pl-10"
+                                        className="search-input"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                     />

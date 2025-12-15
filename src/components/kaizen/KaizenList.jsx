@@ -76,9 +76,15 @@ const KaizenList = ({ type, data, loading, onEdit, onDelete, onAdd, onView }) =>
             <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
                 <h3 className="text-lg font-semibold">{type === 'vehicle_based' ? 'Araç Bazlı Kaizen Listesi' : 'Genel Kaizen Listesi'}</h3>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="relative w-full sm:w-auto">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Ara..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <div className="search-box w-full sm:w-auto">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                        <input
+                            type="text"
+                            placeholder="Ara..."
+                            className="search-input"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                     <Button onClick={handleExport} variant="outline" size="sm" className="flex-shrink-0"><FileDown className="mr-2 h-4 w-4" /> Dışa Aktar</Button>
                     <Button onClick={onAdd} className="flex-shrink-0"><Plus className="mr-2 h-4 w-4" /> Yeni</Button>

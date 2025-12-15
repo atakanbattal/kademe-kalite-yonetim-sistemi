@@ -326,11 +326,12 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
 
                     {/* Filtreler - Tüm Tedarikçiler seçildiğinde de görünür */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
+                        <div className="search-box">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                            <input
+                                type="text"
                                 placeholder="Doküman ara..."
-                                className="pl-10"
+                                className="search-input"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />

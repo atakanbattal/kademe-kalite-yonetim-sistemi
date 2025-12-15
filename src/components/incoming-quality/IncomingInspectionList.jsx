@@ -211,9 +211,15 @@ import React from 'react';
         return (
             <div className="p-4 border rounded-lg bg-card">
                 <div className="flex items-center justify-between mb-4 gap-2">
-                    <div className="relative w-full max-w-sm">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Parça, tedarikçi veya kayıt no ara..." className="pl-10" value={filters.searchTerm} onChange={(e) => setFilters(prev => ({...prev, searchTerm: e.target.value}))} />
+                    <div className="search-box w-full max-w-sm">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                        <input
+                            type="text"
+                            placeholder="Parça, tedarikçi veya kayıt no ara..."
+                            className="search-input"
+                            value={filters.searchTerm}
+                            onChange={(e) => setFilters(prev => ({...prev, searchTerm: e.target.value}))}
+                        />
                     </div>
                     <div className="flex items-center gap-2">
                         {filters.controlPlanStatus === 'Mevcut Değil' && (

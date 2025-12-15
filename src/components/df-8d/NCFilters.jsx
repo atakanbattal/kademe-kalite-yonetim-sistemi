@@ -63,14 +63,14 @@ const NCFilters = ({ filters, setFilters }) => {
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-card border rounded-lg">
-            <div className="relative col-span-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+            <div className="search-box col-span-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                <input
                     type="text"
                     placeholder="Ara (No, Başlık, Açıklama, Sorumlu, Birim, Tedarikçi, Parça...)"
                     value={localSearchTerm}
                     onChange={handleInputChange}
-                    className="pl-10 w-full"
+                    className="search-input"
                 />
             </div>
             <Select value={filters.status} onValueChange={(value) => handleSelectChange('status', value)}>

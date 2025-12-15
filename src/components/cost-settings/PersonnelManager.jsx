@@ -344,11 +344,12 @@ const PersonnelManager = () => {
             <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
                 <h2 className="widget-title">Personel Listesi</h2>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="relative w-full sm:w-auto">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Personel ara..." 
-                            className="pl-10"
+                    <div className="search-box w-full sm:w-auto">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                        <input
+                            type="text"
+                            placeholder="Personel ara..."
+                            className="search-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />

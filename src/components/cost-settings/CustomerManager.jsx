@@ -765,11 +765,12 @@ const CustomerManager = () => {
                     {/* Filtreler ve Arama */}
                     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-4">
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
-                            <div className="relative flex-1 sm:flex-initial">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Müşteri ara..." 
-                                    className="pl-10 w-full sm:w-64"
+                            <div className="search-box flex-1 sm:flex-initial">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                                <input
+                                    type="text"
+                                    placeholder="Müşteri ara..."
+                                    className="search-input w-full sm:w-64"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />

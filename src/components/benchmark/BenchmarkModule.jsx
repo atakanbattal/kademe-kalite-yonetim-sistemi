@@ -345,13 +345,14 @@ const BenchmarkModule = () => {
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
                         <div className="flex gap-4">
-                            <div className="flex-1 relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
+                            <div className="search-box flex-1">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                                <input
+                                    type="text"
                                     placeholder="Başlık, numara, etiket ile ara..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10"
+                                    className="search-input"
                                 />
                             </div>
                             <Button

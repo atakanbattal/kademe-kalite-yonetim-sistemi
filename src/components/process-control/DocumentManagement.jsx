@@ -304,11 +304,12 @@ const DocumentManagement = ({ equipment, documents, loading, refreshDocuments, r
             </Dialog>
 
             <div className="flex justify-between items-center">
-                <div className="relative w-full max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
+                <div className="search-box w-full max-w-sm">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                    <input
+                        type="text"
                         placeholder="Doküman adı, numarası veya araç ile ara..."
-                        className="pl-10"
+                        className="search-input"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />

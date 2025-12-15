@@ -296,9 +296,15 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
                     <h2 className="text-xl font-bold">Sertifika Yönetimi</h2>
                     <div className="flex items-center gap-2 flex-grow sm:flex-grow-0">
-                        <div className="relative w-full max-w-sm">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Eğitim veya katılımcı ara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+                        <div className="search-box w-full max-w-sm">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                            <input
+                                type="text"
+                                placeholder="Eğitim veya katılımcı ara..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="search-input"
+                            />
                         </div>
                         <ManualCertificateModal onCertificateGenerated={fetchEligibleParticipants} />
                     </div>

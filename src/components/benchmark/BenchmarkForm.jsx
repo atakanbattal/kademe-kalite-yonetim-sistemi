@@ -901,13 +901,14 @@ const BenchmarkForm = ({
                                     ) : (
                                         <>
                                             {/* Arama Input'u */}
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                <Input
+                                            <div className="search-box">
+                                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                                                <input
+                                                    type="text"
                                                     placeholder="İsim veya departman ara..."
                                                     value={teamSearchValue}
                                                     onChange={(e) => setTeamSearchValue(e.target.value)}
-                                                    className="pl-9"
+                                                    className="search-input"
                                                 />
                                             </div>
 

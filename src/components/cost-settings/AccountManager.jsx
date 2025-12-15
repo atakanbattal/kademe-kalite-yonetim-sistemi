@@ -283,13 +283,14 @@ const AccountManager = () => {
                         </p>
                     </div>
                     <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <div className="relative flex-1 sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Kullanıcı ara..." 
-                                className="pl-10" 
-                                value={searchTerm} 
-                                onChange={(e) => setSearchTerm(e.target.value)} 
+                        <div className="search-box flex-1 sm:w-64">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                            <input
+                                type="text"
+                                placeholder="Kullanıcı ara..."
+                                className="search-input"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                         <Button variant="outline" size="sm" onClick={() => setNewUserModalOpen(true)} className="flex-shrink-0">

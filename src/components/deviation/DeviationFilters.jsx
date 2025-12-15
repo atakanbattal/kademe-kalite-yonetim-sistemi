@@ -41,14 +41,14 @@ const DeviationFilters = ({ filters, setFilters, deviations }) => {
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 my-4 p-4 bg-card border rounded-lg">
-            <div className="relative col-span-1 lg:col-span-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+            <div className="search-box col-span-1 lg:col-span-2">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                <input
                     type="text"
                     placeholder="Ara (No, Açıklama...)"
                     value={filters.searchTerm}
                     onChange={handleInputChange}
-                    className="pl-10 w-full"
+                    className="search-input"
                 />
             </div>
             <Select value={filters.status} onValueChange={(value) => handleSelectChange('status', value)}>

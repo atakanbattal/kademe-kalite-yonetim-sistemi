@@ -270,14 +270,14 @@ export default function ComplaintsList({
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex gap-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <Input
+                        <div className="search-box flex-1">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                            <input
                                 type="text"
                                 placeholder="Şikayet numarası, başlık, müşteri, ürün ara..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
+                                className="search-input"
                             />
                         </div>
                         <Button
