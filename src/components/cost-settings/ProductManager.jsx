@@ -91,8 +91,47 @@ const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categorie
 
         setIsSubmitting(true);
 
-        const { id, created_at, updated_at, product_categories, ...dataToSubmit } = formData;
-        dataToSubmit.updated_at = new Date().toISOString();
+        // FormData'dan gereksiz alanları temizle ve undefined değerleri null'a çevir
+        const { id, created_at, updated_at, product_categories, ...rest } = formData;
+        
+        // Sadece geçerli alanları ekle ve undefined değerleri temizle
+        const dataToSubmit = {
+            product_code: formData.product_code,
+            product_name: formData.product_name,
+            category_id: formData.category_id,
+            is_active: formData.is_active !== undefined ? formData.is_active : true,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Opsiyonel alanları ekle (sadece dolu olanlar)
+        if (formData.description && formData.description.trim()) {
+            dataToSubmit.description = formData.description.trim();
+        }
+        
+        if (formData.part_number && formData.part_number.trim()) {
+            dataToSubmit.part_number = formData.part_number.trim();
+        }
+        
+        if (formData.drawing_number && formData.drawing_number.trim()) {
+            dataToSubmit.drawing_number = formData.drawing_number.trim();
+        }
+        
+        if (formData.revision && formData.revision.trim()) {
+            dataToSubmit.revision = formData.revision.trim();
+        }
+        
+        if (formData.vehicle_model && formData.vehicle_model.trim()) {
+            dataToSubmit.vehicle_model = formData.vehicle_model.trim();
+        }
+        
+        if (formData.vehicle_year !== null && formData.vehicle_year !== undefined && formData.vehicle_year !== '') {
+            dataToSubmit.vehicle_year = parseInt(formData.vehicle_year);
+        }
+        
+        // Specifications - boş değilse ekle
+        if (formData.specifications && typeof formData.specifications === 'object' && Object.keys(formData.specifications).length > 0) {
+            dataToSubmit.specifications = formData.specifications;
+        }
 
         let error;
         if (isEditMode) {
