@@ -259,12 +259,11 @@ body {
 
 /* Global Print Style Overrides to remove URLs from PDFs */
 @media print {
-  /* Tarayıcı/ütüleyici kütüphanelerin eklediği “(href)” uzantılarını kapat */
+  /* Tarayıcı/ütüleyici kütüphanelerin eklediği "(href)" uzantılarını kapat */
   a[href]::after { content: "" !important; }
   a[href]::before { content: "" !important; }
   /* Linkleri normal metin gibi göster */
   a, a:visited { color: inherit !important; text-decoration: none !important; }
   /* Tooltip/title kaynaklı döküme düşebilecek metinleri engelle */
   [title]::after { content: "" !important; }
-}
 }
