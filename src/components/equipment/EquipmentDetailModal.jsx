@@ -86,32 +86,88 @@ import React, { useState, useEffect } from 'react';
                     return;
                 }
 
-                // Path formatını normalize et - eğer path başında '/' varsa kaldır
+                // Path formatını normalize et
                 let normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+                
+                // Eğer path 'public/' ile başlıyorsa kaldır (Supabase Storage'da bucket adı kullanılır, public/ prefix'i gerekmez)
+                if (normalizedPath.startsWith('public/')) {
+                    normalizedPath = normalizedPath.replace('public/', '');
+                }
+                
+                // Path formatını analiz et ve equipment_id'yi çıkar
+                // Olası formatlar:
+                // 1. {equipment_id}/{uuid}-{filename} (yeni format)
+                // 2. {equipment_id}-{uuid}-{serial_number}.pdf (eski format - public/ ile başlayabilir)
+                // 3. {uuid}-{filename} (eski format - equipment_id yok)
+                
+                const pathParts = normalizedPath.split('/');
+                let extractedEquipmentId = null;
+                let fileName = normalizedPath;
+                
+                // UUID pattern (8-4-4-4-12 karakter)
+                const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                
+                // Eğer path'te '/' varsa, ilk kısım equipment_id olabilir
+                if (pathParts.length > 1) {
+                    const firstPart = pathParts[0];
+                    if (uuidPattern.test(firstPart)) {
+                        extractedEquipmentId = firstPart;
+                        fileName = pathParts.slice(1).join('/');
+                    }
+                } else {
+                    // Path'te '/' yok, equipment_id path'in başında olabilir (eski format)
+                    // Örnek: 6d21d3ef-2c30-41aa-b0d3-376b8e4e4c9b-ab4535b8-1ff0-4497-ace8-f0a6a53ac916-219009.pdf
+                    // Bu path'te iki UUID var gibi görünüyor ama format standart değil
+                    // En iyi yaklaşım: Path'in tamamını dosya adı olarak kabul et ve equipment.id ile birleştir
+                    // Ama önce path'te UUID var mı kontrol et
+                    const parts = normalizedPath.split('-');
+                    if (parts.length >= 5) {
+                        // İlk 5 parça bir UUID'nin başlangıcı olabilir
+                        const potentialUuid = parts.slice(0, 5).join('-');
+                        // Eğer bu bir UUID formatına uyuyorsa (tam UUID değil ama başlangıcı)
+                        // Path'in geri kalanını dosya adı olarak al
+                        if (parts.length > 5) {
+                            // İlk UUID'yi equipment_id olarak kabul et (tam UUID olmasa bile)
+                            extractedEquipmentId = potentialUuid;
+                            fileName = parts.slice(5).join('-');
+                        }
+                    }
+                }
                 
                 // Olası path formatlarını dene (öncelik sırasına göre)
                 const pathAttempts = [];
                 
-                // 1. Eğer path zaten equipment_id içeriyorsa, önce onu dene
+                // 1. Eğer path zaten equipment.id ile başlıyorsa, önce onu dene
                 if (normalizedPath.startsWith(`${equipment.id}/`)) {
                     pathAttempts.push(normalizedPath);
                 }
                 
-                // 2. Doğrudan path'i dene (eski formatlar için)
-                pathAttempts.push(normalizedPath);
+                // 2. Çıkarılan equipment_id ile dene (path'ten parse edilen)
+                if (extractedEquipmentId && fileName !== normalizedPath) {
+                    pathAttempts.push(`${extractedEquipmentId}/${fileName}`);
+                }
                 
-                // 3. Eğer path'te '/' yoksa, equipment_id ekle
+                // 3. Mevcut equipment.id ile dene (en yaygın format)
                 if (!normalizedPath.includes('/')) {
+                    // Path'te '/' yok, equipment.id ekle
                     pathAttempts.push(`${equipment.id}/${normalizedPath}`);
+                } else {
+                    // Path'te '/' var, sadece dosya adını al ve equipment.id ile birleştir
+                    const fileNameOnly = pathParts[pathParts.length - 1];
+                    pathAttempts.push(`${equipment.id}/${fileNameOnly}`);
+                    // Ayrıca path'in tamamını da dene (eğer equipment_id path'in başındaysa)
+                    if (pathParts[0] !== equipment.id) {
+                        pathAttempts.push(`${equipment.id}/${normalizedPath}`);
+                    }
                 }
                 
-                // 4. Path'in son kısmını al ve equipment_id ile birleştir (eğer path başka bir format içeriyorsa)
-                const pathParts = normalizedPath.split('/');
-                if (pathParts.length > 1 && pathParts[0] !== equipment.id) {
-                    // Path'in son kısmını al ve equipment_id ile birleştir
-                    const fileName = pathParts[pathParts.length - 1];
-                    pathAttempts.push(`${equipment.id}/${fileName}`);
+                // 4. Çıkarılan equipment_id ile path'in tamamını dene (eğer parse edildiyse)
+                if (extractedEquipmentId) {
+                    pathAttempts.push(`${extractedEquipmentId}/${normalizedPath}`);
                 }
+                
+                // 5. Doğrudan path'i dene (eski formatlar için - son çare)
+                pathAttempts.push(normalizedPath);
                 
                 // Tekrarları kaldır
                 const uniquePathAttempts = [...new Set(pathAttempts)];

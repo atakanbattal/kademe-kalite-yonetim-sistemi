@@ -19,6 +19,11 @@ import React from 'react';
                 // Path formatını normalize et
                 let normalizedPath = path.startsWith('/') ? path.slice(1) : path;
                 
+                // Eğer path 'public/' ile başlıyorsa kaldır (Supabase Storage'da bucket adı kullanılır, public/ prefix'i gerekmez)
+                if (normalizedPath.startsWith('public/')) {
+                    normalizedPath = normalizedPath.replace('public/', '');
+                }
+                
                 // Olası path formatlarını dene
                 const pathAttempts = [
                     normalizedPath, // Doğrudan path
