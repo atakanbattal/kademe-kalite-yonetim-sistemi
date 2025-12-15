@@ -649,7 +649,6 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
 
         const handleDownloadDetailPDF = (planData) => {
             // Karakteristik ve ekipman bilgilerini ekle (process control gibi)
-            const { characteristics, equipment: measurementEquipment, standards } = useData();
             const enrichedData = {
                 ...planData,
                 items: (planData.items || []).map(item => {
@@ -664,7 +663,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                     return {
                         ...item,
                         characteristic_name: characteristics?.find(c => c.value === item.characteristic_id)?.label || item.characteristic_id,
-                        equipment_name: measurementEquipment?.find(e => e.value === item.equipment_id)?.label || item.equipment_id,
+                        equipment_name: equipment?.find(e => e.value === item.equipment_id)?.label || item.equipment_id,
                         standard_name: standardName,
                     };
                 })

@@ -491,12 +491,22 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
         // Karakteristik ve ekipman bilgilerini ekle
         const enrichedData = {
             ...planData,
-            items: (planData.items || []).map(item => ({
-                ...item,
-                characteristic_name: characteristics?.find(c => c.value === item.characteristic_id)?.label || item.characteristic_id,
-                equipment_name: measurementEquipment?.find(e => e.value === item.equipment_id)?.label || item.equipment_id,
-                standard_name: standards?.find(s => s.value === item.standard_id)?.label || item.standard_id,
-            }))
+            items: (planData.items || []).map(item => {
+                // Standart bilgisini işle - standard_class varsa onu kullan, yoksa standard_name
+                let standardName = null;
+                if (item.standard_class) {
+                    standardName = item.standard_class; // TS 13920, TS 9013 gibi
+                } else if (item.standard_id) {
+                    standardName = standards?.find(s => s.value === item.standard_id)?.label || item.standard_id;
+                }
+                
+                return {
+                    ...item,
+                    characteristic_name: characteristics?.find(c => c.value === item.characteristic_id)?.label || item.characteristic_id,
+                    equipment_name: measurementEquipment?.find(e => e.value === item.equipment_id)?.label || item.equipment_id,
+                    standard_name: standardName,
+                };
+            })
         };
         openPrintableReport(enrichedData, 'process_control_plans', true);
     };
