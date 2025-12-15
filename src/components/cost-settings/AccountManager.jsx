@@ -118,7 +118,7 @@ const AccountManager = () => {
             'incoming-quality': 'full', 'produced-vehicles': 'full', 'internal-audit': 'read',
             deviation: 'full', equipment: 'read', quarantine: 'full', training: 'read',
             polyvalence: 'read', document: 'read', wps: 'read', tasks: 'full',
-            settings: 'none', 'audit-logs': 'none'
+            'process-control': 'read', settings: 'none', 'audit-logs': 'none'
         }}
     });
 
