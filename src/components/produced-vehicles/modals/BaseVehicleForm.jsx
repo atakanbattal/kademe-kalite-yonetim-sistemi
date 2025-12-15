@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VEHICLE_TYPES } from '@/components/quality-cost/constants';
+import { useData } from '@/contexts/DataContext';
 
 const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
     const { toast } = useToast();
+    const { products, productCategories } = useData();
     const [formData, setFormData] = useState({
         chassis_no: '',
         serial_no: '',
@@ -23,6 +24,12 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
 
     const statusOptions = ['Kaliteye Girdi', 'Kontrol Başladı', 'Kontrol Bitti', 'Yeniden İşlemde', 'Sevk Hazır', 'Sevk Edildi'];
     const dmoStatusOptions = ['DMO Bekliyor', 'DMO Geçti', 'DMO Kaldı'];
+    
+    // Araç tiplerini products tablosundan çek
+    const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
+    const vehicleTypes = (products || [])
+        .filter(p => p.category_id === vehicleTypeCategory?.id)
+        .map(p => p.product_name);
 
     useEffect(() => {
         if (vehicle) {
@@ -135,7 +142,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
                         <SelectValue placeholder="Araç tipi seçin..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {VEHICLE_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                        {vehicleTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                     </SelectContent>
                 </Select>
             </div>

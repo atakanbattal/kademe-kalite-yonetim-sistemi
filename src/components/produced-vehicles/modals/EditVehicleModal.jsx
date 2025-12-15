@@ -3,18 +3,18 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VEHICLE_TYPES } from '@/components/quality-cost/constants';
 import { useData } from '@/contexts/DataContext';
 
 const DMO_STATUS_OPTIONS = ['DMO Bekliyor', 'DMO Geçti', 'DMO Kaldı'];
 
 const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     const { toast } = useToast();
-    const { refreshProducedVehicles } = useData();
+    const { refreshProducedVehicles, products, productCategories } = useData();
     const [formData, setFormData] = useState({
         chassis_no: '',
         serial_no: '',
@@ -25,6 +25,14 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [initialFormData, setInitialFormData] = useState({});
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+    const [pendingClose, setPendingClose] = useState(false);
+    
+    // Araç tiplerini products tablosundan çek
+    const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
+    const vehicleTypes = (products || [])
+        .filter(p => p.category_id === vehicleTypeCategory?.id)
+        .map(p => p.product_name);
 
     useEffect(() => {
         if (vehicle && isOpen) {
@@ -50,14 +58,30 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
         setFormData(prev => ({ ...prev, [id]: value === 'none' ? '' : value }));
     };
 
-    const handleClose = () => {
-        const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
-        if (hasChanged) {
-            if (window.confirm('Değişiklikler kaydedilmedi. Çıkmak istediğinize emin misiniz?')) {
+    const handleClose = (open) => {
+        if (!open) {
+            const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+            if (hasChanged) {
+                setPendingClose(true);
+                setShowConfirmDialog(true);
+            } else {
                 setIsOpen(false);
             }
-        } else {
-            setIsOpen(false);
+        }
+    };
+    
+    const handleConfirmClose = () => {
+        setShowConfirmDialog(false);
+        setIsOpen(false);
+        setPendingClose(false);
+    };
+    
+    const handleCancelClose = () => {
+        setShowConfirmDialog(false);
+        setPendingClose(false);
+        // Modal'ı tekrar aç (çünkü Dialog onOpenChange ile kapanmış olabilir)
+        if (!isOpen && pendingClose) {
+            setIsOpen(true);
         }
     };
 
@@ -103,8 +127,16 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-2xl">
+        <>
+            <Dialog open={isOpen} onOpenChange={handleClose}>
+                <DialogContent className="sm:max-w-2xl" onEscapeKeyDown={(e) => {
+                    const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+                    if (hasChanged) {
+                        e.preventDefault();
+                        setPendingClose(true);
+                        setShowConfirmDialog(true);
+                    }
+                }}>
                 <DialogHeader>
                     <DialogTitle>Araç Bilgilerini Düzenle</DialogTitle>
                     <DialogDescription>
@@ -130,7 +162,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                             <Select value={formData.vehicle_type} onValueChange={(value) => handleSelectChange('vehicle_type', value)}>
                                 <SelectTrigger><SelectValue placeholder="Araç tipi seçin..." /></SelectTrigger>
                                 <SelectContent>
-                                    {VEHICLE_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                                    {vehicleTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -150,7 +182,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                         <Textarea id="notes" value={formData.notes} onChange={handleInputChange} />
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+                        <Button type="button" variant="outline" onClick={() => handleClose(false)} disabled={isSubmitting}>
                             İptal
                         </Button>
                         <Button type="submit" disabled={isSubmitting}>
@@ -160,6 +192,22 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                 </form>
             </DialogContent>
         </Dialog>
+        
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Değişiklikler Kaydedilmedi</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Yapılan değişiklikler kaydedilmedi. Çıkmak istediğinize emin misiniz?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={handleCancelClose}>İptal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmClose}>Çık</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 };
 
