@@ -321,11 +321,19 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
         setIsSubmitting(true);
 
         try {
+            // Validasyon: Tüm karakteristikler seçilmeli ve equipment_id seçilmeli
             const validationError = items.some(item => {
+                if (!item.characteristic_id || !item.characteristic_type) {
+                    return true; // Karakteristik seçilmemiş
+                }
+                if (!item.equipment_id || item.equipment_id.trim() === '') {
+                    return true; // Ölçüm ekipmanı seçilmemiş
+                }
                 const selectedEquipment = measurementEquipment?.find(eq => eq.value === item.equipment_id);
                 const isDimensional = selectedEquipment && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(selectedEquipment.label);
-                if (!item.characteristic_id || !item.characteristic_type) return true;
-                if (isDimensional && item.min_value && item.max_value && parseFloat(String(item.min_value).replace(',', '.')) > parseFloat(String(item.max_value).replace(',', '.'))) return true;
+                if (isDimensional && item.min_value && item.max_value && parseFloat(String(item.min_value).replace(',', '.')) > parseFloat(String(item.max_value).replace(',', '.'))) {
+                    return true; // Min > Max
+                }
                 return false;
             });
 
@@ -385,19 +393,27 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             // Plan adını otomatik oluştur: Parça Kodu - Araç Tipi
             const autoPlanName = `${partCode} - ${selectedEquipmentId}`;
             
+            // Plan verilerini hazırla - sadece geçerli alanları ekle
             const planData = {
                 equipment_id: null, // vehicle_type kullanıldığında null
-                vehicle_type: selectedEquipmentId, // Araç tipi (products tablosundan)
-                plan_name: autoPlanName,
-                part_code: partCode,
-                part_name: partName,
-                items: itemsToSave,
+                vehicle_type: selectedEquipmentId || null, // Araç tipi (products tablosundan)
+                plan_name: autoPlanName || `${partCode} - ${selectedEquipmentId}`,
+                part_code: partCode || null,
+                part_name: partName || null,
+                items: itemsToSave || [],
                 file_path: filePath || null,
                 file_name: fileName || null,
                 revision_number: selectedPlan?.revision_number || 0,
                 revision_date: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
+            
+            // Undefined değerleri temizle (Supabase'e göndermeden önce)
+            Object.keys(planData).forEach(key => {
+                if (planData[key] === undefined) {
+                    delete planData[key];
+                }
+            });
 
             let savedData, error;
             if (selectedPlan) {
