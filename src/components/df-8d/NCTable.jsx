@@ -79,18 +79,18 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
     return (
         <>
             <div className="overflow-x-auto bg-card p-4 rounded-lg border">
-                <table className="data-table w-full">
+                <table className="data-table w-full" style={{ minWidth: '1400px' }}>
                     <thead>
                         <tr>
-                            <th className="px-4 py-2 text-left">No</th>
-                            <th className="px-4 py-2 text-left">Tip</th>
-                            <th className="px-4 py-2 text-left">Problem</th>
-                            <th className="px-4 py-2 text-left">Departman</th>
-                            <th className="px-4 py-2 text-left">Açılış Tarihi</th>
-                            <th className="px-4 py-2 text-left">Kapanış Tarihi</th>
-                            <th className="px-4 py-2 text-left">Termin Tarihi</th>
-                            <th className="px-4 py-2 text-left">Durum</th>
-                            <th className="px-4 py-2 text-center whitespace-nowrap">İşlemler</th>
+                            <th className="px-4 py-2 text-left w-32">No</th>
+                            <th className="px-4 py-2 text-left w-20">Tip</th>
+                            <th className="px-4 py-2 text-left min-w-[300px]">Problem</th>
+                            <th className="px-4 py-2 text-left w-40">Departman</th>
+                            <th className="px-4 py-2 text-left w-32 whitespace-nowrap">Açılış Tarihi</th>
+                            <th className="px-4 py-2 text-left w-32 whitespace-nowrap">Kapanış Tarihi</th>
+                            <th className="px-4 py-2 text-left w-32 whitespace-nowrap">Termin Tarihi</th>
+                            <th className="px-4 py-2 text-left w-28">Durum</th>
+                            <th className="px-4 py-2 text-center w-24 whitespace-nowrap">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -106,7 +106,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                     className="hover:bg-accent cursor-pointer"
                                     onClick={() => onView(record)}
                                 >
-                                    <td className="border-t border-border px-4 py-2 text-sm">{record.nc_number || record.mdi_no}</td>
+                                    <td className="border-t border-border px-4 py-2 text-sm whitespace-nowrap">{record.nc_number || record.mdi_no}</td>
                                     <td className="border-t border-border px-4 py-2 text-sm">
                                         <div className="flex items-center gap-2">
                                             {getTypeBadge(record.type)}
@@ -115,15 +115,15 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                             )}
                                         </div>
                                     </td>
-                                    <td className="border-t border-border px-4 py-2 text-sm max-w-xs truncate">{record.title}</td>
-                                    <td className="border-t border-border px-4 py-2 text-sm">{record.department}</td>
-                                    <td className="border-t border-border px-4 py-2 text-sm">
+                                    <td className="border-t border-border px-4 py-2 text-sm">{record.title}</td>
+                                    <td className="border-t border-border px-4 py-2 text-sm whitespace-nowrap">{record.department}</td>
+                                    <td className="border-t border-border px-4 py-2 text-sm whitespace-nowrap">
                                         {formatDate(record.df_opened_at || record.opening_date || record.created_at)}
                                     </td>
-                                    <td className="border-t border-border px-4 py-2 text-sm">
+                                    <td className="border-t border-border px-4 py-2 text-sm whitespace-nowrap">
                                         {record.closed_at ? formatDate(record.closed_at) : '-'}
                                     </td>
-                                    <td className="border-t border-border px-4 py-2 text-sm">
+                                    <td className="border-t border-border px-4 py-2 text-sm whitespace-nowrap">
                                         {record.status === 'Reddedildi' ? '-' : formatDate(record.due_at)}
                                     </td>
                                     <td className="border-t border-border px-4 py-2 text-sm">
