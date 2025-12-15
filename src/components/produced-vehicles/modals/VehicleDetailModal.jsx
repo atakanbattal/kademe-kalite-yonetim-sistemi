@@ -14,7 +14,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { formatDuration } from '@/lib/formatDuration.js';
-    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText, Car, Hash, Calendar, User, Building2 } from 'lucide-react';
+    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText, Car, Hash, Calendar, User, Building2, Tag, AlertTriangle } from 'lucide-react';
+    import { differenceInDays } from 'date-fns';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { generateVehicleReport } from '@/lib/pdfGenerator';
 
@@ -377,6 +378,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                             value={vehicle.status}
                                             variant={vehicle.status === 'Sevk Edildi' ? 'success' : 'default'}
                                         />
+                                        {vehicle.vehicle_brand && (
+                                            <InfoCard 
+                                                icon={Tag} 
+                                                label="Marka" 
+                                                value={vehicle.vehicle_brand}
+                                                variant="primary"
+                                            />
+                                        )}
                                         {vehicle.dmo_status && (
                                             <InfoCard 
                                                 icon={Building2} 
@@ -395,25 +404,57 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                             label="Son Güncelleme" 
                                             value={format(parseISO(vehicle.updated_at), 'dd.MM.yyyy HH:mm', { locale: tr })} 
                                         />
+                                        {vehicle.delivery_due_date && (
+                                            <>
+                                                <InfoCard 
+                                                    icon={Calendar} 
+                                                    label="Termin Tarihi" 
+                                                    value={format(parseISO(vehicle.delivery_due_date), 'dd.MM.yyyy', { locale: tr })}
+                                                    variant="warning"
+                                                />
+                                                <InfoCard 
+                                                    icon={vehicle.status !== 'Sevk Edildi' && differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 ? AlertTriangle : Clock} 
+                                                    label="Sevke Kalan Gün" 
+                                                    value={
+                                                        vehicle.status === 'Sevk Edildi' 
+                                                            ? 'Sevk Edildi' 
+                                                            : differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 
+                                                                ? `${Math.abs(differenceInDays(parseISO(vehicle.delivery_due_date), new Date()))} gün geçti!`
+                                                                : `${differenceInDays(parseISO(vehicle.delivery_due_date), new Date())} gün`
+                                                    }
+                                                    variant={
+                                                        vehicle.status === 'Sevk Edildi' 
+                                                            ? 'success' 
+                                                            : differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 
+                                                                ? 'danger'
+                                                                : differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) <= 3
+                                                                    ? 'warning'
+                                                                    : 'info'
+                                                    }
+                                                />
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
                                 <Separator />
 
                                 {/* Notlar */}
-                                {vehicle.notes && (
-                                    <div>
-                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                            <FileText className="h-5 w-5 text-primary" />
-                                            Notlar
-                                        </h3>
-                                        <Card>
-                                            <CardContent className="p-6">
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <FileText className="h-5 w-5 text-primary" />
+                                        Notlar
+                                    </h3>
+                                    <Card>
+                                        <CardContent className="p-6">
+                                            {vehicle.notes ? (
                                                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{vehicle.notes}</p>
-                                            </CardContent>
-                                        </Card>
-                                    </div>
-                                )}
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground italic">Bu araç için henüz not eklenmemiş.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </div>
                             </TabsContent>
                             <TabsContent value="history" className="mt-6">
                                 <TimelineTab vehicle={vehicle} onUpdate={onUpdate} />

@@ -127,6 +127,28 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 fetchFaults();
             }
         }, [vehicle, fetchFaults]);
+        
+        // Realtime subscription for dynamic updates
+        useEffect(() => {
+            if (!vehicle?.id || !isOpen) return;
+            
+            const subscription = supabase
+                .channel(`vehicle_faults_${vehicle.id}`)
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'quality_inspection_faults',
+                    filter: `inspection_id=eq.${vehicle.id}`
+                }, () => {
+                    // Herhangi bir değişiklik olduğunda hataları yeniden yükle
+                    fetchFaults();
+                })
+                .subscribe();
+            
+            return () => {
+                supabase.removeChannel(subscription);
+            };
+        }, [vehicle?.id, isOpen, fetchFaults]);
 
         const handleDepartmentChange = (deptId) => {
             setNewFault(prev => ({ ...prev, department_id: deptId, category_id: '' }));

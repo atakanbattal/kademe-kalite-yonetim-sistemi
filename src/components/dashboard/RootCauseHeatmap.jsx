@@ -10,17 +10,29 @@ const RootCauseHeatmap = ({ onDeptClick }) => {
     const heatmapData = useMemo(() => {
         if (!nonConformities) return { byDepartment: [], byRootCause: [] };
 
+        // Kalite birimlerini hariç tut (bildiren birimler, sorumlu değiller)
+        const qualityDepartments = [
+            'kalite', 'kalite kontrol', 'kalite güvence', 'kalite kontrol ve güvence',
+            'quality', 'quality control', 'quality assurance', 'qc', 'qa'
+        ];
+
         const deptMap = {};
         const rootCauseMap = {};
 
         nonConformities.forEach(nc => {
-            // Birim bazında
-            const dept = nc.requesting_unit || nc.department || 'Belirtilmemiş';
-            if (!deptMap[dept]) {
-                deptMap[dept] = { name: dept, count: 0, severity: 0 };
+            // Sorumlu birimi kullan (responsible_unit), yoksa department
+            const dept = nc.responsible_unit || nc.department || 'Belirtilmemiş';
+            
+            // Kalite birimlerini birim bazlı analizden hariç tut
+            const isQualityDept = qualityDepartments.some(q => dept.toLowerCase().includes(q));
+            
+            if (!isQualityDept) {
+                if (!deptMap[dept]) {
+                    deptMap[dept] = { name: dept, count: 0, severity: 0 };
+                }
+                deptMap[dept].count++;
+                deptMap[dept].severity += nc.severity || 5;
             }
-            deptMap[dept].count++;
-            deptMap[dept].severity += nc.severity || 5;
 
             // Kök neden bazında (8D D4 adımından veya root_cause alanından)
             const rootCause = nc.root_cause || nc.eight_d_steps?.D4?.description || 'Belirtilmemiş';
@@ -30,12 +42,12 @@ const RootCauseHeatmap = ({ onDeptClick }) => {
                 rootCauseMap[rootCauseKey] = { name: rootCauseKey, count: 0, departments: new Set() };
             }
             rootCauseMap[rootCauseKey].count++;
-            if (dept !== 'Belirtilmemiş') {
+            if (dept !== 'Belirtilmemiş' && !isQualityDept) {
                 rootCauseMap[rootCauseKey].departments.add(dept);
             }
         });
 
-        // Birim bazında sıralama
+        // Birim bazında sıralama (Kalite birimleri hariç)
         const byDepartment = Object.values(deptMap)
             .map(dept => ({
                 ...dept,

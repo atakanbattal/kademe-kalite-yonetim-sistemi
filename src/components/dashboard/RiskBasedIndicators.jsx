@@ -29,13 +29,27 @@ const RiskBasedIndicators = () => {
         fetchRiskAssessments();
     }, []);
 
-    // En riskli prosesler (birim bazında)
+    // En riskli prosesler (sorumlu birim bazında)
+    // NOT: Kalite birimi hariç tutulur çünkü onlar bildiren birim, sorumlu birim değil
     const riskyProcesses = useMemo(() => {
         if (!nonConformities) return [];
         
+        // Kalite birimlerini hariç tut (bildiren birimler, sorumlu değiller)
+        const qualityDepartments = [
+            'kalite', 'kalite kontrol', 'kalite güvence', 'kalite kontrol ve güvence',
+            'quality', 'quality control', 'quality assurance', 'qc', 'qa'
+        ];
+        
         const processMap = {};
         nonConformities.forEach(nc => {
-            const dept = nc.requesting_unit || nc.department || 'Belirtilmemiş';
+            // Sorumlu birimi kullan (responsible_unit), yoksa department
+            const dept = nc.responsible_unit || nc.department || 'Belirtilmemiş';
+            
+            // Kalite birimlerini hariç tut
+            if (qualityDepartments.some(q => dept.toLowerCase().includes(q))) {
+                return;
+            }
+            
             if (!processMap[dept]) {
                 processMap[dept] = {
                     name: dept,

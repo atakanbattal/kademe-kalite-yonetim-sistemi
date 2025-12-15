@@ -6,7 +6,8 @@ import React from 'react';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-    import { parseISO, differenceInMilliseconds } from 'date-fns';
+    import { parseISO, differenceInMilliseconds, differenceInDays, format } from 'date-fns';
+    import { tr } from 'date-fns/locale';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { formatDuration } from '@/lib/formatDuration.js';
 
@@ -166,6 +167,7 @@ import React from 'react';
                             <th>Kalite Durumu</th>
                             <th>DMO Durumu</th>
                             <th>Durumda Geçen Süre</th>
+                            <th>Termin / Kalan</th>
                             <th>İşlemler</th>
                         </tr>
                     </thead>
@@ -191,6 +193,34 @@ import React from 'react';
                                     <td><Badge variant={statusInfo.variant} className="flex items-center w-fit">{statusInfo.icon}{statusInfo.text}</Badge></td>
                                     <td>{dmoStatusInfo ? <Badge variant={dmoStatusInfo.variant}>{dmoStatusInfo.text}</Badge> : <Badge variant="secondary">-</Badge>}</td>
                                     <td>{formatElapsedTime(vehicle)}</td>
+                                    <td>
+                                        {vehicle.delivery_due_date ? (
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-xs text-muted-foreground">
+                                                    {format(parseISO(vehicle.delivery_due_date), 'dd.MM.yyyy', { locale: tr })}
+                                                </span>
+                                                {vehicle.status !== 'Sevk Edildi' && (
+                                                    <Badge 
+                                                        variant={
+                                                            differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 
+                                                                ? 'destructive'
+                                                                : differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) <= 3
+                                                                    ? 'warning'
+                                                                    : 'secondary'
+                                                        }
+                                                        className="text-xs w-fit"
+                                                    >
+                                                        {differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 
+                                                            ? `${Math.abs(differenceInDays(parseISO(vehicle.delivery_due_date), new Date()))} gün geçti`
+                                                            : `${differenceInDays(parseISO(vehicle.delivery_due_date), new Date())} gün`
+                                                        }
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </td>
                                     <td onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>

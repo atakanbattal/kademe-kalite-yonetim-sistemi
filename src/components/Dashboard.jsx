@@ -374,7 +374,12 @@ import React, { useState, useCallback } from 'react';
                                     onRowClick: (row) => handleCardClick('document')
                                 });
                             } else if (type === 'cost-anomaly') {
-                                handleCardClick('quality-cost');
+                                // Maliyet anomalisi için detaylı analiz modalı veya drill-down
+                                if (data && data.length > 0) {
+                                    setDrillDownType('cost');
+                                } else {
+                                    handleCardClick('quality-cost');
+                                }
                             }
                         }} />
                     </ErrorBoundary>

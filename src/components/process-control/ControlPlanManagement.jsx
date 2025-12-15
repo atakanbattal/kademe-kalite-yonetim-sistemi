@@ -749,11 +749,10 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                     <thead className="bg-muted">
                         <tr>
                             <th className="p-3 text-left">Araç</th>
-                            <th className="p-3 text-left">Plan Adı</th>
                             <th className="p-3 text-left">Parça Kodu</th>
                             <th className="p-3 text-left">Parça Adı</th>
                             <th className="p-3 text-left">Rev. No</th>
-                            <th className="p-3 text-left">Madde Sayısı</th>
+                            <th className="p-3 text-center">Ölçüm Sayısı</th>
                             <th className="p-3 text-right">İşlemler</th>
                         </tr>
                     </thead>

@@ -16,20 +16,34 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
         serial_no: '',
         customer_name: '',
         vehicle_type: '',
+        vehicle_brand: '',
         status: 'Kaliteye Girdi',
         notes: '',
         dmo_status: '',
+        delivery_due_date: '',
     });
     const [loading, setLoading] = useState(false);
 
     const statusOptions = ['Kaliteye Girdi', 'Kontrol Başladı', 'Kontrol Bitti', 'Yeniden İşlemde', 'Sevk Hazır', 'Sevk Edildi'];
     const dmoStatusOptions = ['DMO Bekliyor', 'DMO Geçti', 'DMO Kaldı'];
     
+    // Marka seçenekleri
+    const brandOptions = ['FORD', 'OTOKAR', 'ISUZU', 'MERCEDES', 'MITSUBISHI', 'IVECO'];
+    
+    // Marka gerektiren araç tipleri
+    const brandRequiredVehicleTypes = ['Çay Toplama Makinesi', 'HSCK (Hidrolik Sıkıştırmalı Çöp Kamyonu)', 'İSTAÇ', 'KDM 35', 'KDM 70', 'KDM 80'];
+    
     // Araç tiplerini products tablosundan çek
     const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
     const vehicleTypes = (products || [])
         .filter(p => p.category_id === vehicleTypeCategory?.id)
         .map(p => p.product_name);
+    
+    // Seçilen araç tipi marka gerektiriyor mu?
+    const needsBrand = brandRequiredVehicleTypes.some(type => 
+        formData.vehicle_type?.toLowerCase().includes(type.toLowerCase()) ||
+        type.toLowerCase().includes(formData.vehicle_type?.toLowerCase())
+    );
 
     useEffect(() => {
         if (vehicle) {
@@ -38,9 +52,11 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
                 serial_no: vehicle.serial_no || '',
                 customer_name: vehicle.customer_name || '',
                 vehicle_type: vehicle.vehicle_type || '',
+                vehicle_brand: vehicle.vehicle_brand || '',
                 status: vehicle.status || 'Kaliteye Girdi',
                 notes: vehicle.notes || '',
                 dmo_status: vehicle.dmo_status || '',
+                delivery_due_date: vehicle.delivery_due_date ? vehicle.delivery_due_date.split('T')[0] : '',
             });
         } else {
             setFormData({
@@ -48,9 +64,11 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
                 serial_no: '',
                 customer_name: '',
                 vehicle_type: '',
+                vehicle_brand: '',
                 status: 'Kaliteye Girdi',
                 notes: '',
                 dmo_status: '',
+                delivery_due_date: '',
             });
         }
     }, [vehicle]);
@@ -68,10 +86,17 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
         e.preventDefault();
         setLoading(true);
 
-        const { chassis_no, serial_no, customer_name, vehicle_type, status, notes, dmo_status } = formData;
+        const { chassis_no, serial_no, customer_name, vehicle_type, vehicle_brand, status, notes, dmo_status, delivery_due_date } = formData;
 
         if (!customer_name || !vehicle_type) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Lütfen Müşteri Adı ve Araç Tipi alanlarını doldurun.' });
+            setLoading(false);
+            return;
+        }
+        
+        // Marka gerektiren araç tipi için marka kontrolü
+        if (needsBrand && !vehicle_brand) {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Bu araç tipi için marka seçimi zorunludur.' });
             setLoading(false);
             return;
         }
@@ -81,10 +106,12 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
             chassis_no, 
             serial_no, 
             customer_name, 
-            vehicle_type, 
+            vehicle_type,
+            vehicle_brand: needsBrand ? vehicle_brand : null,
             status, 
             notes, 
             dmo_status,
+            delivery_due_date: delivery_due_date || null,
             updated_at: new Date().toISOString() 
         };
         
@@ -146,6 +173,20 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
                     </SelectContent>
                 </Select>
             </div>
+            {/* Marka alanı - sadece belirli araç tipleri için */}
+            {needsBrand && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="vehicle_brand" className="text-right">Marka *</Label>
+                    <Select name="vehicle_brand" value={formData.vehicle_brand} onValueChange={(value) => handleSelectChange('vehicle_brand', value)} required>
+                        <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Marka seçin..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {brandOptions.map(brand => <SelectItem key={brand} value={brand}>{brand}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="dmo_status" className="text-right">DMO Durumu</Label>
                 <Select name="dmo_status" value={formData.dmo_status} onValueChange={(value) => handleSelectChange('dmo_status', value)}>
@@ -157,6 +198,17 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
                         {dmoStatusOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                     </SelectContent>
                 </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="delivery_due_date" className="text-right">Termin Tarihi</Label>
+                <Input 
+                    id="delivery_due_date" 
+                    name="delivery_due_date" 
+                    type="date" 
+                    value={formData.delivery_due_date} 
+                    onChange={handleChange} 
+                    className="col-span-3" 
+                />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="notes" className="text-right">Notlar</Label>

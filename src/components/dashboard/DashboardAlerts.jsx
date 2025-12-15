@@ -16,12 +16,13 @@ const DashboardAlerts = ({ onAlertClick }) => {
         loading 
     } = useData();
 
-    // 30 gün üzerinde kapanmayan DF/8D
+    // 30 gün üzerinde kapanmayan DF/8D (Kapatılan ve Reddedilen hariç)
     const overdueNCs = useMemo(() => {
         if (!nonConformities) return [];
         const thirtyDaysAgo = addDays(new Date(), -30);
         return nonConformities.filter(nc => {
-            if (nc.status === 'Kapatıldı') return false;
+            // Kapatılan veya Reddedilen kayıtları hariç tut
+            if (nc.status === 'Kapatıldı' || nc.status === 'Reddedildi') return false;
             const openingDate = new Date(nc.opening_date || nc.created_at);
             return openingDate < thirtyDaysAgo;
         }).map(nc => ({
