@@ -1724,6 +1724,20 @@ const generateGenericReportHtml = (record, type) => {
 				</table>`
 				: '<p style="color: #6b7280; padding: 20px; text-align: center;">Ölçüm noktası bulunamadı.</p>';
 			
+			let revisionNotesHtml = '';
+			if (record.revision_number > 0 && record.revision_notes) {
+				revisionNotesHtml = `
+					<tr><td colspan="2">
+						<div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #d1d5db;">
+							<h3 style="margin-bottom: 10px; color: #1f2937; font-size: 1.1em;">REVİZYON NOTLARI</h3>
+							<div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; border-left: 4px solid #3b82f6;">
+								<p style="margin: 0; white-space: pre-wrap; line-height: 1.6;">${record.revision_notes}</p>
+							</div>
+						</div>
+					</td></tr>
+				`;
+			}
+			
 			return `
 				<tr><td>Araç Tipi</td><td><strong>${record.vehicle_type || '-'}</strong></td></tr>
 				<tr><td>Parça Kodu</td><td><strong>${record.part_code || '-'}</strong></td></tr>
@@ -1731,6 +1745,7 @@ const generateGenericReportHtml = (record, type) => {
 				<tr><td>Revizyon No</td><td>${record.revision_number || 0}</td></tr>
 				<tr><td>Revizyon Tarihi</td><td>${formatDate(record.revision_date)}</td></tr>
 				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
+				${revisionNotesHtml}
 			`;
 			break;
 			}

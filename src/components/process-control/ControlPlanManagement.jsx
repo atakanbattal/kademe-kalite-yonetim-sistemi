@@ -35,6 +35,34 @@ const ISO_2768_1_TOLERANCES = {
     ]
 };
 
+// TS 13920 tolerans tablosu (ISO 2768-1'e benzer yapı)
+const TS_13920_TOLERANCES = {
+    linear: [
+        { range: [0.5, 3], f: 0.05, m: 0.1, c: 0.2, v: null },
+        { range: [3, 6], f: 0.05, m: 0.1, c: 0.3, v: 0.5 },
+        { range: [6, 30], f: 0.1, m: 0.2, c: 0.5, v: 1.0 },
+        { range: [30, 120], f: 0.15, m: 0.3, c: 0.8, v: 1.5 },
+        { range: [120, 400], f: 0.2, m: 0.5, c: 1.2, v: 2.5 },
+        { range: [400, 1000], f: 0.3, m: 0.8, c: 2.0, v: 4.0 },
+        { range: [1000, 2000], f: 0.5, m: 1.2, c: 3.0, v: 6.0 },
+        { range: [2000, 4000], f: 0.8, m: 2.0, c: 5.0, v: 8.0 }
+    ]
+};
+
+// TS 9013 tolerans tablosu (ISO 2768-1'e benzer yapı)
+const TS_9013_TOLERANCES = {
+    linear: [
+        { range: [0.5, 3], f: 0.05, m: 0.1, c: 0.2, v: null },
+        { range: [3, 6], f: 0.05, m: 0.1, c: 0.3, v: 0.5 },
+        { range: [6, 30], f: 0.1, m: 0.2, c: 0.5, v: 1.0 },
+        { range: [30, 120], f: 0.15, m: 0.3, c: 0.8, v: 1.5 },
+        { range: [120, 400], f: 0.2, m: 0.5, c: 1.2, v: 2.5 },
+        { range: [400, 1000], f: 0.3, m: 0.8, c: 2.0, v: 4.0 },
+        { range: [1000, 2000], f: 0.5, m: 1.2, c: 3.0, v: 6.0 },
+        { range: [2000, 4000], f: 0.8, m: 2.0, c: 5.0, v: 8.0 }
+    ]
+};
+
 // Process Control'e özel standartlar (13920 ve 9013 sadece burada)
 const STANDARD_OPTIONS = [
     { value: 'ISO 2768-1_f', label: 'ISO 2768-1 f (Fine - İnce)' },
@@ -50,7 +78,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                           !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(equipment.find(e => e.value === item.equipment_id)?.label || '');
 
     const autoCalculateTolerance = useCallback((currentItem) => {
-        const { nominal_value, tolerance_class, tolerance_direction } = currentItem;
+        const { nominal_value, tolerance_class, tolerance_direction, standard_class } = currentItem;
         
         if (!isDimensional || !tolerance_class || !nominal_value) {
             return { ...currentItem };
@@ -61,11 +89,24 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
              return { ...currentItem };
         }
 
-        const toleranceRule = ISO_2768_1_TOLERANCES.linear.find(
+        // Standarta göre tolerans tablosunu seç
+        let toleranceTable = null;
+        if (standard_class && standard_class.startsWith('TS 13920')) {
+            toleranceTable = TS_13920_TOLERANCES;
+        } else if (standard_class && standard_class.startsWith('TS 9013')) {
+            toleranceTable = TS_9013_TOLERANCES;
+        } else if (standard_class && standard_class.startsWith('ISO 2768-1')) {
+            toleranceTable = ISO_2768_1_TOLERANCES;
+        } else {
+            // Varsayılan olarak ISO 2768-1 kullan
+            toleranceTable = ISO_2768_1_TOLERANCES;
+        }
+
+        const toleranceRule = toleranceTable.linear.find(
             rule => nominal > rule.range[0] && nominal <= rule.range[1]
         );
 
-        if (toleranceRule && toleranceRule[tolerance_class] !== null) {
+        if (toleranceRule && toleranceRule[tolerance_class] !== null && toleranceRule[tolerance_class] !== undefined) {
             const tolerance = toleranceRule[tolerance_class];
             let min, max;
             
@@ -100,6 +141,8 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             if (value) {
                 // TS 13920 ve TS 9013 için özel işlem (bunlar tolerance_standards tablosunda yok)
                 if (value === 'TS 13920' || value === 'TS 9013') {
+                    // TS standartları için tolerance_class yok, sadece standard_class olarak saklanacak
+                    // Ancak kullanıcı tolerans sınıfı seçebilir (f, m, c, v)
                     newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: value };
                     onUpdate(index, newItem);
                     return;
@@ -109,7 +152,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                 if (standards) {
                     const [standardName, toleranceClass] = value.split('_');
                     const standard = standards.find(s => s.label.startsWith(standardName));
-                    newItem = { ...newItem, standard_id: standard ? standard.value : null, tolerance_class: toleranceClass };
+                    newItem = { ...newItem, standard_id: standard ? standard.value : null, tolerance_class: toleranceClass, standard_class: value };
                     const calculatedItem = autoCalculateTolerance(newItem);
                     onUpdate(index, calculatedItem);
                     return;
@@ -117,6 +160,14 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             } else {
                 newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null };
             }
+        }
+        
+        // TS 13920 ve TS 9013 için tolerance_class değiştiğinde de tolerans hesapla
+        if (field === 'tolerance_class' && (item.standard_class === 'TS 13920' || item.standard_class === 'TS 9013')) {
+            newItem = { ...newItem, standard_class: item.standard_class }; // standard_class'ı koru
+            const calculatedItem = autoCalculateTolerance(newItem);
+            onUpdate(index, calculatedItem);
+            return;
         }
     
         if (field === 'equipment_id' && equipment) {
@@ -145,6 +196,15 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
     const selectedCharacteristic = characteristics?.find(c => c.value === item.characteristic_id);
     
     const standardClassValue = useMemo(() => {
+        // TS 13920 veya TS 9013 ise tolerance_class ile birlikte göster
+        if (item.standard_class === 'TS 13920' || item.standard_class === 'TS 9013') {
+            if (item.tolerance_class) {
+                return `${item.standard_class}_${item.tolerance_class}`;
+            }
+            return item.standard_class || '';
+        }
+        
+        // ISO 2768-1 standartları için
         if (!standards) return item.standard_class || '';
         const standard = standards.find(s => s.value === item.standard_id);
         if (standard && item.tolerance_class) {
@@ -153,6 +213,16 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         }
         return item.standard_class || '';
     }, [item.standard_id, item.tolerance_class, standards, item.standard_class]);
+    
+    // TS 13920 ve TS 9013 için tolerans sınıfı seçenekleri
+    const toleranceClassOptions = [
+        { value: 'f', label: 'f (Fine - İnce)' },
+        { value: 'm', label: 'm (Medium - Orta)' },
+        { value: 'c', label: 'c (Coarse - Kaba)' },
+        { value: 'v', label: 'v (Very Coarse - Çok Kaba)' },
+    ];
+    
+    const isTSStandard = item.standard_class === 'TS 13920' || item.standard_class === 'TS 9013';
 
     return (
         <tr className="border-b transition-colors hover:bg-muted/50 text-sm">
@@ -164,7 +234,27 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                 <Combobox options={equipment || []} value={item.equipment_id} onChange={(v) => handleFieldChange('equipment_id', v)} placeholder="Ekipman seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı."/>
             </td>
             <td className="p-2 align-top min-w-[200px]">
-                <Combobox options={STANDARD_OPTIONS} value={standardClassValue} onChange={(v) => handleFieldChange('standard_class', v)} placeholder="Standart ve Sınıf seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı." disabled={!isDimensional}/>
+                <div className="space-y-1">
+                    <Combobox 
+                        options={STANDARD_OPTIONS} 
+                        value={standardClassValue} 
+                        onChange={(v) => handleFieldChange('standard_class', v)} 
+                        placeholder="Standart seçin..." 
+                        searchPlaceholder="Ara..." 
+                        notFoundText="Bulunamadı." 
+                        disabled={!isDimensional}
+                    />
+                    {isTSStandard && isDimensional && (
+                        <Combobox 
+                            options={toleranceClassOptions} 
+                            value={item.tolerance_class || ''} 
+                            onChange={(v) => handleFieldChange('tolerance_class', v)} 
+                            placeholder="Tolerans Sınıfı..." 
+                            searchPlaceholder="Ara..." 
+                            notFoundText="Bulunamadı."
+                        />
+                    )}
+                </div>
             </td>
             <td className="p-2 align-top min-w-[120px]">
                 <Input 
@@ -216,6 +306,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     const [duplicatePlan, setDuplicatePlan] = useState(null);
     const [selectedPlanDetail, setSelectedPlanDetail] = useState(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [revisionNotes, setRevisionNotes] = useState('');
 
     // Araç tiplerini products tablosundan çek
     const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
@@ -264,10 +355,12 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             setFile(null);
             setSelectedPlan(null);
             setDuplicatePlan(null);
+            setRevisionNotes('');
         } else if (selectedPlan) {
             setSelectedEquipmentId(selectedPlan.vehicle_type || selectedPlan.equipment_id);
             setPartCode(selectedPlan.part_code || '');
             setPartName(selectedPlan.part_name || '');
+            setRevisionNotes(selectedPlan.revision_notes || '');
             const planItems = selectedPlan.items || [];
             setCharacteristicCount(planItems.length || 1);
             const loadedItems = planItems.map((item) => ({
@@ -422,6 +515,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 file_name: fileName || null,
                 revision_number: selectedPlan?.revision_number || 0,
                 revision_date: new Date().toISOString(),
+                revision_notes: revisionNotes || null,
                 updated_at: new Date().toISOString(),
             };
             
@@ -485,6 +579,16 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     const handleViewDetail = (plan) => {
         setSelectedPlanDetail(plan);
         setIsDetailModalOpen(true);
+    };
+
+    const handleDelete = async (id) => {
+        const { error } = await supabase.from('process_control_plans').delete().eq('id', id);
+        if (error) {
+            toast({ variant: 'destructive', title: 'Hata!', description: `Plan silinemedi: ${error.message}` });
+        } else {
+            toast({ title: 'Başarılı!', description: 'Kontrol planı silindi.' });
+            refreshPlans();
+        }
     };
 
     const handleDownloadDetailPDF = (planData) => {
@@ -604,6 +708,17 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                             <Button type="button" variant="outline" onClick={() => setItems(prev => [...prev, {...initialItemState, id: uuidv4()}])} className="mt-4">
                                                 <Plus className="h-4 w-4 mr-2" /> Yeni Madde Ekle
                                             </Button>
+                                            {(selectedPlan?.revision_number > 0 || revisionNotes) && (
+                                                <div className="mt-4">
+                                                    <Label>Revizyon Notları</Label>
+                                                    <Textarea 
+                                                        placeholder="Revizyon nedeni ve değişiklikler hakkında notlar..."
+                                                        value={revisionNotes}
+                                                        onChange={(e) => setRevisionNotes(e.target.value)}
+                                                        rows={3}
+                                                    />
+                                                </div>
+                                            )}
                                             <div className="mt-4">
                                                 <Label>Onaylı Plan (PDF)</Label>
                                                 <div {...getRootProps()} className={`p-6 border-2 border-dashed rounded-lg cursor-pointer text-center transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}>
