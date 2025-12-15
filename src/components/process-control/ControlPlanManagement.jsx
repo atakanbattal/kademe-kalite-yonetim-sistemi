@@ -186,7 +186,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
 
 const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refreshEquipment }) => {
     const { toast } = useToast();
-    const { characteristics, equipment: measurementEquipment, standards } = useData();
+    const { characteristics, equipment: measurementEquipment, standards, products, productCategories } = useData();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -201,10 +201,17 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [duplicatePlan, setDuplicatePlan] = useState(null);
 
-    const equipmentOptions = equipment.map(eq => ({
-        value: eq.id,
-        label: `${eq.equipment_code} - ${eq.equipment_name}`
-    }));
+    // Araç tiplerini products tablosundan çek
+    const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
+    const vehicleTypeOptions = (products || [])
+        .filter(p => p.category_id === vehicleTypeCategory?.id)
+        .map(p => ({
+            value: p.product_name,
+            label: p.product_name
+        }));
+
+    // Sadece araç tiplerini göster (products'tan)
+    const equipmentOptions = vehicleTypeOptions;
 
     const initialItemState = { 
         id: uuidv4(), 
@@ -244,7 +251,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             setDuplicatePlan(null);
         } else if (selectedPlan) {
             setPlanName(selectedPlan.plan_name || '');
-            setSelectedEquipmentId(selectedPlan.equipment_id);
+            setSelectedEquipmentId(selectedPlan.vehicle_type || selectedPlan.equipment_id);
             setPartCode(selectedPlan.part_code || '');
             setPartName(selectedPlan.part_name || '');
             const planItems = selectedPlan.items || [];
@@ -278,10 +285,11 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             return;
         }
 
+        // selectedEquipmentId artık vehicle_type (araç tipi adı)
         const { data: existing, error } = await supabase
             .from('process_control_plans')
             .select('*')
-            .eq('equipment_id', selectedEquipmentId)
+            .eq('vehicle_type', selectedEquipmentId)
             .eq('part_code', partCode)
             .order('revision_number', { ascending: false })
             .limit(1)
@@ -375,7 +383,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             });
 
             const planData = {
-                equipment_id: selectedEquipmentId,
+                vehicle_type: selectedEquipmentId, // Artık vehicle_type olarak kaydediyoruz
                 plan_name: planName,
                 part_code: partCode,
                 part_name: partName,
@@ -606,7 +614,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                         ) : (
                             filteredPlans.map((plan) => (
                                 <tr key={plan.id} className="border-t hover:bg-muted/50">
-                                    <td className="p-3">{plan.process_control_equipment?.equipment_name || '-'}</td>
+                                    <td className="p-3">{plan.vehicle_type || plan.process_control_equipment?.equipment_name || '-'}</td>
                                     <td className="p-3 font-medium">{plan.plan_name}</td>
                                     <td className="p-3">{plan.part_code}</td>
                                     <td className="p-3">{plan.part_name}</td>

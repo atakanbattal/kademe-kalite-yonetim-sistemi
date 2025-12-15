@@ -33,6 +33,8 @@ const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categorie
     const [specValue, setSpecValue] = useState('');
 
     useEffect(() => {
+        const vehicleCategoryId = categories.find(c => c.category_code === 'VEHICLE_TYPES')?.id;
+        
         if (isEditMode && existingProduct) {
             setFormData({
                 ...existingProduct,
@@ -42,7 +44,7 @@ const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categorie
             setFormData({
                 product_code: '',
                 product_name: '',
-                category_id: null,
+                category_id: vehicleCategoryId || null,
                 description: '',
                 part_number: '',
                 drawing_number: '',
@@ -53,7 +55,7 @@ const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categorie
                 is_active: true
             });
         }
-    }, [existingProduct, isEditMode, open]);
+    }, [existingProduct, isEditMode, open, categories]);
 
     const handleChange = (e) => {
         const { id, value } = e.target;
@@ -165,9 +167,9 @@ const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categorie
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{isEditMode ? 'Ürün Düzenle' : 'Yeni Ürün Ekle'}</DialogTitle>
+                    <DialogTitle>{isEditMode ? 'Araç Tipi Düzenle' : 'Yeni Araç Tipi Ekle'}</DialogTitle>
                     <DialogDescription>
-                        Merkezi ürün kaydı oluşturun. Tüm modüller buradan veri çekecek.
+                        Araç tipi kaydı oluşturun. Tüm modüller buradan veri çekecek.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
@@ -196,11 +198,10 @@ const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categorie
                         </div>
                         <div>
                             <Label>Kategori (*)</Label>
-                            <Combobox
-                                options={categoryOptions}
-                                value={formData.category_id}
-                                onChange={(v) => setFormData(prev => ({ ...prev, category_id: v }))}
-                                placeholder="Kategori seçin..."
+                            <Input
+                                value="Araç Tipleri"
+                                disabled
+                                className="bg-muted"
                             />
                         </div>
                         {isPart && (
@@ -328,9 +329,26 @@ const ProductManager = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
+            // Sadece VEHICLE_TYPES kategorisindeki ürünleri çek
+            const { data: vehicleCategory } = await supabase
+                .from('product_categories')
+                .select('id')
+                .eq('category_code', 'VEHICLE_TYPES')
+                .single();
+
+            if (!vehicleCategory) {
+                throw new Error('VEHICLE_TYPES kategorisi bulunamadı');
+            }
+
             const [productsRes, categoriesRes] = await Promise.all([
-                supabase.from('products').select('*, product_categories(category_code, category_name)').order('product_name'),
-                supabase.from('product_categories').select('*').order('order_index')
+                supabase.from('products')
+                    .select('*, product_categories(category_code, category_name)')
+                    .eq('category_id', vehicleCategory.id)
+                    .order('product_name'),
+                supabase.from('product_categories')
+                    .select('*')
+                    .eq('category_code', 'VEHICLE_TYPES')
+                    .order('order_index')
             ]);
 
             if (productsRes.error) throw productsRes.error;
@@ -352,30 +370,22 @@ const ProductManager = () => {
     const filteredProducts = products.filter(product => {
         const matchesSearch = !searchTerm || 
             product.product_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.part_number?.toLowerCase().includes(searchTerm.toLowerCase());
+            product.product_name?.toLowerCase().includes(searchTerm.toLowerCase());
         
-        const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
-        
-        return matchesSearch && matchesCategory;
+        return matchesSearch;
     });
 
     const handleDelete = async (id) => {
         try {
             const { error } = await supabase.from('products').delete().eq('id', id);
             if (error) throw error;
-            toast({ title: 'Başarılı', description: 'Ürün silindi.' });
+            toast({ title: 'Başarılı', description: 'Araç tipi silindi.' });
             fetchData();
         } catch (err) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'Ürün silinemedi: ' + err.message });
+            toast({ variant: 'destructive', title: 'Hata', description: 'Araç tipi silinemedi: ' + err.message });
         }
         setDeleteConfirm(null);
     };
-
-    const categoryOptions = [
-        { value: 'all', label: 'Tüm Kategoriler' },
-        ...categories.map(cat => ({ value: cat.id, label: cat.category_name }))
-    ];
 
     return (
         <div className="space-y-4">
@@ -407,24 +417,18 @@ const ProductManager = () => {
                     <div className="relative flex-1 max-w-sm">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Ürün kodu, adı veya parça no ile ara..."
+                            placeholder="Araç tipi kodu veya adı ile ara..."
                             className="pl-10"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <Combobox
-                        options={categoryOptions}
-                        value={selectedCategory}
-                        onChange={setSelectedCategory}
-                        placeholder="Kategori filtresi..."
-                    />
                 </div>
                 <Button onClick={() => {
                     setSelectedProduct(null);
                     setIsFormOpen(true);
                 }}>
-                    <Plus className="w-4 h-4 mr-2" /> Yeni Ürün
+                    <Plus className="w-4 h-4 mr-2" /> Yeni Araç Tipi
                 </Button>
             </div>
 
