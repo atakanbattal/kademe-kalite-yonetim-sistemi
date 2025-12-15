@@ -8,12 +8,13 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Textarea } from '@/components/ui/textarea';
     import { Switch } from '@/components/ui/switch';
-    import { COST_TYPES, VEHICLE_TYPES, MEASUREMENT_UNITS } from './constants';
+    import { COST_TYPES, MEASUREMENT_UNITS } from './constants';
     import { Zap, Trash2, Plus, Wrench, Briefcase, AlertCircle } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
     import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
     import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
     import { Badge } from '@/components/ui/badge';
+    import { useData } from '@/contexts/DataContext';
 
     const formatCurrency = (value) => {
         if (typeof value !== 'number' || isNaN(value)) return '0,00 ₺';
@@ -194,6 +195,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
     export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost }) => {
         const { toast } = useToast();
+        const { products, productCategories } = useData();
         const isEditMode = !!existingCost;
         const [formData, setFormData] = useState({});
         const [isSubmitting, setIsSubmitting] = useState(false);
@@ -691,7 +693,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                             </Label>
                             <SearchableSelect value={formData.unit || ''} onValueChange={(v) => handleSelectChange('unit', v)} placeholder="Birim seçin..." items={departments} searchPlaceholder="Birim ara..." />
                         </div>
-                        <div><Label>Araç Türü {isVehicleTypeRequired && <span className="text-red-500">*</span>}</Label><SearchableSelect value={formData.vehicle_type || ''} onValueChange={(v) => handleSelectChange('vehicle_type', v)} placeholder="Seçiniz..." items={VEHICLE_TYPES} searchPlaceholder="Araç türü ara..." /></div>
+                        <div><Label>Araç Türü {isVehicleTypeRequired && <span className="text-red-500">*</span>}</Label><SearchableSelect value={formData.vehicle_type || ''} onValueChange={(v) => handleSelectChange('vehicle_type', v)} placeholder="Seçiniz..." items={vehicleTypes} searchPlaceholder="Araç türü ara..." /></div>
                         <div><Label htmlFor="part_code">Parça Kodu</Label><Input id="part_code" value={formData.part_code || ''} onChange={handleInputChange} /></div>
                         <div><Label htmlFor="part_name">Parça Adı</Label><Input id="part_name" value={formData.part_name || ''} onChange={handleInputChange} /></div>
                         <div><Label htmlFor="cost_date">Tarih <span className="text-red-500">*</span></Label><Input id="cost_date" type="date" value={formData.cost_date || ''} onChange={handleInputChange} required /></div>

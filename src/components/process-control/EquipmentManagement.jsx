@@ -11,7 +11,7 @@ import { useData } from '@/contexts/DataContext';
 
 const EquipmentManagement = ({ equipment, loading, refreshEquipment }) => {
     const { toast } = useToast();
-    const { personnel } = useData();
+    const { personnel, products, productCategories } = useData();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedEquipment, setSelectedEquipment] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -30,6 +30,34 @@ const EquipmentManagement = ({ equipment, loading, refreshEquipment }) => {
         value: p.id,
         label: p.full_name || `${p.name} ${p.surname || ''}`.trim()
     }));
+
+    // Araç tiplerini products tablosundan çek (VEHICLE_TYPES kategorisi)
+    const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
+    const vehicleTypeOptions = (products || [])
+        .filter(p => p.category_id === vehicleTypeCategory?.id)
+        .map(p => ({
+            value: p.product_name,
+            label: p.product_name
+        }));
+
+    // Araç tipleri (TOOLS kategorisi)
+    const toolsCategory = (productCategories || []).find(cat => cat.category_code === 'TOOLS');
+    const toolTypeOptions = (products || [])
+        .filter(p => p.category_id === toolsCategory?.id)
+        .map(p => ({
+            value: p.product_name,
+            label: p.product_name
+        }));
+
+    // Tüm araç tipi seçenekleri (araç tipleri + araçlar)
+    const equipmentTypeOptions = [
+        ...vehicleTypeOptions,
+        ...toolTypeOptions,
+        { value: 'Kalıp', label: 'Kalıp' },
+        { value: 'Fixture', label: 'Fixture' },
+        { value: 'Jig', label: 'Jig' },
+        { value: 'Diğer', label: 'Diğer' }
+    ];
 
     const filteredEquipment = equipment.filter(eq => {
         const searchLower = searchTerm.toLowerCase();
@@ -157,13 +185,7 @@ const EquipmentManagement = ({ equipment, loading, refreshEquipment }) => {
                                 <div>
                                     <Label>Araç Tipi</Label>
                                     <Combobox
-                                        options={[
-                                            { value: 'Araç', label: 'Araç' },
-                                            { value: 'Kalıp', label: 'Kalıp' },
-                                            { value: 'Fixture', label: 'Fixture' },
-                                            { value: 'Jig', label: 'Jig' },
-                                            { value: 'Diğer', label: 'Diğer' }
-                                        ]}
+                                        options={equipmentTypeOptions}
                                         value={formData.equipment_type}
                                         onChange={(v) => setFormData({ ...formData, equipment_type: v })}
                                         placeholder="Araç tipi seçin..."

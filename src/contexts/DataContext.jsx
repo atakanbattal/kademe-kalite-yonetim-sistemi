@@ -52,6 +52,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             complaintAnalyses: [],
             complaintActions: [],
             complaintDocuments: [],
+            products: [],
+            productCategories: [],
         });
 
         // İlk yükleme flag'i - sonsuz döngüyü önlemek için
@@ -102,6 +104,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 equipment: supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true }),
                 standards: supabase.from('tolerance_standards').select('id, name'),
                 customers: supabase.from('customers').select('*').order('name'),
+                products: supabase.from('products').select('*, product_categories(category_code, category_name)').eq('is_active', true).order('product_name'),
+                productCategories: supabase.from('product_categories').select('*').eq('is_active', true).order('order_index'),
             };
 
             // ORTA ÖNCELİKLİ TABLOLAR (İkinci dalga)
@@ -215,6 +219,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                             newState[key] = result.value.data.map(e => ({ value: e.id, label: e.name }));
                         } else if (key === 'standards' && result.value.data) {
                             newState[key] = result.value.data.map(s => ({ value: s.id, label: s.name }));
+                        } else if (key === 'products' && result.value.data) {
+                            // Products'ı kategoriye göre grupla ve transform et
+                            newState[key] = result.value.data.map(p => ({
+                                ...p,
+                                value: p.id,
+                                label: p.product_name,
+                                category_code: p.product_categories?.category_code
+                            }));
                         } else {
                             newState[key] = result.value.data || [];
                         }
