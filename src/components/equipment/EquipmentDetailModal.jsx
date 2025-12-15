@@ -14,7 +14,9 @@ import React, { useState, useEffect } from 'react';
     import PdfViewerModal from '@/components/document/PdfViewerModal';
     import ScrapEquipmentModal from '@/components/equipment/ScrapEquipmentModal';
 
-    const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh }) => {
+    const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh, refreshData }) => {
+        // refreshData veya onRefresh kullanılabilir
+        const handleRefresh = refreshData || onRefresh;
         const { toast } = useToast();
         const [isCalibrationModalOpen, setCalibrationModalOpen] = useState(false);
         const [isAssignModalOpen, setAssignModalOpen] = useState(false);
@@ -64,7 +66,7 @@ import React, { useState, useEffect } from 'react';
                     await supabase.storage.from('calibration_certificates').remove([calibration.certificate_path]);
                 }
                 toast({ title: 'Başarılı', description: 'Kalibrasyon kaydı silindi.' });
-                onRefresh();
+                if (handleRefresh) handleRefresh();
             }
         };
 
@@ -75,7 +77,7 @@ import React, { useState, useEffect } from 'react';
             } else {
                 await supabase.from('equipments').update({ status: 'Aktif', location: equipment.responsible_unit }).eq('id', equipment.id);
                 toast({ title: 'Başarılı', description: 'Ekipman iade alındı.' });
-                onRefresh();
+                if (handleRefresh) handleRefresh();
             }
         };
 
@@ -311,7 +313,7 @@ import React, { useState, useEffect } from 'react';
                         setIsOpen={setCalibrationModalOpen}
                         equipment={equipment}
                         existingCalibration={selectedCalibration}
-                        refreshData={() => { setCalibrationModalOpen(false); onRefresh(); }}
+                        refreshData={() => { setCalibrationModalOpen(false); if (handleRefresh) handleRefresh(); }}
                     />
                 )}
 
@@ -321,7 +323,7 @@ import React, { useState, useEffect } from 'react';
                         setIsOpen={setAssignModalOpen}
                         equipmentId={equipment.id}
                         personnelList={personnelList}
-                        refreshData={() => { setAssignModalOpen(false); onRefresh(); }}
+                        refreshData={() => { setAssignModalOpen(false); if (handleRefresh) handleRefresh(); }}
                     />
                 )}
 
