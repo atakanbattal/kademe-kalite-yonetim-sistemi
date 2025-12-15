@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, SlidersHorizontal, Search, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useDebounce } from '@/hooks/useDebounce';
 
 import EquipmentDashboard from '@/components/equipment/EquipmentDashboard';
 import EquipmentList from '@/components/equipment/EquipmentList';
@@ -23,6 +24,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
     const [isFiltersModalOpen, setFiltersModalOpen] = useState(false);
     const [selectedEquipment, setSelectedEquipment] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 600); // Debounce süresini 600ms'ye çıkardık
     const [filters, setFilters] = useState({
         status: '',
         calibrationStatus: '',
@@ -32,31 +34,96 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
         maxCalibrationDays: ''
     });
 
+    // İlk yüklemede sadece temel bilgileri çek, ilişkili verileri lazy load et
     const fetchEquipments = useCallback(async () => {
         setLoading(true);
-        let query = supabase
-            .from('equipments')
-            .select(`
-                *,
-                equipment_calibrations ( * ),
-                equipment_assignments ( *, personnel(full_name) )
-            `)
-            .order('created_at', { ascending: false });
+        try {
+            // Önce sadece temel ekipman bilgilerini çek (ilişkili veriler olmadan)
+            let query = supabase
+                .from('equipments')
+                .select(`
+                    id,
+                    name,
+                    serial_number,
+                    brand_model,
+                    responsible_unit,
+                    location,
+                    status,
+                    description,
+                    measurement_range,
+                    measurement_uncertainty,
+                    calibration_frequency_months,
+                    created_at,
+                    updated_at
+                `)
+                .order('created_at', { ascending: false });
 
-        if (searchTerm) {
-            // Kapsamlı arama: ad, seri no, birim, marka/model, lokasyon, açıklama
-            query = query.or(`name.ilike.%${searchTerm}%,serial_number.ilike.%${searchTerm}%,responsible_unit.ilike.%${searchTerm}%,brand_model.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
-        }
-        
-        const { data, error } = await query;
+            if (debouncedSearchTerm) {
+                // Kapsamlı arama: ad, seri no, birim, marka/model, lokasyon, açıklama
+                query = query.or(`name.ilike.%${debouncedSearchTerm}%,serial_number.ilike.%${debouncedSearchTerm}%,responsible_unit.ilike.%${debouncedSearchTerm}%,brand_model.ilike.%${debouncedSearchTerm}%,location.ilike.%${debouncedSearchTerm}%,description.ilike.%${debouncedSearchTerm}%`);
+            }
+            
+            const { data, error } = await query;
 
-        if (error) {
-            toast({ variant: "destructive", title: "Hata!", description: "Ekipmanlar alınırken bir hata oluştu: " + error.message });
-        } else {
-            setAllEquipments(data);
+            if (error) {
+                toast({ variant: "destructive", title: "Hata!", description: "Ekipmanlar alınırken bir hata oluştu: " + error.message });
+                setAllEquipments([]);
+            } else {
+                // İlişkili verileri ayrı sorgularla çek (daha hızlı)
+                const equipmentIds = data.map(eq => eq.id);
+                
+                if (equipmentIds.length > 0) {
+                    // Kalibrasyonları ve zimmetleri toplu olarak çek (sadece aktif olanlar)
+                    // Supabase'in .in() metodu maksimum 1000 ID destekler, bu yüzden batch'ler halinde çekiyoruz
+                    const batchSize = 1000;
+                    const calibrationBatches = [];
+                    const assignmentBatches = [];
+                    
+                    for (let i = 0; i < equipmentIds.length; i += batchSize) {
+                        const batch = equipmentIds.slice(i, i + batchSize);
+                        calibrationBatches.push(
+                            supabase
+                                .from('equipment_calibrations')
+                                .select('*, equipment_id')
+                                .in('equipment_id', batch)
+                        );
+                        assignmentBatches.push(
+                            supabase
+                                .from('equipment_assignments')
+                                .select('*, equipment_id, personnel(id, full_name)')
+                                .in('equipment_id', batch)
+                        );
+                    }
+
+                    const [calibrationsResults, assignmentsResults] = await Promise.all([
+                        Promise.all(calibrationBatches),
+                        Promise.all(assignmentBatches)
+                    ]);
+
+                    // Sonuçları birleştir
+                    const allCalibrations = calibrationsResults.flatMap(result => result.data || []);
+                    const allAssignments = assignmentsResults.flatMap(result => result.data || []);
+
+                    // Verileri birleştir
+                    const equipmentsWithRelations = data.map(eq => ({
+                        ...eq,
+                        equipment_calibrations: allCalibrations.filter(cal => cal.equipment_id === eq.id),
+                        equipment_assignments: allAssignments.filter(assign => assign.equipment_id === eq.id)
+                    }));
+
+                    setAllEquipments(equipmentsWithRelations);
+                } else {
+                    setAllEquipments([]);
+                }
+            }
+        } catch (err) {
+            console.error('Fetch error:', err);
+            toast({ variant: "destructive", title: "Hata!", description: "Ekipmanlar alınırken bir hata oluştu." });
+            setAllEquipments([]);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, [toast, searchTerm]);
+    }, [toast, debouncedSearchTerm]);
 
     const getCalibrationStatus = (calibrations, equipmentStatus) => {
         if (equipmentStatus === 'Hurdaya Ayrıldı') {
@@ -86,8 +153,9 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
         return { text, daysLeft };
     };
 
-    useEffect(() => {
-        if (allEquipments.length === 0) return;
+    // Filtreleme mantığını useMemo ile optimize et
+    const filteredEquipments = useMemo(() => {
+        if (allEquipments.length === 0) return [];
 
         let filtered = [...allEquipments];
 
@@ -110,37 +178,41 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
 
         // Sorumlu birim filtresi
         if (filters.responsibleUnit) {
+            const unitLower = filters.responsibleUnit.toLowerCase();
             filtered = filtered.filter(eq => 
-                eq.responsible_unit?.toLowerCase().includes(filters.responsibleUnit.toLowerCase())
+                eq.responsible_unit?.toLowerCase().includes(unitLower)
             );
         }
 
         // Konum filtresi
         if (filters.location) {
+            const locationLower = filters.location.toLowerCase();
             filtered = filtered.filter(eq => 
-                eq.location?.toLowerCase().includes(filters.location.toLowerCase())
+                eq.location?.toLowerCase().includes(locationLower)
             );
         }
 
         // Kalibrasyon günü filtresi
         if (filters.minCalibrationDays !== '' || filters.maxCalibrationDays !== '') {
+            const minDays = filters.minCalibrationDays !== '' ? parseInt(filters.minCalibrationDays) : -Infinity;
+            const maxDays = filters.maxCalibrationDays !== '' ? parseInt(filters.maxCalibrationDays) : Infinity;
             filtered = filtered.filter(eq => {
                 const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
                 if (calStatus.daysLeft === null) return false;
-                const minDays = filters.minCalibrationDays !== '' ? parseInt(filters.minCalibrationDays) : -Infinity;
-                const maxDays = filters.maxCalibrationDays !== '' ? parseInt(filters.maxCalibrationDays) : Infinity;
                 return calStatus.daysLeft >= minDays && calStatus.daysLeft <= maxDays;
             });
         }
 
-        setEquipments(filtered);
+        return filtered;
     }, [filters, allEquipments]);
-    
+
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            fetchEquipments();
-        }, 300);
-        return () => clearTimeout(timeoutId);
+        setEquipments(filteredEquipments);
+    }, [filteredEquipments]);
+    
+    // İlk yükleme ve debounced search term değiştiğinde çalış
+    useEffect(() => {
+        fetchEquipments();
     }, [fetchEquipments]);
     
     const handleOpenForm = (equipment = null) => {
