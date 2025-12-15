@@ -210,6 +210,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         const materialTypes = materialCostSettings.map(m => m.material_name);
         const departments = unitCostSettings.map(u => u.unit_name);
+        
+        // Araç tiplerini products tablosundan çek
+        const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
+        const vehicleTypes = (products || [])
+            .filter(p => p.category_id === vehicleTypeCategory?.id)
+            .map(p => p.product_name);
 
         const getInitialFormData = useCallback(() => ({
             cost_type: '', unit: '', vehicle_type: '', part_code: '', part_name: '',
