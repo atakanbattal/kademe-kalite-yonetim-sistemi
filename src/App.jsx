@@ -29,6 +29,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import CustomerComplaintsModule from '@/components/CustomerComplaintsModule';
     import PolyvalenceModule from '@/components/PolyvalenceModule';
     import BenchmarkModule from '@/components/benchmark/BenchmarkModule';
+    import ProcessControlModule from '@/components/process-control/ProcessControlModule';
     import { Menu, X } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { cn } from '@/lib/utils';
@@ -68,6 +69,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
       'training': 'Eğitim Yönetimi',
       'polyvalence': 'Polivalans Matrisi',
       'benchmark': 'Benchmark Yönetimi',
+      'process-control': 'Proses Kontrol Yönetimi',
     };
 
     const ALL_MODULES = Object.keys(moduleTitles);
@@ -451,6 +453,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'training': return <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />;
               case 'polyvalence': return <PolyvalenceModule />;
               case 'benchmark': return <BenchmarkModule />;
+              case 'process-control': return <ProcessControlModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
               default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
           }
       };
