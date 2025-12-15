@@ -12,7 +12,7 @@ const AddVehicleModal = ({ isOpen, setIsOpen, refreshVehicles }) => (
                 </DialogDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto min-h-0 pr-2">
-                <BaseVehicleForm onSave={refreshVehicles} setIsOpen={setIsOpen} />
+            <BaseVehicleForm onSave={refreshVehicles} setIsOpen={setIsOpen} />
             </div>
         </DialogContent>
     </Dialog>

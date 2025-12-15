@@ -79,7 +79,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
     return (
         <>
             <div className="overflow-x-auto bg-card p-4 rounded-lg border">
-                <table className="data-table w-full">
+                <table className="data-table w-full min-w-[1200px]">
                     <thead>
                         <tr>
                             <th className="px-4 py-2 text-left">No</th>
@@ -90,7 +90,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                             <th className="px-4 py-2 text-left">Kapanış Tarihi</th>
                             <th className="px-4 py-2 text-left">Termin Tarihi</th>
                             <th className="px-4 py-2 text-left">Durum</th>
-                            <th className="px-4 py-2 text-center">İşlemler</th>
+                            <th className="px-4 py-2 text-center sticky right-0 bg-secondary/50 z-10">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -134,7 +134,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                             )}
                                         </div>
                                     </td>
-                                    <td className="border-t border-border px-4 py-2 text-sm text-center" onClick={(e) => e.stopPropagation()}>
+                                    <td className="border-t border-border px-4 py-2 text-sm text-center sticky right-0 bg-card z-10" onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">
