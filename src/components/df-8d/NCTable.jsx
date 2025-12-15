@@ -78,7 +78,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
 
     return (
         <>
-            <div className="overflow-x-auto bg-card p-4 rounded-lg border">
+            <div className="overflow-x-auto bg-card p-4 rounded-lg border" style={{ paddingRight: '120px' }}>
                 <table className="data-table data-table-wide" style={{ minWidth: '1600px' }}>
                     <thead>
                         <tr>
