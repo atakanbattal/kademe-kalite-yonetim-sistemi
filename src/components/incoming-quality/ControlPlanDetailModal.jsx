@@ -39,23 +39,41 @@ const ControlPlanDetailModal = ({
 
     const handleGenerateReport = async () => {
         try {
+            if (!plan || !plan.id) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Geçerli bir kontrol planı bulunamadı!',
+                });
+                return;
+            }
+            
             const enrichedData = {
                 ...plan,
                 prepared_by: preparedBy || '',
                 controlled_by: controlledBy || '',
                 created_by: createdBy || '',
             };
-            onDownloadPDF(enrichedData);
-            toast({
-                title: 'Başarılı',
-                description: 'Rapor oluşturuldu!',
-            });
-            setIsOpen(false);
+            
+            console.log('📄 Rapor oluşturuluyor:', enrichedData);
+            
+            // onDownloadPDF fonksiyonunu çağır ve bekle
+            await onDownloadPDF(enrichedData);
+            
+            // Rapor penceresi açıldıktan sonra toast göster
+            setTimeout(() => {
+                toast({
+                    title: 'Başarılı',
+                    description: 'Rapor oluşturuldu!',
+                });
+                setIsOpen(false);
+            }, 500);
         } catch (error) {
+            console.error('Rapor oluşturma hatası:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Rapor oluşturulamadı!',
+                description: `Rapor oluşturulamadı: ${error.message}`,
             });
         }
     };

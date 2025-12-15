@@ -647,8 +647,20 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             setIsDetailModalOpen(true);
         };
 
-        const handleDownloadDetailPDF = (planData) => {
+        const handleDownloadDetailPDF = async (planData) => {
             try {
+                if (!planData || !planData.id) {
+                    console.error('Geçersiz plan verisi:', planData);
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Hata!', 
+                        description: 'Geçerli bir kontrol planı bulunamadı!' 
+                    });
+                    return;
+                }
+                
+                console.log('📄 PDF raporu oluşturuluyor:', planData);
+                
                 // Karakteristik ve ekipman bilgilerini ekle (process control gibi)
                 const enrichedData = {
                     ...planData,
@@ -669,7 +681,9 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                         };
                     })
                 };
-                openPrintableReport(enrichedData, 'incoming_control_plans', true);
+                
+                console.log('📄 Zenginleştirilmiş veri:', enrichedData);
+                await openPrintableReport(enrichedData, 'incoming_control_plans', true);
             } catch (error) {
                 console.error('Rapor oluşturma hatası:', error);
                 toast({ 
