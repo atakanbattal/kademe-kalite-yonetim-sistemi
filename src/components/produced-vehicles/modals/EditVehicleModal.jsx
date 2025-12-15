@@ -59,11 +59,13 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     };
 
     const handleClose = (open) => {
-        if (!open) {
+        if (!open && !showConfirmDialog) {
             const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
             if (hasChanged) {
                 setPendingClose(true);
                 setShowConfirmDialog(true);
+                // Dialog'u açık tut
+                setTimeout(() => setIsOpen(true), 0);
             } else {
                 setIsOpen(false);
             }
@@ -72,17 +74,13 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     
     const handleConfirmClose = () => {
         setShowConfirmDialog(false);
-        setIsOpen(false);
         setPendingClose(false);
+        setIsOpen(false);
     };
     
     const handleCancelClose = () => {
         setShowConfirmDialog(false);
         setPendingClose(false);
-        // Modal'ı tekrar aç (çünkü Dialog onOpenChange ile kapanmış olabilir)
-        if (!isOpen && pendingClose) {
-            setIsOpen(true);
-        }
     };
 
     const handleSubmit = async (e) => {
@@ -128,8 +126,15 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
 
     return (
         <>
-            <Dialog open={isOpen} onOpenChange={handleClose}>
+            <Dialog open={isOpen && !showConfirmDialog} onOpenChange={handleClose}>
                 <DialogContent className="sm:max-w-2xl" onEscapeKeyDown={(e) => {
+                    const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+                    if (hasChanged) {
+                        e.preventDefault();
+                        setPendingClose(true);
+                        setShowConfirmDialog(true);
+                    }
+                }} onInteractOutside={(e) => {
                     const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
                     if (hasChanged) {
                         e.preventDefault();
