@@ -1680,27 +1680,35 @@ const generateGenericReportHtml = (record, type) => {
 					</thead>
 					<tbody>
 						${record.items.map((item, idx) => {
-							// Karakteristik tipi ve tolerans sınıfı bilgilerini göster
-							const characteristicInfo = item.characteristic_type ? `<div style="font-weight: 600; margin-bottom: 4px;">${item.characteristic_type}</div>` : '';
-							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.9em; color: #6b7280;">Tolerans: ${item.tolerance_class}</div>` : '';
-							const standardInfo = item.standard_class ? `<div style="font-size: 0.9em; color: #6b7280;">Standart: ${item.standard_class}</div>` : '';
+							// Karakteristik bilgilerini göster
+							const characteristicName = item.characteristic_name || item.characteristic_id || '-';
+							const characteristicType = item.characteristic_type ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tip: ${item.characteristic_type}</div>` : '';
+							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tolerans: ${item.tolerance_class}</div>` : '';
+							
+							// Ölçüm ekipmanı bilgilerini göster
+							const equipmentName = item.equipment_name || item.equipment_id || '-';
+							
+							// Standart bilgilerini göster
+							const standardName = item.standard_name || item.standard_id || '-';
+							const standardInfo = item.standard_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Sınıf: ${item.standard_class}</div>` : '';
 							
 							return `
 								<tr style="border-bottom: 1px solid #d1d5db;">
-									<td style="border: 1px solid #d1d5db; padding: 8px; font-weight: 600; text-align: center;">${idx + 1}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; font-weight: 600; text-align: center; background-color: #f9fafb;">${idx + 1}</td>
 									<td style="border: 1px solid #d1d5db; padding: 8px;">
-										${characteristicInfo}
+										<div style="font-weight: 600;">${characteristicName}</div>
+										${characteristicType}
 										${toleranceInfo}
 									</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px;">${item.equipment_id || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px;">${equipmentName}</td>
 									<td style="border: 1px solid #d1d5db; padding: 8px;">
-										${item.standard_id || '-'}
+										<div>${standardName}</div>
 										${standardInfo}
 									</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600; background-color: #eff6ff;">${item.nominal_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; background-color: #fef3c7;">${item.min_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; background-color: #fef3c7;">${item.max_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600;">${item.tolerance_direction || '±'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600; background-color: #eff6ff; font-size: 1.05em;">${item.nominal_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; background-color: #fef3c7; font-weight: 500;">${item.min_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; background-color: #fef3c7; font-weight: 500;">${item.max_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600; font-size: 1.1em;">${item.tolerance_direction || '±'}</td>
 								</tr>
 							`;
 						}).join('')}
