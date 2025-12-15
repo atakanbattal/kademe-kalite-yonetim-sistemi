@@ -81,8 +81,29 @@ import React, { useState, useEffect } from 'react';
 
         const handleOpenPdfViewer = async (filePath, title) => {
             try {
-                const { data, error } = await supabase.storage.from('calibration_certificates').download(filePath);
+                if (!filePath) {
+                    toast({ variant: "destructive", title: "Hata", description: "Dosya yolu bulunamadı." });
+                    return;
+                }
+
+                // Path formatını normalize et - eğer path başında '/' varsa kaldır
+                const normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+                
+                // Önce doğrudan path ile dene
+                let { data, error } = await supabase.storage.from('calibration_certificates').download(normalizedPath);
+                
+                // Eğer hata varsa ve path'te '/' yoksa, equipment_id ile kombinasyonu dene
+                if (error && !normalizedPath.includes('/')) {
+                    const alternativePath = `${equipment.id}/${normalizedPath}`;
+                    const result = await supabase.storage.from('calibration_certificates').download(alternativePath);
+                    if (!result.error) {
+                        data = result.data;
+                        error = null;
+                    }
+                }
+                
                 if (error) {
+                    console.error('PDF download error:', error);
                     toast({ variant: "destructive", title: "Hata", description: `PDF açılamadı: ${error.message}` });
                     return;
                 }
@@ -90,7 +111,7 @@ import React, { useState, useEffect } from 'react';
                 const blob = new Blob([data], { type: 'application/pdf' });
                 const blobUrl = window.URL.createObjectURL(blob);
                 
-                setPdfViewerState({ isOpen: true, url: blobUrl, title });
+                setPdfViewerState({ isOpen: true, url: blobUrl, title: title || 'Kalibrasyon Sertifikası' });
             } catch (err) {
                 toast({ variant: "destructive", title: "Hata", description: "PDF açılırken hata oluştu." });
                 console.error('PDF view error:', err);
@@ -152,6 +173,7 @@ import React, { useState, useEffect } from 'react';
                                         onOpenPdfViewer={handleOpenPdfViewer}
                                         onEdit={handleEditCalibration}
                                         onDelete={handleDeleteCalibration}
+                                        equipmentId={equipment.id}
                                     />
                                 </TabsContent>
                                 <TabsContent value="assignment">

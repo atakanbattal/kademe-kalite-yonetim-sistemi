@@ -10,16 +10,27 @@ import EquipmentDashboard from '@/components/equipment/EquipmentDashboard';
 import EquipmentList from '@/components/equipment/EquipmentList';
 import EquipmentFormModal from '@/components/equipment/EquipmentFormModal';
 import EquipmentDetailModal from '@/components/equipment/EquipmentDetailModal';
+import EquipmentFilters from '@/components/equipment/EquipmentFilters';
 import { openPrintableReport } from '@/lib/reportUtils';
 
 const EquipmentModule = ({ onOpenPdfViewer }) => {
     const { toast } = useToast();
     const [equipments, setEquipments] = useState([]);
+    const [allEquipments, setAllEquipments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+    const [isFiltersModalOpen, setFiltersModalOpen] = useState(false);
     const [selectedEquipment, setSelectedEquipment] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState({
+        status: '',
+        calibrationStatus: '',
+        responsibleUnit: '',
+        location: '',
+        minCalibrationDays: '',
+        maxCalibrationDays: ''
+    });
 
     const fetchEquipments = useCallback(async () => {
         setLoading(true);
@@ -33,8 +44,8 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
             .order('created_at', { ascending: false });
 
         if (searchTerm) {
-            // Kapsamlı arama: ad, seri no, birim, üretici, model, lokasyon, not
-            query = query.or(`name.ilike.%${searchTerm}%,serial_number.ilike.%${searchTerm}%,responsible_unit.ilike.%${searchTerm}%,manufacturer.ilike.%${searchTerm}%,model.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+            // Kapsamlı arama: ad, seri no, birim, marka/model, lokasyon, not
+            query = query.or(`name.ilike.%${searchTerm}%,serial_number.ilike.%${searchTerm}%,responsible_unit.ilike.%${searchTerm}%,brand_model.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
         }
         
         const { data, error } = await query;
@@ -42,10 +53,88 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
         if (error) {
             toast({ variant: "destructive", title: "Hata!", description: "Ekipmanlar alınırken bir hata oluştu: " + error.message });
         } else {
-            setEquipments(data);
+            setAllEquipments(data);
         }
         setLoading(false);
     }, [toast, searchTerm]);
+
+    const getCalibrationStatus = (calibrations, equipmentStatus) => {
+        if (equipmentStatus === 'Hurdaya Ayrıldı') {
+            return { text: 'Hurdaya Ayrıldı', daysLeft: null };
+        }
+        if (!calibrations || calibrations.length === 0) {
+            return { text: 'Girilmemiş', daysLeft: null };
+        }
+        const activeCalibrations = calibrations.filter(cal => cal.is_active !== false);
+        if (activeCalibrations.length === 0) {
+            return { text: 'Pasif', daysLeft: null };
+        }
+        const latestCalibration = [...activeCalibrations].sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
+        const nextDate = new Date(latestCalibration.next_calibration_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const timeDiff = nextDate.getTime() - today.getTime();
+        const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+        let text;
+        if (daysLeft < 0) {
+            text = 'Geçmiş';
+        } else if (daysLeft <= 30) {
+            text = 'Yaklaşıyor';
+        } else {
+            text = 'Tamam';
+        }
+        return { text, daysLeft };
+    };
+
+    useEffect(() => {
+        if (allEquipments.length === 0) return;
+
+        let filtered = [...allEquipments];
+
+        // Durum filtresi
+        if (filters.status) {
+            filtered = filtered.filter(eq => {
+                const activeAssignment = eq.equipment_assignments?.find(a => a.is_active);
+                const displayStatus = activeAssignment ? 'Zimmetli' : eq.status;
+                return displayStatus === filters.status;
+            });
+        }
+
+        // Kalibrasyon durumu filtresi
+        if (filters.calibrationStatus) {
+            filtered = filtered.filter(eq => {
+                const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
+                return calStatus.text === filters.calibrationStatus;
+            });
+        }
+
+        // Sorumlu birim filtresi
+        if (filters.responsibleUnit) {
+            filtered = filtered.filter(eq => 
+                eq.responsible_unit?.toLowerCase().includes(filters.responsibleUnit.toLowerCase())
+            );
+        }
+
+        // Konum filtresi
+        if (filters.location) {
+            filtered = filtered.filter(eq => 
+                eq.location?.toLowerCase().includes(filters.location.toLowerCase())
+            );
+        }
+
+        // Kalibrasyon günü filtresi
+        if (filters.minCalibrationDays !== '' || filters.maxCalibrationDays !== '') {
+            filtered = filtered.filter(eq => {
+                const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
+                if (calStatus.daysLeft === null) return false;
+                const minDays = filters.minCalibrationDays !== '' ? parseInt(filters.minCalibrationDays) : -Infinity;
+                const maxDays = filters.maxCalibrationDays !== '' ? parseInt(filters.maxCalibrationDays) : Infinity;
+                return calStatus.daysLeft >= minDays && calStatus.daysLeft <= maxDays;
+            });
+        }
+
+        setEquipments(filtered);
+    }, [filters, allEquipments]);
     
     useEffect(() => {
         const timeoutId = setTimeout(() => {
@@ -90,6 +179,21 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
         openPrintableReport(record, type);
     };
 
+    const handleFiltersChange = (newFilters) => {
+        setFilters(newFilters);
+    };
+
+    const handleResetFilters = () => {
+        setFilters({
+            status: '',
+            calibrationStatus: '',
+            responsibleUnit: '',
+            location: '',
+            minCalibrationDays: '',
+            maxCalibrationDays: ''
+        });
+    };
+
     return (
         <div className="space-y-6">
             <EquipmentFormModal isOpen={isFormModalOpen} setIsOpen={setFormModalOpen} refreshData={fetchEquipments} existingEquipment={selectedEquipment} />
@@ -100,6 +204,13 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                 refreshData={fetchEquipments} 
                 onOpenPdfViewer={onOpenPdfViewer}
                 onDownloadPDF={handleDownloadPDF} 
+            />
+            <EquipmentFilters 
+                isOpen={isFiltersModalOpen} 
+                setIsOpen={setFiltersModalOpen}
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                onReset={handleResetFilters}
             />
 
 
@@ -133,8 +244,13 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <Button variant="outline">
+                    <Button variant="outline" onClick={() => setFiltersModalOpen(true)}>
                         <SlidersHorizontal className="w-4 h-4 mr-2" /> Filtrele
+                        {Object.values(filters).some(v => v !== '') && (
+                            <span className="ml-2 bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
+                                {Object.values(filters).filter(v => v !== '').length}
+                            </span>
+                        )}
                     </Button>
                     {equipments.length > 0 && (
                         <Button 
@@ -174,8 +290,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                                             status: eq.status || '-',
                                             calibration_status: calStatus.text,
                                             next_calibration_date: calStatus.date || '-',
-                                            manufacturer: eq.manufacturer || '-',
-                                            model: eq.model || '-',
+                                            brand_model: eq.brand_model || '-',
                                             responsible_unit: eq.responsible_unit || '-',
                                             location: eq.location || '-',
                                             acquisition_date: eq.acquisition_date || '-',

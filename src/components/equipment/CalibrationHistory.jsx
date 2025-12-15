@@ -4,23 +4,44 @@ import React from 'react';
     import { Edit, Download, Trash2, Eye } from 'lucide-react';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-    const CalibrationHistory = ({ calibrations, onEdit, onDelete, onOpenPdfViewer }) => {
+    const CalibrationHistory = ({ calibrations, onEdit, onDelete, onOpenPdfViewer, equipmentId }) => {
         if (!calibrations || calibrations.length === 0) {
             return <p className="text-muted-foreground text-center py-4">Kalibrasyon geçmişi bulunmuyor.</p>;
         }
 
-        const handleDownload = async (path) => {
+        const handleDownload = async (path, equipmentId) => {
             try {
-                const { data, error } = await supabase.storage.from('calibration_certificates').download(path);
+                if (!path) {
+                    console.error('Download error: Path is empty');
+                    return;
+                }
+
+                // Path formatını normalize et
+                const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+                
+                // Önce doğrudan path ile dene
+                let { data, error } = await supabase.storage.from('calibration_certificates').download(normalizedPath);
+                
+                // Eğer hata varsa ve path'te '/' yoksa, equipment_id ile kombinasyonu dene
+                if (error && !normalizedPath.includes('/') && equipmentId) {
+                    const alternativePath = `${equipmentId}/${normalizedPath}`;
+                    const result = await supabase.storage.from('calibration_certificates').download(alternativePath);
+                    if (!result.error) {
+                        data = result.data;
+                        error = null;
+                    }
+                }
+                
                 if (error) {
                     console.error('Download error:', error);
                     return;
                 }
-                const blob = new Blob([data]);
+                
+                const blob = new Blob([data], { type: 'application/pdf' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = path.split('/').pop();
+                a.download = normalizedPath.split('/').pop();
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -49,7 +70,7 @@ import React from 'react';
                                     <Button variant="outline" size="sm" onClick={() => onOpenPdfViewer(c.certificate_path, c.certificate_path.split('/').pop())}>
                                         <Eye className="h-4 w-4 mr-2" />Görüntüle
                                     </Button>
-                                    <Button variant="outline" size="sm" onClick={() => handleDownload(c.certificate_path)}>
+                                    <Button variant="outline" size="sm" onClick={() => handleDownload(c.certificate_path, equipmentId)}>
                                         <Download className="h-4 w-4 mr-2" />İndir
                                     </Button>
                                 </>
