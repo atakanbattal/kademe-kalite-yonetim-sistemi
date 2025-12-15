@@ -191,7 +191,6 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [step, setStep] = useState(1);
-    const [planName, setPlanName] = useState('');
     const [selectedEquipmentId, setSelectedEquipmentId] = useState(null);
     const [partCode, setPartCode] = useState('');
     const [partName, setPartName] = useState('');
@@ -240,7 +239,6 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     useEffect(() => {
         if (!isFormOpen) {
             setStep(1);
-            setPlanName('');
             setSelectedEquipmentId(null);
             setPartCode('');
             setPartName('');
@@ -250,7 +248,6 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             setSelectedPlan(null);
             setDuplicatePlan(null);
         } else if (selectedPlan) {
-            setPlanName(selectedPlan.plan_name || '');
             setSelectedEquipmentId(selectedPlan.vehicle_type || selectedPlan.equipment_id);
             setPartCode(selectedPlan.part_code || '');
             setPartName(selectedPlan.part_name || '');
@@ -275,8 +272,8 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     }, [isFormOpen, selectedPlan]);
 
     const handleNextStep = async () => {
-        if (!selectedEquipmentId || !planName) {
-            toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen araç ve plan adını seçin.' });
+        if (!selectedEquipmentId) {
+            toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen araç seçin.' });
             return;
         }
 
@@ -382,9 +379,12 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 };
             });
 
+            // Plan adını otomatik oluştur: Parça Kodu - Araç Tipi
+            const autoPlanName = `${partCode} - ${selectedEquipmentId}`;
+            
             const planData = {
                 vehicle_type: selectedEquipmentId, // Artık vehicle_type olarak kaydediyoruz
-                plan_name: planName,
+                plan_name: autoPlanName,
                 part_code: partCode,
                 part_name: partName,
                 items: itemsToSave,
@@ -438,7 +438,6 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     const filteredPlans = plans.filter(plan => {
         const searchLower = searchTerm.toLowerCase();
         return (
-            plan.plan_name?.toLowerCase().includes(searchLower) ||
             plan.part_code?.toLowerCase().includes(searchLower) ||
             plan.part_name?.toLowerCase().includes(searchLower) ||
             plan.vehicle_type?.toLowerCase().includes(searchLower) ||
@@ -465,10 +464,6 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                         onChange={setSelectedEquipmentId}
                                         placeholder="Araç seçin..."
                                     />
-                                </div>
-                                <div>
-                                    <Label>Plan Adı (*)</Label>
-                                    <Input value={planName} onChange={(e) => setPlanName(e.target.value)} required />
                                 </div>
                                 <div>
                                     <Label>Parça Kodu (*)</Label>
@@ -583,7 +578,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             <div className="flex justify-between items-center">
                 <div className="relative w-full max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Plan adı, parça kodu veya araç ile ara..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <Input placeholder="Parça kodu, parça adı veya araç ile ara..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
                 <Button onClick={() => handleOpenForm()}>
                     <FilePlus className="w-4 h-4 mr-2" /> Yeni Plan
@@ -616,8 +611,8 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                             filteredPlans.map((plan) => (
                                 <tr key={plan.id} className="border-t hover:bg-muted/50">
                                     <td className="p-3">{plan.vehicle_type || plan.process_control_equipment?.equipment_name || '-'}</td>
-                                    <td className="p-3 font-medium">{plan.plan_name}</td>
-                                    <td className="p-3">{plan.part_code}</td>
+                                    <td className="p-3 font-medium">{plan.part_code}</td>
+                                    <td className="p-3">{plan.part_name}</td>
                                     <td className="p-3">{plan.part_name}</td>
                                     <td className="p-3">Rev.{plan.revision_number || 0}</td>
                                     <td className="p-3 text-center">{(plan.items || []).length}</td>
