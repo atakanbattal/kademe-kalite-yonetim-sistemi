@@ -44,8 +44,8 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
             .order('created_at', { ascending: false });
 
         if (searchTerm) {
-            // Kapsamlı arama: ad, seri no, birim, marka/model, lokasyon, not
-            query = query.or(`name.ilike.%${searchTerm}%,serial_number.ilike.%${searchTerm}%,responsible_unit.ilike.%${searchTerm}%,brand_model.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+            // Kapsamlı arama: ad, seri no, birim, marka/model, lokasyon, açıklama
+            query = query.or(`name.ilike.%${searchTerm}%,serial_number.ilike.%${searchTerm}%,responsible_unit.ilike.%${searchTerm}%,brand_model.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
         }
         
         const { data, error } = await query;
@@ -294,7 +294,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                                             responsible_unit: eq.responsible_unit || '-',
                                             location: eq.location || '-',
                                             acquisition_date: eq.acquisition_date || '-',
-                                            notes: eq.notes || '-'
+                                            description: eq.description || '-'
                                         };
                                     }),
                                     filterInfo: searchTerm ? `Arama: "${searchTerm}"` : 'Tüm Ekipmanlar'
