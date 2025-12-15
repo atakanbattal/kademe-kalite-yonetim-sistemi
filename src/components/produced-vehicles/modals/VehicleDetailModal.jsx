@@ -305,8 +305,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-                    <DialogHeader>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
                         <div className="flex items-center justify-between">
                             <div>
                                 <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -328,7 +328,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         </div>
                     </DialogHeader>
                     
-                    <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
+                    <ScrollArea className="flex-1 min-h-0 pr-4 -mr-4 mt-4">
                         <Tabs defaultValue="details" className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="details">Temel Bilgiler</TabsTrigger>
@@ -462,7 +462,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         </Tabs>
                     </ScrollArea>
 
-                    <DialogFooter className="mt-6">
+                    <DialogFooter className="flex-shrink-0 mt-4 pt-4 border-t">
                         <DialogClose asChild>
                             <Button type="button" variant="secondary" size="lg">Kapat</Button>
                         </DialogClose>
