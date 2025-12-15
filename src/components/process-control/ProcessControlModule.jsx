@@ -26,11 +26,27 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                 .select('*')
                 .order('created_at', { ascending: false });
             
-            if (error) throw error;
+            if (error) {
+                // Tablo yoksa veya RLS hatası varsa daha açıklayıcı mesaj
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.warn('process_control_equipment tablosu henüz oluşturulmamış');
+                    setEquipment([]);
+                    return;
+                }
+                throw error;
+            }
             setEquipment(data || []);
         } catch (err) {
             console.error('Ekipman yükleme hatası:', err);
-            toast({ variant: 'destructive', title: 'Hata', description: 'Ekipmanlar yüklenemedi.' });
+            // Sadece kritik hatalarda toast göster
+            if (err.code !== '42P01' && !err.message.includes('does not exist')) {
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Hata', 
+                    description: 'Ekipmanlar yüklenemedi: ' + (err.message || 'Bilinmeyen hata')
+                });
+            }
+            setEquipment([]);
         }
     }, [toast]);
 
@@ -41,10 +57,18 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                 .select('*, process_control_equipment(equipment_code, equipment_name)')
                 .order('created_at', { ascending: false });
             
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.warn('process_control_documents tablosu henüz oluşturulmamış');
+                    setDocuments([]);
+                    return;
+                }
+                throw error;
+            }
             setDocuments(data || []);
         } catch (err) {
             console.error('Doküman yükleme hatası:', err);
+            setDocuments([]);
         }
     }, []);
 
@@ -55,10 +79,18 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                 .select('*, process_control_equipment(equipment_code, equipment_name)')
                 .order('updated_at', { ascending: false });
             
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.warn('process_control_plans tablosu henüz oluşturulmamış');
+                    setPlans([]);
+                    return;
+                }
+                throw error;
+            }
             setPlans(data || []);
         } catch (err) {
             console.error('Kontrol planı yükleme hatası:', err);
+            setPlans([]);
         }
     }, []);
 
@@ -69,10 +101,18 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                 .select('*, process_control_equipment(equipment_code, equipment_name), process_control_documents(document_name, document_number)')
                 .order('created_at', { ascending: false });
             
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.warn('process_control_notes tablosu henüz oluşturulmamış');
+                    setNotes([]);
+                    return;
+                }
+                throw error;
+            }
             setNotes(data || []);
         } catch (err) {
             console.error('Not yükleme hatası:', err);
+            setNotes([]);
         }
     }, []);
 
