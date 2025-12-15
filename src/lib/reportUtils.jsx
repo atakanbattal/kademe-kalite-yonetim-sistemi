@@ -60,15 +60,25 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			});
 			
 			const reportUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
+			console.log('📄 Rapor URL:', reportUrl);
+			console.log('📄 Storage Key:', storageKey);
+			console.log('📄 Record Data:', recordToStore);
+			
 			const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
 			
 			if (reportWindow) {
 				reportWindow.focus();
+				console.log('✅ Rapor penceresi açıldı');
 				
 				// PDF yüklendikten sonra localStorage'ı temizle (30 saniye sonra - yavaş bağlantılarda da çalışsın)
 				setTimeout(() => {
 					localStorage.removeItem(storageKey);
 				}, 30000);
+			} else {
+				// Popup engelleyici tarafından engellenmiş olabilir
+				console.warn('⚠️ Rapor penceresi açılamadı - popup engelleyici olabilir');
+				// Alternatif: Mevcut pencerede aç
+				window.location.href = reportUrl;
 			}
 		} catch (error) {
 			console.error("Error storing report data:", error);

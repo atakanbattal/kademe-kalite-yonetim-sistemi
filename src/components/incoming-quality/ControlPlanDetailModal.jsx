@@ -61,7 +61,8 @@ const ControlPlanDetailModal = ({
         return '-';
     };
 
-    const handleGenerateReport = async () => {
+    const handleGenerateReport = () => {
+        // Process control modülündeki gibi senkron çalış
         try {
             if (!plan || !plan.id) {
                 toast({
@@ -81,17 +82,14 @@ const ControlPlanDetailModal = ({
             
             console.log('📄 Rapor oluşturuluyor:', enrichedData);
             
-            // onDownloadPDF fonksiyonunu çağır ve bekle
-            await onDownloadPDF(enrichedData);
+            // onDownloadPDF fonksiyonunu çağır (senkron)
+            onDownloadPDF(enrichedData);
             
-            // Rapor penceresi açıldıktan sonra toast göster
-            setTimeout(() => {
-                toast({
-                    title: 'Başarılı',
-                    description: 'Rapor oluşturuldu!',
-                });
-                setIsOpen(false);
-            }, 500);
+            toast({
+                title: 'Başarılı',
+                description: 'Rapor oluşturuldu!',
+            });
+            setIsOpen(false);
         } catch (error) {
             console.error('Rapor oluşturma hatası:', error);
             toast({
