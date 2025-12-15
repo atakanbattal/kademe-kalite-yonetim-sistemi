@@ -201,6 +201,8 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     const [file, setFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [duplicatePlan, setDuplicatePlan] = useState(null);
+    const [selectedPlanDetail, setSelectedPlanDetail] = useState(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     // Araç tiplerini products tablosundan çek
     const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
