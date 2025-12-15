@@ -1688,9 +1688,17 @@ const generateGenericReportHtml = (record, type) => {
 							// Ölçüm ekipmanı bilgilerini göster
 							const equipmentName = item.equipment_name || item.equipment_id || '-';
 							
-							// Standart bilgilerini göster
-							const standardName = item.standard_name || item.standard_id || '-';
-							const standardInfo = item.standard_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Sınıf: ${item.standard_class}</div>` : '';
+							// Standart bilgilerini göster - standard_class varsa onu göster, yoksa standard_name veya standard_id
+							let standardName = '-';
+							if (item.standard_class) {
+								// standard_class varsa direkt göster (TS 13920, TS 9013 gibi)
+								standardName = item.standard_class;
+							} else if (item.standard_name) {
+								standardName = item.standard_name;
+							} else if (item.standard_id) {
+								standardName = item.standard_id;
+							}
+							const standardInfo = item.tolerance_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tolerans Sınıfı: ${item.tolerance_class}</div>` : '';
 							
 							return `
 								<tr style="border-bottom: 1px solid #d1d5db;">

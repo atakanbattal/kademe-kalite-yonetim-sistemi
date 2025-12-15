@@ -35,11 +35,14 @@ const ISO_2768_1_TOLERANCES = {
     ]
 };
 
+// Process Control'e özel standartlar (13920 ve 9013 sadece burada)
 const STANDARD_OPTIONS = [
     { value: 'ISO 2768-1_f', label: 'ISO 2768-1 f (Fine - İnce)' },
     { value: 'ISO 2768-1_m', label: 'ISO 2768-1 m (Medium - Orta)' },
     { value: 'ISO 2768-1_c', label: 'ISO 2768-1 c (Coarse - Kaba)' },
     { value: 'ISO 2768-1_v', label: 'ISO 2768-1 v (Very Coarse - Çok Kaba)' },
+    { value: 'TS 13920', label: 'TS 13920' },
+    { value: 'TS 9013', label: 'TS 9013' },
 ];
 
 const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, standards }) => {
@@ -94,15 +97,25 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         let newItem = { ...item, [field]: value };
         
         if (field === 'standard_class') {
-            if (value && standards) {
-                const [standardName, toleranceClass] = value.split('_');
-                const standard = standards.find(s => s.label.startsWith(standardName));
-                newItem = { ...newItem, standard_id: standard ? standard.value : null, tolerance_class: toleranceClass };
-                const calculatedItem = autoCalculateTolerance(newItem);
-                onUpdate(index, calculatedItem);
-                return;
+            if (value) {
+                // TS 13920 ve TS 9013 için özel işlem (bunlar tolerance_standards tablosunda yok)
+                if (value === 'TS 13920' || value === 'TS 9013') {
+                    newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: value };
+                    onUpdate(index, newItem);
+                    return;
+                }
+                
+                // ISO 2768-1 standartları için normal işlem
+                if (standards) {
+                    const [standardName, toleranceClass] = value.split('_');
+                    const standard = standards.find(s => s.label.startsWith(standardName));
+                    newItem = { ...newItem, standard_id: standard ? standard.value : null, tolerance_class: toleranceClass };
+                    const calculatedItem = autoCalculateTolerance(newItem);
+                    onUpdate(index, calculatedItem);
+                    return;
+                }
             } else {
-                newItem = { ...newItem, standard_id: null, tolerance_class: null };
+                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null };
             }
         }
     
