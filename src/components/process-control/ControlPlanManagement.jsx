@@ -826,6 +826,13 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                             }} title="Revize Et">
                                                 <History className="h-4 w-4" />
                                             </Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
+                                                if (confirm('Bu kontrol planını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+                                                    handleDelete(plan.id);
+                                                }
+                                            }} title="Sil">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     </td>
                                 </tr>
