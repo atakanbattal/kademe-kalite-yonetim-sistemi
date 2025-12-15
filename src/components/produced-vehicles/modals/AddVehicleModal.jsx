@@ -4,7 +4,7 @@ import BaseVehicleForm from '@/components/produced-vehicles/modals/BaseVehicleFo
 
 const AddVehicleModal = ({ isOpen, setIsOpen, refreshVehicles }) => (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
                 <DialogTitle>Yeni Araç Ekle</DialogTitle>
                 <DialogDescription>

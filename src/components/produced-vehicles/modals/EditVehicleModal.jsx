@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useData } from '@/contexts/DataContext';
 
 const DMO_STATUS_OPTIONS = ['DMO Bekliyor', 'DMO Geçti', 'DMO Kaldı'];
+const BRAND_OPTIONS = ['FORD', 'OTOKAR', 'ISUZU', 'MERCEDES', 'MITSUBISHI', 'IVECO'];
+const BRAND_REQUIRED_VEHICLE_TYPES = ['Çay Toplama Makinesi', 'HSCK (Hidrolik Sıkıştırmalı Çöp Kamyonu)', 'İSTAÇ', 'KDM 35', 'KDM 70', 'KDM 80'];
 
 const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     const { toast } = useToast();
@@ -20,8 +22,10 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
         serial_no: '',
         customer_name: '',
         vehicle_type: '',
+        vehicle_brand: '',
         notes: '',
         dmo_status: '',
+        delivery_due_date: '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [initialFormData, setInitialFormData] = useState({});
@@ -33,6 +37,12 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     const vehicleTypes = (products || [])
         .filter(p => p.category_id === vehicleTypeCategory?.id)
         .map(p => p.product_name);
+    
+    // Seçilen araç tipi marka gerektiriyor mu?
+    const needsBrand = BRAND_REQUIRED_VEHICLE_TYPES.some(type => 
+        formData.vehicle_type?.toLowerCase().includes(type.toLowerCase()) ||
+        type.toLowerCase().includes(formData.vehicle_type?.toLowerCase())
+    );
 
     useEffect(() => {
         if (vehicle && isOpen) {
@@ -41,8 +51,10 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                 serial_no: vehicle.serial_no || '',
                 customer_name: vehicle.customer_name || '',
                 vehicle_type: vehicle.vehicle_type || '',
+                vehicle_brand: vehicle.vehicle_brand || '',
                 notes: vehicle.notes || '',
                 dmo_status: vehicle.dmo_status || '',
+                delivery_due_date: vehicle.delivery_due_date ? vehicle.delivery_due_date.split('T')[0] : '',
             };
             setFormData(initialData);
             setInitialFormData(initialData);
@@ -95,8 +107,11 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                 serial_no: formData.serial_no,
                 customer_name: formData.customer_name,
                 vehicle_type: formData.vehicle_type,
+                vehicle_brand: needsBrand ? formData.vehicle_brand : null,
                 notes: formData.notes,
                 dmo_status: formData.dmo_status,
+                delivery_due_date: formData.delivery_due_date || null,
+                updated_at: new Date().toISOString(),
             })
             .eq('id', vehicle.id);
 
@@ -181,10 +196,33 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                                 </SelectContent>
                             </Select>
                         </div>
+                        
+                        {/* Marka alanı - sadece belirli araç tipleri için */}
+                        {needsBrand && (
+                            <div>
+                                <Label htmlFor="vehicle_brand">Marka *</Label>
+                                <Select value={formData.vehicle_brand} onValueChange={(value) => handleSelectChange('vehicle_brand', value)}>
+                                    <SelectTrigger><SelectValue placeholder="Marka seçin..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {BRAND_OPTIONS.map(brand => <SelectItem key={brand} value={brand}>{brand}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        
+                        <div>
+                            <Label htmlFor="delivery_due_date">Termin Tarihi</Label>
+                            <Input 
+                                id="delivery_due_date" 
+                                type="date" 
+                                value={formData.delivery_due_date} 
+                                onChange={handleInputChange} 
+                            />
+                        </div>
                     </div>
                     <div>
                         <Label htmlFor="notes">Notlar</Label>
-                        <Textarea id="notes" value={formData.notes} onChange={handleInputChange} />
+                        <Textarea id="notes" value={formData.notes} onChange={handleInputChange} rows={4} placeholder="Araç ile ilgili notlarınızı buraya yazabilirsiniz..." />
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => handleClose(false)} disabled={isSubmitting}>

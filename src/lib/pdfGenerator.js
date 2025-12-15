@@ -939,6 +939,12 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                             <span class="label">Araç Tipi</span>
                             <span class="value">${vehicle.vehicle_type || '-'}</span>
                         </div>
+                        ${vehicle.vehicle_brand ? `
+                            <div class="info-item">
+                                <span class="label">Marka</span>
+                                <span class="value" style="color: #1e40af; font-weight: 700;">${vehicle.vehicle_brand}</span>
+                            </div>
+                        ` : ''}
                         <div class="info-item">
                             <span class="label">Müşteri</span>
                             <span class="value">${vehicle.customer_name || '-'}</span>
@@ -951,6 +957,12 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                             <span class="label">DMO Durumu</span>
                             <span class="value">${vehicle.dmo_status || '-'}</span>
                         </div>
+                        ${vehicle.delivery_due_date ? `
+                            <div class="info-item">
+                                <span class="label">Termin Tarihi</span>
+                                <span class="value" style="color: #d97706; font-weight: 600;">${formatDate(vehicle.delivery_due_date)}</span>
+                            </div>
+                        ` : ''}
                         <div class="info-item">
                             <span class="label">Oluşturulma</span>
                             <span class="value">${formatDate(vehicle.created_at)}</span>
@@ -959,14 +971,17 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                             <span class="label">Son Güncelleme</span>
                             <span class="value">${formatDate(vehicle.updated_at)}</span>
                         </div>
-                        ${vehicle.notes ? `
-                            <div class="info-item full-width">
-                                <span class="label">Notlar</span>
-                                <span class="value" style="white-space: pre-wrap;">${vehicle.notes}</span>
-                            </div>
-                        ` : ''}
                     </div>
                 </div>
+                
+                ${vehicle.notes ? `
+                    <div class="section">
+                        <h2 class="section-title">Araç Notları</h2>
+                        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 15px;">
+                            <p style="margin: 0; font-size: 13px; color: #92400e; white-space: pre-wrap;">${vehicle.notes}</p>
+                        </div>
+                    </div>
+                ` : ''}
 
                 ${timelineHtml}
                 
