@@ -488,9 +488,14 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 file_name: fileName || null,
                 revision_number: selectedPlan?.revision_number || 0,
                 revision_date: new Date().toISOString(),
-                revision_notes: revisionNotes || null,
                 updated_at: new Date().toISOString(),
             };
+            
+            // revision_notes sadece revizyon modunda ve değer varsa ekle
+            // NOT: Veritabanında revision_notes sütunu yoksa bu alan gönderilmez
+            if (revisionNotes && revisionNotes.trim() !== '') {
+                planData.revision_notes = revisionNotes;
+            }
             
             // Undefined değerleri temizle (Supabase'e göndermeden önce)
             Object.keys(planData).forEach(key => {
