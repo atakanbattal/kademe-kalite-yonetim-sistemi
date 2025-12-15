@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calculator, Save } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
@@ -465,8 +464,8 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="flex items-center gap-2">
                         {isEditMode ? (
                             <>
@@ -489,7 +488,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <ScrollArea className="max-h-[60vh] pr-4">
+                <div className="flex-1 overflow-y-auto min-h-0 pr-2">
                     <div className="space-y-4 py-4">
                         {allFaults.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
@@ -598,9 +597,9 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                             </>
                         )}
                     </div>
-                </ScrollArea>
+                </div>
 
-                <DialogFooter>
+                <DialogFooter className="flex-shrink-0 border-t pt-4">
                     <Button variant="outline" onClick={() => setIsOpen(false)} disabled={loading}>
                         İptal
                     </Button>

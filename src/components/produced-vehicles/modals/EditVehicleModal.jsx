@@ -142,7 +142,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     return (
         <>
             <Dialog open={isOpen && !showConfirmDialog} onOpenChange={handleClose}>
-                <DialogContent className="sm:max-w-2xl" onEscapeKeyDown={(e) => {
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col" onEscapeKeyDown={(e) => {
                     const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
                     if (hasChanged) {
                         e.preventDefault();
@@ -157,13 +157,13 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                         setShowConfirmDialog(true);
                     }
                 }}>
-                <DialogHeader>
+                <DialogHeader className="flex-shrink-0">
                     <DialogTitle>Araç Bilgilerini Düzenle</DialogTitle>
                     <DialogDescription>
                         Şasi No: {vehicle?.chassis_no}
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                <form id="edit-vehicle-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 space-y-4 py-4 pr-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="chassis_no">Şasi No</Label>
@@ -224,15 +224,15 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                         <Label htmlFor="notes">Notlar</Label>
                         <Textarea id="notes" value={formData.notes} onChange={handleInputChange} rows={4} placeholder="Araç ile ilgili notlarınızı buraya yazabilirsiniz..." />
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => handleClose(false)} disabled={isSubmitting}>
-                            İptal
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Güncelleniyor...' : 'Güncelle'}
-                        </Button>
-                    </DialogFooter>
                 </form>
+                <DialogFooter className="flex-shrink-0 border-t pt-4">
+                    <Button type="button" variant="outline" onClick={() => handleClose(false)} disabled={isSubmitting}>
+                        İptal
+                    </Button>
+                    <Button type="submit" form="edit-vehicle-form" disabled={isSubmitting}>
+                        {isSubmitting ? 'Güncelleniyor...' : 'Güncelle'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
         

@@ -287,12 +287,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         return (
             <>
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogContent className="sm:max-w-4xl">
-                    <DialogHeader>
+                    <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
                         <DialogTitle>Hataları Yönet: {vehicle?.chassis_no || vehicle?.serial_no || 'Bilinmeyen'}</DialogTitle>
                         <DialogDescription>Bu araç için tespit edilen hataları ekleyin, düzenleyin veya silin.</DialogDescription>
                     </DialogHeader>
-                    <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="flex-1 overflow-y-auto min-h-0 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-4">
                             <h3 className="font-semibold text-lg">Mevcut Hatalar</h3>
                              <ScrollArea className="h-72 pr-6 border rounded-md">
@@ -378,8 +379,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 <p className="text-muted-foreground">Hata yönetimi için yetkiniz yok.</p>
                             </div>
                         )}
+                        </div>
                     </div>
-                    <DialogFooter className="flex items-center justify-between">
+                    <DialogFooter className="flex-shrink-0 flex items-center justify-between border-t pt-4">
                         <div className="flex items-center gap-2">
                             {canManage && (
                                 <label className="flex items-center gap-2 text-sm cursor-pointer">
