@@ -402,20 +402,31 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     className="space-y-6"
                 >
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
-                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                            <TabsList>
-                                <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4" /> Pano</TabsTrigger>
-                                <TabsTrigger value="list"><List className="mr-2 h-4 w-4" /> Liste</TabsTrigger>
-                            </TabsList>
-                            <div className="flex items-center gap-2">
-                                <Button onClick={activeTab === 'dashboard' ? handleGenerateExecutiveReport : handleGenerateReport} size="sm" variant="outline">
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    Rapor Al
-                                </Button>
-                                <Button onClick={onAddNC} size="sm">
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Yeni Kayıt
-                                </Button>
+                        <div className="flex flex-col gap-3 sm:gap-4">
+                            {/* Tabs ve Butonlar - Mobil için dikey, desktop için yatay */}
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                                <TabsList className="w-full sm:w-auto">
+                                    <TabsTrigger value="dashboard" className="flex-1 sm:flex-none">
+                                        <LayoutDashboard className="mr-1.5 sm:mr-2 h-4 w-4" /> 
+                                        <span className="hidden xs:inline">Pano</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="list" className="flex-1 sm:flex-none">
+                                        <List className="mr-1.5 sm:mr-2 h-4 w-4" /> 
+                                        <span className="hidden xs:inline">Liste</span>
+                                    </TabsTrigger>
+                                </TabsList>
+                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                    <Button onClick={activeTab === 'dashboard' ? handleGenerateExecutiveReport : handleGenerateReport} size="sm" variant="outline" className="flex-1 sm:flex-none">
+                                        <FileText className="mr-1.5 sm:mr-2 h-4 w-4" />
+                                        <span className="hidden xs:inline">Rapor Al</span>
+                                        <span className="xs:hidden">Rapor</span>
+                                    </Button>
+                                    <Button onClick={onAddNC} size="sm" className="flex-1 sm:flex-none">
+                                        <Plus className="mr-1.5 sm:mr-2 h-4 w-4" />
+                                        <span className="hidden xs:inline">Yeni Kayıt</span>
+                                        <span className="xs:hidden">Ekle</span>
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                         <NCFilters filters={filters} setFilters={setFilters} />

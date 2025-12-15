@@ -44,19 +44,20 @@ import React, { useState, useCallback } from 'react';
 
     const StatCard = ({ icon: Icon, title, value, color, onClick, loading }) => (
         <motion.div
-            whileHover={{ y: -5, boxShadow: '0 10px 15px -3px hsla(var(--card-foreground), 0.07), 0 4px 6px -2px hsla(var(--card-foreground), 0.04)' }}
+            whileHover={{ y: -3 }}
+            whileTap={{ scale: 0.98 }}
             className="h-full"
         >
-            <Card className="h-full cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300" onClick={onClick}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-                    {Icon && <Icon className={`w-5 h-5 ${color || 'text-muted-foreground'}`} />}
+            <Card className="h-full cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300 active:shadow-md touch-manipulation" onClick={onClick}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-6">
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground line-clamp-2">{title}</CardTitle>
+                    {Icon && <Icon className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${color || 'text-muted-foreground'}`} />}
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                     {loading ? (
-                        <Skeleton className="h-8 w-3/4 mt-1" />
+                        <Skeleton className="h-7 sm:h-8 w-3/4 mt-1" />
                     ) : (
-                        <div className={cn("text-3xl font-bold", color || 'text-foreground')}>{value}</div>
+                        <div className={cn("text-2xl sm:text-3xl font-bold", color || 'text-foreground')}>{value}</div>
                     )}
                 </CardContent>
             </Card>
@@ -66,37 +67,37 @@ import React, { useState, useCallback } from 'react';
 
     const ListWidget = ({ title, items, icon: Icon, onRowClick, emptyText, onSeeAllClick, loading }) => (
         <Card className="dashboard-widget h-full flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                    <Icon className="w-5 h-5 text-primary" />
-                    {title}
+            <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-4 p-3 sm:p-6">
+                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base font-semibold">
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+                    <span className="truncate">{title}</span>
                 </CardTitle>
                 {items && items.length > 0 && (
-                     <Button variant="link" size="sm" onClick={onSeeAllClick} className="p-0 h-auto">Tümünü Gör</Button>
+                     <Button variant="link" size="sm" onClick={onSeeAllClick} className="p-0 h-auto text-xs sm:text-sm shrink-0">Tümünü Gör</Button>
                 )}
             </CardHeader>
-            <CardContent className="pt-0 flex-grow">
+            <CardContent className="pt-0 flex-grow p-3 sm:p-6">
                 {loading ? (
-                     <div className="space-y-3">
-                        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                     <div className="space-y-2 sm:space-y-3">
+                        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-9 sm:h-10 w-full" />)}
                      </div>
                 ) : !items || items.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
-                      <p className="text-sm text-muted-foreground text-center py-4">{emptyText}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground text-center py-3 sm:py-4">{emptyText}</p>
                     </div>
                 ) : (
-                    <ul className="space-y-1">
+                    <ul className="space-y-0.5 sm:space-y-1">
                         {items.slice(0, 5).map((item, index) => (
                             <li 
                                 key={item.id || index}
                                 onClick={() => onRowClick(item.module)}
-                                className="grid grid-cols-[1fr,auto] items-center gap-4 text-sm p-2 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                                className="grid grid-cols-[1fr,auto] items-center gap-2 sm:gap-4 text-xs sm:text-sm p-2 rounded-md hover:bg-accent active:bg-accent transition-colors cursor-pointer touch-manipulation"
                             >
-                                <div className="truncate">
+                                <div className="truncate min-w-0">
                                     <p className="font-medium text-foreground truncate">{item.name}</p>
-                                    {item.user && <p className="text-xs text-muted-foreground truncate">{item.user}</p>}
+                                    {item.user && <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{item.user}</p>}
                                 </div>
-                                {item.date && <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(item.date).toLocaleDateString('tr-TR')}</span>}
+                                {item.date && <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap shrink-0">{new Date(item.date).toLocaleDateString('tr-TR')}</span>}
                             </li>
                         ))}
                     </ul>
@@ -220,18 +221,18 @@ import React, { useState, useCallback } from 'react';
                     onRowClick={(item) => handleCardClick(item.module)}
                 />
                 <ReportGenerationModalEnhanced isOpen={isReportModalOpen} setIsOpen={setReportModalOpen} />
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Ana Panel</h1>
-                        <p className="text-muted-foreground mt-1">Tüm kalite süreçlerinize genel bir bakış.</p>
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground">Ana Panel</h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Tüm kalite süreçlerinize genel bir bakış.</p>
                     </div>
-                    <Button onClick={() => setReportModalOpen(true)}>
+                    <Button onClick={() => setReportModalOpen(true)} size="sm" className="shrink-0 w-full sm:w-auto">
                         <FileDown className="w-4 h-4 mr-2" /> Rapor Al
                     </Button>
                 </div>
 
                 <motion.div 
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+                    className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
@@ -250,19 +251,19 @@ import React, { useState, useCallback } from 'react';
                     ))}
                 </motion.div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
                     <motion.div variants={itemVariants} className="lg:col-span-3">
                         <Card className="dashboard-widget h-full">
-                            <CardHeader>
-                                <CardTitle>Birim Bazlı Uygunsuzluk Dağılımı</CardTitle>
+                            <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-4">
+                                <CardTitle className="text-sm sm:text-base md:text-lg">Birim Bazlı Uygunsuzluk Dağılımı</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                {loading ? <Skeleton className="h-[300px] w-full" /> : (
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <RechartsBarChart data={nonconformityData || []} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                            <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                                            <Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem' }} />
+                            <CardContent className="p-2 sm:p-6 pt-0">
+                                {loading ? <Skeleton className="h-[200px] sm:h-[250px] md:h-[300px] w-full" /> : (
+                                    <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : window.innerWidth < 768 ? 250 : 300}>
+                                        <RechartsBarChart data={nonconformityData || []} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                                            <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={window.innerWidth < 640 ? 9 : 12} tickLine={false} axisLine={false} interval={0} angle={window.innerWidth < 640 ? -45 : 0} textAnchor={window.innerWidth < 640 ? 'end' : 'middle'} height={window.innerWidth < 640 ? 60 : 30} />
+                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={window.innerWidth < 640 ? 10 : 12} tickLine={false} axisLine={false} width={30} />
+                                            <Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '12px' }} />
                                             <Bar dataKey="value" name="Uygunsuzluk Sayısı" radius={[4, 4, 0, 0]} onClick={handleChartClick}>
                                                 {(nonconformityData || []).map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer" />
@@ -277,20 +278,20 @@ import React, { useState, useCallback } from 'react';
 
                     <motion.div variants={itemVariants} className="lg:col-span-2">
                         <Card className="dashboard-widget h-full">
-                            <CardHeader>
-                                <CardTitle>Toplam Kalitesizlik Maliyetleri Dağılımı</CardTitle>
+                            <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-4">
+                                <CardTitle className="text-sm sm:text-base md:text-lg">Kalitesizlik Maliyetleri</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                               {loading ? <Skeleton className="h-[300px] w-full" /> : (
-                                   <ResponsiveContainer width="100%" height={300}>
+                            <CardContent className="p-2 sm:p-6 pt-0">
+                               {loading ? <Skeleton className="h-[200px] sm:h-[250px] md:h-[300px] w-full" /> : (
+                                   <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : window.innerWidth < 768 ? 250 : 300}>
                                         <PieChart>
-                                            <Pie data={costData || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} fill="#8884d8" paddingAngle={5} labelLine={false} onClick={handleChartClick}>
+                                            <Pie data={costData || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={window.innerWidth < 640 ? 40 : 60} outerRadius={window.innerWidth < 640 ? 60 : 80} fill="#8884d8" paddingAngle={5} labelLine={false} onClick={handleChartClick}>
                                                 {(costData || []).map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={PIE_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer" />
                                                 ))}
                                             </Pie>
-                                            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem' }} formatter={(value) => `${value.toLocaleString('tr-TR')} ₺`} />
-                                            <Legend iconSize={10} />
+                                            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '12px' }} formatter={(value) => `${value.toLocaleString('tr-TR')} ₺`} />
+                                            <Legend iconSize={8} wrapperStyle={{ fontSize: window.innerWidth < 640 ? '10px' : '12px' }} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 )}
@@ -573,7 +574,7 @@ import React, { useState, useCallback } from 'react';
                 </motion.div>
 
                 <motion.div 
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"

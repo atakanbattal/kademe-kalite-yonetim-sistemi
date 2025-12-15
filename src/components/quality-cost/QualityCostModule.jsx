@@ -254,47 +254,58 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     onGenerate={handleGenerateReport}
                 />
 
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground">Kalitesizlik Maliyeti Takibi</h1>
-                        <p className="text-muted-foreground">Maliyetlerinizi analiz edin ve trendleri takip edin.</p>
+                <div className="flex flex-col gap-3 sm:gap-4">
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Kalitesizlik Maliyeti Takibi</h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Maliyetlerinizi analiz edin ve trendleri takip edin.</p>
                     </div>
-                    <div className="mt-4 sm:mt-0 flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <CostFilters dateRange={dateRange} setDateRange={setDateRange} />
-                        <Button onClick={handleOpenReportModal} variant="outline">
-                            <FileText className="w-4 h-4 mr-2" />
-                            Rapor Al
+                        <Button onClick={handleOpenReportModal} variant="outline" size="sm" className="flex-1 sm:flex-none">
+                            <FileText className="w-4 h-4 mr-1.5 sm:mr-2" />
+                            <span className="hidden xs:inline">Rapor Al</span>
+                            <span className="xs:hidden">Rapor</span>
                         </Button>
-                        <Button onClick={() => handleOpenFormModal()}><Plus className="w-4 h-4 mr-2" />Yeni Maliyet Kaydı</Button>
+                        <Button onClick={() => handleOpenFormModal()} size="sm" className="flex-1 sm:flex-none">
+                            <Plus className="w-4 h-4 mr-1.5 sm:mr-2" />
+                            <span className="hidden xs:inline">Yeni Maliyet Kaydı</span>
+                            <span className="xs:hidden">Ekle</span>
+                        </Button>
                     </div>
                 </div>
 
                 <Tabs defaultValue="overview" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="overview">Genel Bakış</TabsTrigger>
-                        <TabsTrigger value="copq">COPQ Analizi</TabsTrigger>
-                        <TabsTrigger value="details">Detaylı Analiz</TabsTrigger>
+                        <TabsTrigger value="overview" className="text-xs sm:text-sm">
+                            <span className="hidden sm:inline">Genel Bakış</span>
+                            <span className="sm:hidden">Bakış</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="copq" className="text-xs sm:text-sm">COPQ</TabsTrigger>
+                        <TabsTrigger value="details" className="text-xs sm:text-sm">
+                            <span className="hidden sm:inline">Detaylı Analiz</span>
+                            <span className="sm:hidden">Detay</span>
+                        </TabsTrigger>
                     </TabsList>
                     <TabsContent value="overview" className="mt-6">
                         <div className="space-y-6">
                             <CostAnalytics costs={filteredCosts} loading={loading} onBarClick={handleOpenDetailModal} />
                             <div className="dashboard-widget">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="widget-title">Son Maliyet Kayıtları</h2>
-                                    <div className="flex gap-2">
-                                        <div className="relative">
+                                <div className="flex flex-col sm:flex-row justify-between gap-3 mb-4">
+                                    <h2 className="widget-title text-sm sm:text-base">Son Maliyet Kayıtları</h2>
+                                    <div className="flex flex-col xs:flex-row gap-2">
+                                        <div className="relative flex-1 xs:flex-none">
                                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                             <Input
                                                 type="search"
                                                 placeholder="Ara..."
-                                                className="pl-8 sm:w-[200px] md:w-[300px]"
+                                                className="pl-8 w-full xs:w-[150px] sm:w-[200px]"
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
                                             />
                                         </div>
                                         <Select value={unitFilter} onValueChange={setUnitFilter}>
-                                            <SelectTrigger className="w-[180px]">
-                                                <SelectValue placeholder="Birime Göre Filtrele" />
+                                            <SelectTrigger className="w-full xs:w-[140px] sm:w-[180px]">
+                                                <SelectValue placeholder="Birim" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="all">Tüm Birimler</SelectItem>

@@ -191,22 +191,34 @@ import React, { useState, useMemo, useEffect } from 'react';
                     vehicles={producedVehicles}
                 />
 
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">Kaliteye Giren Araçlar</h1>
-                        <p className="text-muted-foreground mt-1">Üretimden kalite kontrol sürecine giren araçları yönetin ve analiz edin.</p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Kaliteye Giren Araçlar</h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Üretimden kalite sürecine giren araçları yönetin.</p>
                     </div>
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="flex justify-between items-end">
-                        <TabsList>
-                            <TabsTrigger value="operations"><List className="w-4 h-4 mr-2" />Araç İşlemleri</TabsTrigger>
-                            <TabsTrigger value="analytics"><BarChart2 className="w-4 h-4 mr-2" />Hata Analizi</TabsTrigger>
-                            <TabsTrigger value="quality"><BarChart2 className="w-4 h-4 mr-2" />Kalite Analizi</TabsTrigger>
+                    <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-end">
+                        <TabsList className="w-full sm:w-auto overflow-x-auto">
+                            <TabsTrigger value="operations" className="flex-1 sm:flex-none">
+                                <List className="w-4 h-4 mr-1 sm:mr-2" />
+                                <span className="hidden xs:inline">Araç İşlemleri</span>
+                                <span className="xs:hidden">İşlemler</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="analytics" className="flex-1 sm:flex-none">
+                                <BarChart2 className="w-4 h-4 mr-1 sm:mr-2" />
+                                <span className="hidden xs:inline">Hata Analizi</span>
+                                <span className="xs:hidden">Hatalar</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="quality" className="flex-1 sm:flex-none">
+                                <BarChart2 className="w-4 h-4 mr-1 sm:mr-2" />
+                                <span className="hidden xs:inline">Kalite Analizi</span>
+                                <span className="xs:hidden">Kalite</span>
+                            </TabsTrigger>
                         </TabsList>
                         {activeTab === 'operations' && (
-                            <Button onClick={() => handleOpenModal(setAddModalOpen, null)}>
+                            <Button onClick={() => handleOpenModal(setAddModalOpen, null)} className="w-full sm:w-auto">
                                 <Plus className="w-4 h-4 mr-2" /> Yeni Araç Ekle
                             </Button>
                         )}
@@ -220,22 +232,22 @@ import React, { useState, useMemo, useEffect } from 'react';
                         />
 
                         <motion.div
-                            className="dashboard-widget mt-8"
+                            className="dashboard-widget mt-4 sm:mt-6 md:mt-8"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
                         >
-                            <div className="flex flex-col md:flex-row gap-4 mb-6">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
                                 <div className="relative flex-grow">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Şasi No, Araç Tipi veya Müşteri Adı ile Ara..."
+                                        placeholder="Şasi, Tip veya Müşteri Ara..."
                                         className="pl-10"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
-                                <Button variant="outline" onClick={() => setFilterModalOpen(true)}>
+                                <Button variant="outline" onClick={() => setFilterModalOpen(true)} className="shrink-0">
                                     <SlidersHorizontal className="w-4 h-4 mr-2" /> Filtrele
                                 </Button>
                             </div>

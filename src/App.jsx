@@ -144,7 +144,13 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
         const DEFAULT_MODULE = PERMITTED_MODULES.includes('dashboard') ? 'dashboard' : PERMITTED_MODULES[0] || 'dashboard';
 
         const [activeModule, setActiveModule] = useState(DEFAULT_MODULE);
-        const [isSidebarOpen, setSidebarOpen] = useState(true);
+        // Mobilde sidebar varsayılan olarak kapalı, desktop'ta açık
+        const [isSidebarOpen, setSidebarOpen] = useState(() => {
+            if (typeof window !== 'undefined') {
+                return window.innerWidth >= 1024;
+            }
+            return true;
+        });
         const [ncFormState, setNcFormState] = useState({ isOpen: false, record: null, onSaveSuccess: null });
         const [ncViewState, setNcViewState] = useState({ isOpen: false, record: null });
         const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
@@ -458,35 +464,91 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
           }
       };
 
+        // Ekran boyutu değişikliklerini dinle
+        useEffect(() => {
+            const handleResize = () => {
+                if (window.innerWidth >= 1024) {
+                    setSidebarOpen(true);
+                }
+            };
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+        }, []);
+
+        // Mobil overlay'e tıklandığında sidebar'ı kapat
+        const handleOverlayClick = () => {
+            if (window.innerWidth < 1024) {
+                setSidebarOpen(false);
+            }
+        };
+
         return (
             <>
                 <NCFormModal isOpen={ncFormState.isOpen} setIsOpen={(open) => setNcFormState(s => ({ ...s, isOpen: open }))} record={ncFormState.record} onSave={handleSaveNC} onSaveSuccess={onGlobalSaveSuccess} />
                 <NCViewModal isOpen={ncViewState.isOpen} setIsOpen={(open) => setNcViewState(s => ({ ...s, isOpen: open }))} record={ncViewState.record} onEdit={handleOpenNCForm} onDownloadPDF={handleDownloadPDF} />
                 <PdfViewerModal isOpen={pdfViewerState.isOpen} setIsOpen={(open) => setPdfViewerState(s => ({ ...s, isOpen: open }))} pdfUrl={pdfViewerState.url} title={pdfViewerState.title} />
                 
-                <div className="min-h-screen bg-secondary">
-                    <div className="flex">
+                <div className="min-h-screen bg-secondary overflow-x-hidden">
+                    <div className="flex relative">
+                        {/* Mobile Overlay */}
+                        <AnimatePresence>
+                            {isSidebarOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="mobile-sidebar-overlay"
+                                    onClick={handleOverlayClick}
+                                    aria-hidden="true"
+                                />
+                            )}
+                        </AnimatePresence>
+                        
+                        {/* Sidebar */}
                         <AnimatePresence>
                             {isSidebarOpen && (
                             <motion.aside
-                                initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                                className="fixed top-0 left-0 w-64 h-screen z-40 lg:relative lg:w-64 flex-shrink-0"
+                                initial={{ x: '-100%' }} 
+                                animate={{ x: 0 }} 
+                                exit={{ x: '-100%' }} 
+                                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                className="fixed top-0 left-0 w-[280px] sm:w-64 h-screen z-40 lg:relative lg:z-auto flex-shrink-0 shadow-xl lg:shadow-none"
                             >
                                 <Sidebar activeModule={activeModule} setActiveModule={handleModuleChange} permittedModules={PERMITTED_MODULES} setSidebarOpen={setSidebarOpen} />
                             </motion.aside>
                             )}
                         </AnimatePresence>
-                        <div className="flex flex-1 flex-col min-w-0">
-                            <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-                                <Button size="icon" variant="outline" onClick={() => setSidebarOpen(!isSidebarOpen)}>
+                        
+                        {/* Main Content */}
+                        <div className="flex flex-1 flex-col min-w-0 w-full">
+                            {/* Mobile Header */}
+                            <header className="mobile-sticky-header flex h-14 items-center gap-3 px-3 sm:px-4 md:px-6 lg:h-16">
+                                <Button 
+                                    size="icon" 
+                                    variant="outline" 
+                                    onClick={() => setSidebarOpen(!isSidebarOpen)}
+                                    className="h-10 w-10 shrink-0"
+                                >
                                     {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                                     <span className="sr-only">Menüyü Aç/Kapat</span>
                                 </Button>
-                                <h1 className={cn("text-xl font-semibold sm:text-2xl text-foreground", isSidebarOpen && "lg:hidden")}>
+                                <h1 className={cn(
+                                    "text-base font-semibold sm:text-lg md:text-xl lg:text-2xl text-foreground truncate",
+                                    isSidebarOpen && "lg:opacity-0"
+                                )}>
                                     {moduleTitles[activeModule] || 'Ana Panel'}
                                 </h1>
                             </header>
-                            <motion.main key={location.pathname} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }} className="flex-1 p-4 sm:p-6">
+                            
+                            {/* Main Content Area */}
+                            <motion.main 
+                                key={location.pathname} 
+                                initial={{ opacity: 0, y: 10 }} 
+                                animate={{ opacity: 1, y: 0 }} 
+                                transition={{ duration: 0.3, ease: "easeOut" }} 
+                                className="flex-1 p-3 sm:p-4 md:p-6 safe-bottom overflow-x-hidden"
+                            >
                                 <Routes>
                                     {PERMITTED_MODULES.map(mod => <Route key={mod} path={mod} element={renderModule(mod)} />)}
                                     <Route path="supplier-audit/:auditId" element={renderModule('supplier-audit/:auditId')} />

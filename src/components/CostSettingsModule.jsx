@@ -14,21 +14,50 @@ const CostSettingsModule = () => {
     const isSuperAdmin = user?.email === 'atakan.battal@kademe.com.tr';
 
     return (
-        <div className="space-y-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-foreground">Genel Ayarlar</h1>
-                <p className="text-muted-foreground mt-1">Sistem genelindeki maliyetleri, personeli ve hesapları yönetin.</p>
+        <div className="space-y-4 sm:space-y-6 md:space-y-8">
+            <div className="mb-4 sm:mb-6 md:mb-8">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Genel Ayarlar</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Sistem genelindeki maliyetleri, personeli ve hesapları yönetin.</p>
             </div>
 
             <Tabs defaultValue="personnel" className="w-full">
-                <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
-                    <TabsTrigger value="personnel"><User className="w-4 h-4 mr-2" />Personel Yönetimi</TabsTrigger>
-                    <TabsTrigger value="products"><Package className="w-4 h-4 mr-2" />Ürün Yönetimi</TabsTrigger>
-                    <TabsTrigger value="customers"><Users className="w-4 h-4 mr-2" />Müşteri Yönetimi</TabsTrigger>
-                    <TabsTrigger value="units"><Building className="w-4 h-4 mr-2"/>Birim Maliyetleri</TabsTrigger>
-                    <TabsTrigger value="materials"><Factory className="w-4 h-4 mr-2"/>Malzeme Maliyetleri</TabsTrigger>
-                    {isSuperAdmin && <TabsTrigger value="accounts"><KeyRound className="w-4 h-4 mr-2"/>Hesap Yönetimi</TabsTrigger>}
-                </TabsList>
+                {/* Mobil için yatay scroll ile tabs */}
+                <div className="w-full overflow-x-auto pb-2 -mx-1 px-1">
+                    <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full gap-1" style={{ gridTemplateColumns: `repeat(${isSuperAdmin ? 6 : 5}, minmax(0, 1fr))` }}>
+                        <TabsTrigger value="personnel" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
+                            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+                            <span className="hidden xs:inline">Personel</span>
+                            <span className="xs:hidden">👤</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="products" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
+                            <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+                            <span className="hidden xs:inline">Ürün</span>
+                            <span className="xs:hidden">📦</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="customers" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
+                            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+                            <span className="hidden xs:inline">Müşteri</span>
+                            <span className="xs:hidden">👥</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="units" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
+                            <Building className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0"/>
+                            <span className="hidden xs:inline">Birim</span>
+                            <span className="xs:hidden">🏢</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="materials" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
+                            <Factory className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0"/>
+                            <span className="hidden xs:inline">Malzeme</span>
+                            <span className="xs:hidden">🏭</span>
+                        </TabsTrigger>
+                        {isSuperAdmin && (
+                            <TabsTrigger value="accounts" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
+                                <KeyRound className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0"/>
+                                <span className="hidden xs:inline">Hesap</span>
+                                <span className="xs:hidden">🔑</span>
+                            </TabsTrigger>
+                        )}
+                    </TabsList>
+                </div>
                 <TabsContent value="personnel" className="mt-6">
                     <PersonnelManager />
                 </TabsContent>

@@ -12,6 +12,136 @@
   }
 }
 
+/* ============================================
+   MOBILE RESPONSIVE UTILITIES
+   ============================================ */
+
+/* Safe area insets for notched devices */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
+/* Prevent horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 768px) {
+  button, 
+  [role="button"], 
+  a, 
+  input, 
+  select, 
+  textarea {
+    min-height: 44px;
+  }
+  
+  /* Reduce animations on mobile for performance */
+  *, *::before, *::after {
+    animation-duration: 0.2s !important;
+    transition-duration: 0.2s !important;
+  }
+}
+
+/* Mobile overlay for sidebar */
+.mobile-sidebar-overlay {
+  @apply fixed inset-0 bg-black/50 z-30 lg:hidden;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Mobile table scroll container */
+.mobile-table-container {
+  @apply w-full overflow-x-auto -mx-4 px-4;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  .mobile-table-container {
+    @apply mx-0 px-0;
+  }
+}
+
+/* Card view for mobile tables */
+.mobile-card-view {
+  @apply block md:hidden space-y-3;
+}
+
+.mobile-card-item {
+  @apply bg-card rounded-lg p-4 border border-border shadow-sm;
+}
+
+.mobile-card-row {
+  @apply flex justify-between items-center py-1.5 border-b border-border/50 last:border-0;
+}
+
+.mobile-card-label {
+  @apply text-xs text-muted-foreground font-medium;
+}
+
+.mobile-card-value {
+  @apply text-sm font-medium text-foreground text-right;
+}
+
+/* Hide on mobile / desktop utilities */
+.hide-on-mobile {
+  @apply hidden md:block;
+}
+
+.show-on-mobile {
+  @apply block md:hidden;
+}
+
+/* Mobile-friendly form layout */
+.mobile-form-grid {
+  @apply grid grid-cols-1 gap-4 md:grid-cols-2;
+}
+
+/* Mobile modal adjustments */
+@media (max-width: 640px) {
+  [role="dialog"] > div {
+    max-height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom) - 2rem) !important;
+    margin: 1rem !important;
+    width: calc(100% - 2rem) !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Touch-friendly scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Sticky header on mobile */
+.mobile-sticky-header {
+  @apply sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border;
+  padding-top: var(--safe-area-inset-top);
+}
+
+/* Bottom safe area padding */
+.safe-bottom {
+  padding-bottom: calc(var(--safe-area-inset-bottom) + 1rem);
+}
+
 :root {
   --background: 0 0% 100%; /* Beyaz */
   --foreground: 222.2 47.4% 11.2%; /* Koyu Mavi/Siyah */
@@ -66,21 +196,47 @@ body {
   @apply text-3xl font-bold text-foreground;
 }
 
-/* Updated table styles for light theme */
+/* Updated table styles for light theme - Mobile Responsive */
 .data-table {
-  @apply w-full border-collapse;
+  @apply w-full border-collapse min-w-[600px];
 }
 
 .data-table th {
-  @apply bg-secondary/50 px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border;
+  @apply bg-secondary/50 px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border;
+}
+
+@media (min-width: 768px) {
+  .data-table th {
+    @apply px-6 py-3;
+  }
 }
 
 .data-table td {
-  @apply px-6 py-4 whitespace-nowrap text-sm text-foreground/90 border-b border-border/50;
+  @apply px-3 py-3 whitespace-nowrap text-sm text-foreground/90 border-b border-border/50;
+}
+
+@media (min-width: 768px) {
+  .data-table td {
+    @apply px-6 py-4;
+  }
 }
 
 .data-table tr:hover {
   @apply bg-secondary;
+}
+
+/* Responsive table wrapper */
+.table-responsive {
+  @apply w-full overflow-x-auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-responsive {
+    @apply -mx-4;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 
 .search-input {
@@ -110,4 +266,5 @@ body {
   a, a:visited { color: inherit !important; text-decoration: none !important; }
   /* Tooltip/title kaynaklı döküme düşebilecek metinleri engelle */
   [title]::after { content: "" !important; }
+}
 }
