@@ -90,7 +90,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                             <th className="px-4 py-2 text-left whitespace-nowrap">Kapanış Tarihi</th>
                             <th className="px-4 py-2 text-left whitespace-nowrap">Termin Tarihi</th>
                             <th className="px-4 py-2 text-left">Durum</th>
-                            <th className="px-4 py-2 text-center whitespace-nowrap min-w-[100px]">İşlemler</th>
+                            <th className="sticky right-0 bg-card px-4 py-2 text-center whitespace-nowrap min-w-[100px] z-10">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -134,7 +134,7 @@ const NCTable = ({ records, onView, onEdit, onToggleStatus, onDownloadPDF, onDel
                                             )}
                                         </div>
                                     </td>
-                                    <td className="border-t border-border px-4 py-2 text-sm text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                    <td className="sticky right-0 bg-card border-t border-border px-4 py-2 text-sm text-center whitespace-nowrap z-10" onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">
