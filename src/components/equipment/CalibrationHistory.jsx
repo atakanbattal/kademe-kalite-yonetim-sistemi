@@ -17,23 +17,45 @@ import React from 'react';
                 }
 
                 // Path formatını normalize et
-                const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+                let normalizedPath = path.startsWith('/') ? path.slice(1) : path;
                 
-                // Önce doğrudan path ile dene
-                let { data, error } = await supabase.storage.from('calibration_certificates').download(normalizedPath);
+                // Olası path formatlarını dene
+                const pathAttempts = [
+                    normalizedPath, // Doğrudan path
+                ];
                 
-                // Eğer hata varsa ve path'te '/' yoksa, equipment_id ile kombinasyonu dene
-                if (error && !normalizedPath.includes('/') && equipmentId) {
-                    const alternativePath = `${equipmentId}/${normalizedPath}`;
-                    const result = await supabase.storage.from('calibration_certificates').download(alternativePath);
-                    if (!result.error) {
-                        data = result.data;
-                        error = null;
+                if (equipmentId) {
+                    // Eğer path zaten equipment_id içeriyorsa, sadece o path'i dene
+                    if (normalizedPath.startsWith(`${equipmentId}/`)) {
+                        pathAttempts.unshift(normalizedPath);
+                    } else {
+                        // equipment_id ile kombinasyonları dene
+                        pathAttempts.push(`${equipmentId}/${normalizedPath}`);
+                        if (!normalizedPath.includes('/')) {
+                            pathAttempts.push(`${equipmentId}/${normalizedPath}`);
+                        }
                     }
                 }
                 
-                if (error) {
-                    console.error('Download error:', error);
+                let data = null;
+                let error = null;
+                
+                // Her path formatını dene
+                for (const attemptPath of pathAttempts) {
+                    const result = await supabase.storage.from('calibration_certificates').download(attemptPath);
+                    if (!result.error) {
+                        data = result.data;
+                        error = null;
+                        normalizedPath = attemptPath;
+                        break;
+                    } else {
+                        error = result.error;
+                    }
+                }
+                
+                if (error || !data) {
+                    console.error('Download error - denenen pathler:', pathAttempts);
+                    console.error('Son hata:', error);
                     return;
                 }
                 

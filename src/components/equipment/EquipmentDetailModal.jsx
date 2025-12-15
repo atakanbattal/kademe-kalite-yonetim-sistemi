@@ -87,24 +87,69 @@ import React, { useState, useEffect } from 'react';
                 }
 
                 // Path formatını normalize et - eğer path başında '/' varsa kaldır
-                const normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+                let normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
                 
-                // Önce doğrudan path ile dene
-                let { data, error } = await supabase.storage.from('calibration_certificates').download(normalizedPath);
+                // Olası path formatlarını dene (öncelik sırasına göre)
+                const pathAttempts = [];
                 
-                // Eğer hata varsa ve path'te '/' yoksa, equipment_id ile kombinasyonu dene
-                if (error && !normalizedPath.includes('/')) {
-                    const alternativePath = `${equipment.id}/${normalizedPath}`;
-                    const result = await supabase.storage.from('calibration_certificates').download(alternativePath);
+                // 1. Eğer path zaten equipment_id içeriyorsa, önce onu dene
+                if (normalizedPath.startsWith(`${equipment.id}/`)) {
+                    pathAttempts.push(normalizedPath);
+                }
+                
+                // 2. Doğrudan path'i dene (eski formatlar için)
+                pathAttempts.push(normalizedPath);
+                
+                // 3. Eğer path'te '/' yoksa, equipment_id ekle
+                if (!normalizedPath.includes('/')) {
+                    pathAttempts.push(`${equipment.id}/${normalizedPath}`);
+                }
+                
+                // 4. Path'in son kısmını al ve equipment_id ile birleştir (eğer path başka bir format içeriyorsa)
+                const pathParts = normalizedPath.split('/');
+                if (pathParts.length > 1 && pathParts[0] !== equipment.id) {
+                    // Path'in son kısmını al ve equipment_id ile birleştir
+                    const fileName = pathParts[pathParts.length - 1];
+                    pathAttempts.push(`${equipment.id}/${fileName}`);
+                }
+                
+                // Tekrarları kaldır
+                const uniquePathAttempts = [...new Set(pathAttempts)];
+                
+                let data = null;
+                let error = null;
+                let successfulPath = null;
+                
+                console.log('🔍 Kalibrasyon belgesi açılıyor:', {
+                    originalPath: filePath,
+                    normalizedPath,
+                    equipmentId: equipment.id,
+                    denenecekPathler: uniquePathAttempts
+                });
+                
+                // Her path formatını dene
+                for (const attemptPath of uniquePathAttempts) {
+                    const result = await supabase.storage.from('calibration_certificates').download(attemptPath);
                     if (!result.error) {
                         data = result.data;
+                        successfulPath = attemptPath;
                         error = null;
+                        console.log('✅ Başarılı path bulundu:', attemptPath);
+                        break;
+                    } else {
+                        error = result.error;
+                        console.log(`❌ Path denendi ama bulunamadı: ${attemptPath}`, result.error.message);
                     }
                 }
                 
-                if (error) {
-                    console.error('PDF download error:', error);
-                    toast({ variant: "destructive", title: "Hata", description: `PDF açılamadı: ${error.message}` });
+                if (error || !data) {
+                    console.error('❌ PDF download error - denenen pathler:', uniquePathAttempts);
+                    console.error('❌ Son hata:', error);
+                    toast({ 
+                        variant: "destructive", 
+                        title: "Hata", 
+                        description: `PDF açılamadı: ${error?.message || 'Dosya bulunamadı'}. Path: ${filePath}` 
+                    });
                     return;
                 }
                 

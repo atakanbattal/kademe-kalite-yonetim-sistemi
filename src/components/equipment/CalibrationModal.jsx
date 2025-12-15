@@ -95,7 +95,8 @@ const CalibrationModal = ({ isOpen, setIsOpen, equipment, refreshData, existingC
                     }
                 }
                 const sanitizedName = sanitizeFileName(file.name);
-                const newPath = `${uuidv4()}-${sanitizedName}`;
+                // Equipment ID ile klasör yapısı kullan (EquipmentFormModal ile tutarlılık için)
+                const newPath = `${equipment.id}/${uuidv4()}-${sanitizedName}`;
                 const { error: uploadError } = await supabase.storage.from('calibration_certificates').upload(newPath, file);
                 if (uploadError) {
                     throw new Error(`Sertifika yüklenemedi: ${uploadError.message}`);
