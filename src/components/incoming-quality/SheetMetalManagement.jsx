@@ -469,7 +469,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                         <td>{getDecisionBadge(item.decision)}</td>
                                         <td className='text-center'>{hasCertificates(item) ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <CircleX className="h-5 w-5 text-red-500 mx-auto" />}</td>
                                         <td className="text-right" onClick={(e) => e.stopPropagation()}>
-                                            <AlertDialog><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <AlertDialog><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4 text-foreground" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={() => handleView(entry)}><Eye className="mr-2 h-4 w-4" /> Görüntüle</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleEdit(entry)}><Edit className="mr-2 h-4 w-4" /> Düzenle</DropdownMenuItem>
