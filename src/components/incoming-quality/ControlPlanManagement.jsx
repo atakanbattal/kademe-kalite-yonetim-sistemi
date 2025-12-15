@@ -557,6 +557,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
 
     const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
         const { toast } = useToast();
+        const { characteristics, equipment, standards } = useData();
         const [plans, setPlans] = useState([]);
         const [loading, setLoading] = useState(true);
         const [isModalOpen, setIsModalOpen] = useState(isOpen || false);
