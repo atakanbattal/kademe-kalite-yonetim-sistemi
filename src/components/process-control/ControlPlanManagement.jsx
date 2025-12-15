@@ -35,31 +35,36 @@ const ISO_2768_1_TOLERANCES = {
     ]
 };
 
-// TS 13920 tolerans tablosu (ISO 2768-1'e benzer yapı)
+// TS EN ISO 13920 tolerans tablosu (Kaynaklı yapılar için genel toleranslar)
+// Tolerans sınıfları: A (en hassas), B, C, D (en kaba)
 const TS_13920_TOLERANCES = {
     linear: [
-        { range: [0.5, 3], f: 0.05, m: 0.1, c: 0.2, v: null },
-        { range: [3, 6], f: 0.05, m: 0.1, c: 0.3, v: 0.5 },
-        { range: [6, 30], f: 0.1, m: 0.2, c: 0.5, v: 1.0 },
-        { range: [30, 120], f: 0.15, m: 0.3, c: 0.8, v: 1.5 },
-        { range: [120, 400], f: 0.2, m: 0.5, c: 1.2, v: 2.5 },
-        { range: [400, 1000], f: 0.3, m: 0.8, c: 2.0, v: 4.0 },
-        { range: [1000, 2000], f: 0.5, m: 1.2, c: 3.0, v: 6.0 },
-        { range: [2000, 4000], f: 0.8, m: 2.0, c: 5.0, v: 8.0 }
+        { range: [0, 30], A: 1.0, B: 2.0, C: 3.0, D: 4.0 },
+        { range: [30, 120], A: 1.0, B: 2.0, C: 4.0, D: 6.0 },
+        { range: [120, 400], A: 1.5, B: 3.0, C: 6.0, D: 10.0 },
+        { range: [400, 1000], A: 2.0, B: 4.0, C: 8.0, D: 14.0 },
+        { range: [1000, 2000], A: 3.0, B: 6.0, C: 11.0, D: 18.0 },
+        { range: [2000, 4000], A: 4.0, B: 8.0, C: 14.0, D: 24.0 },
+        { range: [4000, 8000], A: 5.0, B: 10.0, C: 18.0, D: 32.0 },
+        { range: [8000, 12000], A: 6.0, B: 12.0, C: 22.0, D: 40.0 },
+        { range: [12000, 16000], A: 7.0, B: 14.0, C: 26.0, D: 50.0 },
+        { range: [16000, 20000], A: 8.0, B: 16.0, C: 30.0, D: 60.0 }
     ]
 };
 
-// TS 9013 tolerans tablosu (ISO 2768-1'e benzer yapı)
+// TS EN ISO 9013 tolerans tablosu (Isıl kesim toleransları)
+// Boyut toleransları (kesim uzunluğuna göre)
+// Range sınıfları: 1 (en hassas), 2, 3, 4 (en kaba)
 const TS_9013_TOLERANCES = {
     linear: [
-        { range: [0.5, 3], f: 0.05, m: 0.1, c: 0.2, v: null },
-        { range: [3, 6], f: 0.05, m: 0.1, c: 0.3, v: 0.5 },
-        { range: [6, 30], f: 0.1, m: 0.2, c: 0.5, v: 1.0 },
-        { range: [30, 120], f: 0.15, m: 0.3, c: 0.8, v: 1.5 },
-        { range: [120, 400], f: 0.2, m: 0.5, c: 1.2, v: 2.5 },
-        { range: [400, 1000], f: 0.3, m: 0.8, c: 2.0, v: 4.0 },
-        { range: [1000, 2000], f: 0.5, m: 1.2, c: 3.0, v: 6.0 },
-        { range: [2000, 4000], f: 0.8, m: 2.0, c: 5.0, v: 8.0 }
+        { range: [0, 30], '1': 0.5, '2': 1.0, '3': 1.5, '4': 2.5 },
+        { range: [30, 120], '1': 1.0, '2': 1.5, '3': 2.5, '4': 4.0 },
+        { range: [120, 315], '1': 1.5, '2': 2.0, '3': 3.5, '4': 6.0 },
+        { range: [315, 1000], '1': 2.0, '2': 3.0, '3': 5.0, '4': 8.0 },
+        { range: [1000, 2000], '1': 2.5, '2': 4.0, '3': 6.5, '4': 10.0 },
+        { range: [2000, 4000], '1': 3.5, '2': 5.5, '3': 9.0, '4': 14.0 },
+        { range: [4000, 8000], '1': 5.0, '2': 8.0, '3': 12.0, '4': 20.0 },
+        { range: [8000, 12000], '1': 7.0, '2': 10.0, '3': 16.0, '4': 26.0 }
     ]
 };
 
@@ -69,8 +74,8 @@ const STANDARD_OPTIONS = [
     { value: 'ISO 2768-1_m', label: 'ISO 2768-1 m (Medium - Orta)' },
     { value: 'ISO 2768-1_c', label: 'ISO 2768-1 c (Coarse - Kaba)' },
     { value: 'ISO 2768-1_v', label: 'ISO 2768-1 v (Very Coarse - Çok Kaba)' },
-    { value: 'TS 13920', label: 'TS 13920' },
-    { value: 'TS 9013', label: 'TS 9013' },
+    { value: 'TS 13920', label: 'TS EN ISO 13920 (Kaynak Toleransları)' },
+    { value: 'TS 9013', label: 'TS EN ISO 9013 (Isıl Kesim Toleransları)' },
 ];
 
 const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, standards }) => {
@@ -80,7 +85,13 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
     const autoCalculateTolerance = useCallback((currentItem) => {
         const { nominal_value, tolerance_class, tolerance_direction, standard_class } = currentItem;
         
-        if (!isDimensional || !tolerance_class || !nominal_value) {
+        // TS 13920 ve TS 9013 için tolerance_class olmadan hesaplama yapma
+        if (!isDimensional || !nominal_value) {
+            return { ...currentItem };
+        }
+        
+        // ISO 2768-1 için tolerance_class şart, TS standartları için de şart
+        if (!tolerance_class) {
             return { ...currentItem };
         }
 
@@ -91,9 +102,9 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
 
         // Standarta göre tolerans tablosunu seç
         let toleranceTable = null;
-        if (standard_class && standard_class.startsWith('TS 13920')) {
+        if (standard_class === 'TS 13920') {
             toleranceTable = TS_13920_TOLERANCES;
-        } else if (standard_class && standard_class.startsWith('TS 9013')) {
+        } else if (standard_class === 'TS 9013') {
             toleranceTable = TS_9013_TOLERANCES;
         } else if (standard_class && standard_class.startsWith('ISO 2768-1')) {
             toleranceTable = ISO_2768_1_TOLERANCES;
@@ -102,8 +113,9 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             toleranceTable = ISO_2768_1_TOLERANCES;
         }
 
+        // Nominal değere göre tolerans kuralını bul
         const toleranceRule = toleranceTable.linear.find(
-            rule => nominal > rule.range[0] && nominal <= rule.range[1]
+            rule => nominal >= rule.range[0] && nominal < rule.range[1]
         );
 
         if (toleranceRule && toleranceRule[tolerance_class] !== null && toleranceRule[tolerance_class] !== undefined) {
@@ -196,12 +208,9 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
     const selectedCharacteristic = characteristics?.find(c => c.value === item.characteristic_id);
     
     const standardClassValue = useMemo(() => {
-        // TS 13920 veya TS 9013 ise tolerance_class ile birlikte göster
+        // TS 13920 veya TS 9013 ise sadece standart değerini döndür (tolerans ayrı combobox'ta)
         if (item.standard_class === 'TS 13920' || item.standard_class === 'TS 9013') {
-            if (item.tolerance_class) {
-                return `${item.standard_class}_${item.tolerance_class}`;
-            }
-            return item.standard_class || '';
+            return item.standard_class;
         }
         
         // ISO 2768-1 standartları için
@@ -214,13 +223,28 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         return item.standard_class || '';
     }, [item.standard_id, item.tolerance_class, standards, item.standard_class]);
     
-    // TS 13920 ve TS 9013 için tolerans sınıfı seçenekleri
-    const toleranceClassOptions = [
-        { value: 'f', label: 'f (Fine - İnce)' },
-        { value: 'm', label: 'm (Medium - Orta)' },
-        { value: 'c', label: 'c (Coarse - Kaba)' },
-        { value: 'v', label: 'v (Very Coarse - Çok Kaba)' },
+    // TS 13920 için tolerans sınıfı seçenekleri (A, B, C, D)
+    const ts13920ToleranceOptions = [
+        { value: 'A', label: 'A (En Hassas)' },
+        { value: 'B', label: 'B (Hassas)' },
+        { value: 'C', label: 'C (Normal)' },
+        { value: 'D', label: 'D (Kaba)' },
     ];
+    
+    // TS 9013 için tolerans sınıfı seçenekleri (Range 1, 2, 3, 4)
+    const ts9013ToleranceOptions = [
+        { value: '1', label: 'Range 1 (En Hassas)' },
+        { value: '2', label: 'Range 2 (Hassas)' },
+        { value: '3', label: 'Range 3 (Normal)' },
+        { value: '4', label: 'Range 4 (Kaba)' },
+    ];
+    
+    // Standarda göre tolerans sınıfı seçeneklerini belirle
+    const toleranceClassOptions = item.standard_class === 'TS 13920' 
+        ? ts13920ToleranceOptions 
+        : item.standard_class === 'TS 9013' 
+            ? ts9013ToleranceOptions 
+            : [];
     
     const isTSStandard = item.standard_class === 'TS 13920' || item.standard_class === 'TS 9013';
 
