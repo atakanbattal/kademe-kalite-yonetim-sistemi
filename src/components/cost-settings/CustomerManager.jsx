@@ -814,7 +814,7 @@ const CustomerManager = () => {
                                     <th>İletişim</th>
                                     <th>Şehir</th>
                                     <th>Durum</th>
-                                    <th className="sticky right-0 bg-card text-center z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                                    <th className="text-center z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                                 </tr>
                             </thead>
                             <tbody>

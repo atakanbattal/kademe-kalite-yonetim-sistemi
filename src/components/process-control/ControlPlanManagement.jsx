@@ -753,7 +753,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                             <th className="p-3 text-left">Parça Adı</th>
                             <th className="p-3 text-left">Rev. No</th>
                             <th className="p-3 text-center">Ölçüm Sayısı</th>
-                            <th className="sticky right-0 bg-card p-3 text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                            <th className="p-3 text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -773,7 +773,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                     <td className="p-3">{plan.part_name}</td>
                                     <td className="p-3">Rev.{plan.revision_number || 0}</td>
                                     <td className="p-3 text-center">{(plan.items || []).length}</td>
-                                    <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] p-3 text-right">
+                                    <td className="p-3 text-right">
                                         <div className="flex justify-end gap-2">
                                             <Button variant="ghost" size="icon" onClick={() => handleViewDetail(plan)} title="Detayları Görüntüle">
                                                 <Eye className="h-4 w-4" />

@@ -165,7 +165,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 <TableHead>Katılımcı Sayısı</TableHead>
                                 <TableHead>Planlanan Tarih</TableHead>
                                 <TableHead>Durum</TableHead>
-                                <TableHead className="sticky right-0 bg-card text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
+                                <TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -182,7 +182,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                         <TableCell>{training.training_participants[0]?.count || 0}</TableCell>
                                         <TableCell>{training.start_date ? format(new Date(training.start_date), 'dd MMMM yyyy', { locale: tr }) : '-'}</TableCell>
                                         <TableCell>{getStatusBadge(training.status)}</TableCell>
-                                        <TableCell className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-right">
+                                        <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" className="h-8 w-8 p-0">

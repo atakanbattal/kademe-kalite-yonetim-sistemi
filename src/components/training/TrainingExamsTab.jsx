@@ -115,14 +115,14 @@ import React, { useState, useEffect, useCallback } from 'react';
                     <Button onClick={openModalForNew}><PlusCircle className="mr-2 h-4 w-4" /> Yeni Sınav</Button>
                 </div>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Sınav</TableHead><TableHead>Eğitim</TableHead><TableHead>Geçme Notu</TableHead><TableHead className="sticky right-0 bg-card text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Sınav</TableHead><TableHead>Eğitim</TableHead><TableHead>Geçme Notu</TableHead><TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead></TableRow></TableHeader>
                     <TableBody>
                         {exams.map(exam => (
                             <TableRow key={exam.id}>
                                 <TableCell>{exam.title}</TableCell>
                                 <TableCell>{exam.trainings?.title}</TableCell>
                                 <TableCell>{exam.passing_score}</TableCell>
-                                <TableCell className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-right">
+                                <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => openModalForView(exam)}><Eye className="h-4 w-4" /></Button>
                                     <Button variant="ghost" size="icon" onClick={() => openModalForEdit(exam)}><Edit className="h-4 w-4" /></Button>
                                     <Button variant="ghost" size="icon" onClick={() => handleDelete(exam.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

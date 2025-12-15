@@ -154,7 +154,7 @@ import React, { useState, useMemo } from 'react';
                                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Denetlenen Birim</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Tarih</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Durum</th>
-                                    <th className="sticky right-0 bg-card px-4 py-3 text-center text-sm font-medium text-muted-foreground z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                                    <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -177,7 +177,7 @@ import React, { useState, useMemo } from 'react';
                                             <td className="px-4 py-3 text-muted-foreground">{audit.department?.unit_name || 'N/A'}</td>
                                             <td className="px-4 py-3 text-muted-foreground">{formatDate(audit.audit_date)}</td>
                                             <td className="px-4 py-3"><Badge variant={getStatusVariant(audit.status)}>{audit.status}</Badge></td>
-                                            <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                            <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" className="h-8 w-8 p-0">

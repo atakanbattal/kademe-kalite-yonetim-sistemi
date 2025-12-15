@@ -146,14 +146,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 
                         <div className="rounded-md border mt-4">
                             <Table>
-                                <TableHeader><TableRow><TableHead>Doküman Adı</TableHead><TableHead>Yüklenme Tarihi</TableHead><TableHead className="sticky right-0 bg-card text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Doküman Adı</TableHead><TableHead>Yüklenme Tarihi</TableHead><TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {loading ? <TableRow><TableCell colSpan="3" className="text-center">Yükleniyor...</TableCell></TableRow> :
                                     documents.map(doc => (
                                         <TableRow key={doc.id}>
                                             <TableCell className="font-medium">{doc.file_name}</TableCell>
                                             <TableCell>{new Date(doc.created_at).toLocaleDateString('tr-TR')}</TableCell>
-                                            <TableCell className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-right">
+                                            <TableCell className="text-right">
                                                 <Button variant="outline" size="sm" onClick={() => handleView(doc.file_path, doc.file_name)}>Görüntüle</Button>
                                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(doc.id, doc.file_path)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </TableCell>

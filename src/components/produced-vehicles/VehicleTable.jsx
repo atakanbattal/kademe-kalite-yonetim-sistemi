@@ -168,7 +168,7 @@ import React from 'react';
                             <th>DMO Durumu</th>
                             <th>Durumda Geçen Süre</th>
                             <th>Termin / Kalan</th>
-                            <th className="sticky right-0 bg-card px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                            <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -221,7 +221,7 @@ import React from 'react';
                                             <span className="text-muted-foreground">-</span>
                                         )}
                                     </td>
-                                    <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)]" onClick={(e) => e.stopPropagation()}>
+                                    <td onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">

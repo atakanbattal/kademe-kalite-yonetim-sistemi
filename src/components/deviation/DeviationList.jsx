@@ -34,7 +34,7 @@ const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove, onCrea
                         <th>Kaynak</th>
                         <th>Tarih</th>
                         <th>Durum</th>
-                        <th className="sticky right-0 bg-card px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                        <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -61,7 +61,7 @@ const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove, onCrea
                             <td>
                                 <Badge variant={getStatusVariant(d.status)}>{d.status}</Badge>
                             </td>
-                            <td className="sticky right-0 bg-card border-l border-border z-20 shadow-[2px_0_4px_rgba(0,0,0,0.1)]" onClick={(e) => e.stopPropagation()}>
+                            <td onClick={(e) => e.stopPropagation()}>
                                 <AlertDialog>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
