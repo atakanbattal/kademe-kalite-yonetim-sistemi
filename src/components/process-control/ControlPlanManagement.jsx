@@ -330,7 +330,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             });
 
             if (validationError) {
-                toast({ variant: 'destructive', title: 'Validasyon Hatası', description: 'Lütfen tüm karakteristikleri seçin ve Min toleransın Max toleranstan büyük olmadığından emin olun.' });
+                toast({ variant: 'destructive', title: 'Validasyon Hatası', description: 'Lütfen tüm karakteristikleri ve ölçüm ekipmanlarını seçin. Min toleransın Max toleranstan büyük olmadığından emin olun.' });
                 setIsSubmitting(false);
                 return;
             }
@@ -364,11 +364,14 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                     finalCharacteristicType = 'Bilinmiyor';
                 }
             
+                // equipment_id boşsa null gönder
+                const equipmentId = item.equipment_id && item.equipment_id.trim() !== '' ? item.equipment_id : null;
+                
                 return {
                     id: item.id || uuidv4(),
-                    characteristic_id: item.characteristic_id,
+                    characteristic_id: item.characteristic_id || null,
                     characteristic_type: finalCharacteristicType,
-                    equipment_id: item.equipment_id,
+                    equipment_id: equipmentId,
                     standard_id: item.standard_id || null,
                     tolerance_class: item.tolerance_class || null,
                     standard_class: item.standard_class || null,
@@ -383,13 +386,14 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             const autoPlanName = `${partCode} - ${selectedEquipmentId}`;
             
             const planData = {
-                vehicle_type: selectedEquipmentId, // Artık vehicle_type olarak kaydediyoruz
+                equipment_id: null, // vehicle_type kullanıldığında null
+                vehicle_type: selectedEquipmentId, // Araç tipi (products tablosundan)
                 plan_name: autoPlanName,
                 part_code: partCode,
                 part_name: partName,
                 items: itemsToSave,
-                file_path: filePath,
-                file_name: fileName,
+                file_path: filePath || null,
+                file_name: fileName || null,
                 revision_number: selectedPlan?.revision_number || 0,
                 revision_date: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
