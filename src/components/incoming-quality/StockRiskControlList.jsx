@@ -274,7 +274,7 @@ const StockRiskControlList = () => {
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                                     <span className="sr-only">Menüyü aç</span>
-                                                    <MoreHorizontal className="h-4 w-4 text-foreground" />
+                                                    <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>

@@ -369,7 +369,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                                                         <DropdownMenuTrigger asChild>
                                                                             <Button variant="ghost" className="h-8 w-8 p-0">
                                                                                 <span className="sr-only">Menüyü aç</span>
-                                                                                <MoreHorizontal className="h-4 w-4 text-foreground" />
+                                                                                <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
                                                                             </Button>
                                                                         </DropdownMenuTrigger>
                                                                         <DropdownMenuContent align="end">

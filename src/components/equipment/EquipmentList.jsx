@@ -128,7 +128,7 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" className="h-8 w-8 p-0">
                                                 <span className="sr-only">Menüyü aç</span>
-                                                <MoreVertical className="h-4 w-4 text-foreground" />
+                                                <MoreVertical className="h-4 w-4 flex-shrink-0 text-foreground" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">

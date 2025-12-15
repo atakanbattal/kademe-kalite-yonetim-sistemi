@@ -302,7 +302,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                                         <AlertDialog>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0"><span className="sr-only">Menü</span><MoreHorizontal className="h-4 w-4 text-foreground" /></Button>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0"><span className="sr-only">Menü</span><MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" /></Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={() => onEdit(supplier)}><Edit className="mr-2 h-4 w-4" />Detay / Denetimler</DropdownMenuItem>
