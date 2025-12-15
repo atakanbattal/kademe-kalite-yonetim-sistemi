@@ -216,6 +216,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             if (error) throw error;
             toast({ title: 'Başarılı', description: 'Doküman silindi.' });
             loadDocuments();
+            if (refreshData) refreshData();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Hata', description: error.message });
         }

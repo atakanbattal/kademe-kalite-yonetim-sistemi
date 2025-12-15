@@ -55,7 +55,7 @@ const SupplierNCFormModal = ({ isOpen, setIsOpen, supplier, refreshData, onOpenN
             });
         }
         
-        refreshData();
+        if (refreshData) refreshData();
         setIsOpen(false);
         setIsSubmitting(false);
         setFormData({ title: '', description: '', cost_impact: 0 });

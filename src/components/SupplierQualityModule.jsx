@@ -144,7 +144,7 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
             <AuditTrackingTab suppliers={suppliers} loading={loading} refreshData={refreshData} onOpenPdfViewer={onOpenPdfViewer} />
         </TabsContent>
          <TabsContent value="question-bank" className="mt-6">
-            <SupplierQuestionBank />
+            <SupplierQuestionBank refreshData={refreshData} />
          </TabsContent>
         <TabsContent value="ncs" className="mt-6">
             <SupplierNCTab 
@@ -152,6 +152,7 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
               loading={loading} 
               onOpenNCForm={onOpenNCForm}
               onOpenNCView={onOpenNCView}
+              refreshData={refreshData}
             />
         </TabsContent>
         <TabsContent value="documents" className="mt-6">

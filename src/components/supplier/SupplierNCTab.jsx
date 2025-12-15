@@ -15,7 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreHorizontal } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const SupplierNCTab = ({ allSuppliers, loading, onOpenNCForm, onOpenNCView }) => {
+const SupplierNCTab = ({ allSuppliers, loading, onOpenNCForm, onOpenNCView, refreshData }) => {
     const { toast } = useToast();
     const [ncs, setNcs] = useState([]);
     const [ncLoading, setNcLoading] = useState(true);
@@ -110,6 +110,7 @@ const SupplierNCTab = ({ allSuppliers, loading, onOpenNCForm, onOpenNCView }) =>
       } else {
         toast({ title: 'Başarılı', description: 'Kayıt başarıyla silindi.' });
         fetchNCs();
+        if (refreshData) refreshData();
       }
     };
     

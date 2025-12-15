@@ -9,7 +9,7 @@ import { PlusCircle, Save, Edit, Trash2, Loader2, GripVertical } from 'lucide-re
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const SupplierQuestionBank = () => {
+const SupplierQuestionBank = ({ refreshData }) => {
     const { toast } = useToast();
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -55,6 +55,7 @@ const SupplierQuestionBank = () => {
             setNewQuestionText('');
             setNewQuestionPoints(10);
             fetchQuestions();
+            if (refreshData) refreshData();
         }
         setIsSubmitting(false);
     };
@@ -76,6 +77,7 @@ const SupplierQuestionBank = () => {
             toast({ title: 'Başarılı', description: 'Soru başarıyla güncellendi.' });
             setIsEditing(null);
             fetchQuestions();
+            if (refreshData) refreshData();
         }
         setIsSubmitting(false);
     };
@@ -87,6 +89,7 @@ const SupplierQuestionBank = () => {
         } else {
             toast({ title: 'Başarılı', description: 'Soru başarıyla silindi.' });
             fetchQuestions();
+            if (refreshData) refreshData();
         }
     };
 

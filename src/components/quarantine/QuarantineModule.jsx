@@ -55,6 +55,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             toast({ variant: 'destructive', title: 'Hata!', description: `Kayıt silinemedi: ${error.message}` });
         } else {
             toast({ title: 'Başarılı!', description: 'Kayıt başarıyla silindi.' });
+            refreshData();
         }
       };
 
