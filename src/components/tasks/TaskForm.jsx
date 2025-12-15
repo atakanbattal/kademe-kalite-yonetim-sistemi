@@ -159,9 +159,14 @@ import React, { useState, useEffect, useCallback } from 'react';
                 // Handle checklist
                 await supabase.from('task_checklists').delete().eq('task_id', savedTask.id);
                 if (checklist && checklist.length > 0) {
+                    const now = new Date().toISOString();
                     const newChecklistItems = checklist
                         .filter(item => item.item_text.trim() !== '')
-                        .map(({ id: itemId, ...item }) => ({ ...item, task_id: savedTask.id }));
+                        .map(({ id: itemId, ...item }) => ({ 
+                            ...item, 
+                            task_id: savedTask.id,
+                            created_at: now
+                        }));
                     if (newChecklistItems.length > 0) {
                         const { error } = await supabase.from('task_checklists').insert(newChecklistItems);
                         if (error) throw error;

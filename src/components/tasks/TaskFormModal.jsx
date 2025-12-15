@@ -208,11 +208,16 @@ import React, { useState, useEffect } from 'react';
                     await supabase.from('task_checklists').delete().in('id', toDelete);
                 }
 
-                const toUpsert = checklistToSave.map(({ id: itemId, ...item }) => ({
-                    ...item,
-                    id: itemId,
-                    task_id: savedTask.id,
-                }));
+                const now = new Date().toISOString();
+                const toUpsert = checklistToSave.map(({ id: itemId, created_at, ...item }) => {
+                    const isNewItem = !existingIds.has(itemId);
+                    return {
+                        ...item,
+                        id: itemId,
+                        task_id: savedTask.id,
+                        created_at: isNewItem ? now : created_at,
+                    };
+                });
 
                 if (toUpsert.length > 0) {
                     const { error } = await supabase.from('task_checklists').upsert(toUpsert, { onConflict: 'id' });
