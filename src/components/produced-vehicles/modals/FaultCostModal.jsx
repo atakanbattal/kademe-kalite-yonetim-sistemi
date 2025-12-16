@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     const { toast } = useToast();
-    const { unitCostSettings, refreshData, qualityCosts } = useData();
+    const { unitCostSettings, refreshData, qualityCosts, refreshProducedVehicles } = useData();
     const [faultDurations, setFaultDurations] = useState({});
     const [qualityControlDurations, setQualityControlDurations] = useState({});
     const [loading, setLoading] = useState(false);
@@ -440,8 +440,14 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
             }
 
             // Verileri yenile - hem produced vehicles hem de quality costs için
+            // Önce quality costs'u yenile, sonra produced vehicles'ı yenile
             if (refreshData) {
                 await refreshData();
+            }
+            
+            // Produced vehicles'ı da yenile (eğer fonksiyon varsa)
+            if (refreshProducedVehicles) {
+                await refreshProducedVehicles();
             }
 
             if (onSuccess) {

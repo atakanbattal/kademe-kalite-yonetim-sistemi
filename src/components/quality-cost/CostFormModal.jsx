@@ -195,7 +195,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
     export const CostFormModal = ({ open, setOpen, refreshCosts, unitCostSettings, materialCostSettings, personnelList, existingCost }) => {
         const { toast } = useToast();
-        const { products, productCategories } = useData();
+        const { products, productCategories, refreshData, refreshProducedVehicles } = useData();
         const isEditMode = !!existingCost;
         const [formData, setFormData] = useState({});
         const [isSubmitting, setIsSubmitting] = useState(false);
@@ -562,7 +562,21 @@ import React, { useState, useEffect, useCallback } from 'react';
                      toast({ variant: 'destructive', title: 'Hata!', description: `Maliyet güncellenemedi: ${error.message}` });
                 } else {
                     toast({ title: 'Başarılı!', description: 'Maliyet kaydı güncellendi.' });
+                    
+                    // Quality costs modülünü yenile
                     refreshCosts();
+                    
+                    // Eğer bu kayıt produced_vehicle_final_faults kaynaklıysa, produced-vehicles modülünü de yenile
+                    if (existingCost.source_type === 'produced_vehicle_final_faults' || cleanedData.source_type === 'produced_vehicle_final_faults') {
+                        if (refreshProducedVehicles) {
+                            await refreshProducedVehicles();
+                        }
+                        // Tüm verileri de yenile (quality costs dahil)
+                        if (refreshData) {
+                            await refreshData();
+                        }
+                    }
+                    
                     setOpen(false);
                 }
             } else {
