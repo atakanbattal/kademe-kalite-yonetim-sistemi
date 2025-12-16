@@ -217,22 +217,24 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                             `- Giderilme Süresi: ${duration} dakika\n` +
                             `- Kalite Kontrol Süresi: ${qualityDuration} dakika`;
 
+                        // Etkilenen birimler: Ana birim (rework_duration ile zaten gösteriliyor) ve kalite kontrol birimi
+                        // Ana birimi affected_units'e ekleme, çünkü zaten rework_duration ve unit alanları var
+                        const affectedUnitsArray = [];
+                        // Sadece kalite kontrol birimini ekle (ana birim zaten unit ve rework_duration ile gösteriliyor)
+                        if (qualityDuration > 0) {
+                            affectedUnitsArray.push({
+                                unit: qualityControlUnitName,
+                                duration: qualityDuration
+                            });
+                        }
+
                         const updateData = {
                             amount: totalFaultCost,
                             rework_duration: duration,
                             quality_control_duration: qualityDuration,
                             quantity: faultQuantity,
                             description: description,
-                            affected_units: [
-                                {
-                                    unit: departmentName,
-                                    duration: duration
-                                },
-                                {
-                                    unit: qualityControlUnitName,
-                                    duration: qualityDuration
-                                }
-                            ]
+                            affected_units: affectedUnitsArray.length > 0 ? affectedUnitsArray : null
                         };
 
                         const { error: updateError } = await supabase
@@ -259,6 +261,17 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                             `- Giderilme Süresi: ${duration} dakika\n` +
                             `- Kalite Kontrol Süresi: ${qualityDuration} dakika`;
 
+                        // Etkilenen birimler: Ana birim (rework_duration ile zaten gösteriliyor) ve kalite kontrol birimi
+                        // Ana birimi affected_units'e ekleme, çünkü zaten rework_duration ve unit alanları var
+                        const affectedUnitsArray = [];
+                        // Sadece kalite kontrol birimini ekle (ana birim zaten unit ve rework_duration ile gösteriliyor)
+                        if (qualityDuration > 0) {
+                            affectedUnitsArray.push({
+                                unit: qualityControlUnitName,
+                                duration: qualityDuration
+                            });
+                        }
+
                         const costRecord = {
                             cost_type: 'Final Hataları Maliyeti',
                             unit: departmentName,
@@ -270,16 +283,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                             description: description,
                             rework_duration: duration,
                             quantity: faultQuantity,
-                            affected_units: [
-                                {
-                                    unit: departmentName,
-                                    duration: duration
-                                },
-                                {
-                                    unit: qualityControlUnitName,
-                                    duration: qualityDuration
-                                }
-                            ],
+                            affected_units: affectedUnitsArray.length > 0 ? affectedUnitsArray : null,
                             status: 'Aktif',
                             source_type: 'produced_vehicle_final_faults',
                             source_record_id: vehicle?.id,
@@ -345,6 +349,17 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     `- Giderilme Süresi: ${duration} dakika\n` +
                     `- Kalite Kontrol Süresi: ${qualityDuration} dakika`;
 
+                // Etkilenen birimler: Ana birim (rework_duration ile zaten gösteriliyor) ve kalite kontrol birimi
+                // Ana birimi affected_units'e ekleme, çünkü zaten rework_duration ve unit alanları var
+                const affectedUnitsArray = [];
+                // Sadece kalite kontrol birimini ekle (ana birim zaten unit ve rework_duration ile gösteriliyor)
+                if (qualityDuration > 0) {
+                    affectedUnitsArray.push({
+                        unit: qualityControlUnitName,
+                        duration: qualityDuration
+                    });
+                }
+
                 const costRecord = {
                     cost_type: 'Final Hataları Maliyeti',
                     unit: departmentName,
@@ -356,16 +371,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     description: description,
                     rework_duration: duration,
                     quantity: faultQuantity,
-                    affected_units: [
-                        {
-                            unit: departmentName,
-                            duration: duration
-                        },
-                        {
-                            unit: qualityControlUnitName,
-                            duration: qualityDuration
-                        }
-                    ],
+                    affected_units: affectedUnitsArray.length > 0 ? affectedUnitsArray : null,
                     status: 'Aktif',
                     source_type: 'produced_vehicle_final_faults',
                     source_record_id: vehicle?.id,
@@ -433,8 +439,9 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 });
             }
 
+            // Verileri yenile - hem produced vehicles hem de quality costs için
             if (refreshData) {
-                refreshData();
+                await refreshData();
             }
 
             if (onSuccess) {

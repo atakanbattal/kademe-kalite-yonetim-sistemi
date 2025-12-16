@@ -283,7 +283,12 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
             
             setFormData(costData);
-            setAffectedUnits(costData.affected_units || []);
+            // affected_units array'ini yükle ve her birim için id ekle (eğer yoksa)
+            const affectedUnitsWithIds = (costData.affected_units || []).map(au => ({
+                ...au,
+                id: au.id || uuidv4() // Eğer id yoksa yeni bir id oluştur
+            }));
+            setAffectedUnits(affectedUnitsWithIds);
             setAddLaborToScrap(!!costData.additional_labor_cost && costData.additional_labor_cost > 0);
             setIsSupplierNC(!!costData.is_supplier_nc);
 
@@ -306,11 +311,33 @@ import React, { useState, useEffect, useCallback } from 'react';
         };
         
         const handleAffectedUnitChange = (id, field, value) => {
-            setAffectedUnits(units => units.map(u => u.id === id ? { ...u, [field]: value } : u));
+            setAffectedUnits(units => {
+                const updated = units.map(u => {
+                    if (u.id === id) {
+                        const newUnit = { ...u, [field]: value };
+                        // Eğer birim değiştirildiyse ve bu birim zaten başka bir kayıtta varsa, süreyi koru
+                        if (field === 'unit') {
+                            // Aynı birim başka bir kayıtta var mı kontrol et
+                            const existingUnit = units.find(u2 => u2.id !== id && u2.unit === value);
+                            if (existingUnit) {
+                                // Mevcut birimin süresini kullan
+                                newUnit.duration = existingUnit.duration || '';
+                            }
+                        }
+                        return newUnit;
+                    }
+                    return u;
+                });
+                return updated;
+            });
         };
 
         const addAffectedUnit = () => {
-            setAffectedUnits(units => [...units, { id: uuidv4(), unit: '', duration: '' }]);
+            setAffectedUnits(units => {
+                // Yeni birim eklerken, aynı birimin zaten eklenip eklenmediğini kontrol et
+                const newUnit = { id: uuidv4(), unit: '', duration: '' };
+                return [...units, newUnit];
+            });
         };
 
         const removeAffectedUnit = (id) => {
@@ -458,7 +485,23 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
 
             let submissionData = { ...formData };
-            submissionData.affected_units = affectedUnits.map(({ id, ...rest }) => rest).filter(au => au.unit && parseFloat(au.duration) > 0);
+            // Etkilenen birimleri temizle ve filtrele - aynı birimden birden fazla kayıt varsa birleştir
+            const cleanedAffectedUnits = affectedUnits
+                .map(({ id, ...rest }) => rest)
+                .filter(au => au.unit && parseFloat(au.duration) > 0);
+            
+            // Aynı birimden birden fazla kayıt varsa, süreleri topla
+            const mergedAffectedUnits = cleanedAffectedUnits.reduce((acc, au) => {
+                const existing = acc.find(a => a.unit === au.unit);
+                if (existing) {
+                    existing.duration = (parseFloat(existing.duration) || 0) + (parseFloat(au.duration) || 0);
+                } else {
+                    acc.push({ ...au, duration: parseFloat(au.duration) || 0 });
+                }
+                return acc;
+            }, []);
+            
+            submissionData.affected_units = mergedAffectedUnits.length > 0 ? mergedAffectedUnits : null;
             
             setIsSubmitting(true);
             submissionData.amount = parseFloat(submissionData.amount);

@@ -17,9 +17,19 @@ const formatCurrency = (value) => {
 export const CostViewModal = ({ isOpen, setOpen, cost }) => {
     if (!cost) return null;
 
-    const mainReworkCost = cost.rework_duration ? `(Ana: ${cost.rework_duration} dk)` : '';
-    const affectedUnitsCosts = cost.affected_units && cost.affected_units.length > 0
-        ? cost.affected_units.map(au => `${au.unit}: ${au.duration} dk`).join(', ')
+    // Ana süre: rework_duration ve unit alanlarından oluşuyor
+    const mainReworkCost = cost.rework_duration && cost.unit 
+        ? `${cost.unit}: ${cost.rework_duration} dk` 
+        : cost.rework_duration 
+            ? `(Ana: ${cost.rework_duration} dk)` 
+            : '';
+    
+    // Etkilenen birimler: Ana birim dışındaki diğer birimler (örneğin Kalite Kontrol)
+    const affectedUnitsCosts = cost.affected_units && Array.isArray(cost.affected_units) && cost.affected_units.length > 0
+        ? cost.affected_units
+            .filter(au => au.unit !== cost.unit) // Ana birimi filtrele (zaten mainReworkCost'te gösteriliyor)
+            .map(au => `${au.unit}: ${au.duration} dk`)
+            .join(', ')
         : '';
     
     const reworkDetails = [mainReworkCost, affectedUnitsCosts].filter(Boolean).join(' | ');
@@ -167,12 +177,19 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                                                     <h4 className="font-semibold">Etkilenen Birimler</h4>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
-                                                    {cost.affected_units.map((au, idx) => (
-                                                        <Badge key={idx} variant="outline" className="text-sm py-2 px-3">
-                                                            <Building2 className="h-3 w-3 mr-1" />
-                                                            {au.unit}: {au.duration} dk
-                                                        </Badge>
-                                                    ))}
+                                                    {/* Ana birim zaten yukarıda gösteriliyor, burada sadece diğer birimleri göster */}
+                                                    {cost.affected_units
+                                                        .filter(au => au.unit !== cost.unit) // Ana birimi filtrele
+                                                        .map((au, idx) => (
+                                                            <Badge key={idx} variant="outline" className="text-sm py-2 px-3">
+                                                                <Building2 className="h-3 w-3 mr-1" />
+                                                                {au.unit}: {au.duration} dk
+                                                            </Badge>
+                                                        ))}
+                                                    {/* Eğer tüm birimler ana birimse, hiçbir şey gösterme */}
+                                                    {cost.affected_units.every(au => au.unit === cost.unit) && (
+                                                        <p className="text-sm text-muted-foreground">Ana birim yukarıda gösteriliyor.</p>
+                                                    )}
                                                 </div>
                                             </CardContent>
                                         </Card>
