@@ -382,13 +382,14 @@ const PolyvalenceModule = () => {
                 {/* Filters - Compact */}
                 <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/30 rounded-lg border">
                     <div className="flex-1">
-                        <div className="relative">
-                            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                            <Input
+                        <div className="search-box">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                            <input
+                                type="text"
                                 placeholder="Personel veya departman ara..."
+                                className="search-input"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-8 h-8 text-sm"
                             />
                         </div>
                     </div>

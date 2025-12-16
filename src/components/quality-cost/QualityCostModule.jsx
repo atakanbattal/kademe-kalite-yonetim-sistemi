@@ -293,12 +293,12 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                 <div className="flex flex-col sm:flex-row justify-between gap-3 mb-4">
                                     <h2 className="widget-title text-sm sm:text-base">Son Maliyet Kayıtları</h2>
                                     <div className="flex flex-col xs:flex-row gap-2">
-                                        <div className="relative flex-1 xs:flex-none">
-                                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                type="search"
+                                        <div className="search-box flex-1 xs:flex-none xs:w-[150px] sm:w-[200px]">
+                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                                            <input
+                                                type="text"
                                                 placeholder="Ara..."
-                                                className="pl-8 w-full xs:w-[150px] sm:w-[200px]"
+                                                className="search-input w-full"
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
                                             />

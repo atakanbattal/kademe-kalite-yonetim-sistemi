@@ -422,7 +422,7 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                              <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                                 <div className="flex flex-col sm:flex-row gap-4 flex-1">
                                     <div className="search-box w-full sm:max-w-sm">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                                         <input 
                                             type="text"
                                             placeholder={activeTab === 'Tümü' ? "Başlık, kategori, personel veya birim ara..." : "Doküman veya personel adı ara..."}
