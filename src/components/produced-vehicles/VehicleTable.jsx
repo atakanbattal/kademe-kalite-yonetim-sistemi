@@ -53,7 +53,7 @@ import React from 'react';
         );
     };
 
-    const VehicleTable = ({ vehicles, onEdit, onView, onDelete, onUpdateStatus, onOpenFaults, onViewTimeDetails }) => {
+    const VehicleTable = ({ vehicles, onEdit, onView, onDelete, onUpdateStatus, onOpenFaults, onViewTimeDetails, onSort, sortConfig, getSortIcon }) => {
         const { user, profile } = useAuth();
         const userEmail = user?.email;
         const userRole = profile?.role;
@@ -159,15 +159,71 @@ import React from 'react';
                 <table className="data-table w-full">
                     <thead>
                         <tr>
-                            <th>Şasi No</th>
-                            <th>Seri No</th>
-                            <th>Araç Tipi</th>
-                            <th>Hata Durumu</th>
-                            <th>Müşteri</th>
-                            <th>Kalite Durumu</th>
-                            <th>DMO Durumu</th>
-                            <th>Durumda Geçen Süre</th>
-                            <th>Termin / Kalan</th>
+                            {onSort ? (
+                                <>
+                                    <th 
+                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                        onClick={() => onSort('chassis_no')}
+                                    >
+                                        <div className="flex items-center">
+                                            Şasi No
+                                            {getSortIcon && getSortIcon('chassis_no')}
+                                        </div>
+                                    </th>
+                                    <th 
+                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                        onClick={() => onSort('serial_no')}
+                                    >
+                                        <div className="flex items-center">
+                                            Seri No
+                                            {getSortIcon && getSortIcon('serial_no')}
+                                        </div>
+                                    </th>
+                                    <th 
+                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                        onClick={() => onSort('vehicle_type')}
+                                    >
+                                        <div className="flex items-center">
+                                            Araç Tipi
+                                            {getSortIcon && getSortIcon('vehicle_type')}
+                                        </div>
+                                    </th>
+                                    <th>Hata Durumu</th>
+                                    <th 
+                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                        onClick={() => onSort('customer_name')}
+                                    >
+                                        <div className="flex items-center">
+                                            Müşteri
+                                            {getSortIcon && getSortIcon('customer_name')}
+                                        </div>
+                                    </th>
+                                    <th 
+                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                        onClick={() => onSort('status')}
+                                    >
+                                        <div className="flex items-center">
+                                            Kalite Durumu
+                                            {getSortIcon && getSortIcon('status')}
+                                        </div>
+                                    </th>
+                                    <th>DMO Durumu</th>
+                                    <th>Durumda Geçen Süre</th>
+                                    <th>Termin / Kalan</th>
+                                </>
+                            ) : (
+                                <>
+                                    <th>Şasi No</th>
+                                    <th>Seri No</th>
+                                    <th>Araç Tipi</th>
+                                    <th>Hata Durumu</th>
+                                    <th>Müşteri</th>
+                                    <th>Kalite Durumu</th>
+                                    <th>DMO Durumu</th>
+                                    <th>Durumda Geçen Süre</th>
+                                    <th>Termin / Kalan</th>
+                                </>
+                            )}
                             <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                         </tr>
                     </thead>

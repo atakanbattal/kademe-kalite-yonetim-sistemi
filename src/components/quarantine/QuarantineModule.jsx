@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { motion } from 'framer-motion';
-    import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText } from 'lucide-react';
+    import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
@@ -29,9 +29,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       const [selectedRecord, setSelectedRecord] = useState(null);
       const [searchTerm, setSearchTerm] = useState('');
       const [formMode, setFormMode] = useState('new'); // 'new', 'edit', 'view'
+      const [sortConfig, setSortConfig] = useState({ key: 'quarantine_date', direction: 'desc' });
 
       useEffect(() => {
-        let filtered = quarantineRecords.sort((a, b) => new Date(b.quarantine_date) - new Date(a.quarantine_date));
+        let filtered = [...quarantineRecords];
         
         if (searchTerm) {
             const lowercasedFilter = searchTerm.toLowerCase();
@@ -46,8 +47,49 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 record.inspector?.toLowerCase().includes(lowercasedFilter)
             );
         }
+
+        // Sıralama
+        filtered.sort((a, b) => {
+            let aVal, bVal;
+            
+            switch (sortConfig.key) {
+                case 'quarantine_date':
+                    aVal = new Date(a.quarantine_date);
+                    bVal = new Date(b.quarantine_date);
+                    break;
+                case 'part_name':
+                    aVal = (a.part_name || '').toLowerCase();
+                    bVal = (b.part_name || '').toLowerCase();
+                    break;
+                case 'part_code':
+                    aVal = (a.part_code || '').toLowerCase();
+                    bVal = (b.part_code || '').toLowerCase();
+                    break;
+                case 'quantity':
+                    aVal = parseFloat(a.quantity) || 0;
+                    bVal = parseFloat(b.quantity) || 0;
+                    break;
+                case 'source_department':
+                    aVal = (a.source_department || '').toLowerCase();
+                    bVal = (b.source_department || '').toLowerCase();
+                    break;
+                case 'status':
+                    aVal = (a.status || '').toLowerCase();
+                    bVal = (b.status || '').toLowerCase();
+                    break;
+                default:
+                    aVal = a[sortConfig.key];
+                    bVal = b[sortConfig.key];
+            }
+            
+            if (aVal === bVal) return 0;
+            
+            const comparison = aVal < bVal ? -1 : 1;
+            return sortConfig.direction === 'asc' ? comparison : -comparison;
+        });
+
         setRecords(filtered);
-      }, [searchTerm, quarantineRecords]);
+      }, [searchTerm, quarantineRecords, sortConfig]);
       
       const handleDeleteRecord = async (recordId) => {
         const { error } = await supabase.from('quarantine_records').delete().eq('id', recordId);
@@ -138,6 +180,22 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         }
       };
 
+      const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+      };
+
+      const getSortIcon = (columnKey) => {
+        if (sortConfig.key !== columnKey) {
+            return <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />;
+        }
+        return sortConfig.direction === 'asc' 
+            ? <ArrowUp className="ml-1 h-3 w-3" />
+            : <ArrowDown className="ml-1 h-3 w-3" />;
+      };
+
       return (
         <div className="space-y-6">
           <QuarantineFormModal 
@@ -211,11 +269,51 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Tarih</th>
-                    <th>Parça Kodu/Adı</th>
-                    <th>Miktar</th>
-                    <th>Sebep Olan Birim</th>
-                    <th>Durum</th>
+                    <th 
+                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      onClick={() => handleSort('quarantine_date')}
+                    >
+                      <div className="flex items-center">
+                        Tarih
+                        {getSortIcon('quarantine_date')}
+                      </div>
+                    </th>
+                    <th 
+                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      onClick={() => handleSort('part_name')}
+                    >
+                      <div className="flex items-center">
+                        Parça Kodu/Adı
+                        {getSortIcon('part_name')}
+                      </div>
+                    </th>
+                    <th 
+                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      onClick={() => handleSort('quantity')}
+                    >
+                      <div className="flex items-center">
+                        Miktar
+                        {getSortIcon('quantity')}
+                      </div>
+                    </th>
+                    <th 
+                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      onClick={() => handleSort('source_department')}
+                    >
+                      <div className="flex items-center">
+                        Sebep Olan Birim
+                        {getSortIcon('source_department')}
+                      </div>
+                    </th>
+                    <th 
+                      className="cursor-pointer hover:bg-secondary/50 select-none"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center">
+                        Durum
+                        {getSortIcon('status')}
+                      </div>
+                    </th>
                     <th>İlişkili Uygunsuzluk</th>
                     <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                   </tr>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
     import { motion } from 'framer-motion';
-    import { Plus, MoreHorizontal, Edit, Trash2, Eye, Link as LinkIcon, Search, FileText } from 'lucide-react';
+    import { Plus, MoreHorizontal, Edit, Trash2, Eye, Link as LinkIcon, Search, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
@@ -50,13 +50,14 @@ import { openPrintableReport } from '@/lib/reportUtils';
         const [unitFilter, setUnitFilter] = useState('all');
         const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'produced_vehicle', 'manual', vb.
         const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+        const [sortConfig, setSortConfig] = useState({ key: 'cost_date', direction: 'desc' });
 
         const hasNCAccess = useMemo(() => {
             return profile?.role === 'admin';
         }, [profile]);
         
         const filteredCosts = useMemo(() => {
-            let costs = qualityCosts.sort((a,b) => new Date(b.cost_date) - new Date(a.cost_date));
+            let costs = [...qualityCosts];
             
             if (dateRange.startDate && dateRange.endDate) {
                 costs = costs.filter(cost => {
@@ -90,8 +91,40 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 });
             }
 
+            // Sıralama
+            costs.sort((a, b) => {
+                let aVal, bVal;
+                
+                switch (sortConfig.key) {
+                    case 'cost_date':
+                        aVal = new Date(a.cost_date);
+                        bVal = new Date(b.cost_date);
+                        break;
+                    case 'amount':
+                        aVal = parseFloat(a.amount) || 0;
+                        bVal = parseFloat(b.amount) || 0;
+                        break;
+                    case 'cost_type':
+                        aVal = (a.cost_type || '').toLowerCase();
+                        bVal = (b.cost_type || '').toLowerCase();
+                        break;
+                    case 'unit':
+                        aVal = (a.unit || '').toLowerCase();
+                        bVal = (b.unit || '').toLowerCase();
+                        break;
+                    default:
+                        aVal = a[sortConfig.key];
+                        bVal = b[sortConfig.key];
+                }
+                
+                if (aVal === bVal) return 0;
+                
+                const comparison = aVal < bVal ? -1 : 1;
+                return sortConfig.direction === 'asc' ? comparison : -comparison;
+            });
+
             return costs;
-        }, [qualityCosts, dateRange, unitFilter, searchTerm]);
+        }, [qualityCosts, dateRange, unitFilter, sourceFilter, searchTerm, sortConfig]);
 
         const handleOpenFormModal = (cost = null) => {
             setSelectedCost(cost);
@@ -101,6 +134,22 @@ import { openPrintableReport } from '@/lib/reportUtils';
         const handleOpenViewModal = (cost) => {
             setSelectedCost(cost);
             setIsViewModalOpen(true);
+        };
+
+        const handleSort = (key) => {
+            setSortConfig(prev => ({
+                key,
+                direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+            }));
+        };
+
+        const getSortIcon = (columnKey) => {
+            if (sortConfig.key !== columnKey) {
+                return <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />;
+            }
+            return sortConfig.direction === 'asc' 
+                ? <ArrowUp className="ml-1 h-3 w-3" />
+                : <ArrowDown className="ml-1 h-3 w-3" />;
         };
 
         const handleDelete = async (costId) => {
@@ -322,10 +371,42 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                             <thead>
                                                 <tr>
                                                     <th>S.No</th>
-                                                    <th>Tarih</th>
-                                                    <th>Maliyet Türü</th>
-                                                    <th>Birim</th>
-                                                    <th>Tutar</th>
+                                                    <th 
+                                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                                        onClick={() => handleSort('cost_date')}
+                                                    >
+                                                        <div className="flex items-center">
+                                                            Tarih
+                                                            {getSortIcon('cost_date')}
+                                                        </div>
+                                                    </th>
+                                                    <th 
+                                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                                        onClick={() => handleSort('cost_type')}
+                                                    >
+                                                        <div className="flex items-center">
+                                                            Maliyet Türü
+                                                            {getSortIcon('cost_type')}
+                                                        </div>
+                                                    </th>
+                                                    <th 
+                                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                                        onClick={() => handleSort('unit')}
+                                                    >
+                                                        <div className="flex items-center">
+                                                            Birim
+                                                            {getSortIcon('unit')}
+                                                        </div>
+                                                    </th>
+                                                    <th 
+                                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                                        onClick={() => handleSort('amount')}
+                                                    >
+                                                        <div className="flex items-center">
+                                                            Tutar
+                                                            {getSortIcon('amount')}
+                                                        </div>
+                                                    </th>
                                                     <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                                                 </tr>
                                             </thead>

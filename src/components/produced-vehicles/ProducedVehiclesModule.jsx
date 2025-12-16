@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
     import { motion } from 'framer-motion';
-    import { Plus, SlidersHorizontal, Search, BarChart2, List } from 'lucide-react';
+    import { Plus, SlidersHorizontal, Search, BarChart2, List, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ import React, { useState, useMemo, useEffect } from 'react';
         const [isFilterModalOpen, setFilterModalOpen] = useState(false);
         const [statusDetail, setStatusDetail] = useState(null);
         const [filters, setFilters] = useState({ status: [], vehicle_type: [], dateRange: null });
+        const [sortConfig, setSortConfig] = useState({ key: 'updated_at', direction: 'desc' });
 
         const [selectedVehicle, setSelectedVehicle] = useState(null);
         const [activeTab, setActiveTab] = useState('operations');
@@ -51,7 +52,7 @@ import React, { useState, useMemo, useEffect } from 'react';
         }, [producedVehicles, selectedVehicle]);
 
         const filteredVehicles = useMemo(() => {
-            let sortedVehicles = [...producedVehicles].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+            let sortedVehicles = [...producedVehicles];
             
             if (filters.status.length > 0) {
                 sortedVehicles = sortedVehicles.filter(v => filters.status.includes(v.status));
@@ -68,14 +69,44 @@ import React, { useState, useMemo, useEffect } from 'react';
 
             if (searchTerm) {
                 const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
-                return sortedVehicles.filter(v => 
+                sortedVehicles = sortedVehicles.filter(v => 
                     normalizeTurkishForSearch(v.chassis_no).includes(normalizedSearchTerm) ||
                     normalizeTurkishForSearch(v.vehicle_type).includes(normalizedSearchTerm) ||
                     normalizeTurkishForSearch(v.customer_name).includes(normalizedSearchTerm)
                 );
             }
+
+            // Sıralama
+            sortedVehicles.sort((a, b) => {
+                let aVal, bVal;
+                
+                switch (sortConfig.key) {
+                    case 'updated_at':
+                    case 'created_at':
+                        aVal = new Date(a[sortConfig.key]);
+                        bVal = new Date(b[sortConfig.key]);
+                        break;
+                    case 'chassis_no':
+                    case 'serial_no':
+                    case 'vehicle_type':
+                    case 'customer_name':
+                    case 'status':
+                        aVal = (a[sortConfig.key] || '').toLowerCase();
+                        bVal = (b[sortConfig.key] || '').toLowerCase();
+                        break;
+                    default:
+                        aVal = a[sortConfig.key];
+                        bVal = b[sortConfig.key];
+                }
+                
+                if (aVal === bVal) return 0;
+                
+                const comparison = aVal < bVal ? -1 : 1;
+                return sortConfig.direction === 'asc' ? comparison : -comparison;
+            });
+
             return sortedVehicles;
-        }, [producedVehicles, searchTerm, filters]);
+        }, [producedVehicles, searchTerm, filters, sortConfig]);
 
         const handleDeleteVehicle = async (vehicleId) => {
             const { error } = await supabase.from('quality_inspections').delete().eq('id', vehicleId);
@@ -161,6 +192,22 @@ import React, { useState, useMemo, useEffect } from 'react';
         };
 
         const memoizedVehicles = useMemo(() => filteredVehicles, [filteredVehicles]);
+
+        const handleSort = (key) => {
+            setSortConfig(prev => ({
+                key,
+                direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+            }));
+        };
+
+        const getSortIcon = (columnKey) => {
+            if (sortConfig.key !== columnKey) {
+                return <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />;
+            }
+            return sortConfig.direction === 'asc' 
+                ? <ArrowUp className="ml-1 h-3 w-3" />
+                : <ArrowDown className="ml-1 h-3 w-3" />;
+        };
 
         return (
             <div className="space-y-6">
@@ -263,6 +310,9 @@ import React, { useState, useMemo, useEffect } from 'react';
                                     onUpdateStatus={handleUpdateStatus}
                                     onDelete={handleDeleteVehicle}
                                     onViewTimeDetails={(v) => handleOpenModal(setTimeDetailModalOpen, v)}
+                                    onSort={handleSort}
+                                    sortConfig={sortConfig}
+                                    getSortIcon={getSortIcon}
                                 />
                             )}
                         </motion.div>
