@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreVertical, Edit, Eye, Trash2 } from 'lucide-react';
+import { MoreVertical, Edit, Eye, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -16,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
+const EquipmentList = ({ equipments, onEdit, onView, onDelete, onSort, sortConfig, getSortIcon }) => {
     
     const getStatusVariant = (status) => {
         switch (status) {
@@ -76,13 +76,59 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete }) => {
             <table className="data-table">
                 <thead>
                     <tr>
-                        <th>Ekipman Adı</th>
-                        <th>Seri Numarası</th>
-                        <th>Model</th>
-                        <th>Durum</th>
-                        <th>Zimmet Durumu</th>
-                        <th>Kalibrasyon Durumu</th>
-                        <th>Sonraki Kalibrasyon</th>
+                        {onSort ? (
+                            <>
+                                <th 
+                                    className="cursor-pointer hover:bg-secondary/50 select-none"
+                                    onClick={() => onSort('name')}
+                                >
+                                    <div className="flex items-center">
+                                        Ekipman Adı
+                                        {getSortIcon && getSortIcon('name')}
+                                    </div>
+                                </th>
+                                <th 
+                                    className="cursor-pointer hover:bg-secondary/50 select-none"
+                                    onClick={() => onSort('serial_number')}
+                                >
+                                    <div className="flex items-center">
+                                        Seri Numarası
+                                        {getSortIcon && getSortIcon('serial_number')}
+                                    </div>
+                                </th>
+                                <th 
+                                    className="cursor-pointer hover:bg-secondary/50 select-none"
+                                    onClick={() => onSort('brand_model')}
+                                >
+                                    <div className="flex items-center">
+                                        Model
+                                        {getSortIcon && getSortIcon('brand_model')}
+                                    </div>
+                                </th>
+                                <th 
+                                    className="cursor-pointer hover:bg-secondary/50 select-none"
+                                    onClick={() => onSort('status')}
+                                >
+                                    <div className="flex items-center">
+                                        Durum
+                                        {getSortIcon && getSortIcon('status')}
+                                    </div>
+                                </th>
+                                <th>Zimmet Durumu</th>
+                                <th>Kalibrasyon Durumu</th>
+                                <th>Sonraki Kalibrasyon</th>
+                            </>
+                        ) : (
+                            <>
+                                <th>Ekipman Adı</th>
+                                <th>Seri Numarası</th>
+                                <th>Model</th>
+                                <th>Durum</th>
+                                <th>Zimmet Durumu</th>
+                                <th>Kalibrasyon Durumu</th>
+                                <th>Sonraki Kalibrasyon</th>
+                            </>
+                        )}
                         <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                     </tr>
                 </thead>

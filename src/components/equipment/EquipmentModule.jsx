@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, SlidersHorizontal, Search, FileSpreadsheet } from 'lucide-react';
+import { Plus, SlidersHorizontal, Search, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
         minCalibrationDays: '',
         maxCalibrationDays: ''
     });
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
     // İlk yüklemede sadece temel bilgileri çek, ilişkili verileri lazy load et
     const fetchEquipments = useCallback(async () => {
@@ -203,12 +204,57 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
             });
         }
 
+        // Sıralama
+        filtered.sort((a, b) => {
+            let aVal, bVal;
+            
+            switch (sortConfig.key) {
+                case 'name':
+                case 'serial_number':
+                case 'brand_model':
+                case 'responsible_unit':
+                case 'location':
+                case 'status':
+                    aVal = (a[sortConfig.key] || '').toLowerCase();
+                    bVal = (b[sortConfig.key] || '').toLowerCase();
+                    break;
+                case 'acquisition_date':
+                    aVal = a.acquisition_date ? new Date(a.acquisition_date) : new Date(0);
+                    bVal = b.acquisition_date ? new Date(b.acquisition_date) : new Date(0);
+                    break;
+                default:
+                    aVal = a[sortConfig.key];
+                    bVal = b[sortConfig.key];
+            }
+            
+            if (aVal === bVal) return 0;
+            
+            const comparison = aVal < bVal ? -1 : 1;
+            return sortConfig.direction === 'asc' ? comparison : -comparison;
+        });
+
         return filtered;
-    }, [filters, allEquipments]);
+    }, [filters, allEquipments, sortConfig]);
 
     useEffect(() => {
         setEquipments(filteredEquipments);
     }, [filteredEquipments]);
+
+    const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const getSortIcon = (columnKey) => {
+        if (sortConfig.key !== columnKey) {
+            return <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />;
+        }
+        return sortConfig.direction === 'asc' 
+            ? <ArrowUp className="ml-1 h-3 w-3" />
+            : <ArrowDown className="ml-1 h-3 w-3" />;
+    };
     
     // İlk yükleme ve debounced search term değiştiğinde çalış
     useEffect(() => {
@@ -384,7 +430,15 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                 {loading ? (
                     <div className="text-center py-10 text-muted-foreground">Yükleniyor...</div>
                 ) : (
-                    <EquipmentList equipments={equipments} onEdit={handleOpenForm} onView={handleOpenDetail} onDelete={handleDelete} />
+                    <EquipmentList 
+                        equipments={equipments} 
+                        onEdit={handleOpenForm} 
+                        onView={handleOpenDetail} 
+                        onDelete={handleDelete}
+                        onSort={handleSort}
+                        sortConfig={sortConfig}
+                        getSortIcon={getSortIcon}
+                    />
                 )}
             </motion.div>
         </div>
