@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Textarea } from '@/components/ui/textarea';
     import { Switch } from '@/components/ui/switch';
     import { COST_TYPES, MEASUREMENT_UNITS } from './constants';
-    import { Zap, Trash2, Plus, Wrench, Briefcase, AlertCircle } from 'lucide-react';
+    import { Zap, Trash2, Plus, Wrench, Briefcase, AlertCircle, Search } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
     import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
     import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -64,6 +64,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         return (
             <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
                     type="text"
                     placeholder={!open && !value ? placeholder : searchPlaceholder}
@@ -76,7 +77,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     onKeyDown={handleKeyDown}
                     onFocus={() => setOpen(true)}
                     onBlur={() => setTimeout(() => setOpen(false), 200)}
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    className="w-full pl-8 pr-3 py-2 border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 />
                 {open && filteredItems.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-input rounded-md shadow-lg z-50">
@@ -146,6 +147,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         return (
             <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
                     type="text"
                     placeholder={!open && !value ? placeholder : searchPlaceholder}
@@ -158,7 +160,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     onKeyDown={handleKeyDown}
                     onFocus={() => setOpen(true)}
                     onBlur={() => setTimeout(() => setOpen(false), 200)}
-                    className="w-full px-3 py-2 border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    className="w-full pl-8 pr-3 py-2 border border-input rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 />
                 {open && filteredItems.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-input rounded-md shadow-lg z-50">

@@ -250,8 +250,23 @@ body {
   @apply w-full pl-10 pr-4 py-2 border border-input rounded-md shadow-sm focus:ring-2 focus:ring-ring focus:border-ring text-sm;
 }
 
+/* Ensure search icon doesn't overlap with text */
+.search-box .search-input {
+  padding-left: 2.5rem; /* 40px - enough space for icon */
+}
+
 .search-box {
   @apply relative;
+}
+
+/* Fix for search icons in search-box - ensure proper spacing */
+.search-box svg[class*="Search"],
+.search-box .lucide-search {
+  left: 0.625rem !important; /* 10px - consistent with pl-10 */
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .status-indicator {
