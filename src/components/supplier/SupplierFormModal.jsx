@@ -24,7 +24,7 @@ import React, { useState, useEffect } from 'react';
             product_group: '',
             contact_info: { name: '', email: '', phone: '' },
             risk_class: 'Orta',
-            status: 'Onaylı',
+            status: 'Değerlendirilmemiş',
             alternative_to_supplier_id: null,
         };
 
@@ -132,6 +132,7 @@ import React, { useState, useEffect } from 'react';
                                     <Select value={formData.status || ''} onValueChange={(v) => handleSelectChange('status', v)} required>
                                         <SelectTrigger><SelectValue placeholder="Statü seçin..." /></SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="Değerlendirilmemiş">Değerlendirilmemiş</SelectItem>
                                             <SelectItem value="Onaylı">Onaylı</SelectItem>
                                             <SelectItem value="Askıya Alınmış">Askıya Alınmış</SelectItem>
                                             <SelectItem value="Red">Red</SelectItem>

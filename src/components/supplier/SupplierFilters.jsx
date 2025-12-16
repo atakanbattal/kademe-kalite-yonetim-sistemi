@@ -31,6 +31,7 @@ const SupplierFilters = ({ filters, setFilters }) => {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Tüm Durumlar</SelectItem>
+                    <SelectItem value="Değerlendirilmemiş">Değerlendirilmemiş</SelectItem>
                     <SelectItem value="Onaylı">Onaylı</SelectItem>
                     <SelectItem value="Askıya Alınmış">Askıya Alınmış</SelectItem>
                     <SelectItem value="Red">Red</SelectItem>
