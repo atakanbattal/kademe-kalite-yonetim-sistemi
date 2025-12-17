@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
     import { ScrollArea } from '@/components/ui/scroll-area';
-    import { PlusCircle, Trash2, CheckCircle } from 'lucide-react';
+    import { PlusCircle, Trash2, CheckCircle, Edit } from 'lucide-react';
     import { cn } from '@/lib/utils';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -27,6 +27,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [filteredCategories, setFilteredCategories] = useState([]);
         const [autoCreateCost, setAutoCreateCost] = useState(true); // Otomatik maliyet kaydı oluşturma toggle
         const [isFaultCostModalOpen, setIsFaultCostModalOpen] = useState(false);
+        const [editingFault, setEditingFault] = useState(null);
+        const [editFaultData, setEditFaultData] = useState({ description: '', department_id: '', category_id: '', quantity: 1 });
 
         const hasSpecialAccess = () => {
             const userEmail = user?.email?.toLowerCase()?.trim();
@@ -262,6 +264,77 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 }
             }
         };
+
+        const handleEditFault = (fault) => {
+            setEditingFault(fault);
+            setEditFaultData({
+                description: fault.description || '',
+                department_id: fault.department_id || '',
+                category_id: fault.category_id || '',
+                quantity: fault.quantity || 1
+            });
+            // Kategorileri filtrele
+            const filtered = categories.filter(c => c.department_id === fault.department_id);
+            setFilteredCategories(filtered);
+        };
+
+        const handleUpdateFault = async () => {
+            if (!editingFault || !editFaultData.description || !editFaultData.department_id || !editFaultData.quantity || !editFaultData.category_id) {
+                toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen tüm alanları doldurun.' });
+                return;
+            }
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('quality_inspection_faults')
+                .update({
+                    description: editFaultData.description,
+                    department_id: editFaultData.department_id,
+                    category_id: editFaultData.category_id,
+                    quantity: editFaultData.quantity,
+                })
+                .eq('id', editingFault.id)
+                .select(`*, department:production_departments(name)`)
+                .single();
+
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Hata güncellenemedi: ' + error.message });
+            } else {
+                toast({ title: 'Başarılı', description: 'Hata başarıyla güncellendi.' });
+                const updatedFault = { ...data, department_name: data.department?.name || 'Bilinmeyen' };
+                setFaults(prev => prev.map(f => f.id === editingFault.id ? updatedFault : f));
+                setEditingFault(null);
+                setEditFaultData({ description: '', department_id: '', category_id: '', quantity: 1 });
+                setFilteredCategories([]);
+                if (onUpdate) onUpdate();
+                
+                // Maliyet kaydını güncelle
+                if (autoCreateCost && unitCostSettings.length > 0) {
+                    try {
+                        const fullVehicleData = await fetchFullVehicleData();
+                        if (fullVehicleData) {
+                            const costRecord = await createVehicleQualityCostRecord(fullVehicleData, unitCostSettings);
+                            if (costRecord) {
+                                toast({ 
+                                    title: 'Maliyet Kaydı Güncellendi', 
+                                    description: `Kalitesizlik maliyeti güncellendi: ${costRecord.amount.toFixed(2)} ₺`,
+                                    duration: 5000
+                                });
+                                if (refreshData) refreshData();
+                            }
+                        }
+                    } catch (costError) {
+                        console.error('❌ Otomatik maliyet kaydı güncellenemedi:', costError);
+                    }
+                }
+            }
+            setLoading(false);
+        };
+
+        const handleCancelEdit = () => {
+            setEditingFault(null);
+            setEditFaultData({ description: '', department_id: '', category_id: '', quantity: 1 });
+            setFilteredCategories([]);
+        };
         
         const handleCreateNC = () => {
             const selectedFaults = faults.filter(f => !f.is_resolved);
@@ -312,9 +385,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 {canManage && !fault.is_resolved && (
-                                                     <Button variant="ghost" size="icon" onClick={() => handleToggleResolved(fault.id, fault.is_resolved)} disabled={loading} className="text-green-600 hover:bg-green-100">
-                                                        <CheckCircle className="h-5 w-5" />
-                                                    </Button>
+                                                    <>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleEditFault(fault)} disabled={loading} className="text-blue-600 hover:bg-blue-100">
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleToggleResolved(fault.id, fault.is_resolved)} disabled={loading} className="text-green-600 hover:bg-green-100">
+                                                            <CheckCircle className="h-5 w-5" />
+                                                        </Button>
+                                                    </>
                                                 )}
                                                 {canManage && (
                                                     <AlertDialog>
@@ -343,10 +421,21 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         </div>
                         {canManage ? (
                             <div className="space-y-4 pt-2">
-                                <h3 className="text-lg font-semibold mb-2">Yeni Hata Ekle</h3>
+                                <h3 className="text-lg font-semibold mb-2">{editingFault ? 'Hata Düzenle' : 'Yeni Hata Ekle'}</h3>
                                 <div className="space-y-2">
                                     <Label htmlFor="fault-dept">İlgili Birim</Label>
-                                    <Select value={newFault.department_id} onValueChange={handleDepartmentChange}>
+                                    <Select 
+                                        value={editingFault ? editFaultData.department_id : newFault.department_id} 
+                                        onValueChange={(value) => {
+                                            if (editingFault) {
+                                                setEditFaultData({ ...editFaultData, department_id: value, category_id: '' });
+                                                const filtered = categories.filter(c => c.department_id === value);
+                                                setFilteredCategories(filtered);
+                                            } else {
+                                                handleDepartmentChange(value);
+                                            }
+                                        }}
+                                    >
                                         <SelectTrigger id="fault-dept"><SelectValue placeholder="Birim Seçin" /></SelectTrigger>
                                         <SelectContent>
                                             {departments.map(dept => <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>)}
@@ -355,7 +444,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="fault-cat">Kategori</Label>
-                                     <Select value={newFault.category_id} onValueChange={(value) => setNewFault({ ...newFault, category_id: value })} disabled={!newFault.department_id}>
+                                    <Select 
+                                        value={editingFault ? editFaultData.category_id : newFault.category_id} 
+                                        onValueChange={(value) => {
+                                            if (editingFault) {
+                                                setEditFaultData({ ...editFaultData, category_id: value });
+                                            } else {
+                                                setNewFault({ ...newFault, category_id: value });
+                                            }
+                                        }} 
+                                        disabled={editingFault ? !editFaultData.department_id : !newFault.department_id}
+                                    >
                                         <SelectTrigger id="fault-cat"><SelectValue placeholder="Kategori Seçin" /></SelectTrigger>
                                         <SelectContent>
                                             {filteredCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
@@ -364,15 +463,49 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="fault-desc">Hata Açıklaması</Label>
-                                    <Input id="fault-desc" value={newFault.description} onChange={(e) => setNewFault({ ...newFault, description: e.target.value })} placeholder="Örn: Boya akıntısı" />
+                                    <Input 
+                                        id="fault-desc" 
+                                        value={editingFault ? editFaultData.description : newFault.description} 
+                                        onChange={(e) => {
+                                            if (editingFault) {
+                                                setEditFaultData({ ...editFaultData, description: e.target.value });
+                                            } else {
+                                                setNewFault({ ...newFault, description: e.target.value });
+                                            }
+                                        }} 
+                                        placeholder="Örn: Boya akıntısı" 
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="fault-qty">Adet</Label>
-                                    <Input id="fault-qty" type="number" min="1" value={newFault.quantity} onChange={(e) => setNewFault({ ...newFault, quantity: parseInt(e.target.value) || 1 })} />
+                                    <Input 
+                                        id="fault-qty" 
+                                        type="number" 
+                                        min="1" 
+                                        value={editingFault ? editFaultData.quantity : newFault.quantity} 
+                                        onChange={(e) => {
+                                            if (editingFault) {
+                                                setEditFaultData({ ...editFaultData, quantity: parseInt(e.target.value) || 1 });
+                                            } else {
+                                                setNewFault({ ...newFault, quantity: parseInt(e.target.value) || 1 });
+                                            }
+                                        }} 
+                                    />
                                 </div>
-                                <Button onClick={handleAddFault} disabled={loading} className="w-full">
-                                    <PlusCircle className="mr-2 h-4 w-4" /> {loading ? 'Ekleniyor...' : 'Hata Ekle'}
-                                </Button>
+                                {editingFault ? (
+                                    <div className="flex gap-2">
+                                        <Button onClick={handleUpdateFault} disabled={loading} className="flex-1">
+                                            <Edit className="mr-2 h-4 w-4" /> {loading ? 'Güncelleniyor...' : 'Güncelle'}
+                                        </Button>
+                                        <Button onClick={handleCancelEdit} variant="outline" disabled={loading}>
+                                            İptal
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Button onClick={handleAddFault} disabled={loading} className="w-full">
+                                        <PlusCircle className="mr-2 h-4 w-4" /> {loading ? 'Ekleniyor...' : 'Hata Ekle'}
+                                    </Button>
+                                )}
                             </div>
                         ) : (
                             <div className="flex items-center justify-center h-full bg-muted/50 rounded-md">
