@@ -51,29 +51,35 @@ import { InfoCard } from '@/components/ui/InfoCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { DialogClose } from '@/components/ui/dialog';
 
-const EightDStepView = ({ stepKey, step }) => (
-  <div className="p-4 border-l-2 border-primary/50 bg-secondary/30 rounded-r-lg">
-    <h4 className="font-bold text-primary">
-      {stepKey}: {step.title}
-    </h4>
-    <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-      <p>
-        <strong className="text-muted-foreground">Sorumlu:</strong>{' '}
-        {step.responsible || '-'}
-      </p>
-    <p>
-        <strong className="text-muted-foreground">Tarih:</strong>{' '}
-        {step.completionDate || '-'}
-      </p>
+const EightDStepView = ({ stepKey, step }) => {
+  if (!step || typeof step !== 'object') {
+    return null;
+  }
+  
+  return (
+    <div className="p-4 border-l-2 border-primary/50 bg-secondary/30 rounded-r-lg">
+      <h4 className="font-bold text-primary">
+        {stepKey}: {step.title || stepKey}
+      </h4>
+      <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+        <p>
+          <strong className="text-muted-foreground">Sorumlu:</strong>{' '}
+          {step.responsible || '-'}
+        </p>
+        <p>
+          <strong className="text-muted-foreground">Tarih:</strong>{' '}
+          {step.completionDate || '-'}
+        </p>
+      </div>
+      {step.description && (
+        <p className="mt-2 text-sm bg-background/50 p-2 rounded-md">
+          <strong className="text-muted-foreground">Açıklama:</strong>{' '}
+          {step.description}
+        </p>
+      )}
     </div>
-    {step.description && (
-      <p className="mt-2 text-sm bg-background/50 p-2 rounded-md">
-        <strong className="text-muted-foreground">Açıklama:</strong>{' '}
-        {step.description}
-      </p>
-    )}
-  </div>
-);
+  );
+};
 
 const AttachmentItem = ({ path, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
@@ -184,35 +190,6 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
     ...(record.closing_attachments || [])
   ].filter(Boolean);
 
-  // eight_d_progress varsa onu kullan, yoksa eight_d_steps'i kullan
-  const displayEightDSteps = useMemo(() => {
-    if (!record || record.type !== '8D') return null;
-    
-    // eight_d_progress varsa onu kullanarak eight_d_steps oluştur
-    if (record.eight_d_progress) {
-      const steps = {};
-      Object.keys(record.eight_d_progress).forEach(key => {
-        const progress = record.eight_d_progress[key];
-        steps[key] = {
-          title: record.eight_d_steps?.[key]?.title || getDefault8DTitle(key),
-          completed: progress.completed || false,
-          responsible: progress.responsible || null,
-          completionDate: progress.completionDate || null,
-          description: progress.description || null,
-          evidenceFiles: progress.evidenceFiles || []
-        };
-      });
-      return steps;
-    }
-    
-    // eight_d_steps varsa onu kullan
-    if (record.eight_d_steps) {
-      return record.eight_d_steps;
-    }
-    
-    return null;
-  }, [record]);
-
   // Varsayılan 8D başlıkları
   const getDefault8DTitle = (stepKey) => {
     const titles = {
@@ -227,6 +204,48 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
     };
     return titles[stepKey] || stepKey;
   };
+
+  // eight_d_progress varsa onu kullan, yoksa eight_d_steps'i kullan
+  const displayEightDSteps = useMemo(() => {
+    if (!record || record.type !== '8D') return null;
+    
+    try {
+      // eight_d_progress varsa onu kullanarak eight_d_steps oluştur
+      if (record.eight_d_progress && typeof record.eight_d_progress === 'object') {
+        const steps = {};
+        const progressKeys = Object.keys(record.eight_d_progress);
+        if (progressKeys.length > 0) {
+          progressKeys.forEach(key => {
+            const progress = record.eight_d_progress[key];
+            if (progress && typeof progress === 'object') {
+              steps[key] = {
+                title: record.eight_d_steps?.[key]?.title || getDefault8DTitle(key),
+                completed: progress.completed || false,
+                responsible: progress.responsible || null,
+                completionDate: progress.completionDate || null,
+                description: progress.description || null,
+                evidenceFiles: progress.evidenceFiles || []
+              };
+            }
+          });
+          return Object.keys(steps).length > 0 ? steps : null;
+        }
+      }
+      
+      // eight_d_steps varsa onu kullan
+      if (record.eight_d_steps && typeof record.eight_d_steps === 'object') {
+        return record.eight_d_steps;
+      }
+    } catch (error) {
+      console.error('Error processing eight_d_steps:', error);
+      // Hata durumunda eight_d_steps'i kullan
+      if (record.eight_d_steps && typeof record.eight_d_steps === 'object') {
+        return record.eight_d_steps;
+      }
+    }
+    
+    return null;
+  }, [record]);
 
   const handlePrint = () => {
     setIsPrinting(true);
@@ -648,7 +667,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                 );
               })()}
 
-              {record.type === '8D' && displayEightDSteps && (
+              {record.type === '8D' && displayEightDSteps && Object.keys(displayEightDSteps).length > 0 && (
                 <>
                   <Separator />
                   <div>
@@ -656,9 +675,10 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                       8D Adımları
                     </h3>
                     <div className="space-y-4">
-                      {Object.entries(displayEightDSteps).map(([key, step]) => (
-                        <EightDStepView key={key} stepKey={key} step={step} />
-                      ))}
+                      {Object.entries(displayEightDSteps).map(([key, step]) => {
+                        if (!step || typeof step !== 'object') return null;
+                        return <EightDStepView key={key} stepKey={key} step={step} />;
+                      })}
                     </div>
                   </div>
                 </>
