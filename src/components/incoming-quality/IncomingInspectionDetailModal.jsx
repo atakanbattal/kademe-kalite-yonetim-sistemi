@@ -644,8 +644,8 @@ const IncomingInspectionDetailModal = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                <DialogHeader className="flex-shrink-0">
+            <DialogContent className="max-w-4xl max-h-[90vh]">
+                <DialogHeader>
                     <div className="flex items-center justify-between">
                         <div>
                             <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -664,9 +664,8 @@ const IncomingInspectionDetailModal = ({
                     </div>
                 </DialogHeader>
                 
-                <ScrollArea className="flex-1 min-h-0 pr-4 mt-4">
-
-                <Tabs defaultValue="main" className="w-full">
+                <ScrollArea className="max-h-[calc(90vh-250px)] pr-4 mt-4">
+                    <Tabs defaultValue="main" className="w-full pb-4">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="main">Temel Bilgiler</TabsTrigger>
                         <TabsTrigger value="details">Muayene Detayları</TabsTrigger>
@@ -1219,10 +1218,10 @@ const IncomingInspectionDetailModal = ({
                             </Card>
                         )}
                     </TabsContent>
-                </Tabs>
+                    </Tabs>
                 </ScrollArea>
 
-                <DialogFooter className="flex-shrink-0 mt-6">
+                <DialogFooter className="mt-6">
                     <Button
                         onClick={handleGenerateReport}
                         className="gap-2"
