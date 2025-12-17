@@ -46,6 +46,21 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import { v4 as uuidv4 } from 'uuid';
     import { openPrintableReport as openPrintableReportUtil } from '@/lib/reportUtils';
 
+    // 8D adımları için varsayılan başlıklar
+    const getDefault8DTitle = (stepKey) => {
+        const titles = {
+            D1: "Ekip Oluşturma",
+            D2: "Problemi Tanımlama",
+            D3: "Geçici Önlemler Alma",
+            D4: "Kök Neden Analizi",
+            D5: "Kalıcı Düzeltici Faaliyetleri Belirleme",
+            D6: "Kalıcı Düzeltici Faaliyetleri Uygulama",
+            D7: "Tekrarlanmayı Önleme",
+            D8: "Ekibi Takdir Etme"
+        };
+        return titles[stepKey] || stepKey;
+    };
+
     const moduleTitles = {
       dashboard: 'Ana Panel',
       tasks: 'Görev Yönetimi',
@@ -374,9 +389,25 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               dbData.eight_d_steps = null;
               dbData.eight_d_progress = null;
           } else {
-              // 8D tipi için eight_d_progress'i de kaydet
-              // Eğer eight_d_progress yoksa eight_d_steps'ten oluştur
-              if (!dbData.eight_d_progress && dbData.eight_d_steps) {
+              // 8D tipi için eight_d_progress ve eight_d_steps'i senkronize et
+              // Eğer eight_d_progress varsa, onu kullan ve eight_d_steps'i güncelle
+              if (dbData.eight_d_progress) {
+                  // eight_d_progress'ten eight_d_steps oluştur (geriye dönük uyumluluk için)
+                  dbData.eight_d_steps = Object.keys(dbData.eight_d_progress).reduce((acc, key) => {
+                      const progress = dbData.eight_d_progress[key];
+                      acc[key] = {
+                          title: dbData.eight_d_steps?.[key]?.title || getDefault8DTitle(key),
+                          completed: progress.completed || false,
+                          responsible: progress.responsible || null,
+                          completionDate: progress.completionDate || null,
+                          description: progress.description || null,
+                          evidenceFiles: progress.evidenceFiles || []
+                      };
+                      return acc;
+                  }, {});
+              } 
+              // Eğer eight_d_progress yoksa ama eight_d_steps varsa, eight_d_progress oluştur
+              else if (dbData.eight_d_steps) {
                   dbData.eight_d_progress = Object.keys(dbData.eight_d_steps).reduce((acc, key) => {
                       const step = dbData.eight_d_steps[key];
                       acc[key] = {

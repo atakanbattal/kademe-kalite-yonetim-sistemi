@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -183,6 +183,50 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
     ...(record.attachments || []),
     ...(record.closing_attachments || [])
   ].filter(Boolean);
+
+  // eight_d_progress varsa onu kullan, yoksa eight_d_steps'i kullan
+  const displayEightDSteps = useMemo(() => {
+    if (!record || record.type !== '8D') return null;
+    
+    // eight_d_progress varsa onu kullanarak eight_d_steps oluştur
+    if (record.eight_d_progress) {
+      const steps = {};
+      Object.keys(record.eight_d_progress).forEach(key => {
+        const progress = record.eight_d_progress[key];
+        steps[key] = {
+          title: record.eight_d_steps?.[key]?.title || getDefault8DTitle(key),
+          completed: progress.completed || false,
+          responsible: progress.responsible || null,
+          completionDate: progress.completionDate || null,
+          description: progress.description || null,
+          evidenceFiles: progress.evidenceFiles || []
+        };
+      });
+      return steps;
+    }
+    
+    // eight_d_steps varsa onu kullan
+    if (record.eight_d_steps) {
+      return record.eight_d_steps;
+    }
+    
+    return null;
+  }, [record]);
+
+  // Varsayılan 8D başlıkları
+  const getDefault8DTitle = (stepKey) => {
+    const titles = {
+      D1: "Ekip Oluşturma",
+      D2: "Problemi Tanımlama",
+      D3: "Geçici Önlemler Alma",
+      D4: "Kök Neden Analizi",
+      D5: "Kalıcı Düzeltici Faaliyetleri Belirleme",
+      D6: "Kalıcı Düzeltici Faaliyetleri Uygulama",
+      D7: "Tekrarlanmayı Önleme",
+      D8: "Ekibi Takdir Etme"
+    };
+    return titles[stepKey] || stepKey;
+  };
 
   const handlePrint = () => {
     setIsPrinting(true);
@@ -604,7 +648,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                 );
               })()}
 
-              {record.type === '8D' && record.eight_d_steps && (
+              {record.type === '8D' && displayEightDSteps && (
                 <>
                   <Separator />
                   <div>
@@ -612,7 +656,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                       8D Adımları
                     </h3>
                     <div className="space-y-4">
-                      {Object.entries(record.eight_d_steps).map(([key, step]) => (
+                      {Object.entries(displayEightDSteps).map(([key, step]) => (
                         <EightDStepView key={key} stepKey={key} step={step} />
                       ))}
                     </div>
