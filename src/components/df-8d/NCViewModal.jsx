@@ -206,11 +206,9 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
   ].filter(Boolean);
 
   // eight_d_progress varsa onu kullan, yoksa eight_d_steps'i kullan
-  const displayEightDSteps = useMemo(() => {
-    if (!record || record.type !== '8D') {
-      return null;
-    }
-    
+  let displayEightDSteps = null;
+  
+  if (record && record.type === '8D') {
     // eight_d_progress varsa onu kullanarak eight_d_steps oluştur
     if (record.eight_d_progress && typeof record.eight_d_progress === 'object' && !Array.isArray(record.eight_d_progress)) {
       const steps = {};
@@ -231,17 +229,15 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
       }
       
       if (Object.keys(steps).length > 0) {
-        return steps;
+        displayEightDSteps = steps;
       }
     }
     
-    // eight_d_steps varsa onu kullan
-    if (record.eight_d_steps && typeof record.eight_d_steps === 'object' && !Array.isArray(record.eight_d_steps)) {
-      return record.eight_d_steps;
+    // eight_d_steps varsa onu kullan (eğer displayEightDSteps henüz set edilmediyse)
+    if (!displayEightDSteps && record.eight_d_steps && typeof record.eight_d_steps === 'object' && !Array.isArray(record.eight_d_steps)) {
+      displayEightDSteps = record.eight_d_steps;
     }
-    
-    return null;
-  }, [record?.id, record?.type, record?.eight_d_progress, record?.eight_d_steps]);
+  }
 
   const handlePrint = () => {
     setIsPrinting(true);
