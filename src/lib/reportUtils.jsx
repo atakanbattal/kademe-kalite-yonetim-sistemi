@@ -1333,8 +1333,68 @@ const generateGenericReportHtml = (record, type) => {
 					return text.replace(/[&<>"']/g, m => map[m]);
 				};
 				
+				// Problem tanımı için profesyonel formatlama
+				const formatProblemDescription = (text) => {
+					if (!text || typeof text !== 'string') return '-';
+					
+					let escaped = escapeHtml(text);
+					let lines = escaped.split('\n');
+					let formattedLines = [];
+					let currentParagraph = [];
+					
+					for (let i = 0; i < lines.length; i++) {
+						let line = lines[i].trim();
+						
+						if (!line) {
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							formattedLines.push('');
+							continue;
+						}
+						
+						const headingMatch = line.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
+						if (headingMatch) {
+							const [, title, value] = headingMatch;
+							
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							
+							if (value && value.trim()) {
+								formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px;"><strong style="color: #1e40af; font-weight: 600;">${title}:</strong> <span>${value}</span></div>`);
+							} else {
+								formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px;"><strong style="color: #1e40af; font-weight: 600;">${title}:</strong></div>`);
+							}
+							continue;
+						}
+						
+						const listMatch = line.match(/^([-•]|\d+[.)])\s+(.+)$/);
+						if (listMatch) {
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							
+							const itemText = listMatch[2];
+							formattedLines.push(`<div style="margin-left: 24px; margin-bottom: 4px; padding-left: 8px; border-left: 2px solid #e5e7eb;">${itemText}</div>`);
+							continue;
+						}
+						
+						currentParagraph.push(line);
+					}
+					
+					if (currentParagraph.length > 0) {
+						formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+					}
+					
+					return formattedLines.join('\n');
+				};
+				
 				return `
-					<tr><td>Problem Tanımı</td><td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.5;">${escapeHtml(record.description || '-')}</pre></td></tr>
+					<tr><td>Problem Tanımı</td><td><div style="white-space: normal; word-wrap: break-word; padding: 12px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">${formatProblemDescription(record.description || '-')}</div></td></tr>
 					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
 					<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
 					<tr><td>Sorumlu Kişi</td><td>${record.responsible_person || '-'}</td></tr>
@@ -1391,11 +1451,71 @@ const generateGenericReportHtml = (record, type) => {
 					};
 					return text.replace(/[&<>"']/g, m => map[m]);
 				};
+				// Problem tanımı için profesyonel formatlama
+				const formatProblemDescriptionKaizen = (text) => {
+					if (!text || typeof text !== 'string') return '-';
+					
+					let escaped = escapeHtmlKaizen(text);
+					let lines = escaped.split('\n');
+					let formattedLines = [];
+					let currentParagraph = [];
+					
+					for (let i = 0; i < lines.length; i++) {
+						let line = lines[i].trim();
+						
+						if (!line) {
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							formattedLines.push('');
+							continue;
+						}
+						
+						const headingMatch = line.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
+						if (headingMatch) {
+							const [, title, value] = headingMatch;
+							
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							
+							if (value && value.trim()) {
+								formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px;"><strong style="color: #1e40af; font-weight: 600;">${title}:</strong> <span>${value}</span></div>`);
+							} else {
+								formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px;"><strong style="color: #1e40af; font-weight: 600;">${title}:</strong></div>`);
+							}
+							continue;
+						}
+						
+						const listMatch = line.match(/^([-•]|\d+[.)])\s+(.+)$/);
+						if (listMatch) {
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							
+							const itemText = listMatch[2];
+							formattedLines.push(`<div style="margin-left: 24px; margin-bottom: 4px; padding-left: 8px; border-left: 2px solid #e5e7eb;">${itemText}</div>`);
+							continue;
+						}
+						
+						currentParagraph.push(line);
+					}
+					
+					if (currentParagraph.length > 0) {
+						formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6;">${currentParagraph.join(' ')}</p>`);
+					}
+					
+					return formattedLines.join('\n');
+				};
+				
 				const teamMembers = record.team_members_profiles?.map(p => p.full_name).join(', ') || '-';
 				const duration = record.start_date && record.end_date ? `${differenceInDays(new Date(record.end_date), new Date(record.start_date))} gün` : '-';
 				return `
 					<tr><td>Kaizen Konusu</td><td>${record.title || '-'}</td></tr>
-					<tr><td>Problem Tanımı</td><td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.5;">${escapeHtmlKaizen(record.description || '-')}</pre></td></tr>
+					<tr><td>Problem Tanımı</td><td><div style="white-space: normal; word-wrap: break-word; padding: 12px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">${formatProblemDescriptionKaizen(record.description || '-')}</div></td></tr>
 					<tr><td>Öneri Sahibi</td><td>${record.proposer?.full_name || '-'}</td></tr>
 					<tr><td>Sorumlu Kişi</td><td>${record.responsible_person?.full_name || '-'}</td></tr>
 					<tr><td>Departman</td><td>${record.department?.unit_name || '-'}</td></tr>

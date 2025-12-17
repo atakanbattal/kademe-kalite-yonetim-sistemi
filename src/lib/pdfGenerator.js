@@ -19,11 +19,82 @@ const generatePrintableReport = (record) => {
         return text.replace(/[&<>"']/g, m => map[m]);
     };
     
-    // Problem tanımı için formatlama (boşlukları ve formatlamayı korur)
+    // Problem tanımı için profesyonel formatlama
     const formatProblemDescription = (text) => {
         if (!text || typeof text !== 'string') return '-';
-        // HTML escape yap ve boşlukları koru
-        return escapeHtml(text);
+        
+        // HTML escape yap
+        let escaped = escapeHtml(text);
+        
+        // Satırları ayır
+        let lines = escaped.split('\n');
+        let formattedLines = [];
+        let currentParagraph = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            
+            // Boş satır - paragraf sonu
+            if (!line) {
+                if (currentParagraph.length > 0) {
+                    formattedLines.push(formatParagraph(currentParagraph));
+                    currentParagraph = [];
+                }
+                formattedLines.push('');
+                continue;
+            }
+            
+            // Başlık tespiti: "Başlık:" veya "Başlık Adı:" formatı
+            const headingMatch = line.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
+            if (headingMatch) {
+                const [, title, value] = headingMatch;
+                
+                // Önceki paragrafı bitir
+                if (currentParagraph.length > 0) {
+                    formattedLines.push(formatParagraph(currentParagraph));
+                    currentParagraph = [];
+                }
+                
+                // Başlığı formatla
+                if (value && value.trim()) {
+                    formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px;"><strong style="color: #1e40af; font-weight: 600;">${title}:</strong> <span style="color: #374151;">${value}</span></div>`);
+                } else {
+                    formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px;"><strong style="color: #1e40af; font-weight: 600;">${title}:</strong></div>`);
+                }
+                continue;
+            }
+            
+            // Liste öğesi tespiti: "- ", "• ", veya sayısal "1. ", "2. "
+            const listMatch = line.match(/^([-•]|\d+[.)])\s+(.+)$/);
+            if (listMatch) {
+                // Önceki paragrafı bitir
+                if (currentParagraph.length > 0) {
+                    formattedLines.push(formatParagraph(currentParagraph));
+                    currentParagraph = [];
+                }
+                
+                const itemText = listMatch[2];
+                formattedLines.push(`<div style="margin-left: 24px; margin-bottom: 4px; padding-left: 8px; border-left: 2px solid #e5e7eb;">${itemText}</div>`);
+                continue;
+            }
+            
+            // Normal metin - paragrafa ekle
+            currentParagraph.push(line);
+        }
+        
+        // Son paragrafı ekle
+        if (currentParagraph.length > 0) {
+            formattedLines.push(formatParagraph(currentParagraph));
+        }
+        
+        return formattedLines.join('\n');
+    };
+    
+    // Paragraf formatlama yardımcı fonksiyonu
+    const formatParagraph = (lines) => {
+        if (lines.length === 0) return '';
+        const content = lines.join(' ');
+        return `<p style="margin: 8px 0; line-height: 1.6; color: #374151;">${content}</p>`;
     };
 
     const getStatusBadge = (status) => {
@@ -182,13 +253,16 @@ const generatePrintableReport = (record) => {
                    grid-column: 1 / -1;
                 }
                 .problem-description {
-                    white-space: pre-wrap;
+                    white-space: normal;
                     word-wrap: break-word;
                     font-family: 'Inter', sans-serif;
                     font-size: 14px;
                     line-height: 1.6;
                     margin: 0;
-                    padding: 0;
+                    padding: 12px;
+                    background-color: #f9fafb;
+                    border-radius: 8px;
+                    border: 1px solid #e5e7eb;
                 }
 
                 .step-section {
@@ -273,7 +347,7 @@ const generatePrintableReport = (record) => {
                 <div class="section">
                     <h2 class="section-title">Problem Tanımı</h2>
                     <div class="info-item full-width">
-                        <pre class="problem-description">${formatProblemDescription(record.description || record.problem_definition || '-')}</pre>
+                        <div class="problem-description">${formatProblemDescription(record.description || record.problem_definition || '-')}</div>
                     </div>
                 </div>
 
