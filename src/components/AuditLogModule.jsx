@@ -7,15 +7,19 @@ import React, { useMemo, useState } from 'react';
     import { motion, AnimatePresence } from 'framer-motion';
     import { Skeleton } from '@/components/ui/skeleton';
     import { Input } from '@/components/ui/input';
-    import { Search, Filter, Clock, User, FileText, Plus, Edit, Trash2, ChevronRight } from 'lucide-react';
+    import { Search, Filter, Clock, User, FileText, Plus, Edit, Trash2, ChevronRight, Eye, ChevronDown, ChevronUp } from 'lucide-react';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { normalizeTurkishForSearch } from '@/lib/utils';
+    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+    import { Button } from '@/components/ui/button';
 
     const AuditLogModule = () => {
       const { auditLogs, loading } = useData();
       const [searchTerm, setSearchTerm] = useState('');
       const [tableFilter, setTableFilter] = useState('all');
+      const [selectedLog, setSelectedLog] = useState(null);
+      const [expandedLogs, setExpandedLogs] = useState(new Set());
 
       const filteredLogs = useMemo(() => {
         let logs = auditLogs;
@@ -44,11 +48,79 @@ import React, { useMemo, useState } from 'react';
         return logs;
       }, [auditLogs, searchTerm, tableFilter]);
 
+      // Kayıt ID'sini bul
+      const getRecordId = (log) => {
+        try {
+          const details = log.details;
+          if (!details) return null;
+          
+          if (details.new && details.new.id) return details.new.id;
+          if (details.old && details.old.id) return details.old.id;
+          if (details.id) return details.id;
+          if (details.new && typeof details.new === 'object') {
+            return details.new.id || details.new.record_id || details.new.record_no;
+          }
+          if (details.old && typeof details.old === 'object') {
+            return details.old.id || details.old.record_id || details.old.record_no;
+          }
+        } catch (e) {
+          console.error('Record ID parse hatası:', e);
+        }
+        return null;
+      };
+
+      // Kayıt bilgilerini çıkar
+      const getRecordInfo = (log) => {
+        try {
+          const details = log.details;
+          if (!details) return {};
+          
+          const recordId = getRecordId(log);
+          const info = { id: recordId };
+          
+          // Yeni kayıt bilgileri
+          if (details.new && typeof details.new === 'object') {
+            const newData = details.new;
+            if (newData.name) info.name = newData.name;
+            if (newData.title) info.title = newData.title;
+            if (newData.part_code) info.partCode = newData.part_code;
+            if (newData.nc_number) info.ncNumber = newData.nc_number;
+            if (newData.request_number) info.requestNumber = newData.request_number;
+            if (newData.record_no) info.recordNo = newData.record_no;
+            if (newData.inspection_number) info.inspectionNumber = newData.inspection_number;
+            if (newData.chassis_no) info.chassisNo = newData.chassis_no;
+            if (newData.serial_no) info.serialNo = newData.serial_no;
+            if (newData.complaint_number) info.complaintNumber = newData.complaint_number;
+          }
+          
+          // Eski kayıt bilgileri
+          if (details.old && typeof details.old === 'object') {
+            const oldData = details.old;
+            if (oldData.name) info.oldName = oldData.name;
+            if (oldData.title) info.oldTitle = oldData.title;
+            if (oldData.part_code) info.oldPartCode = oldData.part_code;
+            if (oldData.nc_number) info.oldNcNumber = oldData.nc_number;
+          }
+          
+          // Değişen alanlar
+          if (details.changed_fields) {
+            info.changedFields = Array.isArray(details.changed_fields) 
+              ? details.changed_fields 
+              : Object.keys(details.changed_fields || {});
+          }
+          
+          return info;
+        } catch (e) {
+          console.error('Record info parse hatası:', e);
+          return {};
+        }
+      };
+
       // Kullanıcı dostu mesaj oluştur
       const getHumanReadableMessage = (log) => {
         const action = log.action;
         const tableName = getReadableTableName(log.table_name);
-        const details = log.details;
+        const recordInfo = getRecordInfo(log);
         
         // İşlem türünü belirle
         let actionType = 'değiştirildi';
@@ -67,69 +139,70 @@ import React, { useMemo, useState } from 'react';
         
         // Detaylardan önemli bilgileri çıkar
         let extraInfo = '';
+        let recordIdentifier = '';
         
-        try {
-          if (details) {
-            // Yeni kayıt için bilgi
-            if (details.new && typeof details.new === 'object') {
-              const newData = details.new;
-              if (newData.part_code) extraInfo = `Parça: ${newData.part_code}`;
-              else if (newData.nc_number) extraInfo = `Uygunsuzluk No: ${newData.nc_number}`;
-              else if (newData.request_number) extraInfo = `Talep No: ${newData.request_number}`;
-              else if (newData.record_no) extraInfo = `Kayıt No: ${newData.record_no}`;
-              else if (newData.inspection_number) extraInfo = `Muayene No: ${newData.inspection_number}`;
-              else if (newData.title) extraInfo = `Başlık: ${newData.title}`;
-              else if (newData.name) extraInfo = `Ad: ${newData.name}`;
-            }
-            
-            // Değişen alanlar varsa göster
-            if (details.changed_fields && Array.isArray(details.changed_fields) && details.changed_fields.length > 0) {
-              const fieldNames = {
-                'status': 'Durum',
-                'decision': 'Karar',
-                'part_code': 'Parça Kodu',
-                'quantity': 'Miktar',
-                'unit': 'Birim',
-                'amount': 'Tutar',
-                'name': 'Ad',
-                'title': 'Başlık',
-                'description': 'Açıklama',
-                'assigned_to': 'Atanan',
-                'priority': 'Öncelik',
-                'due_date': 'Bitiş Tarihi'
-              };
-              
-              const changedFieldsStr = details.changed_fields
-                .map(f => fieldNames[f] || f)
-                .slice(0, 3)
-                .join(', ');
-              
-              extraInfo = `Değişiklik: ${changedFieldsStr}`;
-              if (details.changed_fields.length > 3) {
-                extraInfo += ` (+${details.changed_fields.length - 3} alan daha)`;
-              }
-            }
-            
-            // Doğrudan ekleme için
-            if (!details.new && !details.changed_fields) {
-              if (details.part_code) extraInfo = `Parça: ${details.part_code}`;
-              else if (details.nc_number) extraInfo = `Uygunsuzluk No: ${details.nc_number}`;
-              else if (details.request_number) extraInfo = `Talep No: ${details.request_number}`;
-              else if (details.record_no) extraInfo = `Kayıt No: ${details.record_no}`;
-              else if (details.inspection_number) extraInfo = `Muayene No: ${details.inspection_number}`;
-              else if (details.title) extraInfo = `Başlık: ${details.title}`;
-              else if (details.name) extraInfo = `Ad: ${details.name}`;
-            }
+        if (recordInfo.id) {
+          recordIdentifier = `ID: ${recordInfo.id}`;
+        }
+        
+        if (recordInfo.name) extraInfo = recordInfo.name;
+        else if (recordInfo.title) extraInfo = recordInfo.title;
+        else if (recordInfo.partCode) extraInfo = `Parça: ${recordInfo.partCode}`;
+        else if (recordInfo.ncNumber) extraInfo = `Uygunsuzluk No: ${recordInfo.ncNumber}`;
+        else if (recordInfo.requestNumber) extraInfo = `Talep No: ${recordInfo.requestNumber}`;
+        else if (recordInfo.recordNo) extraInfo = `Kayıt No: ${recordInfo.recordNo}`;
+        else if (recordInfo.inspectionNumber) extraInfo = `Muayene No: ${recordInfo.inspectionNumber}`;
+        else if (recordInfo.chassisNo) extraInfo = `Şasi: ${recordInfo.chassisNo}`;
+        else if (recordInfo.complaintNumber) extraInfo = `Şikayet No: ${recordInfo.complaintNumber}`;
+        
+        if (recordInfo.changedFields && recordInfo.changedFields.length > 0) {
+          const fieldNames = {
+            'status': 'Durum',
+            'decision': 'Karar',
+            'part_code': 'Parça Kodu',
+            'quantity': 'Miktar',
+            'unit': 'Birim',
+            'amount': 'Tutar',
+            'name': 'Ad',
+            'title': 'Başlık',
+            'description': 'Açıklama',
+            'assigned_to': 'Atanan',
+            'priority': 'Öncelik',
+            'due_date': 'Bitiş Tarihi'
+          };
+          
+          const changedFieldsStr = recordInfo.changedFields
+            .map(f => fieldNames[f] || f)
+            .slice(0, 3)
+            .join(', ');
+          
+          if (extraInfo) extraInfo += ` | Değişiklik: ${changedFieldsStr}`;
+          else extraInfo = `Değişiklik: ${changedFieldsStr}`;
+          
+          if (recordInfo.changedFields.length > 3) {
+            extraInfo += ` (+${recordInfo.changedFields.length - 3} alan daha)`;
           }
-        } catch (e) {
-          console.error('Detay parse hatası:', e);
         }
         
         return {
           message: `${tableName} kaydı ${actionType}`,
           extraInfo,
-          actionIcon
+          recordIdentifier,
+          actionIcon,
+          recordInfo
         };
+      };
+
+      const toggleExpand = (logId) => {
+        setExpandedLogs(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(logId)) {
+            newSet.delete(logId);
+          } else {
+            newSet.add(logId);
+          }
+          return newSet;
+        });
       };
 
       const getActionBadge = (action) => {
@@ -326,6 +399,13 @@ import React, { useMemo, useState } from 'react';
                                 </Badge>
                               </div>
                               
+                              {/* Kayıt ID */}
+                              {humanMessage.recordIdentifier && (
+                                <p className="text-xs text-muted-foreground mb-1 font-mono">
+                                  {humanMessage.recordIdentifier}
+                                </p>
+                              )}
+                              
                               {/* Ek Bilgi */}
                               {humanMessage.extraInfo && (
                                 <p className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
@@ -334,8 +414,36 @@ import React, { useMemo, useState } from 'react';
                                 </p>
                               )}
                               
+                              {/* Genişletilmiş Detaylar */}
+                              {expandedLogs.has(log.id) && (
+                                <div className="mt-3 p-3 bg-muted/50 rounded-lg text-xs space-y-2">
+                                  <div className="font-semibold text-foreground mb-2">Detaylı Bilgiler:</div>
+                                  {humanMessage.recordInfo.name && (
+                                    <div><span className="font-medium">Ad:</span> {humanMessage.recordInfo.name}</div>
+                                  )}
+                                  {humanMessage.recordInfo.title && (
+                                    <div><span className="font-medium">Başlık:</span> {humanMessage.recordInfo.title}</div>
+                                  )}
+                                  {humanMessage.recordInfo.changedFields && humanMessage.recordInfo.changedFields.length > 0 && (
+                                    <div>
+                                      <span className="font-medium">Değişen Alanlar:</span>{' '}
+                                      {humanMessage.recordInfo.changedFields.join(', ')}
+                                    </div>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="mt-2"
+                                    onClick={() => setSelectedLog(log)}
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Tüm Detayları Görüntüle
+                                  </Button>
+                                </div>
+                              )}
+                              
                               {/* Kullanıcı ve Zaman */}
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
                                 <span className="flex items-center gap-1">
                                   <User className="h-3 w-3" />
                                   {log.user_full_name || 'Sistem'}
@@ -350,9 +458,21 @@ import React, { useMemo, useState } from 'react';
                               </div>
                             </div>
                             
-                            {/* Sağ taraf - İşlem Badge'i */}
-                            <div className="flex-shrink-0 self-start">
+                            {/* Sağ taraf - İşlem Badge'i ve Genişlet Butonu */}
+                            <div className="flex-shrink-0 self-start flex flex-col gap-2">
                               {getActionBadge(log.action)}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleExpand(log.id)}
+                                className="h-6 w-6 p-0"
+                              >
+                                {expandedLogs.has(log.id) ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </Button>
                             </div>
                           </motion.div>
                         );
@@ -369,6 +489,49 @@ import React, { useMemo, useState } from 'react';
               </ScrollArea>
             </CardContent>
           </Card>
+          
+          {/* Detay Modal */}
+          <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>İşlem Detayları</DialogTitle>
+                <DialogDescription>
+                  {selectedLog && getHumanReadableMessage(selectedLog).message}
+                </DialogDescription>
+              </DialogHeader>
+              {selectedLog && (
+                <div className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">Modül</div>
+                      <div className="text-sm font-semibold">{getReadableTableName(selectedLog.table_name)}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">İşlem</div>
+                      <div>{getActionBadge(selectedLog.action)}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">Kullanıcı</div>
+                      <div className="text-sm">{selectedLog.user_full_name || 'Sistem'}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground">Tarih</div>
+                      <div className="text-sm">{format(new Date(selectedLog.created_at), 'dd.MM.yyyy HH:mm:ss', { locale: tr })}</div>
+                    </div>
+                  </div>
+                  
+                  {selectedLog.details && (
+                    <div className="mt-6">
+                      <div className="text-sm font-medium text-muted-foreground mb-2">Detaylar (JSON)</div>
+                      <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto">
+                        {JSON.stringify(selectedLog.details, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </motion.div>
       );
     };
