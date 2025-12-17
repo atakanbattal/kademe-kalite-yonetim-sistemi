@@ -63,38 +63,43 @@ const generatePrintableReport = (record) => {
         // HTML escape yap
         let escaped = escapeHtml(text);
         
-        // Metni işle - başlıkları ve listeleri ayır
-        // Önce tüm metni tek satırda birleştirip sonra parse et
-        let processed = escaped.replace(/\n+/g, ' ').trim();
-        
-        // Başlıkları tespit et ve ayır (iki nokta üst üste ile biten kısımlar)
-        // Pattern: "Başlık: Değer" veya "Başlık:" (değer yoksa)
-        processed = processed.replace(/([A-ZÇĞİÖŞÜ][^:]*?):\s*([^:]*?)(?=[A-ZÇĞİÖŞÜ][^:]*:|$)/g, (match, title, value) => {
-            value = value.trim();
-            // Eğer değer varsa ve sonraki başlık yoksa
-            if (value && !value.match(/^[A-ZÇĞİÖŞÜ]/)) {
-                return `\n${title}: ${value}`;
-            }
-            return `\n${title}:`;
-        });
-        
-        // Liste öğelerini tespit et ve ayır
-        // Pattern: "* " veya sayısal liste başlangıcı
-        processed = processed.replace(/\*\s+/g, '\n* ');
-        processed = processed.replace(/(\d+[.,])\s+/g, '\n$1 ');
-        
-        // Satırları ayır
-        let lines = processed.split('\n').map(l => l.trim()).filter(l => l);
+        // Satır geçişlerini koru - boş satırları da koru
+        let lines = escaped.split('\n');
         let formattedLines = [];
         let inList = false;
+        let currentParagraph = [];
         
         for (let i = 0; i < lines.length; i++) {
             let line = lines[i];
+            let trimmedLine = line.trim();
+            
+            // Boş satır - paragraf sonu veya boşluk
+            if (!trimmedLine) {
+                // Önceki paragrafı bitir
+                if (currentParagraph.length > 0) {
+                    formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
+                    currentParagraph = [];
+                }
+                // Liste durumunu bitir
+                if (inList) {
+                    formattedLines.push('</ul>');
+                    inList = false;
+                }
+                // Boş satırı koru (küçük bir boşluk olarak)
+                formattedLines.push('<div style="height: 4px;"></div>');
+                continue;
+            }
             
             // Başlık tespiti: "Başlık:" veya "Başlık: Değer" formatı
-            const headingMatch = line.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
+            const headingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
             if (headingMatch) {
                 const [, title, value] = headingMatch;
+                
+                // Önceki paragrafı bitir
+                if (currentParagraph.length > 0) {
+                    formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
+                    currentParagraph = [];
+                }
                 
                 // Liste durumunu bitir
                 if (inList) {
@@ -102,25 +107,31 @@ const generatePrintableReport = (record) => {
                     inList = false;
                 }
                 
-                // Başlığı formatla - her zaman ayrı satırda
+                // Başlığı formatla - daha küçük ve profesyonel
                 if (value && value.trim()) {
-                    formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px;"><strong style="color: #1e40af; font-weight: 600; font-size: 14px;">${title}:</strong> <span style="color: #374151;">${value}</span></div>`);
+                    formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
                 } else {
-                    formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px;"><strong style="color: #1e40af; font-weight: 600; font-size: 14px;">${title}:</strong></div>`);
+                    formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong></div>`);
                 }
                 continue;
             }
             
             // Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
-            const listMatch = line.match(/^([*•-]|\d+[.,])\s+(.+)$/);
+            const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
             if (listMatch) {
+                // Önceki paragrafı bitir
+                if (currentParagraph.length > 0) {
+                    formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
+                    currentParagraph = [];
+                }
+                
                 if (!inList) {
-                    formattedLines.push('<ul style="margin: 8px 0; padding-left: 20px; list-style-type: disc;">');
+                    formattedLines.push('<ul style="margin: 4px 0; padding-left: 20px; list-style-type: disc;">');
                     inList = true;
                 }
                 
                 const itemText = listMatch[2];
-                formattedLines.push(`<li style="margin-bottom: 6px; line-height: 1.6; color: #374151;">${itemText}</li>`);
+                formattedLines.push(`<li style="margin-bottom: 4px; line-height: 1.5; color: #374151; font-size: 13px;">${itemText}</li>`);
                 continue;
             }
             
@@ -130,10 +141,13 @@ const generatePrintableReport = (record) => {
                 inList = false;
             }
             
-            // Normal metin - paragraf olarak ekle
-            if (line.trim()) {
-                formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6; color: #374151;">${line}</p>`);
-            }
+            // Normal metin - paragrafa ekle
+            currentParagraph.push(trimmedLine);
+        }
+        
+        // Son paragrafı ekle
+        if (currentParagraph.length > 0) {
+            formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
         }
         
         // Son liste durumunu bitir
