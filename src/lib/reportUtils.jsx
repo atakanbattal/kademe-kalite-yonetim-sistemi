@@ -1472,14 +1472,19 @@ const generateGenericReportHtml = (record, type) => {
 					return formattedLines.join('\n');
 				};
 				
-				return `
-					<tr><td>Problem Tanımı</td><td><div style="white-space: normal; word-wrap: break-word; padding: 8px; background-color: #ffffff; border-radius: 4px; border: 1px solid #e5e7eb; font-size: 13px; line-height: 1.5;">${formatProblemDescription(record.description || '-')}</div></td></tr>
-					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
-					<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
-					<tr><td>Sorumlu Kişi</td><td>${record.responsible_person || '-'}</td></tr>
-					<tr><td>Sorumlu Birim</td><td>${record.supplier_name || record.department || '-'}</td></tr>
-					<tr><td>Termin Tarihi</td><td>${formatDate(record.due_at || record.due_date)}</td></tr>
-				`;
+				// Problem tanımını tablo dışında tutmak için ayrı bir değişkende sakla
+				const problemDescriptionHtml = record.description ? formatProblemDescription(record.description) : '-';
+				
+				return {
+					tableRows: `
+						<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
+						<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
+						<tr><td>Sorumlu Kişi</td><td>${record.responsible_person || '-'}</td></tr>
+						<tr><td>Sorumlu Birim</td><td>${record.supplier_name || record.department || '-'}</td></tr>
+						<tr><td>Termin Tarihi</td><td>${formatDate(record.due_at || record.due_date)}</td></tr>
+					`,
+					problemDescription: problemDescriptionHtml
+				};
 			case 'deviation':
 				// Etkilenen Araçlar tablosu
 				let vehiclesHtml = '';
@@ -2172,10 +2177,15 @@ const generateGenericReportHtml = (record, type) => {
 	const getAdditionalSections = () => {
 		let html = '';
 		
+		// Problem Tanımı (nonconformity için - eğer getGeneralInfo'dan gelmediyse)
+		const generalInfo = getGeneralInfo();
+		const hasProblemDescription = typeof generalInfo === 'object' && generalInfo.problemDescription;
+		let sectionNumber = hasProblemDescription ? '3' : '2';
+		
 		// İlerleme Notları / Yapılan Çalışmalar (Tüm uygunsuzluklar için)
 		if (type === 'nonconformity' && record.closing_notes) {
 			html += `<div class="section">
-				<h2 class="section-title blue">2. İLERLEME NOTLARI / YAPILAN ÇALIŞMALAR</h2>
+				<h2 class="section-title blue">${sectionNumber}. İLERLEME NOTLARI / YAPILAN ÇALIŞMALAR</h2>
 				<div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px; margin-top: 10px;">
 					<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: inherit; margin: 0;">${record.closing_notes}</pre>
 				</div>
@@ -2217,9 +2227,10 @@ const generateGenericReportHtml = (record, type) => {
 				(record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== ''));
 			
 			if (hasAnalysis) {
-				let sectionNumber = record.closing_notes ? '3' : '2';
+				// Problem tanımı artık 2. section, bu yüzden numaraları güncelle
+				let sectionNumber = record.closing_notes ? '4' : '3';
 				if (record.eight_d_steps) {
-					sectionNumber = record.closing_notes ? '4' : '3';
+					sectionNumber = record.closing_notes ? '5' : '4';
 				}
 				
 				html += `<div class="section"><h2 class="section-title red">${sectionNumber}. KÖK NEDEN ANALİZİ</h2>`;
@@ -2287,13 +2298,14 @@ const generateGenericReportHtml = (record, type) => {
 		}
 		
 		if (type === 'nonconformity' && record.eight_d_steps) {
-			let sectionNumber = record.closing_notes ? '3' : '2';
+			// Problem tanımı artık 2. section, bu yüzden numaraları güncelle
+			let sectionNumber = record.closing_notes ? '4' : '3';
 			const hasAnalysis = (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) ||
 				(record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) ||
 				(record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) ||
 				(record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== ''));
 			if (hasAnalysis) {
-				sectionNumber = record.closing_notes ? '4' : '3';
+				sectionNumber = record.closing_notes ? '5' : '4';
 			}
 			html += `<div class="section"><h2 class="section-title red">${sectionNumber}. 8D ADIMLARI</h2>`;
 			Object.entries(record.eight_d_steps).forEach(([key, step]) => {
@@ -2571,10 +2583,26 @@ const generateGenericReportHtml = (record, type) => {
 			<h2 class="section-title blue">1. TEMEL BİLGİLER</h2>
 			<table class="info-table">
 				<tbody>
-					${getGeneralInfo()}
+					${(() => {
+						const generalInfo = getGeneralInfo();
+						return typeof generalInfo === 'object' && generalInfo.tableRows ? generalInfo.tableRows : generalInfo;
+					})()}
 				</tbody>
 			</table>
 		</div>
+		
+		${(() => {
+			const generalInfo = getGeneralInfo();
+			if (typeof generalInfo === 'object' && generalInfo.problemDescription) {
+				return `
+					<div class="section">
+						<h2 class="section-title blue">2. PROBLEM TANIMI</h2>
+						<div style="white-space: normal; word-wrap: break-word; padding: 8px; background-color: #ffffff; border-radius: 4px; border: 1px solid #e5e7eb; font-size: 13px; line-height: 1.5;">${generalInfo.problemDescription}</div>
+					</div>
+				`;
+			}
+			return '';
+		})()}
 		
 		${getAdditionalSections()}
 
