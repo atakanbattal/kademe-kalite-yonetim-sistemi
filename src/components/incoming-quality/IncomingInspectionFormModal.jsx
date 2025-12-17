@@ -737,13 +737,13 @@ setShowRiskyStockAlert(false);
         
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-5xl xl:max-w-7xl max-h-[90vh] flex flex-col">
-                    <DialogHeader className="flex-shrink-0">
+                <DialogContent className="max-w-5xl xl:max-w-7xl max-h-[90vh]">
+                    <DialogHeader>
                         <DialogTitle>{title}</DialogTitle>
                         <DialogDescription>Tedarikçiden gelen malzemeler için kontrol sonuçlarını girin.</DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-                        <ScrollArea className="flex-1 pr-4 mt-4">
+                    <form onSubmit={handleSubmit}>
+                        <ScrollArea className="max-h-[65vh] pr-4 mt-4">
                             <div className="space-y-6">
                     <div className="space-y-2">
                         {warnings.plan && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.plan}</AlertDescription></Alert>}
@@ -815,7 +815,7 @@ setShowRiskyStockAlert(false);
                     <div className="space-y-4"><h3 className="font-semibold text-lg border-b pb-2">Sertifika ve Ekler</h3>{!isViewMode && <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-input hover:border-primary/50'} cursor-pointer`}><input {...getInputProps()} /><p className="text-muted-foreground">Dosyaları buraya sürükleyin veya seçmek için tıklayın.</p></div>}<ul className="space-y-2">{existingAttachments.map(att => <li key={att.id} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded-md"><a href={supabase.storage.from('incoming_control').getPublicUrl(att.file_path).data.publicUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline"><FileText className="h-4 w-4" /><span>{att.file_name}</span><ExternalLink className="h-3 w-3" /></a>{!isViewMode && <Button type="button" variant="ghost" size="icon" onClick={() => removeExistingAttachment(att.id, att.file_path)}><X className="h-4 w-4 text-destructive" /></Button>}</li>)}{newAttachments.map((file, index) => <li key={index} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded-md"><span>{file.name}</span>{!isViewMode && <Button type="button" variant="ghost" size="icon" onClick={() => removeNewAttachment(index)}><X className="h-4 w-4" /></Button>}</li>)}</ul></div>
                             </div>
                         </ScrollArea>
-                        <DialogFooter className="flex-shrink-0 pt-6 border-t mt-4">
+                        <DialogFooter className="pt-6 border-t mt-4">
                             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
                             {!isViewMode && (
                                 <Button type="submit" disabled={isSubmitting}>
