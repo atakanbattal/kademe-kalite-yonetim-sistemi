@@ -19,83 +19,131 @@ const generatePrintableReport = (record) => {
         return text.replace(/[&<>"']/g, m => map[m]);
     };
     
+    // Türkçe karakterleri normalize et (Unicode normalization)
+    const normalizeTurkishChars = (text) => {
+        if (!text || typeof text !== 'string') return text;
+        
+        // Unicode normalize et (NFD -> NFC) - birleşik karakterleri düzelt
+        let normalized = text.normalize('NFC');
+        
+        // Bozuk Türkçe karakterleri düzelt
+        const fixes = {
+            // Bozuk İ karakterleri
+            'i̇': 'i',
+            'İ̇': 'İ',
+            'İ': 'İ',
+            'ı̇': 'ı',
+            // Bozuk diğer karakterler
+            'ğ': 'ğ',
+            'Ğ': 'Ğ',
+            'ü': 'ü',
+            'Ü': 'Ü',
+            'ö': 'ö',
+            'Ö': 'Ö',
+            'ş': 'ş',
+            'Ş': 'Ş',
+            'ç': 'ç',
+            'Ç': 'Ç'
+        };
+        
+        Object.keys(fixes).forEach(broken => {
+            normalized = normalized.replace(new RegExp(broken, 'g'), fixes[broken]);
+        });
+        
+        return normalized;
+    };
+    
     // Problem tanımı için profesyonel formatlama
     const formatProblemDescription = (text) => {
         if (!text || typeof text !== 'string') return '-';
         
+        // Önce Türkçe karakterleri normalize et
+        text = normalizeTurkishChars(text);
+        
         // HTML escape yap
         let escaped = escapeHtml(text);
         
+        // Metni işle - başlıkları ve listeleri ayır
+        // Önce tüm metni tek satırda birleştirip sonra parse et
+        let processed = escaped.replace(/\n+/g, ' ').trim();
+        
+        // Başlıkları tespit et ve ayır (iki nokta üst üste ile biten kısımlar)
+        // Pattern: "Başlık: Değer" veya "Başlık:" (değer yoksa)
+        processed = processed.replace(/([A-ZÇĞİÖŞÜ][^:]*?):\s*([^:]*?)(?=[A-ZÇĞİÖŞÜ][^:]*:|$)/g, (match, title, value) => {
+            value = value.trim();
+            // Eğer değer varsa ve sonraki başlık yoksa
+            if (value && !value.match(/^[A-ZÇĞİÖŞÜ]/)) {
+                return `\n${title}: ${value}`;
+            }
+            return `\n${title}:`;
+        });
+        
+        // Liste öğelerini tespit et ve ayır
+        // Pattern: "* " veya sayısal liste başlangıcı
+        processed = processed.replace(/\*\s+/g, '\n* ');
+        processed = processed.replace(/(\d+[.,])\s+/g, '\n$1 ');
+        
         // Satırları ayır
-        let lines = escaped.split('\n');
+        let lines = processed.split('\n').map(l => l.trim()).filter(l => l);
         let formattedLines = [];
-        let currentParagraph = [];
+        let inList = false;
         
         for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
+            let line = lines[i];
             
-            // Boş satır - paragraf sonu
-            if (!line) {
-                if (currentParagraph.length > 0) {
-                    formattedLines.push(formatParagraph(currentParagraph));
-                    currentParagraph = [];
-                }
-                formattedLines.push('');
-                continue;
-            }
-            
-            // Başlık tespiti: "Başlık:" veya "Başlık Adı:" formatı
+            // Başlık tespiti: "Başlık:" veya "Başlık: Değer" formatı
             const headingMatch = line.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
             if (headingMatch) {
                 const [, title, value] = headingMatch;
                 
-                // Önceki paragrafı bitir
-                if (currentParagraph.length > 0) {
-                    formattedLines.push(formatParagraph(currentParagraph));
-                    currentParagraph = [];
+                // Liste durumunu bitir
+                if (inList) {
+                    formattedLines.push('</ul>');
+                    inList = false;
                 }
                 
-                // Başlığı formatla
+                // Başlığı formatla - her zaman ayrı satırda
                 if (value && value.trim()) {
-                    formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px;"><strong style="color: #1e40af; font-weight: 600;">${title}:</strong> <span style="color: #374151;">${value}</span></div>`);
+                    formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px;"><strong style="color: #1e40af; font-weight: 600; font-size: 14px;">${title}:</strong> <span style="color: #374151;">${value}</span></div>`);
                 } else {
-                    formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px;"><strong style="color: #1e40af; font-weight: 600;">${title}:</strong></div>`);
+                    formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px;"><strong style="color: #1e40af; font-weight: 600; font-size: 14px;">${title}:</strong></div>`);
                 }
                 continue;
             }
             
-            // Liste öğesi tespiti: "- ", "• ", veya sayısal "1. ", "2. "
-            const listMatch = line.match(/^([-•]|\d+[.)])\s+(.+)$/);
+            // Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
+            const listMatch = line.match(/^([*•-]|\d+[.,])\s+(.+)$/);
             if (listMatch) {
-                // Önceki paragrafı bitir
-                if (currentParagraph.length > 0) {
-                    formattedLines.push(formatParagraph(currentParagraph));
-                    currentParagraph = [];
+                if (!inList) {
+                    formattedLines.push('<ul style="margin: 8px 0; padding-left: 20px; list-style-type: disc;">');
+                    inList = true;
                 }
                 
                 const itemText = listMatch[2];
-                formattedLines.push(`<div style="margin-left: 24px; margin-bottom: 4px; padding-left: 8px; border-left: 2px solid #e5e7eb;">${itemText}</div>`);
+                formattedLines.push(`<li style="margin-bottom: 6px; line-height: 1.6; color: #374151;">${itemText}</li>`);
                 continue;
             }
             
-            // Normal metin - paragrafa ekle
-            currentParagraph.push(line);
+            // Liste durumunu bitir
+            if (inList) {
+                formattedLines.push('</ul>');
+                inList = false;
+            }
+            
+            // Normal metin - paragraf olarak ekle
+            if (line.trim()) {
+                formattedLines.push(`<p style="margin: 8px 0; line-height: 1.6; color: #374151;">${line}</p>`);
+            }
         }
         
-        // Son paragrafı ekle
-        if (currentParagraph.length > 0) {
-            formattedLines.push(formatParagraph(currentParagraph));
+        // Son liste durumunu bitir
+        if (inList) {
+            formattedLines.push('</ul>');
         }
         
         return formattedLines.join('\n');
     };
     
-    // Paragraf formatlama yardımcı fonksiyonu
-    const formatParagraph = (lines) => {
-        if (lines.length === 0) return '';
-        const content = lines.join(' ');
-        return `<p style="margin: 8px 0; line-height: 1.6; color: #374151;">${content}</p>`;
-    };
 
     const getStatusBadge = (status) => {
         let bgColor, textColor;
