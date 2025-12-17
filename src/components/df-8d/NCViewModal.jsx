@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -206,9 +206,16 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
   ].filter(Boolean);
 
   // eight_d_progress varsa onu kullan, yoksa eight_d_steps'i kullan
-  let displayEightDSteps = null;
-  
-  if (record && record.type === '8D') {
+  const getDisplayEightDSteps = () => {
+    if (!record || record.type !== '8D') {
+      return null;
+    }
+    
+    // eight_d_steps varsa onu kullan (öncelikli)
+    if (record.eight_d_steps && typeof record.eight_d_steps === 'object' && !Array.isArray(record.eight_d_steps)) {
+      return record.eight_d_steps;
+    }
+    
     // eight_d_progress varsa onu kullanarak eight_d_steps oluştur
     if (record.eight_d_progress && typeof record.eight_d_progress === 'object' && !Array.isArray(record.eight_d_progress)) {
       const steps = {};
@@ -218,7 +225,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         const progress = record.eight_d_progress[key];
         if (progress && typeof progress === 'object' && !Array.isArray(progress)) {
           steps[key] = {
-            title: (record.eight_d_steps && record.eight_d_steps[key] && record.eight_d_steps[key].title) || getDefault8DTitle(key),
+            title: getDefault8DTitle(key),
             completed: Boolean(progress.completed),
             responsible: progress.responsible || null,
             completionDate: progress.completionDate || null,
@@ -229,15 +236,14 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
       }
       
       if (Object.keys(steps).length > 0) {
-        displayEightDSteps = steps;
+        return steps;
       }
     }
     
-    // eight_d_steps varsa onu kullan (eğer displayEightDSteps henüz set edilmediyse)
-    if (!displayEightDSteps && record.eight_d_steps && typeof record.eight_d_steps === 'object' && !Array.isArray(record.eight_d_steps)) {
-      displayEightDSteps = record.eight_d_steps;
-    }
-  }
+    return null;
+  };
+  
+  const displayEightDSteps = getDisplayEightDSteps();
 
   const handlePrint = () => {
     setIsPrinting(true);
