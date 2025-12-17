@@ -207,45 +207,41 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
 
   // eight_d_progress varsa onu kullan, yoksa eight_d_steps'i kullan
   const displayEightDSteps = useMemo(() => {
-    if (!record || record.type !== '8D') return null;
+    if (!record || record.type !== '8D') {
+      return null;
+    }
     
-    try {
-      // eight_d_progress varsa onu kullanarak eight_d_steps oluştur
-      if (record.eight_d_progress && typeof record.eight_d_progress === 'object') {
-        const steps = {};
-        const progressKeys = Object.keys(record.eight_d_progress);
-        if (progressKeys.length > 0) {
-          progressKeys.forEach(key => {
-            const progress = record.eight_d_progress[key];
-            if (progress && typeof progress === 'object') {
-              steps[key] = {
-                title: record.eight_d_steps?.[key]?.title || getDefault8DTitle(key),
-                completed: progress.completed || false,
-                responsible: progress.responsible || null,
-                completionDate: progress.completionDate || null,
-                description: progress.description || null,
-                evidenceFiles: progress.evidenceFiles || []
-              };
-            }
-          });
-          return Object.keys(steps).length > 0 ? steps : null;
+    // eight_d_progress varsa onu kullanarak eight_d_steps oluştur
+    if (record.eight_d_progress && typeof record.eight_d_progress === 'object' && !Array.isArray(record.eight_d_progress)) {
+      const steps = {};
+      const progressKeys = Object.keys(record.eight_d_progress);
+      
+      for (const key of progressKeys) {
+        const progress = record.eight_d_progress[key];
+        if (progress && typeof progress === 'object' && !Array.isArray(progress)) {
+          steps[key] = {
+            title: (record.eight_d_steps && record.eight_d_steps[key] && record.eight_d_steps[key].title) || getDefault8DTitle(key),
+            completed: Boolean(progress.completed),
+            responsible: progress.responsible || null,
+            completionDate: progress.completionDate || null,
+            description: progress.description || null,
+            evidenceFiles: Array.isArray(progress.evidenceFiles) ? progress.evidenceFiles : []
+          };
         }
       }
       
-      // eight_d_steps varsa onu kullan
-      if (record.eight_d_steps && typeof record.eight_d_steps === 'object') {
-        return record.eight_d_steps;
-      }
-    } catch (error) {
-      console.error('Error processing eight_d_steps:', error);
-      // Hata durumunda eight_d_steps'i kullan
-      if (record.eight_d_steps && typeof record.eight_d_steps === 'object') {
-        return record.eight_d_steps;
+      if (Object.keys(steps).length > 0) {
+        return steps;
       }
     }
     
+    // eight_d_steps varsa onu kullan
+    if (record.eight_d_steps && typeof record.eight_d_steps === 'object' && !Array.isArray(record.eight_d_steps)) {
+      return record.eight_d_steps;
+    }
+    
     return null;
-  }, [record]);
+  }, [record?.id, record?.type, record?.eight_d_progress, record?.eight_d_steps]);
 
   const handlePrint = () => {
     setIsPrinting(true);
