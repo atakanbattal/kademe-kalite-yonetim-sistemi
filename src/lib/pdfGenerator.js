@@ -297,8 +297,8 @@ const generatePrintableReport = (record) => {
                 }
                 .info-item {
                     background-color: #f9fafb;
-                    border-radius: 8px;
-                    padding: 12px;
+                    border-radius: 6px;
+                    padding: 8px;
                     border: 1px solid #e5e7eb;
                 }
                 .info-item .label {
@@ -318,12 +318,12 @@ const generatePrintableReport = (record) => {
                     white-space: normal;
                     word-wrap: break-word;
                     font-family: 'Inter', sans-serif;
-                    font-size: 14px;
-                    line-height: 1.6;
+                    font-size: 13px;
+                    line-height: 1.5;
                     margin: 0;
-                    padding: 12px;
-                    background-color: #f9fafb;
-                    border-radius: 8px;
+                    padding: 8px;
+                    background-color: #ffffff;
+                    border-radius: 4px;
                     border: 1px solid #e5e7eb;
                 }
 
@@ -408,9 +408,7 @@ const generatePrintableReport = (record) => {
 
                 <div class="section">
                     <h2 class="section-title">Problem Tanımı</h2>
-                    <div class="info-item full-width">
-                        <div class="problem-description">${formatProblemDescription(record.description || record.problem_definition || '-')}</div>
-                    </div>
+                    <div class="problem-description">${formatProblemDescription(record.description || record.problem_definition || '-')}</div>
                 </div>
 
                 ${attachmentsHtml}
@@ -1033,8 +1031,8 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 }
                 .info-item {
                     background-color: #f9fafb;
-                    border-radius: 8px;
-                    padding: 12px;
+                    border-radius: 6px;
+                    padding: 8px;
                     border: 1px solid #e5e7eb;
                 }
                 .info-item .label {

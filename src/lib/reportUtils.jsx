@@ -1473,7 +1473,7 @@ const generateGenericReportHtml = (record, type) => {
 				};
 				
 				return `
-					<tr><td>Problem Tanımı</td><td><div style="white-space: normal; word-wrap: break-word; padding: 12px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">${formatProblemDescription(record.description || '-')}</div></td></tr>
+					<tr><td>Problem Tanımı</td><td><div style="white-space: normal; word-wrap: break-word; padding: 8px; background-color: #ffffff; border-radius: 4px; border: 1px solid #e5e7eb; font-size: 13px; line-height: 1.5;">${formatProblemDescription(record.description || '-')}</div></td></tr>
 					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
 					<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
 					<tr><td>Sorumlu Kişi</td><td>${record.responsible_person || '-'}</td></tr>
@@ -1669,7 +1669,7 @@ const generateGenericReportHtml = (record, type) => {
 				const duration = record.start_date && record.end_date ? `${differenceInDays(new Date(record.end_date), new Date(record.start_date))} gün` : '-';
 				return `
 					<tr><td>Kaizen Konusu</td><td>${record.title || '-'}</td></tr>
-					<tr><td>Problem Tanımı</td><td><div style="white-space: normal; word-wrap: break-word; padding: 12px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">${formatProblemDescriptionKaizen(record.description || '-')}</div></td></tr>
+					<tr><td>Problem Tanımı</td><td><div style="white-space: normal; word-wrap: break-word; padding: 8px; background-color: #ffffff; border-radius: 4px; border: 1px solid #e5e7eb; font-size: 13px; line-height: 1.5;">${formatProblemDescriptionKaizen(record.description || '-')}</div></td></tr>
 					<tr><td>Öneri Sahibi</td><td>${record.proposer?.full_name || '-'}</td></tr>
 					<tr><td>Sorumlu Kişi</td><td>${record.responsible_person?.full_name || '-'}</td></tr>
 					<tr><td>Departman</td><td>${record.department?.unit_name || '-'}</td></tr>
