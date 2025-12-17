@@ -743,8 +743,8 @@ setShowRiskyStockAlert(false);
                         <DialogDescription>Tedarikçiden gelen malzemeler için kontrol sonuçlarını girin.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit}>
-                        <ScrollArea className="max-h-[65vh] pr-4 mt-4">
-                            <div className="space-y-6">
+                        <ScrollArea className="max-h-[65vh] mt-4">
+                            <div className="space-y-6 pr-4 pb-4">
                     <div className="space-y-2">
                         {warnings.plan && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.plan}</AlertDescription></Alert>}
                         {warnings.inkr && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.inkr}</AlertDescription></Alert>}
