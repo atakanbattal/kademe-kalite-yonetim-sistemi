@@ -5,6 +5,26 @@ const generatePrintableReport = (record) => {
     
     // Metin alanlarını camelCase formatına çevir
     const formatText = (text) => typeof text === 'string' ? toCamelCase(text) : text;
+    
+    // HTML escape fonksiyonu (güvenlik için)
+    const escapeHtml = (text) => {
+        if (!text || typeof text !== 'string') return text || '-';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    };
+    
+    // Problem tanımı için formatlama (boşlukları ve formatlamayı korur)
+    const formatProblemDescription = (text) => {
+        if (!text || typeof text !== 'string') return '-';
+        // HTML escape yap ve boşlukları koru
+        return escapeHtml(text);
+    };
 
     const getStatusBadge = (status) => {
         let bgColor, textColor;
@@ -164,6 +184,11 @@ const generatePrintableReport = (record) => {
                 .problem-description {
                     white-space: pre-wrap;
                     word-wrap: break-word;
+                    font-family: 'Inter', sans-serif;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    margin: 0;
+                    padding: 0;
                 }
 
                 .step-section {
@@ -248,7 +273,7 @@ const generatePrintableReport = (record) => {
                 <div class="section">
                     <h2 class="section-title">Problem Tanımı</h2>
                     <div class="info-item full-width">
-                        <p class="problem-description">${formatText(record.description || record.problem_definition || '-')}</p>
+                        <pre class="problem-description">${formatProblemDescription(record.description || record.problem_definition || '-')}</pre>
                     </div>
                 </div>
 

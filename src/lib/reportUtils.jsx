@@ -1320,8 +1320,21 @@ const generateGenericReportHtml = (record, type) => {
 					supplier_name: record.supplier_name,
 					department: record.department
 				});
+				// HTML escape fonksiyonu (güvenlik için)
+				const escapeHtml = (text) => {
+					if (!text || typeof text !== 'string') return text || '-';
+					const map = {
+						'&': '&amp;',
+						'<': '&lt;',
+						'>': '&gt;',
+						'"': '&quot;',
+						"'": '&#039;'
+					};
+					return text.replace(/[&<>"']/g, m => map[m]);
+				};
+				
 				return `
-					<tr><td>Problem Tanımı</td><td><pre>${record.description || '-'}</pre></td></tr>
+					<tr><td>Problem Tanımı</td><td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.5;">${escapeHtml(record.description || '-')}</pre></td></tr>
 					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
 					<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
 					<tr><td>Sorumlu Kişi</td><td>${record.responsible_person || '-'}</td></tr>
@@ -1366,11 +1379,23 @@ const generateGenericReportHtml = (record, type) => {
 					${vehiclesHtml}
 				`;
 			case 'kaizen':
+				// HTML escape fonksiyonu (güvenlik için)
+				const escapeHtmlKaizen = (text) => {
+					if (!text || typeof text !== 'string') return text || '-';
+					const map = {
+						'&': '&amp;',
+						'<': '&lt;',
+						'>': '&gt;',
+						'"': '&quot;',
+						"'": '&#039;'
+					};
+					return text.replace(/[&<>"']/g, m => map[m]);
+				};
 				const teamMembers = record.team_members_profiles?.map(p => p.full_name).join(', ') || '-';
 				const duration = record.start_date && record.end_date ? `${differenceInDays(new Date(record.end_date), new Date(record.start_date))} gün` : '-';
 				return `
 					<tr><td>Kaizen Konusu</td><td>${record.title || '-'}</td></tr>
-					<tr><td>Problem Tanımı</td><td><pre>${record.description || '-'}</pre></td></tr>
+					<tr><td>Problem Tanımı</td><td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.5;">${escapeHtmlKaizen(record.description || '-')}</pre></td></tr>
 					<tr><td>Öneri Sahibi</td><td>${record.proposer?.full_name || '-'}</td></tr>
 					<tr><td>Sorumlu Kişi</td><td>${record.responsible_person?.full_name || '-'}</td></tr>
 					<tr><td>Departman</td><td>${record.department?.unit_name || '-'}</td></tr>
