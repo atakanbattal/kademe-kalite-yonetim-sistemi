@@ -81,6 +81,21 @@ const EightDStepView = ({ stepKey, step }) => {
   );
 };
 
+// Varsayılan 8D başlıkları - Component dışında tanımlanmalı
+const getDefault8DTitle = (stepKey) => {
+  const titles = {
+    D1: "Ekip Oluşturma",
+    D2: "Problemi Tanımlama",
+    D3: "Geçici Önlemler Alma",
+    D4: "Kök Neden Analizi",
+    D5: "Kalıcı Düzeltici Faaliyetleri Belirleme",
+    D6: "Kalıcı Düzeltici Faaliyetleri Uygulama",
+    D7: "Tekrarlanmayı Önleme",
+    D8: "Ekibi Takdir Etme"
+  };
+  return titles[stepKey] || stepKey;
+};
+
 const AttachmentItem = ({ path, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
     
@@ -189,21 +204,6 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
     ...(record.attachments || []),
     ...(record.closing_attachments || [])
   ].filter(Boolean);
-
-  // Varsayılan 8D başlıkları
-  const getDefault8DTitle = (stepKey) => {
-    const titles = {
-      D1: "Ekip Oluşturma",
-      D2: "Problemi Tanımlama",
-      D3: "Geçici Önlemler Alma",
-      D4: "Kök Neden Analizi",
-      D5: "Kalıcı Düzeltici Faaliyetleri Belirleme",
-      D6: "Kalıcı Düzeltici Faaliyetleri Uygulama",
-      D7: "Tekrarlanmayı Önleme",
-      D8: "Ekibi Takdir Etme"
-    };
-    return titles[stepKey] || stepKey;
-  };
 
   // eight_d_progress varsa onu kullan, yoksa eight_d_steps'i kullan
   const displayEightDSteps = useMemo(() => {
