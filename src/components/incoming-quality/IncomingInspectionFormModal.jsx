@@ -736,9 +736,15 @@ setShowRiskyStockAlert(false);
         const title = isViewMode ? 'Girdi Kontrol Kaydını Görüntüle' : (existingInspection ? 'Girdi Kontrol Kaydını Düzenle' : 'Yeni Girdi Kontrol Kaydı');
         
         return (
-            <Dialog open={isOpen} onOpenChange={setIsOpen}><DialogContent className="max-w-5xl xl:max-w-7xl">
-                <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>Tedarikçiden gelen malzemeler için kontrol sonuçlarını girin.</DialogDescription></DialogHeader>
-                <form onSubmit={handleSubmit}><ScrollArea className="h-[75vh] p-4"><div className="space-y-6">
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+                <DialogContent className="max-w-5xl xl:max-w-7xl max-h-[90vh] flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
+                        <DialogTitle>{title}</DialogTitle>
+                        <DialogDescription>Tedarikçiden gelen malzemeler için kontrol sonuçlarını girin.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+                        <ScrollArea className="flex-1 pr-4 mt-4">
+                            <div className="space-y-6">
                     <div className="space-y-2">
                         {warnings.plan && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.plan}</AlertDescription></Alert>}
                         {warnings.inkr && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.inkr}</AlertDescription></Alert>}
@@ -807,8 +813,19 @@ setShowRiskyStockAlert(false);
                     <div className="space-y-4 pt-4"><h3 className="font-semibold text-lg border-b pb-2">Kontrol Sonuçları</h3>{results && results.length > 0 ? (<div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="p-2 text-left">Özellik</th><th className="p-2 text-left">Yöntem</th><th className="p-2 text-center">Ölçüm No</th><th className="p-2 text-center">Nominal</th>{results.some(r => r.min_value !== null) && <th className="p-2 text-center">Min</th>}{results.some(r => r.max_value !== null) && <th className="p-2 text-center">Max</th>}<th className="p-2 text-center w-40">Ölçülen Değer</th><th className="p-2 text-center w-32">Sonuç</th></tr></thead><tbody>{results.map((res, index) => (<InspectionResultRow key={res.id || index} item={res} index={index} onResultChange={handleResultChange} isViewMode={isViewMode} />))}</tbody></table></div>) : <p className="text-muted-foreground text-sm py-4 text-center">Kontrol edilecek özellik bulunamadı.</p>}</div>
                     <div className="space-y-4"><h3 className="font-semibold text-lg border-b pb-2">Tespit Edilen Hatalar</h3>{defects.map((defect, index) => (<div key={defect.id || index} className="flex items-center gap-2"><Input placeholder="Hata açıklaması" value={defect.defect_description} onChange={(e) => handleDefectChange(index, 'defect_description', e.target.value)} disabled={isViewMode} /><Input type="number" placeholder="Miktar" value={defect.quantity} onChange={(e) => handleDefectChange(index, 'quantity', e.target.value)} className="w-32" disabled={isViewMode} />{!isViewMode && <Button type="button" variant="destructive" size="icon" onClick={() => removeDefect(index)}><Trash2 className="h-4 w-4" /></Button>}</div>))}{!isViewMode && <Button type="button" variant="outline" onClick={addDefect}><Plus className="h-4 w-4 mr-2" /> Hata Ekle</Button>}</div>
                     <div className="space-y-4"><h3 className="font-semibold text-lg border-b pb-2">Sertifika ve Ekler</h3>{!isViewMode && <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-input hover:border-primary/50'} cursor-pointer`}><input {...getInputProps()} /><p className="text-muted-foreground">Dosyaları buraya sürükleyin veya seçmek için tıklayın.</p></div>}<ul className="space-y-2">{existingAttachments.map(att => <li key={att.id} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded-md"><a href={supabase.storage.from('incoming_control').getPublicUrl(att.file_path).data.publicUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline"><FileText className="h-4 w-4" /><span>{att.file_name}</span><ExternalLink className="h-3 w-3" /></a>{!isViewMode && <Button type="button" variant="ghost" size="icon" onClick={() => removeExistingAttachment(att.id, att.file_path)}><X className="h-4 w-4 text-destructive" /></Button>}</li>)}{newAttachments.map((file, index) => <li key={index} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded-md"><span>{file.name}</span>{!isViewMode && <Button type="button" variant="ghost" size="icon" onClick={() => removeNewAttachment(index)}><X className="h-4 w-4" /></Button>}</li>)}</ul></div>
-                </div></ScrollArea><DialogFooter className="pt-6 border-t mt-4"><Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>{!isViewMode && <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>}</DialogFooter></form>
-            </DialogContent></Dialog>
+                            </div>
+                        </ScrollArea>
+                        <DialogFooter className="flex-shrink-0 pt-6 border-t mt-4">
+                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
+                            {!isViewMode && (
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
+                                </Button>
+                            )}
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         );
     };
 
