@@ -64,6 +64,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			console.log('📄 Storage Key:', storageKey);
 			console.log('📄 Record Data:', recordToStore);
 			
+			// Her zaman yeni sekmede açmayı dene
 			const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
 			
 			if (reportWindow) {
@@ -77,8 +78,18 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			} else {
 				// Popup engelleyici tarafından engellenmiş olabilir
 				console.warn('⚠️ Rapor penceresi açılamadı - popup engelleyici olabilir');
-				// Alternatif: Mevcut pencerede aç
-				window.location.href = reportUrl;
+				// Kullanıcıya bilgi ver ve link'i kopyala
+				const message = `Popup engelleyici aktif. Lütfen tarayıcınızın popup ayarlarını kontrol edin veya aşağıdaki linki yeni sekmede açın:\n\n${reportUrl}`;
+				if (window.confirm(message + '\n\nLinki kopyalamak için Tamam\'a basın.')) {
+					// Linki panoya kopyala
+					navigator.clipboard.writeText(reportUrl).then(() => {
+						console.log('✅ Link panoya kopyalandı');
+					}).catch(() => {
+						console.error('❌ Link kopyalanamadı');
+					});
+				}
+				// Mevcut sayfayı değiştirme - sadece uyarı ver
+				return;
 			}
 		} catch (error) {
 			console.error("Error storing report data:", error);

@@ -54,7 +54,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             }
         }, [isOpen, fetchHistory]);
 
-    const handleDownloadPDF = async () => {
+    const handleDownloadPDF = async (e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         // İşlem geçmişini de rapor için ekle
         const recordWithHistory = {
             ...record,

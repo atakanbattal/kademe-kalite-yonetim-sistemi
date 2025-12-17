@@ -245,7 +245,13 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
   
   const displayEightDSteps = getDisplayEightDSteps();
 
-  const handlePrint = () => {
+  const handlePrint = (e) => {
+    // Event'i engelle - sayfa yenilenmesini önle
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     setIsPrinting(true);
     try {
       // Attachments'ları URL'den çıkar (çok uzun URL oluşturuyorlar)

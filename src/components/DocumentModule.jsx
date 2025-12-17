@@ -392,7 +392,9 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                             {filteredDocuments.length > 0 && (
                                 <Button 
                                     variant="outline" 
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         const reportData = {
                                             id: `document-list-${activeTab}-${Date.now()}`,
                                             items: filteredDocuments.map(doc => ({
@@ -409,6 +411,7 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                                         openPrintableReport(reportData, 'document_list', true);
                                     }}
                                     className="flex items-center gap-2"
+                                    type="button"
                                 >
                                     <FileSpreadsheet className="w-4 h-4" />
                                     Rapor Al

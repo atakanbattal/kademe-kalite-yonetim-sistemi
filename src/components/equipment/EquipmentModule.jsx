@@ -374,7 +374,10 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                     {equipments.length > 0 && (
                         <Button 
                             variant="outline" 
-                            onClick={() => {
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
                                 const reportData = {
                                     id: `equipment-list-${Date.now()}`,
                                     items: equipments.map(eq => {
@@ -421,6 +424,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                                 openPrintableReport(reportData, 'equipment_list', true);
                             }}
                             className="flex items-center gap-2"
+                            type="button"
                         >
                             <FileSpreadsheet className="w-4 h-4" />
                             Rapor Al
