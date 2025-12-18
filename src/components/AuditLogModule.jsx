@@ -69,7 +69,7 @@ import React, { useMemo, useState } from 'react';
         return null;
       };
 
-      // Kayıt bilgilerini çıkar
+      // Kayıt bilgilerini çıkar - Tüm modüller için kapsamlı
       const getRecordInfo = (log) => {
         try {
           const details = log.details;
@@ -78,28 +78,93 @@ import React, { useMemo, useState } from 'react';
           const recordId = getRecordId(log);
           const info = { id: recordId };
           
-          // Yeni kayıt bilgileri
-          if (details.new && typeof details.new === 'object') {
-            const newData = details.new;
-            if (newData.name) info.name = newData.name;
-            if (newData.title) info.title = newData.title;
-            if (newData.part_code) info.partCode = newData.part_code;
-            if (newData.nc_number) info.ncNumber = newData.nc_number;
-            if (newData.request_number) info.requestNumber = newData.request_number;
-            if (newData.record_no) info.recordNo = newData.record_no;
-            if (newData.inspection_number) info.inspectionNumber = newData.inspection_number;
-            if (newData.chassis_no) info.chassisNo = newData.chassis_no;
-            if (newData.serial_no) info.serialNo = newData.serial_no;
-            if (newData.complaint_number) info.complaintNumber = newData.complaint_number;
+          // Hem yeni hem eski kayıt bilgilerini çıkar (silme işlemlerinde old kullanılır)
+          const dataSource = details.new || details.old || details;
+          const isDelete = log.action.startsWith('SİLME');
+          
+          if (dataSource && typeof dataSource === 'object') {
+            // Genel alanlar
+            if (dataSource.name) info.name = dataSource.name;
+            if (dataSource.title) info.title = dataSource.title;
+            if (dataSource.description) info.description = dataSource.description;
+            
+            // Uygunsuzluklar (NC/MDI)
+            if (dataSource.nc_number) info.ncNumber = dataSource.nc_number;
+            if (dataSource.mdi_no) info.mdiNumber = dataSource.mdi_no;
+            if (dataSource.type) info.ncType = dataSource.type;
+            
+            // Sapma Yönetimi
+            if (dataSource.request_no) info.requestNumber = dataSource.request_no;
+            if (dataSource.request_number) info.requestNumber = dataSource.request_number;
+            
+            // Tedarikçi Uygunsuzlukları
+            if (dataSource.supplier_name) info.supplierName = dataSource.supplier_name;
+            if (dataSource.supplier_id) info.supplierId = dataSource.supplier_id;
+            
+            // Parça/Malzeme bilgileri
+            if (dataSource.part_code) info.partCode = dataSource.part_code;
+            if (dataSource.part_name) info.partName = dataSource.part_name;
+            if (dataSource.product_part) info.productPart = dataSource.product_part;
+            
+            // Girdi Kalite Kontrol
+            if (dataSource.record_no) info.recordNo = dataSource.record_no;
+            if (dataSource.inspection_number) info.inspectionNumber = dataSource.inspection_number;
+            if (dataSource.delivery_note_number) info.deliveryNoteNumber = dataSource.delivery_note_number;
+            
+            // Araç bilgileri
+            if (dataSource.chassis_no) info.chassisNo = dataSource.chassis_no;
+            if (dataSource.vehicle_serial_no) info.vehicleSerialNo = dataSource.vehicle_serial_no;
+            if (dataSource.serial_no) info.serialNo = dataSource.serial_no;
+            if (dataSource.vehicle_type) info.vehicleType = dataSource.vehicle_type;
+            
+            // Müşteri Şikayetleri
+            if (dataSource.complaint_number) info.complaintNumber = dataSource.complaint_number;
+            if (dataSource.customer_name) info.customerName = dataSource.customer_name;
+            
+            // Tedarikçiler
+            if (dataSource.supplier_code) info.supplierCode = dataSource.supplier_code;
+            
+            // Karantina
+            if (dataSource.quarantine_no) info.quarantineNo = dataSource.quarantine_no;
+            
+            // Dokümanlar
+            if (dataSource.document_code) info.documentCode = dataSource.document_code;
+            if (dataSource.document_title) info.documentTitle = dataSource.document_title;
+            
+            // Ekipmanlar
+            if (dataSource.equipment_code) info.equipmentCode = dataSource.equipment_code;
+            if (dataSource.equipment_name) info.equipmentName = dataSource.equipment_name;
+            
+            // Görevler
+            if (dataSource.task_title) info.taskTitle = dataSource.task_title;
+            
+            // Tetkikler
+            if (dataSource.report_number) info.reportNumber = dataSource.report_number;
+            if (dataSource.audit_type) info.auditType = dataSource.audit_type;
+            
+            // Kaizen
+            if (dataSource.kaizen_number) info.kaizenNumber = dataSource.kaizen_number;
+            
+            // Benchmark
+            if (dataSource.benchmark_name) info.benchmarkName = dataSource.benchmark_name;
+            
+            // Eğitim
+            if (dataSource.training_title) info.trainingTitle = dataSource.training_title;
+            
+            // Durum bilgileri
+            if (dataSource.status) info.status = dataSource.status;
+            if (dataSource.decision) info.decision = dataSource.decision;
           }
           
-          // Eski kayıt bilgileri
+          // Eski kayıt bilgileri (güncelleme işlemleri için)
           if (details.old && typeof details.old === 'object') {
             const oldData = details.old;
             if (oldData.name) info.oldName = oldData.name;
             if (oldData.title) info.oldTitle = oldData.title;
+            if (oldData.supplier_name) info.oldSupplierName = oldData.supplier_name;
             if (oldData.part_code) info.oldPartCode = oldData.part_code;
             if (oldData.nc_number) info.oldNcNumber = oldData.nc_number;
+            if (oldData.status) info.oldStatus = oldData.status;
           }
           
           // Değişen alanlar
@@ -116,7 +181,7 @@ import React, { useMemo, useState } from 'react';
         }
       };
 
-      // Kullanıcı dostu mesaj oluştur
+      // Kullanıcı dostu mesaj oluştur - Daha açıklayıcı ve detaylı
       const getHumanReadableMessage = (log) => {
         const action = log.action;
         const tableName = getReadableTableName(log.table_name);
@@ -137,25 +202,150 @@ import React, { useMemo, useState } from 'react';
           actionIcon = <Edit className="h-4 w-4" />;
         }
         
-        // Detaylardan önemli bilgileri çıkar
+        // Detaylardan önemli bilgileri çıkar - Tablo bazlı özel mesajlar
         let extraInfo = '';
         let recordIdentifier = '';
+        let mainMessage = '';
         
+        // Record ID
         if (recordInfo.id) {
-          recordIdentifier = `ID: ${recordInfo.id}`;
+          recordIdentifier = `ID: ${recordInfo.id.substring(0, 8)}...`;
         }
         
-        if (recordInfo.name) extraInfo = recordInfo.name;
-        else if (recordInfo.title) extraInfo = recordInfo.title;
-        else if (recordInfo.partCode) extraInfo = `Parça: ${recordInfo.partCode}`;
-        else if (recordInfo.ncNumber) extraInfo = `Uygunsuzluk No: ${recordInfo.ncNumber}`;
-        else if (recordInfo.requestNumber) extraInfo = `Talep No: ${recordInfo.requestNumber}`;
-        else if (recordInfo.recordNo) extraInfo = `Kayıt No: ${recordInfo.recordNo}`;
-        else if (recordInfo.inspectionNumber) extraInfo = `Muayene No: ${recordInfo.inspectionNumber}`;
-        else if (recordInfo.chassisNo) extraInfo = `Şasi: ${recordInfo.chassisNo}`;
-        else if (recordInfo.complaintNumber) extraInfo = `Şikayet No: ${recordInfo.complaintNumber}`;
+        // Tablo bazlı özel mesajlar oluştur
+        const tableNameLower = log.table_name.toLowerCase();
         
-        if (recordInfo.changedFields && recordInfo.changedFields.length > 0) {
+        // Tedarikçi Uygunsuzlukları için özel mesaj
+        if (tableNameLower === 'supplier_non_conformities') {
+          const parts = [];
+          if (recordInfo.supplierName) parts.push(`Tedarikçi: ${recordInfo.supplierName}`);
+          if (recordInfo.ncNumber) parts.push(`Uygunsuzluk No: ${recordInfo.ncNumber}`);
+          else if (recordInfo.mdiNumber) parts.push(`MDI No: ${recordInfo.mdiNumber}`);
+          if (recordInfo.partCode) parts.push(`Parça: ${recordInfo.partCode}`);
+          if (recordInfo.partName) parts.push(`Parça Adı: ${recordInfo.partName}`);
+          if (recordInfo.description && recordInfo.description.length < 100) {
+            parts.push(`Açıklama: ${recordInfo.description.substring(0, 80)}...`);
+          }
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Uygunsuzluklar (NC/MDI)
+        else if (tableNameLower === 'non_conformities') {
+          const parts = [];
+          if (recordInfo.ncNumber) parts.push(`Uygunsuzluk No: ${recordInfo.ncNumber}`);
+          else if (recordInfo.mdiNumber) parts.push(`MDI No: ${recordInfo.mdiNumber}`);
+          if (recordInfo.ncType) parts.push(`Tip: ${recordInfo.ncType}`);
+          if (recordInfo.supplierName) parts.push(`Tedarikçi: ${recordInfo.supplierName}`);
+          if (recordInfo.partCode) parts.push(`Parça: ${recordInfo.partCode}`);
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Sapma Yönetimi
+        else if (tableNameLower === 'deviations') {
+          const parts = [];
+          if (recordInfo.requestNumber) parts.push(`Talep No: ${recordInfo.requestNumber}`);
+          if (recordInfo.partCode) parts.push(`Parça: ${recordInfo.partCode}`);
+          if (recordInfo.description && recordInfo.description.length < 100) {
+            parts.push(`Açıklama: ${recordInfo.description.substring(0, 80)}...`);
+          }
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Girdi Kalite Kontrol
+        else if (tableNameLower.includes('incoming')) {
+          const parts = [];
+          if (recordInfo.recordNo) parts.push(`Kayıt No: ${recordInfo.recordNo}`);
+          if (recordInfo.inspectionNumber) parts.push(`Muayene No: ${recordInfo.inspectionNumber}`);
+          if (recordInfo.deliveryNoteNumber) parts.push(`İrsaliye: ${recordInfo.deliveryNoteNumber}`);
+          if (recordInfo.partCode) parts.push(`Parça: ${recordInfo.partCode}`);
+          if (recordInfo.supplierName) parts.push(`Tedarikçi: ${recordInfo.supplierName}`);
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Karantina
+        else if (tableNameLower === 'quarantine_records') {
+          const parts = [];
+          if (recordInfo.quarantineNo) parts.push(`Karantina No: ${recordInfo.quarantineNo}`);
+          if (recordInfo.partCode) parts.push(`Parça: ${recordInfo.partCode}`);
+          if (recordInfo.supplierName) parts.push(`Tedarikçi: ${recordInfo.supplierName}`);
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Müşteri Şikayetleri
+        else if (tableNameLower === 'customer_complaints') {
+          const parts = [];
+          if (recordInfo.complaintNumber) parts.push(`Şikayet No: ${recordInfo.complaintNumber}`);
+          if (recordInfo.customerName) parts.push(`Müşteri: ${recordInfo.customerName}`);
+          if (recordInfo.chassisNo) parts.push(`Şasi: ${recordInfo.chassisNo}`);
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Tedarikçiler
+        else if (tableNameLower === 'suppliers') {
+          const parts = [];
+          if (recordInfo.name) parts.push(`Tedarikçi: ${recordInfo.name}`);
+          if (recordInfo.supplierCode) parts.push(`Kod: ${recordInfo.supplierCode}`);
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Dokümanlar
+        else if (tableNameLower === 'documents') {
+          const parts = [];
+          if (recordInfo.documentCode) parts.push(`Doküman Kodu: ${recordInfo.documentCode}`);
+          if (recordInfo.documentTitle) parts.push(`Başlık: ${recordInfo.documentTitle}`);
+          else if (recordInfo.title) parts.push(`Başlık: ${recordInfo.title}`);
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Ekipmanlar
+        else if (tableNameLower.includes('equipment')) {
+          const parts = [];
+          if (recordInfo.equipmentCode) parts.push(`Ekipman Kodu: ${recordInfo.equipmentCode}`);
+          if (recordInfo.equipmentName) parts.push(`Ekipman: ${recordInfo.equipmentName}`);
+          else if (recordInfo.name) parts.push(`Ekipman: ${recordInfo.name}`);
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        // Genel durumlar için
+        else {
+          const parts = [];
+          if (recordInfo.name) parts.push(recordInfo.name);
+          else if (recordInfo.title) parts.push(recordInfo.title);
+          else if (recordInfo.taskTitle) parts.push(recordInfo.taskTitle);
+          else if (recordInfo.partCode) parts.push(`Parça: ${recordInfo.partCode}`);
+          else if (recordInfo.ncNumber) parts.push(`Uygunsuzluk No: ${recordInfo.ncNumber}`);
+          else if (recordInfo.requestNumber) parts.push(`Talep No: ${recordInfo.requestNumber}`);
+          else if (recordInfo.recordNo) parts.push(`Kayıt No: ${recordInfo.recordNo}`);
+          else if (recordInfo.inspectionNumber) parts.push(`Muayene No: ${recordInfo.inspectionNumber}`);
+          else if (recordInfo.chassisNo) parts.push(`Şasi: ${recordInfo.chassisNo}`);
+          else if (recordInfo.complaintNumber) parts.push(`Şikayet No: ${recordInfo.complaintNumber}`);
+          
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
+        
+        // Güncelleme işlemleri için değişen alanları ekle
+        if (recordInfo.changedFields && recordInfo.changedFields.length > 0 && actionType === 'güncellendi') {
           const fieldNames = {
             'status': 'Durum',
             'decision': 'Karar',
@@ -168,7 +358,10 @@ import React, { useMemo, useState } from 'react';
             'description': 'Açıklama',
             'assigned_to': 'Atanan',
             'priority': 'Öncelik',
-            'due_date': 'Bitiş Tarihi'
+            'due_date': 'Bitiş Tarihi',
+            'supplier_name': 'Tedarikçi',
+            'nc_number': 'Uygunsuzluk No',
+            'part_name': 'Parça Adı'
           };
           
           const changedFieldsStr = recordInfo.changedFields
@@ -185,7 +378,7 @@ import React, { useMemo, useState } from 'react';
         }
         
         return {
-          message: `${tableName} kaydı ${actionType}`,
+          message: mainMessage || `${tableName} kaydı ${actionType}`,
           extraInfo,
           recordIdentifier,
           actionIcon,
@@ -321,8 +514,10 @@ import React, { useMemo, useState } from 'react';
                       <SelectItem value="all">Tüm Modüller</SelectItem>
                       <SelectItem value="tasks">Görev Yönetimi</SelectItem>
                       <SelectItem value="non_conformities">Uygunsuzluklar (DF/8D/MDI)</SelectItem>
+                      <SelectItem value="supplier_non_conformities">Tedarikçi Uygunsuzlukları</SelectItem>
                       <SelectItem value="deviations">Sapma Yönetimi</SelectItem>
                       <SelectItem value="audits">Tetkik Yönetimi</SelectItem>
+                      <SelectItem value="supplier_audits">Tedarikçi Denetimleri</SelectItem>
                       <SelectItem value="quarantine_records">Karantina Yönetimi</SelectItem>
                       <SelectItem value="incoming_inspections">Girdi Kalite Kontrol</SelectItem>
                       <SelectItem value="sheet_metal_items">Sac Malzemeleri</SelectItem>
@@ -335,8 +530,11 @@ import React, { useMemo, useState } from 'react';
                       <SelectItem value="documents">Doküman Yönetimi</SelectItem>
                       <SelectItem value="kpis">KPI Yönetimi</SelectItem>
                       <SelectItem value="customer_complaints">Müşteri Şikayetleri</SelectItem>
+                      <SelectItem value="produced_vehicles">Üretilen Araçlar</SelectItem>
+                      <SelectItem value="quality_inspections">Kalite Kontrolleri</SelectItem>
                       <SelectItem value="benchmarks">Benchmark Yönetimi</SelectItem>
                       <SelectItem value="skills">Polivalans Yönetimi</SelectItem>
+                      <SelectItem value="trainings">Eğitim Yönetimi</SelectItem>
                       <SelectItem value="wps_procedures">WPS Yönetimi</SelectItem>
                       <SelectItem value="personnel">Personel</SelectItem>
                       <SelectItem value="cost_settings">Maliyet Ayarları</SelectItem>
