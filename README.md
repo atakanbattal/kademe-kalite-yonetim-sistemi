@@ -70,3 +70,4 @@ Sorularınız için dokümantasyon klasörlerini kontrol edin veya issue açın.
 **Versiyon:** 2.0  
 **Status:** ✅ Production Ready
 
+

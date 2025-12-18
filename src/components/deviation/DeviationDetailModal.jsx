@@ -47,7 +47,9 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
         }
     };
 
-    const handlePrint = async () => {
+    const handlePrint = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         setIsPrinting(true);
         try {
             await openPrintableReport(deviation, 'deviation', true);
@@ -324,7 +326,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 </ScrollArea>
 
                 <DialogFooter className="mt-6">
-                    <Button variant="outline" onClick={handlePrint} disabled={isPrinting}>
+                    <Button type="button" variant="outline" onClick={handlePrint} disabled={isPrinting}>
                         {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
                         Yazdır / PDF
                     </Button>
