@@ -1529,6 +1529,8 @@ const generateGenericReportHtml = (record, type) => {
 					<tr><td>Sapma Açıklaması</td><td><pre>${record.description || '-'}</pre></td></tr>
 					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
 					<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
+					<tr><td>Sapma İstenilen Parça Kodu</td><td><strong>${record.part_code || '-'}</strong></td></tr>
+					${record.part_name ? `<tr><td>Parça Adı</td><td>${record.part_name}</td></tr>` : ''}
 					<tr><td>Sapma Kaynağı</td><td>${record.source || '-'}</td></tr>
 					<tr><td>Araç Tipi</td><td>${record.vehicle_type || '-'}</td></tr>
 					${vehiclesHtml}

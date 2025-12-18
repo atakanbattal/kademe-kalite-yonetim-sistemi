@@ -160,14 +160,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         // quarantine_list için useUrlParams=true (liste verilerini URL'de gönder)
         openPrintableReport(reportData, 'quarantine_list', true);
       };
-      
-      const handleDownloadReport = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        handleDownloadReportInternal();
-      };
 
       const getStatusColor = (status) => {
         switch (status) {
