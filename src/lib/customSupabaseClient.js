@@ -24,7 +24,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'X-Client-Info': 'kademe-qms'
+      'X-Client-Info': 'kademe-qms',
+      'Content-Type': 'application/json; charset=utf-8',
+      'Accept': 'application/json; charset=utf-8'
     }
   },
   db: {

@@ -404,6 +404,30 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
         setIsSubmitting(true);
 
         try {
+            // Türkçe karakterleri korumak için veriyi normalize et
+            const normalizeTurkishChars = (text) => {
+                if (!text) return null;
+                // Input'tan gelen veriyi UTF-8 olarak işle
+                const normalized = String(text)
+                    .normalize('NFC') // Unicode normalization
+                    .replace(/\u0131/g, 'ı') // dotless i
+                    .replace(/\u0130/g, 'İ') // dotted I
+                    .replace(/\u0069\u0307/g, 'i') // i with combining dot
+                    .replace(/\u0049\u0307/g, 'İ'); // I with combining dot
+                
+                return normalized;
+            };
+            
+            // Parça adı ve kodunu normalize et
+            const normalizedPartName = normalizeTurkishChars(partName);
+            const normalizedPartCode = normalizeTurkishChars(partCode);
+            
+            console.log('💾 Kaydedilecek veri:', {
+                original_part_name: partName,
+                normalized_part_name: normalizedPartName,
+                original_part_code: partCode,
+                normalized_part_code: normalizedPartCode
+            });
             // Validasyon: Tüm karakteristikler seçilmeli ve equipment_id seçilmeli
             const validationError = items.some(item => {
                 if (!item.characteristic_id || !item.characteristic_type) {
@@ -480,9 +504,9 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             const planData = {
                 equipment_id: null, // vehicle_type kullanıldığında null
                 vehicle_type: selectedEquipmentId || null, // Araç tipi (products tablosundan)
-                plan_name: autoPlanName || `${partCode} - ${selectedEquipmentId}`,
-                part_code: partCode || null,
-                part_name: partName || null,
+                plan_name: autoPlanName || `${normalizedPartCode} - ${selectedEquipmentId}`,
+                part_code: normalizedPartCode || null,
+                part_name: normalizedPartName || null,
                 items: itemsToSave || [],
                 file_path: filePath || null,
                 file_name: fileName || null,
@@ -570,9 +594,34 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     };
 
     const handleDownloadDetailPDF = (planData) => {
+        // Veritabanından gelen veriyi kontrol et ve encoding sorununu düzelt
+        console.log('📄 Rapor için veri:', {
+            part_name: planData.part_name,
+            part_name_type: typeof planData.part_name,
+            part_name_length: planData.part_name?.length,
+            part_name_bytes: planData.part_name ? new TextEncoder().encode(planData.part_name) : null
+        });
+        
+        // Türkçe karakterleri korumak için veriyi normalize et
+        const normalizeTurkishChars = (text) => {
+            if (!text) return null;
+            // Veritabanından gelen veriyi UTF-8 olarak işle
+            const normalized = String(text)
+                .normalize('NFC') // Unicode normalization
+                .replace(/\u0131/g, 'ı') // dotless i
+                .replace(/\u0130/g, 'İ') // dotted I
+                .replace(/\u0069\u0307/g, 'i') // i with combining dot
+                .replace(/\u0049\u0307/g, 'İ'); // I with combining dot
+            
+            return normalized;
+        };
+        
         // Karakteristik ve ekipman bilgilerini ekle
         const enrichedData = {
             ...planData,
+            part_name: normalizeTurkishChars(planData.part_name) || planData.part_name,
+            part_code: normalizeTurkishChars(planData.part_code) || planData.part_code,
+            vehicle_type: normalizeTurkishChars(planData.vehicle_type) || planData.vehicle_type,
             items: (planData.items || []).map(item => {
                 // Standart bilgisini işle - standard_class varsa onu kullan, yoksa standard_name
                 let standardName = null;
@@ -584,12 +633,18 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 
                 return {
                     ...item,
-                    characteristic_name: characteristics?.find(c => c.value === item.characteristic_id)?.label || item.characteristic_id,
-                    equipment_name: measurementEquipment?.find(e => e.value === item.equipment_id)?.label || item.equipment_id,
+                    characteristic_name: normalizeTurkishChars(characteristics?.find(c => c.value === item.characteristic_id)?.label) || item.characteristic_id,
+                    equipment_name: normalizeTurkishChars(measurementEquipment?.find(e => e.value === item.equipment_id)?.label) || item.equipment_id,
                     standard_name: standardName,
                 };
             })
         };
+        
+        console.log('📄 Normalize edilmiş veri:', {
+            part_name: enrichedData.part_name,
+            part_name_type: typeof enrichedData.part_name
+        });
+        
         openPrintableReport(enrichedData, 'process_control_plans', true);
     };
 
