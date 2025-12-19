@@ -1567,6 +1567,38 @@ const generateGenericReportHtml = (record, type) => {
 					let lines = escaped.split('\n');
 					
 					// Eğer tek satırsa ve birden fazla ":" içeriyorsa, başlıkları ayır
+					// Ama önce büyük başlıkları (ÖLÇÜM SONUÇLARI, TESPİT EDİLEN HATALAR) kontrol et
+					if (lines.length === 1 && lines[0].includes(':')) {
+						// Büyük başlıkları önce bul ve ayır
+						const bigHeadings = [
+							'ÖLÇÜM SONUÇLARI VE TESPİTLER:',
+							'ÖLÇÜM SONUÇLARI VE TESPİTLER',
+							'TESPİT EDİLEN HATALAR:',
+							'TESPİT EDİLEN HATALAR',
+							'ÖLÇÜM ÖZETİ:',
+							'ÖLÇÜM ÖZETİ',
+							'UYGUNSUZ BULUNAN ÖLÇÜMLER:',
+							'UYGUNSUZ BULUNAN ÖLÇÜMLER'
+						];
+						
+						for (const bigHeading of bigHeadings) {
+							if (lines[0].includes(bigHeading)) {
+								// Büyük başlığı bul ve öncesini/sonrasını ayır
+								const headingIndex = lines[0].indexOf(bigHeading);
+								const beforeHeading = lines[0].substring(0, headingIndex).trim();
+								const afterHeading = lines[0].substring(headingIndex).trim();
+								
+								if (beforeHeading) {
+									lines = [beforeHeading, afterHeading];
+								} else {
+									lines = [afterHeading];
+								}
+								break;
+							}
+						}
+					}
+					
+					// Eğer hala tek satırsa ve birden fazla ":" içeriyorsa, başlıkları ayır
 					if (lines.length === 1 && lines[0].includes(':')) {
 						const singleLine = lines[0];
 						// Bilinen başlık pattern'lerini kullanarak metni ayır
@@ -1733,6 +1765,61 @@ const generateGenericReportHtml = (record, type) => {
 						if (headingMatch) {
 							const [, title, value] = headingMatch;
 							
+							// Eğer değer büyük başlık içeriyorsa (ÖLÇÜM SONUÇLARI, TESPİT EDİLEN HATALAR), ayır
+							let cleanValue = value || '';
+							const bigHeadingInValue = cleanValue.match(/(ÖLÇÜM SONUÇLARI|TESPİT EDİLEN HATALAR|ÖLÇÜM ÖZETİ|UYGUNSUZ BULUNAN ÖLÇÜMLER)/i);
+							if (bigHeadingInValue) {
+								// Büyük başlığı değerden çıkar ve ayrı bir satır olarak ekle
+								const bigHeadingIndex = cleanValue.indexOf(bigHeadingInValue[0]);
+								const beforeBigHeading = cleanValue.substring(0, bigHeadingIndex).trim();
+								const bigHeadingAndAfter = cleanValue.substring(bigHeadingIndex).trim();
+								
+								// Eğer section içinde değilsek, bir section başlat
+								if (!inSection) {
+									inSection = true;
+									formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+								}
+								
+								// Önce küçük başlığı ekle (varsa değerle)
+								if (beforeBigHeading) {
+									formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${beforeBigHeading}</span></div>`);
+								} else {
+									formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong></div>`);
+								}
+								
+								// Büyük başlığı ayrı bir satır olarak ekle
+								if (inSection) {
+									formattedLines.push('</div>');
+									inSection = false;
+								}
+								formattedLines.push('<div style="height: 8px;"></div>');
+								
+								// Büyük başlığı ve sonrasını işle
+								const bigHeadingLine = bigHeadingAndAfter.split(/\n/)[0].trim();
+								const bigHeadingMatch2 = bigHeadingLine.match(/^(ÖLÇÜM SONUÇLARI|TESPİT EDİLEN HATALAR|ÖLÇÜM ÖZETİ|UYGUNSUZ BULUNAN ÖLÇÜMLER)[:\s]*/i);
+								if (bigHeadingMatch2) {
+									formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 6px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${bigHeadingMatch2[1]}</strong></div>`);
+									inSection = true;
+									formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+									
+									// Büyük başlıktan sonraki içeriği işle
+									const afterBigHeading = bigHeadingAndAfter.substring(bigHeadingMatch2[0].length).trim();
+									if (afterBigHeading) {
+										// Sonraki satırları işle
+										const remainingLines = afterBigHeading.split(/\n/);
+										for (let j = 0; j < remainingLines.length; j++) {
+											const remainingLine = remainingLines[j].trim();
+											if (remainingLine) {
+												// Bu satırı normal işleme devam ettir
+												// Şimdilik ekle, sonraki iterasyonda işlenecek
+												lines.splice(i + 1, 0, remainingLine);
+											}
+										}
+									}
+								}
+								continue;
+							}
+							
 							// Eğer section içinde değilsek, bir section başlat
 							if (!inSection) {
 								inSection = true;
@@ -1740,8 +1827,8 @@ const generateGenericReportHtml = (record, type) => {
 							}
 							
 							// Her başlık alt alta, mavi renk olmadan, sadece kalın
-							if (value && value.trim()) {
-								formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
+							if (cleanValue && cleanValue.trim()) {
+								formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${cleanValue}</span></div>`);
 							} else {
 								formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong></div>`);
 							}
