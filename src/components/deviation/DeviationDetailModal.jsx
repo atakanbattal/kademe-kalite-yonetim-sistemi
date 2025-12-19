@@ -47,6 +47,80 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
         }
     };
 
+    // Açıklamayı profesyonel formatta göstermek için formatlama fonksiyonu
+    const formatDescription = (text) => {
+        if (!text) return '-';
+        
+        // Satır sonlarını ayır
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        
+        return lines.map((line, idx) => {
+            const trimmedLine = line.trim();
+            
+            // Ana başlık: "Girdi Kalite Kontrol Kaydı (25/12/077)"
+            if (/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/.test(trimmedLine)) {
+                return (
+                    <div key={idx} className="text-base font-bold text-primary mb-3 pb-2 border-b border-primary/30">
+                        {trimmedLine}
+                    </div>
+                );
+            }
+            
+            // Büyük bölüm başlıkları: "ÖLÇÜM SONUÇLARI VE TESPİTLER:", "TESPİT EDİLEN HATALAR:"
+            if (/^[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]+:/.test(trimmedLine)) {
+                return (
+                    <div key={idx} className="text-sm font-bold text-foreground mt-4 mb-2 uppercase">
+                        {trimmedLine}
+                    </div>
+                );
+            }
+            
+            // Numaralı liste öğeleri: "1. Minör Özellik (Ölçüm 1/1):"
+            if (/^\d+\.\s+[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(trimmedLine)) {
+                return (
+                    <div key={idx} className="text-sm font-semibold text-foreground mt-3 mb-1 pl-2 border-l-2 border-primary/50">
+                        {trimmedLine}
+                    </div>
+                );
+            }
+            
+            // Key-value çiftleri: "Parça Kodu: 37-5000182657"
+            const keyValueMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜa-zçğıöşü][A-ZÇĞİÖŞÜa-zçğıöşü\s/()]+):\s*(.+)$/);
+            if (keyValueMatch) {
+                const key = keyValueMatch[1].trim();
+                let value = keyValueMatch[2].trim();
+                
+                // N/A yerine daha anlamlı metin
+                if (value.toLowerCase() === 'n/a' || value.toLowerCase() === 'n/a adet') {
+                    value = 'Belirtilmemiş';
+                }
+                
+                return (
+                    <div key={idx} className="flex gap-2 text-sm py-1">
+                        <span className="font-medium text-muted-foreground min-w-[140px]">{key}:</span>
+                        <span className="text-foreground">{value}</span>
+                    </div>
+                );
+            }
+            
+            // Girintili detay satırları
+            if (line.startsWith('   ') || line.startsWith('\t')) {
+                return (
+                    <div key={idx} className="text-sm text-muted-foreground pl-6 py-0.5">
+                        {trimmedLine}
+                    </div>
+                );
+            }
+            
+            // Normal paragraf
+            return (
+                <div key={idx} className="text-sm text-foreground py-1">
+                    {trimmedLine}
+                </div>
+            );
+        });
+    };
+
     const handlePrint = async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -213,11 +287,13 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                         <div>
                             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                 <FileText className="h-5 w-5 text-primary" />
-                                Açıklama
+                                Sapma Detayları
                             </h3>
-                            <Card>
+                            <Card className="bg-muted/30">
                                 <CardContent className="p-6">
-                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{deviation.description || '-'}</p>
+                                    <div className="space-y-1">
+                                        {formatDescription(deviation.description)}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </div>

@@ -391,17 +391,22 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
         
         if (record._source_type === 'incoming_inspection') {
-            detailedDescription = `Girdi Kalite Kontrol Kaydı (${details.record_no || details.inspection_number || 'N/A'})\n\n`;
+            detailedDescription = `Girdi Kalite Kontrol Kaydı (${details.record_no || details.inspection_number || '-'})\n\n`;
             detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
             if (details.part_name) {
                 detailedDescription += `Parça Adı: ${details.part_name}\n`;
             }
-            detailedDescription += `Red Edilen Miktar: ${details.quantity_rejected || details.quantity || 'N/A'} adet\n`;
-            if (details.quantity_conditional) {
+            // Red edilen miktar - N/A yerine anlamlı değer göster
+            const rejectedQty = details.quantity_rejected || details.quantity;
+            if (rejectedQty && rejectedQty !== 0 && String(rejectedQty).toLowerCase() !== 'n/a') {
+                detailedDescription += `Red Edilen Miktar: ${rejectedQty} adet\n`;
+            }
+            // Şartlı kabul miktarı
+            if (details.quantity_conditional && details.quantity_conditional !== 0) {
                 detailedDescription += `Şartlı Kabul Miktarı: ${details.quantity_conditional} adet\n`;
             }
             detailedDescription += `Tedarikçi: ${details.supplier || 'Belirtilmemiş'}\n`;
-            detailedDescription += `Karar: ${details.decision || 'N/A'}\n`;
+            detailedDescription += `Karar: ${details.decision || '-'}\n`;
             if (details.delivery_note_number) {
                 detailedDescription += `Teslimat No: ${details.delivery_note_number}\n`;
             }
