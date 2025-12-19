@@ -10,22 +10,62 @@ const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.y
 const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
 
+// Türkçe karakterleri korumak için normalize fonksiyonu
+const normalizeTurkishChars = (text) => {
+	if (!text) return null;
+	if (typeof text !== 'string') return text;
+	
+	// Unicode normalization ile Türkçe karakterleri düzelt
+	const normalized = String(text)
+		.normalize('NFC') // Unicode normalization
+		.replace(/\u0131/g, 'ı') // dotless i
+		.replace(/\u0130/g, 'İ') // dotted I
+		.replace(/\u0069\u0307/g, 'i') // i with combining dot
+		.replace(/\u0049\u0307/g, 'İ'); // I with combining dot
+	
+	return normalized;
+};
+
+// Obje içindeki tüm string değerleri normalize et (recursive)
+const normalizeRecord = (record) => {
+	if (!record || typeof record !== 'object') return record;
+	
+	if (Array.isArray(record)) {
+		return record.map(item => normalizeRecord(item));
+	}
+	
+	const normalized = {};
+	for (const [key, value] of Object.entries(record)) {
+		if (typeof value === 'string') {
+			normalized[key] = normalizeTurkishChars(value);
+		} else if (typeof value === 'object' && value !== null) {
+			normalized[key] = normalizeRecord(value);
+		} else {
+			normalized[key] = value;
+		}
+	}
+	return normalized;
+};
+
 const openPrintableReport = async (record, type, useUrlParams = false) => {
 	if (!record) {
 		console.error("openPrintableReport called with invalid record:", record);
 		return;
 	}
+	
+	// Türkçe karakterleri normalize et - tüm raporlar için geçerli
+	const normalizedRecord = normalizeRecord(record);
 
 	// Liste tipleri için özel ID kontrolü (id olmasa da devam et)
 	const isListType = type.endsWith('_list') || type === 'document_list';
-	const hasValidId = record.id || record.delivery_note_number;
+	const hasValidId = normalizedRecord.id || normalizedRecord.delivery_note_number;
 	
 	if (!isListType && !hasValidId) {
-		console.error("openPrintableReport: record has no valid ID field:", record);
+		console.error("openPrintableReport: record has no valid ID field:", normalizedRecord);
 		return;
 	}
 
-	const reportId = type === 'sheet_metal_entry' ? record.delivery_note_number : (record.id || record.delivery_note_number || `list-${Date.now()}`);
+	const reportId = type === 'sheet_metal_entry' ? normalizedRecord.delivery_note_number : (normalizedRecord.id || normalizedRecord.delivery_note_number || `list-${Date.now()}`);
 	
 	if (useUrlParams) {
 		try {
@@ -34,17 +74,17 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			const storageKey = `report_${type}_${reportId}_${Date.now()}`;
 			
 			// Deviation için deviation_vehicles ve deviation_attachments'ı da dahil et
-			let recordToStore = record;
-			if (type === 'deviation' && record.id) {
+			let recordToStore = normalizedRecord;
+			if (type === 'deviation' && normalizedRecord.id) {
 				// Eğer deviation_vehicles yoksa, database'den çek
-				if (!record.deviation_vehicles || record.deviation_vehicles.length === 0) {
+				if (!normalizedRecord.deviation_vehicles || normalizedRecord.deviation_vehicles.length === 0) {
 					try {
 						const { data: vehiclesData } = await supabase
 							.from('deviation_vehicles')
 							.select('*')
-							.eq('deviation_id', record.id);
+							.eq('deviation_id', normalizedRecord.id);
 						if (vehiclesData && vehiclesData.length > 0) {
-							recordToStore = { ...recordToStore, deviation_vehicles: vehiclesData };
+							recordToStore = { ...recordToStore, deviation_vehicles: normalizeRecord(vehiclesData) };
 						}
 					} catch (vehiclesError) {
 						console.warn('Deviation vehicles çekilemedi:', vehiclesError);
@@ -52,14 +92,14 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 				}
 				
 				// Eğer deviation_attachments yoksa, database'den çek
-				if (!record.deviation_attachments || record.deviation_attachments.length === 0) {
+				if (!normalizedRecord.deviation_attachments || normalizedRecord.deviation_attachments.length === 0) {
 					try {
 						const { data: attachmentsData } = await supabase
 							.from('deviation_attachments')
 							.select('*')
-							.eq('deviation_id', record.id);
+							.eq('deviation_id', normalizedRecord.id);
 						if (attachmentsData && attachmentsData.length > 0) {
-							recordToStore = { ...recordToStore, deviation_attachments: attachmentsData };
+							recordToStore = { ...recordToStore, deviation_attachments: normalizeRecord(attachmentsData) };
 						}
 					} catch (attachmentsError) {
 						console.warn('Deviation attachments çekilemedi:', attachmentsError);
@@ -67,8 +107,9 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 				}
 			}
 			
-			// Veriyi localStorage'a kaydet
-			localStorage.setItem(storageKey, JSON.stringify(recordToStore));
+			// Veriyi localStorage'a kaydet (zaten normalize edilmiş)
+			const normalizedRecordToStore = recordToStore;
+			localStorage.setItem(storageKey, JSON.stringify(normalizedRecordToStore));
 			
 			// Sadece storage key'ini URL'de gönder
 			const params = new URLSearchParams({
@@ -79,7 +120,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			const reportUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
 			console.log('📄 Rapor URL:', reportUrl);
 			console.log('📄 Storage Key:', storageKey);
-			console.log('📄 Record Data:', recordToStore);
+			console.log('📄 Record Data (normalized):', normalizedRecordToStore);
 			
 			// Her zaman yeni sekmede aç
 			const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
@@ -3351,10 +3392,10 @@ const generatePrintableReportHtml = (record, type) => {
 			}
 		`;
 	} else {
-		reportContentHtml = generateGenericReportHtml(record, type);
+		reportContentHtml = generateGenericReportHtml(normalizedRecord, type);
 	}
 
-	const formNumber = getFormNumber(record.report_type || type);
+	const formNumber = getFormNumber(normalizedRecord.report_type || type);
 	const isCertificate = type === 'certificate';
 	const isExam = type === 'exam_paper';
 
