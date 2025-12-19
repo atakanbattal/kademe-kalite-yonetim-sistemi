@@ -1605,98 +1605,113 @@ const generateGenericReportHtml = (record, type) => {
 					// Eğer hala tek satırsa ve birden fazla ":" içeriyorsa, başlıkları ayır
 					if (lines.length === 1 && lines[0].includes(':')) {
 						const singleLine = lines[0];
-						// Bilinen başlık pattern'lerini kullanarak metni ayır
-						const knownHeadings = [
-							'Girdi Kalite Kontrol Kaydı',
-							'Karantina Kaydı',
-							'Kalitesizlik Maliyeti Kaydı',
-							'Parça Kodu:',
-							'Parça Adı:',
-							'Red Edilen Miktar:',
-							'Şartlı Kabul Miktarı:',
-							'Tedarikçi:',
-							'Karar:',
-							'Teslimat No:',
-							'Hata Detayları:',
-							'Açıklama:',
-							'Notlar:',
-							'Kaynak Birim:',
-							'Talep Eden Birim:',
-							'Talep Eden Kişi:',
-							'Sebep/Açıklama:',
-							'Maliyet Türü:',
-							'Tutar:',
-							'Birim/Tedarikçi:'
-						];
 						
-						// Başlıkları bul ve pozisyonlarını kaydet
-						const splits = [];
-						for (const heading of knownHeadings) {
-							const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-							const matches = [...singleLine.matchAll(regex)];
-							for (const match of matches) {
-								splits.push({
-									index: match.index,
-									heading: heading,
-									fullMatch: match[0]
-								});
+						// Önce ana başlığı bul ve ayır: "Girdi Kalite Kontrol Kaydı (25/12/077)" gibi
+						const mainTitleMatch = singleLine.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
+						if (mainTitleMatch) {
+							const mainTitle = mainTitleMatch[0].trim();
+							const afterMainTitle = singleLine.substring(mainTitleMatch.index + mainTitleMatch[0].length).trim();
+							if (afterMainTitle) {
+								lines = [mainTitle, afterMainTitle];
+							} else {
+								lines = [mainTitle];
 							}
 						}
 						
-						// Pozisyonlara göre sırala
-						splits.sort((a, b) => a.index - b.index);
-						
-						// Eğer başlık bulunduysa, metni ayır
-						if (splits.length > 0) {
-							const newLines = [];
-							for (let i = 0; i < splits.length; i++) {
-								const start = splits[i].index;
-								const end = i < splits.length - 1 ? splits[i + 1].index : singleLine.length;
-								const line = singleLine.substring(start, end).trim();
-								if (line) {
-									newLines.push(line);
+						// Eğer hala tek satırsa, başlıkları ayır
+						if (lines.length === 1 && lines[0].includes(':')) {
+							const singleLine2 = lines[0];
+							// Bilinen başlık pattern'lerini kullanarak metni ayır
+							const knownHeadings = [
+								'Parça Kodu:',
+								'Parça Adı:',
+								'Red Edilen Miktar:',
+								'Şartlı Kabul Miktarı:',
+								'Tedarikçi:',
+								'Karar:',
+								'Teslimat No:',
+								'Hata Detayları:',
+								'Açıklama:',
+								'Notlar:',
+								'Kaynak Birim:',
+								'Talep Eden Birim:',
+								'Talep Eden Kişi:',
+								'Sebep/Açıklama:',
+								'Maliyet Türü:',
+								'Tutar:',
+								'Birim/Tedarikçi:'
+							];
+							
+							// Başlıkları bul ve pozisyonlarını kaydet
+							const splits = [];
+							for (const heading of knownHeadings) {
+								const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+								const matches = [...singleLine2.matchAll(regex)];
+								for (const match of matches) {
+									splits.push({
+										index: match.index,
+										heading: heading,
+										fullMatch: match[0]
+									});
 								}
 							}
-							if (newLines.length > 0) {
-								lines = newLines;
-							}
-						} else {
-							// Başlık bulunamadıysa, ":" karakterlerine göre ayır
-							const parts = singleLine.split(/([A-ZÇĞİÖŞÜ][^:]+:\s*)/);
-							const newLines = [];
-							let currentLine = '';
-							for (let i = 0; i < parts.length; i++) {
-								const part = parts[i].trim();
-								if (!part) continue;
-								
-								if (part.match(/^[A-ZÇĞİÖŞÜ][^:]+:\s*$/)) {
-									// Başlık bulundu
-									if (currentLine) {
-										newLines.push(currentLine.trim());
-										currentLine = '';
+							
+							// Pozisyonlara göre sırala
+							splits.sort((a, b) => a.index - b.index);
+							
+							// Eğer başlık bulunduysa, metni ayır
+							if (splits.length > 0) {
+								const newLines = [];
+								for (let i = 0; i < splits.length; i++) {
+									const start = splits[i].index;
+									const end = i < splits.length - 1 ? splits[i + 1].index : singleLine2.length;
+									const line = singleLine2.substring(start, end).trim();
+									if (line) {
+										newLines.push(line);
 									}
-									currentLine = part;
-								} else if (part.match(/^[A-ZÇĞİÖŞÜ][^:]+:\s*.+$/)) {
-									// Başlık ve değer birlikte
-									if (currentLine) {
-										newLines.push(currentLine.trim());
-										currentLine = '';
-									}
-									newLines.push(part);
-								} else {
-									// Değer veya normal metin
-									if (currentLine) {
-										currentLine += ' ' + part;
-									} else {
+								}
+								if (newLines.length > 0) {
+									lines = newLines;
+								}
+							} else {
+								// Başlık bulunamadıysa, ":" karakterlerine göre ayır
+								// Türkçe karakterleri de destekleyen regex - daha kapsamlı
+								const parts = singleLine2.split(/([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜa-zçğıöşü\s]+:\s*)/);
+								const newLines = [];
+								let currentLine = '';
+								for (let i = 0; i < parts.length; i++) {
+									const part = parts[i].trim();
+									if (!part) continue;
+									
+									if (part.match(/^[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜa-zçğıöşü\s]+:\s*$/)) {
+										// Başlık bulundu
+										if (currentLine) {
+											newLines.push(currentLine.trim());
+											currentLine = '';
+										}
 										currentLine = part;
+									} else if (part.match(/^[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜa-zçğıöşü\s]+:\s*.+$/)) {
+										// Başlık ve değer birlikte
+										if (currentLine) {
+											newLines.push(currentLine.trim());
+											currentLine = '';
+										}
+										newLines.push(part);
+									} else {
+										// Değer veya normal metin
+										if (currentLine) {
+											currentLine += ' ' + part;
+										} else {
+											currentLine = part;
+										}
 									}
 								}
-							}
-							if (currentLine) {
-								newLines.push(currentLine.trim());
-							}
-							if (newLines.length > 0) {
-								lines = newLines;
+								if (currentLine) {
+									newLines.push(currentLine.trim());
+								}
+								if (newLines.length > 0) {
+									lines = newLines;
+								}
 							}
 						}
 					}
