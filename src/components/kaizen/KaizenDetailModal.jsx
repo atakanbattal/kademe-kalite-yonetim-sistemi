@@ -10,7 +10,7 @@ import { InfoCard } from '@/components/ui/InfoCard';
 import { format, differenceInDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Printer, ExternalLink, BrainCircuit, Fish, HelpCircle, Sigma, Loader2, File as FileIcon, User, Calendar, Building2, Hash, Users, AlertTriangle } from 'lucide-react';
+import { Printer, ExternalLink, BrainCircuit, Fish, HelpCircle, Sigma, Loader2, File as FileIcon, User, Calendar, Building2, Hash, Users, AlertTriangle, FileText, Clock } from 'lucide-react';
 
 const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
     const [activeTab, setActiveTab] = useState("general");
@@ -31,6 +31,13 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
       <div className="py-2">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         <p className="text-sm pl-2 border-l-2 border-primary ml-1 mt-1">{value || '-'}</p>
+      </div>
+    );
+
+    const InfoItem = ({ label, value, className = '' }) => (
+      <div className={`p-3 border rounded-lg ${className}`}>
+        <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
+        <p className="text-sm font-semibold">{value || '-'}</p>
       </div>
     );
 
