@@ -398,15 +398,22 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 console.log(`🔄 DB Change detected: ${table} - ${eventType}`);
             };
         
-            // SADECE KRİTİK TABLOLARI DİNLE
-            const criticalTables = ['tasks', 'non_conformities', 'deviations', 'personnel'];
+            // SADECE KRİTİK TABLOLARI DİNLE (kpis dahil)
+            const criticalTables = ['tasks', 'non_conformities', 'deviations', 'personnel', 'kpis'];
             
             const subscription = supabase.channel('critical-db-changes')
                 .on('postgres_changes', { 
                     event: '*', 
                     schema: 'public',
                     filter: `table=in.(${criticalTables.join(',')})`
-                }, handleDbChanges)
+                }, (payload) => {
+                    handleDbChanges(payload);
+                    // KPI tablosu değiştiyse otomatik refresh
+                    if (payload.table === 'kpis') {
+                        console.log('🔄 KPI değişikliği algılandı, yenileniyor...');
+                        refreshKpis();
+                    }
+                })
                 .subscribe((status, err) => {
                     if (status === 'SUBSCRIBED') {
                         console.log('✅ Connected to critical tables realtime channel');
@@ -419,7 +426,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             return () => {
                 supabase.removeChannel(subscription);
             };
-        }, [session, logAudit]);
+        }, [session, logAudit, refreshKpis]);
 
         const refreshProducedVehicles = useCallback(async () => {
             if (!session) return;
@@ -441,11 +448,169 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             }
         }, [session]);
 
+        // KPI'ları yenile
+        const refreshKpis = useCallback(async () => {
+            if (!session) return;
+            try {
+                const { data, error } = await supabase
+                    .from('kpis')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ KPIs refresh failed:', error);
+                    return;
+                }
+                
+                setData(prev => ({ ...prev, kpis: data || [] }));
+                console.log('✅ KPIs refreshed:', data?.length || 0, 'kpis');
+            } catch (error) {
+                console.error('❌ KPIs refresh error:', error);
+            }
+        }, [session]);
+
+        // Otomatik KPI'ların değerlerini güncelle (RPC'den çekerek)
+        const refreshAutoKpis = useCallback(async () => {
+            if (!session) return;
+            try {
+                // Önce mevcut KPI'ları al
+                const { data: kpis, error: fetchError } = await supabase
+                    .from('kpis')
+                    .select('*')
+                    .eq('is_auto', true);
+                
+                if (fetchError) {
+                    console.error('❌ Auto KPIs fetch failed:', fetchError);
+                    return;
+                }
+
+                if (!kpis || kpis.length === 0) {
+                    console.log('ℹ️ No auto KPIs to update');
+                    return;
+                }
+
+                console.log('🔄 Updating', kpis.length, 'auto KPIs...');
+
+                // Her otomatik KPI için RPC çağrısı yap ve güncelle
+                const updatePromises = kpis.map(async (kpi) => {
+                    if (!kpi.auto_kpi_id) return null;
+                    
+                    // kpi-definitions'dan RPC adını bul
+                    const rpcName = getRpcNameFromAutoKpiId(kpi.auto_kpi_id);
+                    if (!rpcName) return null;
+
+                    try {
+                        const { data: rpcData, error: rpcError } = await supabase.rpc(rpcName);
+                        
+                        if (rpcError) {
+                            console.warn(`⚠️ RPC ${rpcName} failed:`, rpcError.message);
+                            return null;
+                        }
+
+                        // KPI'ı güncelle
+                        const { error: updateError } = await supabase
+                            .from('kpis')
+                            .update({ current_value: rpcData, updated_at: new Date().toISOString() })
+                            .eq('id', kpi.id);
+
+                        if (updateError) {
+                            console.warn(`⚠️ KPI ${kpi.name} update failed:`, updateError.message);
+                            return null;
+                        }
+
+                        return { id: kpi.id, name: kpi.name, value: rpcData };
+                    } catch (err) {
+                        console.warn(`⚠️ Error updating KPI ${kpi.name}:`, err);
+                        return null;
+                    }
+                });
+
+                const results = await Promise.all(updatePromises);
+                const successCount = results.filter(r => r !== null).length;
+                console.log('✅ Auto KPIs updated:', successCount, 'of', kpis.length);
+
+                // KPI listesini yenile
+                await refreshKpis();
+            } catch (error) {
+                console.error('❌ Auto KPIs refresh error:', error);
+            }
+        }, [session, refreshKpis]);
+
+        // auto_kpi_id'den RPC adını döndür
+        const getRpcNameFromAutoKpiId = (autoKpiId) => {
+            const rpcMap = {
+                'open_non_conformities_count': 'get_open_non_conformities_count',
+                'open_8d_count': 'get_open_8d_count',
+                'df_closure_rate': 'get_df_closure_rate',
+                'avg_quality_nc_closure_time': 'get_avg_quality_nc_closure_time',
+                'avg_quality_process_time': 'get_avg_quality_process_time',
+                'produced_vehicles_count': 'get_produced_vehicles_count',
+                'quality_inspection_pass_rate': 'get_quality_inspection_pass_rate',
+                'avg_quality_inspection_time': 'get_avg_quality_inspection_time',
+                'quarantine_count': 'get_quarantine_count',
+                'non_quality_cost': 'get_total_non_quality_cost',
+                'expired_document_count': 'get_expired_document_count',
+                'open_deviation_count': 'get_open_deviation_count',
+                'calibration_due_count': 'get_calibration_due_count',
+                'open_internal_audit_count': 'get_open_internal_audit_count',
+                'open_supplier_nc_count': 'get_open_supplier_nc_count',
+                'active_suppliers_count': 'get_active_suppliers_count',
+                'avg_supplier_score': 'get_avg_supplier_score',
+                'supplier_nc_rate': 'get_supplier_nc_rate',
+                'incoming_rejection_rate': 'get_incoming_rejection_rate',
+                'active_spc_characteristics_count': 'get_active_spc_characteristics_count',
+                'out_of_control_processes_count': 'get_out_of_control_processes_count',
+                'capable_processes_rate': 'get_capable_processes_rate',
+                'msa_studies_count': 'get_msa_studies_count',
+                'active_production_plans_count': 'get_active_production_plans_count',
+                'critical_characteristics_count': 'get_critical_characteristics_count',
+                'process_parameter_records_count': 'get_process_parameter_records_count',
+                'active_validation_plans_count': 'get_active_validation_plans_count',
+                'completed_validations_rate': 'get_completed_validations_rate',
+                'active_fmea_projects_count': 'get_active_fmea_projects_count',
+                'high_rpn_count': 'get_high_rpn_count',
+                'completed_fmea_actions_rate': 'get_completed_fmea_actions_rate',
+                'active_apqp_projects_count': 'get_active_apqp_projects_count',
+                'pending_ppap_approvals_count': 'get_pending_ppap_approvals_count',
+                'run_at_rate_completion_rate': 'get_run_at_rate_completion_rate',
+                'active_dmaic_projects_count': 'get_active_dmaic_projects_count',
+                'completed_dmaic_projects_count': 'get_completed_dmaic_projects_count',
+                'dmaic_success_rate': 'get_dmaic_success_rate',
+                'open_customer_complaints_count': 'get_open_customer_complaints_count',
+                'sla_compliant_complaints_rate': 'get_sla_compliant_complaints_rate',
+                'avg_complaint_resolution_time': 'get_avg_complaint_resolution_time',
+                'active_kaizen_count': 'get_active_kaizen_count',
+                'completed_kaizen_count': 'get_completed_kaizen_count',
+                'kaizen_success_rate': 'get_kaizen_success_rate',
+                'planned_trainings_count': 'get_planned_trainings_count',
+                'completed_trainings_count': 'get_completed_trainings_count',
+                'training_participation_rate': 'get_training_participation_rate',
+                'avg_polyvalence_score': 'get_avg_polyvalence_score',
+                'critical_skill_gaps_count': 'get_critical_skill_gaps_count',
+                'expired_certifications_count': 'get_expired_certifications_count',
+                'active_benchmarks_count': 'get_active_benchmarks_count',
+                'completed_benchmarks_count': 'get_completed_benchmarks_count',
+                'active_wps_procedures_count': 'get_active_wps_procedures_count',
+                'pending_wps_approvals_count': 'get_pending_wps_approvals_count',
+                'open_tasks_count': 'get_open_tasks_count',
+                'overdue_tasks_count': 'get_overdue_tasks_count',
+                'task_completion_rate': 'get_task_completion_rate',
+                'nps_score': 'get_nps_score',
+                'satisfaction_surveys_count': 'get_satisfaction_surveys_count',
+                'avg_customer_satisfaction_score': 'get_avg_customer_satisfaction_score',
+                'active_supplier_development_plans_count': 'get_active_supplier_development_plans_count',
+                'completed_supplier_development_plans_count': 'get_completed_supplier_development_plans_count',
+            };
+            return rpcMap[autoKpiId] || null;
+        };
+
         const value = {
             ...data,
             loading,
             refreshData: () => fetchData(true), // Force refresh
             refreshProducedVehicles, // Sadece produced vehicles'ı yenile
+            refreshKpis, // Sadece KPI'ları yenile
+            refreshAutoKpis, // Otomatik KPI'ların değerlerini güncelle
             logAudit,
         };
 

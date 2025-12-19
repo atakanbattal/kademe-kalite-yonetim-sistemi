@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,10 +10,26 @@ import KPICard from '@/components/kpi/KPICard';
 import { useData } from '@/contexts/DataContext';
 
 const KPIModule = () => {
-    const { kpis, loading, refreshData } = useData();
+    const { kpis, loading, refreshKpis, refreshAutoKpis } = useData();
+    const { toast } = useToast();
     const [isAddModalOpen, setAddModalOpen] = useState(false);
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
     const [selectedKpi, setSelectedKpi] = useState(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Sayfa açıldığında otomatik KPI'ları güncelle
+    useEffect(() => {
+        const updateAutoKpis = async () => {
+            if (kpis.length > 0) {
+                const hasAutoKpis = kpis.some(kpi => kpi.is_auto);
+                if (hasAutoKpis) {
+                    console.log('🔄 KPI Modülü açıldı, otomatik KPI\'lar güncelleniyor...');
+                    await refreshAutoKpis();
+                }
+            }
+        };
+        updateAutoKpis();
+    }, []); // Sadece sayfa ilk açıldığında çalış
 
     const handleAddKpi = () => {
         setAddModalOpen(true);
@@ -24,19 +40,42 @@ const KPIModule = () => {
         setDetailModalOpen(true);
     };
 
+    // Manuel yenileme
+    const handleManualRefresh = useCallback(async () => {
+        setIsRefreshing(true);
+        try {
+            await refreshAutoKpis();
+            toast({ title: 'Başarılı!', description: 'KPI değerleri güncellendi.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Hata!', description: 'KPI değerleri güncellenemedi.' });
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [refreshAutoKpis, toast]);
+
     return (
         <div className="space-y-6">
-            <AddKpiModal open={isAddModalOpen} setOpen={setAddModalOpen} refreshKpis={refreshData} existingKpis={kpis} />
-            {selectedKpi && <KPIDetailModalEnhanced kpi={selectedKpi} open={isDetailModalOpen} setOpen={setDetailModalOpen} refreshKpis={refreshData} />}
+            <AddKpiModal open={isAddModalOpen} setOpen={setAddModalOpen} refreshKpis={refreshKpis} existingKpis={kpis} />
+            {selectedKpi && <KPIDetailModalEnhanced kpi={selectedKpi} open={isDetailModalOpen} setOpen={setDetailModalOpen} refreshKpis={refreshKpis} />}
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">KPI Modülü</h1>
                     <p className="text-muted-foreground mt-1">Önemli performans göstergelerinizi takip edin.</p>
                 </div>
-                <Button onClick={handleAddKpi}>
-                    <Plus className="w-4 h-4 mr-2" /> Yeni KPI Ekle
-                </Button>
+                <div className="flex gap-2">
+                    <Button 
+                        variant="outline" 
+                        onClick={handleManualRefresh} 
+                        disabled={isRefreshing}
+                    >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} /> 
+                        {isRefreshing ? 'Güncelleniyor...' : 'Değerleri Güncelle'}
+                    </Button>
+                    <Button onClick={handleAddKpi}>
+                        <Plus className="w-4 h-4 mr-2" /> Yeni KPI Ekle
+                    </Button>
+                </div>
             </div>
             
             {loading ? (
