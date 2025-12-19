@@ -284,7 +284,7 @@ import React, { useEffect, useState } from 'react';
                             if (type === 'equipment') {
                                 selectQuery = '*, equipment_calibrations!left(*)';
                             } else if (type === 'deviation') {
-                                selectQuery = '*, deviation_approvals!left(*)';
+                                selectQuery = '*, deviation_approvals!left(*), deviation_vehicles!left(*), deviation_attachments!left(*)';
                             } else if (type === 'nonconformity') {
                                 // Nonconformity için tüm alanları dahil et (attachments ve closing_attachments JSONB olarak tabloda)
                                 selectQuery = '*';
@@ -298,6 +298,31 @@ import React, { useEffect, useState } from 'react';
                             
                             if (queryError2) throw queryError2;
                             recordData = queryData;
+                            
+                            // Deviation için deviation_vehicles ve deviation_attachments'ı kontrol et ve çek
+                            if (type === 'deviation' && recordData) {
+                                // Eğer deviation_vehicles yoksa veya boşsa, ayrı çek
+                                if (!recordData.deviation_vehicles || recordData.deviation_vehicles.length === 0) {
+                                    const { data: vehiclesData } = await supabase
+                                        .from('deviation_vehicles')
+                                        .select('*')
+                                        .eq('deviation_id', id);
+                                    if (vehiclesData && vehiclesData.length > 0) {
+                                        recordData.deviation_vehicles = vehiclesData;
+                                    }
+                                }
+                                
+                                // Eğer deviation_attachments yoksa veya boşsa, ayrı çek
+                                if (!recordData.deviation_attachments || recordData.deviation_attachments.length === 0) {
+                                    const { data: attachmentsData } = await supabase
+                                        .from('deviation_attachments')
+                                        .select('*')
+                                        .eq('deviation_id', id);
+                                    if (attachmentsData && attachmentsData.length > 0) {
+                                        recordData.deviation_attachments = attachmentsData;
+                                    }
+                                }
+                            }
                             
                             // Nonconformity için tedarikçi adını ve attachments'ları çek
                             if (type === 'nonconformity' && recordData) {

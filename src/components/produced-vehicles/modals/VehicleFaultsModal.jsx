@@ -389,9 +389,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                                         <Button variant="ghost" size="icon" onClick={() => handleEditFault(fault)} disabled={loading} className="text-blue-600 hover:bg-blue-100">
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleToggleResolved(fault.id, fault.is_resolved)} disabled={loading} className="text-green-600 hover:bg-green-100">
-                                                            <CheckCircle className="h-5 w-5" />
-                                                        </Button>
+                                                     <Button variant="ghost" size="icon" onClick={() => handleToggleResolved(fault.id, fault.is_resolved)} disabled={loading} className="text-green-600 hover:bg-green-100">
+                                                        <CheckCircle className="h-5 w-5" />
+                                                    </Button>
                                                     </>
                                                 )}
                                                 {canManage && (
@@ -502,9 +502,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                         </Button>
                                     </div>
                                 ) : (
-                                    <Button onClick={handleAddFault} disabled={loading} className="w-full">
-                                        <PlusCircle className="mr-2 h-4 w-4" /> {loading ? 'Ekleniyor...' : 'Hata Ekle'}
-                                    </Button>
+                                <Button onClick={handleAddFault} disabled={loading} className="w-full">
+                                    <PlusCircle className="mr-2 h-4 w-4" /> {loading ? 'Ekleniyor...' : 'Hata Ekle'}
+                                </Button>
                                 )}
                             </div>
                         ) : (

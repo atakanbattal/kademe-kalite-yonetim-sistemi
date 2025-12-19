@@ -120,13 +120,13 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete, onSort, sortConfi
                             </>
                         ) : (
                             <>
-                                <th>Ekipman Adı</th>
-                                <th>Seri Numarası</th>
-                                <th>Model</th>
-                                <th>Durum</th>
-                                <th>Zimmet Durumu</th>
-                                <th>Kalibrasyon Durumu</th>
-                                <th>Sonraki Kalibrasyon</th>
+                        <th>Ekipman Adı</th>
+                        <th>Seri Numarası</th>
+                        <th>Model</th>
+                        <th>Durum</th>
+                        <th>Zimmet Durumu</th>
+                        <th>Kalibrasyon Durumu</th>
+                        <th>Sonraki Kalibrasyon</th>
                             </>
                         )}
                         <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>

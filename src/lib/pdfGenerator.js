@@ -5,7 +5,7 @@ const generatePrintableReport = (record) => {
     
     // Metin alanlarını camelCase formatına çevir
     const formatText = (text) => typeof text === 'string' ? toCamelCase(text) : text;
-    
+
     // HTML escape fonksiyonu (güvenlik için)
     const escapeHtml = (text) => {
         if (!text || typeof text !== 'string') return text || '-';

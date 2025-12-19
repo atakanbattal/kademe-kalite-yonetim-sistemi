@@ -1218,7 +1218,7 @@ const IncomingInspectionDetailModal = ({
                             </Card>
                         )}
                     </TabsContent>
-                    </Tabs>
+                </Tabs>
                 </ScrollArea>
 
                 <DialogFooter className="mt-6">

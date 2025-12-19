@@ -33,20 +33,37 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			// Benzersiz bir key oluştur
 			const storageKey = `report_${type}_${reportId}_${Date.now()}`;
 			
-			// Deviation için deviation_vehicles'ı da dahil et
+			// Deviation için deviation_vehicles ve deviation_attachments'ı da dahil et
 			let recordToStore = record;
-			if (type === 'deviation' && record.id && (!record.deviation_vehicles || record.deviation_vehicles.length === 0)) {
+			if (type === 'deviation' && record.id) {
 				// Eğer deviation_vehicles yoksa, database'den çek
-				try {
-					const { data: vehiclesData } = await supabase
-						.from('deviation_vehicles')
-						.select('*')
-						.eq('deviation_id', record.id);
-					if (vehiclesData && vehiclesData.length > 0) {
-						recordToStore = { ...record, deviation_vehicles: vehiclesData };
+				if (!record.deviation_vehicles || record.deviation_vehicles.length === 0) {
+					try {
+						const { data: vehiclesData } = await supabase
+							.from('deviation_vehicles')
+							.select('*')
+							.eq('deviation_id', record.id);
+						if (vehiclesData && vehiclesData.length > 0) {
+							recordToStore = { ...recordToStore, deviation_vehicles: vehiclesData };
+						}
+					} catch (vehiclesError) {
+						console.warn('Deviation vehicles çekilemedi:', vehiclesError);
 					}
-				} catch (vehiclesError) {
-					console.warn('Deviation vehicles çekilemedi:', vehiclesError);
+				}
+				
+				// Eğer deviation_attachments yoksa, database'den çek
+				if (!record.deviation_attachments || record.deviation_attachments.length === 0) {
+					try {
+						const { data: attachmentsData } = await supabase
+							.from('deviation_attachments')
+							.select('*')
+							.eq('deviation_id', record.id);
+						if (attachmentsData && attachmentsData.length > 0) {
+							recordToStore = { ...recordToStore, deviation_attachments: attachmentsData };
+						}
+					} catch (attachmentsError) {
+						console.warn('Deviation attachments çekilemedi:', attachmentsError);
+					}
 				}
 			}
 			
@@ -1236,8 +1253,15 @@ const generateGenericReportHtml = (record, type) => {
 	const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
 
 	const getAttachmentUrl = (path, bucket) => {
-		if (typeof path === 'object' && path !== null && path.path) {
-			path = path.path;
+		if (typeof path === 'object' && path !== null) {
+			// Önce file_path'i kontrol et (deviation_attachments için)
+			if (path.file_path) {
+				path = path.file_path;
+			} else if (path.path) {
+				path = path.path;
+			} else {
+				return '';
+			}
 		}
 		if (typeof path !== 'string') return '';
 		// Supabase public storage URL (CDN)
@@ -2539,13 +2563,22 @@ const generateGenericReportHtml = (record, type) => {
 
 		if (attachments.length > 0) {
 			html += `<div class="section"><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
-			attachments.forEach(path => {
-				const url = getAttachmentUrl(path, bucket);
-				const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeof path === 'string' ? path : path.path);
+			attachments.forEach(attachment => {
+				// Deviation attachments için file_path alanını kullan
+				let pathToUse = attachment;
+				if (type === 'deviation' && typeof attachment === 'object' && attachment !== null) {
+					pathToUse = attachment.file_path || attachment.path || attachment;
+				}
+				
+				const url = getAttachmentUrl(pathToUse, bucket);
+				const fileName = type === 'deviation' && typeof attachment === 'object' && attachment !== null
+					? (attachment.file_name || attachment.name || (typeof pathToUse === 'string' ? pathToUse.split('/').pop() : ''))
+					: (typeof attachment === 'string' ? attachment : attachment.name || attachment.path || '').split('/').pop();
+				const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeof pathToUse === 'string' ? pathToUse : (pathToUse.path || pathToUse.file_path || ''));
 				if (isImage) {
 					html += `<div class="image-container"><img src="${url}" class="attachment-image" alt="Ek" crossOrigin="anonymous"/></div>`;
 				} else {
-					html += `<div class="attachment-file"><a href="${url}" target="_blank">${(typeof path === 'string' ? path : path.name).split('/').pop()}</a></div>`;
+					html += `<div class="attachment-file"><a href="${url}" target="_blank">${fileName}</a></div>`;
 				}
 			});
 			html += `</div></div>`;

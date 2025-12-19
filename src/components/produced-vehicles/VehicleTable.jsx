@@ -213,15 +213,15 @@ import React from 'react';
                                 </>
                             ) : (
                                 <>
-                                    <th>Şasi No</th>
-                                    <th>Seri No</th>
-                                    <th>Araç Tipi</th>
-                                    <th>Hata Durumu</th>
-                                    <th>Müşteri</th>
-                                    <th>Kalite Durumu</th>
-                                    <th>DMO Durumu</th>
-                                    <th>Durumda Geçen Süre</th>
-                                    <th>Termin / Kalan</th>
+                            <th>Şasi No</th>
+                            <th>Seri No</th>
+                            <th>Araç Tipi</th>
+                            <th>Hata Durumu</th>
+                            <th>Müşteri</th>
+                            <th>Kalite Durumu</th>
+                            <th>DMO Durumu</th>
+                            <th>Durumda Geçen Süre</th>
+                            <th>Termin / Kalan</th>
                                 </>
                             )}
                             <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>

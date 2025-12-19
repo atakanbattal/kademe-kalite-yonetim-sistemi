@@ -57,28 +57,28 @@ const EightDStepView = ({ stepKey, step }) => {
   }
   
   return (
-    <div className="p-4 border-l-2 border-primary/50 bg-secondary/30 rounded-r-lg">
-      <h4 className="font-bold text-primary">
+  <div className="p-4 border-l-2 border-primary/50 bg-secondary/30 rounded-r-lg">
+    <h4 className="font-bold text-primary">
         {stepKey}: {step.title || stepKey}
-      </h4>
-      <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-        <p>
-          <strong className="text-muted-foreground">Sorumlu:</strong>{' '}
-          {step.responsible || '-'}
-        </p>
-        <p>
-          <strong className="text-muted-foreground">Tarih:</strong>{' '}
-          {step.completionDate || '-'}
-        </p>
-      </div>
-      {step.description && (
-        <p className="mt-2 text-sm bg-background/50 p-2 rounded-md">
-          <strong className="text-muted-foreground">Açıklama:</strong>{' '}
-          {step.description}
-        </p>
-      )}
+    </h4>
+    <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+      <p>
+        <strong className="text-muted-foreground">Sorumlu:</strong>{' '}
+        {step.responsible || '-'}
+      </p>
+    <p>
+        <strong className="text-muted-foreground">Tarih:</strong>{' '}
+        {step.completionDate || '-'}
+      </p>
     </div>
-  );
+    {step.description && (
+      <p className="mt-2 text-sm bg-background/50 p-2 rounded-md">
+        <strong className="text-muted-foreground">Açıklama:</strong>{' '}
+        {step.description}
+      </p>
+    )}
+  </div>
+);
 };
 
 // Varsayılan 8D başlıkları - Component dışında tanımlanmalı

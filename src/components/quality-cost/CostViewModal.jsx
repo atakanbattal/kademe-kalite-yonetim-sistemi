@@ -181,11 +181,11 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                                                     {cost.affected_units
                                                         .filter(au => au.unit !== cost.unit) // Ana birimi filtrele
                                                         .map((au, idx) => (
-                                                            <Badge key={idx} variant="outline" className="text-sm py-2 px-3">
-                                                                <Building2 className="h-3 w-3 mr-1" />
-                                                                {au.unit}: {au.duration} dk
-                                                            </Badge>
-                                                        ))}
+                                                        <Badge key={idx} variant="outline" className="text-sm py-2 px-3">
+                                                            <Building2 className="h-3 w-3 mr-1" />
+                                                            {au.unit}: {au.duration} dk
+                                                        </Badge>
+                                                    ))}
                                                     {/* Eğer tüm birimler ana birimse, hiçbir şey gösterme */}
                                                     {cost.affected_units.every(au => au.unit === cost.unit) && (
                                                         <p className="text-sm text-muted-foreground">Ana birim yukarıda gösteriliyor.</p>
