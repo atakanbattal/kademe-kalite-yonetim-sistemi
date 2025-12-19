@@ -51,6 +51,9 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
     const formatDescription = (text) => {
         if (!text) return '-';
         
+        // Önce literal \n karakterlerini gerçek satır sonlarına çevir
+        text = text.replace(/\\n/g, '\n');
+        
         // Bilinen başlıkları kullanarak tek satırlık metni parçalara ayır
         const knownHeadings = [
             'Girdi Kalite Kontrol Kaydı',
@@ -67,8 +70,20 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             'Bu Parça İçin Sapma Onayı',
             'Bu Parça Için Sapma Onayı',
             'ÖLÇÜM SONUÇLARI',
+            'Ölçüm Sonuçlari Ve Tespitler',
+            'Ölçüm Sonuçları Ve Tespitler',
             'TESPİT EDİLEN HATALAR',
             'ÖLÇÜM ÖZETİ',
+            'Ölçüm Özeti',
+            'Uygunsuz Bulunan Ölçümler',
+            'Beklenen Değer',
+            'Tolerans Aralığı',
+            'Gerçek Ölçülen Değer',
+            'Sonuç:',
+            'Ret Oranı',
+            'Toplam Ölçüm Sayısı',
+            'Uygun Ölçümler',
+            'Uygunsuz Ölçümler',
         ];
         
         // Önce \n karakterlerini kontrol et
@@ -152,8 +167,34 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 );
             }
             
-            // Numaralı liste öğeleri: "1. Minör Özellik (Ölçüm 1/1):"
+            // Numaralı liste öğeleri: "1. Minör Özellik (Ölçüm 1/1):" veya "1. Dış Cap..."
             if (/^\d+\.\s+[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(trimmedLine)) {
+                // Eğer içinde "Beklenen Değer", "Tolerans" gibi detaylar varsa, onları da ayır
+                const detailParts = trimmedLine.split(/\s+(Beklenen Değer|Tolerans Aralığı|Gerçek Ölçülen Değer|Sonuç:)/i);
+                if (detailParts.length > 1) {
+                    // Ana başlık ve detayları ayır
+                    const mainPart = detailParts[0].trim();
+                    const details = [];
+                    for (let i = 1; i < detailParts.length; i += 2) {
+                        if (i + 1 < detailParts.length) {
+                            details.push(`${detailParts[i]}${detailParts[i + 1]}`);
+                        } else {
+                            details.push(detailParts[i]);
+                        }
+                    }
+                    return (
+                        <div key={idx} className="mt-3 mb-1">
+                            <div className="text-sm font-semibold text-foreground pl-2 border-l-2 border-primary/50">
+                                {mainPart}
+                            </div>
+                            {details.map((detail, dIdx) => (
+                                <div key={`${idx}-${dIdx}`} className="text-xs text-muted-foreground pl-6 py-0.5">
+                                    {detail.trim()}
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }
                 return (
                     <div key={idx} className="text-sm font-semibold text-foreground mt-3 mb-1 pl-2 border-l-2 border-primary/50">
                         {trimmedLine}
