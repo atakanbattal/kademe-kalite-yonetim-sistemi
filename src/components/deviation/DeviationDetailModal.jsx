@@ -204,16 +204,35 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                             value = afterKey.substring(0, nextInfo.position).trim();
                         }
                         
-                        // "Bu Parça İçin Sapma" cümlesini value'dan ayır
-                        const endSentenceMatch = value.match(/(.*?)\s*(Bu Parça\s+[İI]çin\s+Sapma[^.]*\.?)/i);
-                        if (endSentenceMatch) {
-                            value = endSentenceMatch[1].trim();
-                            tokens.push({ type: 'key-value', key: keyName, value: value });
-                            tokens.push({ type: 'end-text', content: endSentenceMatch[2] });
-                            remaining = afterKey.substring(afterKey.indexOf(endSentenceMatch[2]) + endSentenceMatch[2].length).trim();
-                        } else {
-                            tokens.push({ type: 'key-value', key: keyName, value: value });
-                            remaining = afterKey.substring(value.length).trim();
+                        // Value içinde section heading varsa ayır
+                        let foundSectionInValue = false;
+                        for (const heading of sectionHeadings) {
+                            const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const headingInValueRegex = new RegExp(`^(.*?)\\s*(${escapedHeading}):?\\s*(.*)$`, 'i');
+                            const headingInValueMatch = value.match(headingInValueRegex);
+                            if (headingInValueMatch) {
+                                value = headingInValueMatch[1].trim();
+                                tokens.push({ type: 'key-value', key: keyName, value: value });
+                                // Heading'i remaining'e geri ekle
+                                remaining = headingInValueMatch[2] + (headingInValueMatch[3] ? ': ' + headingInValueMatch[3] : '') + ' ' + afterKey.substring(nextInfo.position).trim();
+                                remaining = remaining.trim();
+                                foundSectionInValue = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!foundSectionInValue) {
+                            // "Bu Parça İçin Sapma" cümlesini value'dan ayır
+                            const endSentenceMatch = value.match(/(.*?)\s*(Bu Parça\s+[İI]çin\s+Sapma[^.]*\.?)/i);
+                            if (endSentenceMatch) {
+                                value = endSentenceMatch[1].trim();
+                                tokens.push({ type: 'key-value', key: keyName, value: value });
+                                tokens.push({ type: 'end-text', content: endSentenceMatch[2] });
+                                remaining = afterKey.substring(afterKey.indexOf(endSentenceMatch[2]) + endSentenceMatch[2].length).trim();
+                            } else {
+                                tokens.push({ type: 'key-value', key: keyName, value: value });
+                                remaining = afterKey.substring(value.length).trim();
+                            }
                         }
                         matched = true;
                         break;
