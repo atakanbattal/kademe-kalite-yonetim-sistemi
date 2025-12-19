@@ -51,8 +51,75 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
     const formatDescription = (text) => {
         if (!text) return '-';
         
-        // Satır sonlarını ayır
-        const lines = text.split('\n').filter(line => line.trim() !== '');
+        // Bilinen başlıkları kullanarak tek satırlık metni parçalara ayır
+        const knownHeadings = [
+            'Girdi Kalite Kontrol Kaydı',
+            'Karantina Kaydı',
+            'Kalitesizlik Maliyeti Kaydı',
+            'Parça Kodu:',
+            'Parça Adı:',
+            'Red Edilen Miktar:',
+            'Şartlı Kabul Miktarı:',
+            'Tedarikçi:',
+            'Karar:',
+            'Teslimat No:',
+            'Hata Detayları:',
+            'Bu Parça İçin Sapma Onayı',
+            'Bu Parça Için Sapma Onayı',
+            'ÖLÇÜM SONUÇLARI',
+            'TESPİT EDİLEN HATALAR',
+            'ÖLÇÜM ÖZETİ',
+        ];
+        
+        // Önce \n karakterlerini kontrol et
+        let lines = text.split('\n').filter(line => line.trim() !== '');
+        
+        // Eğer tek satır ve bilinen başlıkları içeriyorsa, ayır
+        if (lines.length === 1) {
+            const singleLine = lines[0];
+            const splits = [];
+            
+            // Başlıkları bul ve pozisyonlarını kaydet
+            for (const heading of knownHeadings) {
+                const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                const matches = [...singleLine.matchAll(regex)];
+                for (const match of matches) {
+                    splits.push({
+                        index: match.index,
+                        heading: heading,
+                    });
+                }
+            }
+            
+            // * ile başlayan maddeleri de bul
+            const bulletRegex = /\s+\*\s+/g;
+            const bulletMatches = [...singleLine.matchAll(bulletRegex)];
+            for (const match of bulletMatches) {
+                splits.push({
+                    index: match.index,
+                    heading: '*',
+                });
+            }
+            
+            // Pozisyonlara göre sırala
+            splits.sort((a, b) => a.index - b.index);
+            
+            // Eğer başlık bulunduysa, metni ayır
+            if (splits.length > 0) {
+                const newLines = [];
+                for (let i = 0; i < splits.length; i++) {
+                    const start = splits[i].index;
+                    const end = i < splits.length - 1 ? splits[i + 1].index : singleLine.length;
+                    const line = singleLine.substring(start, end).trim();
+                    if (line) {
+                        newLines.push(line);
+                    }
+                }
+                if (newLines.length > 0) {
+                    lines = newLines;
+                }
+            }
+        }
         
         return lines.map((line, idx) => {
             const trimmedLine = line.trim();
@@ -75,10 +142,29 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 );
             }
             
+            // * ile başlayan maddeler
+            if (/^\*\s+/.test(trimmedLine)) {
+                return (
+                    <div key={idx} className="text-sm text-foreground pl-4 py-1 flex items-start gap-2">
+                        <span className="text-primary">•</span>
+                        <span>{trimmedLine.substring(1).trim()}</span>
+                    </div>
+                );
+            }
+            
             // Numaralı liste öğeleri: "1. Minör Özellik (Ölçüm 1/1):"
             if (/^\d+\.\s+[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(trimmedLine)) {
                 return (
                     <div key={idx} className="text-sm font-semibold text-foreground mt-3 mb-1 pl-2 border-l-2 border-primary/50">
+                        {trimmedLine}
+                    </div>
+                );
+            }
+            
+            // "Bu Parça İçin Sapma Onayı" gibi son cümleler
+            if (/^Bu Parça/i.test(trimmedLine)) {
+                return (
+                    <div key={idx} className="text-sm font-medium text-primary mt-4 pt-2 border-t border-border">
                         {trimmedLine}
                     </div>
                 );
@@ -96,8 +182,8 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 }
                 
                 return (
-                    <div key={idx} className="flex gap-2 text-sm py-1">
-                        <span className="font-medium text-muted-foreground min-w-[140px]">{key}:</span>
+                    <div key={idx} className="flex flex-wrap gap-2 text-sm py-1">
+                        <span className="font-medium text-muted-foreground min-w-[160px]">{key}:</span>
                         <span className="text-foreground">{value}</span>
                     </div>
                 );
