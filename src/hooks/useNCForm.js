@@ -1,7 +1,7 @@
 import { useContext, useEffect, useCallback } from 'react';
-    import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
+    import { useData } from '@/contexts/DataContext';
     import { useDropzone } from 'react-dropzone';
     import { NCFormContext } from '@/contexts/NCFormContext';
     import { SLA_DURATIONS } from '@/lib/constants';
@@ -70,6 +70,8 @@ import { useContext, useEffect, useCallback } from 'react';
     export const useNCForm = () => {
         const { toast } = useToast();
         const { user } = useAuth();
+        // DataContext'ten global personel ve department verilerini al
+        const { personnel: globalPersonnel, productionDepartments: globalDepartments, loading: dataLoading } = useData();
         const { 
             formData, setFormData, files, setFiles,
             personnel, setPersonnel, departments, setDepartments, initializeForm, clearDraft
@@ -77,29 +79,29 @@ import { useContext, useEffect, useCallback } from 'react';
 
         const DRAFT_KEY = `nc:draft:${user?.id}`;
 
+        // DataContext'ten verileri NCFormContext'e aktar
         useEffect(() => {
-            const fetchInitialData = async () => {
-                if (departments.length === 0) {
-                     const { data: depts, error: deptsError } = await supabase.from('personnel').select('department').neq('department', null);
-                    if (deptsError) {
-                        toast({ variant: 'destructive', title: 'Hata', description: 'Birimler yüklenemedi.' });
-                    } else {
-                        const uniqueDepartments = [...new Set(depts.map(d => d.department))].sort();
-                        setDepartments(uniqueDepartments);
-                    }
-                }
-               
-                if (personnel.length === 0) {
-                    const { data: personnelData, error: personnelError } = await supabase.from('personnel').select('id, full_name, department').eq('is_active', true).order('full_name');
-                    if(personnelError) {
-                        toast({ variant: 'destructive', title: 'Hata', description: 'Personel listesi yüklenemedi.' });
-                    } else {
-                        setPersonnel(personnelData);
-                    }
-                }
-            };
-            fetchInitialData();
-        }, [toast, departments.length, personnel.length, setDepartments, setPersonnel]);
+            // Global personnel verisini kullan (is_active filtresi DataContext'te yapılıyor)
+            if (globalPersonnel && globalPersonnel.length > 0 && personnel.length === 0) {
+                // Sadece is_active olanları filtrele ve gerekli alanları al
+                const activePersonnel = globalPersonnel
+                    .filter(p => p.is_active !== false)
+                    .map(p => ({
+                        id: p.id,
+                        full_name: p.full_name,
+                        department: p.department
+                    }));
+                setPersonnel(activePersonnel);
+                console.log('✅ Personnel loaded from DataContext:', activePersonnel.length, 'personnel');
+            }
+
+            // Global departments verisini kullan
+            if (globalDepartments && globalDepartments.length > 0 && departments.length === 0) {
+                const uniqueDepartments = [...new Set(globalDepartments.map(d => d.unit_name).filter(Boolean))].sort();
+                setDepartments(uniqueDepartments);
+                console.log('✅ Departments loaded from DataContext:', uniqueDepartments.length, 'departments');
+            }
+        }, [globalPersonnel, globalDepartments, personnel.length, departments.length, setPersonnel, setDepartments]);
 
         const onDrop = useCallback(acceptedFiles => {
             setFiles(prev => [...prev, ...acceptedFiles]);

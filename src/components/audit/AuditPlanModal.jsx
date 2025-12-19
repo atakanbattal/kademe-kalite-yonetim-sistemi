@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
+    import { useData } from '@/contexts/DataContext';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
@@ -10,6 +11,8 @@ import React, { useState, useEffect } from 'react';
 
     const AuditPlanModal = ({ isOpen, setIsOpen, refreshAudits, auditToEdit }) => {
         const { toast } = useToast();
+        const { standards: globalStandards, unitCostSettings: globalDepartments, loading: dataLoading } = useData();
+        
         const [formData, setFormData] = useState({
             title: '',
             department_id: '',
@@ -25,70 +28,34 @@ import React, { useState, useEffect } from 'react';
         useEffect(() => {
             if (!isOpen) return;
 
-            const fetchDepartments = async () => {
-                const { data, error } = await supabase
-                    .from('cost_settings')
-                    .select('id, unit_name')
-                    .order('unit_name');
-
-                if (error) {
-                    toast({ variant: 'destructive', title: 'Hata', description: 'Birimler yüklenemedi.' });
-                } else {
-                    setDepartments(data);
-                }
-            };
-
-            const fetchStandards = async () => {
-                const { data, error } = await supabase
-                    .from('audit_standards')
-                    .select('id, code, name')
-                    .eq('is_active', true)
-                    .order('code');
-
-                if (error) {
-                    toast({ variant: 'destructive', title: 'Hata', description: 'Standartlar yüklenemedi.' });
-                } else {
-                    setAuditStandards(data);
-                }
-            };
-
-            const initializeForm = async () => {
-                await Promise.all([fetchDepartments(), fetchStandards()]);
-                
-                // Standartlar yüklendikten sonra formData'yı set et
-                const { data: standardsData } = await supabase
-                    .from('audit_standards')
-                    .select('id, code, name')
-                    .eq('is_active', true)
-                    .order('code');
-                
-                if (standardsData) {
-                    setAuditStandards(standardsData);
-
+            // DataContext'ten gelen verileri kullan
+            const deptList = globalDepartments || [];
+            setDepartments(deptList.map(d => ({ id: d.id, unit_name: d.unit_name })));
+            
+            const standardsList = globalStandards || [];
+            setAuditStandards(standardsList.map(s => ({ id: s.id, code: s.code, name: s.name })));
+            
+            // Form verilerini ayarla
             if (isEditMode) {
                 setFormData({
                     title: auditToEdit.title || '',
                     department_id: auditToEdit.department_id || '',
                     audit_date: auditToEdit.audit_date ? format(new Date(auditToEdit.audit_date), 'yyyy-MM-dd') : '',
                     auditor_name: auditToEdit.auditor_name || '',
-                            audit_standard_id: auditToEdit.audit_standard_id || auditToEdit.audit_standard?.id || '',
+                    audit_standard_id: auditToEdit.audit_standard_id || auditToEdit.audit_standard?.id || '',
                 });
             } else {
-                        // Varsayılan olarak 9001'i seç
-                        const defaultStandard = standardsData.find(s => s.code === '9001');
-                        setFormData({ 
-                            title: '', 
-                            department_id: '', 
-                            audit_date: '', 
-                            auditor_name: '',
-                            audit_standard_id: defaultStandard?.id || '',
-                        });
+                // Varsayılan olarak 9001'i seç
+                const defaultStandard = standardsList.find(s => s.code === '9001');
+                setFormData({ 
+                    title: '', 
+                    department_id: '', 
+                    audit_date: '', 
+                    auditor_name: '',
+                    audit_standard_id: defaultStandard?.id || (standardsList.length > 0 ? standardsList[0].id : ''),
+                });
             }
-                }
-            };
-            
-            initializeForm();
-        }, [isOpen, auditToEdit, isEditMode, toast]);
+        }, [isOpen, auditToEdit, isEditMode, globalDepartments, globalStandards]);
 
 
         const handleInputChange = (e) => {
@@ -136,13 +103,21 @@ import React, { useState, useEffect } from 'react';
                         <div>
                             <Label htmlFor="audit_standard_id">İç Tetkik Standartı <span className="text-red-500">*</span></Label>
                             <Select value={formData.audit_standard_id} onValueChange={(v) => handleSelectChange('audit_standard_id', v)} required>
-                                <SelectTrigger><SelectValue placeholder="Standart seçin..." /></SelectTrigger>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={auditStandards.length === 0 ? "Standartlar yükleniyor..." : "Standart seçin..."} />
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {auditStandards.map((standard) => (
-                                        <SelectItem key={standard.id} value={standard.id}>
-                                            {standard.code} - {standard.name}
-                                        </SelectItem>
-                                    ))}
+                                    {auditStandards.length > 0 ? (
+                                        auditStandards.map((standard) => (
+                                            <SelectItem key={standard.id} value={standard.id}>
+                                                {standard.code} - {standard.name}
+                                            </SelectItem>
+                                        ))
+                                    ) : (
+                                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                            {auditStandards.length === 0 ? "Standart bulunamadı. Lütfen ayarlardan standart ekleyin." : "Standartlar yükleniyor..."}
+                                        </div>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>

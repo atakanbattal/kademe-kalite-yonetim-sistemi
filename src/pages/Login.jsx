@@ -25,17 +25,18 @@ const Login = () => {
     }
   }, [session, navigate, from]);
 
-  const handleLogin = async (e) => {
+    const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     if (!email || !password) {
+        setLoading(false);
         toast({
             variant: "destructive",
             title: "Hata",
             description: "E-posta ve şifre alanları zorunludur.",
+            duration: 5000,
         });
-        setLoading(false);
         return;
     }
     
@@ -48,39 +49,73 @@ const Login = () => {
         setLoading(false);
         // Kullanıcıya anlamlı hata mesajı göster
         let errorMessage = "Giriş başarısız. Lütfen bilgilerinizi kontrol edin.";
+        let errorTitle = "Giriş Başarısız";
         
         if (error.message) {
           if (error.message.includes("Invalid login credentials") || error.message.includes("invalid_credentials")) {
-            errorMessage = "Geçersiz kullanıcı adı veya şifre. Lütfen tekrar deneyin.";
+            errorTitle = "Geçersiz Bilgiler";
+            errorMessage = "Kullanıcı adı veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.";
           } else if (error.message.includes("Email not confirmed")) {
+            errorTitle = "E-posta Onayı Gerekli";
             errorMessage = "E-posta adresiniz henüz onaylanmamış. Lütfen e-postanızı kontrol edin.";
           } else if (error.message.includes("Too many requests")) {
-            errorMessage = "Çok fazla deneme yapıldı. Lütfen bir süre sonra tekrar deneyin.";
+            errorTitle = "Çok Fazla Deneme";
+            errorMessage = "Çok fazla giriş denemesi yapıldı. Lütfen birkaç dakika bekleyip tekrar deneyin.";
+          } else if (error.message.includes("fetch") || error.message.includes("network")) {
+            errorTitle = "Bağlantı Hatası";
+            errorMessage = "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.";
           } else {
             errorMessage = error.message;
           }
         }
         
+        // Hata mesajını göster
+        console.error('Login failed:', error);
         toast({
           variant: "destructive",
-          title: "Giriş Başarısız",
+          title: errorTitle,
           description: errorMessage,
+          duration: 6000,
         });
-      } else {
-        // Başarılı giriş - toast göster ve redirect için bekle
+        return;
+      }
+      
+      if (data?.session) {
+        // Başarılı giriş
         toast({
           title: "Giriş Başarılı!",
           description: "Kalite Yönetim Sistemine hoş geldiniz.",
+          duration: 3000,
         });
-        // Loading'i false yapma, useEffect session değiştiğinde redirect yapacak
         // Session state'i auth context'te güncellenecek ve useEffect tetiklenecek
+      } else {
+        // Session yoksa hata göster
+        setLoading(false);
+        toast({
+          variant: "destructive",
+          title: "Giriş Başarısız",
+          description: "Oturum oluşturulamadı. Lütfen tekrar deneyin.",
+          duration: 5000,
+        });
       }
     } catch (err) {
       setLoading(false);
+      console.error('Login error:', err);
+      
+      let errorMessage = "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.";
+      if (err.message) {
+        if (err.message.includes("fetch") || err.message.includes("network") || err.message.includes("Failed to fetch")) {
+          errorMessage = "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.";
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       toast({
         variant: "destructive",
-        title: "Hata",
-        description: "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
+        title: "Bağlantı Hatası",
+        description: errorMessage,
+        duration: 6000,
       });
     }
   };

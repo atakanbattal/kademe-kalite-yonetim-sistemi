@@ -75,9 +75,37 @@
         return result;
       }, []);
 
-      const signOut = useCallback(() => {
-        return supabase.auth.signOut();
-      }, []);
+      const signOut = useCallback(async () => {
+        console.log('🔐 SignOut başlatılıyor...');
+        try {
+            // Önce Supabase'den çıkış yap
+            const { error } = await supabase.auth.signOut({ scope: 'global' });
+            
+            if (error) {
+                console.error('Sign out error:', error);
+            }
+            
+            // Ardından state'i temizle
+            console.log('🔐 Session state temizleniyor...');
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            
+            // Manuel olarak login'e yönlendir
+            console.log('🔐 Login sayfasına yönlendiriliyor...');
+            navigate('/login', { replace: true });
+            
+            return { error: null };
+        } catch (error) {
+            console.error('Sign out error:', error);
+            // Hata durumunda da state'i temizle ve login'e yönlendir
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            navigate('/login', { replace: true });
+            return { error };
+        }
+      }, [navigate]);
 
       const value = useMemo(() => ({
         user,

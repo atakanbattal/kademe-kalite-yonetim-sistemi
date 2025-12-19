@@ -146,7 +146,9 @@ const NCFormGeneral = ({
         )
     }));
 
-    const personnelOptions = personnel.map(p => ({ value: p.full_name, label: p.full_name }));
+    const personnelOptions = (personnel || []).length > 0 
+        ? personnel.map(p => ({ value: p.full_name, label: p.full_name }))
+        : [];
 
     const handleRemoveExistingAttachment = (pathToRemove) => {
         setFormData(prev => ({
@@ -245,15 +247,22 @@ const NCFormGeneral = ({
             </div>
             <div>
                 <Label htmlFor="requesting_person">Talep Eden Kişi <span className="text-red-500">*</span></Label>
-                <SearchableSelectDialog
-                    options={personnelOptions}
-                    value={formData.requesting_person}
-                    onChange={(value) => handlePersonnelChange('requesting_person', value)}
-                    triggerPlaceholder="Talep eden kişiyi seçin..."
-                    dialogTitle="Talep Eden Seç"
-                    searchPlaceholder="Personel ara..."
-                    notFoundText="Personel bulunamadı."
-                />
+                {personnelOptions.length > 0 ? (
+                    <SearchableSelectDialog
+                        options={personnelOptions}
+                        value={formData.requesting_person}
+                        onChange={(value) => handlePersonnelChange('requesting_person', value)}
+                        triggerPlaceholder="Talep eden kişiyi seçin..."
+                        dialogTitle="Talep Eden Seç"
+                        searchPlaceholder="Personel ara..."
+                        notFoundText="Personel bulunamadı."
+                    />
+                ) : (
+                    <div className="flex items-center gap-2 p-2 border border-destructive/50 rounded-md bg-destructive/10">
+                        <AlertCircle className="w-4 h-4 text-destructive" />
+                        <span className="text-sm text-destructive">Personel listesi yükleniyor... Lütfen bekleyin.</span>
+                    </div>
+                )}
             </div>
             <div>
                 <Label htmlFor="requesting_unit">Talep Eden Birim</Label>
@@ -264,15 +273,22 @@ const NCFormGeneral = ({
                 <>
                     <div>
                         <Label htmlFor="responsible_person">Sorumlu Kişi <span className="text-red-500">*</span></Label>
-                        <SearchableSelectDialog
-                            options={personnelOptions}
-                            value={formData.responsible_person}
-                            onChange={(value) => handlePersonnelChange('responsible_person', value)}
-                            triggerPlaceholder="Sorumlu kişiyi seçin..."
-                            dialogTitle="Sorumlu Seç"
-                            searchPlaceholder="Personel ara..."
-                            notFoundText="Personel bulunamadı."
-                        />
+                        {personnelOptions.length > 0 ? (
+                            <SearchableSelectDialog
+                                options={personnelOptions}
+                                value={formData.responsible_person}
+                                onChange={(value) => handlePersonnelChange('responsible_person', value)}
+                                triggerPlaceholder="Sorumlu kişiyi seçin..."
+                                dialogTitle="Sorumlu Seç"
+                                searchPlaceholder="Personel ara..."
+                                notFoundText="Personel bulunamadı."
+                            />
+                        ) : (
+                            <div className="flex items-center gap-2 p-2 border border-destructive/50 rounded-md bg-destructive/10">
+                                <AlertCircle className="w-4 h-4 text-destructive" />
+                                <span className="text-sm text-destructive">Personel listesi yükleniyor... Lütfen bekleyin.</span>
+                            </div>
+                        )}
                     </div>
                      <div>
                         <Label htmlFor="department">İlgili Birim <span className="text-red-500">*</span></Label>

@@ -28,47 +28,94 @@ import React, { useState, useEffect } from 'react';
         
         const handleSubmit = async (e) => {
             e.preventDefault();
+            
+            // Personnel listesi kontrolü
+            if (personnel.length === 0 && !formData.is_supplier_nc) {
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Hata!', 
+                    description: 'Personel listesi henüz yüklenmedi. Lütfen birkaç saniye bekleyip tekrar deneyin.' 
+                });
+                return;
+            }
+            
             setIsSubmitting(true);
             
             let finalFormData = { ...formData };
 
             if (finalFormData.is_supplier_nc) {
                 if (!finalFormData.supplier_id) {
-                    toast({ variant: 'destructive', title: 'Hata!', description: 'Lütfen bir tedarikçi seçin.' });
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Hata!', 
+                        description: 'Lütfen bir tedarikçi seçin.' 
+                    });
                     setIsSubmitting(false);
                     return;
                 }
                 finalFormData.department = 'Tedarikçi';
                 finalFormData.responsible_person = null;
             } else {
-                 if (!finalFormData.department || !finalFormData.responsible_person) {
-                    toast({ variant: 'destructive', title: 'Hata!', description: 'Lütfen sorumlu kişi ve ilgili birimi seçin.' });
+                if (!finalFormData.department || !finalFormData.responsible_person) {
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Hata!', 
+                        description: 'Lütfen sorumlu kişi ve ilgili birimi seçin. Personel listesi yüklenmediyse lütfen bekleyin.' 
+                    });
                     setIsSubmitting(false);
                     return;
                 }
                 finalFormData.supplier_id = null;
             }
 
-            const { data, error } = await onSave(finalFormData, files);
-            
-            if (error) {
-                toast({ variant: 'destructive', title: 'Hata!', description: `Kayıt kaydedilemedi: ${error.message}` });
-            } else {
-                // Tekrarlayan problem kontrolü
-                if (data && data.is_major) {
+            try {
+                const { data, error } = await onSave(finalFormData, files);
+                
+                if (error) {
+                    console.error('❌ NC save error:', error);
                     toast({ 
                         variant: 'destructive', 
-                        title: '⚠️ Major Uygunsuzluk Tespit Edildi!', 
-                        description: 'Bu problem tekrarlayan bir problem olarak işaretlendi. Detaylı analiz yapılması önerilir.' 
+                        title: 'Hata!', 
+                        description: `Kayıt kaydedilemedi: ${error.message || 'Bilinmeyen hata'}`,
+                        duration: 5000,
                     });
+                } else if (data) {
+                    // Tekrarlayan problem kontrolü
+                    if (data.is_major) {
+                        toast({ 
+                            variant: 'destructive', 
+                            title: '⚠️ Major Uygunsuzluk Tespit Edildi!', 
+                            description: 'Bu problem tekrarlayan bir problem olarak işaretlendi. Detaylı analiz yapılması önerilir.',
+                            duration: 5000,
+                        });
+                    } else {
+                        toast({ 
+                            title: 'Başarılı!', 
+                            description: `Kayıt başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.`,
+                            duration: 3000,
+                        });
+                    }
+                    if(onSaveSuccess) onSaveSuccess(data);
+                    if (!isEditMode) clearDraft();
+                    setIsOpen(false);
                 } else {
-                    toast({ title: 'Başarılı!', description: `Kayıt başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.` });
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Hata!', 
+                        description: 'Kayıt kaydedilemedi: Veri alınamadı.' 
+                    });
                 }
-                if(onSaveSuccess) onSaveSuccess(data);
-                if (!isEditMode) clearDraft();
-                setIsOpen(false);
+            } catch (err) {
+                console.error('❌ handleSubmit error:', err);
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Hata!', 
+                    description: `Beklenmeyen bir hata oluştu: ${err.message || 'Lütfen tekrar deneyin.'}`,
+                    duration: 5000,
+                });
+            } finally {
+                setIsSubmitting(false);
             }
-            setIsSubmitting(false);
         };
 
         return (

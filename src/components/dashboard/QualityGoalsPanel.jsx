@@ -14,16 +14,41 @@ const QualityGoalsPanel = () => {
     useEffect(() => {
         const fetchQualityGoals = async () => {
             try {
+                // KPI tablosunda year kolonu olmayabilir, created_at üzerinden filtrele
+                const currentYear = new Date().getFullYear();
+                const startOfYear = `${currentYear}-01-01`;
+                const endOfYear = `${currentYear}-12-31`;
+                
                 const { data, error } = await supabase
-                    .from('quality_goals')
+                    .from('kpis')
                     .select('*')
-                    .eq('year', new Date().getFullYear())
+                    .gte('created_at', startOfYear)
+                    .lte('created_at', endOfYear)
                     .order('created_at', { ascending: false });
 
-                if (error) throw error;
-                setQualityGoals(data || []);
+                if (error) {
+                    // Tablo yoksa veya hata varsa sessizce devam et
+                    if (error.code === 'PGRST205' || error.code === '42P01' || error.code === '42703') {
+                        console.warn('Kalite hedefleri tablosu henüz oluşturulmamış veya kolon eksik');
+                        setQualityGoals([]);
+                        return;
+                    }
+                    throw error;
+                }
+                // KPI verilerini kalite hedefleri formatına dönüştür
+                const goals = (data || []).map(kpi => ({
+                    id: kpi.id,
+                    goal_name: kpi.name || kpi.metric_name || kpi.title,
+                    goal_type: kpi.type || kpi.metric_type || 'NC_COUNT',
+                    target_value: kpi.target_value || kpi.target || 0,
+                    target_direction: kpi.direction || kpi.trend_direction || 'decrease',
+                    unit: kpi.unit || '',
+                    year: currentYear
+                }));
+                setQualityGoals(goals);
             } catch (error) {
-                console.error('Kalite hedefleri yüklenemedi:', error);
+                console.warn('Kalite hedefleri yüklenemedi:', error.message);
+                setQualityGoals([]);
             }
         };
 

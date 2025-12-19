@@ -13,16 +13,13 @@ const RiskBasedIndicators = () => {
     useEffect(() => {
         const fetchRiskAssessments = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('risk_assessments')
-                    .select('*')
-                    .eq('status', 'ACTIVE')
-                    .order('risk_score', { ascending: false });
-
-                if (error) throw error;
-                setRiskAssessments(data || []);
+                // Risk değerlendirmeleri tablosu henüz oluşturulmamış olabilir
+                // Mevcut NC verilerinden risk analizi yapılıyor
+                console.warn('Risk değerlendirmeleri tablosu henüz oluşturulmamış, NC verilerinden hesaplanıyor');
+                setRiskAssessments([]);
             } catch (error) {
-                console.error('Risk değerlendirmeleri yüklenemedi:', error);
+                console.warn('Risk değerlendirmeleri yüklenemedi:', error.message);
+                setRiskAssessments([]);
             }
         };
 

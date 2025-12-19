@@ -1,0 +1,42 @@
+[
+  {
+    "id": "TC001",
+    "title": "authentication endpoint user login",
+    "description": "verify that the user can successfully log in using the authentication endpoint with valid credentials and receive appropriate session tokens."
+  },
+  {
+    "id": "TC002",
+    "title": "dashboard endpoint load statistics",
+    "description": "verify that the dashboard endpoint loads and returns the main panel statistics, including trend graphs and critical alerts."
+  },
+  {
+    "id": "TC003",
+    "title": "df8d management endpoint create nonconformity",
+    "description": "verify that the df8d management endpoint allows creating a nonconformity record and supports tracking of 8D problem-solving steps."
+  },
+  {
+    "id": "TC004",
+    "title": "supplier quality endpoint list suppliers",
+    "description": "verify that the supplier quality endpoint returns a list of suppliers with details and calculates ppm/otd metrics correctly."
+  },
+  {
+    "id": "TC005",
+    "title": "customer complaints endpoint create complaint",
+    "description": "verify that the customer complaints endpoint allows creating a complaint, tracks sla, and supports action plan creation."
+  },
+  {
+    "id": "TC006",
+    "title": "internal audit endpoint create audit",
+    "description": "verify that the internal audit endpoint allows creating an audit, recording findings, and using the question bank."
+  },
+  {
+    "id": "TC007",
+    "title": "quality cost management endpoint create cost record",
+    "description": "verify that the quality cost management endpoint allows creating cost records and viewing copq analysis."
+  },
+  {
+    "id": "TC008",
+    "title": "other modules endpoint navigation and crud",
+    "description": "verify that the other modules endpoints support navigation, successful crud operations, and form validations."
+  }
+]

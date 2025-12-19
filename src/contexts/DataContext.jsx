@@ -102,7 +102,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 taskTags: supabase.from('task_tags').select('*'),
                 characteristics: supabase.from('characteristics').select('id, name, type, sampling_rate'),
                 equipment: supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true }),
-                standards: supabase.from('tolerance_standards').select('id, name'),
+                standards: supabase.from('audit_standards').select('id, code, name'),
                 customers: supabase.from('customers').select('*').order('name'),
                 products: supabase.from('products').select('*, product_categories(category_code, category_name)').eq('is_active', true).order('product_name'),
                 productCategories: supabase.from('product_categories').select('*').eq('is_active', true).order('order_index'),
@@ -218,7 +218,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                         } else if (key === 'equipment' && result.value.data) {
                             newState[key] = result.value.data.map(e => ({ value: e.id, label: e.name }));
                         } else if (key === 'standards' && result.value.data) {
-                            newState[key] = result.value.data.map(s => ({ value: s.id, label: s.name }));
+                            newState[key] = result.value.data.map(s => ({ value: s.id, label: s.name || s.code, id: s.id, name: s.name, code: s.code }));
                         } else if (key === 'products' && result.value.data) {
                             // Products'ı kategoriye göre grupla ve transform et
                             newState[key] = result.value.data.map(p => ({
@@ -231,7 +231,15 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                             newState[key] = result.value.data || [];
                         }
                     } else {
-                        console.warn(`⚠️ ${key} fetch failed:`, result.reason || result.value?.error);
+                        const error = result.reason || result.value?.error;
+                        // Sessiz hata - console'a yaz ama toast gösterme
+                        console.warn(`⚠️ ${key} fetch failed:`, error);
+                        
+                        // Tablo bulunamadı hatası - bu normal olabilir
+                        if (error?.code === 'PGRST205' || error?.code === '42P01') {
+                            console.warn(`⚠️ ${key} tablosu henüz oluşturulmamış`);
+                        }
+                        
                         newState[key] = [];
                     }
                 });
@@ -333,12 +341,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             } catch (error) {
                 console.error("💥 General fetch error:", error);
                 // Ağ hatasıysa, kullanıcıya bildir
-                if (error instanceof TypeError && error.message.includes('fetch')) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Bağlantı Hatası',
-                        description: 'İnternet bağlantınızı kontrol edin.',
-                    });
+                if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+                    console.warn('⚠️ Network error during data fetch - will retry on next navigation');
+                    // Toast yerine sessiz hata - sürekli toast göstermek UX'i bozar
                 }
             } finally {
                 fetchInProgress.current = false;

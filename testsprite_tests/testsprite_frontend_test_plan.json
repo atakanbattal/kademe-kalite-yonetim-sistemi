@@ -1,0 +1,632 @@
+[
+  {
+    "id": "TC001",
+    "title": "Successful user login with correct credentials",
+    "description": "Verify that a user can log in successfully using valid username/email and password through Supabase Auth.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid username/email and password"
+      },
+      {
+        "type": "action",
+        "description": "Click on the login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that login is successful and user is redirected to the dashboard"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Prevent login with invalid credentials",
+    "description": "Verify that login fails when incorrect username/email or password is provided and appropriate error message appears.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid username/email or password"
+      },
+      {
+        "type": "action",
+        "description": "Click on the login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that login is rejected and an error message is displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Session management maintains user login state",
+    "description": "Verify the session remains active during user inactivity and user is logged out or session expired after timeout.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in with valid credentials"
+      },
+      {
+        "type": "action",
+        "description": "Remain idle for a time less than session timeout"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the session is still active and user can continue interacting"
+      },
+      {
+        "type": "action",
+        "description": "Remain idle beyond session timeout period"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the session is expired and user is logged out or prompted to log in again"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Unauthorized access to protected pages is blocked",
+    "description": "Verify that unauthorized users cannot access pages or modules without sufficient permissions and are redirected appropriately.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a user without permissions for a specific module/page"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to navigate directly to the unauthorized page URL"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied and user is redirected to an error page or dashboard"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Dashboard loads correctly and displays statistics",
+    "description": "Verify that the dashboard page loads fully with all statistics, trend graphs, drill-down analyses and critical alerts rendered correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in successfully"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the dashboard page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dashboard statistics are displayed with correct data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify trend graphs render with data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify drill-down analysis features respond on interaction"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify critical alerts are displayed if applicable"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Create a nonconformity record successfully in DF/8D module",
+    "description": "Verify that users can create new nonconformity records with valid data, including use of analysis templates and progression through 8D steps.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in and navigate to DF/8D Management module"
+      },
+      {
+        "type": "action",
+        "description": "Start creating a new nonconformity record"
+      },
+      {
+        "type": "action",
+        "description": "Fill all required fields with valid data"
+      },
+      {
+        "type": "action",
+        "description": "Use available analysis templates to complete the record"
+      },
+      {
+        "type": "action",
+        "description": "Progress through the 8D problem solving steps"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify record is saved and visible in the list with all data correctly stored"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Verify supplier list and details loading in Supplier Quality module",
+    "description": "Ensure supplier list loads with all entries and users can view detailed supplier information including calculated PPM/OTD metrics.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Supplier Quality module"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the supplier list is loaded and displayed"
+      },
+      {
+        "type": "action",
+        "description": "Select a supplier from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the supplier detail page loads showing supplier info and calculated PPM and OTD values"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Customer complaint creation and SLA tracking",
+    "description": "Verify users can create new customer complaints, SLA deadlines are set and tracked properly, and users can create action plans linked to complaints.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Customer Complaints module"
+      },
+      {
+        "type": "action",
+        "description": "Create a new complaint with valid data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify complaint is saved successfully"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify SLA tracking status and deadlines are displayed for newly created complaint"
+      },
+      {
+        "type": "action",
+        "description": "Create action plans linked to this complaint"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify action plans are saved and linked correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Internal audit creation and observation recording",
+    "description": "Verify users can create audit plans, record findings for audits, and utilize the question bank effectively during inspections.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Internal Audit module"
+      },
+      {
+        "type": "action",
+        "description": "Create a new audit plan"
+      },
+      {
+        "type": "action",
+        "description": "During audit, record findings and observations"
+      },
+      {
+        "type": "action",
+        "description": "Use questions from the question bank in audit checklist"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify audit plan, findings, and questions are saved and displayed correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Quality cost records creation and COPQ analysis visualization",
+    "description": "Verify users can create quality cost records, these records are stored, and COPQ analysis reports are generated and displayed properly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Quality Cost Management module"
+      },
+      {
+        "type": "action",
+        "description": "Create new cost records with valid data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify cost records are saved and visible"
+      },
+      {
+        "type": "action",
+        "description": "Generate COPQ analysis report"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify COPQ analysis data and visualization is displayed correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Navigation across different modules functions correctly",
+    "description": "Verify users can navigate between all listed modules seamlessly and the UI updates accordingly without errors.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in to the system"
+      },
+      {
+        "type": "action",
+        "description": "Navigate sequentially through each module (DF/8D, Supplier Quality, Customer Complaints, Internal Audit, Quality Cost, Other Modules)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that each module page loads correctly with its contents"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "CRUD operations on standard forms in other modules",
+    "description": "Verify Create, Read, Update, and Delete operations work correctly on forms in modules such as Quarantine, Deviation, Equipment, Document, KPI, Kaizen, Task, Training, Polyvalence, Benchmark, Process Control, Incoming Quality, Produced Vehicles, WPS, Audit Log, Cost Settings.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to a given module (e.g., Equipment)"
+      },
+      {
+        "type": "action",
+        "description": "Create a new record with valid inputs"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify new record is saved and displayed in list"
+      },
+      {
+        "type": "action",
+        "description": "Edit existing record with new data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify record updates are saved and reflected"
+      },
+      {
+        "type": "action",
+        "description": "Delete the record"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify record is removed from the system"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Form validation enforces required fields and input formats",
+    "description": "Verify that forms across the system correctly validate required fields, input types, and show error messages for invalid or missing data.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to a form page in any module"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to submit the form with empty required fields"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that appropriate error messages are displayed and form is not submitted"
+      },
+      {
+        "type": "action",
+        "description": "Fill fields with invalid formats (e.g. invalid dates, numbers, emails)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation errors are shown for invalid inputs"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Modal and dialog UI components open, function and close correctly",
+    "description": "Verify that modal dialogs used in CRUD forms or warnings open on trigger, accept user input, and close properly.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Trigger opening of a modal in any module"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify modal content renders correctly"
+      },
+      {
+        "type": "action",
+        "description": "Interact with form elements inside modal"
+      },
+      {
+        "type": "action",
+        "description": "Close modal using cancel or close icon"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify modal is closed and underlying page returns to normal"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Generate and download PDF reports successfully",
+    "description": "Verify that reports can be generated in PDF format from the system and the PDF file downloads with correct content.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to a report generation page (e.g., DF/8D summary, COPQ analysis)"
+      },
+      {
+        "type": "action",
+        "description": "Trigger report generation with valid filters"
+      },
+      {
+        "type": "action",
+        "description": "Click the download or export PDF button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that PDF file is downloaded and contains the expected report data"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Responsive design adapts UI correctly on different screen sizes",
+    "description": "Verify UI components and layouts adapt properly on different viewport sizes from desktop to mobile resolutions.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the Kademe QMS application on desktop viewport"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the layout is correct and no elements are broken or overlapping"
+      },
+      {
+        "type": "action",
+        "description": "Resize window or emulate tablet/mobile screen sizes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the UI adapts properly with navigational menus, content, and buttons visible and usable"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Backend API endpoints respond correctly to valid and invalid requests",
+    "description": "Test key API endpoints with valid inputs return correct data, and invalid inputs cause proper error responses with informative messages.",
+    "category": "backend",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send valid request to authentication/login API"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify API returns success with user session data"
+      },
+      {
+        "type": "action",
+        "description": "Send invalid or malformed request to same API"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify API returns error response with details"
+      },
+      {
+        "type": "action",
+        "description": "Send valid requests to CRUD APIs for DF/8D or Supplier Quality with valid payloads"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify data is created, updated, or deleted appropriately"
+      },
+      {
+        "type": "action",
+        "description": "Send unauthorized requests without valid auth token"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify API rejects requests with authentication errors"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Database operations enforce Row Level Security (RLS) policies correctly",
+    "description": "Verify backend database enforces RLS policies so users can only access data according to their permissions.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a user with limited permissions"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to query data outside user's permission scope via API or DB"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that data outside scope is not accessible"
+      },
+      {
+        "type": "action",
+        "description": "Access data within allowed scope"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify data is accessible as expected"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "RPC functions respond accurately to various scenarios",
+    "description": "Test remote procedure calls for calculations such as PPM/OTD, report aggregations, and verify outputs are correct based on input data.",
+    "category": "backend",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Call RPC function for PPM calculation with valid data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify correct calculation value and response"
+      },
+      {
+        "type": "action",
+        "description": "Call RPC function with edge case or missing data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify RPC handles gracefully or returns understandable error"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Storage operations manage uploads and downloads successfully",
+    "description": "Verify file storage functionality including uploading documents, images or reports and successfully retrieving or downloading them.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to a module that allows document upload (e.g., Document module)"
+      },
+      {
+        "type": "action",
+        "description": "Upload valid file(s)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify upload is successful and file is listed"
+      },
+      {
+        "type": "action",
+        "description": "Download previously uploaded file"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify file downloads correctly and is not corrupted"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Backend error handling returns proper messages and does not crash system",
+    "description": "Verify that backend gracefully handles unexpected errors in APIs or database without crashing, and provides meaningful error messages to the frontend.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Trigger backend error scenarios like invalid parameters, database constraint violation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify API returns proper error responses with HTTP status codes and error message body"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify frontend handles error response gracefully without crashing"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "User scenario: Full flow from login to dashboard and module record creation",
+    "description": "Simulate a typical user journey starting from login, navigating dashboard, accessing a module, creating a record, and logging out to validate end-to-end integration.",
+    "category": "integration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in with valid user credentials"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify redirection to dashboard with statistics and graphs"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to DF/8D Management module"
+      },
+      {
+        "type": "action",
+        "description": "Create a new nonconformity record"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify record creation success message and visibility in list"
+      },
+      {
+        "type": "action",
+        "description": "Log out from the system"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user is redirected to login page and session invalidated"
+      }
+    ]
+  }
+]

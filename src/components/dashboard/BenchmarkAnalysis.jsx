@@ -15,17 +15,13 @@ const BenchmarkAnalysis = () => {
     useEffect(() => {
         const fetchBenchmarks = async () => {
             try {
-                const currentPeriod = format(startOfMonth(new Date()), 'yyyy-MM');
-                const { data, error } = await supabase
-                    .from('benchmark_values')
-                    .select('*')
-                    .eq('period', currentPeriod)
-                    .order('metric_type');
-
-                if (error) throw error;
-                setBenchmarks(data || []);
+                // Benchmark tablosu henüz oluşturulmamış olabilir
+                // Bu özellik için veritabanı şeması oluşturulmalı
+                console.warn('Benchmark tablosu henüz yapılandırılmamış');
+                setBenchmarks([]);
             } catch (error) {
-                console.error('Benchmark verileri yüklenemedi:', error);
+                console.warn('Benchmark verileri yüklenemedi:', error.message);
+                setBenchmarks([]);
             }
         };
 

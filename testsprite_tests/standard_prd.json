@@ -1,0 +1,112 @@
+{
+  "projectName": "Kademe QMS",
+  "version": "2.0",
+  "description": "Kapsamlı kalite yönetim sistemi - 20+ modül ile kalite süreçlerini yönetir",
+  "techStack": {
+    "frontend": "React 18.x + Vite",
+    "backend": "Supabase (PostgreSQL + Auth + Storage)",
+    "ui": "Radix UI + Tailwind CSS",
+    "port": 3001
+  },
+  "features": [
+    {
+      "name": "Authentication & Authorization",
+      "description": "Supabase Auth ile kullanıcı girişi, permission-based modül erişimi, session yönetimi",
+      "testScenarios": [
+        "Kullanıcı girişi yapabilmeli",
+        "Session yönetimi çalışmalı",
+        "Yetkisiz sayfalara erişim engellenmeli"
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Ana panel istatistikleri, drill-down analizleri, trend grafikleri, kritik uyarılar",
+      "testScenarios": [
+        "Dashboard yüklenmeli",
+        "İstatistikler görüntülenmeli",
+        "Grafikler render edilmeli"
+      ]
+    },
+    {
+      "name": "DF/8D Management",
+      "description": "Uygunsuzluk kayıtları, 8D problem çözme süreci, analiz şablonları, revizyon takibi",
+      "testScenarios": [
+        "Uygunsuzluk oluşturulabilmeli",
+        "8D adımları takip edilebilmeli",
+        "Analiz şablonları kullanılabilmeli"
+      ]
+    },
+    {
+      "name": "Supplier Quality",
+      "description": "Tedarikçi yönetimi, PPM/OTD hesaplama, tedarikçi denetimleri, tedarikçi portalı",
+      "testScenarios": [
+        "Tedarikçi listesi görüntülenebilmeli",
+        "Tedarikçi detayları görüntülenebilmeli",
+        "PPM/OTD hesaplamaları çalışmalı"
+      ]
+    },
+    {
+      "name": "Customer Complaints",
+      "description": "Müşteri şikayetleri yönetimi, SLA takibi, kök neden analizleri, aksiyon planları",
+      "testScenarios": [
+        "Şikayet oluşturulabilmeli",
+        "SLA takibi çalışmalı",
+        "Aksiyon planları oluşturulabilmeli"
+      ]
+    },
+    {
+      "name": "Internal Audit",
+      "description": "İç tetkik yönetimi, denetim planları, bulgu takibi, soru bankası",
+      "testScenarios": [
+        "Denetim oluşturulabilmeli",
+        "Bulgular kaydedilebilmeli",
+        "Soru bankası kullanılabilmeli"
+      ]
+    },
+    {
+      "name": "Quality Cost Management",
+      "description": "Kalitesizlik maliyetleri, COPQ analizi, maliyet takibi",
+      "testScenarios": [
+        "Maliyet kayıtları oluşturulabilmeli",
+        "COPQ analizi görüntülenebilmeli"
+      ]
+    },
+    {
+      "name": "Other Modules",
+      "description": "Quarantine, Deviation, Equipment, Document, KPI, Kaizen, Task, Training, Polyvalence, Benchmark, Process Control, Incoming Quality, Produced Vehicles, WPS, Audit Log, Cost Settings",
+      "testScenarios": [
+        "Modüller arasında navigasyon çalışmalı",
+        "CRUD işlemleri başarılı olmalı",
+        "Form validasyonları çalışmalı"
+      ]
+    }
+  ],
+  "testRequirements": {
+    "frontend": [
+      "Authentication flow",
+      "Navigation",
+      "CRUD işlemleri",
+      "Form validasyonları",
+      "Modal ve dialog'lar",
+      "PDF generation",
+      "Responsive design"
+    ],
+    "backend": [
+      "API endpoints",
+      "Database operations",
+      "RLS policies",
+      "RPC functions",
+      "Storage operations",
+      "Error handling"
+    ]
+  },
+  "userScenarios": [
+    "Kullanıcı giriş yapar",
+    "Dashboard'u görüntüler",
+    "Modüller arasında gezinir",
+    "Kayıt oluşturur/düzenler/siler",
+    "Raporlar oluşturur",
+    "PDF indirir"
+  ]
+}
+

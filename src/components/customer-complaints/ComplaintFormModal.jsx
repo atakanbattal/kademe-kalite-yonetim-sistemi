@@ -185,16 +185,22 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
 
             toast({
                 title: 'Başarılı!',
-                description: `Şikayet başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.`
+                description: `Şikayet başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.`,
+                duration: 3000,
             });
 
-            onSuccess();
+            // Modal'ı kapat ve callback'i çağır
+            setOpen(false);
+            if (onSuccess) {
+                onSuccess(result.data);
+            }
         } catch (error) {
-            console.error('Complaint save error:', error);
+            console.error('❌ Complaint save error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata!',
-                description: `Şikayet ${isEditMode ? 'güncellenemedi' : 'oluşturulamadı'}: ${error.message}`
+                description: `Şikayet ${isEditMode ? 'güncellenemedi' : 'oluşturulamadı'}: ${error.message || 'Bilinmeyen hata'}`,
+                duration: 5000,
             });
         } finally {
             setIsSubmitting(false);
@@ -203,10 +209,10 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
 
     // Seçenekleri hazırla
     const customerOptions = (customers || [])
-        .filter(c => c.is_active)
+        .filter(c => c.is_active !== false) // is_active undefined veya true ise göster
         .map(c => ({ 
             value: c.id, 
-            label: `${c.name || c.customer_name} (${c.customer_code || ''})` 
+            label: `${c.name || c.customer_name || 'İsimsiz Müşteri'} ${c.customer_code ? `(${c.customer_code})` : ''}`.trim()
         }));
 
     const personnelOptions = (personnel || [])
