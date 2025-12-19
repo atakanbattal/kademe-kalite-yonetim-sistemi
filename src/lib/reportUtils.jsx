@@ -1560,6 +1560,9 @@ const generateGenericReportHtml = (record, type) => {
 					// Önce Türkçe karakterleri normalize et
 					text = normalizeTurkishCharsDeviation(text);
 					
+					// Escape edilmiş \n karakterlerini gerçek \n karakterlerine çevir
+					text = text.replace(/\\n/g, '\n');
+					
 					// HTML escape yap
 					let escaped = escapeHtmlDeviation(text);
 					
