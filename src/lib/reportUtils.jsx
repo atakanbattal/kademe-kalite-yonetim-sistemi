@@ -1860,6 +1860,32 @@ const generateGenericReportHtml = (record, type) => {
 							continue;
 						}
 						
+						// Ölçüm sonucu başlığı tespiti: "1. Minör Özellik (ölçüm 1/1):" gibi
+						const measurementHeadingMatch = trimmedLine.match(/^(\d+\.\s+[^:]+(?:\([^)]+\))?):\s*$/);
+						if (measurementHeadingMatch) {
+							if (inSection) {
+								formattedLines.push('</div>');
+								inSection = false;
+							}
+							formattedLines.push(`<div style="margin-top: 8px; margin-bottom: 4px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${measurementHeadingMatch[1]}</strong></div>`);
+							inSection = true;
+							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+							continue;
+						}
+						
+						// Ölçüm detay başlığı tespiti: "Beklenen Değer (nominal):", "Tolerans Aralığı:", vb.
+						const measurementDetailMatch = trimmedLine.match(/^(Beklenen Değer|Tolerans Aralığı|Gerçek Ölçülen Değer|Sonuç)(\s*\([^)]+\))?:\s*(.*)$/i);
+						if (measurementDetailMatch) {
+							if (!inSection) {
+								inSection = true;
+								formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+							}
+							const detailTitle = measurementDetailMatch[1] + (measurementDetailMatch[2] || '');
+							const detailValue = measurementDetailMatch[3] || '';
+							formattedLines.push(`<div style="margin-left: 16px; margin-bottom: 3px; line-height: 1.6;"><strong style="font-weight: 500; font-size: 12px; color: #4b5563;">${detailTitle}:</strong> <span style="color: #374151; font-size: 12px;">${detailValue}</span></div>`);
+							continue;
+						}
+						
 						// Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
 						const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
 						if (listMatch) {
