@@ -54,7 +54,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
         // Önce literal \\n karakterlerini gerçek satır sonlarına çevir (veritabanından gelen)
         let processedText = text.replace(/\\n/g, '\n');
         
-        // Bilinen bölüm başlıkları (ayırıcı olarak kullanılacak)
+        // Bilinen bölüm başlıkları
         const sectionHeadings = [
             'Ölçüm Sonuçlari Ve Tespi̇tler',
             'Ölçüm Sonuçları Ve Tespitler',
@@ -68,272 +68,196 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             'Hata Detayları',
         ];
         
-        // Bilinen key-value çiftleri
-        const keyValuePatterns = [
+        // Tüm key-value anahtarları (sıralı - uzundan kısaya)
+        const allKeys = [
+            'Beklenen Değer \\(nominal\\)',
+            'Şartlı Kabul Miktarı',
+            'Gerçek Ölçülen Değer',
+            'Toplam Ölçüm Sayısı',
+            'Red Edilen Miktar',
+            'Uygunsuz Ölçümler',
+            'Tolerans Aralığı',
+            'Beklenen Değer',
+            'Uygun Ölçümler',
+            'Teslimat No',
             'Parça Kodu',
             'Parça Adı',
-            'Red Edilen Miktar',
-            'Şartlı Kabul Miktarı',
             'Tedarikçi',
-            'Karar',
-            'Teslimat No',
-            'Toplam Ölçüm Sayısı',
-            'Uygun Ölçümler',
-            'Uygunsuz Ölçümler',
             'Ret Oranı',
-            'Beklenen Değer \\(nominal\\)',
-            'Tolerans Aralığı',
-            'Gerçek Ölçülen Değer',
+            'Karar',
             'Sonuç',
         ];
         
-        // Ana başlık pattern'leri
-        const mainHeadingPatterns = [
-            /^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i
-        ];
-        
-        // Numaralı ölçüm pattern'i
-        const numberedMeasurementPattern = /\d+\.\s+(Minör|Kritik|Majör)\s+Özellik\s*\(ölçüm\s*\d+\/\d+\)/i;
-        
-        // Metni önce satırlara böl
-        let lines = processedText.split('\n').filter(line => line.trim() !== '');
-        
-        // Tüm satırları işle ve daha fazla parçalara ayır
-        const processedLines = [];
-        
-        for (const line of lines) {
-            let currentLine = line.trim();
-            if (!currentLine) continue;
-            
-            // Numaralı ölçümleri ayır (1. Minör Özellik... 2. Minör Özellik...)
-            const numberedParts = currentLine.split(/(?=\d+\.\s+(Minör|Kritik|Majör)\s+Özellik)/i);
-            
-            for (let part of numberedParts) {
-                part = part.trim();
-                if (!part) continue;
-                
-                // Bölüm başlıklarını ayır
-                for (const heading of sectionHeadings) {
-                    const headingRegex = new RegExp(`(${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:?)`, 'gi');
-                    if (headingRegex.test(part)) {
-                        const splitByHeading = part.split(headingRegex);
-                        if (splitByHeading.length > 1) {
-                            for (const subPart of splitByHeading) {
-                                const trimmed = subPart.trim();
-                                if (trimmed) {
-                                    processedLines.push(trimmed);
-                                }
-                            }
-                            part = '';
-                            break;
-                        }
-                    }
-                }
-                
-                if (part) {
-                    // Key-value çiftlerini ayır
-                    let hasKeyValue = false;
-                    for (const keyPattern of keyValuePatterns) {
-                        const kvRegex = new RegExp(`(?<=\\s|^)(${keyPattern}):`, 'gi');
-                        if (kvRegex.test(part)) {
-                            // Birden fazla key-value varsa ayır
-                            const splitPattern = new RegExp(`\\s+(?=${keyValuePatterns.join('|')}):`, 'gi');
-                            const kvParts = part.split(splitPattern);
-                            if (kvParts.length > 1) {
-                                for (const kvPart of kvParts) {
-                                    const trimmed = kvPart.trim();
-                                    if (trimmed) {
-                                        processedLines.push(trimmed);
-                                    }
-                                }
-                                hasKeyValue = true;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (!hasKeyValue) {
-                        processedLines.push(part);
-                    }
-                }
-            }
-        }
-        
-        // Eğer hala tek satır veya az satır varsa, daha agresif ayırma yap
-        if (processedLines.length <= 3 && processedText.length > 200) {
-            const aggressiveLines = [];
-            const combinedText = processedText;
-            
-            // Key-value çiftlerini regex ile bul ve ayır
-            const kvRegex = /(Parça Kodu|Parça Adı|Red Edilen Miktar|Şartlı Kabul Miktarı|Tedarikçi|Karar|Teslimat No|Toplam Ölçüm Sayısı|Uygun Ölçümler|Uygunsuz Ölçümler|Ret Oranı|Beklenen Değer[^:]*|Tolerans Aralığı|Gerçek Ölçülen Değer|Sonuç):\s*([^\n]*?)(?=\s+(?:Parça Kodu|Parça Adı|Red Edilen Miktar|Şartlı Kabul Miktarı|Tedarikçi|Karar|Teslimat No|Ölçüm|Toplam|Uygun|Uygunsuz|Ret Oranı|Beklenen|Tolerans|Gerçek|Sonuç|Bu Parça|\d+\.\s+(?:Minör|Kritik|Majör))|$)/gi;
+        // Tüm metni parçalara ayır
+        const parseText = (inputText) => {
+            const result = [];
+            let remaining = inputText.trim();
             
             // Ana başlığı bul
-            const mainHeadingMatch = combinedText.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
+            const mainHeadingMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
             if (mainHeadingMatch) {
-                aggressiveLines.push(mainHeadingMatch[0]);
+                result.push({ type: 'main-heading', content: mainHeadingMatch[0] });
+                remaining = remaining.substring(mainHeadingMatch[0].length).trim();
             }
             
-            // Key-value çiftlerini bul
-            const kvMatches = [...combinedText.matchAll(kvRegex)];
-            for (const match of kvMatches) {
-                aggressiveLines.push(`${match[1]}: ${match[2].trim()}`);
-            }
+            // Key pattern'i oluştur
+            const keyPattern = allKeys.join('|').replace(/\\\(/g, '\\(').replace(/\\\)/g, '\\)');
             
-            // Bölüm başlıklarını bul
-            for (const heading of sectionHeadings) {
-                const headingRegex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                if (headingRegex.test(combinedText)) {
-                    aggressiveLines.push(heading + ':');
-                }
-            }
-            
-            // Numaralı ölçümleri bul
-            const measurementRegex = /(\d+)\.\s+(Minör|Kritik|Majör)\s+Özellik\s*\(ölçüm\s*\d+\/\d+\):[^]*?(?=\d+\.\s+(?:Minör|Kritik|Majör)|Ölçüm Özeti|Bu Parça|$)/gi;
-            const measurementMatches = [...combinedText.matchAll(measurementRegex)];
-            for (const match of measurementMatches) {
-                aggressiveLines.push(match[0].trim());
-            }
-            
-            // "Bu Parça İçin Sapma" cümlesini bul
-            const endMatch = combinedText.match(/Bu Parça\s+[İI]çin\s+Sapma[^.]*\./i);
-            if (endMatch) {
-                aggressiveLines.push(endMatch[0]);
-            }
-            
-            if (aggressiveLines.length > processedLines.length) {
-                lines = aggressiveLines;
-            } else {
-                lines = processedLines;
-            }
-        } else {
-            lines = processedLines;
-        }
-        
-        return lines.map((line, idx) => {
-            const trimmedLine = line.trim();
-            
-            // Ana başlık: "Girdi Kalite Kontrol Kaydı (25/12/077)"
-            if (/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i.test(trimmedLine)) {
-                return (
-                    <div key={idx} className="text-base font-bold text-primary mb-3 pb-2 border-b border-primary/30">
-                        {trimmedLine}
-                    </div>
-                );
-            }
-            
-            // Büyük bölüm başlıkları: "ÖLÇÜM SONUÇLARI VE TESPİTLER:", "Ölçüm Özeti:" vb.
-            if (sectionHeadings.some(h => trimmedLine.toLowerCase().includes(h.toLowerCase()))) {
-                return (
-                    <div key={idx} className="text-sm font-bold text-foreground mt-4 mb-2 bg-muted/50 px-3 py-2 rounded-md uppercase">
-                        {trimmedLine}
-                    </div>
-                );
-            }
-            
-            // * ile başlayan maddeler
-            if (/^\*\s+/.test(trimmedLine)) {
-                return (
-                    <div key={idx} className="text-sm text-foreground pl-4 py-1 flex items-start gap-2">
-                        <span className="text-primary">•</span>
-                        <span>{trimmedLine.substring(1).trim()}</span>
-                    </div>
-                );
-            }
-            
-            // Numaralı ölçüm öğeleri: "1. Minör Özellik (ölçüm 1/1):" 
-            if (/^\d+\.\s+(Minör|Kritik|Majör)\s+Özellik/i.test(trimmedLine)) {
-                // İçindeki detayları ayır
-                const mainMatch = trimmedLine.match(/^(\d+\.\s+(Minör|Kritik|Majör)\s+Özellik\s*\([^)]+\):?)/i);
-                const mainPart = mainMatch ? mainMatch[1] : trimmedLine;
-                const restPart = mainMatch ? trimmedLine.substring(mainMatch[0].length).trim() : '';
+            // Tüm key:value çiftlerini ve bölüm başlıklarını bul
+            let safetyCounter = 0;
+            while (remaining.length > 0 && safetyCounter < 100) {
+                safetyCounter++;
+                let matched = false;
                 
-                // Detayları parse et
-                const details = [];
-                if (restPart) {
-                    const detailRegex = /(Beklenen Değer[^:]*|Tolerans Aralığı|Gerçek Ölçülen Değer|Sonuç):\s*([^]*?)(?=\s+(?:Beklenen|Tolerans|Gerçek|Sonuç)|$)/gi;
-                    const detailMatches = [...restPart.matchAll(detailRegex)];
-                    for (const dm of detailMatches) {
-                        details.push({ key: dm[1], value: dm[2].trim() });
+                // Bölüm başlığını kontrol et
+                for (const heading of sectionHeadings) {
+                    const headingRegex = new RegExp(`^(${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:?)\\s*`, 'i');
+                    const headingMatch = remaining.match(headingRegex);
+                    if (headingMatch) {
+                        result.push({ type: 'section-heading', content: headingMatch[1] });
+                        remaining = remaining.substring(headingMatch[0].length).trim();
+                        matched = true;
+                        break;
                     }
                 }
+                if (matched) continue;
                 
-                return (
-                    <div key={idx} className="mt-3 mb-1 bg-destructive/5 rounded-lg p-3 border-l-4 border-destructive/50">
-                        <div className="text-sm font-semibold text-foreground">
-                            {mainPart}
-                        </div>
-                        {details.length > 0 ? (
-                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-1 text-xs">
-                                {details.map((detail, dIdx) => (
-                                    <div key={`${idx}-${dIdx}`} className="flex gap-2">
-                                        <span className="text-muted-foreground font-medium">{detail.key}:</span>
-                                        <span className={detail.key.toLowerCase().includes('sonuç') && detail.value.toLowerCase() === 'false' ? 'text-destructive font-semibold' : 'text-foreground'}>
-                                            {detail.value}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : restPart && (
-                            <div className="text-xs text-muted-foreground mt-1 pl-4">
-                                {restPart}
-                            </div>
-                        )}
-                    </div>
-                );
-            }
-            
-            // Diğer numaralı liste öğeleri: "1. Dış Cap..."
-            if (/^\d+\.\s+[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(trimmedLine)) {
-                return (
-                    <div key={idx} className="text-sm text-foreground mt-2 pl-2 border-l-2 border-primary/50 py-1">
-                        {trimmedLine}
-                    </div>
-                );
-            }
-            
-            // "Bu Parça İçin Sapma Onayı" gibi son cümleler
-            if (/^Bu Parça/i.test(trimmedLine)) {
-                return (
-                    <div key={idx} className="text-sm font-medium text-primary mt-4 pt-2 border-t border-border">
-                        {trimmedLine}
-                    </div>
-                );
-            }
-            
-            // Key-value çiftleri: "Parça Kodu: 37-5000182657"
-            const keyValueMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜa-zçğıöşü][A-ZÇĞİÖŞÜa-zçğıöşü\s/()]+):\s*(.+)$/);
-            if (keyValueMatch) {
-                const key = keyValueMatch[1].trim();
-                let value = keyValueMatch[2].trim();
-                
-                // N/A yerine daha anlamlı metin
-                if (value.toLowerCase() === 'n/a' || value.toLowerCase() === 'n/a adet') {
-                    value = 'Belirtilmemiş';
+                // Numaralı ölçüm öğesini kontrol et (1. Minör Özellik...)
+                const measurementMatch = remaining.match(/^(\d+\.\s+(Minör|Kritik|Majör)\s+Özellik\s*\([^)]+\):?)\s*/i);
+                if (measurementMatch) {
+                    result.push({ type: 'measurement-heading', content: measurementMatch[1] });
+                    remaining = remaining.substring(measurementMatch[0].length).trim();
+                    continue;
                 }
                 
-                return (
-                    <div key={idx} className="flex flex-wrap gap-2 text-sm py-1">
-                        <span className="font-medium text-muted-foreground min-w-[160px]">{key}:</span>
-                        <span className="text-foreground">{value}</span>
-                    </div>
-                );
+                // * ile başlayan maddeyi kontrol et
+                const bulletMatch = remaining.match(/^\*\s+([^*]+?)(?=\s+\*\s+|\s+(?:Parça|Tedarikçi|Karar|Bu Parça)|$)/i);
+                if (bulletMatch) {
+                    result.push({ type: 'bullet', content: bulletMatch[1].trim() });
+                    remaining = remaining.substring(bulletMatch[0].length).trim();
+                    continue;
+                }
+                
+                // Key:Value çiftini kontrol et
+                const kvRegex = new RegExp(`^(${keyPattern}):\\s*([^]*?)(?=\\s+(?:${keyPattern}):|\\s+\\d+\\.\\s+(?:Minör|Kritik|Majör)|\\s+Bu Parça|\\s+Ölçüm Sonuç|\\s+Ölçüm Özet|\\s+Uygunsuz Bulunan|$)`, 'i');
+                const kvMatch = remaining.match(kvRegex);
+                if (kvMatch) {
+                    result.push({ type: 'key-value', key: kvMatch[1], value: kvMatch[2].trim() });
+                    remaining = remaining.substring(kvMatch[0].length).trim();
+                    continue;
+                }
+                
+                // "Bu Parça İçin Sapma" cümlesini kontrol et
+                const endMatch = remaining.match(/^(Bu Parça\s+[İI]çin\s+Sapma[^.]*\.?)/i);
+                if (endMatch) {
+                    result.push({ type: 'end-text', content: endMatch[1] });
+                    remaining = remaining.substring(endMatch[0].length).trim();
+                    continue;
+                }
+                
+                // Diğer numaralı öğeler (1. Dış Cap...)
+                const numberedMatch = remaining.match(/^(\d+\.\s+[^0-9][^]*?)(?=\s+\d+\.\s+[A-ZÇĞİÖŞÜa-zçğıöşü]|\s+Bu Parça|$)/i);
+                if (numberedMatch) {
+                    result.push({ type: 'numbered-item', content: numberedMatch[1].trim() });
+                    remaining = remaining.substring(numberedMatch[0].length).trim();
+                    continue;
+                }
+                
+                // Hiçbiri eşleşmediyse, bir sonraki bilinen pattern'e kadar olan kısmı al
+                const nextPatternRegex = new RegExp(`(${keyPattern}):`, 'i');
+                const nextPatternMatch = remaining.substring(1).match(nextPatternRegex);
+                if (nextPatternMatch) {
+                    const idx = remaining.substring(1).indexOf(nextPatternMatch[0]) + 1;
+                    const textPart = remaining.substring(0, idx).trim();
+                    if (textPart) {
+                        result.push({ type: 'text', content: textPart });
+                    }
+                    remaining = remaining.substring(idx).trim();
+                } else {
+                    // Kalan tüm metni al
+                    result.push({ type: 'text', content: remaining });
+                    break;
+                }
             }
             
-            // Girintili detay satırları
-            if (line.startsWith('   ') || line.startsWith('\t')) {
-                return (
-                    <div key={idx} className="text-sm text-muted-foreground pl-6 py-0.5">
-                        {trimmedLine}
-                    </div>
-                );
+            return result;
+        };
+        
+        const parsedItems = parseText(processedText);
+        
+        return parsedItems.map((item, idx) => {
+            switch (item.type) {
+                case 'main-heading':
+                    return (
+                        <div key={idx} className="text-base font-bold text-primary mb-3 pb-2 border-b border-primary/30">
+                            {item.content}
+                        </div>
+                    );
+                
+                case 'section-heading':
+                    return (
+                        <div key={idx} className="text-sm font-bold text-foreground mt-4 mb-2 bg-muted/50 px-3 py-2 rounded-md uppercase">
+                            {item.content}
+                        </div>
+                    );
+                
+                case 'measurement-heading':
+                    return (
+                        <div key={idx} className="mt-3 mb-1 bg-destructive/5 rounded-lg p-3 border-l-4 border-destructive/50">
+                            <div className="text-sm font-semibold text-foreground">
+                                {item.content}
+                            </div>
+                        </div>
+                    );
+                
+                case 'key-value':
+                    let value = item.value;
+                    // N/A yerine daha anlamlı metin
+                    if (value.toLowerCase() === 'n/a' || value.toLowerCase() === 'n/a adet') {
+                        value = 'Belirtilmemiş';
+                    }
+                    
+                    // Sonuç: False için kırmızı renk
+                    const isFailResult = item.key.toLowerCase().includes('sonuç') && value.toLowerCase() === 'false';
+                    
+                    return (
+                        <div key={idx} className="flex flex-wrap gap-2 text-sm py-1">
+                            <span className="font-medium text-muted-foreground min-w-[180px]">{item.key}:</span>
+                            <span className={isFailResult ? 'text-destructive font-semibold' : 'text-foreground'}>
+                                {value}
+                            </span>
+                        </div>
+                    );
+                
+                case 'bullet':
+                    return (
+                        <div key={idx} className="text-sm text-foreground pl-4 py-1 flex items-start gap-2">
+                            <span className="text-primary">•</span>
+                            <span>{item.content}</span>
+                        </div>
+                    );
+                
+                case 'numbered-item':
+                    return (
+                        <div key={idx} className="text-sm text-foreground mt-2 pl-2 border-l-2 border-primary/50 py-1">
+                            {item.content}
+                        </div>
+                    );
+                
+                case 'end-text':
+                    return (
+                        <div key={idx} className="text-sm font-medium text-primary mt-4 pt-2 border-t border-border">
+                            {item.content}
+                        </div>
+                    );
+                
+                default:
+                    return (
+                        <div key={idx} className="text-sm text-foreground py-1">
+                            {item.content}
+                        </div>
+                    );
             }
-            
-            // Normal paragraf
-            return (
-                <div key={idx} className="text-sm text-foreground py-1">
-                    {trimmedLine}
-                </div>
-            );
         });
     };
 
