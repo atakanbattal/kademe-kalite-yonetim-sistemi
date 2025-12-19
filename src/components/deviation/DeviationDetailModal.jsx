@@ -274,8 +274,17 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                         value = 'Belirtilmemiş';
                     }
                     
-                    // Sonuç: False için kırmızı renk
-                    const isFailResult = item.key.toLowerCase().includes('sonuç') && value.toLowerCase() === 'false';
+                    // Sonuç için Türkçe isimler ve renk
+                    const isSonucKey = item.key.toLowerCase().includes('sonuç');
+                    const isFailResult = isSonucKey && value.toLowerCase() === 'false';
+                    const isPassResult = isSonucKey && value.toLowerCase() === 'true';
+                    
+                    // False/True değerlerini Türkçe'ye çevir
+                    if (isFailResult) {
+                        value = 'Uygunsuz';
+                    } else if (isPassResult) {
+                        value = 'Uygun';
+                    }
                     
                     return (
                         <div key={idx} className="flex flex-wrap gap-2 text-sm py-1 pl-2">

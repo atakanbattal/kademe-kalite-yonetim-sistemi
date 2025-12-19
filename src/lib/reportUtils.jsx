@@ -1766,9 +1766,20 @@ const generateGenericReportHtml = (record, type) => {
 								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px; padding-left: 8px; border-left: 3px solid #3b82f6;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${token.value}</strong></div>`);
 								break;
 							case 'keyValue':
-								const displayValue = (token.value === 'N/A' || token.value === 'N/A adet' || !token.value) ? 'Belirtilmemiş' : token.value;
-								// Sonuç: False için kırmızı renk
-								const valueStyle = (token.key.toLowerCase() === 'sonuç' && token.value.toLowerCase() === 'false')
+								let displayValue = (token.value === 'N/A' || token.value === 'N/A adet' || !token.value) ? 'Belirtilmemiş' : token.value;
+								// Sonuç için Türkçe isimler ve renk
+								const isSonucKey = token.key.toLowerCase() === 'sonuç';
+								const isFailResult = isSonucKey && token.value.toLowerCase() === 'false';
+								const isPassResult = isSonucKey && token.value.toLowerCase() === 'true';
+								
+								// False/True değerlerini Türkçe'ye çevir
+								if (isFailResult) {
+									displayValue = 'Uygunsuz';
+								} else if (isPassResult) {
+									displayValue = 'Uygun';
+								}
+								
+								const valueStyle = isFailResult
 									? 'color: #dc2626; font-weight: 500;'
 									: 'color: #374151;';
 								formattedLines.push(`<div style="margin-bottom: 4px; margin-left: 12px; line-height: 1.6;"><strong style="font-weight: 500; font-size: 12px; color: #6b7280;">${token.key}:</strong> <span style="font-size: 12px; ${valueStyle}">${displayValue}</span></div>`);
