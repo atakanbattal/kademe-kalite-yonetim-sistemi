@@ -1563,11 +1563,110 @@ const generateGenericReportHtml = (record, type) => {
 					// HTML escape yap
 					let escaped = escapeHtmlDeviation(text);
 					
-					// Satır geçişlerini koru - her satırı ayrı göster
+					// Önce satır geçişlerini kontrol et
 					let lines = escaped.split('\n');
+					
+					// Eğer tek satırsa ve birden fazla ":" içeriyorsa, başlıkları ayır
+					if (lines.length === 1 && lines[0].includes(':')) {
+						const singleLine = lines[0];
+						// Bilinen başlık pattern'lerini kullanarak metni ayır
+						const knownHeadings = [
+							'Girdi Kalite Kontrol Kaydı',
+							'Karantina Kaydı',
+							'Kalitesizlik Maliyeti Kaydı',
+							'Parça Kodu:',
+							'Parça Adı:',
+							'Red Edilen Miktar:',
+							'Şartlı Kabul Miktarı:',
+							'Tedarikçi:',
+							'Karar:',
+							'Teslimat No:',
+							'Hata Detayları:',
+							'Açıklama:',
+							'Notlar:',
+							'Kaynak Birim:',
+							'Talep Eden Birim:',
+							'Talep Eden Kişi:',
+							'Sebep/Açıklama:',
+							'Maliyet Türü:',
+							'Tutar:',
+							'Birim/Tedarikçi:'
+						];
+						
+						// Başlıkları bul ve pozisyonlarını kaydet
+						const splits = [];
+						for (const heading of knownHeadings) {
+							const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+							const matches = [...singleLine.matchAll(regex)];
+							for (const match of matches) {
+								splits.push({
+									index: match.index,
+									heading: heading,
+									fullMatch: match[0]
+								});
+							}
+						}
+						
+						// Pozisyonlara göre sırala
+						splits.sort((a, b) => a.index - b.index);
+						
+						// Eğer başlık bulunduysa, metni ayır
+						if (splits.length > 0) {
+							const newLines = [];
+							for (let i = 0; i < splits.length; i++) {
+								const start = splits[i].index;
+								const end = i < splits.length - 1 ? splits[i + 1].index : singleLine.length;
+								const line = singleLine.substring(start, end).trim();
+								if (line) {
+									newLines.push(line);
+								}
+							}
+							if (newLines.length > 0) {
+								lines = newLines;
+							}
+						} else {
+							// Başlık bulunamadıysa, ":" karakterlerine göre ayır
+							const parts = singleLine.split(/([A-ZÇĞİÖŞÜ][^:]+:\s*)/);
+							const newLines = [];
+							let currentLine = '';
+							for (let i = 0; i < parts.length; i++) {
+								const part = parts[i].trim();
+								if (!part) continue;
+								
+								if (part.match(/^[A-ZÇĞİÖŞÜ][^:]+:\s*$/)) {
+									// Başlık bulundu
+									if (currentLine) {
+										newLines.push(currentLine.trim());
+										currentLine = '';
+									}
+									currentLine = part;
+								} else if (part.match(/^[A-ZÇĞİÖŞÜ][^:]+:\s*.+$/)) {
+									// Başlık ve değer birlikte
+									if (currentLine) {
+										newLines.push(currentLine.trim());
+										currentLine = '';
+									}
+									newLines.push(part);
+								} else {
+									// Değer veya normal metin
+									if (currentLine) {
+										currentLine += ' ' + part;
+									} else {
+										currentLine = part;
+									}
+								}
+							}
+							if (currentLine) {
+								newLines.push(currentLine.trim());
+							}
+							if (newLines.length > 0) {
+								lines = newLines;
+							}
+						}
+					}
+					
 					let formattedLines = [];
 					let inSection = false;
-					let sectionTitle = '';
 					
 					for (let i = 0; i < lines.length; i++) {
 						let line = lines[i];
@@ -1583,20 +1682,20 @@ const generateGenericReportHtml = (record, type) => {
 							continue;
 						}
 						
-						// Ana başlık tespiti: "Girdi Kalite Kontrol Kaydı", "Karantina Kaydı", "Kalitesizlik Maliyeti Kaydı" gibi
+						// Ana başlık tespiti: "Girdi Kalite Kontrol Kaydı (25/12/077)" gibi
 						const mainHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:()]+(?:\([^)]+\))?)\s*$/);
 						if (mainHeadingMatch && !trimmedLine.includes(':')) {
 							if (inSection) {
 								formattedLines.push('</div>');
 							}
-							sectionTitle = mainHeadingMatch[1];
-							formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb;"><strong style="font-weight: 700; font-size: 14px; color: #111827; text-transform: uppercase;">${sectionTitle}</strong></div>`);
+							const sectionTitle = mainHeadingMatch[1];
+							formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb;"><strong style="font-weight: 700; font-size: 14px; color: #111827;">${sectionTitle}</strong></div>`);
 							inSection = true;
 							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
 							continue;
 						}
 						
-						// Alt başlık tespiti: "Hata Detayları:", "ÖLÇÜM SONUÇLARI:" gibi (büyük harfle başlayan ve : ile biten)
+						// Alt başlık tespiti: "Hata Detayları:", "ÖLÇÜM SONUÇLARI:" gibi
 						const subHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]+):\s*$/);
 						if (subHeadingMatch) {
 							if (inSection) {
