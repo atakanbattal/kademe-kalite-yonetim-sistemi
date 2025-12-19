@@ -1791,6 +1791,13 @@ const generateGenericReportHtml = (record, type) => {
 								break;
 							case 'keyValue':
 								let displayValue = (token.value === 'N/A' || token.value === 'N/A adet' || !token.value) ? 'Belirtilmemiş' : token.value;
+								
+								// skipHeadings'i value'dan temizle (veritabanından gelen eski veriler için)
+								for (const skipHeading of skipHeadings) {
+									const skipRegex = new RegExp(skipHeading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[:\\s]*', 'gi');
+									displayValue = displayValue.replace(skipRegex, '').trim();
+								}
+								
 								// Sonuç için Türkçe isimler ve renk
 								const isSonucKey = token.key.toLowerCase() === 'sonuç';
 								const isFailResult = isSonucKey && token.value.toLowerCase() === 'false';
