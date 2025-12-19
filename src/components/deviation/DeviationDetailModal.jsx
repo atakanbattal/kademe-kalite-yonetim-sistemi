@@ -204,8 +204,17 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                             value = afterKey.substring(0, nextInfo.position).trim();
                         }
                         
-                        tokens.push({ type: 'key-value', key: keyName, value: value });
-                        remaining = afterKey.substring(value.length).trim();
+                        // "Bu Parça İçin Sapma" cümlesini value'dan ayır
+                        const endSentenceMatch = value.match(/(.*?)\s*(Bu Parça\s+[İI]çin\s+Sapma[^.]*\.?)/i);
+                        if (endSentenceMatch) {
+                            value = endSentenceMatch[1].trim();
+                            tokens.push({ type: 'key-value', key: keyName, value: value });
+                            tokens.push({ type: 'end-text', content: endSentenceMatch[2] });
+                            remaining = afterKey.substring(afterKey.indexOf(endSentenceMatch[2]) + endSentenceMatch[2].length).trim();
+                        } else {
+                            tokens.push({ type: 'key-value', key: keyName, value: value });
+                            remaining = afterKey.substring(value.length).trim();
+                        }
                         matched = true;
                         break;
                     }
