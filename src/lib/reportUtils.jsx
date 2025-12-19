@@ -1554,6 +1554,7 @@ const generateGenericReportHtml = (record, type) => {
 				};
 				
 				// Sapma açıklaması için profesyonel formatlama - Detaylı ve sapmaya özel
+				// DeviationDetailModal.jsx'deki formatDescription ile aynı mantık - recursive tokenization
 				const formatDeviationDescription = (text) => {
 					if (!text || typeof text !== 'string') return '-';
 					
@@ -1566,378 +1567,199 @@ const generateGenericReportHtml = (record, type) => {
 					// HTML escape yap
 					let escaped = escapeHtmlDeviation(text);
 					
-					// Önce satır geçişlerini kontrol et
-					let lines = escaped.split('\n');
+					// Bölüm başlıkları
+					const sectionHeadings = [
+						'Ölçüm Sonuçlari Ve Tespi̇tler',
+						'Ölçüm Sonuçları Ve Tespitler',
+						'ÖLÇÜM SONUÇLARI VE TESPİTLER',
+						'Uygunsuz Bulunan Ölçümler',
+						'Ölçüm Özeti̇',
+						'Ölçüm Özeti',
+						'ÖLÇÜM ÖZETİ',
+						'TESPİT EDİLEN HATALAR',
+						'Tespit Edilen Hatalar',
+						'Hata Detayları',
+					];
 					
-					// Eğer tek satırsa ve birden fazla ":" içeriyorsa, başlıkları ayır
-					// Ama önce büyük başlıkları (ÖLÇÜM SONUÇLARI, TESPİT EDİLEN HATALAR) kontrol et
-					// Ayrıca temel bilgileri (Parça Kodu, Parça Adı, vb.) de ayırmalıyız
-					if (lines.length === 1 && lines[0].includes(':')) {
-						// Büyük başlıkları önce bul ve ayır
-						const bigHeadings = [
-							'ÖLÇÜM SONUÇLARI VE TESPİTLER:',
-							'ÖLÇÜM SONUÇLARI VE TESPİTLER',
-							'TESPİT EDİLEN HATALAR:',
-							'TESPİT EDİLEN HATALAR',
-							'ÖLÇÜM ÖZETİ:',
-							'ÖLÇÜM ÖZETİ',
-							'UYGUNSUZ BULUNAN ÖLÇÜMLER:',
-							'UYGUNSUZ BULUNAN ÖLÇÜMLER'
-						];
+					// Tüm key-value anahtarları (sıralı - uzundan kısaya)
+					const knownKeys = [
+						'Beklenen Değer \\(nominal\\)',
+						'Beklenen Değer',
+						'Tolerans Aralığı',
+						'Gerçek Ölçülen Değer',
+						'Sonuç',
+						'HATALI DEĞER',
+						'Sapma',
+						'Toplam Ölçüm Sayısı',
+						'Uygun Ölçümler',
+						'Uygunsuz Ölçümler',
+						'Ret Oranı',
+						'Parça Kodu',
+						'Parça Adı',
+						'Red Edilen Miktar',
+						'Şartlı Kabul Miktarı',
+						'Tedarikçi',
+						'Karar',
+						'Teslimat No',
+						'Kayıt No',
+						'Muayene Tarihi',
+						'Gelen Miktar',
+						'Kontrol Edilen Miktar',
+						'Nihai Karar',
+						'Ret Nedeni̇',
+						'Ret Nedeni',
+					].sort((a, b) => b.length - a.length);
+					
+					// Bir sonraki key veya heading pozisyonunu bul
+					const findNextKeyOrHeadingPosition = (str, startPos) => {
+						let minPos = str.length;
 						
-						for (const bigHeading of bigHeadings) {
-							if (lines[0].includes(bigHeading)) {
-								// Büyük başlığı bul ve öncesini/sonrasını ayır
-								const headingIndex = lines[0].indexOf(bigHeading);
-								const beforeHeading = lines[0].substring(0, headingIndex).trim();
-								const afterHeading = lines[0].substring(headingIndex).trim();
-								
-								if (beforeHeading) {
-									lines = [beforeHeading, afterHeading];
-								} else {
-									lines = [afterHeading];
+						// Önce section headings ara
+						for (const heading of sectionHeadings) {
+							const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+							const match = regex.exec(str.substring(startPos));
+							if (match && (startPos + match.index) < minPos) {
+								minPos = startPos + match.index;
+							}
+						}
+						
+						// Sonra numaralı ölçüm başlıkları ara
+						const numberedMeasurementRegex = /\d+\.\s+(?:Minör|Majör|Kritik)\s+Özellik\s*\([^)]+\)/gi;
+						const numberedMatch = numberedMeasurementRegex.exec(str.substring(startPos));
+						if (numberedMatch && (startPos + numberedMatch.index) < minPos) {
+							minPos = startPos + numberedMatch.index;
+						}
+						
+						// Sonra key-value pattern'leri ara
+						for (const key of knownKeys) {
+							const regex = new RegExp(key + ':', 'gi');
+							const match = regex.exec(str.substring(startPos));
+							if (match && (startPos + match.index) < minPos) {
+								minPos = startPos + match.index;
+							}
+						}
+						
+						return minPos;
+					};
+					
+					// Metni token'lara ayır - recursive tokenization
+					const tokenize = (str) => {
+						const tokens = [];
+						let remaining = str;
+						
+						// Önce ana başlığı kontrol et
+						const mainTitleMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
+						if (mainTitleMatch) {
+							tokens.push({ type: 'mainHeading', value: mainTitleMatch[0].trim() });
+							remaining = remaining.substring(mainTitleMatch[0].length).trim();
+						}
+						
+						// Geri kalan metni işle
+						while (remaining.length > 0) {
+							remaining = remaining.trim();
+							if (!remaining) break;
+							
+							let matched = false;
+							
+							// Section heading kontrol et
+							for (const heading of sectionHeadings) {
+								const regex = new RegExp('^(' + heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')[:\\s]*', 'i');
+								const match = remaining.match(regex);
+								if (match) {
+									tokens.push({ type: 'sectionHeading', value: match[1].trim() });
+									remaining = remaining.substring(match[0].length).trim();
+									matched = true;
+									break;
+								}
+							}
+							if (matched) continue;
+							
+							// Numaralı ölçüm başlığı kontrol et
+							const numberedMeasurementMatch = remaining.match(/^(\d+\.\s+(?:Minör|Majör|Kritik)\s+Özellik\s*\([^)]+\))[:\s]*/i);
+							if (numberedMeasurementMatch) {
+								tokens.push({ type: 'numberedMeasurement', value: numberedMeasurementMatch[1].trim() });
+								remaining = remaining.substring(numberedMeasurementMatch[0].length).trim();
+								continue;
+							}
+							
+							// Key-value kontrol et
+							for (const key of knownKeys) {
+								const regex = new RegExp('^(' + key + '):\\s*', 'i');
+								const match = remaining.match(regex);
+								if (match) {
+									const keyName = match[1];
+									remaining = remaining.substring(match[0].length).trim();
+									
+									// Bir sonraki key veya heading pozisyonunu bul
+									const nextPos = findNextKeyOrHeadingPosition(remaining, 0);
+									const valueStr = remaining.substring(0, nextPos).trim();
+									remaining = remaining.substring(nextPos).trim();
+									
+									tokens.push({ type: 'keyValue', key: keyName, value: valueStr });
+									matched = true;
+									break;
+								}
+							}
+							if (matched) continue;
+							
+							// "Bu Parça Için Sapma Onayı Talep Edilmektedir." kontrol et
+							const conclusionMatch = remaining.match(/^(Bu Parça [İI]çin Sapma Onayı Talep Edilmektedir\.?)/i);
+							if (conclusionMatch) {
+								tokens.push({ type: 'conclusion', value: conclusionMatch[1] });
+								remaining = remaining.substring(conclusionMatch[0].length).trim();
+								continue;
+							}
+							
+							// Eğer hiçbir pattern eşleşmediyse, bir sonraki key/heading'e kadar olan kısmı al
+							const nextPos = findNextKeyOrHeadingPosition(remaining, 1);
+							if (nextPos > 0 && nextPos < remaining.length) {
+								const text = remaining.substring(0, nextPos).trim();
+								if (text) {
+									tokens.push({ type: 'text', value: text });
+								}
+								remaining = remaining.substring(nextPos).trim();
+							} else {
+								// Geri kalan herşeyi text olarak ekle
+								if (remaining.trim()) {
+									tokens.push({ type: 'text', value: remaining.trim() });
 								}
 								break;
 							}
 						}
-					}
-					
-					// Eğer hala tek satırsa ve birden fazla ":" içeriyorsa, başlıkları ayır
-					if (lines.length === 1 && lines[0].includes(':')) {
-						const singleLine = lines[0];
 						
-						// Önce ana başlığı bul ve ayır: "Girdi Kalite Kontrol Kaydı (25/12/077)" gibi
-						const mainTitleMatch = singleLine.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
-						if (mainTitleMatch) {
-							const mainTitle = mainTitleMatch[0].trim();
-							const afterMainTitle = singleLine.substring(mainTitleMatch.index + mainTitleMatch[0].length).trim();
-							if (afterMainTitle) {
-								lines = [mainTitle, afterMainTitle];
-							} else {
-								lines = [mainTitle];
-							}
-						}
-						
-						// Eğer hala tek satırsa, başlıkları ayır
-						if (lines.length === 1 && lines[0].includes(':')) {
-							const singleLine2 = lines[0];
-							// Bilinen başlık pattern'lerini kullanarak metni ayır
-							const knownHeadings = [
-								'Parça Kodu:',
-								'Parça Adı:',
-								'Red Edilen Miktar:',
-								'Şartlı Kabul Miktarı:',
-								'Tedarikçi:',
-								'Karar:',
-								'Teslimat No:',
-								'Hata Detayları:',
-								'Açıklama:',
-								'Notlar:',
-								'Kaynak Birim:',
-								'Talep Eden Birim:',
-								'Talep Eden Kişi:',
-								'Sebep/Açıklama:',
-								'Maliyet Türü:',
-								'Tutar:',
-								'Birim/Tedarikçi:'
-							];
-							
-							// Başlıkları bul ve pozisyonlarını kaydet
-							const splits = [];
-							for (const heading of knownHeadings) {
-								const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-								const matches = [...singleLine2.matchAll(regex)];
-								for (const match of matches) {
-									splits.push({
-										index: match.index,
-										heading: heading,
-										fullMatch: match[0]
-									});
-								}
-							}
-							
-							// Pozisyonlara göre sırala
-							splits.sort((a, b) => a.index - b.index);
-							
-							// Eğer başlık bulunduysa, metni ayır
-							if (splits.length > 0) {
-								const newLines = [];
-								for (let i = 0; i < splits.length; i++) {
-									const start = splits[i].index;
-									const end = i < splits.length - 1 ? splits[i + 1].index : singleLine2.length;
-									const line = singleLine2.substring(start, end).trim();
-									if (line) {
-										newLines.push(line);
-									}
-								}
-								if (newLines.length > 0) {
-									lines = newLines;
-								}
-							} else {
-								// Başlık bulunamadıysa, ":" karakterlerine göre ayır
-								// Türkçe karakterleri de destekleyen regex - daha kapsamlı
-								const parts = singleLine2.split(/([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜa-zçğıöşü\s]+:\s*)/);
-								const newLines = [];
-								let currentLine = '';
-								for (let i = 0; i < parts.length; i++) {
-									const part = parts[i].trim();
-									if (!part) continue;
-									
-									if (part.match(/^[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜa-zçğıöşü\s]+:\s*$/)) {
-										// Başlık bulundu
-										if (currentLine) {
-											newLines.push(currentLine.trim());
-											currentLine = '';
-										}
-										currentLine = part;
-									} else if (part.match(/^[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜa-zçğıöşü\s]+:\s*.+$/)) {
-										// Başlık ve değer birlikte
-										if (currentLine) {
-											newLines.push(currentLine.trim());
-											currentLine = '';
-										}
-										newLines.push(part);
-									} else {
-										// Değer veya normal metin
-										if (currentLine) {
-											currentLine += ' ' + part;
-										} else {
-											currentLine = part;
-										}
-									}
-								}
-								if (currentLine) {
-									newLines.push(currentLine.trim());
-								}
-								if (newLines.length > 0) {
-									lines = newLines;
-								}
-							}
-						}
-					}
+						return tokens;
+					};
 					
+					const tokens = tokenize(escaped);
 					let formattedLines = [];
-					let inSection = false;
 					
-					for (let i = 0; i < lines.length; i++) {
-						let line = lines[i];
-						let trimmedLine = line.trim();
-						
-						// Boş satır - küçük bir boşluk olarak koru
-						if (!trimmedLine) {
-							if (inSection) {
-								formattedLines.push('</div>');
-								inSection = false;
-							}
-							formattedLines.push('<div style="height: 8px;"></div>');
-							continue;
+					for (const token of tokens) {
+						switch (token.type) {
+							case 'mainHeading':
+								formattedLines.push(`<div style="margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb;"><strong style="font-weight: 700; font-size: 14px; color: #111827;">${token.value}</strong></div>`);
+								break;
+							case 'sectionHeading':
+								formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 6px; background-color: #f3f4f6; padding: 6px 10px; border-radius: 4px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${token.value}</strong></div>`);
+								break;
+							case 'numberedMeasurement':
+								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px; padding-left: 8px; border-left: 3px solid #3b82f6;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${token.value}</strong></div>`);
+								break;
+							case 'keyValue':
+								const displayValue = (token.value === 'N/A' || token.value === 'N/A adet' || !token.value) ? 'Belirtilmemiş' : token.value;
+								// Sonuç: False için kırmızı renk
+								const valueStyle = (token.key.toLowerCase() === 'sonuç' && token.value.toLowerCase() === 'false')
+									? 'color: #dc2626; font-weight: 500;'
+									: 'color: #374151;';
+								formattedLines.push(`<div style="margin-bottom: 4px; margin-left: 12px; line-height: 1.6;"><strong style="font-weight: 500; font-size: 12px; color: #6b7280;">${token.key}:</strong> <span style="font-size: 12px; ${valueStyle}">${displayValue}</span></div>`);
+								break;
+							case 'conclusion':
+								formattedLines.push(`<div style="margin-top: 12px; padding: 8px 12px; background-color: #fef3c7; border-radius: 4px; font-weight: 500; font-size: 13px; color: #92400e;">${token.value}</div>`);
+								break;
+							case 'text':
+							default:
+								formattedLines.push(`<div style="margin-bottom: 4px; line-height: 1.6; color: #374151; font-size: 13px;">${token.value}</div>`);
+								break;
 						}
-						
-						// Önce büyük başlıkları kontrol et (ÖLÇÜM SONUÇLARI, TESPİT EDİLEN HATALAR, vb.)
-						// Bu başlıklar "Teslimat No:" gibi küçük başlıklardan SONRA gelmeli
-						const bigHeadingMatch = trimmedLine.match(/^(ÖLÇÜM SONUÇLARI|TESPİT EDİLEN HATALAR|ÖLÇÜM ÖZETİ|UYGUNSUZ BULUNAN ÖLÇÜMLER)[:\s]*$/i);
-						if (bigHeadingMatch) {
-							// Önceki section'ı kapat
-							if (inSection) {
-								formattedLines.push('</div>');
-								inSection = false;
-							}
-							// Boş satır ekle
-							formattedLines.push('<div style="height: 8px;"></div>');
-							// Büyük başlığı ekle
-							formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 6px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${trimmedLine.replace(':', '').trim()}</strong></div>`);
-							inSection = true;
-							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-							continue;
-						}
-						
-						// Ana başlık tespiti: "Girdi Kalite Kontrol Kaydı (25/12/077)" gibi
-						const mainHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:()]+(?:\([^)]+\))?)\s*$/);
-						if (mainHeadingMatch && !trimmedLine.includes(':')) {
-							if (inSection) {
-								formattedLines.push('</div>');
-								inSection = false;
-							}
-							const sectionTitle = mainHeadingMatch[1];
-							formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb;"><strong style="font-weight: 700; font-size: 14px; color: #111827;">${sectionTitle}</strong></div>`);
-							inSection = true;
-							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-							continue;
-						}
-						
-						// Alt başlık tespiti: "Hata Detayları:", "ÖLÇÜM SONUÇLARI:" gibi (büyük harfle başlayan)
-						// Ama "Teslimat No:" gibi küçük başlıkları burada yakalamamalıyız
-						const subHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]{5,}):\s*$/);
-						if (subHeadingMatch && !trimmedLine.match(/^(Teslimat No|Parça Kodu|Parça Adı|Red Edilen|Şartlı Kabul|Tedarikçi|Karar):/i)) {
-							if (inSection) {
-								formattedLines.push('</div>');
-								inSection = false;
-							}
-							formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 6px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${subHeadingMatch[1]}</strong></div>`);
-							inSection = true;
-							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-							continue;
-						}
-						
-						// Başlık tespiti: "Başlık:" veya "Başlık: Değer" formatı
-						const headingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
-						if (headingMatch) {
-							const [, title, value] = headingMatch;
-							
-							// Eğer değer büyük başlık içeriyorsa (ÖLÇÜM SONUÇLARI, TESPİT EDİLEN HATALAR), ayır
-							let cleanValue = value || '';
-							
-							// Büyük başlıkları kontrol et (case-insensitive)
-							const bigHeadingPatterns = [
-								/ÖLÇÜM SONUÇLARI[:\s]*/i,
-								/TESPİT EDİLEN HATALAR[:\s]*/i,
-								/ÖLÇÜM ÖZETİ[:\s]*/i,
-								/UYGUNSUZ BULUNAN ÖLÇÜMLER[:\s]*/i
-							];
-							
-							let bigHeadingFound = null;
-							let bigHeadingIndex = -1;
-							
-							for (const pattern of bigHeadingPatterns) {
-								const match = cleanValue.match(pattern);
-								if (match) {
-									bigHeadingFound = match[0];
-									bigHeadingIndex = cleanValue.indexOf(match[0]);
-									break;
-								}
-							}
-							
-							if (bigHeadingFound && bigHeadingIndex >= 0) {
-								// Büyük başlığı değerden çıkar ve ayrı bir satır olarak ekle
-								const beforeBigHeading = cleanValue.substring(0, bigHeadingIndex).trim();
-								const bigHeadingAndAfter = cleanValue.substring(bigHeadingIndex).trim();
-								
-								// Eğer section içinde değilsek, bir section başlat
-								if (!inSection) {
-									inSection = true;
-									formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-								}
-								
-								// Önce küçük başlığı ekle (varsa değerle)
-								if (beforeBigHeading) {
-									formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${beforeBigHeading}</span></div>`);
-								} else {
-									formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong></div>`);
-								}
-								
-								// Büyük başlığı ayrı bir satır olarak ekle
-								if (inSection) {
-									formattedLines.push('</div>');
-									inSection = false;
-								}
-								formattedLines.push('<div style="height: 8px;"></div>');
-								
-								// Büyük başlığı ve sonrasını işle - satırları ayır
-								const bigHeadingParts = bigHeadingAndAfter.split(/\n/);
-								const bigHeadingLine = bigHeadingParts[0].trim();
-								
-								// Büyük başlığı ekle
-								const bigHeadingMatch2 = bigHeadingLine.match(/^(ÖLÇÜM SONUÇLARI|TESPİT EDİLEN HATALAR|ÖLÇÜM ÖZETİ|UYGUNSUZ BULUNAN ÖLÇÜMLER)[:\s]*/i);
-								if (bigHeadingMatch2) {
-									formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 6px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${bigHeadingMatch2[1]}</strong></div>`);
-									inSection = true;
-									formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-									
-									// Büyük başlıktan sonraki içeriği işle
-									const afterBigHeading = bigHeadingLine.substring(bigHeadingMatch2[0].length).trim();
-									if (afterBigHeading) {
-										// Bu içeriği bir sonraki satır olarak ekle
-										lines.splice(i + 1, 0, afterBigHeading);
-									}
-									
-									// Büyük başlıktan sonraki diğer satırları da ekle
-									for (let j = 1; j < bigHeadingParts.length; j++) {
-										const remainingLine = bigHeadingParts[j].trim();
-										if (remainingLine) {
-											lines.splice(i + 1 + j, 0, remainingLine);
-										}
-									}
-								}
-								continue;
-							}
-							
-							// Eğer section içinde değilsek, bir section başlat
-							if (!inSection) {
-								inSection = true;
-								formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-							}
-							
-							// Her başlık alt alta, mavi renk olmadan, sadece kalın
-							if (cleanValue && cleanValue.trim()) {
-								formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${cleanValue}</span></div>`);
-							} else {
-								formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong></div>`);
-							}
-							continue;
-						}
-						
-						// Ölçüm sonucu başlığı tespiti: "1. Minör Özellik (ölçüm 1/1):" gibi
-						const measurementHeadingMatch = trimmedLine.match(/^(\d+\.\s+[^:]+(?:\([^)]+\))?):\s*$/);
-						if (measurementHeadingMatch) {
-							if (inSection) {
-								formattedLines.push('</div>');
-								inSection = false;
-							}
-							formattedLines.push(`<div style="margin-top: 8px; margin-bottom: 4px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${measurementHeadingMatch[1]}</strong></div>`);
-							inSection = true;
-							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-							continue;
-						}
-						
-						// Ölçüm detay başlığı tespiti: "Beklenen Değer (nominal):", "Tolerans Aralığı:", vb.
-						const measurementDetailMatch = trimmedLine.match(/^(Beklenen Değer|Tolerans Aralığı|Gerçek Ölçülen Değer|Sonuç)(\s*\([^)]+\))?:\s*(.*)$/i);
-						if (measurementDetailMatch) {
-							if (!inSection) {
-								inSection = true;
-								formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-							}
-							const detailTitle = measurementDetailMatch[1] + (measurementDetailMatch[2] || '');
-							const detailValue = measurementDetailMatch[3] || '';
-							formattedLines.push(`<div style="margin-left: 16px; margin-bottom: 3px; line-height: 1.6;"><strong style="font-weight: 500; font-size: 12px; color: #4b5563;">${detailTitle}:</strong> <span style="color: #374151; font-size: 12px;">${detailValue}</span></div>`);
-							continue;
-						}
-						
-						// Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
-						const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
-						if (listMatch) {
-							if (!inSection) {
-								inSection = true;
-								formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-							}
-							const itemText = listMatch[2];
-							const itemNumber = listMatch[1].match(/^\d+/) ? listMatch[1] : '';
-							formattedLines.push(`<div style="margin-left: 24px; margin-bottom: 4px; line-height: 1.6; color: #374151; font-size: 13px; padding-left: 4px;">${itemNumber ? itemNumber + ' ' : '• '}${itemText}</div>`);
-							continue;
-						}
-						
-						// Girintili metin tespiti: "   " ile başlayan (3+ boşluk)
-						const indentedMatch = trimmedLine.match(/^(\s{3,})(.+)$/);
-						if (indentedMatch) {
-							if (!inSection) {
-								inSection = true;
-								formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-							}
-							const indentedText = indentedMatch[2];
-							formattedLines.push(`<div style="margin-left: 20px; margin-bottom: 3px; line-height: 1.6; color: #4b5563; font-size: 12px; font-style: italic;">→ ${indentedText}</div>`);
-							continue;
-						}
-						
-						// Normal metin - paragraf olarak göster
-						if (!inSection) {
-							inSection = true;
-							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
-						}
-						formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7; color: #374151; font-size: 13px;">${trimmedLine}</div>`);
-					}
-					
-					// Son section'ı kapat
-					if (inSection) {
-						formattedLines.push('</div>');
 					}
 					
 					return formattedLines.join('\n');
