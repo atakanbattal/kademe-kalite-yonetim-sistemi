@@ -2377,25 +2377,35 @@ const generateGenericReportHtml = (record, type) => {
 		case 'process_control_plans': {
 			// Ölçülmesi gereken noktalar ve ölçüleri net bir şekilde göster
 			const itemsTableHtml = record.items && record.items.length > 0
-				? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+				? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse; table-layout: fixed;">
+					<colgroup>
+						<col style="width: 35px;">
+						<col style="width: 18%;">
+						<col style="width: 18%;">
+						<col style="width: 20%;">
+						<col style="width: 10%;">
+						<col style="width: 10%;">
+						<col style="width: 10%;">
+						<col style="width: 35px;">
+					</colgroup>
 					<thead>
 						<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Sıra</th>
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Karakteristik</th>
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Ölçüm Ekipmanı</th>
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Standart</th>
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Nominal Değer</th>
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Min Tolerans</th>
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Max Tolerans</th>
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Tolerans Yönü</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Sıra</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Karakteristik</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Ölçüm Ekipmanı</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Standart</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Nominal Değer</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Min Tolerans</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Max Tolerans</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Tol. Yönü</th>
 						</tr>
 					</thead>
 					<tbody>
 						${record.items.map((item, idx) => {
 							// Karakteristik bilgilerini göster
 							const characteristicName = item.characteristic_name || item.characteristic_id || '-';
-							const characteristicType = item.characteristic_type ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tip: ${item.characteristic_type}</div>` : '';
-							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tolerans: ${item.tolerance_class}</div>` : '';
+							const characteristicType = item.characteristic_type ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px;">Tip: ${item.characteristic_type}</div>` : '';
+							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px;">Tolerans: ${item.tolerance_class}</div>` : '';
 							
 							// Ölçüm ekipmanı bilgilerini göster
 							const equipmentName = item.equipment_name || item.equipment_id || '-';
@@ -2410,25 +2420,25 @@ const generateGenericReportHtml = (record, type) => {
 							} else if (item.standard_id) {
 								standardName = item.standard_id;
 							}
-							const standardInfo = item.tolerance_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tolerans Sınıfı: ${item.tolerance_class}</div>` : '';
+							const standardInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; word-wrap: break-word; line-height: 1.3;">Tolerans Sınıfı: ${item.tolerance_class}</div>` : '';
 							
 							return `
 								<tr style="border-bottom: 1px solid #d1d5db;">
-									<td style="border: 1px solid #d1d5db; padding: 8px; font-weight: 600; text-align: center; background-color: #f9fafb;">${idx + 1}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px;">
-										<div style="font-weight: 600;">${characteristicName}</div>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; font-weight: 600; text-align: center; background-color: #f9fafb; font-size: 9px;">${idx + 1}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word;">
+										<div style="font-weight: 600; font-size: 9px;">${characteristicName}</div>
 										${characteristicType}
 										${toleranceInfo}
 									</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px;">${equipmentName}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px;">
-										<div>${standardName}</div>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-size: 9px;">${equipmentName}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-size: 9px; line-height: 1.3;">
+										<div style="word-wrap: break-word; overflow-wrap: break-word;">${standardName}</div>
 										${standardInfo}
 									</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600; background-color: #eff6ff; font-size: 1.05em;">${item.nominal_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; background-color: #fef3c7; font-weight: 500;">${item.min_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; background-color: #fef3c7; font-weight: 500;">${item.max_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600; font-size: 1.1em;">${item.tolerance_direction || '±'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; background-color: #eff6ff; font-size: 9px;">${item.nominal_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; background-color: #fef3c7; font-weight: 500; font-size: 9px;">${item.min_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; background-color: #fef3c7; font-weight: 500; font-size: 9px;">${item.max_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; font-size: 10px;">${item.tolerance_direction || '±'}</td>
 								</tr>
 							`;
 						}).join('')}
@@ -2451,12 +2461,12 @@ const generateGenericReportHtml = (record, type) => {
 			}
 			
 			return `
-				<tr><td>Araç Tipi</td><td><strong>${record.vehicle_type || '-'}</strong></td></tr>
-				<tr><td>Parça Kodu</td><td><strong>${record.part_code || '-'}</strong></td></tr>
-				<tr><td>Parça Adı</td><td><strong>${record.part_name || '-'}</strong></td></tr>
+				<tr><td>Araç Tipi</td><td><strong style="font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif;">${record.vehicle_type || '-'}</strong></td></tr>
+				<tr><td>Parça Kodu</td><td><strong style="font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif;">${record.part_code || '-'}</strong></td></tr>
+				<tr><td>Parça Adı</td><td><strong style="font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; word-wrap: break-word; overflow-wrap: break-word;">${record.part_name || '-'}</strong></td></tr>
 				<tr><td>Revizyon No</td><td>${record.revision_number || 0}</td></tr>
 				<tr><td>Revizyon Tarihi</td><td>${formatDate(record.revision_date)}</td></tr>
-				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
+				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
 				${revisionNotesHtml}
 			`;
 			break;
@@ -3335,13 +3345,13 @@ const generatePrintableReportHtml = (record, type) => {
 	const isExam = type === 'exam_paper';
 
 	const defaultStyles = `
-		@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+		@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
 		
 		/* ============================================
 		   SAYFA AYARLARI - PDF OPTİMİZASYONU
 		   ============================================ */
 		body { 
-			font-family: 'Inter', sans-serif; 
+			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
 			color: #1f2937; 
 			margin: 0; 
 			padding: 0;
@@ -3492,7 +3502,7 @@ const generatePrintableReportHtml = (record, type) => {
 		.info-table tr td:first-child { font-weight: 600; width: 25%; }
 		.info-table pre { 
 			white-space: pre-wrap; 
-			font-family: 'Inter', sans-serif; 
+			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
 			margin: 0; 
 			font-size: 10px; 
 		}
@@ -3564,7 +3574,7 @@ const generatePrintableReportHtml = (record, type) => {
 		}
 		.results-table pre { 
 			white-space: pre-wrap; 
-			font-family: 'Inter', sans-serif; 
+			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
 			margin: 0; 
 			font-size: 10px; 
 		}
@@ -3586,7 +3596,7 @@ const generatePrintableReportHtml = (record, type) => {
 		}
 		.notes-box pre { 
 			white-space: pre-wrap; 
-			font-family: 'Inter', sans-serif; 
+			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
 			margin: 0; 
 		}
 
@@ -3694,7 +3704,7 @@ const generatePrintableReportHtml = (record, type) => {
 		.step-description { white-space: pre-wrap; }
 		.step-description pre { 
 			white-space: pre-wrap; 
-			font-family: 'Inter', sans-serif; 
+			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
 			margin: 0; 
 		}
 		
