@@ -1553,7 +1553,7 @@ const generateGenericReportHtml = (record, type) => {
 					return normalized;
 				};
 				
-				// Sapma açıklaması için profesyonel formatlama - Girdi kontrol formatı gibi
+				// Sapma açıklaması için profesyonel formatlama - Detaylı ve sapmaya özel
 				const formatDeviationDescription = (text) => {
 					if (!text || typeof text !== 'string') return '-';
 					
@@ -1566,6 +1566,8 @@ const generateGenericReportHtml = (record, type) => {
 					// Satır geçişlerini koru - her satırı ayrı göster
 					let lines = escaped.split('\n');
 					let formattedLines = [];
+					let inSection = false;
+					let sectionTitle = '';
 					
 					for (let i = 0; i < lines.length; i++) {
 						let line = lines[i];
@@ -1573,7 +1575,36 @@ const generateGenericReportHtml = (record, type) => {
 						
 						// Boş satır - küçük bir boşluk olarak koru
 						if (!trimmedLine) {
-							formattedLines.push('<div style="height: 6px;"></div>');
+							if (inSection) {
+								formattedLines.push('</div>');
+								inSection = false;
+							}
+							formattedLines.push('<div style="height: 8px;"></div>');
+							continue;
+						}
+						
+						// Ana başlık tespiti: "Girdi Kalite Kontrol Kaydı", "Karantina Kaydı", "Kalitesizlik Maliyeti Kaydı" gibi
+						const mainHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:()]+(?:\([^)]+\))?)\s*$/);
+						if (mainHeadingMatch && !trimmedLine.includes(':')) {
+							if (inSection) {
+								formattedLines.push('</div>');
+							}
+							sectionTitle = mainHeadingMatch[1];
+							formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb;"><strong style="font-weight: 700; font-size: 14px; color: #111827; text-transform: uppercase;">${sectionTitle}</strong></div>`);
+							inSection = true;
+							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+							continue;
+						}
+						
+						// Alt başlık tespiti: "Hata Detayları:", "ÖLÇÜM SONUÇLARI:" gibi (büyük harfle başlayan ve : ile biten)
+						const subHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]+):\s*$/);
+						if (subHeadingMatch) {
+							if (inSection) {
+								formattedLines.push('</div>');
+							}
+							formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 6px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${subHeadingMatch[1]}</strong></div>`);
+							inSection = true;
+							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
 							continue;
 						}
 						
@@ -1582,11 +1613,17 @@ const generateGenericReportHtml = (record, type) => {
 						if (headingMatch) {
 							const [, title, value] = headingMatch;
 							
+							// Eğer section içinde değilsek, bir section başlat
+							if (!inSection) {
+								inSection = true;
+								formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+							}
+							
 							// Her başlık alt alta, mavi renk olmadan, sadece kalın
 							if (value && value.trim()) {
-								formattedLines.push(`<div style="margin-bottom: 4px; line-height: 1.6;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
+								formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
 							} else {
-								formattedLines.push(`<div style="margin-bottom: 4px; line-height: 1.6;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong></div>`);
+								formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong></div>`);
 							}
 							continue;
 						}
@@ -1594,13 +1631,39 @@ const generateGenericReportHtml = (record, type) => {
 						// Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
 						const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
 						if (listMatch) {
+							if (!inSection) {
+								inSection = true;
+								formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+							}
 							const itemText = listMatch[2];
-							formattedLines.push(`<div style="margin-left: 20px; margin-bottom: 3px; line-height: 1.5; color: #374151; font-size: 13px;">• ${itemText}</div>`);
+							const itemNumber = listMatch[1].match(/^\d+/) ? listMatch[1] : '';
+							formattedLines.push(`<div style="margin-left: 24px; margin-bottom: 4px; line-height: 1.6; color: #374151; font-size: 13px; padding-left: 4px;">${itemNumber ? itemNumber + ' ' : '• '}${itemText}</div>`);
+							continue;
+						}
+						
+						// Girintili metin tespiti: "   " ile başlayan (3+ boşluk)
+						const indentedMatch = trimmedLine.match(/^(\s{3,})(.+)$/);
+						if (indentedMatch) {
+							if (!inSection) {
+								inSection = true;
+								formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+							}
+							const indentedText = indentedMatch[2];
+							formattedLines.push(`<div style="margin-left: 20px; margin-bottom: 3px; line-height: 1.6; color: #4b5563; font-size: 12px; font-style: italic;">→ ${indentedText}</div>`);
 							continue;
 						}
 						
 						// Normal metin - paragraf olarak göster
-						formattedLines.push(`<div style="margin-bottom: 4px; line-height: 1.6; color: #374151; font-size: 13px;">${trimmedLine}</div>`);
+						if (!inSection) {
+							inSection = true;
+							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+						}
+						formattedLines.push(`<div style="margin-bottom: 5px; line-height: 1.7; color: #374151; font-size: 13px;">${trimmedLine}</div>`);
+					}
+					
+					// Son section'ı kapat
+					if (inSection) {
+						formattedLines.push('</div>');
 					}
 					
 					return formattedLines.join('\n');
