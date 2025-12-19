@@ -1682,11 +1682,30 @@ const generateGenericReportHtml = (record, type) => {
 							continue;
 						}
 						
+						// Önce büyük başlıkları kontrol et (ÖLÇÜM SONUÇLARI, TESPİT EDİLEN HATALAR, vb.)
+						// Bu başlıklar "Teslimat No:" gibi küçük başlıklardan SONRA gelmeli
+						const bigHeadingMatch = trimmedLine.match(/^(ÖLÇÜM SONUÇLARI|TESPİT EDİLEN HATALAR|ÖLÇÜM ÖZETİ|UYGUNSUZ BULUNAN ÖLÇÜMLER)[:\s]*$/i);
+						if (bigHeadingMatch) {
+							// Önceki section'ı kapat
+							if (inSection) {
+								formattedLines.push('</div>');
+								inSection = false;
+							}
+							// Boş satır ekle
+							formattedLines.push('<div style="height: 8px;"></div>');
+							// Büyük başlığı ekle
+							formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 6px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${trimmedLine.replace(':', '').trim()}</strong></div>`);
+							inSection = true;
+							formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
+							continue;
+						}
+						
 						// Ana başlık tespiti: "Girdi Kalite Kontrol Kaydı (25/12/077)" gibi
 						const mainHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:()]+(?:\([^)]+\))?)\s*$/);
 						if (mainHeadingMatch && !trimmedLine.includes(':')) {
 							if (inSection) {
 								formattedLines.push('</div>');
+								inSection = false;
 							}
 							const sectionTitle = mainHeadingMatch[1];
 							formattedLines.push(`<div style="margin-top: 12px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb;"><strong style="font-weight: 700; font-size: 14px; color: #111827;">${sectionTitle}</strong></div>`);
@@ -1695,11 +1714,13 @@ const generateGenericReportHtml = (record, type) => {
 							continue;
 						}
 						
-						// Alt başlık tespiti: "Hata Detayları:", "ÖLÇÜM SONUÇLARI:" gibi
-						const subHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]+):\s*$/);
-						if (subHeadingMatch) {
+						// Alt başlık tespiti: "Hata Detayları:", "ÖLÇÜM SONUÇLARI:" gibi (büyük harfle başlayan)
+						// Ama "Teslimat No:" gibi küçük başlıkları burada yakalamamalıyız
+						const subHeadingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]{5,}):\s*$/);
+						if (subHeadingMatch && !trimmedLine.match(/^(Teslimat No|Parça Kodu|Parça Adı|Red Edilen|Şartlı Kabul|Tedarikçi|Karar):/i)) {
 							if (inSection) {
 								formattedLines.push('</div>');
+								inSection = false;
 							}
 							formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 6px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${subHeadingMatch[1]}</strong></div>`);
 							inSection = true;
