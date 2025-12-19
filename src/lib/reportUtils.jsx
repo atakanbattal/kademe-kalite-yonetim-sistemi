@@ -1506,6 +1506,161 @@ const generateGenericReportHtml = (record, type) => {
 					problemDescription: problemDescriptionHtml
 				};
 			case 'deviation':
+				// HTML escape fonksiyonu (güvenlik için)
+				const escapeHtmlDeviation = (text) => {
+					if (!text || typeof text !== 'string') return text || '-';
+					const map = {
+						'&': '&amp;',
+						'<': '&lt;',
+						'>': '&gt;',
+						'"': '&quot;',
+						"'": '&#039;'
+					};
+					return text.replace(/[&<>"']/g, m => map[m]);
+				};
+				
+				// Türkçe karakterleri normalize et (Unicode normalization)
+				const normalizeTurkishCharsDeviation = (text) => {
+					if (!text || typeof text !== 'string') return text;
+					
+					// Unicode normalize et (NFD -> NFC) - birleşik karakterleri düzelt
+					let normalized = text.normalize('NFC');
+					
+					// Bozuk Türkçe karakterleri düzelt
+					const fixes = {
+						// Bozuk İ karakterleri
+						'i̇': 'i',
+						'İ̇': 'İ',
+						'İ': 'İ',
+						'ı̇': 'ı',
+						// Bozuk diğer karakterler
+						'ğ': 'ğ',
+						'Ğ': 'Ğ',
+						'ü': 'ü',
+						'Ü': 'Ü',
+						'ö': 'ö',
+						'Ö': 'Ö',
+						'ş': 'ş',
+						'Ş': 'Ş',
+						'ç': 'ç',
+						'Ç': 'Ç'
+					};
+					
+					Object.keys(fixes).forEach(broken => {
+						normalized = normalized.replace(new RegExp(broken, 'g'), fixes[broken]);
+					});
+					
+					return normalized;
+				};
+				
+				// Sapma açıklaması için profesyonel formatlama
+				const formatDeviationDescription = (text) => {
+					if (!text || typeof text !== 'string') return '-';
+					
+					// Önce Türkçe karakterleri normalize et
+					text = normalizeTurkishCharsDeviation(text);
+					
+					// HTML escape yap
+					let escaped = escapeHtmlDeviation(text);
+					
+					// Satır geçişlerini koru - boş satırları da koru
+					let lines = escaped.split('\n');
+					let formattedLines = [];
+					let inList = false;
+					let currentParagraph = [];
+					
+					for (let i = 0; i < lines.length; i++) {
+						let line = lines[i];
+						let trimmedLine = line.trim();
+						
+						// Boş satır - paragraf sonu veya boşluk
+						if (!trimmedLine) {
+							// Önceki paragrafı bitir
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							// Liste durumunu bitir
+							if (inList) {
+								formattedLines.push('</ul>');
+								inList = false;
+							}
+							// Boş satırı koru (küçük bir boşluk olarak)
+							formattedLines.push('<div style="height: 4px;"></div>');
+							continue;
+						}
+						
+						// Başlık tespiti: "Başlık:" veya "Başlık: Değer" formatı
+						const headingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
+						if (headingMatch) {
+							const [, title, value] = headingMatch;
+							
+							// Önceki paragrafı bitir
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							
+							// Liste durumunu bitir
+							if (inList) {
+								formattedLines.push('</ul>');
+								inList = false;
+							}
+							
+							// Başlığı formatla - daha küçük ve profesyonel
+							if (value && value.trim()) {
+								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
+							} else {
+								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong></div>`);
+							}
+							continue;
+						}
+						
+						// Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
+						const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
+						if (listMatch) {
+							// Önceki paragrafı bitir
+							if (currentParagraph.length > 0) {
+								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
+								currentParagraph = [];
+							}
+							
+							if (!inList) {
+								formattedLines.push('<ul style="margin: 4px 0; padding-left: 20px; list-style-type: disc;">');
+								inList = true;
+							}
+							
+							const itemText = listMatch[2];
+							formattedLines.push(`<li style="margin-bottom: 4px; line-height: 1.5; color: #374151; font-size: 13px;">${itemText}</li>`);
+							continue;
+						}
+						
+						// Liste durumunu bitir
+						if (inList) {
+							formattedLines.push('</ul>');
+							inList = false;
+						}
+						
+						// Normal metin - paragrafa ekle
+						currentParagraph.push(trimmedLine);
+					}
+					
+					// Son paragrafı ekle
+					if (currentParagraph.length > 0) {
+						formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
+					}
+					
+					// Son liste durumunu bitir
+					if (inList) {
+						formattedLines.push('</ul>');
+					}
+					
+					return formattedLines.join('\n');
+				};
+				
+				// Sapma açıklamasını tablo dışında tutmak için ayrı bir değişkende sakla
+				const deviationDescriptionHtml = record.description ? formatDeviationDescription(record.description) : '-';
+				
 				// Etkilenen Araçlar tablosu
 				let vehiclesHtml = '';
 				if (record.deviation_vehicles && Array.isArray(record.deviation_vehicles) && record.deviation_vehicles.length > 0) {
@@ -1534,16 +1689,18 @@ const generateGenericReportHtml = (record, type) => {
 					`;
 				}
 				
-				return `
-					<tr><td>Sapma Açıklaması</td><td><pre>${record.description || '-'}</pre></td></tr>
-					<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
-					<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
-					<tr><td>Sapma İstenilen Parça Kodu</td><td><strong>${record.part_code || '-'}</strong></td></tr>
-					${record.part_name ? `<tr><td>Parça Adı</td><td>${record.part_name}</td></tr>` : ''}
-					<tr><td>Sapma Kaynağı</td><td>${record.source || '-'}</td></tr>
-					<tr><td>Araç Tipi</td><td>${record.vehicle_type || '-'}</td></tr>
-					${vehiclesHtml}
-				`;
+				return {
+					tableRows: `
+						<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
+						<tr><td>Talep Eden Birim</td><td>${record.requesting_unit || '-'}</td></tr>
+						<tr><td>Sapma İstenilen Parça Kodu</td><td><strong>${record.part_code || '-'}</strong></td></tr>
+						${record.part_name ? `<tr><td>Parça Adı</td><td>${record.part_name}</td></tr>` : ''}
+						<tr><td>Sapma Kaynağı</td><td>${record.source || '-'}</td></tr>
+						<tr><td>Araç Tipi</td><td>${record.vehicle_type || '-'}</td></tr>
+						${vehiclesHtml}
+					`,
+					problemDescription: deviationDescriptionHtml
+				};
 			case 'kaizen':
 				// HTML escape fonksiyonu (güvenlik için)
 				const escapeHtmlKaizen = (text) => {
@@ -2341,7 +2498,11 @@ const generateGenericReportHtml = (record, type) => {
 			html += `</div>`;
 		}
 		if (type === 'deviation' && record.deviation_approvals?.length > 0) {
-			html += `<div class="section"><h2 class="section-title red">2. ONAY SÜRECİ</h2><table class="info-table"><tbody>`;
+			// Deviation için description varsa 3. section, yoksa 2. section
+			const generalInfo = getGeneralInfo();
+			const hasDescription = typeof generalInfo === 'object' && generalInfo.problemDescription;
+			const sectionNumber = hasDescription ? '3' : '2';
+			html += `<div class="section"><h2 class="section-title red">${sectionNumber}. ONAY SÜRECİ</h2><table class="info-table"><tbody>`;
 			record.deviation_approvals.forEach(approval => {
 				html += `<tr><td>${approval.approval_stage}</td><td>${approval.approver_name || 'Bekleniyor'} - <strong>${approval.status}</strong><br><i>"${approval.notes || ''}"</i></td></tr>`;
 			});
@@ -2625,9 +2786,11 @@ const generateGenericReportHtml = (record, type) => {
 		${(() => {
 			const generalInfo = getGeneralInfo();
 			if (typeof generalInfo === 'object' && generalInfo.problemDescription) {
+				// Deviation için "SAPMA AÇIKLAMASI", diğerleri için "PROBLEM TANIMI"
+				const sectionTitle = type === 'deviation' ? 'SAPMA AÇIKLAMASI' : 'PROBLEM TANIMI';
 				return `
 					<div class="section">
-						<h2 class="section-title blue">2. PROBLEM TANIMI</h2>
+						<h2 class="section-title blue">2. ${sectionTitle}</h2>
 						<div style="white-space: normal; word-wrap: break-word; padding: 8px; background-color: #ffffff; border-radius: 4px; border: 1px solid #e5e7eb; font-size: 13px; line-height: 1.5;">${generalInfo.problemDescription}</div>
 					</div>
 				`;
