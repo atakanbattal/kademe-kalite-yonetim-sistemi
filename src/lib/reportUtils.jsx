@@ -1441,11 +1441,11 @@ const generateGenericReportHtml = (record, type) => {
 								inList = false;
 							}
 							
-							// Başlığı formatla - daha küçük ve profesyonel
+							// Başlığı formatla - siyah bold, mavi renk yok
 							if (value && value.trim()) {
-								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
+								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #1f2937; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
 							} else {
-								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong></div>`);
+								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #1f2937; font-weight: 600; font-size: 13px;">${title}:</strong></div>`);
 							}
 							continue;
 						}
