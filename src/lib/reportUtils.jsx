@@ -1793,10 +1793,22 @@ const generateGenericReportHtml = (record, type) => {
 								let displayValue = (token.value === 'N/A' || token.value === 'N/A adet' || !token.value) ? 'Belirtilmemiş' : token.value;
 								
 								// skipHeadings'i value'dan temizle (veritabanından gelen eski veriler için)
+								// Önce spesifik başlıkları temizle
 								for (const skipHeading of skipHeadings) {
-									const skipRegex = new RegExp(skipHeading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[:\\s]*', 'gi');
-									displayValue = displayValue.replace(skipRegex, '').trim();
+									// Escape special regex chars
+									const escapedHeading = skipHeading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+									// Case-insensitive, boşluk toleranslı regex (başta, sonda veya ortada)
+									const skipRegex = new RegExp('\\s*' + escapedHeading.replace(/\\s+/g, '\\s+') + '[:\\s]*', 'gi');
+									displayValue = displayValue.replace(skipRegex, ' ').trim();
 								}
+								
+								// Genel pattern: "Ölçüm Sonuç" ile başlayan ve "Tespit" içeren her şeyi temizle
+								// Bu, tüm varyasyonları (noktalı i, büyük/küçük harf, vb.) yakalar
+								const generalSkipRegex = /\s*Ölçüm\s+Sonuç[^\s]*\s+Ve\s+Tespit[^\s]*[:]?\s*/gi;
+								displayValue = displayValue.replace(generalSkipRegex, ' ').trim();
+								
+								// Tekrar tekrar boşlukları temizle
+								displayValue = displayValue.replace(/\s+/g, ' ').trim();
 								
 								// Sonuç için Türkçe isimler ve renk
 								const isSonucKey = token.key.toLowerCase() === 'sonuç';
