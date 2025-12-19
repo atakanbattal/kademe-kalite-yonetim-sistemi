@@ -147,12 +147,12 @@ import React from 'react';
                     <ActionItem newStatus="rework_end" label="Yeniden İşlem Bitti" icon={<CheckCircle className="mr-2 h-4 w-4 text-orange-500" />} condition={status === 'Yeniden İşlemde'} />
                     
                     <ActionItem newStatus="waiting_for_shipping_info" label="Sevk Bilgisi Bekleniyor" icon={<Clock className="mr-2 h-4 w-4 text-orange-500" />} condition={['Kontrol Bitti', 'Yeniden İşlem Bitti', 'Sevk Hazır'].includes(status)} />
-                    <ActionItem newStatus="ready_to_ship" label="Onayla (Sevk Hazır)" icon={<CheckCircle className="mr-2 h-4 w-4 text-green-500" />} condition={['Kontrol Bitti', 'Yeniden İşlem Bitti'].includes(status)} />
+                    <ActionItem newStatus="ready_to_ship" label="Onayla (Sevk Hazır)" icon={<CheckCircle className="mr-2 h-4 w-4 text-green-500" />} condition={['Kontrol Bitti', 'Yeniden İşlem Bitti', 'Sevk Bilgisi Bekleniyor'].includes(status)} />
                     
-                    <ActionItem newStatus="shipped" label="Sevk Et (Kapat)" icon={<Truck className="mr-2 h-4 w-4" />} condition={status === 'Sevk Hazır'} />
+                    <ActionItem newStatus="shipped" label="Sevk Et (Kapat)" icon={<Truck className="mr-2 h-4 w-4" />} condition={['Sevk Hazır', 'Sevk Bilgisi Bekleniyor'].includes(status)} />
                     
                     <DropdownMenuSeparator />
-                    <ActionItem newStatus="quality_entry" label="Tekrar Kaliteye Al" icon={<RefreshCw className="mr-2 h-4 w-4" />} condition={['Yeniden İşlem Bitti', 'Kontrol Bitti'].includes(status)} />
+                    <ActionItem newStatus="quality_entry" label="Tekrar Kaliteye Al" icon={<RefreshCw className="mr-2 h-4 w-4" />} condition={['Yeniden İşlem Bitti', 'Kontrol Bitti', 'Sevk Bilgisi Bekleniyor'].includes(status)} />
                 </>
             );
         };
