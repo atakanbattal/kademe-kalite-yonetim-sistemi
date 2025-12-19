@@ -1553,7 +1553,7 @@ const generateGenericReportHtml = (record, type) => {
 					return normalized;
 				};
 				
-				// Sapma açıklaması için profesyonel formatlama
+				// Sapma açıklaması için profesyonel formatlama - Girdi kontrol formatı gibi
 				const formatDeviationDescription = (text) => {
 					if (!text || typeof text !== 'string') return '-';
 					
@@ -1563,30 +1563,17 @@ const generateGenericReportHtml = (record, type) => {
 					// HTML escape yap
 					let escaped = escapeHtmlDeviation(text);
 					
-					// Satır geçişlerini koru - boş satırları da koru
+					// Satır geçişlerini koru - her satırı ayrı göster
 					let lines = escaped.split('\n');
 					let formattedLines = [];
-					let inList = false;
-					let currentParagraph = [];
 					
 					for (let i = 0; i < lines.length; i++) {
 						let line = lines[i];
 						let trimmedLine = line.trim();
 						
-						// Boş satır - paragraf sonu veya boşluk
+						// Boş satır - küçük bir boşluk olarak koru
 						if (!trimmedLine) {
-							// Önceki paragrafı bitir
-							if (currentParagraph.length > 0) {
-								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
-								currentParagraph = [];
-							}
-							// Liste durumunu bitir
-							if (inList) {
-								formattedLines.push('</ul>');
-								inList = false;
-							}
-							// Boş satırı koru (küçük bir boşluk olarak)
-							formattedLines.push('<div style="height: 4px;"></div>');
+							formattedLines.push('<div style="height: 6px;"></div>');
 							continue;
 						}
 						
@@ -1595,23 +1582,11 @@ const generateGenericReportHtml = (record, type) => {
 						if (headingMatch) {
 							const [, title, value] = headingMatch;
 							
-							// Önceki paragrafı bitir
-							if (currentParagraph.length > 0) {
-								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
-								currentParagraph = [];
-							}
-							
-							// Liste durumunu bitir
-							if (inList) {
-								formattedLines.push('</ul>');
-								inList = false;
-							}
-							
-							// Başlığı formatla - daha küçük ve profesyonel
+							// Her başlık alt alta, mavi renk olmadan, sadece kalın
 							if (value && value.trim()) {
-								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
+								formattedLines.push(`<div style="margin-bottom: 4px; line-height: 1.6;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
 							} else {
-								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong></div>`);
+								formattedLines.push(`<div style="margin-bottom: 4px; line-height: 1.6;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937;">${title}:</strong></div>`);
 							}
 							continue;
 						}
@@ -1619,40 +1594,13 @@ const generateGenericReportHtml = (record, type) => {
 						// Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
 						const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
 						if (listMatch) {
-							// Önceki paragrafı bitir
-							if (currentParagraph.length > 0) {
-								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
-								currentParagraph = [];
-							}
-							
-							if (!inList) {
-								formattedLines.push('<ul style="margin: 4px 0; padding-left: 20px; list-style-type: disc;">');
-								inList = true;
-							}
-							
 							const itemText = listMatch[2];
-							formattedLines.push(`<li style="margin-bottom: 4px; line-height: 1.5; color: #374151; font-size: 13px;">${itemText}</li>`);
+							formattedLines.push(`<div style="margin-left: 20px; margin-bottom: 3px; line-height: 1.5; color: #374151; font-size: 13px;">• ${itemText}</div>`);
 							continue;
 						}
 						
-						// Liste durumunu bitir
-						if (inList) {
-							formattedLines.push('</ul>');
-							inList = false;
-						}
-						
-						// Normal metin - paragrafa ekle
-						currentParagraph.push(trimmedLine);
-					}
-					
-					// Son paragrafı ekle
-					if (currentParagraph.length > 0) {
-						formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
-					}
-					
-					// Son liste durumunu bitir
-					if (inList) {
-						formattedLines.push('</ul>');
+						// Normal metin - paragraf olarak göster
+						formattedLines.push(`<div style="margin-bottom: 4px; line-height: 1.6; color: #374151; font-size: 13px;">${trimmedLine}</div>`);
 					}
 					
 					return formattedLines.join('\n');
