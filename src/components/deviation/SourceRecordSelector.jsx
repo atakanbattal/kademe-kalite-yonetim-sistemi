@@ -74,7 +74,7 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                 case 'incoming_inspection':
                     query = supabase
                         .from('incoming_inspections')
-                        .select('*, supplier:suppliers(name), defects:incoming_inspection_defects(defect_description, quantity, part_code, part_name)')
+                        .select('*, supplier:suppliers(name), defects:incoming_inspection_defects(defect_description, quantity, part_code, part_name), results:incoming_inspection_results(*)')
                         .eq('id', sourceId)
                         .single();
                     break;
@@ -138,7 +138,8 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
             .select(`
                 *,
                 supplier:suppliers(name),
-                defects:incoming_inspection_defects(defect_description, quantity, part_code, part_name)
+                defects:incoming_inspection_defects(defect_description, quantity, part_code, part_name),
+                results:incoming_inspection_results(*)
             `)
             .in('decision', ['Şartlı Kabul', 'Red'])
             .order('inspection_date', { ascending: false })
@@ -245,9 +246,13 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                     quantity_rejected: record.quantity_rejected,
                     quantity_conditional: record.quantity_conditional,
                     defects: record.defects || [],
+                    results: record.results || [],
                     description: record.description,
                     notes: record.notes,
-                    delivery_note_number: record.delivery_note_number
+                    delivery_note_number: record.delivery_note_number,
+                    inspection_date: record.inspection_date,
+                    quantity_received: record.quantity_received,
+                    quantity_inspected: record.quantity_inspected
                 };
             case 'quarantine':
                 return {
