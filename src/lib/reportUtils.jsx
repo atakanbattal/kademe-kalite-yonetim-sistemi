@@ -1767,10 +1767,29 @@ const generateGenericReportHtml = (record, type) => {
 							
 							// Eğer değer büyük başlık içeriyorsa (ÖLÇÜM SONUÇLARI, TESPİT EDİLEN HATALAR), ayır
 							let cleanValue = value || '';
-							const bigHeadingInValue = cleanValue.match(/(ÖLÇÜM SONUÇLARI|TESPİT EDİLEN HATALAR|ÖLÇÜM ÖZETİ|UYGUNSUZ BULUNAN ÖLÇÜMLER)/i);
-							if (bigHeadingInValue) {
+							
+							// Büyük başlıkları kontrol et (case-insensitive)
+							const bigHeadingPatterns = [
+								/ÖLÇÜM SONUÇLARI[:\s]*/i,
+								/TESPİT EDİLEN HATALAR[:\s]*/i,
+								/ÖLÇÜM ÖZETİ[:\s]*/i,
+								/UYGUNSUZ BULUNAN ÖLÇÜMLER[:\s]*/i
+							];
+							
+							let bigHeadingFound = null;
+							let bigHeadingIndex = -1;
+							
+							for (const pattern of bigHeadingPatterns) {
+								const match = cleanValue.match(pattern);
+								if (match) {
+									bigHeadingFound = match[0];
+									bigHeadingIndex = cleanValue.indexOf(match[0]);
+									break;
+								}
+							}
+							
+							if (bigHeadingFound && bigHeadingIndex >= 0) {
 								// Büyük başlığı değerden çıkar ve ayrı bir satır olarak ekle
-								const bigHeadingIndex = cleanValue.indexOf(bigHeadingInValue[0]);
 								const beforeBigHeading = cleanValue.substring(0, bigHeadingIndex).trim();
 								const bigHeadingAndAfter = cleanValue.substring(bigHeadingIndex).trim();
 								
@@ -1794,8 +1813,11 @@ const generateGenericReportHtml = (record, type) => {
 								}
 								formattedLines.push('<div style="height: 8px;"></div>');
 								
-								// Büyük başlığı ve sonrasını işle
-								const bigHeadingLine = bigHeadingAndAfter.split(/\n/)[0].trim();
+								// Büyük başlığı ve sonrasını işle - satırları ayır
+								const bigHeadingParts = bigHeadingAndAfter.split(/\n/);
+								const bigHeadingLine = bigHeadingParts[0].trim();
+								
+								// Büyük başlığı ekle
 								const bigHeadingMatch2 = bigHeadingLine.match(/^(ÖLÇÜM SONUÇLARI|TESPİT EDİLEN HATALAR|ÖLÇÜM ÖZETİ|UYGUNSUZ BULUNAN ÖLÇÜMLER)[:\s]*/i);
 								if (bigHeadingMatch2) {
 									formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 6px;"><strong style="font-weight: 600; font-size: 13px; color: #1f2937; text-transform: uppercase;">${bigHeadingMatch2[1]}</strong></div>`);
@@ -1803,17 +1825,17 @@ const generateGenericReportHtml = (record, type) => {
 									formattedLines.push('<div style="margin-left: 0; padding-left: 0;">');
 									
 									// Büyük başlıktan sonraki içeriği işle
-									const afterBigHeading = bigHeadingAndAfter.substring(bigHeadingMatch2[0].length).trim();
+									const afterBigHeading = bigHeadingLine.substring(bigHeadingMatch2[0].length).trim();
 									if (afterBigHeading) {
-										// Sonraki satırları işle
-										const remainingLines = afterBigHeading.split(/\n/);
-										for (let j = 0; j < remainingLines.length; j++) {
-											const remainingLine = remainingLines[j].trim();
-											if (remainingLine) {
-												// Bu satırı normal işleme devam ettir
-												// Şimdilik ekle, sonraki iterasyonda işlenecek
-												lines.splice(i + 1, 0, remainingLine);
-											}
+										// Bu içeriği bir sonraki satır olarak ekle
+										lines.splice(i + 1, 0, afterBigHeading);
+									}
+									
+									// Büyük başlıktan sonraki diğer satırları da ekle
+									for (let j = 1; j < bigHeadingParts.length; j++) {
+										const remainingLine = bigHeadingParts[j].trim();
+										if (remainingLine) {
+											lines.splice(i + 1 + j, 0, remainingLine);
 										}
 									}
 								}
