@@ -51,96 +51,169 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
     const formatDescription = (text) => {
         if (!text) return '-';
         
-        // Önce literal \n karakterlerini gerçek satır sonlarına çevir
-        text = text.replace(/\\n/g, '\n');
+        // Önce literal \\n karakterlerini gerçek satır sonlarına çevir (veritabanından gelen)
+        let processedText = text.replace(/\\n/g, '\n');
         
-        // Bilinen başlıkları kullanarak tek satırlık metni parçalara ayır
-        const knownHeadings = [
-            'Girdi Kalite Kontrol Kaydı',
-            'Karantina Kaydı',
-            'Kalitesizlik Maliyeti Kaydı',
-            'Parça Kodu:',
-            'Parça Adı:',
-            'Red Edilen Miktar:',
-            'Şartlı Kabul Miktarı:',
-            'Tedarikçi:',
-            'Karar:',
-            'Teslimat No:',
-            'Hata Detayları:',
-            'Bu Parça İçin Sapma Onayı',
-            'Bu Parça Için Sapma Onayı',
-            'ÖLÇÜM SONUÇLARI',
-            'Ölçüm Sonuçlari Ve Tespitler',
+        // Bilinen bölüm başlıkları (ayırıcı olarak kullanılacak)
+        const sectionHeadings = [
+            'Ölçüm Sonuçlari Ve Tespi̇tler',
             'Ölçüm Sonuçları Ve Tespitler',
-            'TESPİT EDİLEN HATALAR',
-            'ÖLÇÜM ÖZETİ',
-            'Ölçüm Özeti',
+            'ÖLÇÜM SONUÇLARI VE TESPİTLER',
             'Uygunsuz Bulunan Ölçümler',
-            'Beklenen Değer',
-            'Tolerans Aralığı',
-            'Gerçek Ölçülen Değer',
-            'Sonuç:',
-            'Ret Oranı',
+            'Ölçüm Özeti̇',
+            'Ölçüm Özeti',
+            'ÖLÇÜM ÖZETİ',
+            'TESPİT EDİLEN HATALAR',
+            'Tespit Edilen Hatalar',
+            'Hata Detayları',
+        ];
+        
+        // Bilinen key-value çiftleri
+        const keyValuePatterns = [
+            'Parça Kodu',
+            'Parça Adı',
+            'Red Edilen Miktar',
+            'Şartlı Kabul Miktarı',
+            'Tedarikçi',
+            'Karar',
+            'Teslimat No',
             'Toplam Ölçüm Sayısı',
             'Uygun Ölçümler',
             'Uygunsuz Ölçümler',
+            'Ret Oranı',
+            'Beklenen Değer \\(nominal\\)',
+            'Tolerans Aralığı',
+            'Gerçek Ölçülen Değer',
+            'Sonuç',
         ];
         
-        // Önce \n karakterlerini kontrol et
-        let lines = text.split('\n').filter(line => line.trim() !== '');
+        // Ana başlık pattern'leri
+        const mainHeadingPatterns = [
+            /^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i
+        ];
         
-        // Eğer tek satır ve bilinen başlıkları içeriyorsa, ayır
-        if (lines.length === 1) {
-            const singleLine = lines[0];
-            const splits = [];
+        // Numaralı ölçüm pattern'i
+        const numberedMeasurementPattern = /\d+\.\s+(Minör|Kritik|Majör)\s+Özellik\s*\(ölçüm\s*\d+\/\d+\)/i;
+        
+        // Metni önce satırlara böl
+        let lines = processedText.split('\n').filter(line => line.trim() !== '');
+        
+        // Tüm satırları işle ve daha fazla parçalara ayır
+        const processedLines = [];
+        
+        for (const line of lines) {
+            let currentLine = line.trim();
+            if (!currentLine) continue;
             
-            // Başlıkları bul ve pozisyonlarını kaydet
-            for (const heading of knownHeadings) {
-                const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                const matches = [...singleLine.matchAll(regex)];
-                for (const match of matches) {
-                    splits.push({
-                        index: match.index,
-                        heading: heading,
-                    });
-                }
-            }
+            // Numaralı ölçümleri ayır (1. Minör Özellik... 2. Minör Özellik...)
+            const numberedParts = currentLine.split(/(?=\d+\.\s+(Minör|Kritik|Majör)\s+Özellik)/i);
             
-            // * ile başlayan maddeleri de bul
-            const bulletRegex = /\s+\*\s+/g;
-            const bulletMatches = [...singleLine.matchAll(bulletRegex)];
-            for (const match of bulletMatches) {
-                splits.push({
-                    index: match.index,
-                    heading: '*',
-                });
-            }
-            
-            // Pozisyonlara göre sırala
-            splits.sort((a, b) => a.index - b.index);
-            
-            // Eğer başlık bulunduysa, metni ayır
-            if (splits.length > 0) {
-                const newLines = [];
-                for (let i = 0; i < splits.length; i++) {
-                    const start = splits[i].index;
-                    const end = i < splits.length - 1 ? splits[i + 1].index : singleLine.length;
-                    const line = singleLine.substring(start, end).trim();
-                    if (line) {
-                        newLines.push(line);
+            for (let part of numberedParts) {
+                part = part.trim();
+                if (!part) continue;
+                
+                // Bölüm başlıklarını ayır
+                for (const heading of sectionHeadings) {
+                    const headingRegex = new RegExp(`(${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:?)`, 'gi');
+                    if (headingRegex.test(part)) {
+                        const splitByHeading = part.split(headingRegex);
+                        if (splitByHeading.length > 1) {
+                            for (const subPart of splitByHeading) {
+                                const trimmed = subPart.trim();
+                                if (trimmed) {
+                                    processedLines.push(trimmed);
+                                }
+                            }
+                            part = '';
+                            break;
+                        }
                     }
                 }
-                if (newLines.length > 0) {
-                    lines = newLines;
+                
+                if (part) {
+                    // Key-value çiftlerini ayır
+                    let hasKeyValue = false;
+                    for (const keyPattern of keyValuePatterns) {
+                        const kvRegex = new RegExp(`(?<=\\s|^)(${keyPattern}):`, 'gi');
+                        if (kvRegex.test(part)) {
+                            // Birden fazla key-value varsa ayır
+                            const splitPattern = new RegExp(`\\s+(?=${keyValuePatterns.join('|')}):`, 'gi');
+                            const kvParts = part.split(splitPattern);
+                            if (kvParts.length > 1) {
+                                for (const kvPart of kvParts) {
+                                    const trimmed = kvPart.trim();
+                                    if (trimmed) {
+                                        processedLines.push(trimmed);
+                                    }
+                                }
+                                hasKeyValue = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (!hasKeyValue) {
+                        processedLines.push(part);
+                    }
                 }
             }
+        }
+        
+        // Eğer hala tek satır veya az satır varsa, daha agresif ayırma yap
+        if (processedLines.length <= 3 && processedText.length > 200) {
+            const aggressiveLines = [];
+            const combinedText = processedText;
+            
+            // Key-value çiftlerini regex ile bul ve ayır
+            const kvRegex = /(Parça Kodu|Parça Adı|Red Edilen Miktar|Şartlı Kabul Miktarı|Tedarikçi|Karar|Teslimat No|Toplam Ölçüm Sayısı|Uygun Ölçümler|Uygunsuz Ölçümler|Ret Oranı|Beklenen Değer[^:]*|Tolerans Aralığı|Gerçek Ölçülen Değer|Sonuç):\s*([^\n]*?)(?=\s+(?:Parça Kodu|Parça Adı|Red Edilen Miktar|Şartlı Kabul Miktarı|Tedarikçi|Karar|Teslimat No|Ölçüm|Toplam|Uygun|Uygunsuz|Ret Oranı|Beklenen|Tolerans|Gerçek|Sonuç|Bu Parça|\d+\.\s+(?:Minör|Kritik|Majör))|$)/gi;
+            
+            // Ana başlığı bul
+            const mainHeadingMatch = combinedText.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
+            if (mainHeadingMatch) {
+                aggressiveLines.push(mainHeadingMatch[0]);
+            }
+            
+            // Key-value çiftlerini bul
+            const kvMatches = [...combinedText.matchAll(kvRegex)];
+            for (const match of kvMatches) {
+                aggressiveLines.push(`${match[1]}: ${match[2].trim()}`);
+            }
+            
+            // Bölüm başlıklarını bul
+            for (const heading of sectionHeadings) {
+                const headingRegex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                if (headingRegex.test(combinedText)) {
+                    aggressiveLines.push(heading + ':');
+                }
+            }
+            
+            // Numaralı ölçümleri bul
+            const measurementRegex = /(\d+)\.\s+(Minör|Kritik|Majör)\s+Özellik\s*\(ölçüm\s*\d+\/\d+\):[^]*?(?=\d+\.\s+(?:Minör|Kritik|Majör)|Ölçüm Özeti|Bu Parça|$)/gi;
+            const measurementMatches = [...combinedText.matchAll(measurementRegex)];
+            for (const match of measurementMatches) {
+                aggressiveLines.push(match[0].trim());
+            }
+            
+            // "Bu Parça İçin Sapma" cümlesini bul
+            const endMatch = combinedText.match(/Bu Parça\s+[İI]çin\s+Sapma[^.]*\./i);
+            if (endMatch) {
+                aggressiveLines.push(endMatch[0]);
+            }
+            
+            if (aggressiveLines.length > processedLines.length) {
+                lines = aggressiveLines;
+            } else {
+                lines = processedLines;
+            }
+        } else {
+            lines = processedLines;
         }
         
         return lines.map((line, idx) => {
             const trimmedLine = line.trim();
             
             // Ana başlık: "Girdi Kalite Kontrol Kaydı (25/12/077)"
-            if (/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/.test(trimmedLine)) {
+            if (/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i.test(trimmedLine)) {
                 return (
                     <div key={idx} className="text-base font-bold text-primary mb-3 pb-2 border-b border-primary/30">
                         {trimmedLine}
@@ -148,10 +221,10 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 );
             }
             
-            // Büyük bölüm başlıkları: "ÖLÇÜM SONUÇLARI VE TESPİTLER:", "TESPİT EDİLEN HATALAR:"
-            if (/^[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]+:/.test(trimmedLine)) {
+            // Büyük bölüm başlıkları: "ÖLÇÜM SONUÇLARI VE TESPİTLER:", "Ölçüm Özeti:" vb.
+            if (sectionHeadings.some(h => trimmedLine.toLowerCase().includes(h.toLowerCase()))) {
                 return (
-                    <div key={idx} className="text-sm font-bold text-foreground mt-4 mb-2 uppercase">
+                    <div key={idx} className="text-sm font-bold text-foreground mt-4 mb-2 bg-muted/50 px-3 py-2 rounded-md uppercase">
                         {trimmedLine}
                     </div>
                 );
@@ -167,36 +240,52 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 );
             }
             
-            // Numaralı liste öğeleri: "1. Minör Özellik (Ölçüm 1/1):" veya "1. Dış Cap..."
-            if (/^\d+\.\s+[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(trimmedLine)) {
-                // Eğer içinde "Beklenen Değer", "Tolerans" gibi detaylar varsa, onları da ayır
-                const detailParts = trimmedLine.split(/\s+(Beklenen Değer|Tolerans Aralığı|Gerçek Ölçülen Değer|Sonuç:)/i);
-                if (detailParts.length > 1) {
-                    // Ana başlık ve detayları ayır
-                    const mainPart = detailParts[0].trim();
-                    const details = [];
-                    for (let i = 1; i < detailParts.length; i += 2) {
-                        if (i + 1 < detailParts.length) {
-                            details.push(`${detailParts[i]}${detailParts[i + 1]}`);
-                        } else {
-                            details.push(detailParts[i]);
-                        }
+            // Numaralı ölçüm öğeleri: "1. Minör Özellik (ölçüm 1/1):" 
+            if (/^\d+\.\s+(Minör|Kritik|Majör)\s+Özellik/i.test(trimmedLine)) {
+                // İçindeki detayları ayır
+                const mainMatch = trimmedLine.match(/^(\d+\.\s+(Minör|Kritik|Majör)\s+Özellik\s*\([^)]+\):?)/i);
+                const mainPart = mainMatch ? mainMatch[1] : trimmedLine;
+                const restPart = mainMatch ? trimmedLine.substring(mainMatch[0].length).trim() : '';
+                
+                // Detayları parse et
+                const details = [];
+                if (restPart) {
+                    const detailRegex = /(Beklenen Değer[^:]*|Tolerans Aralığı|Gerçek Ölçülen Değer|Sonuç):\s*([^]*?)(?=\s+(?:Beklenen|Tolerans|Gerçek|Sonuç)|$)/gi;
+                    const detailMatches = [...restPart.matchAll(detailRegex)];
+                    for (const dm of detailMatches) {
+                        details.push({ key: dm[1], value: dm[2].trim() });
                     }
-                    return (
-                        <div key={idx} className="mt-3 mb-1">
-                            <div className="text-sm font-semibold text-foreground pl-2 border-l-2 border-primary/50">
-                                {mainPart}
-                            </div>
-                            {details.map((detail, dIdx) => (
-                                <div key={`${idx}-${dIdx}`} className="text-xs text-muted-foreground pl-6 py-0.5">
-                                    {detail.trim()}
-                                </div>
-                            ))}
-                        </div>
-                    );
                 }
+                
                 return (
-                    <div key={idx} className="text-sm font-semibold text-foreground mt-3 mb-1 pl-2 border-l-2 border-primary/50">
+                    <div key={idx} className="mt-3 mb-1 bg-destructive/5 rounded-lg p-3 border-l-4 border-destructive/50">
+                        <div className="text-sm font-semibold text-foreground">
+                            {mainPart}
+                        </div>
+                        {details.length > 0 ? (
+                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-1 text-xs">
+                                {details.map((detail, dIdx) => (
+                                    <div key={`${idx}-${dIdx}`} className="flex gap-2">
+                                        <span className="text-muted-foreground font-medium">{detail.key}:</span>
+                                        <span className={detail.key.toLowerCase().includes('sonuç') && detail.value.toLowerCase() === 'false' ? 'text-destructive font-semibold' : 'text-foreground'}>
+                                            {detail.value}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : restPart && (
+                            <div className="text-xs text-muted-foreground mt-1 pl-4">
+                                {restPart}
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+            
+            // Diğer numaralı liste öğeleri: "1. Dış Cap..."
+            if (/^\d+\.\s+[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(trimmedLine)) {
+                return (
+                    <div key={idx} className="text-sm text-foreground mt-2 pl-2 border-l-2 border-primary/50 py-1">
                         {trimmedLine}
                     </div>
                 );
