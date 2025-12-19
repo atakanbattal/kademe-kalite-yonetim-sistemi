@@ -379,6 +379,12 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         let detailedDescription = '';
         const details = autoFillData.source_record_details;
         
+        // Eğer defects bilgisi yoksa, record'dan direkt çek
+        let defectsToUse = details.defects || [];
+        if ((!defectsToUse || defectsToUse.length === 0) && record.defects && Array.isArray(record.defects) && record.defects.length > 0) {
+            defectsToUse = record.defects;
+        }
+        
         if (record._source_type === 'incoming_inspection') {
             detailedDescription = `Girdi Kalite Kontrol Kaydı (${details.record_no || details.inspection_number || 'N/A'})\n\n`;
             detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
@@ -394,12 +400,24 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             if (details.delivery_note_number) {
                 detailedDescription += `Teslimat No: ${details.delivery_note_number}\n`;
             }
-            if (details.defects && details.defects.length > 0) {
-                detailedDescription += `\nHata Detayları:\n`;
-                details.defects.forEach((defect, idx) => {
-                    detailedDescription += `${idx + 1}. ${defect.defect_description} (Miktar: ${defect.quantity})\n`;
+            
+            // Hata Detayları - Her zaman ekle (varsa detaylı, yoksa belirtilmemiş)
+            detailedDescription += `\nHata Detayları:\n`;
+            if (defectsToUse && Array.isArray(defectsToUse) && defectsToUse.length > 0) {
+                defectsToUse.forEach((defect, idx) => {
+                    const defectDesc = defect.defect_description || defect.description || 'Belirtilmemiş';
+                    const defectQty = defect.quantity || defect.qty || '-';
+                    detailedDescription += `${idx + 1}. ${defectDesc} (Miktar: ${defectQty})\n`;
                 });
+            } else {
+                // Eğer defects yoksa ama kayıt red veya şartlı kabul ise, hata bilgisi olmalı
+                if (details.decision === 'Red' || details.decision === 'Şartlı Kabul') {
+                    detailedDescription += `Hata bilgisi kayıt detaylarında belirtilmemiş. Lütfen kontrol edin.\n`;
+                } else {
+                    detailedDescription += `Hata tespit edilmemiş.\n`;
+                }
             }
+            
             if (details.description) {
                 detailedDescription += `\nAçıklama: ${details.description}\n`;
             }
