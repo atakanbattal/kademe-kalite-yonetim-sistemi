@@ -413,7 +413,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             
             // Ölçüm sonuçlarını detaylı göster (girdi kontrol formatı gibi)
             if (resultsToUse && Array.isArray(resultsToUse) && resultsToUse.length > 0) {
-                detailedDescription += `\nÖLÇÜM SONUÇLARI VE TESPİTLER:\n\n`;
+                detailedDescription += `\n`;
                 
                 // Sadece OK olmayanları al
                 const failedResults = resultsToUse.filter(r => {
