@@ -2402,43 +2402,50 @@ const generateGenericReportHtml = (record, type) => {
 					</thead>
 					<tbody>
 						${record.items.map((item, idx) => {
+							// Türkçe karakterleri korumak için güvenli metin encoding
+							const safeText = (text) => {
+								if (!text) return '-';
+								// HTML entity encoding - sadece özel karakterleri encode et, Türkçe karakterleri koru
+								return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+							};
+							
 							// Karakteristik bilgilerini göster
-							const characteristicName = item.characteristic_name || item.characteristic_id || '-';
-							const characteristicType = item.characteristic_type ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px;">Tip: ${item.characteristic_type}</div>` : '';
-							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px;">Tolerans: ${item.tolerance_class}</div>` : '';
+							const characteristicName = safeText(item.characteristic_name || item.characteristic_id || '-');
+							const characteristicType = item.characteristic_type ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tip: ${safeText(item.characteristic_type)}</div>` : '';
+							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tolerans: ${safeText(item.tolerance_class)}</div>` : '';
 							
 							// Ölçüm ekipmanı bilgilerini göster
-							const equipmentName = item.equipment_name || item.equipment_id || '-';
+							const equipmentName = safeText(item.equipment_name || item.equipment_id || '-');
 							
 							// Standart bilgilerini göster - standard_class varsa onu göster, yoksa standard_name veya standard_id
 							let standardName = '-';
 							if (item.standard_class) {
 								// standard_class varsa direkt göster (TS 13920, TS 9013 gibi)
-								standardName = item.standard_class;
+								standardName = safeText(item.standard_class);
 							} else if (item.standard_name) {
-								standardName = item.standard_name;
+								standardName = safeText(item.standard_name);
 							} else if (item.standard_id) {
-								standardName = item.standard_id;
+								standardName = safeText(item.standard_id);
 							}
-							const standardInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; word-wrap: break-word; line-height: 1.3;">Tolerans Sınıfı: ${item.tolerance_class}</div>` : '';
+							const standardInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; word-wrap: break-word; line-height: 1.3; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tolerans Sınıfı: ${safeText(item.tolerance_class)}</div>` : '';
 							
 							return `
 								<tr style="border-bottom: 1px solid #d1d5db;">
-									<td style="border: 1px solid #d1d5db; padding: 6px 4px; font-weight: 600; text-align: center; background-color: #f9fafb; font-size: 9px;">${idx + 1}</td>
-									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word;">
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; font-weight: 600; text-align: center; background-color: #f9fafb; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${idx + 1}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">
 										<div style="font-weight: 600; font-size: 9px;">${characteristicName}</div>
 										${characteristicType}
 										${toleranceInfo}
 									</td>
-									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-size: 9px;">${equipmentName}</td>
-									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-size: 9px; line-height: 1.3;">
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${equipmentName}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-size: 9px; line-height: 1.3; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">
 										<div style="word-wrap: break-word; overflow-wrap: break-word;">${standardName}</div>
 										${standardInfo}
 									</td>
-									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; background-color: #eff6ff; font-size: 9px;">${item.nominal_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; background-color: #fef3c7; font-weight: 500; font-size: 9px;">${item.min_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; background-color: #fef3c7; font-weight: 500; font-size: 9px;">${item.max_value || '-'}</td>
-									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; font-size: 10px;">${item.tolerance_direction || '±'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; background-color: #eff6ff; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.nominal_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; background-color: #fef3c7; font-weight: 500; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.min_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; background-color: #fef3c7; font-weight: 500; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.max_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; font-size: 10px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.tolerance_direction || '±'}</td>
 								</tr>
 							`;
 						}).join('')}
@@ -2460,13 +2467,20 @@ const generateGenericReportHtml = (record, type) => {
 				`;
 			}
 			
+			// Türkçe karakterleri korumak için güvenli metin encoding
+			const encodeTurkishChars = (text) => {
+				if (!text) return '-';
+				// HTML entity encoding - sadece özel karakterleri encode et, Türkçe karakterleri koru
+				return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+			};
+			
 			return `
-				<tr><td>Araç Tipi</td><td><strong style="font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif;">${record.vehicle_type || '-'}</strong></td></tr>
-				<tr><td>Parça Kodu</td><td><strong style="font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif;">${record.part_code || '-'}</strong></td></tr>
-				<tr><td>Parça Adı</td><td><strong style="font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; word-wrap: break-word; overflow-wrap: break-word;">${record.part_name || '-'}</strong></td></tr>
+				<tr><td>Araç Tipi</td><td><strong style="font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${encodeTurkishChars(record.vehicle_type)}</strong></td></tr>
+				<tr><td>Parça Kodu</td><td><strong style="font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${encodeTurkishChars(record.part_code)}</strong></td></tr>
+				<tr><td>Parça Adı</td><td><strong style="font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif; word-wrap: break-word; overflow-wrap: break-word;">${encodeTurkishChars(record.part_name)}</strong></td></tr>
 				<tr><td>Revizyon No</td><td>${record.revision_number || 0}</td></tr>
 				<tr><td>Revizyon Tarihi</td><td>${formatDate(record.revision_date)}</td></tr>
-				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
+				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
 				${revisionNotesHtml}
 			`;
 			break;
@@ -3345,13 +3359,13 @@ const generatePrintableReportHtml = (record, type) => {
 	const isExam = type === 'exam_paper';
 
 	const defaultStyles = `
-		@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+		@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
 		
 		/* ============================================
 		   SAYFA AYARLARI - PDF OPTİMİZASYONU
 		   ============================================ */
 		body { 
-			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
+			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
 			color: #1f2937; 
 			margin: 0; 
 			padding: 0;
@@ -3502,7 +3516,7 @@ const generatePrintableReportHtml = (record, type) => {
 		.info-table tr td:first-child { font-weight: 600; width: 25%; }
 		.info-table pre { 
 			white-space: pre-wrap; 
-			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
+			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
 			margin: 0; 
 			font-size: 10px; 
 		}
@@ -3574,7 +3588,7 @@ const generatePrintableReportHtml = (record, type) => {
 		}
 		.results-table pre { 
 			white-space: pre-wrap; 
-			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
+			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
 			margin: 0; 
 			font-size: 10px; 
 		}
@@ -3596,7 +3610,7 @@ const generatePrintableReportHtml = (record, type) => {
 		}
 		.notes-box pre { 
 			white-space: pre-wrap; 
-			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
+			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
 			margin: 0; 
 		}
 
@@ -3704,7 +3718,7 @@ const generatePrintableReportHtml = (record, type) => {
 		.step-description { white-space: pre-wrap; }
 		.step-description pre { 
 			white-space: pre-wrap; 
-			font-family: 'Roboto', 'Noto Sans TC', 'Arial Unicode MS', sans-serif; 
+			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
 			margin: 0; 
 		}
 		
