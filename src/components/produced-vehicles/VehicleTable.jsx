@@ -75,6 +75,7 @@ import React from 'react';
                 case 'Kontrol Başladı': return { variant: 'warning', icon: <Play className="w-3 h-3 mr-1.5" />, text: 'Kontrol Başladı' };
                 case 'Kontrol Bitti': return { variant: 'purple', icon: <CheckCircle className="w-3 h-3 mr-1.5" />, text: 'Kontrol Bitti' };
                 case 'Yeniden İşlemde': return { variant: 'destructive', icon: <Wrench className="w-3 h-3 mr-1.5" />, text: 'Yeniden İşlemde' };
+                case 'Yeniden İşlem Bitti': return { variant: 'warning', icon: <CheckCircle className="w-3 h-3 mr-1.5" />, text: 'Yeniden İşlem Bitti' };
                 case 'Sevk Bilgisi Bekleniyor': return { variant: 'warning', icon: <Clock className="w-3 h-3 mr-1.5" />, text: 'Sevk Bilgisi Bekleniyor' };
                 case 'Sevk Hazır': return { variant: 'success', icon: <CheckCircle className="w-3 h-3 mr-1.5" />, text: 'Sevk Hazır' };
                 case 'Sevk Edildi': return { variant: 'secondary', icon: <Truck className="w-3 h-3 mr-1.5" />, text: 'Sevk Edildi' };
@@ -143,13 +144,15 @@ import React from 'react';
                     <ActionItem newStatus="control_end" label="Kontrolü Bitir" icon={<CheckCircle className="mr-2 h-4 w-4" />} condition={status === 'Kontrol Başladı'} />
                     
                     <ActionItem newStatus="rework_start" label="Yeniden İşleme Gönder" icon={<Wrench className="mr-2 h-4 w-4" />} condition={status === 'Kontrol Bitti'} />
-                    <ActionItem newStatus="waiting_for_shipping_info" label="Sevk Bilgisi Bekleniyor" icon={<Clock className="mr-2 h-4 w-4 text-orange-500" />} condition={['Kontrol Bitti', 'Sevk Hazır'].includes(status)} />
-                    <ActionItem newStatus="ready_to_ship" label="Onayla (Sevk Hazır)" icon={<CheckCircle className="mr-2 h-4 w-4 text-green-500" />} condition={status === 'Kontrol Bitti'} />
+                    <ActionItem newStatus="rework_end" label="Yeniden İşlem Bitti" icon={<CheckCircle className="mr-2 h-4 w-4 text-orange-500" />} condition={status === 'Yeniden İşlemde'} />
+                    
+                    <ActionItem newStatus="waiting_for_shipping_info" label="Sevk Bilgisi Bekleniyor" icon={<Clock className="mr-2 h-4 w-4 text-orange-500" />} condition={['Kontrol Bitti', 'Yeniden İşlem Bitti', 'Sevk Hazır'].includes(status)} />
+                    <ActionItem newStatus="ready_to_ship" label="Onayla (Sevk Hazır)" icon={<CheckCircle className="mr-2 h-4 w-4 text-green-500" />} condition={['Kontrol Bitti', 'Yeniden İşlem Bitti'].includes(status)} />
                     
                     <ActionItem newStatus="shipped" label="Sevk Et (Kapat)" icon={<Truck className="mr-2 h-4 w-4" />} condition={status === 'Sevk Hazır'} />
                     
                     <DropdownMenuSeparator />
-                    <ActionItem newStatus="quality_entry" label="Tekrar Kaliteye Al" icon={<RefreshCw className="mr-2 h-4 w-4" />} condition={!['Kaliteye Girdi', 'Kontrol Başladı'].includes(status)} />
+                    <ActionItem newStatus="quality_entry" label="Tekrar Kaliteye Al" icon={<RefreshCw className="mr-2 h-4 w-4" />} condition={['Yeniden İşlem Bitti', 'Kontrol Bitti'].includes(status)} />
                 </>
             );
         };

@@ -12,6 +12,7 @@ const QUALITY_STATUSES = [
     "Kontrol Başladı",
     "Kontrol Bitti",
     "Yeniden İşlemde",
+    "Yeniden İşlem Bitti",
     "Sevk Hazır",
     "Sevk Edildi",
 ];
