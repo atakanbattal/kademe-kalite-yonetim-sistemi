@@ -1571,6 +1571,7 @@ const generateGenericReportHtml = (record, type) => {
 					
 					// Eğer tek satırsa ve birden fazla ":" içeriyorsa, başlıkları ayır
 					// Ama önce büyük başlıkları (ÖLÇÜM SONUÇLARI, TESPİT EDİLEN HATALAR) kontrol et
+					// Ayrıca temel bilgileri (Parça Kodu, Parça Adı, vb.) de ayırmalıyız
 					if (lines.length === 1 && lines[0].includes(':')) {
 						// Büyük başlıkları önce bul ve ayır
 						const bigHeadings = [
