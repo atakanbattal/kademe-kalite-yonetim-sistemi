@@ -366,6 +366,23 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
         // Realtime subscription - SADECE KRİTİK TABLOLARI DİNLE
         useEffect(() => {
             if (!session) return;
+
+            // KPI'ları yenileme fonksiyonu (inline - hoisting sorununu önler)
+            const refreshKpisInline = async () => {
+                try {
+                    const { data, error } = await supabase
+                        .from('kpis')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (!error && data) {
+                        setData(prev => ({ ...prev, kpis: data }));
+                        console.log('✅ KPIs refreshed via realtime:', data.length, 'kpis');
+                    }
+                } catch (err) {
+                    console.error('❌ KPIs realtime refresh error:', err);
+                }
+            };
         
             const handleDbChanges = (payload) => {
                 const { eventType, table, new: newRecord, old: oldRecord } = payload;
@@ -411,7 +428,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                     // KPI tablosu değiştiyse otomatik refresh
                     if (payload.table === 'kpis') {
                         console.log('🔄 KPI değişikliği algılandı, yenileniyor...');
-                        refreshKpis();
+                        refreshKpisInline();
                     }
                 })
                 .subscribe((status, err) => {
@@ -426,7 +443,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             return () => {
                 supabase.removeChannel(subscription);
             };
-        }, [session, logAudit, refreshKpis]);
+        }, [session, logAudit]);
 
         const refreshProducedVehicles = useCallback(async () => {
             if (!session) return;
