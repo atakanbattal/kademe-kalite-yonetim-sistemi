@@ -1567,11 +1567,15 @@ const generateGenericReportHtml = (record, type) => {
 					// HTML escape yap
 					let escaped = escapeHtmlDeviation(text);
 					
-					// Bölüm başlıkları
-					const sectionHeadings = [
+					// Atlanacak başlıklar (gereksiz, zaten alt başlıklar var)
+					const skipHeadings = [
 						'Ölçüm Sonuçlari Ve Tespi̇tler',
 						'Ölçüm Sonuçları Ve Tespitler',
 						'ÖLÇÜM SONUÇLARI VE TESPİTLER',
+					];
+					
+					// Bölüm başlıkları (render edilecek)
+					const sectionHeadings = [
 						'Uygunsuz Bulunan Ölçümler',
 						'Ölçüm Özeti̇',
 						'Ölçüm Özeti',
@@ -1580,6 +1584,9 @@ const generateGenericReportHtml = (record, type) => {
 						'Tespit Edilen Hatalar',
 						'Hata Detayları',
 					];
+					
+					// Tüm başlıklar (ayrıştırma için)
+					const allHeadings = [...skipHeadings, ...sectionHeadings];
 					
 					// Tüm key-value anahtarları (sıralı - uzundan kısaya)
 					const knownKeys = [
@@ -1614,8 +1621,8 @@ const generateGenericReportHtml = (record, type) => {
 					const findNextKeyOrHeadingPosition = (str, startPos) => {
 						let minPos = str.length;
 						
-						// Önce section headings ara
-						for (const heading of sectionHeadings) {
+						// Önce tüm headings ara (skip dahil)
+						for (const heading of allHeadings) {
 							const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
 							const match = regex.exec(str.substring(startPos));
 							if (match && (startPos + match.index) < minPos) {
@@ -1661,7 +1668,20 @@ const generateGenericReportHtml = (record, type) => {
 							
 							let matched = false;
 							
-							// Section heading kontrol et
+							// Skip heading kontrol et (atla, render etme)
+							for (const heading of skipHeadings) {
+								const regex = new RegExp('^(' + heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')[:\\s]*', 'i');
+								const match = remaining.match(regex);
+								if (match) {
+									// Bu başlığı atla, token ekleme
+									remaining = remaining.substring(match[0].length).trim();
+									matched = true;
+									break;
+								}
+							}
+							if (matched) continue;
+							
+							// Section heading kontrol et (render et)
 							for (const heading of sectionHeadings) {
 								const regex = new RegExp('^(' + heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')[:\\s]*', 'i');
 								const match = remaining.match(regex);
@@ -1695,9 +1715,9 @@ const generateGenericReportHtml = (record, type) => {
 									let valueStr = remaining.substring(0, nextPos).trim();
 									remaining = remaining.substring(nextPos).trim();
 									
-									// Value içinde section heading varsa, onu ayır
+									// Value içinde herhangi bir heading varsa (skip dahil), onu ayır
 									let foundSectionInValue = false;
-									for (const heading of sectionHeadings) {
+									for (const heading of allHeadings) {
 										const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 										// Heading value içinde herhangi bir yerde olabilir (başta dahil)
 										const headingRegex = new RegExp('^(.*?)\\s*(' + escapedHeading + ')[:\\s]*(.*)$', 'i');

@@ -74,11 +74,15 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             'Sonuç',
         ];
         
-        // Bölüm başlıkları
-        const sectionHeadings = [
+        // Atlanacak başlıklar (gereksiz, zaten alt başlıklar var)
+        const skipHeadings = [
             'Ölçüm Sonuçlari Ve Tespi̇tler',
             'Ölçüm Sonuçları Ve Tespitler',
             'ÖLÇÜM SONUÇLARI VE TESPİTLER',
+        ];
+        
+        // Bölüm başlıkları (render edilecek)
+        const sectionHeadings = [
             'Uygunsuz Bulunan Ölçümler',
             'Ölçüm Özeti̇',
             'Ölçüm Özeti',
@@ -87,6 +91,9 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             'Tespit Edilen Hatalar',
             'Hata Detayları',
         ];
+        
+        // Tüm başlıklar (ayrıştırma için)
+        const allHeadings = [...skipHeadings, ...sectionHeadings];
         
         // Bir sonraki key veya bölüm başlığının pozisyonunu bul
         const findNextKeyOrHeadingPosition = (str, startFrom = 0) => {
@@ -106,8 +113,8 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 }
             }
             
-            // Bölüm başlıklarını kontrol et
-            for (const heading of sectionHeadings) {
+            // Tüm başlıkları kontrol et (skip dahil)
+            for (const heading of allHeadings) {
                 const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regex = new RegExp(`(${escapedHeading})\\s*:?`, 'i');
                 const match = str.substring(startFrom).match(regex);
@@ -163,7 +170,21 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                     continue;
                 }
                 
-                // Bölüm başlığını kontrol et
+                // Skip başlıklarını kontrol et (atla, render etme)
+                for (const heading of skipHeadings) {
+                    const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const headingRegex = new RegExp(`^(${escapedHeading}):?\\s*`, 'i');
+                    const headingMatch = remaining.match(headingRegex);
+                    if (headingMatch) {
+                        // Bu başlığı atla, token ekleme
+                        remaining = remaining.substring(headingMatch[0].length).trim();
+                        matched = true;
+                        break;
+                    }
+                }
+                if (matched) continue;
+                
+                // Bölüm başlığını kontrol et (render et)
                 for (const heading of sectionHeadings) {
                     const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                     const headingRegex = new RegExp(`^(${escapedHeading}):?\\s*`, 'i');
@@ -204,9 +225,9 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                             value = afterKey.substring(0, nextInfo.position).trim();
                         }
                         
-                        // Value içinde section heading varsa ayır
+                        // Value içinde herhangi bir heading varsa (skip dahil) ayır
                         let foundSectionInValue = false;
-                        for (const heading of sectionHeadings) {
+                        for (const heading of allHeadings) {
                             const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                             const headingInValueRegex = new RegExp(`^(.*?)\\s*(${escapedHeading}):?\\s*(.*)$`, 'i');
                             const headingInValueMatch = value.match(headingInValueRegex);
