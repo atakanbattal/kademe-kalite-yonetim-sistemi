@@ -1692,10 +1692,31 @@ const generateGenericReportHtml = (record, type) => {
 									
 									// Bir sonraki key veya heading pozisyonunu bul
 									const nextPos = findNextKeyOrHeadingPosition(remaining, 0);
-									const valueStr = remaining.substring(0, nextPos).trim();
+									let valueStr = remaining.substring(0, nextPos).trim();
 									remaining = remaining.substring(nextPos).trim();
 									
-									tokens.push({ type: 'keyValue', key: keyName, value: valueStr });
+									// Value içinde section heading varsa, onu ayır
+									let foundSectionInValue = false;
+									for (const heading of sectionHeadings) {
+										const headingRegex = new RegExp('(.+?)(' + heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[:\\s]*.*)', 'i');
+										const headingMatch = valueStr.match(headingRegex);
+										if (headingMatch) {
+											valueStr = headingMatch[1].trim();
+											remaining = headingMatch[2].trim() + ' ' + remaining;
+											foundSectionInValue = true;
+											break;
+										}
+									}
+									
+									// Value içinde "Bu Parça Için Sapma Onayı Talep Edilmektedir." varsa, ayır
+									const conclusionInValueMatch = valueStr.match(/(.*?)(Bu Parça [İI]çin Sapma Onayı Talep Edilmektedir\.?)/i);
+									if (conclusionInValueMatch) {
+										valueStr = conclusionInValueMatch[1].trim();
+										tokens.push({ type: 'keyValue', key: keyName, value: valueStr });
+										tokens.push({ type: 'conclusion', value: conclusionInValueMatch[2] });
+									} else {
+										tokens.push({ type: 'keyValue', key: keyName, value: valueStr });
+									}
 									matched = true;
 									break;
 								}
