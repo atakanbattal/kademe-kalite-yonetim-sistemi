@@ -1698,11 +1698,15 @@ const generateGenericReportHtml = (record, type) => {
 									// Value içinde section heading varsa, onu ayır
 									let foundSectionInValue = false;
 									for (const heading of sectionHeadings) {
-										const headingRegex = new RegExp('(.+?)(' + heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[:\\s]*.*)', 'i');
+										const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+										// Heading value içinde herhangi bir yerde olabilir (başta dahil)
+										const headingRegex = new RegExp('^(.*?)\\s*(' + escapedHeading + ')[:\\s]*(.*)$', 'i');
 										const headingMatch = valueStr.match(headingRegex);
 										if (headingMatch) {
 											valueStr = headingMatch[1].trim();
-											remaining = headingMatch[2].trim() + ' ' + remaining;
+											// Heading ve sonrasını remaining'e geri ekle
+											const headingPart = headingMatch[2] + (headingMatch[3] ? ': ' + headingMatch[3] : '');
+											remaining = headingPart.trim() + ' ' + remaining;
 											foundSectionInValue = true;
 											break;
 										}
