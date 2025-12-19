@@ -18,11 +18,11 @@ import { tr } from 'date-fns/locale';
 import { cn, sanitizeFileName } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SourceRecordSelector from './SourceRecordSelector';
-
-const VEHICLE_TYPES = ["FTH-240", "Çelik-2000", "AGA2100", "AGA3000", "AGA6000", "Kompost Makinesi", "Çay Toplama Makinesi", "KDM 35", "KDM 70", "KDM 80", "Rusya Motor Odası", "Ural", "HSCK", "Traktör Kabin", "Diğer"];
+import { useData } from '@/contexts/DataContext';
 
 const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation }) => {
     const { toast } = useToast();
+    const { products, productCategories } = useData();
     const isEditMode = !!existingDeviation;
     const [formData, setFormData] = useState({});
     const [vehicles, setVehicles] = useState([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
@@ -34,6 +34,13 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const [creationMode, setCreationMode] = useState('manual'); // 'manual' veya 'from_record'
     const [selectedSourceRecord, setSelectedSourceRecord] = useState(null);
     const [deviationType, setDeviationType] = useState('Girdi Kontrolü'); // 'Girdi Kontrolü' veya 'Üretim'
+    
+    // Araç tiplerini products tablosundan çek
+    const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
+    const vehicleTypes = (products || [])
+        .filter(p => p.category_id === vehicleTypeCategory?.id && p.is_active)
+        .map(p => p.product_name)
+        .sort();
     
     useEffect(() => {
         const fetchSettingsData = async () => {
@@ -546,14 +553,14 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                <DialogHeader className="flex-shrink-0">
                     <DialogTitle>{isEditMode ? 'Sapma Kaydını Düzenle' : 'Yeni Sapma Kaydı Oluştur'}</DialogTitle>
                     <DialogDescription>
                         Lütfen sapma ile ilgili tüm bilgileri eksiksiz girin.
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid gap-4 py-4 max-h-[80vh] overflow-y-auto pr-4">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pr-4 grid gap-4 py-4 min-h-0">
                     {/* Oluşturma Modu Seçimi - Sadece yeni kayıt için */}
                     {!isEditMode && (
                         <Tabs value={creationMode} onValueChange={setCreationMode} className="w-full">
@@ -702,7 +709,13 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                             <Label htmlFor="vehicle_type">Araç Tipi</Label>
                             <Select onValueChange={(value) => handleSelectChange('vehicle_type', value)} value={formData.vehicle_type || ''}>
                                 <SelectTrigger><SelectValue placeholder="Araç tipi seçin..." /></SelectTrigger>
-                                <SelectContent>{VEHICLE_TYPES.map(vt => <SelectItem key={vt} value={vt}>{vt}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                    {vehicleTypes.length > 0 ? (
+                                        vehicleTypes.map(vt => <SelectItem key={vt} value={vt}>{vt}</SelectItem>)
+                                    ) : (
+                                        <SelectItem value="" disabled>Araç tipi bulunamadı</SelectItem>
+                                    )}
+                                </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
@@ -803,7 +816,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         )}
                     </div>
                 </form>
-                <DialogFooter>
+                <DialogFooter className="flex-shrink-0 border-t pt-4 mt-4">
                     <Button onClick={() => setIsOpen(false)} variant="outline">İptal</Button>
                     <Button onClick={handleSubmit} disabled={isSubmitting}>
                         {isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Güncelle' : 'Kaydet')}
