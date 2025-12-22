@@ -166,9 +166,24 @@ export const generateWPSRecommendation = (inputs, library) => {
         recommendations.filler_material_id = compatibleFillers[0].id;
         recommendations.reasoning.push(`Malzeme grubuna (${group}) uygun ${compatibleFillers[0].classification} dolgu teli seçildi.`);
 
+        // Tel çapı seçimi: Kalınlığa ve pozisyona göre optimize edilmiş
         let diameter = 1.0;
-        if (t > 5 && t <= 12) diameter = 1.2;
-        else if (t > 12) diameter = 1.2;
+        // İnce saclar (1-3mm): 1.0mm tel
+        // Orta kalınlık (3-6mm): 1.0mm veya 1.2mm (pozisyona göre)
+        // Kalın (6-12mm): 1.2mm tel
+        // Çok kalın (12mm+): 1.2mm tel (veya daha kalın, ama şimdilik 1.2mm)
+        if (t <= 3) {
+            diameter = 1.0;
+        } else if (t <= 6) {
+            // Orta kalınlıkta pozisyona göre karar ver
+            if (['PF', 'PG', 'PE'].includes(position)) {
+                diameter = 1.0; // Zor pozisyonlarda ince tel
+            } else {
+                diameter = 1.2; // Kolay pozisyonlarda kalın tel
+            }
+        } else {
+            diameter = 1.2; // Kalın saclarda 1.2mm tel
+        }
         
         if (['PF', 'PG', 'PE'].includes(position) && diameter > 1.0) {
             diameter = 1.0;
@@ -249,29 +264,108 @@ export const generateWPSRecommendation = (inputs, library) => {
         if (passCount === 1) passName = "Tek Paso";
 
         let baseAmps, baseVolts, baseSpeed;
+        
+        // Proses tipine göre temel amper çarpanı
+        const processAmpMultiplier = {
+            '135': 1.0,  // MAG - en yüksek amper
+            '131': 0.95, // MIG - yüksek amper
+            '141': 0.70, // TIG - düşük amper
+            '111': 0.85  // MMA - orta amper
+        }[finalProcessCode] || 1.0;
+        
         if (diameter === 1.0) {
-            baseAmps = interpolate(t, 1, 10, 100, 220);
-            baseVolts = interpolate(baseAmps, 100, 220, 18, 25);
-            baseSpeed = interpolate(baseAmps, 100, 220, 400, 250);
-        } else { // 1.2mm
-            baseAmps = interpolate(t, 3, 25, 140, 300);
-            baseVolts = interpolate(baseAmps, 140, 300, 20, 29);
-            baseSpeed = interpolate(baseAmps, 140, 300, 450, 300);
+            // 1.0mm tel için optimize edilmiş değerler (MAG/MIG standartları)
+            // Minimum ark tutuşması için: 100A altına düşmemeli
+            // İnce saclar (1-3mm): 120-160A, Orta (3-6mm): 150-190A, Kalın (6-10mm): 180-230A
+            if (t <= 3) {
+                baseAmps = interpolate(t, 1, 3, 120, 160);
+                baseVolts = interpolate(t, 1, 3, 19, 22);
+                baseSpeed = interpolate(t, 1, 3, 350, 300);
+            } else if (t <= 6) {
+                baseAmps = interpolate(t, 3, 6, 150, 190);
+                baseVolts = interpolate(t, 3, 6, 21, 24);
+                baseSpeed = interpolate(t, 3, 6, 320, 280);
+            } else {
+                baseAmps = interpolate(t, 6, 10, 180, 230);
+                baseVolts = interpolate(t, 6, 10, 23, 26);
+                baseSpeed = interpolate(t, 6, 10, 300, 250);
+            }
+        } else if (diameter === 1.2) {
+            // 1.2mm tel için optimize edilmiş değerler (MAG/MIG standartları)
+            // Minimum ark tutuşması için: 130A altına düşmemeli
+            // İnce (2-4mm): 160-200A, Orta (4-8mm): 190-240A, Kalın (8-15mm): 240-300A, Çok kalın (15-25mm): 280-340A
+            if (t <= 4) {
+                baseAmps = interpolate(t, 2, 4, 160, 200);
+                baseVolts = interpolate(t, 2, 4, 21, 24);
+                baseSpeed = interpolate(t, 2, 4, 400, 350);
+            } else if (t <= 8) {
+                baseAmps = interpolate(t, 4, 8, 190, 240);
+                baseVolts = interpolate(t, 4, 8, 23, 26);
+                baseSpeed = interpolate(t, 4, 8, 380, 320);
+            } else if (t <= 15) {
+                baseAmps = interpolate(t, 8, 15, 240, 300);
+                baseVolts = interpolate(t, 8, 15, 25, 28);
+                baseSpeed = interpolate(t, 8, 15, 350, 300);
+            } else {
+                baseAmps = interpolate(t, 15, 25, 280, 340);
+                baseVolts = interpolate(t, 15, 25, 27, 30);
+                baseSpeed = interpolate(t, 15, 25, 320, 280);
+            }
+        } else {
+            // Varsayılan değerler (1.0mm gibi davran)
+            baseAmps = interpolate(t, 1, 10, 120, 200);
+            baseVolts = interpolate(t, 1, 10, 19, 24);
+            baseSpeed = interpolate(t, 1, 10, 350, 270);
+        }
+        
+        // Proses tipine göre amper ayarı
+        baseAmps = baseAmps * processAmpMultiplier;
+        
+        // TIG için voltaj ayarı (TIG daha düşük voltaj kullanır)
+        if (finalProcessCode === '141') {
+            baseVolts = baseVolts * 0.85; // TIG voltajı daha düşük
         }
         
         let ampModifier = 1.0;
-        if (isRootPass) ampModifier = 0.90; // Root pass is cooler
+        // Root pass için modifier'ı azalt ama minimum amper sınırını koru
+        if (isRootPass) ampModifier = 0.95; // Root pass biraz daha soğuk (0.90'dan 0.95'e çıkarıldı)
         if (isCapPass) ampModifier = 1.05; // Cap pass is hotter for a good finish
 
         const avgAmps = Math.round(baseAmps * posMod.amp * ampModifier);
+        
+        // Minimum amper sınırları: Ark tutuşması için kritik
+        // MAG/MIG için minimum değerler
+        let minAmpThreshold = 100; // 1.0mm tel için minimum
+        if (diameter === 1.2) {
+            minAmpThreshold = 130; // 1.2mm tel için minimum
+        }
+        // TIG için daha düşük minimum
+        if (finalProcessCode === '141') {
+            minAmpThreshold = diameter === 1.0 ? 60 : 80;
+        }
+        
+        // Pozisyon modifier'ı çok düşük düşürürse minimum sınırı uygula
+        if (avgAmps < minAmpThreshold) {
+            recommendations.reasoning.push(`Ark tutuşması için minimum amper sınırı (${minAmpThreshold}A) uygulandı.`);
+        }
         const avgVolts = Math.round(baseVolts * posMod.volt * (isRootPass ? 0.95 : 1.0) * 10) / 10;
         const speed = Math.round(baseSpeed * posMod.speed);
         
-        const ampRange = Math.max(10, Math.round(avgAmps * 0.08));
-        const voltRange = Math.max(1, Math.round(avgVolts * 0.05 * 10) / 10);
+        // Amper ve voltaj aralıkları: Proses tipine göre optimize edilmiş
+        // MAG/MIG için daha geniş aralık, TIG için daha dar aralık
+        const ampRangePercent = finalProcessCode === '141' ? 0.10 : 0.12; // TIG %10, diğerleri %12
+        const voltRangePercent = finalProcessCode === '141' ? 0.08 : 0.10; // TIG %8, diğerleri %10
+        
+        const ampRange = Math.max(15, Math.round(avgAmps * ampRangePercent));
+        const voltRange = Math.max(1.5, Math.round(avgVolts * voltRangePercent * 10) / 10);
 
-        const minAmps = avgAmps - ampRange;
-        const maxAmps = avgAmps + ampRange;
+        let minAmps = Math.max(minAmpThreshold, avgAmps - ampRange); // Minimum sınırı koru
+        let maxAmps = avgAmps + ampRange;
+        
+        // Eğer minimum sınır uygulandıysa, maksimum değeri de buna göre ayarla
+        if (minAmps === minAmpThreshold && minAmps > avgAmps - ampRange) {
+            maxAmps = minAmps + (ampRange * 2); // Aralığı koru
+        }
         const minVolts = avgVolts - voltRange;
         const maxVolts = avgVolts + voltRange;
 
