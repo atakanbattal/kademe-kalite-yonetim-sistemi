@@ -368,7 +368,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               'source_inspection_id', 'source_quarantine_id', 'source_supplier_nc_id',
               'source_inspection_fault_id', 'audit_id', 'created_by', 'updated_by', 'priority',
               'problem_definition', 'closing_notes', 'closing_attachments', 'eight_d_steps',
-              'mdi_no', 'attachments', 'part_name', 'part_code', 'vehicle_type', 'affected_units',
+              'mdi_no', 'attachments', 'part_name', 'part_code', 'production_batch', 'vehicle_type', 'affected_units',
               'amount', 'cost_date', 'cost_type', 'material_type', 'measurement_unit',
               'part_location', 'quantity', 'scrap_weight', 'rework_duration',
               'quality_control_duration', 'responsible_personnel_id', 'chassis_no',

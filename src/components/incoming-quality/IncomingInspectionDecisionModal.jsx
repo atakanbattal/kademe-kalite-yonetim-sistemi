@@ -104,6 +104,9 @@ const IncomingInspectionDecisionModal = ({ isOpen, setIsOpen, inspection, refres
                     title: `${inspection.part_name} (${inspection.part_code}) GKK Şartlı Kabul`,
                     description: ncDescription,
                     supplier_id: inspection.supplier_id,
+                    part_code: inspection.part_code || null,
+                    part_name: inspection.part_name || null,
+                    production_batch: inspection.production_batch || null,
                     is_supplier_nc: true,
                     type: 'DF'
                 });

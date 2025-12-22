@@ -599,6 +599,7 @@ const IncomingInspectionDetailModal = ({
                 supplier_name: enrichedInspection.supplier_name || null,
                 part_code: enrichedInspection.part_code || null,
                 part_name: enrichedInspection.part_name || null,
+                production_batch: enrichedInspection.production_batch || null,
                 is_supplier_nc: !!enrichedInspection.supplier_id, // Tedarikçi uygunsuzluğu flag'i
             });
 

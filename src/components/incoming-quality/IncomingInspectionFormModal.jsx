@@ -26,6 +26,7 @@ import RiskyStockAlert from './RiskyStockAlert';
         delivery_note_number: '',
         part_name: '',
         part_code: '',
+        production_batch: '',
         quantity_received: 0,
         unit: 'Adet',
         decision: 'Beklemede',
@@ -142,6 +143,8 @@ import RiskyStockAlert from './RiskyStockAlert';
         const [riskyStockData, setRiskyStockData] = useState(null);
         const [showRiskyStockAlert, setShowRiskyStockAlert] = useState(false);
         const [checkingRiskyStock, setCheckingRiskyStock] = useState(false);
+        const [openNCsForBatch, setOpenNCsForBatch] = useState([]);
+        const [checkingOpenNCs, setCheckingOpenNCs] = useState(false);
 
         const resetForm = useCallback(() => {
             setFormData(INITIAL_FORM_STATE);
@@ -176,6 +179,7 @@ setShowRiskyStockAlert(false);
                     delivery_note_number: existingInspection.delivery_note_number || '',
                     part_name: existingInspection.part_name || '',
                     part_code: existingInspection.part_code || '',
+                    production_batch: existingInspection.production_batch || '',
                     quantity_received: existingInspection.quantity_received || 0,
                     unit: existingInspection.unit || 'Adet',
                     decision: existingInspection.decision || 'Beklemede',
@@ -598,6 +602,51 @@ setShowRiskyStockAlert(false);
             return () => clearTimeout(timer);
         }, [formData.quantity_rejected, formData.quantity_conditional, formData.part_code]);
 
+        // Aynı part_code ve production_batch için açık DF kontrolü
+        useEffect(() => {
+            const checkOpenNCsForBatch = async () => {
+                // part_code ve supplier_id olmadan kontrol yapamayız
+                if (!formData.part_code || !formData.supplier_id) {
+                    setOpenNCsForBatch([]);
+                    return;
+                }
+
+                setCheckingOpenNCs(true);
+                try {
+                    const params = {
+                        p_part_code: formData.part_code,
+                        p_production_batch: formData.production_batch || '',
+                        p_supplier_id: formData.supplier_id
+                    };
+                    
+                    console.log('Açık DF kontrolü başlatılıyor:', params);
+                    
+                    // production_batch boş olsa bile kontrol yap (NULL kayıtlar için)
+                    const { data, error } = await supabase.rpc('check_open_nc_for_production_batch', params);
+
+                    if (error) {
+                        console.error('Açık DF kontrolü hatası:', error);
+                        setOpenNCsForBatch([]);
+                        return;
+                    }
+
+                    console.log('Açık DF kontrolü sonucu:', data);
+                    setOpenNCsForBatch(data || []);
+                } catch (error) {
+                    console.error('Açık DF kontrolü hatası:', error);
+                    setOpenNCsForBatch([]);
+                } finally {
+                    setCheckingOpenNCs(false);
+                }
+            };
+
+            const timer = setTimeout(() => {
+                checkOpenNCsForBatch();
+            }, 500);
+
+            return () => clearTimeout(timer);
+        }, [formData.part_code, formData.production_batch, formData.supplier_id]);
+
 
         useEffect(() => {
             const { quantity_accepted, quantity_conditional, quantity_rejected, quantity_received } = formData;
@@ -822,6 +871,49 @@ setShowRiskyStockAlert(false);
                 toast({ title: 'Başarılı', description: 'Girdi kontrol kaydı başarıyla kaydedildi.' });
             }
 
+            // Eğer karar "Kabul" ise ve aynı part_code + production_batch için açık DF varsa otomatik kapat
+            if (formData.decision === 'Kabul' && openNCsForBatch.length > 0) {
+                try {
+                    const ncIdsToClose = openNCsForBatch.map(nc => nc.nc_id);
+                    const closingNote = formData.production_batch 
+                        ? `Aynı üretim partisinden (${formData.production_batch}) gelen ürünler hatasız kabul edildiği için otomatik olarak kapatıldı. Girdi Kontrol Kaydı: ${inspectionRecord.record_no || inspectionId}`
+                        : `Aynı parça kodundan gelen ürünler hatasız kabul edildiği için otomatik olarak kapatıldı. Girdi Kontrol Kaydı: ${inspectionRecord.record_no || inspectionId}`;
+                    
+                    const { error: closeError } = await supabase
+                        .from('non_conformities')
+                        .update({
+                            status: 'Kapatıldı',
+                            closed_at: new Date().toISOString(),
+                            closing_notes: closingNote
+                        })
+                        .in('id', ncIdsToClose);
+
+                    if (closeError) {
+                        console.error('Uygunsuzluk kapatma hatası:', closeError);
+                        toast({
+                            variant: 'default',
+                            title: 'Kayıt Başarılı',
+                            description: `Girdi kontrol kaydı kaydedildi. Ancak uygunsuzluklar kapatılamadı: ${closeError.message}`,
+                            duration: 5000
+                        });
+                    } else {
+                        toast({
+                            title: 'Başarılı',
+                            description: `Girdi kontrol kaydı kaydedildi ve ${openNCsForBatch.length} adet açık uygunsuzluk otomatik olarak kapatıldı.`,
+                            duration: 5000
+                        });
+                    }
+                } catch (error) {
+                    console.error('Uygunsuzluk kapatma hatası:', error);
+                    toast({
+                        variant: 'default',
+                        title: 'Kayıt Başarılı',
+                        description: `Girdi kontrol kaydı kaydedildi. Ancak uygunsuzluklar kapatılamadı: ${error.message}`,
+                        duration: 5000
+                    });
+                }
+            }
+
             refreshData();
             setIsOpen(false);
             setIsSubmitting(false);
@@ -843,6 +935,47 @@ setShowRiskyStockAlert(false);
                         {warnings.plan && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.plan}</AlertDescription></Alert>}
                         {warnings.inkr && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.inkr}</AlertDescription></Alert>}
                         {partHistory.length > 0 && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>DIKKAT: Bu parça daha önce sorun yaşamıştır!</AlertTitle><AlertDescription><ul className="list-disc pl-5 mt-2 space-y-1">{partHistory.map((item, index) => <li key={index} className="text-xs">{(item.suppliers && item.suppliers.name) || 'Bilinmeyen Tedarikçi'} - İrsaliye: {item.delivery_note_number || '-'} - Tarih: {format(new Date(item.inspection_date), 'dd.MM.yyyy')} ({formatDistanceToNow(new Date(item.inspection_date), { addSuffix: true, locale: tr })}) - Karar: <span className="font-bold">{item.decision}</span> - Etkilenen Miktar: {item.quantity_rejected + item.quantity_conditional}</li>)}</ul></AlertDescription></Alert>}
+                        {checkingOpenNCs && formData.part_code && formData.supplier_id && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent" />
+                                <span className="text-sm text-blue-700 font-medium">Açık uygunsuzluk kontrolü yapılıyor...</span>
+                            </div>
+                        )}
+                        {openNCsForBatch && openNCsForBatch.length > 0 && (
+                            <Alert variant="destructive" className="mt-4">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>
+                                    {formData.production_batch 
+                                        ? 'UYARI: Bu üretim partisi için açık DF/8D uygunsuzluğu bulunmaktadır!'
+                                        : 'UYARI: Bu parça için açık DF/8D uygunsuzluğu bulunmaktadır!'}
+                                </AlertTitle>
+                                <AlertDescription className="mt-2">
+                                    <p className="font-semibold mb-2">Açık Uygunsuzluklar ({openNCsForBatch.length} adet):</p>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {openNCsForBatch.map((nc) => (
+                                            <li key={nc.nc_id || nc.id} className="text-sm">
+                                                <strong>{nc.nc_number || 'DF/8D'}</strong>: {nc.title || 'Başlıksız'} 
+                                                {nc.production_batch && nc.production_batch !== '' && (
+                                                    <span className="text-muted-foreground ml-2">
+                                                        (Parti: {nc.production_batch})
+                                                    </span>
+                                                )}
+                                                {nc.opening_date && (
+                                                    <span className="text-muted-foreground ml-2">
+                                                        (Açılış: {format(new Date(nc.opening_date), 'dd.MM.yyyy')})
+                                                    </span>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <p className="mt-2 text-sm font-medium">
+                                        {formData.production_batch 
+                                            ? 'Bu üretim partisinden gelen ürünler hatasız kabul edilirse, ilgili uygunsuzluklar otomatik olarak kapatılacaktır.'
+                                            : 'Üretim partisi bilgisi girilirse, aynı partiden gelen ürünler hatasız kabul edildiğinde ilgili uygunsuzluklar otomatik kapatılacaktır.'}
+                                    </p>
+                                </AlertDescription>
+                            </Alert>
+                        )}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
                         <div><Label>Kontrol Tarihi</Label><Input type="date" name="inspection_date" value={formData.inspection_date} onChange={handleInputChange} required disabled={isViewMode} /></div>
@@ -850,6 +983,7 @@ setShowRiskyStockAlert(false);
                         <div><Label>İrsaliye No</Label><Input name="delivery_note_number" value={formData.delivery_note_number || ''} onChange={handleInputChange} placeholder="İrsaliye No" disabled={isViewMode} /></div>
                         <div><Label>Parça Kodu</Label><Input name="part_code" value={formData.part_code || ''} onChange={(e) => handlePartCodeChange(e.target.value)} placeholder="Parça Kodu Girin..." required disabled={isViewMode || !!existingInspection} /></div>
                         <div className="md:col-span-2"><Label>Parça Adı</Label><Input name="part_name" value={formData.part_name} onChange={handleInputChange} placeholder="Parça Adı" required disabled={isViewMode || !!controlPlan}/></div>
+                        <div><Label>Üretim Partisi/Lot No</Label><Input name="production_batch" value={formData.production_batch || ''} onChange={handleInputChange} placeholder="Üretim partisi/lot numarası" disabled={isViewMode} /></div>
                         <div className="flex items-end gap-2">
                             <div className="flex-grow"><Label>Gelen Miktar</Label><Input type="number" name="quantity_received" value={formData.quantity_received} onChange={handleInputChange} placeholder="Miktar" required disabled={isViewMode} /></div>
                             <div className="w-24"><Label>Birim</Label><Select name="unit" value={formData.unit} onValueChange={(v) => handleSelectChange('unit', v)} disabled={isViewMode}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Adet">Adet</SelectItem><SelectItem value="Kg">Kg</SelectItem><SelectItem value="Metre">Metre</SelectItem></SelectContent></Select></div>
