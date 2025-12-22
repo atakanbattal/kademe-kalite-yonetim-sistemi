@@ -2956,57 +2956,94 @@ const generateGenericReportHtml = (record, type) => {
 			
 			// Ishikawa (Balık Kılçığı) Analizi - Her zaman göster
 			const ishikawa = record.ishikawa_analysis || {};
+			// Ishikawa verileri array olarak saklanabilir, string'e çevir
+			const getIshikawaValue = (field) => {
+				const value = ishikawa[field];
+				if (!value) return '';
+				if (Array.isArray(value)) {
+					return value.filter(v => v && v.toString().trim() !== '').join(', ');
+				}
+				return value.toString();
+			};
 			html += `<div class="analysis-box fillable">
 				<h4>Ishikawa (Balık Kılçığı) Analizi - 6M</h4>
 				<div class="fillable-field">
 					<strong>İnsan (Man):</strong>
-					<div class="fillable-area">${renderField(ishikawa.man, '')}</div>
+					<div class="fillable-area">${renderField(getIshikawaValue('man'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Makine (Machine):</strong>
-					<div class="fillable-area">${renderField(ishikawa.machine, '')}</div>
+					<div class="fillable-area">${renderField(getIshikawaValue('machine'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Metot (Method):</strong>
-					<div class="fillable-area">${renderField(ishikawa.method, '')}</div>
+					<div class="fillable-area">${renderField(getIshikawaValue('method') || getIshikawaValue('management'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Malzeme (Material):</strong>
-					<div class="fillable-area">${renderField(ishikawa.material, '')}</div>
+					<div class="fillable-area">${renderField(getIshikawaValue('material'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Çevre (Environment):</strong>
-					<div class="fillable-area">${renderField(ishikawa.environment, '')}</div>
+					<div class="fillable-area">${renderField(getIshikawaValue('environment'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Ölçüm (Measurement):</strong>
-					<div class="fillable-area">${renderField(ishikawa.measurement, '')}</div>
+					<div class="fillable-area">${renderField(getIshikawaValue('measurement'), '')}</div>
 				</div>
 			</div>`;
 			
 			// FTA (Hata Ağacı) Analizi - Her zaman göster
 			const fta = record.fta_analysis || {};
+			// FTA verileri events array'i olarak saklanabilir, string formatına çevir
+			const getFTAValue = (field) => {
+				if (field === 'intermediateEvents' || field === 'basicEvents' || field === 'gates' || field === 'rootCauses') {
+					// Eğer events array'i varsa, ilgili event'leri filtrele ve birleştir
+					if (fta.events && Array.isArray(fta.events)) {
+						const filteredEvents = fta.events.filter(e => {
+							if (field === 'intermediateEvents') return e.type === 'intermediate';
+							if (field === 'basicEvents') return e.type === 'basic';
+							if (field === 'rootCauses') return e.type === 'basic' && e.causes && e.causes.length > 0;
+							return false;
+						});
+						if (field === 'gates') {
+							return fta.events.map(e => e.gate || '').filter(g => g).join(', ');
+						}
+						if (field === 'rootCauses') {
+							const causes = [];
+							fta.events.forEach(e => {
+								if (e.causes && Array.isArray(e.causes)) {
+									causes.push(...e.causes.filter(c => c && c.toString().trim() !== ''));
+								}
+							});
+							return causes.join(', ');
+						}
+						return filteredEvents.map(e => e.description || '').filter(d => d).join(', ');
+					}
+				}
+				return fta[field] || '';
+			};
 			html += `<div class="analysis-box fillable">
 				<h4>FTA (Hata Ağacı) Analizi</h4>
 				<div class="fillable-field">
 					<strong>Üst Olay:</strong>
-					<div class="fillable-line">${renderField(fta.topEvent, '')}</div>
+					<div class="fillable-line">${renderField(fta.topEvent || getFTAValue('topEvent'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Ara Olaylar:</strong>
-					<div class="fillable-area">${renderField(fta.intermediateEvents, '')}</div>
+					<div class="fillable-area">${renderField(fta.intermediateEvents || getFTAValue('intermediateEvents'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Temel Olaylar:</strong>
-					<div class="fillable-area">${renderField(fta.basicEvents, '')}</div>
+					<div class="fillable-area">${renderField(fta.basicEvents || getFTAValue('basicEvents'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Kapılar:</strong>
-					<div class="fillable-area">${renderField(fta.gates, '')}</div>
+					<div class="fillable-area">${renderField(fta.gates || getFTAValue('gates'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Kök Nedenler:</strong>
-					<div class="fillable-area">${renderField(fta.rootCauses, '')}</div>
+					<div class="fillable-area">${renderField(fta.rootCauses || getFTAValue('rootCauses'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Özet:</strong>
