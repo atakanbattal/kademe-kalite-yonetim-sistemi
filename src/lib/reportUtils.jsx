@@ -2868,7 +2868,7 @@ const generateGenericReportHtml = (record, type) => {
 				if (value && value.toString().trim() !== '') {
 					return escapeHtml(value);
 				}
-				return emptyPattern;
+				return ''; // Boş alanlar için alt çizgi karakterleri kaldırıldı, CSS border-bottom kullanılıyor
 			};
 			
 			// 5N1K Analizi - Her zaman göster
@@ -2877,27 +2877,27 @@ const generateGenericReportHtml = (record, type) => {
 				<h4>5N1K Analizi</h4>
 				<div class="fillable-field">
 					<strong>Ne:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.what, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveN1K.what, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Nerede:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.where, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveN1K.where, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Ne Zaman:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.when, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveN1K.when, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Kim:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.who, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveN1K.who, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Nasıl:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.how, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveN1K.how, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Neden Önemli:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.why, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveN1K.why, '')}</div>
 				</div>
 			</div>`;
 			
@@ -2907,35 +2907,35 @@ const generateGenericReportHtml = (record, type) => {
 				<h4>5 Neden Analizi</h4>
 				<div class="fillable-field">
 					<strong>1. Neden:</strong>
-					<div class="fillable-line">${renderField(fiveWhy.why1, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveWhy.why1, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>2. Neden:</strong>
-					<div class="fillable-line">${renderField(fiveWhy.why2, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveWhy.why2, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>3. Neden:</strong>
-					<div class="fillable-line">${renderField(fiveWhy.why3, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveWhy.why3, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>4. Neden:</strong>
-					<div class="fillable-line">${renderField(fiveWhy.why4, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveWhy.why4, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>5. Neden (Kök Neden):</strong>
-					<div class="fillable-line">${renderField(fiveWhy.why5, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fiveWhy.why5, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Kök Neden Özeti:</strong>
-					<div class="fillable-area">${renderField(fiveWhy.rootCause, '_________________________________________________________________________________________<br>_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(fiveWhy.rootCause, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Anlık Aksiyon:</strong>
-					<div class="fillable-area">${renderField(fiveWhy.immediateAction, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(fiveWhy.immediateAction, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Önleyici Aksiyon:</strong>
-					<div class="fillable-area">${renderField(fiveWhy.preventiveAction, '_________________________________________________________________________________________<br>_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(fiveWhy.preventiveAction, '')}</div>
 				</div>
 			</div>`;
 			
@@ -2945,27 +2945,27 @@ const generateGenericReportHtml = (record, type) => {
 				<h4>Ishikawa (Balık Kılçığı) Analizi - 6M</h4>
 				<div class="fillable-field">
 					<strong>İnsan (Man):</strong>
-					<div class="fillable-area">${renderField(ishikawa.man, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(ishikawa.man, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Makine (Machine):</strong>
-					<div class="fillable-area">${renderField(ishikawa.machine, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(ishikawa.machine, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Metot (Method):</strong>
-					<div class="fillable-area">${renderField(ishikawa.method, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(ishikawa.method, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Malzeme (Material):</strong>
-					<div class="fillable-area">${renderField(ishikawa.material, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(ishikawa.material, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Çevre (Environment):</strong>
-					<div class="fillable-area">${renderField(ishikawa.environment, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(ishikawa.environment, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Ölçüm (Measurement):</strong>
-					<div class="fillable-area">${renderField(ishikawa.measurement, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(ishikawa.measurement, '')}</div>
 				</div>
 			</div>`;
 			
@@ -2975,27 +2975,27 @@ const generateGenericReportHtml = (record, type) => {
 				<h4>FTA (Hata Ağacı) Analizi</h4>
 				<div class="fillable-field">
 					<strong>Üst Olay:</strong>
-					<div class="fillable-line">${renderField(fta.topEvent, '_________________________________________________________')}</div>
+					<div class="fillable-line">${renderField(fta.topEvent, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Ara Olaylar:</strong>
-					<div class="fillable-area">${renderField(fta.intermediateEvents, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(fta.intermediateEvents, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Temel Olaylar:</strong>
-					<div class="fillable-area">${renderField(fta.basicEvents, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(fta.basicEvents, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Kapılar:</strong>
-					<div class="fillable-area">${renderField(fta.gates, '_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(fta.gates, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Kök Nedenler:</strong>
-					<div class="fillable-area">${renderField(fta.rootCauses, '_________________________________________________________________________________________<br>_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(fta.rootCauses, '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Özet:</strong>
-					<div class="fillable-area">${renderField(fta.summary, '_________________________________________________________________________________________<br>_________________________________________________________________________________________<br>_________________________________________________________________________________________')}</div>
+					<div class="fillable-area">${renderField(fta.summary, '')}</div>
 				</div>
 			</div>`;
 			
