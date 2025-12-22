@@ -2841,82 +2841,145 @@ const generateGenericReportHtml = (record, type) => {
 			</div>`;
 		}
 		
-		// Kök Neden Analizleri (sadece veri varsa göster)
+		// Kök Neden Analizleri (her zaman göster - doldurulabilir alanlar için)
 		if (type === 'nonconformity') {
-			const hasAnalysis = (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) ||
-				(record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) ||
-				(record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) ||
-				(record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== ''));
-			
-			if (hasAnalysis) {
-				// Problem tanımı artık 2. section, bu yüzden numaraları güncelle
-				let sectionNumber = record.closing_notes ? '4' : '3';
-				if (record.eight_d_steps) {
-					sectionNumber = record.closing_notes ? '5' : '4';
-				}
-				
-				html += `<div class="section"><h2 class="section-title red">${sectionNumber}. KÖK NEDEN ANALİZİ</h2>`;
-				
-				// 5N1K Analizi
-				if (record.five_n1k_analysis && Object.values(record.five_n1k_analysis).some(v => v && v.toString().trim() !== '')) {
-					const analysis = record.five_n1k_analysis;
-					html += `<div class="analysis-box">
-						<h4>5N1K Analizi</h4>
-						${analysis.what ? `<p><strong>Ne:</strong> ${analysis.what}</p>` : ''}
-						${analysis.where ? `<p><strong>Nerede:</strong> ${analysis.where}</p>` : ''}
-						${analysis.when ? `<p><strong>Ne Zaman:</strong> ${analysis.when}</p>` : ''}
-						${analysis.who ? `<p><strong>Kim:</strong> ${analysis.who}</p>` : ''}
-						${analysis.how ? `<p><strong>Nasıl:</strong> ${analysis.how}</p>` : ''}
-						${analysis.why ? `<p><strong>Neden Önemli:</strong> ${analysis.why}</p>` : ''}
-					</div>`;
-				}
-				
-				// 5 Neden Analizi
-				if (record.five_why_analysis && Object.values(record.five_why_analysis).some(v => v && v.toString().trim() !== '')) {
-					const analysis = record.five_why_analysis;
-					html += `<div class="analysis-box">
-						<h4>5 Neden Analizi</h4>
-						${analysis.why1 ? `<p><strong>1. Neden:</strong> ${analysis.why1}</p>` : ''}
-						${analysis.why2 ? `<p><strong>2. Neden:</strong> ${analysis.why2}</p>` : ''}
-						${analysis.why3 ? `<p><strong>3. Neden:</strong> ${analysis.why3}</p>` : ''}
-						${analysis.why4 ? `<p><strong>4. Neden:</strong> ${analysis.why4}</p>` : ''}
-						${analysis.why5 ? `<p><strong>5. Neden (Kök Neden):</strong> ${analysis.why5}</p>` : ''}
-						${analysis.rootCause ? `<p><strong>Kök Neden Özeti:</strong> ${analysis.rootCause}</p>` : ''}
-						${analysis.immediateAction ? `<p><strong>Anlık Aksiyon:</strong> ${analysis.immediateAction}</p>` : ''}
-						${analysis.preventiveAction ? `<p><strong>Önleyici Aksiyon:</strong> ${analysis.preventiveAction}</p>` : ''}
-					</div>`;
-				}
-				
-				// Ishikawa (Balık Kılçığı) Analizi
-				if (record.ishikawa_analysis && Object.values(record.ishikawa_analysis).some(v => v && v.toString().trim() !== '')) {
-					const analysis = record.ishikawa_analysis;
-					html += `<div class="analysis-box">
-						<h4>Ishikawa (Balık Kılçığı) Analizi</h4>
-						${analysis.man ? `<p><strong>İnsan:</strong> ${analysis.man}</p>` : ''}
-						${analysis.machine ? `<p><strong>Makine:</strong> ${analysis.machine}</p>` : ''}
-						${analysis.method ? `<p><strong>Metot:</strong> ${analysis.method}</p>` : ''}
-						${analysis.material ? `<p><strong>Malzeme:</strong> ${analysis.material}</p>` : ''}
-						${analysis.environment ? `<p><strong>Çevre:</strong> ${analysis.environment}</p>` : ''}
-						${analysis.measurement ? `<p><strong>Ölçüm:</strong> ${analysis.measurement}</p>` : ''}
-					</div>`;
-				}
-				
-				// FTA (Hata Ağacı) Analizi
-				if (record.fta_analysis && Object.values(record.fta_analysis).some(v => v && v.toString().trim() !== '')) {
-					const analysis = record.fta_analysis;
-					html += `<div class="analysis-box">
-						<h4>FTA (Hata Ağacı) Analizi</h4>
-						${analysis.topEvent ? `<p><strong>Üst Olay:</strong> ${analysis.topEvent}</p>` : ''}
-						${analysis.intermediateEvents ? `<p><strong>Ara Olaylar:</strong> ${analysis.intermediateEvents}</p>` : ''}
-						${analysis.basicEvents ? `<p><strong>Temel Olaylar:</strong> ${analysis.basicEvents}</p>` : ''}
-						${analysis.gates ? `<p><strong>Kapılar:</strong> ${analysis.gates}</p>` : ''}
-						${analysis.rootCauses ? `<p><strong>Kök Nedenler:</strong> ${analysis.rootCauses}</p>` : ''}
-						${analysis.summary ? `<p><strong>Özet:</strong> ${analysis.summary}</p>` : ''}
-					</div>`;
-				}
-				
-				html += `</div>`;
+			// Problem tanımı artık 2. section, bu yüzden numaraları güncelle
+			let sectionNumber = record.closing_notes ? '4' : '3';
+			if (record.eight_d_steps) {
+				sectionNumber = record.closing_notes ? '5' : '4';
 			}
+			
+			html += `<div class="section"><h2 class="section-title red">${sectionNumber}. KÖK NEDEN ANALİZİ</h2>`;
+			
+			// 5N1K Analizi - Her zaman göster
+			const fiveN1K = record.five_n1k_analysis || {};
+			html += `<div class="analysis-box fillable">
+				<h4>5N1K Analizi</h4>
+				<div class="fillable-field">
+					<strong>Ne:</strong>
+					<div class="fillable-line">${fiveN1K.what || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Nerede:</strong>
+					<div class="fillable-line">${fiveN1K.where || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Ne Zaman:</strong>
+					<div class="fillable-line">${fiveN1K.when || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Kim:</strong>
+					<div class="fillable-line">${fiveN1K.who || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Nasıl:</strong>
+					<div class="fillable-line">${fiveN1K.how || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Neden Önemli:</strong>
+					<div class="fillable-line">${fiveN1K.why || '_________________________________________________________'}</div>
+				</div>
+			</div>`;
+			
+			// 5 Neden Analizi - Her zaman göster
+			const fiveWhy = record.five_why_analysis || {};
+			html += `<div class="analysis-box fillable">
+				<h4>5 Neden Analizi</h4>
+				<div class="fillable-field">
+					<strong>1. Neden:</strong>
+					<div class="fillable-line">${fiveWhy.why1 || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>2. Neden:</strong>
+					<div class="fillable-line">${fiveWhy.why2 || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>3. Neden:</strong>
+					<div class="fillable-line">${fiveWhy.why3 || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>4. Neden:</strong>
+					<div class="fillable-line">${fiveWhy.why4 || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>5. Neden (Kök Neden):</strong>
+					<div class="fillable-line">${fiveWhy.why5 || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Kök Neden Özeti:</strong>
+					<div class="fillable-area">${fiveWhy.rootCause || '_________________________________________________________________________________________<br>_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Anlık Aksiyon:</strong>
+					<div class="fillable-area">${fiveWhy.immediateAction || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Önleyici Aksiyon:</strong>
+					<div class="fillable-area">${fiveWhy.preventiveAction || '_________________________________________________________________________________________<br>_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+			</div>`;
+			
+			// Ishikawa (Balık Kılçığı) Analizi - Her zaman göster
+			const ishikawa = record.ishikawa_analysis || {};
+			html += `<div class="analysis-box fillable">
+				<h4>Ishikawa (Balık Kılçığı) Analizi - 6M</h4>
+				<div class="fillable-field">
+					<strong>İnsan (Man):</strong>
+					<div class="fillable-area">${ishikawa.man || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Makine (Machine):</strong>
+					<div class="fillable-area">${ishikawa.machine || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Metot (Method):</strong>
+					<div class="fillable-area">${ishikawa.method || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Malzeme (Material):</strong>
+					<div class="fillable-area">${ishikawa.material || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Çevre (Environment):</strong>
+					<div class="fillable-area">${ishikawa.environment || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Ölçüm (Measurement):</strong>
+					<div class="fillable-area">${ishikawa.measurement || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+			</div>`;
+			
+			// FTA (Hata Ağacı) Analizi - Her zaman göster
+			const fta = record.fta_analysis || {};
+			html += `<div class="analysis-box fillable">
+				<h4>FTA (Hata Ağacı) Analizi</h4>
+				<div class="fillable-field">
+					<strong>Üst Olay:</strong>
+					<div class="fillable-line">${fta.topEvent || '_________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Ara Olaylar:</strong>
+					<div class="fillable-area">${fta.intermediateEvents || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Temel Olaylar:</strong>
+					<div class="fillable-area">${fta.basicEvents || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Kapılar:</strong>
+					<div class="fillable-area">${fta.gates || '_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Kök Nedenler:</strong>
+					<div class="fillable-area">${fta.rootCauses || '_________________________________________________________________________________________<br>_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+				<div class="fillable-field">
+					<strong>Özet:</strong>
+					<div class="fillable-area">${fta.summary || '_________________________________________________________________________________________<br>_________________________________________________________________________________________<br>_________________________________________________________________________________________'}</div>
+				</div>
+			</div>`;
+			
+			html += `</div>`;
 		}
 		
 		if (type === 'nonconformity' && record.eight_d_steps) {
@@ -3971,10 +4034,52 @@ const generatePrintableReportHtml = (record, type) => {
 		}
 		.analysis-box h4 { 
 			font-weight: bold; 
-			margin-bottom: 5px;
+			margin-bottom: 10px;
 			page-break-after: avoid;
+			color: #1f2937;
+			font-size: 11px;
 		}
 		.analysis-box p { margin: 2px 0; }
+		
+		/* Doldurulabilir alanlar için özel stiller */
+		.analysis-box.fillable {
+			background-color: #ffffff;
+			border: 2px solid #d1d5db;
+			padding: 12px;
+			margin-bottom: 15px;
+		}
+		.fillable-field {
+			margin-bottom: 12px;
+			page-break-inside: avoid;
+		}
+		.fillable-field strong {
+			display: block;
+			font-size: 10px;
+			font-weight: 600;
+			color: #374151;
+			margin-bottom: 4px;
+		}
+		.fillable-line {
+			min-height: 20px;
+			border-bottom: 1.5px solid #9ca3af;
+			padding: 4px 0;
+			font-size: 10px;
+			color: #1f2937;
+			line-height: 1.5;
+			word-wrap: break-word;
+		}
+		.fillable-area {
+			min-height: 50px;
+			border: 1.5px solid #9ca3af;
+			border-radius: 3px;
+			padding: 8px;
+			font-size: 10px;
+			color: #1f2937;
+			line-height: 1.6;
+			background-color: #fafafa;
+			word-wrap: break-word;
+			white-space: pre-wrap;
+		}
 
 		/* ============================================
 		   GÖRSELLER - Sayfa ortasında bölünmesin
