@@ -4114,6 +4114,8 @@ const generatePrintableReportHtml = (record, type) => {
 			color: #1f2937;
 			line-height: 1.5;
 			word-wrap: break-word;
+			width: 100%;
+			display: block;
 		}
 		.fillable-area {
 			min-height: 50px;
