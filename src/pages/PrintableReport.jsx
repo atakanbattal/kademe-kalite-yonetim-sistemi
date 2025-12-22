@@ -391,7 +391,7 @@ import React, { useEffect, useState } from 'react';
                                 }
                             }
                             
-                            // Nonconformity için tedarikçi adını ve attachments'ları çek
+                            // Nonconformity için tedarikçi adını, attachments'ları ve kök neden analizlerini çek
                             if (type === 'nonconformity' && recordData) {
                                 if (recordData.supplier_id) {
                                     const { data: supplierData } = await supabase
@@ -405,18 +405,36 @@ import React, { useEffect, useState } from 'react';
                                     }
                                 }
                                 
-                                // Eğer attachments ve closing_attachments yoksa (localStorage'dan undefined gelirse),
+                                // Kök neden analizleri kontrol et
+                                const hasAnalysisData = recordData.five_n1k_analysis || recordData.five_why_analysis || 
+                                                       recordData.ishikawa_analysis || recordData.fta_analysis;
+                                
+                                // Eğer attachments, closing_attachments veya kök neden analizleri yoksa,
                                 // veritabanından çek
-                                if (recordData.attachments === undefined || recordData.closing_attachments === undefined) {
+                                if (recordData.attachments === undefined || recordData.closing_attachments === undefined || !hasAnalysisData) {
                                     const { data: freshData } = await supabase
                                         .from('non_conformities')
-                                        .select('attachments, closing_attachments')
+                                        .select('attachments, closing_attachments, five_n1k_analysis, five_why_analysis, ishikawa_analysis, fta_analysis')
                                         .eq('id', id)
                                         .maybeSingle();
                                     
                                     if (freshData) {
                                         recordData.attachments = freshData.attachments || [];
                                         recordData.closing_attachments = freshData.closing_attachments || [];
+                                        
+                                        // Kök neden analizleri varsa ekle
+                                        if (freshData.five_n1k_analysis) {
+                                            recordData.five_n1k_analysis = freshData.five_n1k_analysis;
+                                        }
+                                        if (freshData.five_why_analysis) {
+                                            recordData.five_why_analysis = freshData.five_why_analysis;
+                                        }
+                                        if (freshData.ishikawa_analysis) {
+                                            recordData.ishikawa_analysis = freshData.ishikawa_analysis;
+                                        }
+                                        if (freshData.fta_analysis) {
+                                            recordData.fta_analysis = freshData.fta_analysis;
+                                        }
                                     }
                                 }
                             }
