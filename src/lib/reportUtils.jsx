@@ -409,7 +409,17 @@ const generateWPSReportHtml = (record) => {
 					<tr><td>Kaynak Prosesi</td><td>${record.welding_process_code || '-'}</td></tr>
 					<tr><td>Kaynak Pozisyonu</td><td>${record.welding_position || '-'}</td></tr>
 					<tr><td>Birleşim Tipi</td><td>${jointTypeMap[record.joint_type] || record.joint_type || '-'}</td></tr>
-					<tr><td>Kaynak Ağzı Tasarımı</td><td>${record.joint_detail || '-'} (${record.joint_detail === 'I' ? 'N/A' : (record.joint_angle || 'N/A') + '°'}) / Kök Aralığı: ${record.root_gap || 'N/A'} mm</td></tr>
+					${record.joint_type === 'Butt' 
+						? `<tr><td>Kaynak Ağzı Tasarımı</td><td>${record.joint_detail || '-'} (${record.joint_detail === 'I' ? 'N/A' : (record.joint_angle || 'N/A') + '°'}) / Kök Aralığı: ${record.root_gap || 'N/A'} mm</td></tr>`
+						: record.joint_type === 'Fillet'
+						? (() => {
+							const thickness = parseFloat(record.thickness_1) || parseFloat(record.thickness_2) || 0;
+							const legSize = thickness > 0 ? (thickness * 0.7).toFixed(1) : 'N/A';
+							const throatThickness = thickness > 0 ? (thickness * 0.7 * 0.707).toFixed(1) : 'N/A';
+							const angle = record.joint_angle || '90';
+							return `<tr><td>Köşe Kaynak Detayları</td><td>Leg Size: ${legSize} mm / Throat Thickness: ${throatThickness} mm / Açı: ${angle}°</td></tr>`;
+						})()
+						: ''}
 				</tbody>
 			</table>
 		</div>
