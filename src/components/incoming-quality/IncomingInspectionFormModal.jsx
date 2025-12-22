@@ -16,8 +16,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { v4 as uuidv4 } from 'uuid';
     import { format, subMonths, formatDistanceToNow } from 'date-fns';
     import { tr } from 'date-fns/locale';
-    import { useData } from '@/contexts/DataContext';
-    import RiskyStockAlert from './RiskyStockAlert';
+import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import RiskyStockAlert from './RiskyStockAlert';
 
     const INITIAL_FORM_STATE = {
         inspection_date: new Date().toISOString().split('T')[0],
@@ -126,6 +127,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     const IncomingInspectionFormModal = ({ isOpen, setIsOpen, existingInspection, refreshData, isViewMode, onOpenStockRiskModal }) => {
         const { toast } = useToast();
         const { suppliers, characteristics, equipment } = useData();
+        const { user } = useAuth();
         const [formData, setFormData] = useState(INITIAL_FORM_STATE);
         const [controlPlan, setControlPlan] = useState(null);
         const [inkrReport, setInkrReport] = useState(null);
@@ -727,7 +729,67 @@ setShowRiskyStockAlert(false);
                 } catch (uploadError) { toast({ variant: 'destructive', title: 'Hata', description: uploadError.message }); setIsSubmitting(false); return; }
             }
 
-            toast({ title: 'Başarılı', description: 'Girdi kontrol kaydı başarıyla kaydedildi.' });
+            // Otomatik stok risk kontrolü kaydı oluştur
+            // Eğer Ret veya Şartlı Kabul ise VE riskli stok varsa otomatik kayıt oluştur
+            if ((formData.decision === 'Ret' || formData.decision === 'Şartlı Kabul') && riskyStockData && riskyStockData.length > 0) {
+                try {
+                    // Daha önce bu kayıt için stok risk kontrolü oluşturulmuş mu kontrol et
+                    const { data: existingControls } = await supabase
+                        .from('stock_risk_controls')
+                        .select('id')
+                        .eq('source_inspection_id', inspectionId)
+                        .limit(1);
+
+                    // Eğer daha önce oluşturulmamışsa otomatik oluştur
+                    if (!existingControls || existingControls.length === 0) {
+                        const recordsToInsert = riskyStockData.map(item => ({
+                            source_inspection_id: inspectionId,
+                            controlled_inspection_id: item.id,
+                            part_code: formData.part_code,
+                            part_name: formData.part_name,
+                            supplier_id: item.supplier?.id || item.supplier_id || null,
+                            results: [{
+                                measurement_type: 'Görsel Kontrol',
+                                result: null,
+                                value: '',
+                                notes: ''
+                            }],
+                            decision: 'Beklemede',
+                            controlled_by_id: user?.id || null,
+                            status: 'Beklemede'
+                        }));
+
+                        const { error: stockRiskError } = await supabase.from('stock_risk_controls').insert(recordsToInsert);
+
+                        if (stockRiskError) {
+                            console.error('Stok risk kontrolü otomatik oluşturma hatası:', stockRiskError);
+                            // Hata olsa bile ana kayıt başarılı olduğu için sadece log'la, kullanıcıyı bilgilendir
+                            toast({
+                                variant: 'default',
+                                title: 'Kayıt Başarılı',
+                                description: `Girdi kontrol kaydı kaydedildi. Stok risk kontrolü otomatik oluşturulamadı: ${stockRiskError.message}`,
+                                duration: 5000
+                            });
+                        } else {
+                            toast({
+                                title: 'Başarılı',
+                                description: `Girdi kontrol kaydı kaydedildi. ${recordsToInsert.length} adet stok risk kontrol kaydı otomatik olarak oluşturuldu.`,
+                                duration: 5000
+                            });
+                        }
+                    } else {
+                        // Zaten oluşturulmuşsa normal mesaj göster
+                        toast({ title: 'Başarılı', description: 'Girdi kontrol kaydı başarıyla kaydedildi.' });
+                    }
+                } catch (error) {
+                    console.error('Stok risk kontrolü oluşturma hatası:', error);
+                    // Hata olsa bile ana kayıt başarılı olduğu için normal mesaj göster
+                    toast({ title: 'Başarılı', description: 'Girdi kontrol kaydı başarıyla kaydedildi.' });
+                }
+            } else {
+                toast({ title: 'Başarılı', description: 'Girdi kontrol kaydı başarıyla kaydedildi.' });
+            }
+
             refreshData();
             setIsOpen(false);
             setIsSubmitting(false);
