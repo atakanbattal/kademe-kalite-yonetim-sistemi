@@ -142,7 +142,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                         <div className="space-y-2">
                                             {q.options.map((opt, oIndex) => (
                                                 <div key={oIndex} className="flex items-center gap-2">
-                                                    <Input placeholder={`Seçenek ${String.fromCharCode(65 + oIndex)}`} value={opt.text} onChange={e => handleOptionChange(qIndex, oIndex, e.target.value)} />
+                                                    <Input placeholder={`Seçenek ${String.fromCharCode(65 + oIndex)}`} value={opt.text} onChange={e => handleOptionChange(qIndex, oIndex, e.target.value)} autoFormat={false} />
                                                     <Button variant="ghost" size="icon" onClick={() => removeOption(qIndex, oIndex)}><X className="h-4 w-4 text-destructive/50 hover:text-destructive" /></Button>
                                                 </div>
                                             ))}
