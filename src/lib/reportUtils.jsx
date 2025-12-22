@@ -375,6 +375,156 @@ const generateWPSReportHtml = (record) => {
 		'Fillet': 'Köşe (Fillet)'
 	};
 
+	// Malzeme eşleştirmeleri (ISO standart → Türkçe eşdeğer)
+	const getMaterialEquivalent = (materialName) => {
+		if (!materialName) return '';
+		const nameUpper = materialName.toUpperCase();
+		// S355J2, S355JR, S355JO gibi → ST52
+		if (nameUpper.includes('S355')) return 'ST52';
+		// S235JR, S235JO gibi → ST37
+		if (nameUpper.includes('S235')) return 'ST37';
+		// S275JR, S275JO gibi → ST44
+		if (nameUpper.includes('S275')) return 'ST44';
+		// S420, S420ML gibi → ST52-3
+		if (nameUpper.includes('S420')) return 'ST52-3';
+		// S460, S460ML gibi → ST60
+		if (nameUpper.includes('S460')) return 'ST60';
+		return '';
+	};
+
+	// Proses kodu açıklamaları
+	const processCodeMap = {
+		'135': 'MAG',
+		'131': 'MIG',
+		'141': 'TIG',
+		'111': 'MMA'
+	};
+
+	// Pozisyon kodu açıklamaları
+	const positionMap = {
+		'PA': 'Düz',
+		'PB': 'Yatay Köşe',
+		'PC': 'Yatay',
+		'PD': 'Tavan Köşe',
+		'PE': 'Tavan',
+		'PF': 'Aşağıdan Yukarı',
+		'PG': 'Yukarıdan Aşağı'
+	};
+
+	// Gaz açıklamaları ve karışım oranları (ISO 14175 standardına göre)
+	const getGasDescription = (gasName) => {
+		if (!gasName) return '';
+		const nameUpper = gasName.toUpperCase();
+		
+		// I Grubu - İnert Gazlar
+		// I1 (I-1): 100% Argon
+		if (nameUpper.includes('I1') || nameUpper.includes('I-1')) {
+			return 'Saf Argon (100% Ar)';
+		}
+		// I2 (I-2): 100% Helium
+		if (nameUpper.includes('I2') || nameUpper.includes('I-2')) {
+			return 'Saf Helyum (100% He)';
+		}
+		// I3 (I-3): Argon + Helium (He: 0.5-95%, Ar: balance)
+		if (nameUpper.includes('I3') || nameUpper.includes('I-3')) {
+			return 'Argon + Helyum Karışımı (He: 0.5-95%, Ar: balance) - Alüminyum için yüksek nüfuziyet';
+		}
+		
+		// M1 Grubu - Düşük Oksitleyici Bileşenli Argon Bazlı Karışımlar
+		// M1-1: CO2 0.5-5%, Ar: balance
+		if (nameUpper.includes('M1-1')) {
+			return 'Argon + CO₂ Karışımı (CO₂: 0.5-5%, Ar: balance) - Düşük sıçrantı';
+		}
+		// M1-2: CO2 0.5-5%, H2 0.5-5%, Ar: balance
+		if (nameUpper.includes('M1-2')) {
+			return 'Argon + CO₂ + H₂ Karışımı (CO₂: 0.5-5%, H₂: 0.5-5%, Ar: balance)';
+		}
+		// M1-3: O2 0.5-3%, Ar: balance (M12 burada)
+		if (nameUpper.includes('M12') || nameUpper.includes('M1-3')) {
+			return 'Argon + O₂ Karışımı (O₂: 0.5-3%, Ar: balance) - Paslanmaz çelik için düşük oksitleyici';
+		}
+		// M1-4: CO2 0.5-5%, O2 0.5-3%, Ar: balance
+		if (nameUpper.includes('M1-4')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 0.5-5%, O₂: 0.5-3%, Ar: balance)';
+		}
+		
+		// M2 Grubu - Orta Oksitleyici Bileşenli Argon Bazlı Karışımlar
+		// M2-0: CO2 5-15%, Ar: balance
+		if (nameUpper.includes('M2-0')) {
+			return 'Argon + CO₂ Karışımı (CO₂: 5-15%, Ar: balance)';
+		}
+		// M2-1: CO2 15-25%, Ar: balance (M21 burada)
+		if (nameUpper.includes('M21') || nameUpper.includes('M2-1')) {
+			return 'Argon + CO₂ Karışımı (CO₂: 15-25%, Ar: balance) - Karbon çelik için standart';
+		}
+		// M2-2: O2 3-10%, Ar: balance
+		if (nameUpper.includes('M2-2')) {
+			return 'Argon + O₂ Karışımı (O₂: 3-10%, Ar: balance)';
+		}
+		// M2-3: CO2 0.5-5%, O2 3-10%, Ar: balance
+		if (nameUpper.includes('M2-3')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 0.5-5%, O₂: 3-10%, Ar: balance)';
+		}
+		// M2-4: CO2 5-15%, O2 0.5-3%, Ar: balance
+		if (nameUpper.includes('M2-4')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 5-15%, O₂: 0.5-3%, Ar: balance)';
+		}
+		// M2-5: CO2 5-15%, O2 3-10%, Ar: balance
+		if (nameUpper.includes('M2-5')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 5-15%, O₂: 3-10%, Ar: balance)';
+		}
+		// M2-6: CO2 15-25%, O2 0.5-3%, Ar: balance
+		if (nameUpper.includes('M2-6')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 15-25%, O₂: 0.5-3%, Ar: balance)';
+		}
+		// M2-7: CO2 15-25%, O2 3-10%, Ar: balance
+		if (nameUpper.includes('M2-7')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 15-25%, O₂: 3-10%, Ar: balance)';
+		}
+		
+		// M20 genellikle M1-1 veya M2-0 kategorisinde (CO2 0.5-15%)
+		if (nameUpper.includes('M20')) {
+			return 'Argon + CO₂ Karışımı (CO₂: 0.5-15%, Ar: balance) - İnce saclar için düşük sıçrantı';
+		}
+		
+		// M3 Grubu - Yüksek Oksitleyici Bileşenli Argon Bazlı Karışımlar
+		// M3-1: CO2 25-50%, Ar: balance
+		if (nameUpper.includes('M3-1')) {
+			return 'Argon + CO₂ Karışımı (CO₂: 25-50%, Ar: balance) - Yüksek oksitleyici';
+		}
+		// M3-2: O2 10-15%, Ar: balance
+		if (nameUpper.includes('M3-2')) {
+			return 'Argon + O₂ Karışımı (O₂: 10-15%, Ar: balance)';
+		}
+		// M3-3: CO2 25-50%, O2 2-10%, Ar: balance
+		if (nameUpper.includes('M3-3')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 25-50%, O₂: 2-10%, Ar: balance)';
+		}
+		// M3-4: CO2 5-25%, O2 10-15%, Ar: balance
+		if (nameUpper.includes('M3-4')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 5-25%, O₂: 10-15%, Ar: balance)';
+		}
+		// M3-5: CO2 25-50%, O2 10-15%, Ar: balance
+		if (nameUpper.includes('M3-5')) {
+			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 25-50%, O₂: 10-15%, Ar: balance)';
+		}
+		
+		return '';
+	};
+
+	// Dolgu malzemesi açıklamaları
+	const getFillerDescription = (classification) => {
+		if (!classification) return '';
+		const classUpper = classification.toUpperCase();
+		// ER70S-6 gibi → Karbon Çelik Dolgu Teli
+		if (classUpper.includes('ER70') || classUpper.includes('ER49')) return 'Karbon Çelik Dolgu Teli';
+		// ER308L, ER316L gibi → Paslanmaz Çelik Dolgu Teli
+		if (classUpper.includes('ER308') || classUpper.includes('ER316') || classUpper.includes('ER309')) return 'Paslanmaz Çelik Dolgu Teli';
+		// ER4043, ER5356 gibi → Alüminyum Dolgu Teli
+		if (classUpper.includes('ER4043') || classUpper.includes('ER5356') || classUpper.includes('ER5183')) return 'Alüminyum Dolgu Teli';
+		return '';
+	};
+
 	return `
 		<div class="report-header">
 			 <div class="report-logo">
@@ -403,11 +553,11 @@ const generateWPSReportHtml = (record) => {
 			<h2 class="section-title blue">1. TEMEL BİLGİLER</h2>
 			<table class="info-table">
 				<tbody>
-					<tr><td>Ana Malzeme</td><td>${record.base_material_1?.name || '-'} (${record.base_material_1?.standard || '-'}) / Grup ${record.base_material_1?.iso_15608_group || '-'}</td></tr>
+					<tr><td>Ana Malzeme</td><td>${record.base_material_1?.name || '-'}${getMaterialEquivalent(record.base_material_1?.name) ? ` (${getMaterialEquivalent(record.base_material_1?.name)})` : ''} (${record.base_material_1?.standard || '-'}) / Grup ${record.base_material_1?.iso_15608_group || '-'}</td></tr>
 					<tr><td>Malzeme Kalınlığı</td><td>${record.thickness_1 || '-'} mm</td></tr>
-					<tr><td>Dolgu Malzemesi</td><td>${record.filler_material?.classification || '-'}</td></tr>
-					<tr><td>Kaynak Prosesi</td><td>${record.welding_process_code || '-'}</td></tr>
-					<tr><td>Kaynak Pozisyonu</td><td>${record.welding_position || '-'}</td></tr>
+					<tr><td>Dolgu Malzemesi</td><td>${record.filler_material?.classification || '-'}${getFillerDescription(record.filler_material?.classification) ? ` (${getFillerDescription(record.filler_material?.classification)})` : ''}</td></tr>
+					<tr><td>Kaynak Prosesi</td><td>${record.welding_process_code || '-'}${processCodeMap[record.welding_process_code] ? ` (${processCodeMap[record.welding_process_code]})` : ''}</td></tr>
+					<tr><td>Kaynak Pozisyonu</td><td>${record.welding_position || '-'}${positionMap[record.welding_position] ? ` (${positionMap[record.welding_position]})` : ''}</td></tr>
 					<tr><td>Birleşim Tipi</td><td>${jointTypeMap[record.joint_type] || record.joint_type || '-'}</td></tr>
 					${record.joint_type === 'Butt' 
 						? `<tr><td>Kaynak Ağzı Tasarımı</td><td>${record.joint_detail || '-'} (${record.joint_detail === 'I' ? 'N/A' : (record.joint_angle || 'N/A') + '°'}) / Kök Aralığı: ${record.root_gap || 'N/A'} mm</td></tr>`
@@ -438,7 +588,7 @@ const generateWPSReportHtml = (record) => {
 			<h2 class="section-title red">2. KAYNAK PARAMETRELERİ</h2>
 			<table class="info-table">
 				<tbody>
-					<tr><td>Koruyucu Gaz</td><td>${record.shielding_gas?.name || '-'}</td></tr>
+					<tr><td>Koruyucu Gaz</td><td>${record.shielding_gas?.name || '-'}${getGasDescription(record.shielding_gas?.name) ? ` (${getGasDescription(record.shielding_gas?.name)})` : ''}</td></tr>
 					<tr><td>Gaz Debisi</td><td>${record.gas_flow_rate || '-'} L/dk</td></tr>
 					<tr><td>Tel Çapı</td><td>${record.filler_diameter || '-'} mm</td></tr>
 					<tr><td>Ön Tav Sıcaklığı</td><td>${record.preheat_temperature || '-'} °C</td></tr>
