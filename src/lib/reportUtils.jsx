@@ -416,8 +416,18 @@ const generateWPSReportHtml = (record) => {
 							const thickness = parseFloat(record.thickness_1) || parseFloat(record.thickness_2) || 0;
 							const legSize = thickness > 0 ? (thickness * 0.7).toFixed(1) : 'N/A';
 							const throatThickness = thickness > 0 ? (thickness * 0.7 * 0.707).toFixed(1) : 'N/A';
-							const angle = record.joint_angle || '90';
-							return `<tr><td>Köşe Kaynak Detayları</td><td>Leg Size: ${legSize} mm / Throat Thickness: ${throatThickness} mm / Açı: ${angle}°</td></tr>`;
+							const jointDetailMap = {
+								'Standard': 'Standart Köşe Kaynak',
+								'Double': 'Çift Köşe Kaynak',
+								'Partial': 'Kısmi Nüfuziyetli Köşe Kaynak',
+								'Full': 'Tam Nüfuziyetli Köşe Kaynak'
+							};
+							const jointDetailLabel = jointDetailMap[record.joint_detail] || record.joint_detail || 'Standart Köşe Kaynak';
+							return `
+								<tr><td>Köşe Kaynak Ağzı Tipi</td><td>${jointDetailLabel}</td></tr>
+								<tr><td>Bacak Boyutu</td><td>${legSize} mm</td></tr>
+								<tr><td>Boğaz Kalınlığı</td><td>${throatThickness} mm</td></tr>
+							`;
 						})()
 						: ''}
 				</tbody>
