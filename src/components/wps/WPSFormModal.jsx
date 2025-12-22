@@ -44,7 +44,7 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
             weld_type: 'Plate-Plate',
             joint_type: 'Butt',
             joint_detail: 'V',
-            joint_angle: 60,
+            joint_angle: 60, // Butt için varsayılan, Fillet için 90 olacak
             root_gap: 2,
             welding_position: 'PA',
             welding_process_code: null,
@@ -72,6 +72,14 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
             const newState = { ...prev, [field]: value };
             if (field === 'joint_detail' && value === 'I') {
                 newState.joint_angle = null;
+            }
+            // Köşe kaynak seçildiğinde açıyı 90° yap (eğer yoksa)
+            if (field === 'joint_type' && value === 'Fillet' && !newState.joint_angle) {
+                newState.joint_angle = 90;
+            }
+            // Alın kaynak seçildiğinde açıyı 60° yap (eğer yoksa)
+            if (field === 'joint_type' && value === 'Butt' && !newState.joint_angle) {
+                newState.joint_angle = 60;
             }
             return newState;
         });
@@ -241,7 +249,9 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
     const showThickness2 = true;
     const showDiameter2 = weldType === 'Pipe-Pipe';
     const isButtJoint = formData.joint_type === 'Butt';
+    const isFilletJoint = formData.joint_type === 'Fillet';
     const showJointAngle = isButtJoint && !['I'].includes(formData.joint_detail);
+    const showFilletAngle = isFilletJoint; // Köşe kaynak için açı göster
     const showRootGap = isButtJoint;
     const isTigProcess = formData.welding_process_code === '141';
 
@@ -303,6 +313,16 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
                                                 <SelectItem value="U">U Ağzı</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                    )}
+                                    {isFilletJoint && renderField('Köşe Kaynak Açısı (°)', 'joint_angle', 
+                                        <Input 
+                                            id="joint_angle" 
+                                            type="number" 
+                                            value={formData.joint_angle || '90'} 
+                                            onChange={(e) => handleInputChange('joint_angle', e.target.value)} 
+                                            disabled={isViewMode}
+                                            placeholder="90"
+                                        />
                                     )}
                                     {showJointAngle && renderField('Kaynak Ağzı Açısı (°)', 'joint_angle', <Input id="joint_angle" type="number" value={formData.joint_angle || ''} onChange={(e) => handleInputChange('joint_angle', e.target.value)} disabled={isViewMode} />)}
                                     {showRootGap && renderField('Kök Aralığı (c)', 'root_gap', <Input id="root_gap" type="number" step="0.5" value={formData.root_gap || ''} onChange={(e) => handleInputChange('root_gap', e.target.value)} disabled={isViewMode} />)}
