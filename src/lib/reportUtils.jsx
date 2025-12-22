@@ -363,6 +363,18 @@ const generateWPSReportHtml = (record) => {
 		'Fillet': 'Köşe (Fillet)'
 	};
 
+	// Kaynak tekniği açıklamaları
+	const getTechniqueDescription = (technique) => {
+		if (!technique) return '';
+		const techUpper = technique.toUpperCase();
+		if (techUpper.includes('STRINGER')) return 'Düz Dikiş';
+		if (techUpper.includes('WEAVE')) return 'Salınım Dikiş';
+		if (techUpper.includes('OSCILLAT')) return 'Salınım Dikiş';
+		if (techUpper.includes('WIPING')) return 'Süpürme Tekniği';
+		if (techUpper.includes('BACKSTEP')) return 'Geri Adım Tekniği';
+		return '';
+	};
+
 	const passPlanHtml = record.pass_plan?.map(p => {
 		const techniqueDesc = getTechniqueDescription(p.technique);
 		return `
@@ -536,18 +548,6 @@ const generateWPSReportHtml = (record) => {
 		// Genel karbon çelik kodları
 		if (classUpper.includes('G') && (classUpper.includes('SI') || classUpper.includes('MN'))) return 'Karbon Çelik Dolgu Teli';
 		
-		return '';
-	};
-
-	// Kaynak tekniği açıklamaları
-	const getTechniqueDescription = (technique) => {
-		if (!technique) return '';
-		const techUpper = technique.toUpperCase();
-		if (techUpper.includes('STRINGER')) return 'Düz Dikiş (Stringer)';
-		if (techUpper.includes('WEAVE')) return 'Salınım Dikiş (Weave)';
-		if (techUpper.includes('OSCILLAT')) return 'Salınım Dikiş (Oscillating)';
-		if (techUpper.includes('WIPING')) return 'Süpürme Tekniği (Wiping)';
-		if (techUpper.includes('BACKSTEP')) return 'Geri Adım Tekniği (Backstep)';
 		return '';
 	};
 
