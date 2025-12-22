@@ -731,7 +731,7 @@ setShowRiskyStockAlert(false);
 
             // Otomatik stok risk kontrolü kaydı oluştur
             // Eğer Ret veya Şartlı Kabul ise VE riskli stok varsa otomatik kayıt oluştur
-            if ((formData.decision === 'Ret' || formData.decision === 'Şartlı Kabul') && riskyStockData && riskyStockData.length > 0) {
+            if (formData.decision === 'Ret' || formData.decision === 'Şartlı Kabul') {
                 try {
                     // Daha önce bu kayıt için stok risk kontrolü oluşturulmuş mu kontrol et
                     const { data: existingControls } = await supabase
@@ -740,42 +740,74 @@ setShowRiskyStockAlert(false);
                         .eq('source_inspection_id', inspectionId)
                         .limit(1);
 
-                    // Eğer daha önce oluşturulmamışsa otomatik oluştur
+                    // Eğer daha önce oluşturulmamışsa kontrol et ve oluştur
                     if (!existingControls || existingControls.length === 0) {
-                        const recordsToInsert = riskyStockData.map(item => ({
-                            source_inspection_id: inspectionId,
-                            controlled_inspection_id: item.id,
-                            part_code: formData.part_code,
-                            part_name: formData.part_name,
-                            supplier_id: item.supplier?.id || item.supplier_id || null,
-                            results: [{
-                                measurement_type: 'Görsel Kontrol',
-                                result: null,
-                                value: '',
-                                notes: ''
-                            }],
-                            decision: 'Beklemede',
-                            controlled_by_id: user?.id || null,
-                            status: 'Beklemede'
-                        }));
+                        // Riskli stok kontrolü yap - kayıt kaydedilirken riskyStockData state'i güncel olmayabilir
+                        const hasRejectedOrConditional = 
+                            (formData.quantity_rejected && parseInt(formData.quantity_rejected, 10) > 0) ||
+                            (formData.quantity_conditional && parseInt(formData.quantity_conditional, 10) > 0);
 
-                        const { error: stockRiskError } = await supabase.from('stock_risk_controls').insert(recordsToInsert);
+                        if (hasRejectedOrConditional && formData.part_code) {
+                            // Mevcut kaydın muayene tarihini al
+                            const currentInspectionDate = formData.inspection_date 
+                                ? format(new Date(formData.inspection_date), 'yyyy-MM-dd')
+                                : format(new Date(), 'yyyy-MM-dd');
+                            
+                            // Riskli stokları kontrol et
+                            const { data: riskyStockInspections, error: riskyStockError } = await supabase
+                                .from('incoming_inspections')
+                                .select('*, supplier:suppliers!left(id, name)')
+                                .eq('part_code', formData.part_code)
+                                .in('decision', ['Kabul', 'Kabul Edildi'])
+                                .gt('quantity_accepted', 0)
+                                .lte('inspection_date', currentInspectionDate)
+                                .neq('id', inspectionId)
+                                .order('inspection_date', { ascending: false })
+                                .limit(10);
 
-                        if (stockRiskError) {
-                            console.error('Stok risk kontrolü otomatik oluşturma hatası:', stockRiskError);
-                            // Hata olsa bile ana kayıt başarılı olduğu için sadece log'la, kullanıcıyı bilgilendir
-                            toast({
-                                variant: 'default',
-                                title: 'Kayıt Başarılı',
-                                description: `Girdi kontrol kaydı kaydedildi. Stok risk kontrolü otomatik oluşturulamadı: ${stockRiskError.message}`,
-                                duration: 5000
-                            });
+                            if (!riskyStockError && riskyStockInspections && riskyStockInspections.length > 0) {
+                                // Riskli stok bulundu, otomatik kayıt oluştur
+                                const recordsToInsert = riskyStockInspections.map(item => ({
+                                    source_inspection_id: inspectionId,
+                                    controlled_inspection_id: item.id,
+                                    part_code: formData.part_code,
+                                    part_name: formData.part_name,
+                                    supplier_id: item.supplier?.id || item.supplier_id || null,
+                                    results: [{
+                                        measurement_type: 'Görsel Kontrol',
+                                        result: null,
+                                        value: '',
+                                        notes: ''
+                                    }],
+                                    decision: 'Beklemede',
+                                    controlled_by_id: user?.id || null,
+                                    status: 'Beklemede'
+                                }));
+
+                                const { error: stockRiskError } = await supabase.from('stock_risk_controls').insert(recordsToInsert);
+
+                                if (stockRiskError) {
+                                    console.error('Stok risk kontrolü otomatik oluşturma hatası:', stockRiskError);
+                                    toast({
+                                        variant: 'default',
+                                        title: 'Kayıt Başarılı',
+                                        description: `Girdi kontrol kaydı kaydedildi. Stok risk kontrolü otomatik oluşturulamadı: ${stockRiskError.message}`,
+                                        duration: 5000
+                                    });
+                                } else {
+                                    toast({
+                                        title: 'Başarılı',
+                                        description: `Girdi kontrol kaydı kaydedildi. ${recordsToInsert.length} adet stok risk kontrol kaydı otomatik olarak oluşturuldu.`,
+                                        duration: 5000
+                                    });
+                                }
+                            } else {
+                                // Riskli stok bulunamadı
+                                toast({ title: 'Başarılı', description: 'Girdi kontrol kaydı başarıyla kaydedildi.' });
+                            }
                         } else {
-                            toast({
-                                title: 'Başarılı',
-                                description: `Girdi kontrol kaydı kaydedildi. ${recordsToInsert.length} adet stok risk kontrol kaydı otomatik olarak oluşturuldu.`,
-                                duration: 5000
-                            });
+                            // Ret/Şartlı kabul yok veya parça kodu yok
+                            toast({ title: 'Başarılı', description: 'Girdi kontrol kaydı başarıyla kaydedildi.' });
                         }
                     } else {
                         // Zaten oluşturulmuşsa normal mesaj göster
