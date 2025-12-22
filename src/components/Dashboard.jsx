@@ -251,54 +251,40 @@ import React, { useState, useCallback } from 'react';
                     ))}
                 </motion.div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-                    <motion.div variants={itemVariants} className="lg:col-span-3">
-                        <Card className="dashboard-widget h-full">
-                            <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-4">
-                                <CardTitle className="text-sm sm:text-base md:text-lg">Birim Bazlı Uygunsuzluk Dağılımı</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-2 sm:p-6 pt-0">
-                                {loading ? <Skeleton className="h-[200px] sm:h-[250px] md:h-[300px] w-full" /> : (
-                                    <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : window.innerWidth < 768 ? 250 : 300}>
-                                        <RechartsBarChart data={nonconformityData || []} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                                            <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={window.innerWidth < 640 ? 9 : 12} tickLine={false} axisLine={false} interval={0} angle={window.innerWidth < 640 ? -45 : 0} textAnchor={window.innerWidth < 640 ? 'end' : 'middle'} height={window.innerWidth < 640 ? 60 : 30} />
-                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={window.innerWidth < 640 ? 10 : 12} tickLine={false} axisLine={false} width={30} />
-                                            <Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '12px' }} />
-                                            <Bar dataKey="value" name="Uygunsuzluk Sayısı" radius={[4, 4, 0, 0]} onClick={handleChartClick}>
-                                                {(nonconformityData || []).map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer" />
-                                                ))}
-                                            </Bar>
-                                        </RechartsBarChart>
-                                    </ResponsiveContainer>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-
-                    <motion.div variants={itemVariants} className="lg:col-span-2">
-                        <Card className="dashboard-widget h-full">
-                            <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-4">
-                                <CardTitle className="text-sm sm:text-base md:text-lg">Kalitesizlik Maliyetleri</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-2 sm:p-6 pt-0">
-                               {loading ? <Skeleton className="h-[200px] sm:h-[250px] md:h-[300px] w-full" /> : (
-                                   <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : window.innerWidth < 768 ? 250 : 300}>
-                                        <PieChart>
-                                            <Pie data={costData || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={window.innerWidth < 640 ? 40 : 60} outerRadius={window.innerWidth < 640 ? 60 : 80} fill="#8884d8" paddingAngle={5} labelLine={false} onClick={handleChartClick}>
-                                                {(costData || []).map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={PIE_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer" />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '12px' }} formatter={(value) => `${value.toLocaleString('tr-TR')} ₺`} />
-                                            <Legend iconSize={8} wrapperStyle={{ fontSize: window.innerWidth < 640 ? '10px' : '12px' }} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                </div>
+                <motion.div variants={itemVariants}>
+                    <Card className="dashboard-widget h-full">
+                        <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-4">
+                            <CardTitle className="text-sm sm:text-base md:text-lg">Birim Bazlı Uygunsuzluk Dağılımı</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-2 sm:p-6 pt-0">
+                            {loading ? <Skeleton className="h-[200px] sm:h-[250px] md:h-[300px] w-full" /> : (
+                                <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : window.innerWidth < 768 ? 250 : 350}>
+                                    <RechartsBarChart data={nonconformityData || []} margin={{ top: 5, right: 10, left: 10, bottom: 60 }}>
+                                        <XAxis 
+                                            dataKey="name" 
+                                            stroke="hsl(var(--muted-foreground))" 
+                                            fontSize={window.innerWidth < 640 ? 9 : 11} 
+                                            tickLine={false} 
+                                            axisLine={false} 
+                                            interval={0} 
+                                            angle={-45} 
+                                            textAnchor="end" 
+                                            height={80}
+                                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                                        />
+                                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={window.innerWidth < 640 ? 10 : 12} tickLine={false} axisLine={false} width={40} />
+                                        <Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '12px' }} />
+                                        <Bar dataKey="value" name="Uygunsuzluk Sayısı" radius={[4, 4, 0, 0]} onClick={handleChartClick}>
+                                            {(nonconformityData || []).map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer" />
+                                            ))}
+                                        </Bar>
+                                    </RechartsBarChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
                 
                 {/* Gerçek Zamanlı Uyarılar */}
                 <motion.div variants={itemVariants}>

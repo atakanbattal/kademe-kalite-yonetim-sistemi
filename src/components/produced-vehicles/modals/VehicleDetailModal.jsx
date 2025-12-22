@@ -9,7 +9,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Card, CardContent } from '@/components/ui/card';
     import { Separator } from '@/components/ui/separator';
     import { InfoCard } from '@/components/ui/InfoCard';
-    import { format, parseISO, differenceInMilliseconds } from 'date-fns';
+    import { format, parseISO, differenceInMilliseconds, startOfDay } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
@@ -413,24 +413,35 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                                     variant="warning"
                                                 />
                                                 <InfoCard 
-                                                    icon={vehicle.status !== 'Sevk Edildi' && differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 ? AlertTriangle : Clock} 
+                                                    icon={(() => {
+                                                        const dueDate = startOfDay(parseISO(vehicle.delivery_due_date));
+                                                        const today = startOfDay(new Date());
+                                                        const daysRemaining = differenceInDays(dueDate, today);
+                                                        return vehicle.status !== 'Sevk Edildi' && daysRemaining < 0 ? AlertTriangle : Clock;
+                                                    })()} 
                                                     label="Sevke Kalan Gün" 
-                                                    value={
-                                                        vehicle.status === 'Sevk Edildi' 
+                                                    value={(() => {
+                                                        const dueDate = startOfDay(parseISO(vehicle.delivery_due_date));
+                                                        const today = startOfDay(new Date());
+                                                        const daysRemaining = differenceInDays(dueDate, today);
+                                                        return vehicle.status === 'Sevk Edildi' 
                                                             ? 'Sevk Edildi' 
-                                                            : differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 
-                                                                ? `${Math.abs(differenceInDays(parseISO(vehicle.delivery_due_date), new Date()))} gün geçti!`
-                                                                : `${differenceInDays(parseISO(vehicle.delivery_due_date), new Date())} gün`
-                                                    }
-                                                    variant={
-                                                        vehicle.status === 'Sevk Edildi' 
+                                                            : daysRemaining < 0 
+                                                                ? `${Math.abs(daysRemaining)} gün geçti!`
+                                                                : `${daysRemaining} gün`;
+                                                    })()}
+                                                    variant={(() => {
+                                                        const dueDate = startOfDay(parseISO(vehicle.delivery_due_date));
+                                                        const today = startOfDay(new Date());
+                                                        const daysRemaining = differenceInDays(dueDate, today);
+                                                        return vehicle.status === 'Sevk Edildi' 
                                                             ? 'success' 
-                                                            : differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 
+                                                            : daysRemaining < 0 
                                                                 ? 'danger'
-                                                                : differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) <= 3
+                                                                : daysRemaining <= 3
                                                                     ? 'warning'
-                                                                    : 'info'
-                                                    }
+                                                                    : 'info';
+                                                    })()}
                                                 />
                                             </>
                                         )}

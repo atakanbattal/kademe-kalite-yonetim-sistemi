@@ -36,15 +36,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         
         if (searchTerm) {
             const lowercasedFilter = searchTerm.toLowerCase();
-            // Kapsamlı arama: parça kodu, adı, lot no, tedarikçi, uygunsuzluk nedeni, aksiyon
+            // Kapsamlı arama: parça kodu, adı, lot no, uygunsuzluk numarası
             filtered = filtered.filter(record => 
                 record.part_code?.toLowerCase().includes(lowercasedFilter) ||
                 record.part_name?.toLowerCase().includes(lowercasedFilter) ||
                 record.lot_no?.toLowerCase().includes(lowercasedFilter) ||
-                record.supplier_name?.toLowerCase().includes(lowercasedFilter) ||
-                record.nonconformity_reason?.toLowerCase().includes(lowercasedFilter) ||
-                record.action_taken?.toLowerCase().includes(lowercasedFilter) ||
-                record.inspector?.toLowerCase().includes(lowercasedFilter)
+                record.nc_number?.toLowerCase().includes(lowercasedFilter) ||
+                record.source_department?.toLowerCase().includes(lowercasedFilter) ||
+                record.requesting_department?.toLowerCase().includes(lowercasedFilter) ||
+                record.requesting_person_name?.toLowerCase().includes(lowercasedFilter)
             );
         }
 
@@ -351,9 +351,18 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                           <span className={`status-indicator ${getStatusColor(item.status)}`}>{item.status}</span>
                         </td>
                         <td>
-                          {item.non_conformity ? (
-                            <Button variant="link" className="p-0 h-auto" onClick={() => handleOpenNC(item.non_conformity)}>
-                              {item.non_conformity.nc_number}
+                          {item.non_conformity_id && item.nc_number ? (
+                            <Button 
+                              variant="link" 
+                              className="p-0 h-auto" 
+                              onClick={() => {
+                                // non_conformity objesi yoksa, sadece ID ile açmaya çalış
+                                if (onOpenNCView && item.non_conformity_id) {
+                                  onOpenNCView({ id: item.non_conformity_id, nc_number: item.nc_number });
+                                }
+                              }}
+                            >
+                              {item.nc_number}
                               <ExternalLink className="w-3 h-3 ml-1" />
                             </Button>
                           ) : '-'}
@@ -380,7 +389,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                             <GitBranch className="mr-2 h-4 w-4" />
                                             Karar Ver
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOpenCreateNC(item)} disabled={!!item.non_conformity}>
+                                        <DropdownMenuItem onClick={() => handleOpenCreateNC(item)} disabled={!!item.non_conformity_id}>
                                             <AlertOctagon className="mr-2 h-4 w-4" />
                                             Uygunsuzluk Oluştur
                                         </DropdownMenuItem>

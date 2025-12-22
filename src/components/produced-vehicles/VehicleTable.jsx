@@ -6,7 +6,7 @@ import React from 'react';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-    import { parseISO, differenceInMilliseconds, differenceInDays, format } from 'date-fns';
+    import { parseISO, differenceInMilliseconds, differenceInDays, format, startOfDay } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { formatDuration } from '@/lib/formatDuration.js';
@@ -253,30 +253,35 @@ import React from 'react';
                                     <td>{dmoStatusInfo ? <Badge variant={dmoStatusInfo.variant}>{dmoStatusInfo.text}</Badge> : <Badge variant="secondary">-</Badge>}</td>
                                     <td>{formatElapsedTime(vehicle)}</td>
                                     <td>
-                                        {vehicle.delivery_due_date ? (
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="text-xs text-muted-foreground">
-                                                    {format(parseISO(vehicle.delivery_due_date), 'dd.MM.yyyy', { locale: tr })}
-                                                </span>
-                                                {vehicle.status !== 'Sevk Edildi' && (
-                                                    <Badge 
-                                                        variant={
-                                                            differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 
-                                                                ? 'destructive'
-                                                                : differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) <= 3
-                                                                    ? 'warning'
-                                                                    : 'secondary'
-                                                        }
-                                                        className="text-xs w-fit"
-                                                    >
-                                                        {differenceInDays(parseISO(vehicle.delivery_due_date), new Date()) < 0 
-                                                            ? `${Math.abs(differenceInDays(parseISO(vehicle.delivery_due_date), new Date()))} gün geçti`
-                                                            : `${differenceInDays(parseISO(vehicle.delivery_due_date), new Date())} gün`
-                                                        }
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        ) : (
+                                        {vehicle.delivery_due_date ? (() => {
+                                            const dueDate = startOfDay(parseISO(vehicle.delivery_due_date));
+                                            const today = startOfDay(new Date());
+                                            const daysRemaining = differenceInDays(dueDate, today);
+                                            return (
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {format(parseISO(vehicle.delivery_due_date), 'dd.MM.yyyy', { locale: tr })}
+                                                    </span>
+                                                    {vehicle.status !== 'Sevk Edildi' && (
+                                                        <Badge 
+                                                            variant={
+                                                                daysRemaining < 0 
+                                                                    ? 'destructive'
+                                                                    : daysRemaining <= 3
+                                                                        ? 'warning'
+                                                                        : 'secondary'
+                                                            }
+                                                            className="text-xs w-fit"
+                                                        >
+                                                            {daysRemaining < 0 
+                                                                ? `${Math.abs(daysRemaining)} gün geçti`
+                                                                : `${daysRemaining} gün`
+                                                            }
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            );
+                                        })() : (
                                             <span className="text-muted-foreground">-</span>
                                         )}
                                     </td>
