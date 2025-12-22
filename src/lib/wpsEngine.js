@@ -97,7 +97,7 @@ const getWelderNotes = (position, group, processCode) => {
 
 
 export const generateWPSRecommendation = (inputs, library) => {
-    const { material1, thickness, position, jointType, jointDetail, jointAngle, rootGap, processCode: userProcessCode } = inputs;
+    const { material1, thickness, position, jointType, jointDetail, jointAngle, rootGap, processCode: userProcessCode, fillerDiameter: userFillerDiameter } = inputs;
     const { fillerMaterials, shieldingGases } = library;
     
     let recommendations = {
@@ -166,32 +166,39 @@ export const generateWPSRecommendation = (inputs, library) => {
         recommendations.filler_material_id = compatibleFillers[0].id;
         recommendations.reasoning.push(`Malzeme grubuna (${group}) uygun ${compatibleFillers[0].classification} dolgu teli seçildi.`);
 
-        // Tel çapı seçimi: Kalınlığa ve pozisyona göre optimize edilmiş
-        let diameter = 1.0;
-        // İnce saclar (1-3mm): 1.0mm tel
-        // Orta kalınlık (3-6mm): 1.0mm veya 1.2mm (pozisyona göre)
-        // Kalın (6-12mm): 1.2mm tel
-        // Çok kalın (12mm+): 1.2mm tel (veya daha kalın, ama şimdilik 1.2mm)
-        if (t <= 3) {
-            diameter = 1.0;
-        } else if (t <= 6) {
-            // Orta kalınlıkta pozisyona göre karar ver
-            if (['PF', 'PG', 'PE'].includes(position)) {
-                diameter = 1.0; // Zor pozisyonlarda ince tel
-            } else {
-                diameter = 1.2; // Kolay pozisyonlarda kalın tel
-            }
+        // Tel çapı seçimi: Kullanıcı tarafından belirtilmişse onu kullan, yoksa kalınlığa ve pozisyona göre optimize et
+        let diameter;
+        if (userFillerDiameter && (userFillerDiameter === 1.0 || userFillerDiameter === 1.2 || userFillerDiameter === 0.8 || userFillerDiameter === 1.6)) {
+            diameter = userFillerDiameter;
+            recommendations.reasoning.push(`Kullanıcı tarafından belirtilen ${diameter}mm tel çapı kullanılıyor.`);
         } else {
-            diameter = 1.2; // Kalın saclarda 1.2mm tel
-        }
-        
-        if (['PF', 'PG', 'PE'].includes(position) && diameter > 1.0) {
+            // Otomatik tel çapı seçimi: Kalınlığa ve pozisyona göre optimize edilmiş
             diameter = 1.0;
-            recommendations.reasoning.push("Zor pozisyonlar için daha iyi kontrol sağlamak amacıyla tel çapı 1.0mm'ye düşürüldü.");
+            // İnce saclar (1-3mm): 1.0mm tel
+            // Orta kalınlık (3-6mm): 1.0mm veya 1.2mm (pozisyona göre)
+            // Kalın (6-12mm): 1.2mm tel
+            // Çok kalın (12mm+): 1.2mm tel (veya daha kalın, ama şimdilik 1.2mm)
+            if (t <= 3) {
+                diameter = 1.0;
+            } else if (t <= 6) {
+                // Orta kalınlıkta pozisyona göre karar ver
+                if (['PF', 'PG', 'PE'].includes(position)) {
+                    diameter = 1.0; // Zor pozisyonlarda ince tel
+                } else {
+                    diameter = 1.2; // Kolay pozisyonlarda kalın tel
+                }
+            } else {
+                diameter = 1.2; // Kalın saclarda 1.2mm tel
+            }
+            
+            if (['PF', 'PG', 'PE'].includes(position) && diameter > 1.0) {
+                diameter = 1.0;
+                recommendations.reasoning.push("Zor pozisyonlar için daha iyi kontrol sağlamak amacıyla tel çapı 1.0mm'ye düşürüldü.");
+            }
+            recommendations.reasoning.push(`Kalınlık (${t}mm) ve pozisyona (${position}) göre ${diameter}mm tel çapı önerildi.`);
         }
         recommendations.filler_diameter = diameter;
         recommendations.filler.diameter = diameter;
-        recommendations.reasoning.push(`Kalınlık (${t}mm) ve pozisyona (${position}) göre ${diameter}mm tel çapı önerildi.`);
     }
 
     // 3. Shielding Gas

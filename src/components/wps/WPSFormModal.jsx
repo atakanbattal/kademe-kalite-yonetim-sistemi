@@ -139,7 +139,8 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
                 jointDetail: formData.joint_detail,
                 jointAngle: formData.joint_angle,
                 rootGap: formData.root_gap,
-                processCode: formData.welding_process_code, 
+                processCode: formData.welding_process_code,
+                fillerDiameter: formData.filler_diameter ? parseFloat(formData.filler_diameter) : null,
             }, library);
             
             setFormData(prev => ({
@@ -149,7 +150,7 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
                 reasoning_notes: recs.reasoning.join('\n'),
             }));
         }
-    }, [formData.base_material_1_id, formData.thickness_1, formData.welding_position, formData.joint_type, formData.joint_detail, formData.joint_angle, formData.root_gap, formData.welding_process_code, library]);
+    }, [formData.base_material_1_id, formData.thickness_1, formData.welding_position, formData.joint_type, formData.joint_detail, formData.joint_angle, formData.root_gap, formData.welding_process_code, formData.filler_diameter, library]);
 
     useEffect(() => {
         if (formData.base_material_1_id && formData.thickness_1) {
@@ -158,7 +159,7 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
             }, 300);
             return () => clearTimeout(debounce);
         }
-    }, [formData.base_material_1_id, formData.thickness_1, formData.welding_position, formData.joint_type, formData.joint_detail, formData.joint_angle, formData.root_gap, updateRecommendations]);
+    }, [formData.base_material_1_id, formData.thickness_1, formData.welding_position, formData.joint_type, formData.joint_detail, formData.joint_angle, formData.root_gap, formData.filler_diameter, updateRecommendations]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
