@@ -358,22 +358,25 @@ const generateWPSReportHtml = (record) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
 	const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
 
-	const passPlanHtml = record.pass_plan?.map(p => `
+	const jointTypeMap = {
+		'Butt': 'Alın (Butt)',
+		'Fillet': 'Köşe (Fillet)'
+	};
+
+	const passPlanHtml = record.pass_plan?.map(p => {
+		const techniqueDesc = getTechniqueDescription(p.technique);
+		return `
 		<tr>
 			<td>${p.pass || '-'}</td>
-			<td>${p.technique || '-'}</td>
+			<td>${p.technique || '-'}${techniqueDesc ? ` (${techniqueDesc})` : ''}</td>
 			<td>${p.current_polarity || '-'}</td>
 			<td>${p.min_current_a || ''} - ${p.max_current_a || ''}</td>
 			<td>${p.min_voltage_v || ''} - ${p.max_voltage_v || ''}</td>
 			<td>${p.travel_speed || '-'}</td>
 			<td>${p.heat_input || '-'}</td>
 		</tr>
-	`).join('') || '<tr><td colspan="7" class="text-center">Paso planı detayı bulunamadı.</td></tr>';
-	
-	const jointTypeMap = {
-		'Butt': 'Alın (Butt)',
-		'Fillet': 'Köşe (Fillet)'
-	};
+	`;
+	}).join('') || '<tr><td colspan="7" class="text-center">Paso planı detayı bulunamadı.</td></tr>';
 
 	// Malzeme eşleştirmeleri (ISO standart → Türkçe eşdeğer)
 	const getMaterialEquivalent = (materialName) => {
@@ -516,12 +519,35 @@ const generateWPSReportHtml = (record) => {
 	const getFillerDescription = (classification) => {
 		if (!classification) return '';
 		const classUpper = classification.toUpperCase();
-		// ER70S-6 gibi → Karbon Çelik Dolgu Teli
+		
+		// AWS/AWS benzeri kodlar (G3Si1, G4Si1, G2Si1 vb.)
+		if (classUpper.includes('G3SI1') || classUpper.includes('G3SI-1')) return 'Karbon Çelik Dolgu Teli (Silisyum içerikli, genel amaçlı)';
+		if (classUpper.includes('G4SI1') || classUpper.includes('G4SI-1')) return 'Karbon Çelik Dolgu Teli (Yüksek silisyum içerikli)';
+		if (classUpper.includes('G2SI1') || classUpper.includes('G2SI-1')) return 'Karbon Çelik Dolgu Teli (Düşük silisyum içerikli)';
+		if (classUpper.includes('G3SI') || classUpper.match(/G\d+SI/)) return 'Karbon Çelik Dolgu Teli (Silisyum içerikli)';
+		
+		// ER70S-6, ER70S-3 gibi → Karbon Çelik Dolgu Teli
 		if (classUpper.includes('ER70') || classUpper.includes('ER49')) return 'Karbon Çelik Dolgu Teli';
 		// ER308L, ER316L gibi → Paslanmaz Çelik Dolgu Teli
 		if (classUpper.includes('ER308') || classUpper.includes('ER316') || classUpper.includes('ER309')) return 'Paslanmaz Çelik Dolgu Teli';
 		// ER4043, ER5356 gibi → Alüminyum Dolgu Teli
 		if (classUpper.includes('ER4043') || classUpper.includes('ER5356') || classUpper.includes('ER5183')) return 'Alüminyum Dolgu Teli';
+		
+		// Genel karbon çelik kodları
+		if (classUpper.includes('G') && (classUpper.includes('SI') || classUpper.includes('MN'))) return 'Karbon Çelik Dolgu Teli';
+		
+		return '';
+	};
+
+	// Kaynak tekniği açıklamaları
+	const getTechniqueDescription = (technique) => {
+		if (!technique) return '';
+		const techUpper = technique.toUpperCase();
+		if (techUpper.includes('STRINGER')) return 'Düz Dikiş (Stringer)';
+		if (techUpper.includes('WEAVE')) return 'Salınım Dikiş (Weave)';
+		if (techUpper.includes('OSCILLAT')) return 'Salınım Dikiş (Oscillating)';
+		if (techUpper.includes('WIPING')) return 'Süpürme Tekniği (Wiping)';
+		if (techUpper.includes('BACKSTEP')) return 'Geri Adım Tekniği (Backstep)';
 		return '';
 	};
 
