@@ -85,7 +85,7 @@ import React, { useEffect, useState } from 'react';
                             // ÖNEMLİ: Nonconformity için attachments ve closing_attachments kontrolü
                             // localStorage'dan gelen veride bu alanlar undefined olabilir
                             else if (type === 'nonconformity' && id) {
-                                console.log('🔍 Nonconformity tipi tespit edildi, attachments kontrol ediliyor...');
+                                console.log('🔍 Nonconformity tipi tespit edildi, attachments ve kök neden analizleri kontrol ediliyor...');
                                 
                                 // supplier_name yoksa çek
                                 if (!recordData.supplier_name && recordData.supplier_id) {
@@ -101,29 +101,60 @@ import React, { useEffect, useState } from 'react';
                                     }
                                 }
                                 
+                                // Kök neden analizleri kontrol et ve eksikse veritabanından çek
+                                const hasAnalysisData = recordData.five_n1k_analysis || recordData.five_why_analysis || 
+                                                       recordData.ishikawa_analysis || recordData.fta_analysis;
+                                
                                 // attachments veya closing_attachments undefined ise veritabanından çek
-                                if (recordData.attachments === undefined || recordData.closing_attachments === undefined) {
-                                    console.log('⚠️ Attachments undefined, veritabanından çekiliyor...');
+                                if (recordData.attachments === undefined || recordData.closing_attachments === undefined || !hasAnalysisData) {
+                                    console.log('⚠️ Attachments veya kök neden analizleri undefined, veritabanından çekiliyor...');
                                     const { data: freshData, error: attachError } = await supabase
                                         .from('non_conformities')
-                                        .select('attachments, closing_attachments')
+                                        .select('attachments, closing_attachments, five_n1k_analysis, five_why_analysis, ishikawa_analysis, fta_analysis')
                                         .eq('id', id)
                                         .maybeSingle();
                                     
                                     if (!attachError && freshData) {
                                         recordData.attachments = freshData.attachments || [];
                                         recordData.closing_attachments = freshData.closing_attachments || [];
-                                        console.log('✅ Attachments veritabanından yüklendi:', {
+                                        
+                                        // Kök neden analizleri varsa ekle
+                                        if (freshData.five_n1k_analysis) {
+                                            recordData.five_n1k_analysis = freshData.five_n1k_analysis;
+                                            console.log('✅ five_n1k_analysis veritabanından yüklendi');
+                                        }
+                                        if (freshData.five_why_analysis) {
+                                            recordData.five_why_analysis = freshData.five_why_analysis;
+                                            console.log('✅ five_why_analysis veritabanından yüklendi');
+                                        }
+                                        if (freshData.ishikawa_analysis) {
+                                            recordData.ishikawa_analysis = freshData.ishikawa_analysis;
+                                            console.log('✅ ishikawa_analysis veritabanından yüklendi');
+                                        }
+                                        if (freshData.fta_analysis) {
+                                            recordData.fta_analysis = freshData.fta_analysis;
+                                            console.log('✅ fta_analysis veritabanından yüklendi');
+                                        }
+                                        
+                                        console.log('✅ Attachments ve kök neden analizleri veritabanından yüklendi:', {
                                             attachments: recordData.attachments?.length || 0,
-                                            closing_attachments: recordData.closing_attachments?.length || 0
+                                            closing_attachments: recordData.closing_attachments?.length || 0,
+                                            hasFiveN1K: !!recordData.five_n1k_analysis,
+                                            hasFiveWhy: !!recordData.five_why_analysis,
+                                            hasIshikawa: !!recordData.ishikawa_analysis,
+                                            hasFTA: !!recordData.fta_analysis
                                         });
                                     } else {
-                                        console.error('❌ Attachments yüklenirken hata:', attachError);
+                                        console.error('❌ Attachments veya kök neden analizleri yüklenirken hata:', attachError);
                                     }
                                 } else {
-                                    console.log('✅ Attachments zaten mevcut:', {
+                                    console.log('✅ Attachments ve kök neden analizleri zaten mevcut:', {
                                         attachments: recordData.attachments?.length || 0,
-                                        closing_attachments: recordData.closing_attachments?.length || 0
+                                        closing_attachments: recordData.closing_attachments?.length || 0,
+                                        hasFiveN1K: !!recordData.five_n1k_analysis,
+                                        hasFiveWhy: !!recordData.five_why_analysis,
+                                        hasIshikawa: !!recordData.ishikawa_analysis,
+                                        hasFTA: !!recordData.fta_analysis
                                     });
                                 }
                             }
