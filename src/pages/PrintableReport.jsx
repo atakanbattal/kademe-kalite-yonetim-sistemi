@@ -46,6 +46,42 @@ import React, { useEffect, useState } from 'react';
                                 // Liste tipleri için ek işlem gerekmez, veri zaten hazır
                                 console.log(`✅ Liste tipi (${type}) verisi localStorage'dan okundu`);
                             }
+                            // WPS için ilişkili verileri kontrol et ve eksikse çek
+                            else if (type === 'wps' && recordData && id) {
+                                console.log('🔍 WPS tipi tespit edildi, ilişkili veriler kontrol ediliyor...');
+                                
+                                // İlişkili veriler eksikse veritabanından çek
+                                if (!recordData.base_material_1 || !recordData.base_material_2 || !recordData.filler_material || !recordData.shielding_gas) {
+                                    console.log('⚠️ WPS ilişkili veriler eksik, veritabanından çekiliyor...');
+                                    const { data: wpsData, error: wpsError } = await supabase
+                                        .from('wps_procedures')
+                                        .select(`
+                                            *,
+                                            base_material_1:base_material_1_id!left(*),
+                                            base_material_2:base_material_2_id!left(*),
+                                            filler_material:filler_material_id!left(*),
+                                            shielding_gas:shielding_gas_id!left(*)
+                                        `)
+                                        .eq('id', id)
+                                        .maybeSingle();
+                                    
+                                    if (!wpsError && wpsData) {
+                                        // Mevcut veriyi koru, sadece eksik ilişkili verileri ekle
+                                        recordData = {
+                                            ...recordData,
+                                            base_material_1: wpsData.base_material_1 || recordData.base_material_1,
+                                            base_material_2: wpsData.base_material_2 || recordData.base_material_2,
+                                            filler_material: wpsData.filler_material || recordData.filler_material,
+                                            shielding_gas: wpsData.shielding_gas || recordData.shielding_gas,
+                                        };
+                                        console.log('✅ WPS ilişkili veriler eklendi');
+                                    } else {
+                                        console.error('❌ WPS ilişkili veriler yüklenirken hata:', wpsError);
+                                    }
+                                } else {
+                                    console.log('✅ WPS ilişkili veriler zaten mevcut');
+                                }
+                            }
                             // ÖNEMLİ: Nonconformity için attachments ve closing_attachments kontrolü
                             // localStorage'dan gelen veride bu alanlar undefined olabilir
                             else if (type === 'nonconformity' && id) {
@@ -385,6 +421,25 @@ import React, { useEffect, useState } from 'react';
                                 .maybeSingle();
                             recordData = examData;
                             queryError = examError;
+                            break;
+                        }
+                        case 'wps': {
+                            const { data: wpsData, error: wpsError } = await supabase
+                                .from('wps_procedures')
+                                .select(`
+                                    *,
+                                    base_material_1:base_material_1_id!left(*),
+                                    base_material_2:base_material_2_id!left(*),
+                                    filler_material:filler_material_id!left(*),
+                                    shielding_gas:shielding_gas_id!left(*)
+                                `)
+                                .eq('id', id)
+                                .maybeSingle();
+                            
+                            if (wpsError) throw wpsError;
+                            if (!wpsData) throw new Error('WPS kaydı bulunamadı.');
+                            
+                            recordData = wpsData;
                             break;
                         }
 

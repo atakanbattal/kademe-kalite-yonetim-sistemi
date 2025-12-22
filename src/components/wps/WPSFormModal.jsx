@@ -247,16 +247,16 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-6xl">
+            <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>{isViewMode ? 'WPS Görüntüle' : (existingWPS ? 'WPS Düzenle' : 'Yeni WPS Oluştur')}</DialogTitle>
                     <DialogDescription>
                         {isViewMode ? `WPS No: ${formData.wps_no}` : 'Malzeme ve kalınlık seçerek otomatik öneriler alın.'}
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                    <ScrollArea className="max-h-[75vh] p-1">
-                        <div className="p-4 space-y-6">
+                <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
+                    <ScrollArea className="flex-grow pr-6">
+                        <div className="py-4 space-y-6">
                             <div className="p-4 border rounded-lg bg-slate-50/50">
                                 <h3 className="text-lg font-medium text-primary mb-4">Temel Bilgiler</h3>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
@@ -459,7 +459,7 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
                         </div>
                     </ScrollArea>
                     {!isViewMode && (
-                        <DialogFooter className="pt-4 border-t mt-4">
+                        <DialogFooter className="mt-auto pt-4 border-t">
                             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
                             <Button type="submit" disabled={loading}>
                                 <Save className="mr-2 h-4 w-4" /> {loading ? 'Kaydediliyor...' : 'Kaydet'}

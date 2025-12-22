@@ -3099,6 +3099,9 @@ const generateGenericReportHtml = (record, type) => {
 };
 
 const generatePrintableReportHtml = (record, type) => {
+	// Record'u normalize et (Türkçe karakterler için)
+	const normalizedRecord = normalizeRecord(record);
+	
 	let reportContentHtml = '';
 	let cssOverrides = ''; // CSS overrides for specific report types
 	
