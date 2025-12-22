@@ -18,6 +18,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     const [calculations, setCalculations] = useState({});
     const [existingCostRecords, setExistingCostRecords] = useState([]);
     const [isEditMode, setIsEditMode] = useState(false);
+    const [fullVehicleData, setFullVehicleData] = useState(null);
 
     // Tüm hataları kullan (çözülen ve çözülmemiş)
     const allFaults = useMemo(() => {
@@ -87,6 +88,39 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         setCalculations(newCalculations);
     }, [faultDurations, qualityControlDurations, allFaults, unitCostSettings]);
 
+    // Araç verilerini tam olarak yükle (timeline events ile birlikte)
+    useEffect(() => {
+        const fetchFullVehicleData = async () => {
+            if (!isOpen || !vehicle?.id) {
+                setFullVehicleData(null);
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('quality_inspections')
+                    .select(`
+                        *,
+                        vehicle_timeline_events(*)
+                    `)
+                    .eq('id', vehicle.id)
+                    .single();
+                
+                if (error) {
+                    console.error('❌ Araç verileri yüklenemedi:', error);
+                    setFullVehicleData(vehicle); // Fallback olarak mevcut vehicle'ı kullan
+                } else {
+                    setFullVehicleData(data);
+                }
+            } catch (error) {
+                console.error('❌ Araç verileri yüklenirken hata:', error);
+                setFullVehicleData(vehicle); // Fallback olarak mevcut vehicle'ı kullan
+            }
+        };
+        
+        fetchFullVehicleData();
+    }, [isOpen, vehicle?.id]);
+
     // Mevcut maliyet kayıtlarını kontrol et ve formu yükle
     useEffect(() => {
         if (!isOpen || !vehicle?.id) {
@@ -153,6 +187,38 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         }));
     };
 
+    // Araçların kontrole girdiği tarihi bul
+    const getQualityControlDate = () => {
+        const vehicleData = fullVehicleData || vehicle;
+        
+        // Önce quality_entry_at alanını kontrol et
+        if (vehicleData?.quality_entry_at) {
+            return new Date(vehicleData.quality_entry_at).toISOString().slice(0, 10);
+        }
+        
+        // Timeline events'te quality_entry veya control_start event'ini bul
+        if (vehicleData?.vehicle_timeline_events && vehicleData.vehicle_timeline_events.length > 0) {
+            // Önce quality_entry event'ini ara
+            const qualityEntryEvent = vehicleData.vehicle_timeline_events.find(
+                e => e.event_type === 'quality_entry'
+            );
+            if (qualityEntryEvent) {
+                return new Date(qualityEntryEvent.event_timestamp).toISOString().slice(0, 10);
+            }
+            
+            // Sonra control_start event'ini ara
+            const controlStartEvent = vehicleData.vehicle_timeline_events.find(
+                e => e.event_type === 'control_start'
+            );
+            if (controlStartEvent) {
+                return new Date(controlStartEvent.event_timestamp).toISOString().slice(0, 10);
+            }
+        }
+        
+        // Hiçbiri yoksa mevcut tarihi kullan (fallback)
+        return new Date().toISOString().slice(0, 10);
+    };
+
     const handleSubmit = async () => {
         // Mükerrer kayıt kontrolü
         if (!isEditMode && existingCostRecords.length > 0) {
@@ -176,6 +242,9 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         }
 
         setLoading(true);
+        
+        // Araçların kontrole girdiği tarihi al
+        const qualityControlDate = getQualityControlDate();
 
         try {
             let totalAmount = 0;
@@ -279,7 +348,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                             part_code: null,
                             part_name: null,
                             amount: totalFaultCost,
-                            cost_date: new Date().toISOString().slice(0, 10),
+                            cost_date: qualityControlDate,
                             description: description,
                             rework_duration: duration,
                             quantity: faultQuantity,
@@ -367,7 +436,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     part_code: null,
                     part_name: null,
                     amount: totalFaultCost,
-                    cost_date: new Date().toISOString().slice(0, 10),
+                    cost_date: qualityControlDate,
                     description: description,
                     rework_duration: duration,
                     quantity: faultQuantity,
