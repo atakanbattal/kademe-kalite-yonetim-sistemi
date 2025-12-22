@@ -2865,8 +2865,14 @@ const generateGenericReportHtml = (record, type) => {
 			
 			// Veri varsa göster, yoksa boş alan göster
 			const renderField = (value, emptyPattern) => {
-				if (value && value.toString().trim() !== '') {
-					return escapeHtml(value);
+				// null, undefined, boş string kontrolü
+				if (value === null || value === undefined) {
+					return '';
+				}
+				// String'e çevir ve trim yap
+				const strValue = String(value).trim();
+				if (strValue !== '' && strValue !== 'null' && strValue !== 'undefined') {
+					return escapeHtml(strValue);
 				}
 				return ''; // Boş alanlar için alt çizgi karakterleri kaldırıldı, CSS border-bottom kullanılıyor
 			};
