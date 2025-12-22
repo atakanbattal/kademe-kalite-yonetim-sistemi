@@ -3883,10 +3883,13 @@ const generatePrintableReportHtml = (record, type) => {
 			font-size: 10px; 
 			text-align: center; 
 			page-break-inside: auto;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			border-radius: 6px;
+			overflow: hidden;
 		}
 		.pass-table th, .pass-table td { 
 			border: 1px solid #e5e7eb; 
-			padding: 6px; 
+			padding: 8px; 
 		}
 		.pass-table thead { 
 			background-color: #f3f4f6; 
