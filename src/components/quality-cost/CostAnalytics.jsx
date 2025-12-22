@@ -87,7 +87,7 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
             };
         }
 
-        const internalCostTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti'];
+        const internalCostTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti'];
         const externalCostTypes = ['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti'];
 
         let totalCost = 0;
