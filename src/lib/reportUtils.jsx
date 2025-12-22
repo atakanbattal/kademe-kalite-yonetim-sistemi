@@ -2879,31 +2879,40 @@ const generateGenericReportHtml = (record, type) => {
 			
 			// 5N1K Analizi - Her zaman göster
 			const fiveN1K = record.five_n1k_analysis || {};
+			// Türkçe ve İngilizce alan adlarını destekle
+			const get5N1KValue = (field) => {
+				return fiveN1K[field] || fiveN1K[field === 'what' ? 'ne' : 
+					field === 'where' ? 'nerede' : 
+					field === 'when' ? 'neZaman' : 
+					field === 'who' ? 'kim' : 
+					field === 'how' ? 'nasil' : 
+					field === 'why' ? 'neden' : field] || '';
+			};
 			html += `<div class="analysis-box fillable">
 				<h4>5N1K Analizi</h4>
 				<div class="fillable-field">
 					<strong>Ne:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.what, '')}</div>
+					<div class="fillable-line">${renderField(get5N1KValue('what'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Nerede:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.where, '')}</div>
+					<div class="fillable-line">${renderField(get5N1KValue('where'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Ne Zaman:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.when, '')}</div>
+					<div class="fillable-line">${renderField(get5N1KValue('when'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Kim:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.who, '')}</div>
+					<div class="fillable-line">${renderField(get5N1KValue('who'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Nasıl:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.how, '')}</div>
+					<div class="fillable-line">${renderField(get5N1KValue('how'), '')}</div>
 				</div>
 				<div class="fillable-field">
 					<strong>Neden Önemli:</strong>
-					<div class="fillable-line">${renderField(fiveN1K.why, '')}</div>
+					<div class="fillable-line">${renderField(get5N1KValue('why'), '')}</div>
 				</div>
 			</div>`;
 			
