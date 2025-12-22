@@ -3892,9 +3892,22 @@ const generatePrintableReportHtml = (record, type) => {
 			padding: 8px; 
 		}
 		.pass-table thead { 
-			background-color: #f3f4f6; 
+			background-color: #3b82f6; 
+			color: white;
 			font-weight: 600;
 			page-break-after: avoid;
+		}
+		.pass-table thead th {
+			padding: 10px 8px;
+		}
+		.pass-table tbody tr:nth-child(even) { 
+			background-color: #f9fafb; 
+		}
+		.pass-table tbody tr:nth-child(odd) { 
+			background-color: #ffffff; 
+		}
+		.pass-table tbody tr:hover { 
+			background-color: #f0f9ff; 
 		}
 		.pass-table tbody tr {
 			page-break-inside: avoid;
