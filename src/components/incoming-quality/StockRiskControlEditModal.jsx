@@ -20,12 +20,14 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
     const [results, setResults] = useState([]);
     const [decision, setDecision] = useState(record?.decision || 'Beklemede');
     const [notes, setNotes] = useState(record?.notes || '');
+    const [stockStatus, setStockStatus] = useState(record?.stock_status || 'Stokta');
 
     useEffect(() => {
         if (isOpen && record) {
             setStatus(record.status || 'Beklemede');
             setDecision(record.decision || 'Beklemede');
             setNotes(record.notes || '');
+            setStockStatus(record.stock_status || 'Stokta');
             // Results'ı yükle veya varsayılan değer oluştur
             if (record.results && Array.isArray(record.results) && record.results.length > 0) {
                 setResults(record.results);
@@ -98,6 +100,7 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
             results: results,
             decision: decision,
             notes: notes,
+            stock_status: stockStatus,
             controlled_by_id: user.id,
             updated_at: new Date().toISOString()
         };
@@ -137,19 +140,34 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                 <ScrollArea className="h-[60vh] p-4">
                     <div className="space-y-6">
                         {/* Durum */}
-                        <div>
-                            <Label>Kontrol Durumu</Label>
-                            <Select value={status} onValueChange={setStatus}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Beklemede">Beklemede</SelectItem>
-                                    <SelectItem value="Başlatıldı">Başlatıldı</SelectItem>
-                                    <SelectItem value="Devam Ediyor">Devam Ediyor</SelectItem>
-                                    <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label>Kontrol Durumu</Label>
+                                <Select value={status} onValueChange={setStatus}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Beklemede">Beklemede</SelectItem>
+                                        <SelectItem value="Başlatıldı">Başlatıldı</SelectItem>
+                                        <SelectItem value="Devam Ediyor">Devam Ediyor</SelectItem>
+                                        <SelectItem value="Tamamlandı">Tamamlandı</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label>Stok Durumu</Label>
+                                <Select value={stockStatus} onValueChange={setStockStatus}>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Stokta">Stokta</SelectItem>
+                                        <SelectItem value="Stokta Yok">Stokta Yok</SelectItem>
+                                        <SelectItem value="Kullanılmış">Kullanılmış</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         {/* Kontrol Sonuçları */}

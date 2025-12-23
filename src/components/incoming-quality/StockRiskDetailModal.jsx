@@ -172,6 +172,10 @@ const StockRiskDetailModal = ({
                                         <p className="font-medium">{enrichedRecord.decision || '-'}</p>
                                     </div>
                                     <div>
+                                        <Label className="text-gray-600">Stok Durumu</Label>
+                                        <p className="font-medium">{enrichedRecord.stock_status || 'Stokta'}</p>
+                                    </div>
+                                    <div>
                                         <Label className="text-gray-600">Kontrol Tarihi</Label>
                                         <p className="font-medium">
                                             {format(
@@ -203,6 +207,7 @@ const StockRiskDetailModal = ({
                                                 <th className="border p-2 text-left">Ölçüm Türü</th>
                                                 <th className="border p-2 text-left">Değer</th>
                                                 <th className="border p-2 text-left">Sonuç</th>
+                                                <th className="border p-2 text-left">Gözlemler</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -211,6 +216,7 @@ const StockRiskDetailModal = ({
                                                     <td className="border p-2">{result.measurement_type || '-'}</td>
                                                     <td className="border p-2">{result.value || '-'}</td>
                                                     <td className="border p-2">{result.result || '-'}</td>
+                                                    <td className="border p-2">{result.notes || '-'}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -220,7 +226,7 @@ const StockRiskDetailModal = ({
                                 )}
                                 {enrichedRecord.notes && (
                                     <div>
-                                        <Label className="text-gray-600">Notlar</Label>
+                                        <Label className="text-gray-600">Genel Notlar</Label>
                                         <p className="font-medium whitespace-pre-wrap">
                                             {enrichedRecord.notes}
                                         </p>

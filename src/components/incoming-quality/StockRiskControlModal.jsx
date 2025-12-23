@@ -27,6 +27,7 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
                 part_code: item.part_code,
                 part_name: sourceInspection.part_name,
                 supplier_id: item.supplier?.id || null,
+                stock_status: 'Stokta', // Stokta, Stokta Yok, Kullanılmış
                 results: [{
                     measurement_type: 'Görsel Kontrol',
                     result: null, // Uygun / Uygun Değil
@@ -50,6 +51,12 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
         setControlResults(newControlResults);
     };
 
+    const handleStockStatusChange = (index, value) => {
+        const newControlResults = [...controlResults];
+        newControlResults[index].stock_status = value;
+        setControlResults(newControlResults);
+    };
+
     const handleSubmit = async () => {
         setIsSubmitting(true);
         
@@ -59,6 +66,7 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
             part_code: sourceInspection.part_code,
             part_name: sourceInspection.part_name,
             supplier_id: item.supplier_id,
+            stock_status: item.stock_status || 'Stokta',
             results: item.results,
             decision: item.overall_decision,
             controlled_by_id: user.id,
@@ -107,6 +115,18 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
                                      <span>İrsaliye: {inspectionItem.delivery_note_number}</span>
                                      <span>Miktar: {inspectionItem.quantity_received}</span>
                                      <span>Tarih: {format(new Date(inspectionItem.inspection_date), 'dd.MM.yyyy')}</span>
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <Label>Stok Durumu</Label>
+                                    <Select value={control.stock_status || 'Stokta'} onValueChange={(v) => handleStockStatusChange(index, v)}>
+                                        <SelectTrigger className="w-[200px]"><SelectValue/></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Stokta">Stokta</SelectItem>
+                                            <SelectItem value="Stokta Yok">Stokta Yok</SelectItem>
+                                            <SelectItem value="Kullanılmış">Kullanılmış</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 
                                 {control.results.map((res, resIndex) => (
