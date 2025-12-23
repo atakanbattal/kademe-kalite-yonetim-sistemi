@@ -605,6 +605,56 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         setDeletedAttachmentIds(prev => [...prev, attachmentId]);
     };
 
+    // Dosya uzantısına göre MIME type belirleme fonksiyonu
+    const getMimeTypeFromFileName = (fileName) => {
+        if (!fileName) return 'application/octet-stream';
+        
+        const extension = fileName.split('.').pop()?.toLowerCase();
+        const mimeTypes = {
+            // Documents
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+            'rtf': 'application/rtf',
+            'csv': 'text/csv',
+            
+            // Images
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'svg': 'image/svg+xml',
+            'bmp': 'image/bmp',
+            'ico': 'image/x-icon',
+            
+            // Archives
+            'zip': 'application/zip',
+            'rar': 'application/x-rar-compressed',
+            '7z': 'application/x-7z-compressed',
+            'tar': 'application/x-tar',
+            'gz': 'application/gzip',
+            
+            // Audio
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'ogg': 'audio/ogg',
+            
+            // Video
+            'mp4': 'video/mp4',
+            'avi': 'video/x-msvideo',
+            'mov': 'video/quicktime',
+            'wmv': 'video/x-ms-wmv',
+        };
+        
+        return mimeTypes[extension] || 'application/octet-stream';
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -700,6 +750,16 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         return null;
                     }
                     
+                    // MIME type belirleme: file.type geçersizse dosya uzantısından belirle
+                    let contentType = file.type;
+                    if (!contentType || 
+                        contentType === 'application/json' || 
+                        contentType.includes('application/json') ||
+                        contentType === 'application/octet-stream') {
+                        contentType = getMimeTypeFromFileName(file.name);
+                        console.log(`⚠️ file.type geçersiz (${file.type}), dosya uzantısından belirlendi: ${contentType}`);
+                    }
+                    
                     const timestamp = Date.now();
                     const randomStr = Math.random().toString(36).substring(2, 9);
                     const filePath = `${deviationData.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
@@ -707,6 +767,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     console.log(`📁 Dosya yolu: ${filePath}`);
                     console.log(`📦 Bucket: deviation_attachments`);
                     console.log(`🆔 Deviation ID: ${deviationData.id}`);
+                    console.log(`📄 Content-Type: ${contentType}`);
                     
                     // Dosya boyutunu kontrol et (max 50MB)
                     const maxSize = 50 * 1024 * 1024; // 50MB
@@ -720,7 +781,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     // Önce dosyayı storage'a yükle
                     console.log(`⬆️ Storage'a yükleniyor...`);
                     const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, file, { 
-                        contentType: file.type || 'application/octet-stream',
+                        contentType: contentType,
                         upsert: false
                     });
                     
@@ -742,7 +803,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         deviation_id: deviationData.id,
                         file_path: uploadResult.data.path,
                         file_name: file.name,
-                        file_type: file.type || 'application/octet-stream'
+                        file_type: contentType // Doğru MIME type'ı kullan
                     };
                     
                     console.log(`💾 Veritabanına kaydediliyor...`, attachmentRecord);
