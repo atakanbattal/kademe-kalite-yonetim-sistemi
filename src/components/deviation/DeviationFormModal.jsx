@@ -785,18 +785,17 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         return null;
                     }
                     
-                    // Dosyayı File nesnesi olarak yeniden oluştur - bu file.type sorununu tamamen çözer
-                    // Orijinal File nesnesinin type'ı yanlış olsa bile, yeni File doğru content-type ile oluşturulur
+                    // Dosyayı ArrayBuffer olarak gönder - bu file.type sorununu KESİNLİKLE çözer
+                    // ArrayBuffer gönderildiğinde Supabase client SADECE contentType parametresini kullanır
+                    // File/Blob gönderildiğinde ise bazen File'ın kendi type'ı kullanılabiliyor
                     const fileArrayBuffer = await file.arrayBuffer();
-                    const correctedFile = new File([fileArrayBuffer], file.name, { type: contentType });
                     
-                    console.log(`⬆️ Storage'a yükleniyor... (File size: ${correctedFile.size}, type: ${correctedFile.type})`);
-                    console.log(`📤 Dosya bilgileri: name=${correctedFile.name}, size=${correctedFile.size}, type=${correctedFile.type}`);
+                    console.log(`⬆️ Storage'a yükleniyor... (ArrayBuffer size: ${fileArrayBuffer.byteLength})`);
+                    console.log(`📤 Content-Type olarak kullanılacak: ${contentType}`);
                     
-                    // Supabase'e yükle - contentType açıkça belirtiliyor
-                    const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, correctedFile, { 
-                        contentType: contentType, // Açıkça Content-Type belirt
-                        duplex: 'half', // Stream upload için gerekli
+                    // Supabase'e ArrayBuffer olarak yükle - contentType parametresi ZORUNLU olarak kullanılacak
+                    const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, fileArrayBuffer, { 
+                        contentType: contentType, // Bu ZORUNLU olarak kullanılacak çünkü ArrayBuffer'ın type'ı yok
                         upsert: false
                     });
                     
