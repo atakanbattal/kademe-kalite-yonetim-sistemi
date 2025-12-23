@@ -189,10 +189,25 @@ setShowRiskyStockAlert(false);
                     attachments: existingInspection.attachments || [],
                 });
                 
-                // Load measurement results
+                // Load measurement results - veritabanı ve kod arasındaki alan adı farklılıklarını düzelt
                 if (existingInspection.results && Array.isArray(existingInspection.results)) {
-                    setResults(existingInspection.results);
-                    console.log('✅ Ölçüm sonuçları yüklendi:', existingInspection.results.length);
+                    // Veritabanı alanlarını kod alanlarına dönüştür:
+                    // feature -> characteristic_name (eski kayıtlarda characteristic_name null olabilir)
+                    // actual_value -> measured_value (eski kayıtlarda measured_value null olabilir)
+                    const normalizedResults = existingInspection.results.map(r => ({
+                        ...r,
+                        characteristic_name: r.characteristic_name || r.feature || '',
+                        measured_value: r.measured_value || r.actual_value || '',
+                    }));
+                    setResults(normalizedResults);
+                    console.log('✅ Ölçüm sonuçları yüklendi:', normalizedResults.length);
+                    if (normalizedResults.length > 0) {
+                        console.log('📊 İlk sonuç örneği:', {
+                            characteristic_name: normalizedResults[0].characteristic_name,
+                            measured_value: normalizedResults[0].measured_value,
+                            control_plan_item_id: normalizedResults[0].control_plan_item_id,
+                        });
+                    }
                 }
                 
                 // Load defects
@@ -345,16 +360,30 @@ setShowRiskyStockAlert(false);
                 const summary = [];
                 let totalGeneratedResults = 0;
 
-                // KRİTİK FIX: Eski ölçümleri control_plan_item_id + measurement_number kombinasyonuna göre 
-                // bir Map'e koy - bu sayede kontrol planı değişse bile doğru ölçümler eşleşir
-                const oldResultsMap = new Map();
+                // KRİTİK FIX: Eski ölçümleri iki farklı Map'e koy
+                // 1. control_plan_item_id + measurement_number ile (yeni kayıtlar için)
+                // 2. nominal + min + max + characteristic_name + measurement_number ile (eski kayıtlar için fallback)
+                const oldResultsByPlanItemId = new Map();
+                const oldResultsByValues = new Map();
+                
                 if (isOldRecordSync) {
                     results.forEach(r => {
-                        // Anahtar: control_plan_item_id + "_" + measurement_number
-                        const key = `${r.control_plan_item_id}_${r.measurement_number}`;
-                        oldResultsMap.set(key, r);
+                        // Yeni kayıtlar için: control_plan_item_id + measurement_number
+                        if (r.control_plan_item_id) {
+                            const key1 = `${r.control_plan_item_id}_${r.measurement_number}`;
+                            oldResultsByPlanItemId.set(key1, r);
+                        }
+                        
+                        // ESKİ KAYITLAR İÇİN FALLBACK: nominal + min + max + characteristic_name + measurement_number
+                        // Bu sayede control_plan_item_id olmayan eski kayıtlar da doğru eşleşir
+                        const key2 = `${r.nominal_value || ''}_${r.min_value || ''}_${r.max_value || ''}_${r.characteristic_name || ''}_${r.measurement_number}`;
+                        oldResultsByValues.set(key2, r);
                     });
-                    console.log('🗺️ Eski ölçümler Map\'e yüklendi:', oldResultsMap.size, 'adet');
+                    console.log('🗺️ Eski ölçümler Map\'lere yüklendi:', {
+                        byPlanItemId: oldResultsByPlanItemId.size,
+                        byValues: oldResultsByValues.size,
+                        total: results.length
+                    });
                 }
 
                 controlPlan.items.forEach((item, index) => {
@@ -394,13 +423,21 @@ setShowRiskyStockAlert(false);
                     });
 
                     for (let i = 1; i <= count; i++) {
-                        // KRİTİK FIX: control_plan_item_id + measurement_number kombinasyonuna göre eski ölçümü bul
-                        // Bu sayede kontrol planına yeni karakteristik eklendiğinde eski ölçümler doğru karakteristiklere eşleşir
-                        const mapKey = `${item.id}_${i}`;
-                        const oldResult = isOldRecordSync ? oldResultsMap.get(mapKey) : null;
+                        // KRİTİK FIX: Önce control_plan_item_id ile eşleştir, bulunamazsa fallback kullan
+                        const mapKey1 = `${item.id}_${i}`;
+                        let oldResult = isOldRecordSync ? oldResultsByPlanItemId.get(mapKey1) : null;
+                        
+                        // FALLBACK: control_plan_item_id ile eşleşme bulunamazsa, değerler ile eşleştir
+                        if (!oldResult && isOldRecordSync) {
+                            const mapKey2 = `${item.nominal_value || ''}_${item.min_value || ''}_${item.max_value || ''}_${characteristic.label || ''}_${i}`;
+                            oldResult = oldResultsByValues.get(mapKey2);
+                            if (oldResult && i === 1) {
+                                console.log(`   🔄 FALLBACK eşleştirme kullanıldı: key=${mapKey2}`);
+                            }
+                        }
                         
                         if (isOldRecordSync && i === 1) {
-                            console.log(`   🔍 Eski ölçüm aranıyor: key=${mapKey}, bulundu=${!!oldResult}`);
+                            console.log(`   🔍 Eski ölçüm aranıyor: key=${mapKey1}, bulundu=${!!oldResult}`);
                         }
                         
                         const resultItem = {
@@ -755,6 +792,7 @@ setShowRiskyStockAlert(false);
                 const resultsToInsert = validResults.map(r => ({
                     inspection_id: inspectionId,
                     feature: r.characteristic_name,
+                    characteristic_name: r.characteristic_name,
                     measurement_method: r.measurement_method,
                     measurement_number: r.measurement_number || null,
                     total_measurements: r.total_measurements || null,
@@ -762,8 +800,11 @@ setShowRiskyStockAlert(false);
                     min_value: r.min_value,
                     max_value: r.max_value,
                     actual_value: String(r.measured_value),
+                    measured_value: String(r.measured_value),
                     result: r.result,
                     characteristic_type: r.characteristic_type,
+                    // KRİTİK: control_plan_item_id kaydet - bu sayede sonraki düzenlemelerde doğru eşleşme yapılır
+                    control_plan_item_id: r.control_plan_item_id || null,
                 }));
                 const { error: resultsError } = await supabase.from('incoming_inspection_results').insert(resultsToInsert);
                 if (resultsError) { console.error("Error inserting results:", resultsError); toast({ variant: 'destructive', title: 'Hata', description: `Ölçüm sonuçları kaydedilemedi: ${resultsError.message}` }); }
