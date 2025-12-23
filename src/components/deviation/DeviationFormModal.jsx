@@ -752,10 +752,20 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     
                     // MIME type belirleme: file.type geçersizse dosya uzantısından belirle
                     let contentType = file.type;
+                    const invalidMimeTypes = [
+                        'application/json',
+                        'application/json; charset=utf-8',
+                        'application/octet-stream',
+                        '',
+                        null,
+                        undefined
+                    ];
+                    
+                    // file.type geçersizse veya application/json içeriyorsa dosya uzantısından belirle
                     if (!contentType || 
-                        contentType === 'application/json' || 
-                        contentType.includes('application/json') ||
-                        contentType === 'application/octet-stream') {
+                        invalidMimeTypes.includes(contentType) ||
+                        contentType.toLowerCase().includes('application/json') ||
+                        contentType.toLowerCase().startsWith('application/json')) {
                         contentType = getMimeTypeFromFileName(file.name);
                         console.log(`⚠️ file.type geçersiz (${file.type}), dosya uzantısından belirlendi: ${contentType}`);
                     }
