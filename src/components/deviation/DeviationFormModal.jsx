@@ -678,24 +678,64 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
 
         if (files.length > 0) {
+            // Deviation ID kontrolü
+            if (!deviationData || !deviationData.id) {
+                const errorMsg = 'Sapma kaydı ID bulunamadı. Lütfen tekrar deneyin.';
+                console.error(errorMsg, deviationData);
+                toast({ variant: 'destructive', title: 'Hata', description: errorMsg });
+                setIsSubmitting(false);
+                return;
+            }
+            
             const uploadPromises = files.map(async (file, index) => {
                 try {
+                    // Dosya bilgilerini logla
+                    console.log(`📤 Dosya yükleniyor: ${file.name} (${file.size} bytes, ${file.type})`);
+                    
                     const sanitizedFileName = sanitizeFileName(file.name);
+                    if (!sanitizedFileName || sanitizedFileName.length === 0) {
+                        const errorMsg = `Dosya adı geçersiz: ${file.name}`;
+                        console.error(errorMsg);
+                        toast({ variant: 'destructive', title: 'Dosya Hatası', description: errorMsg });
+                        return null;
+                    }
+                    
                     const timestamp = Date.now();
                     const randomStr = Math.random().toString(36).substring(2, 9);
                     const filePath = `${deviationData.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
                     
+                    console.log(`📁 Dosya yolu: ${filePath}`);
+                    console.log(`📦 Bucket: deviation_attachments`);
+                    console.log(`🆔 Deviation ID: ${deviationData.id}`);
+                    
+                    // Dosya boyutunu kontrol et (max 50MB)
+                    const maxSize = 50 * 1024 * 1024; // 50MB
+                    if (file.size > maxSize) {
+                        const errorMsg = `Dosya çok büyük: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB). Maksimum boyut: 50MB`;
+                        console.error(errorMsg);
+                        toast({ variant: 'destructive', title: 'Dosya Hatası', description: errorMsg });
+                        return null;
+                    }
+                    
                     // Önce dosyayı storage'a yükle
+                    console.log(`⬆️ Storage'a yükleniyor...`);
                     const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, file, { 
                         contentType: file.type || 'application/octet-stream',
                         upsert: false
                     });
                     
                     if (uploadResult.error) {
-                        console.error(`Dosya yükleme hatası (${file.name}):`, uploadResult.error);
-                        toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} yüklenemedi: ${uploadResult.error.message}` });
+                        console.error(`❌ Dosya yükleme hatası (${file.name}):`, uploadResult.error);
+                        console.error(`Hata detayları:`, JSON.stringify(uploadResult.error, null, 2));
+                        toast({ 
+                            variant: 'destructive', 
+                            title: 'Dosya Yükleme Hatası', 
+                            description: `${file.name} yüklenemedi: ${uploadResult.error.message || 'Bilinmeyen hata'}` 
+                        });
                         return null;
                     }
+                    
+                    console.log(`✅ Dosya storage'a yüklendi: ${uploadResult.data.path}`);
                     
                     // Dosya başarıyla yüklendiyse, veritabanına kaydet
                     const attachmentRecord = {
@@ -705,6 +745,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         file_type: file.type || 'application/octet-stream'
                     };
                     
+                    console.log(`💾 Veritabanına kaydediliyor...`, attachmentRecord);
                     const { data: insertedData, error: insertError } = await supabase
                         .from('deviation_attachments')
                         .insert(attachmentRecord)
@@ -712,22 +753,38 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         .single();
                     
                     if (insertError) {
-                        console.error(`Veritabanı kayıt hatası (${file.name}):`, insertError);
+                        console.error(`❌ Veritabanı kayıt hatası (${file.name}):`, insertError);
+                        console.error(`Hata detayları:`, JSON.stringify(insertError, null, 2));
                         // Dosya yüklendi ama veritabanına kaydedilemedi - dosyayı sil
                         try {
-                            await supabase.storage.from('deviation_attachments').remove([uploadResult.data.path]);
+                            console.log(`🗑️ Orphan dosya siliniyor: ${uploadResult.data.path}`);
+                            const removeResult = await supabase.storage.from('deviation_attachments').remove([uploadResult.data.path]);
+                            if (removeResult.error) {
+                                console.error('Orphan dosya silme hatası:', removeResult.error);
+                            } else {
+                                console.log('✅ Orphan dosya başarıyla silindi');
+                            }
                         } catch (removeError) {
                             console.error('Orphan dosya silme hatası:', removeError);
                         }
-                        toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} veritabanına kaydedilemedi: ${insertError.message}` });
+                        toast({ 
+                            variant: 'destructive', 
+                            title: 'Veritabanı Hatası', 
+                            description: `${file.name} veritabanına kaydedilemedi: ${insertError.message || 'Bilinmeyen hata'}` 
+                        });
                         return null;
                     }
                     
                     console.log(`✅ Dosya başarıyla yüklendi ve kaydedildi: ${file.name}`, insertedData);
                     return insertedData;
                 } catch (error) {
-                    console.error(`Beklenmeyen hata (${file.name}):`, error);
-                    toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} yüklenirken beklenmeyen bir hata oluştu: ${error.message}` });
+                    console.error(`❌ Beklenmeyen hata (${file.name}):`, error);
+                    console.error(`Hata stack:`, error.stack);
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Beklenmeyen Hata', 
+                        description: `${file.name} yüklenirken beklenmeyen bir hata oluştu: ${error.message || 'Bilinmeyen hata'}` 
+                    });
                     return null;
                 }
             });
