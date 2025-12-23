@@ -7,7 +7,6 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
-    Brain, 
     TrendingUp, 
     TrendingDown, 
     AlertTriangle, 
@@ -23,13 +22,14 @@ import {
     ClipboardCheck,
     Gauge,
     Package,
-    MessageSquareWarning,
+    MessageSquare,
     Target,
     Sparkles,
     ArrowUpRight,
     ArrowDownRight,
     Minus,
-    Zap
+    Zap,
+    BrainCircuit
 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -43,7 +43,7 @@ const moduleIcons = {
     calibration: <Gauge className="h-4 w-4" />,
     document: <Shield className="h-4 w-4" />,
     training: <Target className="h-4 w-4" />,
-    complaint: <MessageSquareWarning className="h-4 w-4" />,
+    complaint: <MessageSquare className="h-4 w-4" />,
     kpi: <Activity className="h-4 w-4" />,
     kaizen: <Sparkles className="h-4 w-4" />,
     quarantine: <Package className="h-4 w-4" />,
@@ -168,7 +168,7 @@ export default function QualityAdvisor() {
                 <CardHeader className="pb-2">
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-purple-500/20">
-                            <Brain className="h-6 w-6 text-purple-400" />
+                            <BrainCircuit className="h-6 w-6 text-purple-400" />
                         </div>
                         <div>
                             <Skeleton className="h-6 w-48 bg-slate-700" />
@@ -205,7 +205,7 @@ export default function QualityAdvisor() {
                             animate={{ scale: [1, 1.05, 1] }}
                             transition={{ duration: 2, repeat: Infinity }}
                         >
-                            <Brain className="h-6 w-6" />
+                            <BrainCircuit className="h-6 w-6" />
                         </motion.div>
                         <div>
                             <CardTitle className="text-lg font-bold flex items-center gap-2">
