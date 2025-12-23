@@ -389,12 +389,21 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
         }
     };
 
-    const handleDownloadAttachment = async (filePath) => {
-        const { data, error } = await supabase.storage.from('deviation_attachments').createSignedUrl(filePath, 60);
+    const handleDownloadAttachment = async (filePath, fileName) => {
+        // Signed URL oluştururken transform parametresi ile content-type override edilebilir
+        // download parametresi true olarak ayarlanırsa tarayıcı dosyayı açmak yerine indirir
+        const { data, error } = await supabase.storage
+            .from('deviation_attachments')
+            .createSignedUrl(filePath, 300, {
+                download: fileName || true // Dosya adını belirterek indirmeyi zorla
+            });
+        
         if (error) {
             console.error('Error getting signed URL:', error);
             return;
         }
+        
+        // Yeni sekmede aç - download parametresi sayesinde dosya indirilecek
         window.open(data.signedUrl, '_blank');
     };
 
@@ -636,7 +645,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                                                             <FileText className="w-5 h-5 text-muted-foreground" />
                                                             <span className="text-sm font-medium">{att.file_name}</span>
                                                         </div>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleDownloadAttachment(att.file_path)}>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleDownloadAttachment(att.file_path, att.file_name)}>
                                                             <Download className="w-5 h-5" />
                                                         </Button>
                                                     </div>
