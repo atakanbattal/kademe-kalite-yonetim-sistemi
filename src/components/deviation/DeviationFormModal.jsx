@@ -27,6 +27,8 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const [formData, setFormData] = useState({});
     const [vehicles, setVehicles] = useState([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
     const [files, setFiles] = useState([]);
+    const [existingAttachments, setExistingAttachments] = useState([]);
+    const [deletedAttachmentIds, setDeletedAttachmentIds] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [departments, setDepartments] = useState([]);
     const [personnel, setPersonnel] = useState([]);
@@ -142,6 +144,14 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
             }
             
+            // Mevcut attachment'ları yükle
+            if (deviation_attachments && Array.isArray(deviation_attachments) && deviation_attachments.length > 0) {
+                setExistingAttachments(deviation_attachments);
+                console.log('✅ Mevcut attachment\'lar yüklendi:', deviation_attachments.length, deviation_attachments);
+            } else {
+                setExistingAttachments([]);
+            }
+            
             console.log('✅ Form verileri yüklendi:', {
                 requesting_person: formDataToSet.requesting_person,
                 requesting_unit: formDataToSet.requesting_unit,
@@ -166,8 +176,10 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             setFormData(initialData);
             setDeviationType('Girdi Kontrolü');
             setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
+            setExistingAttachments([]);
         }
         setFiles([]);
+        setDeletedAttachmentIds([]);
     }, [isOpen, existingDeviation]); // existingDeviation objesi değiştiğinde çalış
 
     // Departments ve personnel yüklendikten sonra formData'yı güncelle (Select component'leri için)
@@ -585,7 +597,12 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     });
 
     const removeFile = (fileToRemove) => {
-        setFiles(files.filter(file => file !== fileToRemove));
+        setFiles(prev => prev.filter(file => file !== fileToRemove));
+    };
+
+    const removeExistingAttachment = (attachmentId) => {
+        setExistingAttachments(prev => prev.filter(att => att.id !== attachmentId));
+        setDeletedAttachmentIds(prev => [...prev, attachmentId]);
     };
 
     const handleSubmit = async (e) => {
@@ -622,6 +639,33 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
 
         if (isEditMode) {
             await supabase.from('deviation_vehicles').delete().eq('deviation_id', deviationData.id);
+            
+            // Silinen mevcut attachment'ları sil
+            if (deletedAttachmentIds.length > 0) {
+                // Önce storage'dan dosyaları sil
+                const attachmentsToDelete = existingDeviation.deviation_attachments?.filter(att => 
+                    deletedAttachmentIds.includes(att.id)
+                ) || [];
+                
+                for (const att of attachmentsToDelete) {
+                    try {
+                        await supabase.storage.from('deviation_attachments').remove([att.file_path]);
+                    } catch (error) {
+                        console.error('Dosya silme hatası:', error);
+                    }
+                }
+                
+                // Sonra veritabanından kayıtları sil
+                const { error: deleteError } = await supabase
+                    .from('deviation_attachments')
+                    .delete()
+                    .in('id', deletedAttachmentIds);
+                
+                if (deleteError) {
+                    console.error('Attachment silme hatası:', deleteError);
+                    toast({ variant: 'destructive', title: 'Uyarı', description: 'Bazı ekler silinemedi.' });
+                }
+            }
         }
 
         const validVehicles = vehicles.filter(v => v.customer_name || v.chassis_no || v.vehicle_serial_no);
@@ -648,7 +692,11 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             const uploadResults = await Promise.all(uploadPromises);
 
             const attachmentRecords = uploadResults.map((result, index) => {
-                if (result.error) return null;
+                if (result.error) {
+                    console.error('Dosya yükleme hatası:', result.error);
+                    toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${files[index].name} yüklenemedi: ${result.error.message}` });
+                    return null;
+                }
                 return {
                     deviation_id: deviationData.id,
                     file_path: result.data.path,
@@ -660,7 +708,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             if(attachmentRecords.length > 0) {
                 const { error: attachmentsError } = await supabase.from('deviation_attachments').insert(attachmentRecords);
                 if (attachmentsError) {
-                     toast({ variant: 'destructive', title: 'Dosya Hatası', description: 'Dosya bilgileri veritabanına kaydedilemedi.' });
+                     toast({ variant: 'destructive', title: 'Dosya Hatası', description: 'Dosya bilgileri veritabanına kaydedilemedi: ' + attachmentsError.message });
                 }
             }
         }
@@ -919,8 +967,31 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                             <UploadCloud className="w-10 h-10 mx-auto text-muted-foreground" />
                             <p className="mt-2 text-sm text-muted-foreground">Onaylı sapma formu veya destekleyici dokümanları buraya sürükleyin ya da seçmek için tıklayın.</p>
                         </div>
+                        
+                        {/* Mevcut attachment'lar (sadece düzenleme modunda) */}
+                        {isEditMode && existingAttachments.length > 0 && (
+                            <div className="mt-2 space-y-2">
+                                <p className="text-xs text-muted-foreground font-medium">Mevcut Ekler:</p>
+                                {existingAttachments.map((att) => (
+                                    <div key={att.id} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                                        <div className="flex items-center gap-2">
+                                            <FileIcon className="w-4 h-4" />
+                                            <span className="text-sm">{att.file_name}</span>
+                                        </div>
+                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeExistingAttachment(att.id)}>
+                                            <XIcon className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        
+                        {/* Yeni eklenen dosyalar */}
                         {files.length > 0 && (
                             <div className="mt-2 space-y-2">
+                                {isEditMode && existingAttachments.length > 0 && (
+                                    <p className="text-xs text-muted-foreground font-medium">Yeni Eklenen Dosyalar:</p>
+                                )}
                                 {files.map((file, index) => (
                                     <div key={index} className="flex items-center justify-between bg-secondary p-2 rounded-md">
                                         <div className="flex items-center gap-2">
