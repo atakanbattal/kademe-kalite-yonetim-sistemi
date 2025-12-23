@@ -469,8 +469,8 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                                         <Label>Kontrol Edilecek Karakteristik Sayısı</Label>
                                         <div className="flex items-center gap-2 mt-2">
                                             <Button type="button" size="icon" variant="outline" onClick={() => setCharacteristicCount(p => Math.max(1, p - 1))}><Minus className="h-4 w-4" /></Button>
-                                            <Input className="text-center w-20" type="number" min="1" max="50" value={characteristicCount} onChange={(e) => setCharacteristicCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))} />
-                                            <Button type="button" size="icon" variant="outline" onClick={() => setCharacteristicCount(p => Math.min(50, p + 1))}><Plus className="h-4 w-4" /></Button>
+                                            <Input className="text-center w-24" type="number" min="1" value={characteristicCount} onChange={(e) => setCharacteristicCount(Math.max(1, parseInt(e.target.value) || 1))} />
+                                            <Button type="button" size="icon" variant="outline" onClick={() => setCharacteristicCount(p => p + 1)}><Plus className="h-4 w-4" /></Button>
                                         </div>
                                     </div>
                                 </div>
