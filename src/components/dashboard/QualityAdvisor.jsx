@@ -122,6 +122,86 @@ const getPriorityBadge = (priority) => {
     }
 };
 
+// Metrik isimlerini Türkçeleştir
+const metricLabels = {
+    // NC Metrikleri
+    open_count: 'Açık Uygunsuzluk',
+    avg_close_days: 'Ort. Kapanma Süresi (Gün)',
+    old_open_count: '60+ Gün Açık Kayıt',
+    last_month_count: 'Geçen Ay Açılan',
+    this_month_count: 'Bu Ay Açılan',
+    overdue_8d_count: 'Gecikmiş 8D/DF',
+    
+    // Denetim Metrikleri
+    total_audits_this_year: 'Bu Yıl Yapılan Denetim',
+    completed_audits: 'Tamamlanan Denetim',
+    planned_next_30_days: '30 Gün İçinde Planlanan',
+    days_since_last_audit: 'Son Denetimden Bu Yana (Gün)',
+    
+    // Tedarikçi Metrikleri
+    total_approved_suppliers: 'Onaylı Tedarikçi Sayısı',
+    low_performance_count: 'Düşük Performanslı',
+    no_audit_90_days: '90+ Gündür Denetlenmemiş',
+    pending_audits: 'Bekleyen Denetim',
+    rejection_rate_30_days: '30 Günlük Red Oranı (%)',
+    
+    // Kalibrasyon Metrikleri
+    total_equipment: 'Toplam Ekipman',
+    overdue_calibrations: 'Gecikmiş Kalibrasyon',
+    due_in_30_days: '30 Gün İçinde Gerekecek',
+    no_calibration_record: 'Kayıt Girilmemiş',
+    
+    // Doküman Metrikleri
+    total_documents: 'Toplam Doküman',
+    expired: 'Süresi Dolmuş',
+    expiring_30_days: '30 Gün İçinde Dolacak',
+    review_overdue: 'Gözden Geçirme Gecikmiş',
+    
+    // Eğitim Metrikleri
+    total_trainings_this_year: 'Bu Yıl Planlanan Eğitim',
+    completed_trainings: 'Tamamlanan Eğitim',
+    upcoming_30_days: '30 Gün İçinde Yaklaşan',
+    avg_participation_rate: 'Ort. Katılım Oranı (%)',
+    
+    // Şikayet Metrikleri
+    open_complaints: 'Açık Şikayet',
+    overdue_complaints: 'SLA Aşımı',
+    avg_resolution_days: 'Ort. Çözüm Süresi (Gün)',
+    
+    // KPI Metrikleri
+    total_kpis: 'Toplam KPI',
+    on_target: 'Hedefte',
+    below_target: 'Hedef Altı',
+    no_data: 'Veri Yok',
+    achievement_rate: 'Başarı Oranı (%)',
+    
+    // Kaizen Metrikleri
+    total_kaizen: 'Toplam Kaizen',
+    pending: 'Beklemede',
+    completed: 'Tamamlanan',
+    this_year_count: 'Bu Yıl',
+    
+    // Karantina Metrikleri
+    active_count: 'Aktif Karantina',
+    long_stay_count: '30+ Gün Bekleyen',
+    pending_decision: 'Karar Bekleyen',
+    
+    // Görev Metrikleri
+    open_tasks: 'Açık Görev',
+    overdue_tasks: 'Gecikmiş Görev',
+    blocked_tasks: 'Engellenmiş Görev',
+    
+    // Giriş Kalite Metrikleri
+    total_inspections_30_days: 'Son 30 Gün Kontrol',
+    rejection_rate: 'Red Oranı (%)',
+    conditional_rate: 'Şartlı Kabul Oranı (%)',
+    pending_inkr: 'Bekleyen Kontrol'
+};
+
+const getMetricLabel = (key) => {
+    return metricLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
+
 // Circular Progress Component
 const CircularProgress = ({ value, size = 120, strokeWidth = 8 }) => {
     const radius = (size - strokeWidth) / 2;
@@ -582,16 +662,39 @@ export default function QualityAdvisor() {
                             )}
 
                             {/* Metrikler */}
-                            {selectedModule.module?.metrics && (
+                            {selectedModule.module?.metrics && Object.keys(selectedModule.module.metrics).length > 0 && (
                                 <div>
-                                    <h4 className="font-semibold mb-2">Metrikler</h4>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {Object.entries(selectedModule.module.metrics).map(([key, value]) => (
-                                            <div key={key} className="p-2 rounded bg-muted/50 text-sm">
-                                                <span className="text-muted-foreground">{key}: </span>
-                                                <span className="font-medium">{typeof value === 'number' ? Math.round(value * 100) / 100 : value}</span>
-                                            </div>
-                                        ))}
+                                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                        <BarChart3 className="h-4 w-4 text-blue-500" />
+                                        Temel Metrikler
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {Object.entries(selectedModule.module.metrics).map(([key, value]) => {
+                                            const isNegative = key.includes('overdue') || key.includes('expired') || key.includes('rejection') || key.includes('below');
+                                            const isPositive = key.includes('completed') || key.includes('on_target') || key.includes('approved');
+                                            
+                                            return (
+                                                <div 
+                                                    key={key} 
+                                                    className={`p-3 rounded-lg border ${
+                                                        isNegative && value > 0 ? 'bg-red-50 border-red-200' :
+                                                        isPositive ? 'bg-green-50 border-green-200' :
+                                                        'bg-muted/30 border-muted'
+                                                    }`}
+                                                >
+                                                    <div className={`text-lg font-bold ${
+                                                        isNegative && value > 0 ? 'text-red-600' :
+                                                        isPositive ? 'text-green-600' :
+                                                        'text-foreground'
+                                                    }`}>
+                                                        {typeof value === 'number' ? Math.round(value * 100) / 100 : value}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                        {getMetricLabel(key)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
