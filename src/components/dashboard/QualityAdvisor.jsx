@@ -1,17 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
 import { 
     TrendingUp, 
     TrendingDown, 
     AlertTriangle, 
-    CheckCircle2, 
-    XCircle,
+    CheckCircle2,
     Lightbulb,
     RefreshCw,
     ChevronRight,
@@ -24,31 +20,29 @@ import {
     Package,
     MessageSquare,
     Target,
-    Sparkles,
+    GraduationCap,
     ArrowUpRight,
     ArrowDownRight,
     Minus,
-    Zap,
-    BrainCircuit
+    BarChart3
 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { cn } from '@/lib/utils';
 
 const moduleIcons = {
-    nc: <FileWarning className="h-4 w-4" />,
-    audit: <ClipboardCheck className="h-4 w-4" />,
-    supplier: <Users className="h-4 w-4" />,
-    calibration: <Gauge className="h-4 w-4" />,
-    document: <Shield className="h-4 w-4" />,
-    training: <Target className="h-4 w-4" />,
-    complaint: <MessageSquare className="h-4 w-4" />,
-    kpi: <Activity className="h-4 w-4" />,
-    kaizen: <Sparkles className="h-4 w-4" />,
-    quarantine: <Package className="h-4 w-4" />,
-    task: <CheckCircle2 className="h-4 w-4" />,
-    incoming: <Package className="h-4 w-4" />
+    nc: FileWarning,
+    audit: ClipboardCheck,
+    supplier: Users,
+    calibration: Gauge,
+    document: Shield,
+    training: GraduationCap,
+    complaint: MessageSquare,
+    kpi: Activity,
+    kaizen: Target,
+    quarantine: Package,
+    task: CheckCircle2,
+    incoming: Package
 };
 
 const moduleNames = {
@@ -68,19 +62,19 @@ const moduleNames = {
 
 const getTrendIcon = (trend) => {
     if (trend === 'up' || trend === 'İyileşiyor') {
-        return <ArrowUpRight className="h-3 w-3 text-green-500" />;
+        return <ArrowUpRight className="h-4 w-4 text-green-500" />;
     } else if (trend === 'down' || trend === 'Kötüleşiyor') {
-        return <ArrowDownRight className="h-3 w-3 text-red-500" />;
+        return <ArrowDownRight className="h-4 w-4 text-red-500" />;
     }
-    return <Minus className="h-3 w-3 text-gray-400" />;
+    return <Minus className="h-4 w-4 text-muted-foreground" />;
 };
 
 const getScoreColor = (score) => {
-    if (score >= 90) return 'text-green-600 bg-green-50 border-green-200';
-    if (score >= 75) return 'text-blue-600 bg-blue-50 border-blue-200';
-    if (score >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-    if (score >= 40) return 'text-orange-600 bg-orange-50 border-orange-200';
-    return 'text-red-600 bg-red-50 border-red-200';
+    if (score >= 90) return 'text-green-600';
+    if (score >= 75) return 'text-blue-600';
+    if (score >= 60) return 'text-yellow-600';
+    if (score >= 40) return 'text-orange-600';
+    return 'text-red-600';
 };
 
 const getProgressColor = (score) => {
@@ -91,21 +85,31 @@ const getProgressColor = (score) => {
     return 'bg-red-500';
 };
 
-const getPriorityColor = (priority) => {
-    switch (priority) {
-        case 'CRITICAL': return 'bg-red-500 text-white';
-        case 'HIGH': return 'bg-orange-500 text-white';
-        case 'MEDIUM': return 'bg-yellow-500 text-white';
-        default: return 'bg-blue-500 text-white';
+const getStatusBadge = (status) => {
+    switch(status) {
+        case 'Mükemmel':
+            return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Mükemmel</Badge>;
+        case 'İyi':
+            return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">İyi</Badge>;
+        case 'Orta':
+            return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">Orta</Badge>;
+        case 'Dikkat Gerekli':
+            return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Dikkat Gerekli</Badge>;
+        default:
+            return <Badge variant="destructive">Kritik</Badge>;
     }
 };
 
-const getPriorityLabel = (priority) => {
+const getPriorityBadge = (priority) => {
     switch (priority) {
-        case 'CRITICAL': return 'KRİTİK';
-        case 'HIGH': return 'YÜKSEK';
-        case 'MEDIUM': return 'ORTA';
-        default: return 'NORMAL';
+        case 'CRITICAL':
+            return <Badge variant="destructive">KRİTİK</Badge>;
+        case 'HIGH':
+            return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">YÜKSEK</Badge>;
+        case 'MEDIUM':
+            return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">ORTA</Badge>;
+        default:
+            return <Badge variant="secondary">NORMAL</Badge>;
     }
 };
 
@@ -115,7 +119,6 @@ export default function QualityAdvisor() {
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [expandedModule, setExpandedModule] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
 
     // Sadece atakan.battal@kademe.com.tr görebilsin
@@ -154,7 +157,7 @@ export default function QualityAdvisor() {
             setRefreshing(false);
             setLoading(false);
         }
-    }, [user?.id, refreshing]);
+    }, [user?.id, refreshing, toast]);
 
     useEffect(() => {
         if (user?.email === 'atakan.battal@kademe.com.tr') {
@@ -164,25 +167,15 @@ export default function QualityAdvisor() {
 
     if (loading) {
         return (
-            <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-0 shadow-xl">
-                <CardHeader className="pb-2">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-purple-500/20">
-                            <BrainCircuit className="h-6 w-6 text-purple-400" />
-                        </div>
-                        <div>
-                            <Skeleton className="h-6 w-48 bg-slate-700" />
-                            <Skeleton className="h-4 w-32 mt-1 bg-slate-700" />
-                        </div>
-                    </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Kalite Yönetim Danışmanı
+                    </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <Skeleton className="h-20 bg-slate-700" />
-                    <div className="grid grid-cols-3 gap-2">
-                        {[1,2,3].map(i => (
-                            <Skeleton key={i} className="h-16 bg-slate-700" />
-                        ))}
-                    </div>
+                <CardContent>
+                    <div className="text-center py-8 text-muted-foreground">Analiz yapılıyor...</div>
                 </CardContent>
             </Card>
         );
@@ -194,127 +187,61 @@ export default function QualityAdvisor() {
     const summary = analysis?.summary || {};
 
     return (
-        <Card className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border-0 shadow-2xl overflow-hidden">
-            {/* Header */}
-            <CardHeader className="pb-2 relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10" />
-                <div className="relative flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <motion.div 
-                            className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 shadow-lg"
-                            animate={{ scale: [1, 1.05, 1] }}
-                            transition={{ duration: 2, repeat: Infinity }}
+        <Card>
+            <CardHeader>
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5" />
+                            Kalite Yönetim Danışmanı
+                        </CardTitle>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => runAnalysis()}
+                            disabled={refreshing}
                         >
-                            <BrainCircuit className="h-6 w-6" />
-                        </motion.div>
-                        <div>
-                            <CardTitle className="text-lg font-bold flex items-center gap-2">
-                                Kalite Yönetim Danışmanı
-                                <Zap className="h-4 w-4 text-yellow-400" />
-                            </CardTitle>
-                            <p className="text-xs text-slate-400">
-                                Yapay zeka destekli sistem analizi
-                            </p>
-                        </div>
+                            <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+                            Yenile
+                        </Button>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => runAnalysis()}
-                        disabled={refreshing}
-                        className="text-slate-300 hover:text-white hover:bg-white/10"
-                    >
-                        <RefreshCw className={cn("h-4 w-4 mr-1", refreshing && "animate-spin")} />
-                        {refreshing ? 'Analiz...' : 'Yenile'}
-                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                        Tüm modüllerin analizi ve sistem sağlığı değerlendirmesi
+                    </p>
                 </div>
             </CardHeader>
-
-            <CardContent className="space-y-4 pt-2">
-                {/* Ana Skor */}
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-white/5 to-white/10 backdrop-blur">
-                    <div className={cn(
-                        "relative w-24 h-24 rounded-full flex items-center justify-center",
-                        "bg-gradient-to-br",
-                        analysis?.total_score >= 75 ? "from-green-500/20 to-emerald-500/20" :
-                        analysis?.total_score >= 50 ? "from-yellow-500/20 to-orange-500/20" :
-                        "from-red-500/20 to-rose-500/20"
-                    )}>
-                        <svg className="absolute inset-0 w-full h-full -rotate-90">
-                            <circle
-                                cx="48"
-                                cy="48"
-                                r="42"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                                className="text-slate-700"
-                            />
-                            <motion.circle
-                                cx="48"
-                                cy="48"
-                                r="42"
-                                fill="none"
-                                stroke="url(#scoreGradient)"
-                                strokeWidth="4"
-                                strokeLinecap="round"
-                                strokeDasharray={264}
-                                initial={{ strokeDashoffset: 264 }}
-                                animate={{ strokeDashoffset: 264 - (264 * (analysis?.total_score || 0) / 100) }}
-                                transition={{ duration: 1.5, ease: "easeOut" }}
-                            />
-                            <defs>
-                                <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" stopColor="#a855f7" />
-                                    <stop offset="100%" stopColor="#3b82f6" />
-                                </linearGradient>
-                            </defs>
-                        </svg>
-                        <div className="text-center z-10">
-                            <motion.span 
-                                className="text-2xl font-bold"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                            >
-                                {analysis?.total_score || 0}
-                            </motion.span>
-                            <span className="text-xs text-slate-400 block">/100</span>
+            <CardContent className="space-y-6">
+                {/* Ana Skor Bölümü */}
+                <div className="flex items-center gap-6 p-4 bg-muted/30 rounded-lg">
+                    <div className="text-center">
+                        <div className={`text-4xl font-bold ${getScoreColor(analysis?.total_score || 0)}`}>
+                            {Math.round(analysis?.total_score || 0)}
                         </div>
+                        <div className="text-xs text-muted-foreground">/100</div>
                     </div>
-                    
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                            <span className={cn(
-                                "px-3 py-1 rounded-full text-sm font-medium",
-                                analysis?.total_score >= 90 ? "bg-green-500/20 text-green-400" :
-                                analysis?.total_score >= 75 ? "bg-blue-500/20 text-blue-400" :
-                                analysis?.total_score >= 60 ? "bg-yellow-500/20 text-yellow-400" :
-                                analysis?.total_score >= 40 ? "bg-orange-500/20 text-orange-400" :
-                                "bg-red-500/20 text-red-400"
-                            )}>
-                                {analysis?.health_status || 'Analiz Bekleniyor'}
-                            </span>
+                            {getStatusBadge(analysis?.health_status)}
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="p-2 rounded-lg bg-red-500/10">
-                                <span className="text-lg font-bold text-red-400">{summary.critical_alerts || 0}</span>
-                                <p className="text-xs text-slate-400">Kritik</p>
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <div className="text-2xl font-bold text-red-600">{summary.critical_alerts || 0}</div>
+                                <div className="text-xs text-muted-foreground">Kritik</div>
                             </div>
-                            <div className="p-2 rounded-lg bg-orange-500/10">
-                                <span className="text-lg font-bold text-orange-400">{summary.high_alerts || 0}</span>
-                                <p className="text-xs text-slate-400">Yüksek</p>
+                            <div>
+                                <div className="text-2xl font-bold text-orange-600">{summary.high_alerts || 0}</div>
+                                <div className="text-xs text-muted-foreground">Yüksek</div>
                             </div>
-                            <div className="p-2 rounded-lg bg-blue-500/10">
-                                <span className="text-lg font-bold text-blue-400">{summary.total_recommendations || 0}</span>
-                                <p className="text-xs text-slate-400">Öneri</p>
+                            <div>
+                                <div className="text-2xl font-bold text-blue-600">{summary.total_recommendations || 0}</div>
+                                <div className="text-xs text-muted-foreground">Öneri</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="flex gap-1 p-1 rounded-lg bg-white/5">
+                {/* Tab Seçici */}
+                <div className="flex gap-1 border-b">
                     {[
                         { id: 'overview', label: 'Genel Bakış', icon: Activity },
                         { id: 'alerts', label: 'Uyarılar', icon: AlertTriangle },
@@ -323,12 +250,11 @@ export default function QualityAdvisor() {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={cn(
-                                "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-all",
+                            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                                 activeTab === tab.id 
-                                    ? "bg-white/10 text-white" 
-                                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                            )}
+                                    ? 'border-primary text-primary' 
+                                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
                         >
                             <tab.icon className="h-4 w-4" />
                             {tab.label}
@@ -336,236 +262,163 @@ export default function QualityAdvisor() {
                     ))}
                 </div>
 
-                <AnimatePresence mode="wait">
-                    {/* Genel Bakış */}
-                    {activeTab === 'overview' && (
-                        <motion.div
-                            key="overview"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                        >
-                            <ScrollArea className="h-[280px] pr-2">
-                                <div className="grid grid-cols-2 gap-2">
-                                    {Object.entries(moduleScores).map(([key, module]) => {
-                                        const score = module?.score || 0;
-                                        const trend = module?.trend;
-                                        const status = module?.status;
-                                        const alertCount = module?.alerts?.length || 0;
-                                        
-                                        return (
-                                            <motion.div
-                                                key={key}
-                                                className={cn(
-                                                    "p-3 rounded-lg cursor-pointer transition-all",
-                                                    "bg-white/5 hover:bg-white/10 border border-transparent",
-                                                    expandedModule === key && "border-purple-500/50 bg-white/10"
-                                                )}
-                                                onClick={() => setExpandedModule(expandedModule === key ? null : key)}
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                            >
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-slate-400">{moduleIcons[key]}</span>
-                                                        <span className="text-xs font-medium text-slate-300">
-                                                            {moduleNames[key] || key}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        {alertCount > 0 && (
-                                                            <span className="px-1.5 py-0.5 text-xs rounded bg-red-500/20 text-red-400">
-                                                                {alertCount}
-                                                            </span>
-                                                        )}
-                                                        {getTrendIcon(trend)}
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex-1 h-2 rounded-full bg-slate-700 overflow-hidden">
-                                                        <motion.div
-                                                            className={cn("h-full rounded-full", getProgressColor(score))}
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${score}%` }}
-                                                            transition={{ duration: 1, delay: 0.2 }}
-                                                        />
-                                                    </div>
-                                                    <span className={cn(
-                                                        "text-sm font-bold",
-                                                        score >= 75 ? "text-green-400" :
-                                                        score >= 50 ? "text-yellow-400" :
-                                                        "text-red-400"
-                                                    )}>
-                                                        {score}
-                                                    </span>
-                                                </div>
-                                                
-                                                {expandedModule === key && module?.recommendations && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                        exit={{ opacity: 0, height: 0 }}
-                                                        className="mt-2 pt-2 border-t border-slate-700"
-                                                    >
-                                                        {module.recommendations.slice(0, 2).map((rec, idx) => (
-                                                            <div key={idx} className="flex items-start gap-1.5 text-xs text-slate-400 mb-1">
-                                                                <Lightbulb className="h-3 w-3 text-yellow-400 mt-0.5 shrink-0" />
-                                                                <span>{rec.title || (typeof rec === 'string' ? rec : rec.description || 'Öneri')}</span>
-                                                            </div>
-                                                        ))}
-                                                    </motion.div>
-                                                )}
-                                            </motion.div>
-                                        );
-                                    })}
+                {/* Genel Bakış */}
+                {activeTab === 'overview' && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                        {Object.entries(moduleScores).map(([key, module]) => {
+                            const score = module?.score || 0;
+                            const trend = module?.trend;
+                            const alertCount = module?.alerts?.length || 0;
+                            const IconComponent = moduleIcons[key] || Activity;
+                            
+                            return (
+                                <div
+                                    key={key}
+                                    className="p-3 rounded-lg border bg-card hover:shadow-md transition-shadow"
+                                >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <IconComponent className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-sm font-medium truncate">
+                                                {moduleNames[key] || key}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            {alertCount > 0 && (
+                                                <Badge variant="destructive" className="text-xs px-1.5">
+                                                    {alertCount}
+                                                </Badge>
+                                            )}
+                                            {getTrendIcon(trend)}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full transition-all ${getProgressColor(score)}`}
+                                                style={{ width: `${score}%` }}
+                                            />
+                                        </div>
+                                        <span className={`text-sm font-bold ${getScoreColor(score)}`}>
+                                            {Math.round(score)}
+                                        </span>
+                                    </div>
                                 </div>
-                            </ScrollArea>
-                        </motion.div>
-                    )}
+                            );
+                        })}
+                    </div>
+                )}
 
-                    {/* Uyarılar */}
-                    {activeTab === 'alerts' && (
-                        <motion.div
-                            key="alerts"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                        >
-                            <ScrollArea className="h-[280px] pr-2">
-                                {alerts.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                        <CheckCircle2 className="h-12 w-12 mb-2 text-green-400" />
-                                        <p className="text-sm font-medium">Harika! Aktif uyarı yok</p>
-                                        <p className="text-xs">Sisteminiz sorunsuz çalışıyor</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {alerts.map((alert, idx) => (
-                                            <motion.div
-                                                key={idx}
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: idx * 0.05 }}
-                                                className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-                                            >
-                                                <div className="flex items-start gap-3">
-                                                    <div className={cn(
-                                                        "p-1.5 rounded-lg shrink-0",
-                                                        alert.priority === 'CRITICAL' ? "bg-red-500/20" :
-                                                        alert.priority === 'HIGH' ? "bg-orange-500/20" :
-                                                        "bg-yellow-500/20"
-                                                    )}>
-                                                        <AlertTriangle className={cn(
-                                                            "h-4 w-4",
-                                                            alert.priority === 'CRITICAL' ? "text-red-400" :
-                                                            alert.priority === 'HIGH' ? "text-orange-400" :
-                                                            "text-yellow-400"
-                                                        )} />
+                {/* Uyarılar */}
+                {activeTab === 'alerts' && (
+                    <div className="max-h-[400px] overflow-y-auto pr-2">
+                        {alerts.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-500 opacity-50" />
+                                <p className="font-medium">Harika! Aktif uyarı yok</p>
+                                <p className="text-sm">Sisteminiz sorunsuz çalışıyor</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {alerts.map((alert, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <AlertTriangle className={`h-5 w-5 mt-0.5 shrink-0 ${
+                                                alert.priority === 'CRITICAL' ? 'text-red-500' :
+                                                alert.priority === 'HIGH' ? 'text-orange-500' :
+                                                'text-yellow-500'
+                                            }`} />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                    <span className="font-medium">
+                                                        {alert.title}
+                                                    </span>
+                                                    {getPriorityBadge(alert.priority)}
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {alert.description}
+                                                </p>
+                                                {alert.action && (
+                                                    <div className="mt-2 flex items-center gap-1 text-sm text-primary">
+                                                        <ChevronRight className="h-4 w-4" />
+                                                        <span>{alert.action}</span>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-sm font-medium text-white truncate">
-                                                                {alert.title}
-                                                            </span>
-                                                            <Badge className={cn("text-xs shrink-0", getPriorityColor(alert.priority))}>
-                                                                {getPriorityLabel(alert.priority)}
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Öneriler */}
+                {activeTab === 'recommendations' && (
+                    <div className="max-h-[400px] overflow-y-auto pr-2">
+                        {recommendations.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-500 opacity-50" />
+                                <p className="font-medium">Öneri bulunamadı</p>
+                                <p className="text-sm">Sistem optimum çalışıyor</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {recommendations.map((rec, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <Lightbulb className="h-5 w-5 mt-0.5 shrink-0 text-yellow-500" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium">
+                                                    {rec.title || (typeof rec === 'string' ? rec : 'Öneri')}
+                                                </p>
+                                                {rec.description && (
+                                                    <p className="text-sm text-muted-foreground mt-1">
+                                                        {rec.description}
+                                                    </p>
+                                                )}
+                                                {(rec.module || rec.action) && (
+                                                    <div className="mt-2 flex items-center gap-3 text-sm">
+                                                        {rec.module && (
+                                                            <Badge variant="outline">
+                                                                {moduleNames[rec.module] || rec.module}
                                                             </Badge>
-                                                        </div>
-                                                        <p className="text-xs text-slate-400 line-clamp-2">
-                                                            {alert.description}
-                                                        </p>
-                                                        {alert.action && (
-                                                            <div className="mt-2 flex items-center gap-1 text-xs text-purple-400">
-                                                                <ChevronRight className="h-3 w-3" />
-                                                                <span>{alert.action}</span>
-                                                            </div>
+                                                        )}
+                                                        {rec.action && (
+                                                            <span className="text-primary flex items-center gap-1">
+                                                                <ChevronRight className="h-4 w-4" />
+                                                                {rec.action}
+                                                            </span>
                                                         )}
                                                     </div>
-                                                </div>
-                                            </motion.div>
-                                        ))}
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
-                            </ScrollArea>
-                        </motion.div>
-                    )}
-
-                    {/* Öneriler */}
-                    {activeTab === 'recommendations' && (
-                        <motion.div
-                            key="recommendations"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                        >
-                            <ScrollArea className="h-[280px] pr-2">
-                                {recommendations.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                        <Sparkles className="h-12 w-12 mb-2 text-purple-400" />
-                                        <p className="text-sm font-medium">Öneri bulunamadı</p>
-                                        <p className="text-xs">Sistem optimum çalışıyor</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {recommendations.map((rec, idx) => (
-                                            <motion.div
-                                                key={idx}
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: idx * 0.05 }}
-                                                className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-                                            >
-                                                <div className="flex items-start gap-3">
-                                                    <div className="p-1.5 rounded-lg bg-purple-500/20 shrink-0">
-                                                        <Lightbulb className="h-4 w-4 text-purple-400" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium text-slate-200">
-                                                            {rec.title || (typeof rec === 'string' ? rec : 'Öneri')}
-                                                        </p>
-                                                        {rec.description && (
-                                                            <p className="text-xs text-slate-400 mt-1">
-                                                                {rec.description}
-                                                            </p>
-                                                        )}
-                                                        {(rec.module || rec.action) && (
-                                                            <div className="mt-2 flex items-center gap-2 text-xs">
-                                                                {rec.module && (
-                                                                    <span className="text-slate-500">
-                                                                        {moduleNames[rec.module] || rec.module}
-                                                                    </span>
-                                                                )}
-                                                                {rec.action && (
-                                                                    <span className="text-purple-400 flex items-center gap-1">
-                                                                        <ChevronRight className="h-3 w-3" />
-                                                                        {rec.action}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                )}
-                            </ScrollArea>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Footer */}
-                <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                <div className="pt-4 border-t flex items-center justify-between text-xs text-muted-foreground">
                     <span>
                         Son analiz: {analysis?.analysis_date 
                             ? new Date(analysis.analysis_date).toLocaleString('tr-TR') 
                             : '-'}
                     </span>
                     {analysis?.notifications_created > 0 && (
-                        <span className="text-purple-400">
+                        <Badge variant="secondary">
                             {analysis.notifications_created} yeni bildirim oluşturuldu
-                        </span>
+                        </Badge>
                     )}
                 </div>
             </CardContent>
