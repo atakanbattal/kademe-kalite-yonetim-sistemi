@@ -785,9 +785,13 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         return null;
                     }
                     
-                    // Önce dosyayı storage'a yükle
-                    console.log(`⬆️ Storage'a yükleniyor...`);
-                    const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, file, { 
+                    // Dosyayı Blob olarak yeniden oluştur - bu file.type sorununu tamamen çözer
+                    // File nesnesinin type'ı yanlış olsa bile, yeni Blob doğru content-type ile oluşturulur
+                    const fileArrayBuffer = await file.arrayBuffer();
+                    const fileBlob = new Blob([fileArrayBuffer], { type: contentType });
+                    
+                    console.log(`⬆️ Storage'a yükleniyor... (Blob size: ${fileBlob.size}, type: ${fileBlob.type})`);
+                    const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, fileBlob, { 
                         contentType: contentType,
                         upsert: false
                     });
