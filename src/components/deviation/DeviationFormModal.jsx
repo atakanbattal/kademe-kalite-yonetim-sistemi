@@ -678,38 +678,69 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
 
         if (files.length > 0) {
-            const uploadPromises = files.map(file => {
-                const sanitizedFileName = sanitizeFileName(file.name);
-                const timestamp = Date.now();
-                const randomStr = Math.random().toString(36).substring(2, 9);
-                const filePath = `${deviationData.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
-                return supabase.storage.from('deviation_attachments').upload(filePath, file, { 
-                    contentType: file.type || 'application/octet-stream',
-                    cacheControl: '3600',
-                    upsert: false
-                });
-            });
-            const uploadResults = await Promise.all(uploadPromises);
-
-            const attachmentRecords = uploadResults.map((result, index) => {
-                if (result.error) {
-                    console.error('Dosya yükleme hatası:', result.error);
-                    toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${files[index].name} yüklenemedi: ${result.error.message}` });
+            const uploadPromises = files.map(async (file, index) => {
+                try {
+                    const sanitizedFileName = sanitizeFileName(file.name);
+                    const timestamp = Date.now();
+                    const randomStr = Math.random().toString(36).substring(2, 9);
+                    const filePath = `${deviationData.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
+                    
+                    // Önce dosyayı storage'a yükle
+                    const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, file, { 
+                        contentType: file.type || 'application/octet-stream',
+                        upsert: false
+                    });
+                    
+                    if (uploadResult.error) {
+                        console.error(`Dosya yükleme hatası (${file.name}):`, uploadResult.error);
+                        toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} yüklenemedi: ${uploadResult.error.message}` });
+                        return null;
+                    }
+                    
+                    // Dosya başarıyla yüklendiyse, veritabanına kaydet
+                    const attachmentRecord = {
+                        deviation_id: deviationData.id,
+                        file_path: uploadResult.data.path,
+                        file_name: file.name,
+                        file_type: file.type || 'application/octet-stream'
+                    };
+                    
+                    const { data: insertedData, error: insertError } = await supabase
+                        .from('deviation_attachments')
+                        .insert(attachmentRecord)
+                        .select()
+                        .single();
+                    
+                    if (insertError) {
+                        console.error(`Veritabanı kayıt hatası (${file.name}):`, insertError);
+                        // Dosya yüklendi ama veritabanına kaydedilemedi - dosyayı sil
+                        try {
+                            await supabase.storage.from('deviation_attachments').remove([uploadResult.data.path]);
+                        } catch (removeError) {
+                            console.error('Orphan dosya silme hatası:', removeError);
+                        }
+                        toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} veritabanına kaydedilemedi: ${insertError.message}` });
+                        return null;
+                    }
+                    
+                    console.log(`✅ Dosya başarıyla yüklendi ve kaydedildi: ${file.name}`, insertedData);
+                    return insertedData;
+                } catch (error) {
+                    console.error(`Beklenmeyen hata (${file.name}):`, error);
+                    toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} yüklenirken beklenmeyen bir hata oluştu: ${error.message}` });
                     return null;
                 }
-                return {
-                    deviation_id: deviationData.id,
-                    file_path: result.data.path,
-                    file_name: files[index].name,
-                    file_type: files[index].type
-                };
-            }).filter(Boolean);
-
-            if(attachmentRecords.length > 0) {
-                const { error: attachmentsError } = await supabase.from('deviation_attachments').insert(attachmentRecords);
-                if (attachmentsError) {
-                     toast({ variant: 'destructive', title: 'Dosya Hatası', description: 'Dosya bilgileri veritabanına kaydedilemedi: ' + attachmentsError.message });
-                }
+            });
+            
+            const uploadResults = await Promise.all(uploadPromises);
+            const successfulUploads = uploadResults.filter(result => result !== null);
+            
+            if (successfulUploads.length > 0) {
+                console.log(`✅ ${successfulUploads.length} dosya başarıyla yüklendi ve kaydedildi`);
+            }
+            
+            if (successfulUploads.length < files.length) {
+                toast({ variant: 'warning', title: 'Kısmi Başarı', description: `${successfulUploads.length}/${files.length} dosya başarıyla yüklendi.` });
             }
         }
         
