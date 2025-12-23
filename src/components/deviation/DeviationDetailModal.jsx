@@ -389,19 +389,55 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
         }
     };
 
+    // Dosya uzantısından MIME type belirle
+    const getMimeTypeFromFileName = (fileName) => {
+        const ext = fileName?.split('.').pop()?.toLowerCase();
+        const mimeTypes = {
+            'pdf': 'application/pdf',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'txt': 'text/plain'
+        };
+        return mimeTypes[ext] || 'application/octet-stream';
+    };
+
     // Dosyayı tarayıcıda görüntüle (yeni sekmede aç)
-    const handleViewAttachment = async (filePath) => {
-        const { data, error } = await supabase.storage
-            .from('deviation_attachments')
-            .createSignedUrl(filePath, 300);
-        
-        if (error) {
-            console.error('Error getting signed URL:', error);
-            return;
+    const handleViewAttachment = async (filePath, fileName) => {
+        try {
+            // Önce signed URL al
+            const { data: urlData, error: urlError } = await supabase.storage
+                .from('deviation_attachments')
+                .createSignedUrl(filePath, 300);
+            
+            if (urlError) {
+                console.error('Error getting signed URL:', urlError);
+                return;
+            }
+            
+            // Dosyayı fetch et
+            const response = await fetch(urlData.signedUrl);
+            const blob = await response.blob();
+            
+            // Doğru MIME type ile yeni Blob oluştur
+            const correctMimeType = getMimeTypeFromFileName(fileName);
+            const correctedBlob = new Blob([blob], { type: correctMimeType });
+            
+            // Blob URL oluştur ve aç
+            const blobUrl = URL.createObjectURL(correctedBlob);
+            window.open(blobUrl, '_blank');
+            
+            // Bellek temizliği için 1 dakika sonra URL'yi iptal et
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+        } catch (err) {
+            console.error('Error viewing attachment:', err);
         }
-        
-        // Yeni sekmede görüntüle
-        window.open(data.signedUrl, '_blank');
     };
 
     // Dosyayı indir
@@ -664,7 +700,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                                                                 variant="ghost" 
                                                                 size="icon" 
                                                                 title="Görüntüle"
-                                                                onClick={() => handleViewAttachment(att.file_path)}
+                                                                onClick={() => handleViewAttachment(att.file_path, att.file_name)}
                                                             >
                                                                 <Eye className="w-5 h-5" />
                                                             </Button>
