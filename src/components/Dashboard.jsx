@@ -31,6 +31,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
     import AIRootCausePrediction from '@/components/dashboard/AIRootCausePrediction';
     import NotificationCenter from '@/components/dashboard/NotificationCenter';
     import FiveSSafetyOEE from '@/components/dashboard/FiveSSafetyOEE';
+    import QualityAdvisor from '@/components/dashboard/QualityAdvisor';
     import { Dialog, DialogContent } from '@/components/ui/dialog';
     import ErrorBoundary from '@/components/dashboard/ErrorBoundary';
 
@@ -259,6 +260,16 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 <motion.div variants={itemVariants}>
                     <ErrorBoundary componentName="Bildirim Merkezi">
                         <NotificationCenter />
+                    </ErrorBoundary>
+                </motion.div>
+
+                {/* Kalite Sistem Danışmanı - AI Destekli Analiz */}
+                <motion.div variants={itemVariants}>
+                    <ErrorBoundary componentName="Kalite Danışmanı">
+                        <QualityAdvisor onNavigate={(module) => {
+                            // Modül navigasyonu için callback
+                            console.log('Navigate to module:', module);
+                        }} />
                     </ErrorBoundary>
                 </motion.div>
 
