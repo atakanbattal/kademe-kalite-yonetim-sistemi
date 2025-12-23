@@ -750,23 +750,20 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         return null;
                     }
                     
-                    // MIME type belirleme: file.type geçersizse dosya uzantısından belirle
-                    let contentType = file.type;
-                    const invalidMimeTypes = [
-                        'application/json',
-                        'application/json; charset=utf-8',
-                        'application/octet-stream',
-                        '',
-                        null,
-                        undefined
-                    ];
+                    // MIME type belirleme: ÖNCE dosya uzantısından belirle, sonra file.type'ı kontrol et
+                    // Bu şekilde file.type yanlış olsa bile doğru MIME type kullanılır
+                    let contentType = getMimeTypeFromFileName(file.name);
                     
-                    // file.type geçersizse veya application/json içeriyorsa dosya uzantısından belirle
-                    if (!contentType || 
-                        invalidMimeTypes.includes(contentType) ||
-                        contentType.toLowerCase().includes('application/json') ||
-                        contentType.toLowerCase().startsWith('application/json')) {
-                        contentType = getMimeTypeFromFileName(file.name);
+                    // Eğer file.type geçerli ve dosya uzantısından belirlenen ile uyumluysa kullan
+                    if (file.type && 
+                        file.type !== 'application/json' && 
+                        !file.type.includes('application/json') &&
+                        file.type !== 'application/octet-stream' &&
+                        file.type !== '') {
+                        // file.type geçerli görünüyor, ama yine de dosya uzantısından belirleneni kullan
+                        // Çünkü file.type bazen yanlış olabiliyor
+                        console.log(`ℹ️ file.type: ${file.type}, dosya uzantısından belirlenen: ${contentType}`);
+                    } else {
                         console.log(`⚠️ file.type geçersiz (${file.type}), dosya uzantısından belirlendi: ${contentType}`);
                     }
                     
