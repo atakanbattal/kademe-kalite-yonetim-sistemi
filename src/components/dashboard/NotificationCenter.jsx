@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Bell, CheckCircle2, AlertTriangle, XCircle, Info, RefreshCw } from 'lucide-react';
+import { Bell, CheckCircle2, AlertTriangle, XCircle, Info, RefreshCw, X, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -19,7 +19,8 @@ const NotificationCenter = () => {
     const [checkingSmartNotifications, setCheckingSmartNotifications] = useState(false);
 
     useEffect(() => {
-        if (user) {
+        // Sadece atakan.battal@kademe.com.tr hesabı görebilsin
+        if (user && user.email === 'atakan.battal@kademe.com.tr') {
             fetchNotifications();
             
             // Gerçek zamanlı bildirim dinleme
@@ -32,7 +33,12 @@ const NotificationCenter = () => {
                     filter: `user_id=eq.${user.id}`
                 }, (payload) => {
                     if (payload.eventType === 'INSERT') {
-                        setNotifications(prev => [payload.new, ...prev]);
+                        // Mükerrer bildirim kontrolü
+                        setNotifications(prev => {
+                            const exists = prev.some(n => n.id === payload.new.id);
+                            if (exists) return prev;
+                            return [payload.new, ...prev];
+                        });
                     } else if (payload.eventType === 'UPDATE') {
                         setNotifications(prev => 
                             prev.map(n => n.id === payload.new.id ? payload.new : n)
@@ -46,11 +52,20 @@ const NotificationCenter = () => {
             return () => {
                 supabase.removeChannel(channel);
             };
+        } else if (user) {
+            // Diğer kullanıcılar için boş liste
+            setNotifications([]);
+            setLoading(false);
         }
     }, [user]);
 
     const fetchNotifications = async () => {
-        if (!user) return;
+        // Sadece atakan.battal@kademe.com.tr hesabı görebilsin
+        if (!user || user.email !== 'atakan.battal@kademe.com.tr') {
+            setNotifications([]);
+            setLoading(false);
+            return;
+        }
         
         setLoading(true);
         try {
@@ -62,7 +77,6 @@ const NotificationCenter = () => {
                 .limit(50);
             
             if (error) {
-                // Tablo yoksa sessizce devam et
                 if (error.code === '42P01' || error.message.includes('does not exist')) {
                     console.warn('Bildirimler tablosu henüz oluşturulmamış');
                     setNotifications([]);
@@ -70,7 +84,19 @@ const NotificationCenter = () => {
                     throw error;
                 }
             } else {
-                setNotifications(data || []);
+                // Duplicate kontrolü - aynı title ve message'a sahip bildirimleri filtrele
+                const uniqueNotifications = [];
+                const seen = new Set();
+                
+                (data || []).forEach(notif => {
+                    const key = `${notif.title}-${notif.message}-${notif.created_at}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        uniqueNotifications.push(notif);
+                    }
+                });
+                
+                setNotifications(uniqueNotifications);
             }
         } catch (error) {
             console.warn('Bildirimler yüklenemedi:', error.message);
@@ -105,6 +131,8 @@ const NotificationCenter = () => {
     };
 
     const handleMarkAllAsRead = async () => {
+        if (!user || user.email !== 'atakan.battal@kademe.com.tr') return;
+        
         try {
             const { error } = await supabase
                 .from('notifications')
@@ -113,7 +141,6 @@ const NotificationCenter = () => {
                 .eq('is_read', false);
 
             if (error) {
-                // Tablo yoksa sessizce devam et
                 if (error.code === '42P01' || error.message.includes('does not exist')) {
                     return;
                 }
@@ -122,6 +149,69 @@ const NotificationCenter = () => {
             fetchNotifications();
         } catch (error) {
             console.warn('Bildirimler güncellenemedi:', error.message);
+        }
+    };
+
+    const handleDeleteNotification = async (notificationId, e) => {
+        e.stopPropagation(); // Parent onClick'i tetikleme
+        
+        if (!user || user.email !== 'atakan.battal@kademe.com.tr') return;
+        
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .delete()
+                .eq('id', notificationId)
+                .eq('user_id', user.id);
+
+            if (error) {
+                throw error;
+            }
+            
+            // Optimistic update
+            setNotifications(prev => prev.filter(n => n.id !== notificationId));
+            
+            toast({
+                title: 'Bildirim silindi',
+                description: 'Bildirim başarıyla silindi.',
+            });
+        } catch (error) {
+            console.error('Bildirim silinemedi:', error);
+            toast({
+                title: 'Hata',
+                description: 'Bildirim silinemedi. Lütfen tekrar deneyin.',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleDeleteAllRead = async () => {
+        if (!user || user.email !== 'atakan.battal@kademe.com.tr') return;
+        
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('is_read', true);
+
+            if (error) {
+                throw error;
+            }
+            
+            fetchNotifications();
+            
+            toast({
+                title: 'Okunmuş bildirimler silindi',
+                description: 'Tüm okunmuş bildirimler başarıyla silindi.',
+            });
+        } catch (error) {
+            console.error('Bildirimler silinemedi:', error);
+            toast({
+                title: 'Hata',
+                description: 'Bildirimler silinemedi. Lütfen tekrar deneyin.',
+                variant: 'destructive',
+            });
         }
     };
 
@@ -183,6 +273,11 @@ const NotificationCenter = () => {
         }
     };
 
+    // Sadece atakan.battal@kademe.com.tr hesabı görebilsin
+    if (!user || user.email !== 'atakan.battal@kademe.com.tr') {
+        return null;
+    }
+
     if (loading) {
         return (
             <Card>
@@ -217,14 +312,24 @@ const NotificationCenter = () => {
                                 size="sm" 
                                 onClick={handleCheckSmartNotifications}
                                 disabled={checkingSmartNotifications}
-                                title="Sistem geneli akıllı uyarıları kontrol et (yaklaşan terminler, gecikmeler, vb.)"
+                                title="Sistem geneli akıllı uyarıları kontrol et"
                             >
                                 <RefreshCw className={`h-4 w-4 mr-1 ${checkingSmartNotifications ? 'animate-spin' : ''}`} />
-                                Akıllı Kontrol
+                                Kontrol Et
                             </Button>
                             {unreadCount > 0 && (
                                 <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
                                     Tümünü Okundu İşaretle
+                                </Button>
+                            )}
+                            {notifications.filter(n => n.is_read).length > 0 && (
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={handleDeleteAllRead}
+                                    title="Okunmuş bildirimleri sil"
+                                >
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             )}
                         </div>
@@ -241,14 +346,14 @@ const NotificationCenter = () => {
                         <p>Bildirim bulunmuyor.</p>
                     </div>
                 ) : (
-                    <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
                         {notifications.map((notification) => (
                             <div
                                 key={notification.id}
-                                className={`p-3 rounded-lg border transition-colors cursor-pointer hover:bg-accent ${
+                                className={`group relative p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
                                     notification.is_read
-                                        ? 'bg-muted/50 border-muted'
-                                        : 'bg-primary/5 border-primary/20'
+                                        ? 'bg-muted/30 border-muted'
+                                        : 'bg-primary/5 border-primary/30 shadow-sm'
                                 }`}
                                 onClick={() => {
                                     if (!notification.is_read) {
@@ -260,37 +365,44 @@ const NotificationCenter = () => {
                                 }}
                             >
                                 <div className="flex items-start gap-3">
-                                    <div className="mt-1">
+                                    <div className="mt-0.5 flex-shrink-0">
                                         {getNotificationIcon(notification.notification_type)}
                                     </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <h4 className={`font-semibold text-sm ${notification.is_read ? '' : 'font-bold'}`}>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                                            <h4 className={`font-semibold text-sm leading-tight ${notification.is_read ? 'text-muted-foreground' : 'text-foreground'}`}>
                                                 {notification.title}
                                             </h4>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant={getPriorityColor(notification.priority)} className="text-xs">
-                                                    {notification.priority}
-                                                </Badge>
+                                            <div className="flex items-center gap-1.5 flex-shrink-0">
                                                 {!notification.is_read && (
-                                                    <div className="w-2 h-2 bg-primary rounded-full" />
+                                                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                                                 )}
+                                                <Badge 
+                                                    variant={getPriorityColor(notification.priority)} 
+                                                    className="text-[10px] px-1.5 py-0"
+                                                >
+                                                    {notification.priority === 'CRITICAL' ? 'KRİTİK' : 
+                                                     notification.priority === 'HIGH' ? 'YÜKSEK' :
+                                                     notification.priority === 'NORMAL' ? 'NORMAL' : 'DÜŞÜK'}
+                                                </Badge>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-muted-foreground mb-2">
+                                        <p className="text-sm text-muted-foreground mb-2 leading-relaxed line-clamp-2">
                                             {notification.message}
                                         </p>
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                                             <span>
-                                                {format(new Date(notification.created_at), 'dd MMM yyyy HH:mm', { locale: tr })}
+                                                {format(new Date(notification.created_at), 'dd MMM yyyy, HH:mm', { locale: tr })}
                                             </span>
-                                            {notification.related_module && (
-                                                <Badge variant="outline" className="text-xs">
-                                                    {notification.related_module}
-                                                </Badge>
-                                            )}
                                         </div>
                                     </div>
+                                    <button
+                                        onClick={(e) => handleDeleteNotification(notification.id, e)}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                                        title="Bildirimi sil"
+                                    >
+                                        <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                    </button>
                                 </div>
                             </div>
                         ))}
