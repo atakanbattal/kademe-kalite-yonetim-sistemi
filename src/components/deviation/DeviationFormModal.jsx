@@ -785,14 +785,18 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         return null;
                     }
                     
-                    // Dosyayı Blob olarak yeniden oluştur - bu file.type sorununu tamamen çözer
-                    // File nesnesinin type'ı yanlış olsa bile, yeni Blob doğru content-type ile oluşturulur
+                    // Dosyayı File nesnesi olarak yeniden oluştur - bu file.type sorununu tamamen çözer
+                    // Orijinal File nesnesinin type'ı yanlış olsa bile, yeni File doğru content-type ile oluşturulur
                     const fileArrayBuffer = await file.arrayBuffer();
-                    const fileBlob = new Blob([fileArrayBuffer], { type: contentType });
+                    const correctedFile = new File([fileArrayBuffer], file.name, { type: contentType });
                     
-                    console.log(`⬆️ Storage'a yükleniyor... (Blob size: ${fileBlob.size}, type: ${fileBlob.type})`);
-                    const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, fileBlob, { 
-                        contentType: contentType,
+                    console.log(`⬆️ Storage'a yükleniyor... (File size: ${correctedFile.size}, type: ${correctedFile.type})`);
+                    console.log(`📤 Dosya bilgileri: name=${correctedFile.name}, size=${correctedFile.size}, type=${correctedFile.type}`);
+                    
+                    // Supabase'e yükle - contentType açıkça belirtiliyor
+                    const uploadResult = await supabase.storage.from('deviation_attachments').upload(filePath, correctedFile, { 
+                        contentType: contentType, // Açıkça Content-Type belirt
+                        duplex: 'half', // Stream upload için gerekli
                         upsert: false
                     });
                     
