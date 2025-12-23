@@ -424,7 +424,6 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                                 openPrintableReport(reportData, 'equipment_list', true);
                             }}
                             className="flex items-center gap-2"
-                            type="button"
                         >
                             <FileSpreadsheet className="w-4 h-4" />
                             Rapor Al

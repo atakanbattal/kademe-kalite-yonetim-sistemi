@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
 const moduleIcons = {
@@ -111,6 +111,7 @@ const getPriorityLabel = (priority) => {
 
 export default function QualityAdvisor() {
     const { user } = useAuth();
+    const { toast } = useToast();
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -135,15 +136,18 @@ export default function QualityAdvisor() {
             
             setAnalysis(data);
             if (showToast) {
-                toast.success('Sistem analizi tamamlandı', {
+                toast({
+                    title: 'Sistem analizi tamamlandı',
                     description: `Toplam skor: ${data?.total_score || 0}/100`
                 });
             }
         } catch (error) {
             console.error('Analiz hatası:', error);
             if (showToast) {
-                toast.error('Analiz yapılamadı', {
-                    description: error.message
+                toast({
+                    title: 'Analiz yapılamadı',
+                    description: error.message,
+                    variant: 'destructive'
                 });
             }
         } finally {
