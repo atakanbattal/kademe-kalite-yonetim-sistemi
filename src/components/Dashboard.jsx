@@ -255,6 +255,13 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     </Button>
                 </div>
 
+                {/* Bildirim Merkezi - Üstte Görünür */}
+                <motion.div variants={itemVariants}>
+                    <ErrorBoundary componentName="Bildirim Merkezi">
+                        <NotificationCenter />
+                    </ErrorBoundary>
+                </motion.div>
+
                 <motion.div 
                     className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4"
                     variants={containerVariants}
@@ -573,13 +580,6 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 <motion.div variants={itemVariants}>
                     <ErrorBoundary componentName="5S - İş Güvenliği - OEE">
                         <FiveSSafetyOEE />
-                    </ErrorBoundary>
-                </motion.div>
-
-                {/* Bildirim Merkezi */}
-                <motion.div variants={itemVariants}>
-                    <ErrorBoundary componentName="Bildirim Merkezi">
-                        <NotificationCenter />
                     </ErrorBoundary>
                 </motion.div>
 
