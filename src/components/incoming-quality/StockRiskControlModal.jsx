@@ -54,6 +54,13 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
     const handleStockStatusChange = (index, value) => {
         const newControlResults = [...controlResults];
         newControlResults[index].stock_status = value;
+        // Eğer stokta yoksa veya kullanılmışsa, karar otomatik olarak "Kontrol Edilemedi" olmalı
+        if (value === 'Stokta Yok' || value === 'Kullanılmış') {
+            newControlResults[index].overall_decision = 'Kontrol Edilemedi';
+        } else if (newControlResults[index].overall_decision === 'Kontrol Edilemedi') {
+            // Eğer stokta ise ve karar "Kontrol Edilemedi" ise, "Beklemede" yap
+            newControlResults[index].overall_decision = 'Beklemede';
+        }
         setControlResults(newControlResults);
     };
 
@@ -133,7 +140,11 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
                                     <div key={resIndex} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mb-2">
                                         <div>
                                             <Label>Muayene Türü</Label>
-                                            <Select value={res.measurement_type} onValueChange={(v) => handleResultChange(index, resIndex, 'measurement_type', v)}>
+                                            <Select 
+                                                value={res.measurement_type} 
+                                                onValueChange={(v) => handleResultChange(index, resIndex, 'measurement_type', v)}
+                                                disabled={control.stock_status === 'Stokta Yok' || control.stock_status === 'Kullanılmış'}
+                                            >
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Görsel Kontrol">Görsel Kontrol</SelectItem>
@@ -144,7 +155,11 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
                                         </div>
                                          <div>
                                             <Label>Sonuç</Label>
-                                            <Select value={res.result || ''} onValueChange={(v) => handleResultChange(index, resIndex, 'result', v)}>
+                                            <Select 
+                                                value={res.result || ''} 
+                                                onValueChange={(v) => handleResultChange(index, resIndex, 'result', v)}
+                                                disabled={control.stock_status === 'Stokta Yok' || control.stock_status === 'Kullanılmış'}
+                                            >
                                                 <SelectTrigger><SelectValue placeholder="Sonuç seçin..."/></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Uygun">Uygun</SelectItem>
@@ -154,26 +169,48 @@ const StockRiskControlModal = ({ isOpen, setIsOpen, stockRiskData, refreshData }
                                         </div>
                                         <div>
                                             <Label>Ölçüm Değeri</Label>
-                                            <Input value={res.value} onChange={(e) => handleResultChange(index, resIndex, 'value', e.target.value)} placeholder="Sayısal veri (opsiyonel)"/>
+                                            <Input 
+                                                value={res.value} 
+                                                onChange={(e) => handleResultChange(index, resIndex, 'value', e.target.value)} 
+                                                placeholder="Sayısal veri (opsiyonel)"
+                                                disabled={control.stock_status === 'Stokta Yok' || control.stock_status === 'Kullanılmış'}
+                                            />
                                         </div>
                                         <div className="md:col-span-4">
                                              <Label>Gözlemler</Label>
-                                            <Textarea value={res.notes} onChange={(e) => handleResultChange(index, resIndex, 'notes', e.target.value)} placeholder="Gözlemlerinizi yazın..."/>
+                                            <Textarea 
+                                                value={res.notes} 
+                                                onChange={(e) => handleResultChange(index, resIndex, 'notes', e.target.value)} 
+                                                placeholder="Gözlemlerinizi yazın..."
+                                                disabled={control.stock_status === 'Stokta Yok' || control.stock_status === 'Kullanılmış'}
+                                            />
                                         </div>
                                     </div>
                                 ))}
 
                                 <div className="mt-4">
                                     <Label>Genel Karar</Label>
-                                    <Select value={control.overall_decision} onValueChange={(v) => handleOverallDecisionChange(index, v)}>
-                                        <SelectTrigger className="w-[200px]"><SelectValue/></SelectTrigger>
+                                    <Select 
+                                        value={control.overall_decision} 
+                                        onValueChange={(v) => handleOverallDecisionChange(index, v)}
+                                        disabled={control.stock_status === 'Stokta Yok' || control.stock_status === 'Kullanılmış'}
+                                    >
+                                        <SelectTrigger className="w-[200px]">
+                                            <SelectValue/>
+                                        </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="Beklemede">Beklemede</SelectItem>
                                             <SelectItem value="Uygun">Uygun</SelectItem>
                                             <SelectItem value="Uygun Değil">Uygun Değil</SelectItem>
                                             <SelectItem value="Revizyon Gerekli">Revizyon Gerekli</SelectItem>
+                                            <SelectItem value="Kontrol Edilemedi">Kontrol Edilemedi</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    {(control.stock_status === 'Stokta Yok' || control.stock_status === 'Kullanılmış') && (
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Stokta olmadığı için kontrol yapılamadı. Karar otomatik olarak "Kontrol Edilemedi" olarak ayarlandı.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )})}

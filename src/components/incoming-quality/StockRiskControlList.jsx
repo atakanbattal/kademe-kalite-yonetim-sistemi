@@ -59,6 +59,7 @@ const StockRiskControlList = () => {
         switch (decision) {
             case 'Uygun': return <Badge variant="success">Uygun</Badge>;
             case 'Uygun Değil': return <Badge variant="destructive">Uygun Değil</Badge>;
+            case 'Kontrol Edilemedi': return <Badge className="bg-gray-500">Kontrol Edilemedi</Badge>;
             default: return <Badge variant="secondary">{decision || 'Beklemede'}</Badge>;
         }
     };

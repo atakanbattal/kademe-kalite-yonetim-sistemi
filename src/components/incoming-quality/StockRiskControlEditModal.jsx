@@ -25,9 +25,17 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
     useEffect(() => {
         if (isOpen && record) {
             setStatus(record.status || 'Beklemede');
-            setDecision(record.decision || 'Beklemede');
             setNotes(record.notes || '');
-            setStockStatus(record.stock_status || 'Stokta');
+            const stockStatusValue = record.stock_status || 'Stokta';
+            setStockStatus(stockStatusValue);
+            
+            // Stok durumuna göre kararı ayarla
+            if (stockStatusValue === 'Stokta Yok' || stockStatusValue === 'Kullanılmış') {
+                setDecision('Kontrol Edilemedi');
+            } else {
+                setDecision(record.decision || 'Beklemede');
+            }
+            
             // Results'ı yükle veya varsayılan değer oluştur
             if (record.results && Array.isArray(record.results) && record.results.length > 0) {
                 setResults(record.results);
@@ -46,6 +54,17 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
         const newResults = [...results];
         newResults[index][field] = value;
         setResults(newResults);
+    };
+
+    const handleStockStatusChange = (value) => {
+        setStockStatus(value);
+        // Eğer stokta yoksa veya kullanılmışsa, karar otomatik olarak "Kontrol Edilemedi" olmalı
+        if (value === 'Stokta Yok' || value === 'Kullanılmış') {
+            setDecision('Kontrol Edilemedi');
+        } else if (decision === 'Kontrol Edilemedi') {
+            // Eğer stokta ise ve karar "Kontrol Edilemedi" ise, "Beklemede" yap
+            setDecision('Beklemede');
+        }
     };
 
     const handleAddResult = () => {
@@ -95,10 +114,16 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
     const handleSave = async () => {
         setIsSubmitting(true);
         
+        // Stok durumuna göre kararı otomatik ayarla
+        let finalDecision = decision;
+        if (stockStatus === 'Stokta Yok' || stockStatus === 'Kullanılmış') {
+            finalDecision = 'Kontrol Edilemedi';
+        }
+        
         const updateData = {
             status: status,
             results: results,
-            decision: decision,
+            decision: finalDecision,
             notes: notes,
             stock_status: stockStatus,
             controlled_by_id: user.id,
@@ -157,7 +182,7 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                             </div>
                             <div>
                                 <Label>Stok Durumu</Label>
-                                <Select value={stockStatus} onValueChange={setStockStatus}>
+                                <Select value={stockStatus} onValueChange={handleStockStatusChange}>
                                     <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -174,10 +199,22 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                         <div>
                             <div className="flex justify-between items-center mb-4">
                                 <Label>Kontrol Sonuçları</Label>
-                                <Button variant="outline" size="sm" onClick={handleAddResult}>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={handleAddResult}
+                                    disabled={stockStatus === 'Stokta Yok' || stockStatus === 'Kullanılmış'}
+                                >
                                     <Plus className="h-4 w-4 mr-2" /> Sonuç Ekle
                                 </Button>
                             </div>
+                            {(stockStatus === 'Stokta Yok' || stockStatus === 'Kullanılmış') && (
+                                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <p className="text-sm text-yellow-800">
+                                        ⚠️ Stokta olmadığı için kontrol sonuçları girilemez. Karar otomatik olarak "Kontrol Edilemedi" olarak ayarlandı.
+                                    </p>
+                                </div>
+                            )}
                             <div className="space-y-4">
                                 {results.map((result, index) => (
                                     <div key={index} className="p-4 border rounded-lg space-y-3">
@@ -199,6 +236,7 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                                                 <Select
                                                     value={result.measurement_type || ''}
                                                     onValueChange={(v) => handleResultChange(index, 'measurement_type', v)}
+                                                    disabled={stockStatus === 'Stokta Yok' || stockStatus === 'Kullanılmış'}
                                                 >
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Seçin..." />
@@ -217,6 +255,7 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                                                 <Select
                                                     value={result.result || ''}
                                                     onValueChange={(v) => handleResultChange(index, 'result', v)}
+                                                    disabled={stockStatus === 'Stokta Yok' || stockStatus === 'Kullanılmış'}
                                                 >
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Sonuç seçin..." />
@@ -233,6 +272,7 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                                                     value={result.value || ''}
                                                     onChange={(e) => handleResultChange(index, 'value', e.target.value)}
                                                     placeholder="Sayısal veri (opsiyonel)"
+                                                    disabled={stockStatus === 'Stokta Yok' || stockStatus === 'Kullanılmış'}
                                                 />
                                             </div>
                                         </div>
@@ -243,6 +283,7 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                                                 onChange={(e) => handleResultChange(index, 'notes', e.target.value)}
                                                 placeholder="Gözlemlerinizi yazın..."
                                                 rows={2}
+                                                disabled={stockStatus === 'Stokta Yok' || stockStatus === 'Kullanılmış'}
                                             />
                                         </div>
                                     </div>
@@ -253,7 +294,11 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                         {/* Genel Karar */}
                         <div>
                             <Label>Genel Karar</Label>
-                            <Select value={decision} onValueChange={setDecision}>
+                            <Select 
+                                value={decision} 
+                                onValueChange={setDecision}
+                                disabled={stockStatus === 'Stokta Yok' || stockStatus === 'Kullanılmış'}
+                            >
                                 <SelectTrigger className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -262,6 +307,7 @@ const StockRiskControlEditModal = ({ isOpen, setIsOpen, record, refreshData }) =
                                     <SelectItem value="Uygun">Uygun</SelectItem>
                                     <SelectItem value="Uygun Değil">Uygun Değil</SelectItem>
                                     <SelectItem value="Revizyon Gerekli">Revizyon Gerekli</SelectItem>
+                                    <SelectItem value="Kontrol Edilemedi">Kontrol Edilemedi</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
