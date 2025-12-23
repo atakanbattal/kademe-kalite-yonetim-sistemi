@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Printer, Loader2, Hourglass, CheckCircle, XCircle, FileText, Truck, Download, Package, AlertTriangle, DollarSign, Link2, Hash, Calendar, Building2, User, Car } from 'lucide-react';
+import { Printer, Loader2, Hourglass, CheckCircle, XCircle, FileText, Truck, Download, Eye, Package, AlertTriangle, DollarSign, Link2, Hash, Calendar, Building2, User, Car } from 'lucide-react';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -389,9 +389,23 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
         }
     };
 
+    // Dosyayı tarayıcıda görüntüle (yeni sekmede aç)
+    const handleViewAttachment = async (filePath) => {
+        const { data, error } = await supabase.storage
+            .from('deviation_attachments')
+            .createSignedUrl(filePath, 300);
+        
+        if (error) {
+            console.error('Error getting signed URL:', error);
+            return;
+        }
+        
+        // Yeni sekmede görüntüle
+        window.open(data.signedUrl, '_blank');
+    };
+
+    // Dosyayı indir
     const handleDownloadAttachment = async (filePath, fileName) => {
-        // Signed URL oluştururken transform parametresi ile content-type override edilebilir
-        // download parametresi true olarak ayarlanırsa tarayıcı dosyayı açmak yerine indirir
         const { data, error } = await supabase.storage
             .from('deviation_attachments')
             .createSignedUrl(filePath, 300, {
@@ -403,7 +417,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             return;
         }
         
-        // Yeni sekmede aç - download parametresi sayesinde dosya indirilecek
+        // İndirme başlat
         window.open(data.signedUrl, '_blank');
     };
 
@@ -645,9 +659,24 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                                                             <FileText className="w-5 h-5 text-muted-foreground" />
                                                             <span className="text-sm font-medium">{att.file_name}</span>
                                                         </div>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleDownloadAttachment(att.file_path, att.file_name)}>
-                                                            <Download className="w-5 h-5" />
-                                                        </Button>
+                                                        <div className="flex items-center gap-1">
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                title="Görüntüle"
+                                                                onClick={() => handleViewAttachment(att.file_path)}
+                                                            >
+                                                                <Eye className="w-5 h-5" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                title="İndir"
+                                                                onClick={() => handleDownloadAttachment(att.file_path, att.file_name)}
+                                                            >
+                                                                <Download className="w-5 h-5" />
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </CardContent>
                                             </Card>
