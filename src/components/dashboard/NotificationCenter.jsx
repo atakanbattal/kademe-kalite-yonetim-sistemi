@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Bell, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { Bell, CheckCircle2, AlertTriangle, XCircle, Info, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -16,6 +16,7 @@ const NotificationCenter = () => {
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [checkingSmartNotifications, setCheckingSmartNotifications] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -124,6 +125,36 @@ const NotificationCenter = () => {
         }
     };
 
+    const handleCheckSmartNotifications = async () => {
+        setCheckingSmartNotifications(true);
+        try {
+            const { error } = await supabase.rpc('run_all_smart_notifications');
+            
+            if (error) {
+                throw error;
+            }
+            
+            toast({
+                title: 'Akıllı Bildirimler Kontrol Edildi',
+                description: 'Sistem geneli uyarılar kontrol edildi. Yeni bildirimler oluşturuldu.',
+            });
+            
+            // Bildirimleri yeniden yükle
+            setTimeout(() => {
+                fetchNotifications();
+            }, 1000);
+        } catch (error) {
+            console.error('Akıllı bildirimler kontrol edilemedi:', error);
+            toast({
+                title: 'Hata',
+                description: 'Akıllı bildirimler kontrol edilemedi. Lütfen tekrar deneyin.',
+                variant: 'destructive',
+            });
+        } finally {
+            setCheckingSmartNotifications(false);
+        }
+    };
+
     const getNotificationIcon = (type) => {
         switch (type) {
             case 'SUPPLIER_REJECTION':
@@ -171,19 +202,36 @@ const NotificationCenter = () => {
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                        <Bell className="h-5 w-5" />
-                        Bildirim Merkezi
-                        {unreadCount > 0 && (
-                            <Badge variant="destructive">{unreadCount}</Badge>
-                        )}
-                    </CardTitle>
-                    {unreadCount > 0 && (
-                        <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
-                            Tümünü Okundu İşaretle
-                        </Button>
-                    )}
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                            <Bell className="h-5 w-5" />
+                            Bildirim Merkezi
+                            {unreadCount > 0 && (
+                                <Badge variant="destructive">{unreadCount}</Badge>
+                            )}
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleCheckSmartNotifications}
+                                disabled={checkingSmartNotifications}
+                                title="Sistem geneli akıllı uyarıları kontrol et (yaklaşan terminler, gecikmeler, vb.)"
+                            >
+                                <RefreshCw className={`h-4 w-4 mr-1 ${checkingSmartNotifications ? 'animate-spin' : ''}`} />
+                                Akıllı Kontrol
+                            </Button>
+                            {unreadCount > 0 && (
+                                <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
+                                    Tümünü Okundu İşaretle
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Sistem geneli uyarılar, yaklaşan terminler ve gecikmeler hakkında bildirimler
+                    </p>
                 </div>
             </CardHeader>
             <CardContent>
