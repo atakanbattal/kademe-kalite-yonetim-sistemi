@@ -344,10 +344,22 @@ setShowRiskyStockAlert(false);
                 const newResults = [];
                 const summary = [];
                 let totalGeneratedResults = 0;
-                let oldResultIndex = 0; // Eski results dizisindeki index
+
+                // KRİTİK FIX: Eski ölçümleri control_plan_item_id + measurement_number kombinasyonuna göre 
+                // bir Map'e koy - bu sayede kontrol planı değişse bile doğru ölçümler eşleşir
+                const oldResultsMap = new Map();
+                if (isOldRecordSync) {
+                    results.forEach(r => {
+                        // Anahtar: control_plan_item_id + "_" + measurement_number
+                        const key = `${r.control_plan_item_id}_${r.measurement_number}`;
+                        oldResultsMap.set(key, r);
+                    });
+                    console.log('🗺️ Eski ölçümler Map\'e yüklendi:', oldResultsMap.size, 'adet');
+                }
 
                 controlPlan.items.forEach((item, index) => {
                     console.log(`🔍 Item ${index + 1}/${controlPlan.items.length} işleniyor:`, {
+                        control_plan_item_id: item.id,
                         characteristic_id: item.characteristic_id,
                         nominal: item.nominal_value,
                         min: item.min_value,
@@ -382,8 +394,14 @@ setShowRiskyStockAlert(false);
                     });
 
                     for (let i = 1; i <= count; i++) {
-                        // ESKİ KAYIT SYNC: measured_value ve result değerlerini ESKİ results'tan al
-                        const oldResult = isOldRecordSync && oldResultIndex < results.length ? results[oldResultIndex] : null;
+                        // KRİTİK FIX: control_plan_item_id + measurement_number kombinasyonuna göre eski ölçümü bul
+                        // Bu sayede kontrol planına yeni karakteristik eklendiğinde eski ölçümler doğru karakteristiklere eşleşir
+                        const mapKey = `${item.id}_${i}`;
+                        const oldResult = isOldRecordSync ? oldResultsMap.get(mapKey) : null;
+                        
+                        if (isOldRecordSync && i === 1) {
+                            console.log(`   🔍 Eski ölçüm aranıyor: key=${mapKey}, bulundu=${!!oldResult}`);
+                        }
                         
                         const resultItem = {
                             id: oldResult?.id || uuidv4(),
@@ -404,6 +422,7 @@ setShowRiskyStockAlert(false);
                         
                         if (i === 1) {
                             console.log(`   📝 İlk ölçüm oluşturuldu:`, {
+                                control_plan_item_id: item.id,
                                 nominal: resultItem.nominal_value,
                                 min: resultItem.min_value,
                                 max: resultItem.max_value,
@@ -414,7 +433,6 @@ setShowRiskyStockAlert(false);
                         }
                         
                         newResults.push(resultItem);
-                        oldResultIndex++;
                     }
                     totalGeneratedResults += count;
                 });
