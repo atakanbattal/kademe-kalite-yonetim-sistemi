@@ -411,7 +411,7 @@ export default function QualityAdvisor() {
                                                         {module.recommendations.slice(0, 2).map((rec, idx) => (
                                                             <div key={idx} className="flex items-start gap-1.5 text-xs text-slate-400 mb-1">
                                                                 <Lightbulb className="h-3 w-3 text-yellow-400 mt-0.5 shrink-0" />
-                                                                <span>{rec.text || rec}</span>
+                                                                <span>{rec.title || (typeof rec === 'string' ? rec : rec.description || 'Öneri')}</span>
                                                             </div>
                                                         ))}
                                                     </motion.div>
@@ -521,14 +521,27 @@ export default function QualityAdvisor() {
                                                         <Lightbulb className="h-4 w-4 text-purple-400" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-sm text-slate-200">
-                                                            {rec.text || rec}
+                                                        <p className="text-sm font-medium text-slate-200">
+                                                            {rec.title || (typeof rec === 'string' ? rec : 'Öneri')}
                                                         </p>
-                                                        {rec.module && (
-                                                            <div className="mt-1 flex items-center gap-1.5">
-                                                                <span className="text-xs text-slate-500">
-                                                                    {moduleNames[rec.module] || rec.module}
-                                                                </span>
+                                                        {rec.description && (
+                                                            <p className="text-xs text-slate-400 mt-1">
+                                                                {rec.description}
+                                                            </p>
+                                                        )}
+                                                        {(rec.module || rec.action) && (
+                                                            <div className="mt-2 flex items-center gap-2 text-xs">
+                                                                {rec.module && (
+                                                                    <span className="text-slate-500">
+                                                                        {moduleNames[rec.module] || rec.module}
+                                                                    </span>
+                                                                )}
+                                                                {rec.action && (
+                                                                    <span className="text-purple-400 flex items-center gap-1">
+                                                                        <ChevronRight className="h-3 w-3" />
+                                                                        {rec.action}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
