@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
     import { motion } from 'framer-motion';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
@@ -108,14 +108,38 @@ import React, { useState, useCallback } from 'react';
 
     const Dashboard = ({ setActiveModule }) => {
         const { toast } = useToast();
-        const { kpiData, nonconformityData, costData, pendingApprovals, upcomingCalibrations, expiringDocs, completedAudits, loading, error } = useDashboardData();
-        const { nonConformities, equipments, documents, qualityCosts } = useData();
+        const dashboardData = useDashboardData();
+        const { kpiData, nonconformityData, costData, pendingApprovals, upcomingCalibrations, expiringDocs, completedAudits, loading, error } = dashboardData;
+        const refreshDashboard = dashboardData.refreshDashboard || (() => {});
+        const { nonConformities, equipments, documents, qualityCosts, refreshData } = useData();
         
         const [isDetailModalOpen, setDetailModalOpen] = useState(false);
         const [detailModalContent, setDetailModalContent] = useState({ title: '', records: [], renderItem: () => null });
         const [isReportModalOpen, setReportModalOpen] = useState(false);
         const [drillDownType, setDrillDownType] = useState(null); // 'df', 'quarantine', 'cost', null
         const [detailModalData, setDetailModalData] = useState({ isOpen: false, title: '', description: '', data: [], columns: [] });
+        const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+        const refreshIntervalRef = useRef(null);
+        
+        // Otomatik yenileme: 5 dakikada bir
+        useEffect(() => {
+            if (autoRefreshEnabled) {
+                refreshIntervalRef.current = setInterval(() => {
+                    if (refreshDashboard) {
+                        refreshDashboard();
+                    }
+                    if (refreshData) {
+                        refreshData();
+                    }
+                }, 5 * 60 * 1000); // 5 dakika
+            }
+            
+            return () => {
+                if (refreshIntervalRef.current) {
+                    clearInterval(refreshIntervalRef.current);
+                }
+            };
+        }, [autoRefreshEnabled, refreshDashboard, refreshData]);
 
         const handleCardClick = useCallback((module, kpiTitle) => {
             // KPI kartlarına özel drill-down analizleri

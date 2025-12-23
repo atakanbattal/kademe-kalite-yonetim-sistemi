@@ -8,16 +8,43 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 
 const NotificationCenter = () => {
     const { user } = useAuth();
     const { toast } = useToast();
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (user) {
             fetchNotifications();
+            
+            // Gerçek zamanlı bildirim dinleme
+            const channel = supabase
+                .channel('notifications-channel')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${user.id}`
+                }, (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setNotifications(prev => [payload.new, ...prev]);
+                    } else if (payload.eventType === 'UPDATE') {
+                        setNotifications(prev => 
+                            prev.map(n => n.id === payload.new.id ? payload.new : n)
+                        );
+                    } else if (payload.eventType === 'DELETE') {
+                        setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+                    }
+                })
+                .subscribe();
+            
+            return () => {
+                supabase.removeChannel(channel);
+            };
         }
     }, [user]);
 
@@ -26,10 +53,24 @@ const NotificationCenter = () => {
         
         setLoading(true);
         try {
-            // Bildirimler tablosu henüz oluşturulmamış olabilir
-            // Bu özellik için veritabanı şeması oluşturulmalı
-            console.warn('Bildirimler tablosu henüz yapılandırılmamış');
-            setNotifications([]);
+            const { data, error } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+            
+            if (error) {
+                // Tablo yoksa sessizce devam et
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.warn('Bildirimler tablosu henüz oluşturulmamış');
+                    setNotifications([]);
+                } else {
+                    throw error;
+                }
+            } else {
+                setNotifications(data || []);
+            }
         } catch (error) {
             console.warn('Bildirimler yüklenemedi:', error.message);
             setNotifications([]);
@@ -45,11 +86,17 @@ const NotificationCenter = () => {
     const handleMarkAsRead = async (notificationId) => {
         try {
             const { error } = await supabase
-                .from('document_notifications')
+                .from('notifications')
                 .update({ is_read: true, read_at: new Date().toISOString() })
                 .eq('id', notificationId);
 
-            if (error) throw error;
+            if (error) {
+                // Tablo yoksa sessizce devam et
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    return;
+                }
+                throw error;
+            }
             fetchNotifications();
         } catch (error) {
             console.warn('Bildirim güncellenemedi:', error.message);
@@ -59,12 +106,18 @@ const NotificationCenter = () => {
     const handleMarkAllAsRead = async () => {
         try {
             const { error } = await supabase
-                .from('document_notifications')
+                .from('notifications')
                 .update({ is_read: true, read_at: new Date().toISOString() })
                 .eq('user_id', user.id)
                 .eq('is_read', false);
 
-            if (error) throw error;
+            if (error) {
+                // Tablo yoksa sessizce devam et
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    return;
+                }
+                throw error;
+            }
             fetchNotifications();
         } catch (error) {
             console.warn('Bildirimler güncellenemedi:', error.message);
@@ -144,12 +197,19 @@ const NotificationCenter = () => {
                         {notifications.map((notification) => (
                             <div
                                 key={notification.id}
-                                className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                                className={`p-3 rounded-lg border transition-colors cursor-pointer hover:bg-accent ${
                                     notification.is_read
                                         ? 'bg-muted/50 border-muted'
                                         : 'bg-primary/5 border-primary/20'
                                 }`}
-                                onClick={() => !notification.is_read && handleMarkAsRead(notification.id)}
+                                onClick={() => {
+                                    if (!notification.is_read) {
+                                        handleMarkAsRead(notification.id);
+                                    }
+                                    if (notification.action_url) {
+                                        navigate(notification.action_url);
+                                    }
+                                }}
                             >
                                 <div className="flex items-start gap-3">
                                     <div className="mt-1">

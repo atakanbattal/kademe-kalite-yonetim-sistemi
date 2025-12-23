@@ -138,7 +138,12 @@ const useDashboardData = () => {
         }
     }, [loading, nonConformities, qualityCosts, quarantineRecords, deviations, audits, documents, equipments, processData]);
 
-    return { ...data, loading, error, refresh: refreshData };
+    const refreshDashboard = useCallback(() => {
+        refreshData();
+        processData();
+    }, [refreshData, processData]);
+
+    return { ...data, loading, error, refreshDashboard };
 };
 
 export default useDashboardData;
