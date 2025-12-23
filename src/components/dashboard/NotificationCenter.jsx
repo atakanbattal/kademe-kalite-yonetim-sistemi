@@ -216,7 +216,11 @@ const NotificationCenter = () => {
     };
 
     const handleCheckSmartNotifications = async () => {
+        if (!user || user.email !== 'atakan.battal@kademe.com.tr') return;
+        
         setCheckingSmartNotifications(true);
+        const beforeCount = notifications.length;
+        
         try {
             const { error } = await supabase.rpc('run_all_smart_notifications');
             
@@ -224,15 +228,26 @@ const NotificationCenter = () => {
                 throw error;
             }
             
-            toast({
-                title: 'Akıllı Bildirimler Kontrol Edildi',
-                description: 'Sistem geneli uyarılar kontrol edildi. Yeni bildirimler oluşturuldu.',
-            });
-            
             // Bildirimleri yeniden yükle
-            setTimeout(() => {
-                fetchNotifications();
-            }, 1000);
+            setTimeout(async () => {
+                await fetchNotifications();
+                
+                // Yeni bildirim sayısını kontrol et
+                const afterCount = notifications.length;
+                const newCount = afterCount - beforeCount;
+                
+                if (newCount > 0) {
+                    toast({
+                        title: 'Kontrol Tamamlandı',
+                        description: `${newCount} yeni bildirim oluşturuldu.`,
+                    });
+                } else {
+                    toast({
+                        title: 'Kontrol Tamamlandı',
+                        description: 'Tüm bildirimler güncel. Yeni bildirim oluşturulmadı.',
+                    });
+                }
+            }, 1500);
         } catch (error) {
             console.error('Akıllı bildirimler kontrol edilemedi:', error);
             toast({
