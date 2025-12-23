@@ -366,6 +366,23 @@ setShowRiskyStockAlert(false);
                 const oldResultsByPlanItemId = new Map();
                 const oldResultsByValues = new Map();
                 
+                // REVİZYON TARİHİ KONTROLÜ: Kayıt tarihi kontrol planı revize tarihinden önce mi?
+                // Eğer öyleyse, sadece mevcut ölçümleri olan karakteristikleri göster
+                let isRecordBeforeRevision = false;
+                if (isOldRecordSync && controlPlan.revision_date) {
+                    const inspectionDate = new Date(existingInspection?.inspection_date || existingInspection?.created_at);
+                    const revisionDate = new Date(controlPlan.revision_date);
+                    isRecordBeforeRevision = inspectionDate < revisionDate;
+                    
+                    if (isRecordBeforeRevision) {
+                        console.log('📅 KAYIT REVİZYON ÖNCESİ:', {
+                            inspection_date: inspectionDate.toISOString(),
+                            revision_date: revisionDate.toISOString(),
+                            message: 'Sadece mevcut ölçümleri olan karakteristikler gösterilecek'
+                        });
+                    }
+                }
+                
                 if (isOldRecordSync) {
                     results.forEach(r => {
                         // Yeni kayıtlar için: control_plan_item_id + measurement_number
@@ -422,6 +439,27 @@ setShowRiskyStockAlert(false);
                         tolerance: item.min_value !== null && item.min_value !== undefined ? `${item.min_value} - ${item.max_value}` : 'Yok'
                     });
 
+                    // REVİZYON ÖNCESİ KAYIT KONTROLÜ: Bu karakteristik için ölçüm var mı kontrol et
+                    // Eğer kayıt revizyon öncesinden ve bu karakteristik için ölçüm yoksa, atla
+                    let hasAnyMeasurement = false;
+                    if (isRecordBeforeRevision) {
+                        for (let checkI = 1; checkI <= count; checkI++) {
+                            const checkKey1 = `${item.id}_${checkI}`;
+                            const checkKey2 = `${item.nominal_value || ''}_${item.min_value || ''}_${item.max_value || ''}_${characteristic.label || ''}_${checkI}`;
+                            if (oldResultsByPlanItemId.has(checkKey1) || oldResultsByValues.has(checkKey2)) {
+                                hasAnyMeasurement = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!hasAnyMeasurement) {
+                            console.log(`   ⏭️ REVİZYON ÖNCESİ: "${characteristic.label}" karakteristiği için ölçüm yok, atlanıyor...`);
+                            // Summary'den de çıkar - bu karakteristik gösterilmeyecek
+                            summary.pop(); // Son eklenen summary item'ı çıkar
+                            return; // Bu karakteristiği atla
+                        }
+                    }
+                    
                     for (let i = 1; i <= count; i++) {
                         // KRİTİK FIX: Önce control_plan_item_id ile eşleştir, bulunamazsa fallback kullan
                         const mapKey1 = `${item.id}_${i}`;
