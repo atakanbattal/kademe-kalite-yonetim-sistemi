@@ -32,7 +32,7 @@ import {
     Zap
 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
