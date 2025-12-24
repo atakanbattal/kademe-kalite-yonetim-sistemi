@@ -155,15 +155,15 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 }
 
                 const existing = existingCosts || [];
-                setExistingCostRecords(existing);
-                setIsEditMode(existing.length > 0);
+            setExistingCostRecords(existing);
+            setIsEditMode(existing.length > 0);
 
-                // Eğer mevcut kayıtlar varsa, süreleri yükle
-                if (existing.length > 0) {
-                    const durations = {};
-                    const qualityDurations = {};
-                    
-                    existing.forEach(costRecord => {
+            // Eğer mevcut kayıtlar varsa, süreleri yükle
+            if (existing.length > 0) {
+                const durations = {};
+                const qualityDurations = {};
+                
+                existing.forEach(costRecord => {
                         // Önce fault_id ile eşleştir (yeni kayıtlar için)
                         if (costRecord.fault_id) {
                             const faultMatch = allFaults.find(fault => fault.id === costRecord.fault_id);
@@ -175,36 +175,36 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                         }
                         
                         // Fallback: Açıklamadan hata açıklamasını eşleştir (eski kayıtlar için)
-                        const description = costRecord.description || '';
-                        const faultMatch = allFaults.find(fault => 
-                            description.includes(fault.description)
-                        );
-                        
-                        if (faultMatch) {
-                            durations[faultMatch.id] = costRecord.rework_duration || '';
-                            qualityDurations[faultMatch.id] = costRecord.quality_control_duration || '';
-                        }
-                    });
+                    const description = costRecord.description || '';
+                    const faultMatch = allFaults.find(fault => 
+                        description.includes(fault.description)
+                    );
+                    
+                    if (faultMatch) {
+                        durations[faultMatch.id] = costRecord.rework_duration || '';
+                        qualityDurations[faultMatch.id] = costRecord.quality_control_duration || '';
+                    }
+                });
 
-                    setFaultDurations(durations);
-                    setQualityControlDurations(qualityDurations);
-                } else {
-                    // Yeni kayıt modu
-                    const initialDurations = {};
-                    const initialQualityDurations = {};
-                    allFaults.forEach(fault => {
-                        initialDurations[fault.id] = '';
-                        initialQualityDurations[fault.id] = '';
-                    });
-                    setFaultDurations(initialDurations);
-                    setQualityControlDurations(initialQualityDurations);
-                }
+                setFaultDurations(durations);
+                setQualityControlDurations(qualityDurations);
+            } else {
+                // Yeni kayıt modu
+                const initialDurations = {};
+                const initialQualityDurations = {};
+                allFaults.forEach(fault => {
+                    initialDurations[fault.id] = '';
+                    initialQualityDurations[fault.id] = '';
+                });
+                setFaultDurations(initialDurations);
+                setQualityControlDurations(initialQualityDurations);
+            }
                 
                 // Artık initialize edildi, tekrar çalışmasın
                 setIsInitialized(true);
             } catch (error) {
                 console.error('Maliyet kayıtları yüklenirken hata:', error);
-            }
+        }
         };
 
         loadExistingCosts();

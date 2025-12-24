@@ -79,7 +79,7 @@ const NotificationCenter = () => {
             if (error) {
                 if (error.code === '42P01' || error.message.includes('does not exist')) {
                     console.warn('Bildirimler tablosu henüz oluşturulmamış');
-                    setNotifications([]);
+            setNotifications([]);
                 } else {
                     throw error;
                 }
@@ -313,14 +313,14 @@ const NotificationCenter = () => {
         <Card>
             <CardHeader>
                 <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                            <Bell className="h-5 w-5" />
-                            Bildirim Merkezi
-                            {unreadCount > 0 && (
-                                <Badge variant="destructive">{unreadCount}</Badge>
-                            )}
-                        </CardTitle>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                        <Bell className="h-5 w-5" />
+                        Bildirim Merkezi
+                        {unreadCount > 0 && (
+                            <Badge variant="destructive">{unreadCount}</Badge>
+                        )}
+                    </CardTitle>
                         <div className="flex items-center gap-2">
                             <Button 
                                 variant="outline" 
@@ -332,11 +332,11 @@ const NotificationCenter = () => {
                                 <RefreshCw className={`h-4 w-4 mr-1 ${checkingSmartNotifications ? 'animate-spin' : ''}`} />
                                 Kontrol Et
                             </Button>
-                            {unreadCount > 0 && (
-                                <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
-                                    Tümünü Okundu İşaretle
-                                </Button>
-                            )}
+                    {unreadCount > 0 && (
+                        <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
+                            Tümünü Okundu İşaretle
+                        </Button>
+                    )}
                             {notifications.filter(n => n.is_read).length > 0 && (
                                 <Button 
                                     variant="ghost" 

@@ -29,6 +29,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [isFaultCostModalOpen, setIsFaultCostModalOpen] = useState(false);
         const [editingFault, setEditingFault] = useState(null);
         const [editFaultData, setEditFaultData] = useState({ description: '', department_id: '', category_id: '', quantity: 1 });
+        const [hasExistingCosts, setHasExistingCosts] = useState(false);
 
         const hasSpecialAccess = () => {
             const userEmail = user?.email?.toLowerCase()?.trim();
@@ -129,6 +130,50 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 fetchFaults();
             }
         }, [vehicle, fetchFaults]);
+        
+        // Mevcut maliyet kayıtlarını kontrol et - DOĞRUDAN VERİTABANINDAN
+        const checkExistingCosts = useCallback(async () => {
+            if (!vehicle?.id) {
+                setHasExistingCosts(false);
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('quality_costs')
+                    .select('id')
+                    .eq('source_type', 'produced_vehicle_final_faults')
+                    .eq('source_record_id', vehicle.id)
+                    .limit(1);
+
+                if (error) {
+                    console.error('Maliyet kayıtları kontrol edilirken hata:', error);
+                    setHasExistingCosts(false);
+                    return;
+                }
+
+                setHasExistingCosts((data || []).length > 0);
+            } catch (error) {
+                console.error('Maliyet kayıtları kontrol edilirken hata:', error);
+                setHasExistingCosts(false);
+            }
+        }, [vehicle?.id]);
+
+        useEffect(() => {
+            if (!isOpen) {
+                setHasExistingCosts(false);
+                return;
+            }
+
+            checkExistingCosts();
+        }, [isOpen, checkExistingCosts]);
+
+        // FaultCostModal kapandığında tekrar kontrol et
+        useEffect(() => {
+            if (!isFaultCostModalOpen && isOpen) {
+                checkExistingCosts();
+            }
+        }, [isFaultCostModalOpen, isOpen, checkExistingCosts]);
         
         // Realtime subscription for dynamic updates
         useEffect(() => {
@@ -529,42 +574,31 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                             )}
                         </div>
                         <div className="flex gap-2">
-                            {canManage && faults.length > 0 && (() => {
-                                // Mevcut maliyet kayıtlarını kontrol et
-                                const existingCostRecords = qualityCosts?.filter(cost => 
-                                    cost.source_type === 'produced_vehicle_final_faults' && 
-                                    cost.source_record_id === vehicle?.id
-                                ) || [];
-                                const hasExistingCosts = existingCostRecords.length > 0;
-
-                                if (hasExistingCosts) {
+                            {canManage && faults.length > 0 && (
+                                hasExistingCosts ? (
                                     // Mevcut kayıt varsa düzenleme butonu göster
-                                    return (
-                                        <Button 
-                                            variant="default" 
-                                            onClick={() => setIsFaultCostModalOpen(true)} 
-                                            disabled={loading}
-                                            className="bg-blue-600 hover:bg-blue-700"
-                                        >
-                                            <Calculator className="mr-2 h-4 w-4" />
-                                            Maliyet Kayıtlarını Düzenle
-                                        </Button>
-                                    );
-                                } else {
+                                    <Button 
+                                        variant="default" 
+                                        onClick={() => setIsFaultCostModalOpen(true)} 
+                                        disabled={loading}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        <Calculator className="mr-2 h-4 w-4" />
+                                        Maliyet Kaydı Düzenle
+                                    </Button>
+                                ) : (
                                     // Mevcut kayıt yoksa oluşturma butonu göster
-                                    return (
-                                        <Button 
-                                            variant="default" 
-                                            onClick={() => setIsFaultCostModalOpen(true)} 
-                                            disabled={loading}
-                                            className="bg-green-600 hover:bg-green-700"
-                                        >
-                                            <Calculator className="mr-2 h-4 w-4" />
-                                            Hatalar için Maliyet Kaydı Oluştur
-                                        </Button>
-                                    );
-                                }
-                            })()}
+                                    <Button 
+                                        variant="default" 
+                                        onClick={() => setIsFaultCostModalOpen(true)} 
+                                        disabled={loading}
+                                        className="bg-green-600 hover:bg-green-700"
+                                    >
+                                        <Calculator className="mr-2 h-4 w-4" />
+                                        Hatalar için Maliyet Kaydı Oluştur
+                                    </Button>
+                                )
+                            )}
                             {canManage && (
                                 <Button variant="secondary" onClick={handleCreateNC} disabled={loading}>
                                     Uygunsuzluk Oluştur
@@ -582,6 +616,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     vehicle={vehicle}
                     faults={faults || []}
                     onSuccess={() => {
+                        // Kayıt oluşturuldu/güncellendi, artık kayıt var
+                        setHasExistingCosts(true);
                         if (onUpdate) onUpdate();
                     }}
                 />
