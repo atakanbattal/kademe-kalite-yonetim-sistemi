@@ -269,14 +269,16 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
             if (isEditMode && existingCostRecords.length > 0) {
                 // Her hata için mevcut kaydı bul ve güncelle
                 for (const fault of allFaults) {
-                    const duration = parseFloat(faultDurations[fault.id]) || 0;
-                    const qualityDuration = parseFloat(qualityControlDurations[fault.id]) || 0;
-                    const departmentName = fault.department?.name || fault.department_name || 'Üretim';
-                    const unitCost = getUnitCost(departmentName);
-                    const faultCost = duration * unitCost;
-                    const qualityControlCost = qualityDuration * qualityControlUnitCost;
-                    const faultQuantity = fault.quantity || 1;
-                    const totalFaultCost = (faultCost + qualityControlCost) * faultQuantity;
+                    // calculations state'inden değerleri al (daha güvenilir)
+                    const calc = calculations[fault.id] || {};
+                    const duration = calc.duration || 0;
+                    const qualityDuration = calc.qualityDuration || 0;
+                    const departmentName = calc.departmentName || fault.department?.name || fault.department_name || 'Üretim';
+                    const unitCost = calc.unitCost || getUnitCost(departmentName);
+                    const faultCost = calc.faultCost || (duration * unitCost);
+                    const qualityControlCost = calc.qualityControlCost || (qualityDuration * qualityControlUnitCost);
+                    const faultQuantity = calc.faultQuantity || fault.quantity || 1;
+                    const totalFaultCost = calc.totalFaultCost || ((faultCost + qualityControlCost) * faultQuantity);
 
                     // Bu hataya ait mevcut kaydı bul
                     const existingRecord = existingCostRecords.find(cost => {
@@ -408,14 +410,16 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
 
                 // Her hata için ayrı maliyet kaydı oluştur
                 for (const fault of allFaults) {
-                    const duration = parseFloat(faultDurations[fault.id]) || 0;
-                const qualityDuration = parseFloat(qualityControlDurations[fault.id]) || 0;
-                const departmentName = fault.department?.name || fault.department_name || 'Üretim';
-                const unitCost = getUnitCost(departmentName);
-                const faultCost = duration * unitCost;
-                const qualityControlCost = qualityDuration * qualityControlUnitCost;
-                const faultQuantity = fault.quantity || 1;
-                const totalFaultCost = (faultCost + qualityControlCost) * faultQuantity;
+                    // calculations state'inden değerleri al (daha güvenilir)
+                    const calc = calculations[fault.id] || {};
+                    const duration = calc.duration || 0;
+                    const qualityDuration = calc.qualityDuration || 0;
+                    const departmentName = calc.departmentName || fault.department?.name || fault.department_name || 'Üretim';
+                    const unitCost = calc.unitCost || getUnitCost(departmentName);
+                    const faultCost = calc.faultCost || (duration * unitCost);
+                    const qualityControlCost = calc.qualityControlCost || (qualityDuration * qualityControlUnitCost);
+                    const faultQuantity = calc.faultQuantity || fault.quantity || 1;
+                    const totalFaultCost = calc.totalFaultCost || ((faultCost + qualityControlCost) * faultQuantity);
 
                 // Sadece bu hatanın açıklamasını oluştur
                 const description = `Final Hataları Maliyeti - Üretilen Araç\n` +
