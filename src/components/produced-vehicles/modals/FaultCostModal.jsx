@@ -164,7 +164,17 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     const qualityDurations = {};
                     
                     existing.forEach(costRecord => {
-                        // Açıklamadan hata açıklamasını eşleştir
+                        // Önce fault_id ile eşleştir (yeni kayıtlar için)
+                        if (costRecord.fault_id) {
+                            const faultMatch = allFaults.find(fault => fault.id === costRecord.fault_id);
+                            if (faultMatch) {
+                                durations[faultMatch.id] = costRecord.rework_duration || '';
+                                qualityDurations[faultMatch.id] = costRecord.quality_control_duration || '';
+                                return;
+                            }
+                        }
+                        
+                        // Fallback: Açıklamadan hata açıklamasını eşleştir (eski kayıtlar için)
                         const description = costRecord.description || '';
                         const faultMatch = allFaults.find(fault => 
                             description.includes(fault.description)
@@ -297,8 +307,11 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     const faultQuantity = calc.faultQuantity || fault.quantity || 1;
                     const totalFaultCost = calc.totalFaultCost || ((faultCost + qualityControlCost) * faultQuantity);
 
-                    // Bu hataya ait mevcut kaydı bul
+                    // Bu hataya ait mevcut kaydı bul (önce fault_id ile, sonra description ile)
                     const existingRecord = existingCostRecords.find(cost => {
+                        // Önce fault_id ile eşleştir
+                        if (cost.fault_id === fault.id) return true;
+                        // Fallback: description ile eşleştir
                         const desc = cost.description || '';
                         return desc.includes(fault.description);
                     });
@@ -332,7 +345,8 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                             quality_control_duration: qualityDuration,
                             quantity: faultQuantity,
                             description: description,
-                            affected_units: affectedUnitsArray.length > 0 ? affectedUnitsArray : null
+                            affected_units: affectedUnitsArray.length > 0 ? affectedUnitsArray : null,
+                            fault_id: fault.id // Hata ID'sini güncelle (eski kayıtlar için)
                         };
 
                         const { error: updateError } = await supabase
@@ -385,7 +399,8 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                             status: 'Aktif',
                             source_type: 'produced_vehicle_final_faults',
                             source_record_id: vehicle?.id,
-                            quality_control_duration: qualityDuration
+                            quality_control_duration: qualityDuration,
+                            fault_id: fault.id // Hata ID'sini kaydet
                         };
 
                         const { data: inserted, error: insertError } = await supabase
@@ -475,7 +490,8 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     status: 'Aktif',
                     source_type: 'produced_vehicle_final_faults',
                     source_record_id: vehicle?.id,
-                    quality_control_duration: qualityDuration
+                    quality_control_duration: qualityDuration,
+                    fault_id: fault.id // Hata ID'sini kaydet
                 };
 
                 costRecords.push(costRecord);
