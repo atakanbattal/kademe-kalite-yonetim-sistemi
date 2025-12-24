@@ -2,7 +2,7 @@ import React from 'react';
 
 import { cn, formatTextInput } from '@/lib/utils';
 
-const Input = React.forwardRef(({ className, type, autoFormat = true, onBlur, onChange, ...props }, ref) => {
+const Input = React.forwardRef(({ className, type, autoFormat = true, onBlur, onChange, onWheel, ...props }, ref) => {
   const handleBlur = (e) => {
     // Sadece text input'lar için formatlama yap (number, date, email, password vb. hariç)
     if (autoFormat && type !== 'number' && type !== 'date' && type !== 'datetime-local' && 
@@ -26,6 +26,16 @@ const Input = React.forwardRef(({ className, type, autoFormat = true, onBlur, on
     }
   };
 
+  // Number input'larda mouse scroll ile değer değişimini engelle
+  const handleWheel = (e) => {
+    if (type === 'number') {
+      e.target.blur();
+    }
+    if (onWheel) {
+      onWheel(e);
+    }
+  };
+
   return (
     <input
       type={type}
@@ -36,6 +46,7 @@ const Input = React.forwardRef(({ className, type, autoFormat = true, onBlur, on
       ref={ref}
       onBlur={handleBlur}
       onChange={onChange}
+      onWheel={handleWheel}
       {...props}
     />
   );
