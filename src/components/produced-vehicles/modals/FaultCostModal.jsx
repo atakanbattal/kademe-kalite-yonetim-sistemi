@@ -19,6 +19,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
     const [existingCostRecords, setExistingCostRecords] = useState([]);
     const [isEditMode, setIsEditMode] = useState(false);
     const [fullVehicleData, setFullVehicleData] = useState(null);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     // Tüm hataları kullan (çözülen ve çözülmemiş)
     const allFaults = useMemo(() => {
@@ -121,57 +122,66 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
         fetchFullVehicleData();
     }, [isOpen, vehicle?.id]);
 
-    // Mevcut maliyet kayıtlarını kontrol et ve formu yükle
+    // Modal kapandığında state'leri sıfırla
     useEffect(() => {
-        if (!isOpen || !vehicle?.id) {
+        if (!isOpen) {
             setFaultDurations({});
             setQualityControlDurations({});
             setExistingCostRecords([]);
             setIsEditMode(false);
-            return;
+            setIsInitialized(false);
         }
+    }, [isOpen]);
 
-        if (isOpen && vehicle?.id && qualityCosts) {
-            const existing = qualityCosts.filter(cost => 
-                cost.source_type === 'produced_vehicle_final_faults' && 
-                cost.source_record_id === vehicle.id
-            );
-            setExistingCostRecords(existing);
-            setIsEditMode(existing.length > 0);
+    // Mevcut maliyet kayıtlarını kontrol et ve formu yükle - SADECE BİR KEZ
+    useEffect(() => {
+        // Zaten initialize edildiyse tekrar çalışma
+        if (isInitialized) return;
+        if (!isOpen || !vehicle?.id || !qualityCosts) return;
+        if (allFaults.length === 0) return;
 
-            // Eğer mevcut kayıtlar varsa, süreleri yükle
-            if (existing.length > 0) {
-                const durations = {};
-                const qualityDurations = {};
+        const existing = qualityCosts.filter(cost => 
+            cost.source_type === 'produced_vehicle_final_faults' && 
+            cost.source_record_id === vehicle.id
+        );
+        setExistingCostRecords(existing);
+        setIsEditMode(existing.length > 0);
+
+        // Eğer mevcut kayıtlar varsa, süreleri yükle
+        if (existing.length > 0) {
+            const durations = {};
+            const qualityDurations = {};
+            
+            existing.forEach(costRecord => {
+                // Açıklamadan hata açıklamasını eşleştir
+                const description = costRecord.description || '';
+                const faultMatch = allFaults.find(fault => 
+                    description.includes(fault.description)
+                );
                 
-                existing.forEach(costRecord => {
-                    // Açıklamadan hata açıklamasını eşleştir
-                    const description = costRecord.description || '';
-                    const faultMatch = allFaults.find(fault => 
-                        description.includes(fault.description)
-                    );
-                    
-                    if (faultMatch) {
-                        durations[faultMatch.id] = costRecord.rework_duration || '';
-                        qualityDurations[faultMatch.id] = costRecord.quality_control_duration || '';
-                    }
-                });
+                if (faultMatch) {
+                    durations[faultMatch.id] = costRecord.rework_duration || '';
+                    qualityDurations[faultMatch.id] = costRecord.quality_control_duration || '';
+                }
+            });
 
-                setFaultDurations(durations);
-                setQualityControlDurations(qualityDurations);
-            } else {
-                // Yeni kayıt modu
-                const initialDurations = {};
-                const initialQualityDurations = {};
-                allFaults.forEach(fault => {
-                    initialDurations[fault.id] = '';
-                    initialQualityDurations[fault.id] = '';
-                });
-                setFaultDurations(initialDurations);
-                setQualityControlDurations(initialQualityDurations);
-            }
+            setFaultDurations(durations);
+            setQualityControlDurations(qualityDurations);
+        } else {
+            // Yeni kayıt modu
+            const initialDurations = {};
+            const initialQualityDurations = {};
+            allFaults.forEach(fault => {
+                initialDurations[fault.id] = '';
+                initialQualityDurations[fault.id] = '';
+            });
+            setFaultDurations(initialDurations);
+            setQualityControlDurations(initialQualityDurations);
         }
-    }, [isOpen, allFaults, vehicle?.id, qualityCosts]);
+        
+        // Artık initialize edildi, tekrar çalışmasın
+        setIsInitialized(true);
+    }, [isOpen, allFaults, vehicle?.id, qualityCosts, isInitialized]);
 
     const handleDurationChange = (faultId, value) => {
         setFaultDurations(prev => ({
