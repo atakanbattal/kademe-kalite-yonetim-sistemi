@@ -344,7 +344,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                         const costRecord = {
                             cost_type: 'Final Hataları Maliyeti',
                             unit: departmentName,
-                            vehicle_type: vehicle?.vehicle_type || null,
+                            vehicle_type: vehicle?.vehicle_type || 'Bilinmeyen',
                             part_code: null,
                             part_name: null,
                             amount: totalFaultCost,
@@ -432,7 +432,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 const costRecord = {
                     cost_type: 'Final Hataları Maliyeti',
                     unit: departmentName,
-                    vehicle_type: vehicle?.vehicle_type || null,
+                    vehicle_type: vehicle?.vehicle_type || 'Bilinmeyen',
                     part_code: null,
                     part_name: null,
                     amount: totalFaultCost,
@@ -617,6 +617,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                                                             step="0.5"
                                                             value={faultDurations[fault.id] || ''}
                                                             onChange={(e) => handleDurationChange(fault.id, e.target.value)}
+                                                            onWheel={(e) => e.target.blur()}
                                                             placeholder="0"
                                                             className="mt-1"
                                                         />
@@ -637,6 +638,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                                                             step="0.5"
                                                             value={qualityControlDurations[fault.id] || ''}
                                                             onChange={(e) => handleQualityControlDurationChange(fault.id, e.target.value)}
+                                                            onWheel={(e) => e.target.blur()}
                                                             placeholder="0"
                                                             className="mt-1"
                                                         />
