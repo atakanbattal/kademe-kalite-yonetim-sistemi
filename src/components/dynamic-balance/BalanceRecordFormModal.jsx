@@ -92,7 +92,7 @@ const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSucc
         }
     }, [isOpen, isEditMode, record]);
 
-    // Ürün seçildiğinde ağırlık ve devir bilgilerini otomatik doldur
+    // Ürün seçildiğinde ağırlık, devir, dengeleme yarıçapı ve kalite sınıfı bilgilerini otomatik doldur
     useEffect(() => {
         if (formData.product_id && formData.product_id !== 'none' && fanProducts && fanProducts.length > 0) {
             const selectedProduct = fanProducts.find(p => p.id === formData.product_id);
@@ -101,6 +101,7 @@ const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSucc
                     ...prev,
                     fan_weight_kg: selectedProduct.fan_weight_kg || prev.fan_weight_kg,
                     operating_rpm: selectedProduct.operating_rpm || prev.operating_rpm,
+                    correction_radius_mm: selectedProduct.correction_radius_mm ? selectedProduct.correction_radius_mm.toString() : prev.correction_radius_mm,
                     balancing_grade: selectedProduct.default_balancing_grade || prev.balancing_grade
                 }));
             }
