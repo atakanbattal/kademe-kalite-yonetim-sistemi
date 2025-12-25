@@ -216,3 +216,51 @@ export function formatLongTextInput(value) {
     if (!value || typeof value !== 'string') return value;
     return normalizeToSentenceCase(value);
 }
+
+/**
+ * ISO 1940-1 standardına göre izin verilen kalan dengesizlik (Uper) değerini hesaplar
+ * Formül: Limit_Gram = (9550 * G * Ağırlık) / (Devir * Yarıçap_mm)
+ * Çift düzlem için: Tek_Duzlem_Limiti = Limit_Gram / 2
+ * 
+ * @param {string} balancingGrade - Kalite sınıfı (örn: 'G2.5', 'G6.3')
+ * @param {number} fanWeightKg - Fan ağırlığı (kg)
+ * @param {number} operatingRpm - Çalışma devri (RPM)
+ * @param {number} correctionRadiusMm - Dengeleme yarıçapı (mm) - Balans macunu/ağırlığının eklendiği mesafe
+ * @returns {number} Her düzlem için izin verilen kalan dengesizlik (gr)
+ */
+export function calculateISO1940_1Uper(balancingGrade, fanWeightKg, operatingRpm, correctionRadiusMm = 180.0) {
+    if (!balancingGrade || !fanWeightKg || !operatingRpm || operatingRpm === 0 || !correctionRadiusMm || correctionRadiusMm <= 0) {
+        return 0;
+    }
+    
+    // Kalite sınıfı değerini çıkar (G2.5 -> 2.5, G6.3 -> 6.3)
+    const gradeValue = parseFloat(balancingGrade.replace('G', ''));
+    
+    if (isNaN(gradeValue) || gradeValue <= 0) {
+        return 0;
+    }
+    
+    // ISO 1940-1 formülü: Limit_Gram = (9550 * G * Ağırlık) / (Devir * Yarıçap_mm)
+    // Toplam izin verilen gram cinsinden dengesizlik
+    const totalLimitGram = (9550.0 * gradeValue * fanWeightKg) / (operatingRpm * correctionRadiusMm);
+    
+    // Çift düzlem için yatak başına limit
+    const perPlaneLimit = totalLimitGram / 2.0;
+    
+    // 3 ondalık basamağa yuvarla
+    return Math.round(perPlaneLimit * 1000) / 1000;
+}
+
+/**
+ * Kalan ağırlık değerinin tolerans sınırları içinde olup olmadığını kontrol eder
+ * 
+ * @param {number} residualWeight - Kalan ağırlık (gr)
+ * @param {number} uperLimit - İzin verilen limit (gr)
+ * @returns {boolean} true ise PASS, false ise FAIL
+ */
+export function checkBalanceResult(residualWeight, uperLimit) {
+    if (residualWeight === null || residualWeight === undefined || uperLimit === null || uperLimit === undefined) {
+        return null;
+    }
+    return residualWeight <= uperLimit;
+}

@@ -29,8 +29,9 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
     import CustomerComplaintsModule from '@/components/CustomerComplaintsModule';
     import PolyvalenceModule from '@/components/PolyvalenceModule';
     import BenchmarkModule from '@/components/benchmark/BenchmarkModule';
-    import ProcessControlModule from '@/components/process-control/ProcessControlModule';
-    import { Menu, X } from 'lucide-react';
+import ProcessControlModule from '@/components/process-control/ProcessControlModule';
+import DynamicBalanceModule from '@/components/dynamic-balance/DynamicBalanceModule';
+import { Menu, X } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { cn } from '@/lib/utils';
     import { AuthProvider, useAuth } from '@/contexts/SupabaseAuthContext';
@@ -85,6 +86,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
       'polyvalence': 'Polivalans Matrisi',
       'benchmark': 'Benchmark Yönetimi',
       'process-control': 'Proses Kontrol Yönetimi',
+      'dynamic-balance': 'Dinamik Balans Kalite Kontrol',
     };
 
     const ALL_MODULES = Object.keys(moduleTitles);
@@ -491,6 +493,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
               case 'polyvalence': return <PolyvalenceModule />;
               case 'benchmark': return <BenchmarkModule />;
               case 'process-control': return <ProcessControlModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
+              case 'dynamic-balance': return <DynamicBalanceModule />;
               default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
           }
       };

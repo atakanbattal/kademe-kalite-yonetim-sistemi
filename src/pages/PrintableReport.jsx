@@ -327,7 +327,8 @@ import React, { useEffect, useState } from 'react';
                         case 'deviation':
                         case 'quarantine':
                         case 'nonconformity':
-                        case 'equipment': {
+                        case 'equipment':
+                        case 'dynamic_balance': {
                             // Check if data is already provided via URL params
                             const urlParams = new URLSearchParams(location.search);
                             const useUrlParamsForThis = urlParams.get('useUrlParams') === 'true';
@@ -343,6 +344,7 @@ import React, { useEffect, useState } from 'react';
                                 quarantine: 'quarantine_records',
                                 nonconformity: 'non_conformities',
                                 equipment: 'equipments',
+                                dynamic_balance: 'fan_balance_records',
                             };
                             const tableName = tableNameMap[type];
                             if (!tableName) throw new Error(`Geçersiz rapor türü: ${type}`);

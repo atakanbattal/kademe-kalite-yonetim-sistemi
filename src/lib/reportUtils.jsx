@@ -193,6 +193,8 @@ const getReportTitle = (record, type) => {
 			return `Stok Risk Kontrol Raporu - ${record.control_number || 'Bilinmiyor'}`;
 		case 'polyvalence_matrix':
 			return 'Polivalans Matrisi Raporu';
+		case 'dynamic_balance':
+			return `Dinamik Balans Raporu - ${record.serial_number || 'Bilinmiyor'}`;
 		default:
 			return 'Detaylı Rapor';
 	}
@@ -214,6 +216,7 @@ const getFormNumber = (type) => {
 		certificate: 'FR-EGT-001',
 		exam_paper: 'FR-EGT-002',
 		polyvalence_matrix: 'FR-EGT-003',
+		dynamic_balance: 'FR-KAL-031',
 	};
 	return formNumbers[type] || 'FR-GEN-000';
 };
@@ -353,6 +356,189 @@ const generateExamPaperHtml = (record) => {
 	`;
 };
 
+
+const generateDynamicBalanceReportHtml = (record) => {
+	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy', { locale: tr }) : '-';
+	const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm', { locale: tr }) : '-';
+	
+	const getResultBadge = (result) => {
+		if (result === 'PASS') {
+			return '<span style="background: #10b981; color: white; padding: 6px 16px; border-radius: 6px; font-weight: 700; font-size: 13px; display: inline-block;">✓ PASS</span>';
+		} else if (result === 'FAIL') {
+			return '<span style="background: #ef4444; color: white; padding: 6px 16px; border-radius: 6px; font-weight: 700; font-size: 13px; display: inline-block;">✗ FAIL</span>';
+		}
+		return '<span style="background: #6b7280; color: white; padding: 6px 16px; border-radius: 6px; font-size: 13px; display: inline-block;">-</span>';
+	};
+
+	return `
+		<div class="report-header">
+			<div class="report-logo">
+				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+			</div>
+			<div class="company-title">
+				<h1>KADEME A.Ş.</h1>
+				<p>Kalite Yönetim Sistemi</p>
+			</div>
+			<div class="print-info">
+				Rapor Tarihi: ${formatDateTime(new Date())}
+			</div>
+		</div>
+
+		<div class="meta-box">
+			<div class="meta-item"><strong>Belge Türü:</strong> Dinamik Balans Kalite Kontrol Raporu</div>
+			<div class="meta-item"><strong>Standard:</strong> ISO 1940-1</div>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">1. TEMEL BİLGİLER</h2>
+			<table class="info-table">
+				<tbody>
+					<tr>
+						<td style="width: 30%; font-weight: 600; background-color: #f8fafc;">Fan Seri Numarası / Serial Number:</td>
+						<td style="width: 70%;">${record.serial_number || '-'}</td>
+					</tr>
+					<tr>
+						<td style="font-weight: 600; background-color: #f8fafc;">Test Tarihi / Test Date:</td>
+						<td>${formatDate(record.test_date)}</td>
+					</tr>
+					<tr>
+						<td style="font-weight: 600; background-color: #f8fafc;">Tedarikçi / Supplier:</td>
+						<td>${record.supplier_name || '-'}</td>
+					</tr>
+					<tr>
+						<td style="font-weight: 600; background-color: #f8fafc;">Test Operatörü / Test Operator:</td>
+						<td>${record.test_operator || '-'}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">2. PARAMETRELER / PARAMETERS</h2>
+			<table class="info-table">
+				<tbody>
+					<tr>
+						<td style="width: 30%; font-weight: 600; background-color: #f8fafc;">Fan Ağırlığı / Fan Weight:</td>
+						<td style="width: 35%;">${record.fan_weight_kg ? record.fan_weight_kg.toFixed(3) : '-'} kg</td>
+						<td style="width: 35%; font-weight: 600; background-color: #f8fafc;">Çalışma Devri / Operating RPM:</td>
+						<td>${record.operating_rpm || '-'} RPM</td>
+					</tr>
+					<tr>
+						<td style="font-weight: 600; background-color: #f8fafc;">Kalite Sınıfı / Quality Grade:</td>
+						<td><strong>${record.balancing_grade || '-'}</strong></td>
+						<td style="font-weight: 600; background-color: #f8fafc;">İzin Verilen Limit (Uper) / Allowed Limit:</td>
+						<td><strong>${record.calculated_uper_per_plane ? record.calculated_uper_per_plane.toFixed(3) : '-'} gr</strong></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">3. İLK DURUM ÖLÇÜMLERİ / INITIAL MEASUREMENTS (Düzeltme Öncesi / Before Correction)</h2>
+			<table class="info-table" style="margin-top: 0;">
+				<thead>
+					<tr style="background-color: #1e40af; color: white;">
+						<th style="width: 25%; padding: 12px; text-align: left; font-weight: 700;">Düzlem / Plane</th>
+						<th style="width: 25%; padding: 12px; text-align: center; font-weight: 700;">Ağırlık / Weight (gr)</th>
+						<th style="width: 25%; padding: 12px; text-align: center; font-weight: 700;">Açı / Angle (°)</th>
+						<th style="width: 25%; padding: 12px; text-align: center; font-weight: 700;">Açıklama / Description</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="padding: 12px; font-weight: 600; background-color: #f8fafc;">
+							LINKS<br>
+							<span style="font-size: 11px; color: #64748b; font-weight: 400;">Sol Düzlem / Left Plane / 1. Yatak</span>
+						</td>
+						<td style="padding: 12px; text-align: center;">${record.initial_left_weight_gr ? record.initial_left_weight_gr.toFixed(3) : '-'}</td>
+						<td style="padding: 12px; text-align: center;">${record.initial_left_angle_deg ? record.initial_left_angle_deg.toFixed(2) : '-'}</td>
+						<td style="padding: 12px; text-align: center; font-size: 11px; color: #64748b;">Initial / İlk Durum</td>
+					</tr>
+					<tr>
+						<td style="padding: 12px; font-weight: 600; background-color: #f8fafc;">
+							RECHTS<br>
+							<span style="font-size: 11px; color: #64748b; font-weight: 400;">Sağ Düzlem / Right Plane / 2. Yatak</span>
+						</td>
+						<td style="padding: 12px; text-align: center;">${record.initial_right_weight_gr ? record.initial_right_weight_gr.toFixed(3) : '-'}</td>
+						<td style="padding: 12px; text-align: center;">${record.initial_right_angle_deg ? record.initial_right_angle_deg.toFixed(2) : '-'}</td>
+						<td style="padding: 12px; text-align: center; font-size: 11px; color: #64748b;">Initial / İlk Durum</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">4. KALAN DURUM ÖLÇÜMLERİ / RESIDUAL MEASUREMENTS (Düzeltme Sonrası / After Correction)</h2>
+			<table class="info-table" style="margin-top: 0;">
+				<thead>
+					<tr style="background-color: #1e40af; color: white;">
+						<th style="width: 25%; padding: 12px; text-align: left; font-weight: 700;">Düzlem / Plane</th>
+						<th style="width: 20%; padding: 12px; text-align: center; font-weight: 700;">Kalan Ağırlık / Residual Weight (gr)</th>
+						<th style="width: 15%; padding: 12px; text-align: center; font-weight: 700;">Açı / Angle (°)</th>
+						<th style="width: 20%; padding: 12px; text-align: center; font-weight: 700;">Limit / Limit (gr)</th>
+						<th style="width: 20%; padding: 12px; text-align: center; font-weight: 700;">Sonuç / Result</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td style="padding: 12px; font-weight: 600; background-color: #f8fafc;">
+							LINKS<br>
+							<span style="font-size: 11px; color: #64748b; font-weight: 400;">Sol Düzlem / Left Plane / 1. Yatak</span>
+						</td>
+						<td style="padding: 12px; text-align: center; font-weight: 600;">${record.residual_left_weight_gr ? record.residual_left_weight_gr.toFixed(3) : '-'}</td>
+						<td style="padding: 12px; text-align: center;">${record.residual_left_angle_deg ? record.residual_left_angle_deg.toFixed(2) : '-'}</td>
+						<td style="padding: 12px; text-align: center; color: #64748b;">${record.calculated_uper_per_plane ? record.calculated_uper_per_plane.toFixed(3) : '-'}</td>
+						<td style="padding: 12px; text-align: center;">${record.left_plane_result ? getResultBadge(record.left_plane_result) : '-'}</td>
+					</tr>
+					<tr>
+						<td style="padding: 12px; font-weight: 600; background-color: #f8fafc;">
+							RECHTS<br>
+							<span style="font-size: 11px; color: #64748b; font-weight: 400;">Sağ Düzlem / Right Plane / 2. Yatak</span>
+						</td>
+						<td style="padding: 12px; text-align: center; font-weight: 600;">${record.residual_right_weight_gr ? record.residual_right_weight_gr.toFixed(3) : '-'}</td>
+						<td style="padding: 12px; text-align: center;">${record.residual_right_angle_deg ? record.residual_right_angle_deg.toFixed(2) : '-'}</td>
+						<td style="padding: 12px; text-align: center; color: #64748b;">${record.calculated_uper_per_plane ? record.calculated_uper_per_plane.toFixed(3) : '-'}</td>
+						<td style="padding: 12px; text-align: center;">${record.right_plane_result ? getResultBadge(record.right_plane_result) : '-'}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">5. GENEL SONUÇ / OVERALL RESULT</h2>
+			<table class="info-table">
+				<tbody>
+					<tr>
+						<td style="width: 30%; font-weight: 600; background-color: #f8fafc; padding: 16px;">Genel Sonuç / Overall Result:</td>
+						<td style="width: 70%; padding: 16px; text-align: center;">
+							${record.overall_result ? getResultBadge(record.overall_result) : '-'}
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		${record.notes ? `
+		<div class="section">
+			<h2 class="section-title blue">6. NOTLAR / NOTES</h2>
+			<div class="problem-description" style="padding: 16px; background-color: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+				${record.notes}
+			</div>
+		</div>
+		` : ''}
+
+		<div class="section signature-section">
+			<h2 class="section-title dark">İMZA VE ONAY / SIGNATURE AND APPROVAL</h2>
+			<div class="signature-area">
+				<div class="signature-box">
+					<p class="role">HAZIRLAYAN / PREPARED BY</p>
+					<div class="signature-line"></div>
+					<p class="name">Atakan BATTAL</p>
+				</div>
+			</div>
+		</div>
+	`;
+};
 
 const generateWPSReportHtml = (record) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
@@ -3481,6 +3667,8 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateCertificateReportHtml(record);
 	} else if (type === 'exam_paper') {
 		reportContentHtml = generateExamPaperHtml(record);
+	} else if (type === 'dynamic_balance') {
+		reportContentHtml = generateDynamicBalanceReportHtml(record);
 	} else if (type === 'polyvalence_matrix') {
 		reportContentHtml = generatePolyvalenceMatrixHtml(record);
 		// Override page style for landscape
