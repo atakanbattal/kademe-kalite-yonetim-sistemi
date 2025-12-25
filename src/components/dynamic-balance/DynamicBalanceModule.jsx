@@ -25,10 +25,10 @@ const DynamicBalanceModule = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            // Balans kayıtlarını çek
+            // Balans kayıtlarını çek (ürün bilgisi ile birlikte)
             const { data: recordsData, error: recordsError } = await supabase
                 .from('fan_balance_records')
-                .select('*')
+                .select('*, fan_products(product_code, product_name)')
                 .order('test_date', { ascending: false });
 
             if (recordsError) throw recordsError;

@@ -47,7 +47,9 @@ const BalanceRecordsList = ({ records, loading, onEdit, onDelete, onDownloadPDF 
             record.serial_number?.toLowerCase().includes(term) ||
             record.supplier_name?.toLowerCase().includes(term) ||
             record.test_operator?.toLowerCase().includes(term) ||
-            record.overall_result?.toLowerCase().includes(term)
+            record.overall_result?.toLowerCase().includes(term) ||
+            record.fan_products?.product_code?.toLowerCase().includes(term) ||
+            record.fan_products?.product_name?.toLowerCase().includes(term)
         );
     });
 
@@ -104,7 +106,7 @@ const BalanceRecordsList = ({ records, loading, onEdit, onDelete, onDownloadPDF 
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                        placeholder="Seri no, tedarikçi, operatör veya sonuç ile ara..."
+                        placeholder="Seri no, ürün, tedarikçi, operatör veya sonuç ile ara..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-9"
@@ -118,6 +120,7 @@ const BalanceRecordsList = ({ records, loading, onEdit, onDelete, onDownloadPDF 
                     <thead>
                         <tr>
                             <th>Seri No</th>
+                            <th>Ürün Tanımı</th>
                             <th>Test Tarihi</th>
                             <th>Tedarikçi</th>
                             <th>Ağırlık (kg)</th>
@@ -132,7 +135,7 @@ const BalanceRecordsList = ({ records, loading, onEdit, onDelete, onDownloadPDF 
                     <tbody>
                         {filteredRecords.length === 0 ? (
                             <tr>
-                                <td colSpan="10" className="text-center py-10 text-muted-foreground">
+                                <td colSpan="11" className="text-center py-10 text-muted-foreground">
                                     Arama kriterlerine uygun kayıt bulunamadı.
                                 </td>
                             </tr>
@@ -146,6 +149,15 @@ const BalanceRecordsList = ({ records, loading, onEdit, onDelete, onDownloadPDF 
                                     className="hover:bg-secondary/50"
                                 >
                                     <td className="font-medium">{record.serial_number}</td>
+                                    <td>
+                                        {record.fan_products ? (
+                                            <span className="text-sm">
+                                                {record.fan_products.product_code} - {record.fan_products.product_name}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </td>
                                     <td>
                                         {record.test_date
                                             ? format(new Date(record.test_date), 'dd.MM.yyyy', { locale: tr })

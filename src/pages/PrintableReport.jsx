@@ -357,6 +357,8 @@ import React, { useEffect, useState } from 'react';
                             } else if (type === 'nonconformity') {
                                 // Nonconformity için tüm alanları dahil et (attachments ve closing_attachments JSONB olarak tabloda)
                                 selectQuery = '*';
+                            } else if (type === 'dynamic_balance') {
+                                selectQuery = '*, fan_products(product_code, product_name)';
                             }
                             
                             const { data: queryData, error: queryError2 } = await supabase

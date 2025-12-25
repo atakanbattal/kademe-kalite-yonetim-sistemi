@@ -384,19 +384,25 @@ const generateDynamicBalanceReportHtml = (record) => {
 			</div>
 		</div>
 
-		<div class="meta-box">
+		<div class="meta-box" style="display: flex; justify-content: space-between; align-items: center;">
 			<div class="meta-item"><strong>Belge Türü:</strong> Dinamik Balans Kalite Kontrol Raporu</div>
-			<div class="meta-item"><strong>Standard:</strong> ISO 1940-1</div>
+			<div class="meta-item" style="margin-left: auto; text-align: right;"><strong>Standard:</strong> ISO 1940-1</div>
 		</div>
 
 		<div class="section">
-			<h2 class="section-title blue">1. TEMEL BİLGİLER</h2>
+			<h2 class="section-title blue">1. TEMEL BİLGİLER / BASIC INFORMATION</h2>
 			<table class="info-table">
 				<tbody>
 					<tr>
 						<td style="width: 30%; font-weight: 600; background-color: #f8fafc;">Fan Seri Numarası / Serial Number:</td>
 						<td style="width: 70%;">${record.serial_number || '-'}</td>
 					</tr>
+					${record.fan_products ? `
+					<tr>
+						<td style="font-weight: 600; background-color: #f8fafc;">Ürün Tanımı / Product Definition:</td>
+						<td>${record.fan_products.product_code || '-'} - ${record.fan_products.product_name || '-'}</td>
+					</tr>
+					` : ''}
 					<tr>
 						<td style="font-weight: 600; background-color: #f8fafc;">Test Tarihi / Test Date:</td>
 						<td>${formatDate(record.test_date)}</td>
