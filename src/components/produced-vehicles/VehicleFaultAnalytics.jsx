@@ -129,6 +129,7 @@ const DurationTooltip = ({ active, payload, label }) => {
                 const [faultsResult, vehiclesResult, departmentsResult, timelineResult] = await Promise.all([faultsPromise, vehiclesPromise, departmentsPromise, timelinePromise]);
 
                 if (faultsResult.error) throw faultsResult.error;
+                console.log('🔍 VehicleFaultAnalytics - Toplam hata kaydı:', faultsResult.data?.length);
                 setFaults(faultsResult.data || []);
 
                 if (vehiclesResult.error) throw vehiclesResult.error;
@@ -242,6 +243,8 @@ const DurationTooltip = ({ active, payload, label }) => {
                 });
             }
 
+            console.log('🔍 analyticsData - currentFaults sayısı:', currentFaults.length);
+            
             currentFaults.forEach(fault => {
                 // quantity değerini sayıya çevir - string formatındaki binlik ayırıcıları temizle
                 let quantity = fault.quantity;
@@ -349,6 +352,8 @@ const DurationTooltip = ({ active, payload, label }) => {
                 "Araç Başına Hata Ort.": totalVehiclesInPeriod > 0 ? parseFloat((stats.totalFaults / totalVehiclesInPeriod).toFixed(2)) : 0,
             })).filter(dept => dept["Toplam Hata"] > 0).sort((a, b) => b["Toplam Hata"] - a["Toplam Hata"]);
 
+            console.log('🔍 analyticsData - Hesaplanan totalFaults:', totalFaults);
+            
             return {
                 byDepartment: departmentChartData,
                 byDepartmentTotalFaults: processChartData(departmentTotalFaultsSimple, 10),
