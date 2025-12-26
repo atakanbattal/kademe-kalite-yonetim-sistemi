@@ -271,7 +271,15 @@ export default function QualityAdvisor() {
                 p_user_id: user.id
             });
 
-            if (error) throw error;
+            if (error) {
+                // Ağ hatası veya fonksiyon bulunamadı durumunda sessizce başarısız ol
+                if (error.code === 'P0001' || error.message?.includes('function') || error.message?.includes('network')) {
+                    console.warn('Quality Advisor analizi şu anda kullanılamıyor:', error.message);
+                    setAnalysis(null);
+                    return;
+                }
+                throw error;
+            }
             
             setAnalysis(data);
             if (showToast) {
@@ -281,8 +289,11 @@ export default function QualityAdvisor() {
                 });
             }
         } catch (error) {
-            console.error('Analiz hatası:', error);
-            if (showToast) {
+            // Kritik olmayan hataları sessizce yakala
+            console.warn('Analiz hatası (sessizce yakalandı):', error);
+            setAnalysis(null);
+            // Sadece kullanıcı açıkça tetiklediyse toast göster
+            if (showToast && error.message && !error.message.includes('network') && !error.message.includes('function')) {
                 toast({
                     title: 'Analiz yapılamadı',
                     description: error.message,

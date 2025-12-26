@@ -9,6 +9,7 @@ import { Brain, Search, AlertTriangle, TrendingUp } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import { normalizeTurkishForSearch } from '@/lib/utils';
 
 const AIRootCausePrediction = () => {
     const { nonConformities, productionDepartments, producedVehicles, loading } = useData();
@@ -103,7 +104,13 @@ const AIRootCausePrediction = () => {
             const filteredNCs = (nonConformities || []).filter(nc => {
                 if (nc.status === 'Kapatıldı') return false;
                 if (partCode && nc.part_code !== partCode) return false;
-                if (finalDepartment && (nc.requesting_unit || nc.department) !== finalDepartment) return false;
+                if (finalDepartment) {
+                    const ncDept = nc.requesting_unit || nc.department;
+                    if (!ncDept) return false;
+                    const normalizedNcDept = normalizeTurkishForSearch(String(ncDept).trim().toLowerCase());
+                    const normalizedFinalDept = normalizeTurkishForSearch(finalDepartment.trim().toLowerCase());
+                    if (normalizedNcDept !== normalizedFinalDept) return false;
+                }
                 if (finalVehicleType && nc.vehicle_type !== finalVehicleType) return false;
                 return true;
             });

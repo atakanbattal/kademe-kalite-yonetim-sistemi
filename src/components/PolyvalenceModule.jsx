@@ -14,6 +14,7 @@ import {
     Award, Target, BookOpen, Clock
 } from 'lucide-react';
 import { generatePrintableReportHtml } from '@/lib/reportUtils';
+import { normalizeTurkishForSearch } from '@/lib/utils';
 import PolyvalenceMatrix from './polyvalence/PolyvalenceMatrix';
 import PolyvalenceAnalytics from './polyvalence/PolyvalenceAnalytics';
 import SkillManagement from './polyvalence/SkillManagement';
@@ -151,9 +152,12 @@ const PolyvalenceModule = () => {
     // Filtered categories - departman bazlı
     const filteredCategories = useMemo(() => {
         if (selectedDepartment === 'all') return skillCategories;
-        return skillCategories.filter(cat => 
-            !cat.department || cat.department === selectedDepartment
-        );
+        return skillCategories.filter(cat => {
+            if (!cat.department) return true;
+            const normalizedCatDept = normalizeTurkishForSearch(String(cat.department).trim().toLowerCase());
+            const normalizedSelectedDept = normalizeTurkishForSearch(selectedDepartment.trim().toLowerCase());
+            return normalizedCatDept === normalizedSelectedDept;
+        });
     }, [skillCategories, selectedDepartment]);
 
     // Filtered personnel
@@ -161,7 +165,17 @@ const PolyvalenceModule = () => {
         return personnel.filter(p => {
             const matchesSearch = p.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                  p.department?.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesDept = selectedDepartment === 'all' || p.department === selectedDepartment;
+            
+            let matchesDept = true;
+            if (selectedDepartment !== 'all') {
+                if (!p.department) {
+                    matchesDept = false;
+                } else {
+                    const normalizedPersonnelDept = normalizeTurkishForSearch(String(p.department).trim().toLowerCase());
+                    const normalizedSelectedDept = normalizeTurkishForSearch(selectedDepartment.trim().toLowerCase());
+                    matchesDept = normalizedPersonnelDept === normalizedSelectedDept;
+                }
+            }
             return matchesSearch && matchesDept;
         });
     }, [personnel, searchTerm, selectedDepartment]);
@@ -177,9 +191,12 @@ const PolyvalenceModule = () => {
         
         // Departman filtresi - seçili departman varsa
         if (selectedDepartment !== 'all') {
-            result = result.filter(s => 
-                !s.department || s.department === selectedDepartment
-            );
+            result = result.filter(s => {
+                if (!s.department) return true;
+                const normalizedSkillDept = normalizeTurkishForSearch(String(s.department).trim().toLowerCase());
+                const normalizedSelectedDept = normalizeTurkishForSearch(selectedDepartment.trim().toLowerCase());
+                return normalizedSkillDept === normalizedSelectedDept;
+            });
         }
         
         return result;

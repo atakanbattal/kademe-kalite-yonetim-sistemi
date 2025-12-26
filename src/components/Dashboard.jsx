@@ -10,7 +10,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
     import { Skeleton } from '@/components/ui/skeleton';
     import { Button } from '@/components/ui/button';
-    import { cn } from '@/lib/utils';
+    import { cn, normalizeTurkishForSearch } from '@/lib/utils';
     import useDashboardData from '@/hooks/useDashboardData';
     import { useData } from '@/contexts/DataContext';
     import DashboardDetailModal, { renderNCItem, renderCostItem } from '@/components/dashboard/DashboardDetailModal';
@@ -529,9 +529,13 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                 <motion.div variants={itemVariants}>
                     <ErrorBoundary componentName="Kök Neden Isı Haritası">
                         <RootCauseHeatmap onDeptClick={(deptName) => {
-                            const deptNCs = (nonConformities || []).filter(nc => 
-                                (nc.requesting_unit || nc.department) === deptName
-                            );
+                            const normalizedDeptName = normalizeTurkishForSearch(deptName.trim().toLowerCase());
+                            const deptNCs = (nonConformities || []).filter(nc => {
+                                const ncDept = nc.requesting_unit || nc.department;
+                                if (!ncDept) return false;
+                                const normalizedNcDept = normalizeTurkishForSearch(String(ncDept).trim().toLowerCase());
+                                return normalizedNcDept === normalizedDeptName;
+                            });
                             setDetailModalData({
                                 isOpen: true,
                                 title: `${deptName} - Uygunsuzluk Detayları`,

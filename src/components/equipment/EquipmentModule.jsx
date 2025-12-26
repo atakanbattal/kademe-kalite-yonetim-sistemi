@@ -13,6 +13,7 @@ import EquipmentFormModal from '@/components/equipment/EquipmentFormModal';
 import EquipmentDetailModal from '@/components/equipment/EquipmentDetailModal';
 import EquipmentFilters from '@/components/equipment/EquipmentFilters';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { normalizeTurkishForSearch } from '@/lib/utils';
 
 const EquipmentModule = ({ onOpenPdfViewer }) => {
     const { toast } = useToast();
@@ -177,12 +178,14 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
             });
         }
 
-        // Sorumlu birim filtresi
+        // Sorumlu birim filtresi - normalize edilmiş karşılaştırma
         if (filters.responsibleUnit) {
-            const unitLower = filters.responsibleUnit.toLowerCase();
-            filtered = filtered.filter(eq => 
-                eq.responsible_unit?.toLowerCase().includes(unitLower)
-            );
+            const normalizedFilterUnit = normalizeTurkishForSearch(filters.responsibleUnit.trim().toLowerCase());
+            filtered = filtered.filter(eq => {
+                if (!eq.responsible_unit) return false;
+                const normalizedRecordUnit = normalizeTurkishForSearch(String(eq.responsible_unit).trim().toLowerCase());
+                return normalizedRecordUnit.includes(normalizedFilterUnit);
+            });
         }
 
         // Konum filtresi

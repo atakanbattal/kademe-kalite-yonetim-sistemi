@@ -65,7 +65,18 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     }
 
                 const matchesType = filters.type === 'all' || record.type === filters.type;
-                const matchesDepartment = filters.department === 'all' || record.department === filters.department;
+                
+                // Departman filtresi: normalize edilmiş karşılaştırma (büyük/küçük harf ve boşluk duyarsız)
+                let matchesDepartment = true;
+                if (filters.department && filters.department !== 'all') {
+                    if (!record.department) {
+                        matchesDepartment = false;
+                    } else {
+                        const normalizedFilterDept = normalizeTurkishForSearch(filters.department.trim().toLowerCase());
+                        const normalizedRecordDept = normalizeTurkishForSearch(String(record.department).trim().toLowerCase());
+                        matchesDepartment = normalizedFilterDept === normalizedRecordDept;
+                    }
+                }
 
                 return matchesStatus && matchesType && matchesDepartment;
                 });
@@ -145,7 +156,18 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 }
 
                 const matchesType = filters.type === 'all' || record.type === filters.type;
-                const matchesDepartment = filters.department === 'all' || record.department === filters.department;
+                
+                // Departman filtresi: normalize edilmiş karşılaştırma (büyük/küçük harf ve boşluk duyarsız)
+                let matchesDepartment = true;
+                if (filters.department && filters.department !== 'all') {
+                    if (!record.department) {
+                        matchesDepartment = false;
+                    } else {
+                        const normalizedFilterDept = normalizeTurkishForSearch(filters.department.trim().toLowerCase());
+                        const normalizedRecordDept = normalizeTurkishForSearch(String(record.department).trim().toLowerCase());
+                        matchesDepartment = normalizedFilterDept === normalizedRecordDept;
+                    }
+                }
 
                 return matchesSearch && matchesStatus && matchesType && matchesDepartment;
             });

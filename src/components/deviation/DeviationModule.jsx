@@ -50,7 +50,19 @@ const DeviationModule = ({ onOpenNCForm }) => {
                 (d.justification && normalizeTurkishForSearch(d.justification).includes(normalizedSearchTerm));
 
             const matchesStatus = filters.status === 'all' || d.status === filters.status;
-            const matchesUnit = filters.requestingUnit === 'all' || d.requesting_unit === filters.requestingUnit;
+            
+            // Birim filtresi: normalize edilmiş karşılaştırma
+            let matchesUnit = true;
+            if (filters.requestingUnit && filters.requestingUnit !== 'all') {
+                if (!d.requesting_unit) {
+                    matchesUnit = false;
+                } else {
+                    const normalizedFilterUnit = normalizeTurkishForSearch(filters.requestingUnit.trim().toLowerCase());
+                    const normalizedRecordUnit = normalizeTurkishForSearch(String(d.requesting_unit).trim().toLowerCase());
+                    matchesUnit = normalizedFilterUnit === normalizedRecordUnit;
+                }
+            }
+            
             const matchesSource = filters.source === 'all' || d.source === filters.source;
 
             let matchesDate = true;
