@@ -178,6 +178,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                     .from('quality_inspection_faults')
                     .select('*, department:production_departments(name), category:fault_categories(name)')
                     .in('inspection_id', vehicleIds)
+                    .range(0, 49999)
             ]);
 
             if (timelineData.error) throw timelineData.error;
