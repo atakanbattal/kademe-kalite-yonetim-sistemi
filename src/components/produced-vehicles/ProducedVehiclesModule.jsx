@@ -283,7 +283,7 @@ import React, { useState, useMemo, useEffect } from 'react';
                         </motion.div>
                     </TabsContent>
                     <TabsContent value="analytics" className="mt-6">
-                        <VehicleFaultAnalytics />
+                        <VehicleFaultAnalytics refreshTrigger={refreshProducedVehicles} />
                     </TabsContent>
                     <TabsContent value="quality" className="mt-6">
                         <VehicleQualityAnalytics />

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, CartesianGrid, LineChart, Line } from 'recharts';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
+    import { useData } from '@/contexts/DataContext';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Skeleton } from '@/components/ui/skeleton';
@@ -104,8 +105,9 @@ const DurationTooltip = ({ active, payload, label }) => {
         </Card>
     );
 
-    const VehicleFaultAnalytics = () => {
+    const VehicleFaultAnalytics = ({ refreshTrigger }) => {
         const { toast } = useToast();
+        const { producedVehicles } = useData();
         const [faults, setFaults] = useState([]);
         const [vehicles, setVehicles] = useState([]);
         const [timelineEvents, setTimelineEvents] = useState([]);
@@ -126,16 +128,16 @@ const DurationTooltip = ({ active, payload, label }) => {
                 const [faultsResult, vehiclesResult, departmentsResult, timelineResult] = await Promise.all([faultsPromise, vehiclesPromise, departmentsPromise, timelinePromise]);
 
                 if (faultsResult.error) throw faultsResult.error;
-                setFaults(faultsResult.data);
+                setFaults(faultsResult.data || []);
 
                 if (vehiclesResult.error) throw vehiclesResult.error;
-                setVehicles(vehiclesResult.data);
+                setVehicles(vehiclesResult.data || []);
 
                 if (departmentsResult.error) throw departmentsResult.error;
-                setAllDepartments(departmentsResult.data);
+                setAllDepartments(departmentsResult.data || []);
 
                 if (timelineResult.error) throw timelineResult.error;
-                setTimelineEvents(timelineResult.data);
+                setTimelineEvents(timelineResult.data || []);
 
             } catch (error) {
                 toast({ variant: "destructive", title: "Hata", description: "Analiz verileri alınamadı: " + error.message });
@@ -148,6 +150,13 @@ const DurationTooltip = ({ active, payload, label }) => {
             fetchAnalyticsData();
         }, [fetchAnalyticsData]);
 
+        // producedVehicles veya refreshTrigger değiştiğinde verileri yenile
+        useEffect(() => {
+            if (refreshTrigger || producedVehicles) {
+                fetchAnalyticsData();
+            }
+        }, [refreshTrigger, producedVehicles?.length, fetchAnalyticsData]);
+
         const filteredData = useMemo(() => {
             if (period === 'all') {
                 return { faults, vehicles, timelineEvents };
@@ -157,8 +166,12 @@ const DurationTooltip = ({ active, payload, label }) => {
             const endDate = new Date(year, month, 1);
 
             const periodFaults = faults.filter(f => {
-                const faultDate = parseISO(f.fault_date);
-                return isValid(faultDate) && faultDate >= startDate && faultDate < endDate;
+                // fault_date yoksa created_at kullan veya tüm zamanlar için dahil et
+                const dateToCheck = f.fault_date || f.created_at;
+                if (!dateToCheck) return true; // Tarih yoksa dahil et
+                const faultDate = parseISO(dateToCheck);
+                if (!isValid(faultDate)) return true; // Geçersiz tarihse dahil et
+                return faultDate >= startDate && faultDate < endDate;
             });
             const periodVehicles = vehicles.filter(v => {
                 const vehicleDate = parseISO(v.created_at);
@@ -255,10 +268,30 @@ const DurationTooltip = ({ active, payload, label }) => {
                 const vehicleType = fault.inspection?.vehicle_type || 'Bilinmeyen';
                 vehicleTypeData[vehicleType] = (vehicleTypeData[vehicleType] || 0) + quantity;
 
-                const faultDate = parseISO(fault.fault_date);
-                if (isValid(faultDate)) {
-                    const monthKey = format(faultDate, 'yyyy-MM');
-                    if (monthlyData[monthKey]) monthlyData[monthKey].faultCount += quantity;
+                // fault_date yoksa created_at kullan
+                const dateToCheck = fault.fault_date || fault.created_at;
+                if (dateToCheck) {
+                    const faultDate = parseISO(dateToCheck);
+                    if (isValid(faultDate)) {
+                        const monthKey = format(faultDate, 'yyyy-MM');
+                        if (monthlyData[monthKey]) {
+                            monthlyData[monthKey].faultCount += quantity;
+                        } else {
+                            // Eğer ay verisi yoksa, bugünün ayına ekle
+                            const today = new Date();
+                            const todayMonthKey = format(today, 'yyyy-MM');
+                            if (!monthlyData[todayMonthKey]) {
+                                monthlyData[todayMonthKey] = { 
+                                    name: format(today, 'MMM yy', { locale: tr }), 
+                                    faultCount: 0, 
+                                    vehicleCount: 0, 
+                                    timelineEvents: [], 
+                                    sortKey: startOfMonth(today) 
+                                };
+                            }
+                            monthlyData[todayMonthKey].faultCount += quantity;
+                        }
+                    }
                 }
             });
 
