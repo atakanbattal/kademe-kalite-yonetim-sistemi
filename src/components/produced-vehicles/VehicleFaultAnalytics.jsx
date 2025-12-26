@@ -55,14 +55,31 @@ const DurationTooltip = ({ active, payload, label }) => {
     // Sayı formatlama fonksiyonu - tüm sayıları doğru gösterir
     const formatNumber = (value) => {
         if (value === null || value === undefined || value === '') return '0';
+        
+        // Yüzde değerleri için
         if (typeof value === 'string' && value.startsWith('%')) {
-            // Yüzde değerleri için
             return value;
         }
-        const numValue = typeof value === 'number' ? value : parseFloat(value);
-        if (isNaN(numValue)) return String(value);
-        // Büyük sayılar için binlik ayırıcı kullan
-        return numValue.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+        
+        // Eğer zaten number ise direkt kullan
+        if (typeof value === 'number') {
+            if (isNaN(value) || !isFinite(value)) return '0';
+            // Büyük sayılar için binlik ayırıcı kullan (ondalık kısım yok)
+            return value.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+        }
+        
+        // String ise parse et
+        // Türkçe formatındaki binlik ayırıcıları temizle (1.000 -> 1000)
+        const cleanValue = String(value).replace(/\./g, '').replace(',', '.');
+        const numValue = parseFloat(cleanValue);
+        
+        if (isNaN(numValue) || !isFinite(numValue)) {
+            // Parse edilemezse orijinal değeri döndür
+            return String(value);
+        }
+        
+        // Büyük sayılar için binlik ayırıcı kullan (ondalık kısım yok)
+        return numValue.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
     };
 
     const StatCard = ({ title, value, icon, description, loading }) => (
@@ -212,7 +229,16 @@ const DurationTooltip = ({ active, payload, label }) => {
             }
 
             currentFaults.forEach(fault => {
-                const quantity = fault.quantity || 1;
+                // quantity değerini sayıya çevir - string formatındaki binlik ayırıcıları temizle
+                let quantity = fault.quantity;
+                if (quantity === null || quantity === undefined || quantity === '') {
+                    quantity = 1;
+                } else if (typeof quantity === 'string') {
+                    // Türkçe formatındaki binlik ayırıcıları temizle (1.000 -> 1000)
+                    quantity = parseFloat(quantity.replace(/\./g, '').replace(',', '.')) || 1;
+                } else {
+                    quantity = Number(quantity) || 1;
+                }
                 totalFaults += quantity;
 
                 const deptName = fault.department?.name || 'Bilinmeyen';
