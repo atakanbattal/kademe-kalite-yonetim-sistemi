@@ -12,6 +12,15 @@ import { tr } from 'date-fns/locale';
 
 const CHART_COLORS = ['#3B82F6', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#60A5FA', '#34D399', '#F87171'];
 
+// Sayı formatlama fonksiyonu - tüm sayıları doğru gösterir
+const formatNumber = (value) => {
+    if (value === null || value === undefined || value === '') return '0';
+    const numValue = typeof value === 'number' ? value : parseFloat(value);
+    if (isNaN(numValue)) return String(value);
+    // Büyük sayılar için binlik ayırıcı kullan
+    return numValue.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+};
+
 const VehicleQualityAnalytics = () => {
     const { producedVehicles, productionDepartments, loading } = useData();
     const [activeTab, setActiveTab] = useState('vehicle-type'); // 'vehicle-type', 'production-line', 'critical'
@@ -357,15 +366,15 @@ const VehicleQualityAnalytics = () => {
                                             vehicleTypeQuality.map((item, index) => (
                                                 <TableRow key={index}>
                                                     <TableCell className="font-medium">{item.vehicleType}</TableCell>
-                                                    <TableCell className="text-right">{item.total}</TableCell>
+                                                    <TableCell className="text-right">{formatNumber(item.total)}</TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge variant="outline">{item.shipped}</Badge>
+                                                        <Badge variant="outline">{formatNumber(item.shipped)}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge variant="secondary">{item.readyForShipment}</Badge>
+                                                        <Badge variant="secondary">{formatNumber(item.readyForShipment)}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge variant="destructive">{item.inRework}</Badge>
+                                                        <Badge variant="destructive">{formatNumber(item.inRework)}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <Badge 
@@ -389,7 +398,7 @@ const VehicleQualityAnalytics = () => {
                                                             {item.faultRate}%
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-right">{item.avgFaultsPerVehicle}</TableCell>
+                                                    <TableCell className="text-right">{formatNumber(item.avgFaultsPerVehicle)}</TableCell>
                                                 </TableRow>
                                             ))
                                         )}
@@ -549,12 +558,12 @@ const VehicleQualityAnalytics = () => {
                                             productionLineQuality.map((item, index) => (
                                                 <TableRow key={index}>
                                                     <TableCell className="font-medium">{item.productionLine}</TableCell>
-                                                    <TableCell className="text-right">{item.total}</TableCell>
+                                                    <TableCell className="text-right">{formatNumber(item.total)}</TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge variant="outline">{item.shipped}</Badge>
+                                                        <Badge variant="outline">{formatNumber(item.shipped)}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge variant="secondary">{item.readyForShipment}</Badge>
+                                                        <Badge variant="secondary">{formatNumber(item.readyForShipment)}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <Badge 
@@ -578,7 +587,7 @@ const VehicleQualityAnalytics = () => {
                                                             {item.faultRate}%
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-right">{item.avgFaultsPerVehicle}</TableCell>
+                                                    <TableCell className="text-right">{formatNumber(item.avgFaultsPerVehicle)}</TableCell>
                                                     <TableCell className="text-right">{item.avgInspectionTime.toFixed(1)} dk</TableCell>
                                                 </TableRow>
                                             ))
@@ -661,11 +670,11 @@ const VehicleQualityAnalytics = () => {
                                             criticalCharacteristics.map((item, index) => (
                                                 <TableRow key={index}>
                                                     <TableCell className="font-medium">{item.category}</TableCell>
-                                                    <TableCell className="text-right">{item.totalVehicles}</TableCell>
+                                                    <TableCell className="text-right">{formatNumber(item.totalVehicles)}</TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge variant="destructive">{item.vehiclesWithFault}</Badge>
+                                                        <Badge variant="destructive">{formatNumber(item.vehiclesWithFault)}</Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-right">{item.totalFaults}</TableCell>
+                                                    <TableCell className="text-right">{formatNumber(item.totalFaults)}</TableCell>
                                                     <TableCell className="text-right">
                                                         <Badge 
                                                             variant={

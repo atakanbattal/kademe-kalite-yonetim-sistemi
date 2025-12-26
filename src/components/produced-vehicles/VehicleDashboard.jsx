@@ -6,6 +6,19 @@ import React, { useMemo } from 'react';
     import { parseISO, differenceInMilliseconds } from 'date-fns';
     import { formatDuration } from '@/lib/formatDuration.js';
 
+    // Sayı formatlama fonksiyonu - tüm sayıları doğru gösterir
+    const formatNumber = (value) => {
+        if (value === null || value === undefined || value === '') return '0';
+        // Süre değerleri için (örn: "5 dk", "2s 30dk")
+        if (typeof value === 'string' && (value.includes('dk') || value.includes('sn') || value.includes('g') || value.includes('s'))) {
+            return value;
+        }
+        const numValue = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(numValue)) return String(value);
+        // Büyük sayılar için binlik ayırıcı kullan
+        return numValue.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+    };
+
     const StatCard = ({ title, value, icon, onClick, loading, colorClass, isDuration = false }) => (
         <motion.div
             whileHover={{ y: -5 }}
@@ -20,7 +33,7 @@ import React, { useMemo } from 'react';
                     {loading ? (
                         <Skeleton className="h-8 w-1/2" />
                     ) : (
-                        <div className="text-3xl font-bold text-foreground">{value}</div>
+                        <div className="text-3xl font-bold text-foreground">{formatNumber(value)}</div>
                     )}
                 </CardContent>
             </Card>

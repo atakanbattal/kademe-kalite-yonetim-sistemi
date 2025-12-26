@@ -52,6 +52,19 @@ const DurationTooltip = ({ active, payload, label }) => {
 };
 
 
+    // Sayı formatlama fonksiyonu - tüm sayıları doğru gösterir
+    const formatNumber = (value) => {
+        if (value === null || value === undefined || value === '') return '0';
+        if (typeof value === 'string' && value.startsWith('%')) {
+            // Yüzde değerleri için
+            return value;
+        }
+        const numValue = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(numValue)) return String(value);
+        // Büyük sayılar için binlik ayırıcı kullan
+        return numValue.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+    };
+
     const StatCard = ({ title, value, icon, description, loading }) => (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -66,7 +79,7 @@ const DurationTooltip = ({ active, payload, label }) => {
                     </>
                 ) : (
                     <>
-                        <div className="text-2xl font-bold">{value}</div>
+                        <div className="text-2xl font-bold">{formatNumber(value)}</div>
                         <p className="text-xs text-muted-foreground">{description}</p>
                     </>
                 )}
