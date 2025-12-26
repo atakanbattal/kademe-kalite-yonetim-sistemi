@@ -72,10 +72,11 @@ import { openPrintableReport } from '@/lib/reportUtils';
 
             if (sourceFilter !== 'all') {
                 if (sourceFilter === 'produced_vehicle') {
-                    // produced_vehicle ve produced_vehicle_final_faults'u birlikte göster
+                    // produced_vehicle, produced_vehicle_final_faults ve produced_vehicle_manual'u birlikte göster
                     costs = costs.filter(cost => 
                         cost.source_type === 'produced_vehicle' || 
-                        cost.source_type === 'produced_vehicle_final_faults'
+                        cost.source_type === 'produced_vehicle_final_faults' ||
+                        cost.source_type === 'produced_vehicle_manual'
                     );
                 } else {
                     costs = costs.filter(cost => cost.source_type === sourceFilter);
@@ -437,6 +438,9 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                                                 )}
                                                                 {cost.source_type === 'produced_vehicle_final_faults' && (
                                                                     <Badge variant="outline" className="ml-2 text-xs bg-orange-50 text-orange-700 border-orange-200">Final</Badge>
+                                                                )}
+                                                                {cost.source_type === 'produced_vehicle_manual' && (
+                                                                    <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">Manuel</Badge>
                                                                 )}
                                                             </td>
                                                             <td className="text-foreground">{cost.cost_type}</td>

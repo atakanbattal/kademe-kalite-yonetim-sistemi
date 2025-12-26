@@ -146,7 +146,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                 const { data: existingCosts, error } = await supabase
                     .from('quality_costs')
                     .select('*')
-                    .eq('source_type', 'produced_vehicle_final_faults')
+                    .in('source_type', ['produced_vehicle_final_faults', 'produced_vehicle_manual'])
                     .eq('source_record_id', vehicle.id);
 
                 if (error) {
@@ -397,7 +397,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                             quantity: faultQuantity,
                             affected_units: affectedUnitsArray.length > 0 ? affectedUnitsArray : null,
                             status: 'Aktif',
-                            source_type: 'produced_vehicle_final_faults',
+                            source_type: 'produced_vehicle_manual', // Manuel oluşturulan kayıtlar için farklı source_type
                             source_record_id: vehicle?.id,
                             quality_control_duration: qualityDuration,
                             fault_id: fault.id // Hata ID'sini kaydet
@@ -488,7 +488,7 @@ const FaultCostModal = ({ isOpen, setIsOpen, vehicle, faults, onSuccess }) => {
                     quantity: faultQuantity,
                     affected_units: affectedUnitsArray.length > 0 ? affectedUnitsArray : null,
                     status: 'Aktif',
-                    source_type: 'produced_vehicle_final_faults',
+                    source_type: 'produced_vehicle_manual', // Manuel oluşturulan kayıtlar için farklı source_type
                     source_record_id: vehicle?.id,
                     quality_control_duration: qualityDuration,
                     fault_id: fault.id // Hata ID'sini kaydet

@@ -12,7 +12,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
-    import { createVehicleQualityCostRecord } from '@/lib/vehicleCostCalculator';
     import FaultCostModal from './FaultCostModal';
     import { Calculator } from 'lucide-react';
 
@@ -25,7 +24,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [loading, setLoading] = useState(false);
         const [categories, setCategories] = useState([]);
         const [filteredCategories, setFilteredCategories] = useState([]);
-        const [autoCreateCost, setAutoCreateCost] = useState(true); // Otomatik maliyet kaydı oluşturma toggle
         const [isFaultCostModalOpen, setIsFaultCostModalOpen] = useState(false);
         const [editingFault, setEditingFault] = useState(null);
         const [editFaultData, setEditFaultData] = useState({ description: '', department_id: '', category_id: '', quantity: 1 });
@@ -232,27 +230,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 setNewFault({ description: '', department_id: '', category_id: '', quantity: 1 });
                 setFilteredCategories([]);
                 if (onUpdate) onUpdate();
-                
-                // Otomatik kalitesizlik maliyeti kaydı oluştur (eğer aktifse)
-                if (autoCreateCost && unitCostSettings.length > 0) {
-                    try {
-                        const fullVehicleData = await fetchFullVehicleData();
-                        if (fullVehicleData) {
-                            const costRecord = await createVehicleQualityCostRecord(fullVehicleData, unitCostSettings);
-                            if (costRecord) {
-                                toast({ 
-                                    title: 'Maliyet Kaydı Oluşturuldu', 
-                                    description: `Kalitesizlik maliyeti otomatik olarak kaydedildi: ${costRecord.amount.toFixed(2)} ₺`,
-                                    duration: 5000
-                                });
-                                if (refreshData) refreshData();
-                            }
-                        }
-                    } catch (costError) {
-                        console.error('❌ Otomatik maliyet kaydı oluşturulamadı:', costError);
-                        // Hata mesajı gösterme, sessizce devam et
-                    }
-                }
             }
             setLoading(false);
         };
@@ -287,26 +264,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                  const updatedFault = { ...data, department_name: data.department?.name || 'Bilinmeyen' };
                 setFaults(prev => prev.map(f => f.id === faultId ? updatedFault : f));
                 if (onUpdate) onUpdate();
-                
-                // Eğer hata çözüldüyse ve otomatik maliyet kaydı aktifse, maliyet kaydını güncelle
-                if (!currentStatus && autoCreateCost && unitCostSettings.length > 0) {
-                    try {
-                        const fullVehicleData = await fetchFullVehicleData();
-                        if (fullVehicleData) {
-                            const costRecord = await createVehicleQualityCostRecord(fullVehicleData, unitCostSettings);
-                            if (costRecord) {
-                                toast({ 
-                                    title: 'Maliyet Kaydı Güncellendi', 
-                                    description: `Kalitesizlik maliyeti güncellendi: ${costRecord.amount.toFixed(2)} ₺`,
-                                    duration: 5000
-                                });
-                                if (refreshData) refreshData();
-                            }
-                        }
-                    } catch (costError) {
-                        console.error('❌ Otomatik maliyet kaydı güncellenemedi:', costError);
-                    }
-                }
             }
         };
 
@@ -351,26 +308,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 setEditFaultData({ description: '', department_id: '', category_id: '', quantity: 1 });
                 setFilteredCategories([]);
                 if (onUpdate) onUpdate();
-                
-                // Maliyet kaydını güncelle
-                if (autoCreateCost && unitCostSettings.length > 0) {
-                    try {
-                        const fullVehicleData = await fetchFullVehicleData();
-                        if (fullVehicleData) {
-                            const costRecord = await createVehicleQualityCostRecord(fullVehicleData, unitCostSettings);
-                            if (costRecord) {
-                                toast({ 
-                                    title: 'Maliyet Kaydı Güncellendi', 
-                                    description: `Kalitesizlik maliyeti güncellendi: ${costRecord.amount.toFixed(2)} ₺`,
-                                    duration: 5000
-                                });
-                                if (refreshData) refreshData();
-                            }
-                        }
-                    } catch (costError) {
-                        console.error('❌ Otomatik maliyet kaydı güncellenemedi:', costError);
-                    }
-                }
             }
             setLoading(false);
         };
@@ -561,17 +498,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     </div>
                     <DialogFooter className="flex-shrink-0 flex items-center justify-between border-t pt-4">
                         <div className="flex items-center gap-2">
-                            {canManage && (
-                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={autoCreateCost}
-                                        onChange={(e) => setAutoCreateCost(e.target.checked)}
-                                        className="rounded"
-                                    />
-                                    <span className="text-muted-foreground">Otomatik maliyet kaydı oluştur</span>
-                                </label>
-                            )}
                         </div>
                         <div className="flex gap-2">
                             {canManage && faults.length > 0 && (

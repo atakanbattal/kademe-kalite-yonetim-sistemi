@@ -19,7 +19,6 @@ import React, { useState, useMemo, useEffect } from 'react';
     import VehicleFilterModal from '@/components/produced-vehicles/modals/VehicleFilterModal';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useData } from '@/contexts/DataContext';
-    import { createVehicleQualityCostRecord } from '@/lib/vehicleCostCalculator';
 
     const ProducedVehiclesModule = ({ onOpenNCForm }) => {
         const { toast } = useToast();
@@ -135,40 +134,6 @@ import React, { useState, useMemo, useEffect } from 'react';
                 if (error) throw error;
         
                 toast({ title: 'Başarılı!', description: `Yeni işlem eklendi ve durum güncellendi.` });
-                
-                // Rework tamamlandığında otomatik kalitesizlik maliyeti kaydı oluştur
-                if (eventType === 'rework_end' && unitCostSettings.length > 0) {
-                    try {
-                        // Araç verilerini tam olarak yükle
-                        const { data: vehicleData, error: vehicleError } = await supabase
-                            .from('quality_inspections')
-                            .select(`
-                                *,
-                                quality_inspection_faults(*, department:production_departments(name)),
-                                vehicle_timeline_events(*)
-                            `)
-                            .eq('id', inspectionId)
-                            .single();
-                        
-                        if (!vehicleError && vehicleData) {
-                            const unresolvedFaults = (vehicleData.quality_inspection_faults || []).filter(f => !f.is_resolved);
-                            // Sadece çözülmemiş hatalar varsa maliyet kaydı oluştur
-                            if (unresolvedFaults.length > 0) {
-                                const costRecord = await createVehicleQualityCostRecord(vehicleData, unitCostSettings);
-                                if (costRecord) {
-                                    toast({ 
-                                        title: 'Maliyet Kaydı Oluşturuldu', 
-                                        description: `Rework tamamlandığı için kalitesizlik maliyeti kaydedildi: ${costRecord.amount.toFixed(2)} ₺`,
-                                        duration: 5000
-                                    });
-                                }
-                            }
-                        }
-                    } catch (costError) {
-                        console.error('❌ Otomatik maliyet kaydı oluşturulamadı:', costError);
-                        // Hata mesajı gösterme, sessizce devam et
-                    }
-                }
                 
                 // Önce özel refresh fonksiyonunu çağır (daha hızlı)
                 if (refreshProducedVehicles) {

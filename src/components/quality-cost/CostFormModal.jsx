@@ -568,8 +568,9 @@ import React, { useState, useEffect, useCallback } from 'react';
                     // Quality costs modülünü yenile
                     refreshCosts();
                     
-                    // Eğer bu kayıt produced_vehicle_final_faults kaynaklıysa, produced-vehicles modülünü de yenile
-                    if (existingCost.source_type === 'produced_vehicle_final_faults' || cleanedData.source_type === 'produced_vehicle_final_faults') {
+                    // Eğer bu kayıt produced_vehicle kaynaklıysa, produced-vehicles modülünü de yenile
+                    if (existingCost.source_type === 'produced_vehicle_final_faults' || cleanedData.source_type === 'produced_vehicle_final_faults' ||
+                        existingCost.source_type === 'produced_vehicle_manual' || cleanedData.source_type === 'produced_vehicle_manual') {
                         if (refreshProducedVehicles) {
                             await refreshProducedVehicles();
                         }
