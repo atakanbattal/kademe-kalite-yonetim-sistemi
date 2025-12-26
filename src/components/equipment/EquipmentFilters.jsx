@@ -58,12 +58,12 @@ const EquipmentFilters = ({ isOpen, setIsOpen, filters, onFiltersChange, onReset
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="status">Durum</Label>
-                            <Select value={localFilters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+                            <Select value={localFilters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value === 'all' ? '' : value)}>
                                 <SelectTrigger id="status">
                                     <SelectValue placeholder="Tümü" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Tümü</SelectItem>
+                                    <SelectItem value="all">Tümü</SelectItem>
                                     {STATUS_OPTIONS.map(status => (
                                         <SelectItem key={status} value={status}>{status}</SelectItem>
                                     ))}
@@ -73,12 +73,12 @@ const EquipmentFilters = ({ isOpen, setIsOpen, filters, onFiltersChange, onReset
 
                         <div className="space-y-2">
                             <Label htmlFor="calibrationStatus">Kalibrasyon Durumu</Label>
-                            <Select value={localFilters.calibrationStatus} onValueChange={(value) => handleFilterChange('calibrationStatus', value)}>
+                            <Select value={localFilters.calibrationStatus || 'all'} onValueChange={(value) => handleFilterChange('calibrationStatus', value === 'all' ? '' : value)}>
                                 <SelectTrigger id="calibrationStatus">
                                     <SelectValue placeholder="Tümü" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Tümü</SelectItem>
+                                    <SelectItem value="all">Tümü</SelectItem>
                                     {CALIBRATION_STATUS_OPTIONS.map(status => (
                                         <SelectItem key={status} value={status}>{status}</SelectItem>
                                     ))}
