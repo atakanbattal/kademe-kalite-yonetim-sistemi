@@ -54,7 +54,7 @@ const DurationTooltip = ({ active, payload, label }) => {
 
 
     // Sayı formatlama fonksiyonu - tüm sayıları doğru gösterir
-    const formatNumber = (value) => {
+    const formatNumber = (value, decimals = 0) => {
         if (value === null || value === undefined || value === '') return '0';
         
         // Yüzde değerleri için
@@ -65,22 +65,35 @@ const DurationTooltip = ({ active, payload, label }) => {
         // Eğer zaten number ise direkt kullan
         if (typeof value === 'number') {
             if (isNaN(value) || !isFinite(value)) return '0';
-            // Büyük sayılar için binlik ayırıcı kullan (ondalık kısım yok)
-            return value.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+            return value.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
         }
         
-        // String ise parse et
-        // Türkçe formatındaki binlik ayırıcıları temizle (1.000 -> 1000)
-        const cleanValue = String(value).replace(/\./g, '').replace(',', '.');
-        const numValue = parseFloat(cleanValue);
+        // String ise parse et - dikkat: İngilizce formatlı ondalık sayılar (13.76 gibi) olabilir
+        // Eğer string tek nokta içeriyorsa ve ondalık sayı gibi görünüyorsa, direkt parse et
+        const strValue = String(value);
+        const dotCount = (strValue.match(/\./g) || []).length;
+        
+        let numValue;
+        if (dotCount === 1 && strValue.match(/^\d+\.\d+$/)) {
+            // İngilizce formatlı ondalık sayı (örn: "13.76")
+            numValue = parseFloat(strValue);
+        } else {
+            // Türkçe formatındaki binlik ayırıcıları temizle (1.000 -> 1000)
+            const cleanValue = strValue.replace(/\./g, '').replace(',', '.');
+            numValue = parseFloat(cleanValue);
+        }
         
         if (isNaN(numValue) || !isFinite(numValue)) {
             // Parse edilemezse orijinal değeri döndür
-            return String(value);
+            return strValue;
         }
         
-        // Büyük sayılar için binlik ayırıcı kullan (ondalık kısım yok)
-        return numValue.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+        // Ondalık kısım varsa koru
+        const hasDecimals = numValue % 1 !== 0;
+        return numValue.toLocaleString('tr-TR', { 
+            minimumFractionDigits: hasDecimals ? 2 : decimals, 
+            maximumFractionDigits: hasDecimals ? 2 : decimals 
+        });
     };
 
     const StatCard = ({ title, value, icon, description, loading }) => (
