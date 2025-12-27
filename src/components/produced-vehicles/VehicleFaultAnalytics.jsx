@@ -120,11 +120,21 @@ const DurationTooltip = ({ active, payload, label }) => {
         const fetchAnalyticsData = useCallback(async () => {
             setLoading(true);
             try {
-                // Supabase varsayılan olarak 1000 kayıt limiti uygular, tüm kayıtları almak için range kullanıyoruz
-                const faultsPromise = supabase.from('quality_inspection_faults').select(`*, department:production_departments(id, name), inspection:quality_inspections(vehicle_type, serial_no, id), category:fault_categories(name)`).range(0, 49999);
-                const vehiclesPromise = supabase.from('quality_inspections').select('id, created_at').range(0, 49999);
+                // Supabase varsayılan olarak 1000 kayıt limiti uygular
+                // Tüm kayıtları almak için select('*', { count: 'exact' }) ve limit kullanıyoruz
+                const faultsPromise = supabase
+                    .from('quality_inspection_faults')
+                    .select(`*, department:production_departments(id, name), inspection:quality_inspections(vehicle_type, serial_no, id), category:fault_categories(name)`, { count: 'exact' })
+                    .limit(50000);
+                const vehiclesPromise = supabase
+                    .from('quality_inspections')
+                    .select('id, created_at', { count: 'exact' })
+                    .limit(50000);
                 const departmentsPromise = supabase.from('production_departments').select('id, name');
-                const timelinePromise = supabase.from('vehicle_timeline_events').select('*').range(0, 49999);
+                const timelinePromise = supabase
+                    .from('vehicle_timeline_events')
+                    .select('*', { count: 'exact' })
+                    .limit(50000);
 
                 const [faultsResult, vehiclesResult, departmentsResult, timelineResult] = await Promise.all([faultsPromise, vehiclesPromise, departmentsPromise, timelinePromise]);
 
