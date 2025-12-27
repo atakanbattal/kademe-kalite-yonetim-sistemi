@@ -117,39 +117,48 @@ const DurationTooltip = ({ active, payload, label }) => {
         const [detailModalData, setDetailModalData] = useState({ title: '', faults: [] });
         const [allDepartments, setAllDepartments] = useState([]);
 
+        // Supabase 1000 kayıt limiti - paginated fetch ile tüm verileri çek
+        const fetchAllPages = async (tableName, selectQuery, pageSize = 1000) => {
+            let allData = [];
+            let from = 0;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const { data, error } = await supabase
+                    .from(tableName)
+                    .select(selectQuery)
+                    .range(from, from + pageSize - 1);
+                
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    allData = [...allData, ...data];
+                    from += pageSize;
+                    hasMore = data.length === pageSize;
+                } else {
+                    hasMore = false;
+                }
+            }
+            
+            return allData;
+        };
+
         const fetchAnalyticsData = useCallback(async () => {
             setLoading(true);
             try {
-                // Supabase varsayılan olarak 1000 kayıt limiti uygular
-                // Tüm kayıtları almak için select('*', { count: 'exact' }) ve limit kullanıyoruz
-                const faultsPromise = supabase
-                    .from('quality_inspection_faults')
-                    .select(`*, department:production_departments(id, name), inspection:quality_inspections(vehicle_type, serial_no, id), category:fault_categories(name)`, { count: 'exact' })
-                    .limit(50000);
-                const vehiclesPromise = supabase
-                    .from('quality_inspections')
-                    .select('id, created_at', { count: 'exact' })
-                    .limit(50000);
-                const departmentsPromise = supabase.from('production_departments').select('id, name');
-                const timelinePromise = supabase
-                    .from('vehicle_timeline_events')
-                    .select('*', { count: 'exact' })
-                    .limit(50000);
+                // Tüm kayıtları paginated olarak çek (1000'er kayıt)
+                const [allFaults, allVehicles, allDepts, allTimeline] = await Promise.all([
+                    fetchAllPages('quality_inspection_faults', `*, department:production_departments(id, name), inspection:quality_inspections(vehicle_type, serial_no, id), category:fault_categories(name)`),
+                    fetchAllPages('quality_inspections', 'id, created_at'),
+                    supabase.from('production_departments').select('id, name').then(r => r.data || []),
+                    fetchAllPages('vehicle_timeline_events', '*')
+                ]);
 
-                const [faultsResult, vehiclesResult, departmentsResult, timelineResult] = await Promise.all([faultsPromise, vehiclesPromise, departmentsPromise, timelinePromise]);
-
-                if (faultsResult.error) throw faultsResult.error;
-                console.log('🔍 VehicleFaultAnalytics - Toplam hata kaydı:', faultsResult.data?.length);
-                setFaults(faultsResult.data || []);
-
-                if (vehiclesResult.error) throw vehiclesResult.error;
-                setVehicles(vehiclesResult.data || []);
-
-                if (departmentsResult.error) throw departmentsResult.error;
-                setAllDepartments(departmentsResult.data || []);
-
-                if (timelineResult.error) throw timelineResult.error;
-                setTimelineEvents(timelineResult.data || []);
+                console.log('🔍 VehicleFaultAnalytics - Toplam hata kaydı (paginated):', allFaults.length);
+                setFaults(allFaults);
+                setVehicles(allVehicles);
+                setAllDepartments(allDepts);
+                setTimelineEvents(allTimeline);
 
             } catch (error) {
                 toast({ variant: "destructive", title: "Hata", description: "Analiz verileri alınamadı: " + error.message });

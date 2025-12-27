@@ -158,6 +158,40 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
         }
     };
 
+    // Supabase 1000 kayıt limiti için paginated fetch
+    const fetchAllPagesWithFilter = async (tableName, selectQuery, filterColumn, filterValues, orderColumn = null) => {
+        let allData = [];
+        const pageSize = 1000;
+        let from = 0;
+        let hasMore = true;
+        
+        while (hasMore) {
+            let query = supabase
+                .from(tableName)
+                .select(selectQuery)
+                .in(filterColumn, filterValues)
+                .range(from, from + pageSize - 1);
+            
+            if (orderColumn) {
+                query = query.order(orderColumn, { ascending: true });
+            }
+            
+            const { data, error } = await query;
+            
+            if (error) throw error;
+            
+            if (data && data.length > 0) {
+                allData = [...allData, ...data];
+                from += pageSize;
+                hasMore = data.length === pageSize;
+            } else {
+                hasMore = false;
+            }
+        }
+        
+        return allData;
+    };
+
     const generateReport = async () => {
         if (filteredVehicles.length === 0) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Rapor oluşturmak için önce filtreleme yapın.' });
@@ -168,21 +202,16 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
         try {
             const vehicleIds = filteredVehicles.map(v => v.id);
             
-            const [timelineData, faultsData] = await Promise.all([
-                supabase
-                    .from('vehicle_timeline_events')
-                    .select('*')
-                    .in('inspection_id', vehicleIds)
-                    .order('event_timestamp', { ascending: true }),
-                supabase
-                    .from('quality_inspection_faults')
-                    .select('*, department:production_departments(name), category:fault_categories(name)')
-                    .in('inspection_id', vehicleIds)
-                    .range(0, 49999)
+            // Paginated fetch ile tüm verileri çek
+            const [timelineDataArr, faultsDataArr] = await Promise.all([
+                fetchAllPagesWithFilter('vehicle_timeline_events', '*', 'inspection_id', vehicleIds, 'event_timestamp'),
+                fetchAllPagesWithFilter('quality_inspection_faults', '*, department:production_departments(name), category:fault_categories(name)', 'inspection_id', vehicleIds)
             ]);
 
-            if (timelineData.error) throw timelineData.error;
-            if (faultsData.error) throw faultsData.error;
+            console.log('🔍 VehicleReportModal - Toplam hata kaydı:', faultsDataArr.length);
+            
+            const timelineData = { data: timelineDataArr, error: null };
+            const faultsData = { data: faultsDataArr, error: null };
 
             const timelineByVehicle = {};
             timelineData.data.forEach(event => {
