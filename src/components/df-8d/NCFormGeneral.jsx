@@ -28,6 +28,10 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
     const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
     const [isLoading, setIsLoading] = React.useState(false);
+    const [imageBlobUrl, setImageBlobUrl] = React.useState(null);
+    const [imageLoading, setImageLoading] = React.useState(true);
+    const [imageError, setImageError] = React.useState(false);
+    const imageBlobUrlRef = React.useRef(null);
     
     React.useEffect(() => {
         const fetchSignedUrl = async () => {
@@ -49,18 +53,24 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
     const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
     const isPdf = /\.pdf$/i.test(path);
     const fileName = path.split('/').pop();
-    const [imageBlobUrl, setImageBlobUrl] = React.useState(null);
-    const imageBlobUrlRef = React.useRef(null);
 
     // Görsel dosyaları blob olarak indir ve blob URL oluştur
     React.useEffect(() => {
-        if (!isImage || !path) return;
+        if (!isImage || !path) {
+            setImageLoading(false);
+            return;
+        }
+        
+        setImageLoading(true);
+        setImageError(false);
         
         const loadImageAsBlob = async () => {
             try {
                 const { data, error } = await supabase.storage.from('df_attachments').download(path);
                 if (error) {
                     console.error('Görsel indirme hatası:', error);
+                    setImageError(true);
+                    setImageLoading(false);
                     return;
                 }
                 
@@ -86,8 +96,11 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
                 
                 imageBlobUrlRef.current = blobUrl;
                 setImageBlobUrl(blobUrl);
+                setImageLoading(false);
             } catch (err) {
                 console.error('Görsel yüklenirken hata:', err);
+                setImageError(true);
+                setImageLoading(false);
             }
         };
         
@@ -141,25 +154,68 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
         setPdfViewerState({ isOpen: false, url: null, title: null });
     };
 
+    // Loading durumunda veya URL yoksa placeholder göster
+    if (isImage) {
+        const imageUrl = imageBlobUrl || signedUrl;
+        
+        if (imageLoading || (!imageUrl && !signedUrl)) {
+            return (
+                <div className="relative group w-24 h-24">
+                    <div className="flex items-center justify-center bg-secondary rounded-lg w-full h-full">
+                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                    </div>
+                </div>
+            );
+        }
+        
+        if (imageError && !signedUrl) {
+            return (
+                <div className="relative group w-24 h-24">
+                    <div className="flex flex-col items-center justify-center bg-destructive/10 rounded-lg w-full h-full text-center p-2">
+                        <AlertCircle className="w-6 h-6 text-destructive mb-1" />
+                        <span className="text-xs text-destructive">Hata</span>
+                    </div>
+                </div>
+            );
+        }
+        
+        return (
+            <div className="relative group w-24 h-24">
+                <img
+                    src={imageUrl || signedUrl}
+                    alt="Ek"
+                    className="rounded-lg object-cover w-full h-full cursor-pointer"
+                    onClick={() => onPreview(imageUrl || signedUrl)}
+                    onLoad={() => setImageLoading(false)}
+                    onError={(e) => {
+                        // Blob URL başarısız olursa signed URL'e geri dön
+                        if (imageBlobUrl && signedUrl && imageBlobUrl !== signedUrl) {
+                            e.target.src = signedUrl;
+                            setImageError(false);
+                        } else {
+                            setImageError(true);
+                        }
+                    }}
+                />
+                <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => onRemove(path)}
+                >
+                    <Trash2 className="h-3 w-3" />
+                </Button>
+            </div>
+        );
+    }
+    
     if (!signedUrl && !isLoading) return null;
 
     return (
         <>
             <div className="relative group w-24 h-24">
-                {isImage ? (
-                    <img
-                        src={imageBlobUrl || signedUrl}
-                        alt="Ek"
-                        className="rounded-lg object-cover w-full h-full cursor-pointer"
-                        onClick={() => onPreview(imageBlobUrl || signedUrl)}
-                        onError={(e) => {
-                            // Blob URL başarısız olursa signed URL'e geri dön
-                            if (imageBlobUrl && imageBlobUrl !== signedUrl) {
-                                e.target.src = signedUrl;
-                            }
-                        }}
-                    />
-                ) : isPdf ? (
+                {isPdf ? (
                     <div 
                         className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all cursor-pointer hover:bg-secondary transition-colors"
                         onClick={handlePdfClick}

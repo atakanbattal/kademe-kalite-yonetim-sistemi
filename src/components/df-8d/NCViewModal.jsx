@@ -101,6 +101,10 @@ const AttachmentItem = ({ path, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
     const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
     const [isLoading, setIsLoading] = React.useState(false);
+    const [imageBlobUrl, setImageBlobUrl] = React.useState(null);
+    const [imageLoading, setImageLoading] = React.useState(true);
+    const [imageError, setImageError] = React.useState(false);
+    const imageBlobUrlRef = React.useRef(null);
     
     React.useEffect(() => {
         const fetchSignedUrl = async () => {
@@ -122,18 +126,24 @@ const AttachmentItem = ({ path, onPreview }) => {
     const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
     const isPdf = /\.pdf$/i.test(path);
     const fileName = path.split('/').pop();
-    const [imageBlobUrl, setImageBlobUrl] = React.useState(null);
-    const imageBlobUrlRef = React.useRef(null);
 
     // Görsel dosyaları blob olarak indir ve blob URL oluştur
     React.useEffect(() => {
-        if (!isImage || !path) return;
+        if (!isImage || !path) {
+            setImageLoading(false);
+            return;
+        }
+        
+        setImageLoading(true);
+        setImageError(false);
         
         const loadImageAsBlob = async () => {
             try {
                 const { data, error } = await supabase.storage.from('df_attachments').download(path);
                 if (error) {
                     console.error('Görsel indirme hatası:', error);
+                    setImageError(true);
+                    setImageLoading(false);
                     return;
                 }
                 
@@ -159,8 +169,11 @@ const AttachmentItem = ({ path, onPreview }) => {
                 
                 imageBlobUrlRef.current = blobUrl;
                 setImageBlobUrl(blobUrl);
+                setImageLoading(false);
             } catch (err) {
                 console.error('Görsel yüklenirken hata:', err);
+                setImageError(true);
+                setImageLoading(false);
             }
         };
         
@@ -214,27 +227,49 @@ const AttachmentItem = ({ path, onPreview }) => {
         setPdfViewerState({ isOpen: false, url: null, title: null });
     };
 
-    if (!signedUrl && !isLoading) return null;
-
+    // Loading durumunda veya URL yoksa placeholder göster
     if (isImage) {
-        // Blob URL varsa onu kullan, yoksa signed URL'i kullan
         const imageUrl = imageBlobUrl || signedUrl;
+        
+        if (imageLoading || (!imageUrl && !signedUrl)) {
+            return (
+                <div className="flex items-center justify-center bg-secondary rounded-lg w-full h-32">
+                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                </div>
+            );
+        }
+        
+        if (imageError && !signedUrl) {
+            return (
+                <div className="flex flex-col items-center justify-center bg-destructive/10 rounded-lg w-full h-32 text-center p-2">
+                    <AlertTriangle className="w-6 h-6 text-destructive mb-1" />
+                    <span className="text-xs text-destructive">Yüklenemedi</span>
+                </div>
+            );
+        }
+        
         return (
             <div className="group cursor-pointer" onClick={() => onPreview(imageUrl || signedUrl)}>
                 <img
                     src={imageUrl || signedUrl}
                     alt="Ek"
                     className="rounded-lg object-cover w-full h-32 transition-transform duration-300 group-hover:scale-105"
+                    onLoad={() => setImageLoading(false)}
                     onError={(e) => {
                         // Blob URL başarısız olursa signed URL'e geri dön
-                        if (imageUrl && imageUrl !== signedUrl) {
+                        if (imageBlobUrl && signedUrl && imageBlobUrl !== signedUrl) {
                             e.target.src = signedUrl;
+                            setImageError(false);
+                        } else {
+                            setImageError(true);
                         }
                     }}
                 />
             </div>
         );
     }
+    
+    if (!signedUrl && !isLoading) return null;
     
     if (isPdf) {
         return (
