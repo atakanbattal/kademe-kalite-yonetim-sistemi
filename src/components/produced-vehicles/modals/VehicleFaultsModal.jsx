@@ -137,10 +137,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             }
 
             try {
+                // Hem 'produced_vehicle_final_faults' hem de 'produced_vehicle_manual' source_type'larını kontrol et
                 const { data, error } = await supabase
                     .from('quality_costs')
                     .select('id')
-                    .eq('source_type', 'produced_vehicle_final_faults')
+                    .in('source_type', ['produced_vehicle_final_faults', 'produced_vehicle_manual'])
                     .eq('source_record_id', vehicle.id)
                     .limit(1);
 

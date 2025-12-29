@@ -305,7 +305,30 @@ import React, { useEffect, useState } from 'react';
                             break;
                         }
                         case 'incoming_control_plans':
-                        case 'inkr_management':
+                        case 'stock_risk_controls': {
+                            break;
+                        }
+                        case 'inkr_management': {
+                            // INKR için karakteristik ve ekipman isimlerini ekle
+                            if (recordData?.items && Array.isArray(recordData.items)) {
+                                const { data: characteristicsData } = await supabase
+                                    .from('characteristics')
+                                    .select('id, name');
+                                const { data: equipmentData } = await supabase
+                                    .from('measurement_equipment')
+                                    .select('id, name');
+                                
+                                const characteristicsMap = new Map((characteristicsData || []).map(c => [c.id, c.name]));
+                                const equipmentMap = new Map((equipmentData || []).map(e => [e.id, e.name]));
+                                
+                                recordData.items = recordData.items.map(item => ({
+                                    ...item,
+                                    characteristic_name: item.characteristic_name || characteristicsMap.get(item.characteristic_id) || item.characteristic_id || '-',
+                                    equipment_name: item.equipment_name || equipmentMap.get(item.equipment_id) || item.equipment_id || '-'
+                                }));
+                            }
+                            break;
+                        }
                         case 'stock_risk_controls': {
                             const tableMap = {
                                 'incoming_control_plans': 'incoming_control_plans',

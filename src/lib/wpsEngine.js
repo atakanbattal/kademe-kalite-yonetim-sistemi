@@ -280,49 +280,142 @@ export const generateWPSRecommendation = (inputs, library) => {
             '111': 0.85  // MMA - orta amper
         }[finalProcessCode] || 1.0;
         
+        // Baz değer: 4mm kalınlık, 1.0mm tel için 200A ve 25V
+        const baseThickness = 4.0; // mm
+        const baseDiameter = 1.0; // mm
+        const baseAmpsAt4mm = 200; // A (1.0mm tel için)
+        const baseVoltsAt4mm = 25; // V (1.0mm tel için)
+        
         if (diameter === 1.0) {
-            // 1.0mm tel için optimize edilmiş değerler (MAG/MIG standartları)
+            // 1.0mm tel için: 4mm kalınlık = 200A, 25V baz alınarak diğer kalınlıklar hesaplanıyor
             // Minimum ark tutuşması için: 100A altına düşmemeli
-            // İnce saclar (1-3mm): 120-160A, Orta (3-6mm): 150-190A, Kalın (6-10mm): 180-230A
-            if (t <= 3) {
-                baseAmps = interpolate(t, 1, 3, 120, 160);
-                baseVolts = interpolate(t, 1, 3, 19, 22);
-                baseSpeed = interpolate(t, 1, 3, 350, 300);
+            if (t <= 2) {
+                // İnce saclar (1-2mm): 4mm'ye göre orantılı düşürülmüş
+                baseAmps = interpolate(t, 1, 2, 120, 160);
+                baseVolts = interpolate(t, 1, 2, 20, 22);
+                baseSpeed = interpolate(t, 1, 2, 350, 320);
+            } else if (t <= 3) {
+                // 2-3mm: 4mm'ye yaklaşırken artış
+                baseAmps = interpolate(t, 2, 3, 160, 180);
+                baseVolts = interpolate(t, 2, 3, 22, 24);
+                baseSpeed = interpolate(t, 2, 3, 320, 300);
+            } else if (t <= 4) {
+                // 3-4mm: Baz değere yaklaşma
+                baseAmps = interpolate(t, 3, 4, 180, baseAmpsAt4mm);
+                baseVolts = interpolate(t, 3, 4, 24, baseVoltsAt4mm);
+                baseSpeed = interpolate(t, 3, 4, 300, 280);
             } else if (t <= 6) {
-                baseAmps = interpolate(t, 3, 6, 150, 190);
-                baseVolts = interpolate(t, 3, 6, 21, 24);
-                baseSpeed = interpolate(t, 3, 6, 320, 280);
+                // 4-6mm: Baz değerden sonra artış
+                baseAmps = interpolate(t, 4, 6, baseAmpsAt4mm, 220);
+                baseVolts = interpolate(t, 4, 6, baseVoltsAt4mm, 26);
+                baseSpeed = interpolate(t, 4, 6, 280, 260);
+            } else if (t <= 8) {
+                // 6-8mm: Daha kalın için artış
+                baseAmps = interpolate(t, 6, 8, 220, 250);
+                baseVolts = interpolate(t, 6, 8, 26, 27);
+                baseSpeed = interpolate(t, 6, 8, 260, 250);
             } else {
-                baseAmps = interpolate(t, 6, 10, 180, 230);
-                baseVolts = interpolate(t, 6, 10, 23, 26);
-                baseSpeed = interpolate(t, 6, 10, 300, 250);
+                // 8mm+: Kalın saclar için daha yüksek değerler
+                baseAmps = interpolate(t, 8, 15, 250, 280);
+                baseVolts = interpolate(t, 8, 15, 27, 28);
+                baseSpeed = interpolate(t, 8, 15, 250, 240);
             }
         } else if (diameter === 1.2) {
-            // 1.2mm tel için optimize edilmiş değerler (MAG/MIG standartları)
+            // 1.2mm tel için: 1.0mm tel değerlerine göre %20-25 artış
+            // 4mm kalınlık için: 200A * 1.2 = 240A, 25V * 1.04 = 26V (yaklaşık)
+            const ampsMultiplier = 1.2; // 1.2mm tel için amper çarpanı
+            const voltsMultiplier = 1.04; // 1.2mm tel için voltaj çarpanı (daha az artış)
             // Minimum ark tutuşması için: 130A altına düşmemeli
-            // İnce (2-4mm): 160-200A, Orta (4-8mm): 190-240A, Kalın (8-15mm): 240-300A, Çok kalın (15-25mm): 280-340A
-            if (t <= 4) {
-                baseAmps = interpolate(t, 2, 4, 160, 200);
-                baseVolts = interpolate(t, 2, 4, 21, 24);
-                baseSpeed = interpolate(t, 2, 4, 400, 350);
+            if (t <= 2) {
+                baseAmps = interpolate(t, 1, 2, 140, 180) * ampsMultiplier;
+                baseVolts = interpolate(t, 1, 2, 21, 23) * voltsMultiplier;
+                baseSpeed = interpolate(t, 1, 2, 400, 380);
+            } else if (t <= 3) {
+                baseAmps = interpolate(t, 2, 3, 180, 210) * ampsMultiplier;
+                baseVolts = interpolate(t, 2, 3, 23, 25) * voltsMultiplier;
+                baseSpeed = interpolate(t, 2, 3, 380, 360);
+            } else if (t <= 4) {
+                baseAmps = interpolate(t, 3, 4, 210, baseAmpsAt4mm) * ampsMultiplier;
+                baseVolts = interpolate(t, 3, 4, 25, baseVoltsAt4mm) * voltsMultiplier;
+                baseSpeed = interpolate(t, 3, 4, 360, 350);
+            } else if (t <= 6) {
+                baseAmps = interpolate(t, 4, 6, baseAmpsAt4mm, 220) * ampsMultiplier;
+                baseVolts = interpolate(t, 4, 6, baseVoltsAt4mm, 26) * voltsMultiplier;
+                baseSpeed = interpolate(t, 4, 6, 350, 330);
             } else if (t <= 8) {
-                baseAmps = interpolate(t, 4, 8, 190, 240);
-                baseVolts = interpolate(t, 4, 8, 23, 26);
-                baseSpeed = interpolate(t, 4, 8, 380, 320);
+                baseAmps = interpolate(t, 6, 8, 220, 250) * ampsMultiplier;
+                baseVolts = interpolate(t, 6, 8, 26, 27) * voltsMultiplier;
+                baseSpeed = interpolate(t, 6, 8, 330, 320);
             } else if (t <= 15) {
-                baseAmps = interpolate(t, 8, 15, 240, 300);
-                baseVolts = interpolate(t, 8, 15, 25, 28);
-                baseSpeed = interpolate(t, 8, 15, 350, 300);
+                baseAmps = interpolate(t, 8, 15, 250, 300) * ampsMultiplier;
+                baseVolts = interpolate(t, 8, 15, 27, 29) * voltsMultiplier;
+                baseSpeed = interpolate(t, 8, 15, 320, 300);
             } else {
-                baseAmps = interpolate(t, 15, 25, 280, 340);
-                baseVolts = interpolate(t, 15, 25, 27, 30);
-                baseSpeed = interpolate(t, 15, 25, 320, 280);
+                baseAmps = interpolate(t, 15, 25, 300, 340) * ampsMultiplier;
+                baseVolts = interpolate(t, 15, 25, 29, 31) * voltsMultiplier;
+                baseSpeed = interpolate(t, 15, 25, 300, 280);
+            }
+        } else if (diameter === 0.8) {
+            // 0.8mm tel için: 1.0mm tel değerlerine göre %15-20 azalış
+            const ampsMultiplier = 0.85;
+            const voltsMultiplier = 0.96;
+            if (t <= 2) {
+                baseAmps = interpolate(t, 1, 2, 100, 140) * ampsMultiplier;
+                baseVolts = interpolate(t, 1, 2, 19, 21) * voltsMultiplier;
+                baseSpeed = interpolate(t, 1, 2, 380, 350);
+            } else if (t <= 3) {
+                baseAmps = interpolate(t, 2, 3, 140, 160) * ampsMultiplier;
+                baseVolts = interpolate(t, 2, 3, 21, 23) * voltsMultiplier;
+                baseSpeed = interpolate(t, 2, 3, 350, 330);
+            } else if (t <= 4) {
+                baseAmps = interpolate(t, 3, 4, 160, baseAmpsAt4mm) * ampsMultiplier;
+                baseVolts = interpolate(t, 3, 4, 23, baseVoltsAt4mm) * voltsMultiplier;
+                baseSpeed = interpolate(t, 3, 4, 330, 310);
+            } else if (t <= 6) {
+                baseAmps = interpolate(t, 4, 6, baseAmpsAt4mm, 200) * ampsMultiplier;
+                baseVolts = interpolate(t, 4, 6, baseVoltsAt4mm, 25) * voltsMultiplier;
+                baseSpeed = interpolate(t, 4, 6, 310, 290);
+            } else {
+                baseAmps = interpolate(t, 6, 10, 200, 230) * ampsMultiplier;
+                baseVolts = interpolate(t, 6, 10, 25, 26) * voltsMultiplier;
+                baseSpeed = interpolate(t, 6, 10, 290, 270);
+            }
+        } else if (diameter === 1.6) {
+            // 1.6mm tel için: 1.0mm tel değerlerine göre %30-35 artış
+            const ampsMultiplier = 1.3;
+            const voltsMultiplier = 1.08;
+            if (t <= 3) {
+                baseAmps = interpolate(t, 2, 3, 200, 240) * ampsMultiplier;
+                baseVolts = interpolate(t, 2, 3, 24, 26) * voltsMultiplier;
+                baseSpeed = interpolate(t, 2, 3, 420, 400);
+            } else if (t <= 4) {
+                baseAmps = interpolate(t, 3, 4, 240, baseAmpsAt4mm) * ampsMultiplier;
+                baseVolts = interpolate(t, 3, 4, 26, baseVoltsAt4mm) * voltsMultiplier;
+                baseSpeed = interpolate(t, 3, 4, 400, 380);
+            } else if (t <= 6) {
+                baseAmps = interpolate(t, 4, 6, baseAmpsAt4mm, 240) * ampsMultiplier;
+                baseVolts = interpolate(t, 4, 6, baseVoltsAt4mm, 27) * voltsMultiplier;
+                baseSpeed = interpolate(t, 4, 6, 380, 360);
+            } else if (t <= 8) {
+                baseAmps = interpolate(t, 6, 8, 240, 280) * ampsMultiplier;
+                baseVolts = interpolate(t, 6, 8, 27, 28) * voltsMultiplier;
+                baseSpeed = interpolate(t, 6, 8, 360, 340);
+            } else {
+                baseAmps = interpolate(t, 8, 20, 280, 350) * ampsMultiplier;
+                baseVolts = interpolate(t, 8, 20, 28, 30) * voltsMultiplier;
+                baseSpeed = interpolate(t, 8, 20, 340, 320);
             }
         } else {
-            // Varsayılan değerler (1.0mm gibi davran)
-            baseAmps = interpolate(t, 1, 10, 120, 200);
-            baseVolts = interpolate(t, 1, 10, 19, 24);
-            baseSpeed = interpolate(t, 1, 10, 350, 270);
+            // Varsayılan değerler (1.0mm gibi davran, 4mm baz alınarak)
+            if (t <= 4) {
+                baseAmps = interpolate(t, 1, 4, 120, baseAmpsAt4mm);
+                baseVolts = interpolate(t, 1, 4, 20, baseVoltsAt4mm);
+                baseSpeed = interpolate(t, 1, 4, 350, 280);
+            } else {
+                baseAmps = interpolate(t, 4, 10, baseAmpsAt4mm, 250);
+                baseVolts = interpolate(t, 4, 10, baseVoltsAt4mm, 27);
+                baseSpeed = interpolate(t, 4, 10, 280, 250);
+            }
         }
         
         // Proses tipine göre amper ayarı

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText, TrendingUp, CheckCircle2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useData } from '@/contexts/DataContext';
+import { openPrintableReport } from '@/lib/reportUtils';
 
 import SupplierDashboard from '@/components/supplier/SupplierDashboard';
 import SupplierList from '@/components/supplier/SupplierList';
@@ -29,6 +30,14 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
     status: 'all',
     riskClass: 'all'
   });
+
+  const getGradeInfo = (score) => {
+    if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış' };
+    if (score >= 90) return { grade: 'A', description: 'Stratejik İş Ortağı' };
+    if (score >= 75) return { grade: 'B', description: 'Güvenilir Tedarikçi' };
+    if (score >= 60) return { grade: 'C', description: 'İzlemeye Alınacak' };
+    return { grade: 'D', description: 'İş Birliği Sonlandırılacak' };
+  };
 
   const mergedSuppliers = useMemo(() => {
     return suppliers.map(s => {
@@ -116,7 +125,8 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
             <SupplierDashboard 
               suppliers={suppliers} 
               loading={loading} 
-              refreshData={refreshData} />
+              refreshData={refreshData}
+              allSuppliers={suppliers} />
         </TabsContent>
         <TabsContent value="list" className="mt-6">
             <motion.div 
@@ -125,7 +135,43 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
             >
-                <h2 className="text-xl font-semibold text-foreground mb-4">Onaylı Tedarikçi Listesi</h2>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-foreground">Onaylı Tedarikçi Listesi</h2>
+                    <Button 
+                        variant="outline" 
+                        onClick={() => {
+                            const reportData = {
+                                id: `supplier-list-${Date.now()}`,
+                                title: 'Tedarikçi Listesi Raporu',
+                                reportDate: new Date().toISOString(),
+                                suppliers: filteredSuppliers.map((s, idx) => {
+                                    const completedAudits = (s.supplier_audit_plans || [])
+                                        .filter(a => a.status === 'Tamamlandı' && a.score !== null)
+                                        .sort((a, b) => new Date(b.actual_date || b.planned_date) - new Date(a.actual_date || a.planned_date));
+                                    const latestAuditScore = completedAudits.length > 0 ? completedAudits[0].score : null;
+                                    const gradeInfo = getGradeInfo(latestAuditScore);
+                                    const alternativeSupplier = s.alternative_to_supplier_id ? suppliers.find(main => main.id === s.alternative_to_supplier_id) : null;
+                                    const alternativeSuppliers = suppliers.filter(alt => alt.alternative_to_supplier_id === s.id);
+                                    return {
+                                        ...s,
+                                        serialNumber: idx + 1,
+                                        gradeInfo,
+                                        alternativeSupplier: alternativeSupplier ? { name: alternativeSupplier.name, id: alternativeSupplier.id } : null,
+                                        alternativeSuppliers: alternativeSuppliers.map(alt => ({ name: alt.name, id: alt.id }))
+                                    };
+                                }),
+                                totalCount: filteredSuppliers.length,
+                                approvedCount: filteredSuppliers.filter(s => s.status === 'Onaylı').length,
+                                alternativeCount: filteredSuppliers.filter(s => s.status === 'Alternatif').length
+                            };
+                            openPrintableReport(reportData, 'supplier_list', true);
+                        }}
+                        disabled={loading || filteredSuppliers.length === 0}
+                    >
+                        <Printer className="w-4 h-4 mr-2" />
+                        PDF Rapor Oluştur
+                    </Button>
+                </div>
                 <SupplierFilters filters={filters} setFilters={setFilters} />
                 {loading ? (
                     <div className="text-center py-10 text-muted-foreground">Yükleniyor...</div>

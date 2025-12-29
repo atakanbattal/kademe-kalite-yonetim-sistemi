@@ -12,10 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { FileDown, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
+import { useData } from '@/contexts/DataContext';
 
 const InkrDetailModal = ({
     isOpen,
@@ -24,14 +26,33 @@ const InkrDetailModal = ({
     onDownloadPDF,
 }) => {
     const { toast } = useToast();
+    const { characteristics, equipment } = useData();
     const [preparedBy, setPreparedBy] = useState('');
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
 
+    const getCharacteristicName = (id) => {
+        const char = characteristics?.find(c => c.value === id);
+        return char ? char.label : id || '-';
+    };
+
+    const getEquipmentName = (id) => {
+        const eq = equipment?.find(e => e.value === id);
+        return eq ? eq.label : id || '-';
+    };
+
     const handleGenerateReport = async () => {
         try {
+            // Items'a karakteristik ve ekipman isimlerini ekle
+            const enrichedItems = (report.items || []).map(item => ({
+                ...item,
+                characteristic_name: getCharacteristicName(item.characteristic_id),
+                equipment_name: getEquipmentName(item.equipment_id)
+            }));
+            
             const enrichedData = {
                 ...report,
+                items: enrichedItems,
                 prepared_by: preparedBy || '',
                 controlled_by: controlledBy || '',
                 created_by: createdBy || '',
@@ -127,38 +148,64 @@ const InkrDetailModal = ({
 
                     {/* TAB 2: MUAYENE SONUÇLARI */}
                     <TabsContent value="details" className="space-y-4">
-                        {report.test_results && report.test_results.length > 0 ? (
+                        {report.items && report.items.length > 0 ? (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Test Sonuçları</CardTitle>
+                                    <CardTitle>Ölçüm Sonuçları</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="space-y-3">
-                                        {report.test_results.map((result, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="border rounded p-3 bg-gray-50"
-                                            >
-                                                <p className="font-semibold">
-                                                    {result.test_name || `Test ${idx + 1}`}
-                                                </p>
-                                                <p className="text-sm text-gray-600">
-                                                    Sonuç: {result.result || '-'}
-                                                </p>
-                                                {result.description && (
-                                                    <p className="text-sm">
-                                                        Açıklama: {result.description}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        ))}
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full border-collapse">
+                                            <thead>
+                                                <tr className="border-b bg-muted/50">
+                                                    <th className="p-2 text-left text-xs font-semibold">#</th>
+                                                    <th className="p-2 text-left text-xs font-semibold">Karakteristik</th>
+                                                    <th className="p-2 text-left text-xs font-semibold">Ekipman</th>
+                                                    <th className="p-2 text-left text-xs font-semibold">Nominal</th>
+                                                    <th className="p-2 text-left text-xs font-semibold">Min</th>
+                                                    <th className="p-2 text-left text-xs font-semibold">Max</th>
+                                                    <th className="p-2 text-left text-xs font-semibold">Ölçülen</th>
+                                                    <th className="p-2 text-center text-xs font-semibold">Durum</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {report.items.map((item, idx) => {
+                                                    const measured = parseFloat(item.measured_value);
+                                                    const min = parseFloat(item.min_value);
+                                                    const max = parseFloat(item.max_value);
+                                                    const isInRange = !isNaN(measured) && !isNaN(min) && !isNaN(max) && measured >= min && measured <= max;
+                                                    const statusBadge = item.measured_value ? (
+                                                        isInRange ? (
+                                                            <Badge variant="success" className="bg-green-500">Uygun</Badge>
+                                                        ) : (
+                                                            <Badge variant="destructive" className="bg-red-500">Uygunsuz</Badge>
+                                                        )
+                                                    ) : (
+                                                        <Badge variant="secondary">Ölçülmedi</Badge>
+                                                    );
+                                                    
+                                                    return (
+                                                        <tr key={item.id || idx} className="border-b">
+                                                            <td className="p-2">{idx + 1}</td>
+                                                            <td className="p-2">{getCharacteristicName(item.characteristic_id)}</td>
+                                                            <td className="p-2">{getEquipmentName(item.equipment_id)}</td>
+                                                            <td className="p-2">{item.nominal_value || '-'}</td>
+                                                            <td className="p-2">{item.min_value || '-'}</td>
+                                                            <td className="p-2">{item.max_value || '-'}</td>
+                                                            <td className="p-2 font-semibold">{item.measured_value || '-'}</td>
+                                                            <td className="p-2 text-center">{statusBadge}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </CardContent>
                             </Card>
                         ) : (
                             <Card>
                                 <CardContent className="pt-6">
-                                    <p className="text-gray-500">Test sonucu bulunamadı.</p>
+                                    <p className="text-gray-500">Ölçüm sonucu bulunamadı.</p>
                                 </CardContent>
                             </Card>
                         )}

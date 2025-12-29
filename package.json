@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "vite --host :: --port 3001",
+    "dev": "vite --host :: --port 3003",
     "build": "vite build",
-    "preview": "vite preview --host :: --port 3001",
+    "preview": "vite preview --host :: --port 3003",
     "supabase:login": "supabase login",
     "supabase:pull": "supabase db pull",
     "supabase:push": "supabase db push",

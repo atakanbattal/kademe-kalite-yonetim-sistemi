@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, X, Eye, Save, CheckCircle, GitBranch, Printer, UploadCloud, File as FileIcon, Trash2, Download, Ban } from 'lucide-react';
+import { ArrowLeft, Check, X, Eye, Save, CheckCircle, GitBranch, Printer, UploadCloud, File as FileIcon, Trash2, Download, Ban, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Textarea } from '@/components/ui/textarea';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { isPast, differenceInDays } from 'date-fns';
 
 const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
     const { toast } = useToast();
@@ -39,7 +40,7 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
         
         const { data: findingsData, error: findingsError } = await supabase
             .from('audit_findings')
-            .select('*, non_conformity:non_conformities(id, nc_number, status, type)')
+            .select('*, non_conformity:non_conformities(id, nc_number, status, type, due_at, due_date)')
             .eq('audit_id', auditId);
 
         if (findingsError) {
@@ -134,7 +135,7 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                     audit_id: auditId,
                     audit_result_id: resultId,
                     description: question.question_text
-                }).select('*, non_conformity:non_conformities(id, nc_number, status, type)').single();
+                }).select('*, non_conformity:non_conformities(id, nc_number, status, type, due_at, due_date)').single();
             if (findingError) {
                 toast({ variant: 'destructive', title: 'Hata', description: `Bulgu oluşturulamadı: ${findingError.message}` });
             } else {
@@ -451,6 +452,25 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
         }
     };
 
+    const isOverdue = (nc) => {
+        if (!nc || nc.status === 'Kapatıldı' || nc.status === 'Reddedildi') {
+            return false;
+        }
+        const dueDate = nc.due_at || nc.due_date;
+        if (!dueDate) {
+            return false;
+        }
+        return isPast(new Date(dueDate));
+    };
+
+    const getDaysOverdue = (nc) => {
+        if (!isOverdue(nc)) {
+            return 0;
+        }
+        const dueDate = nc.due_at || nc.due_date;
+        return differenceInDays(new Date(), new Date(dueDate));
+    };
+
     if (loading) return <div className="text-center p-8 text-muted-foreground">Yükleniyor...</div>;
     if (!audit) return <div className="text-center p-8 text-muted-foreground">Tetkik bulunamadı.</div>;
 
@@ -572,10 +592,18 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                         </div>
 
                         {q.answer === 'Uygunsuz' && finding && (
-                            <div className="mt-3 text-right">
-                               <Button variant={hasNC ? 'success' : 'destructive'} size="sm" onClick={() => handleOpenNCModal(finding)} disabled={!!hasNC}>
-                                    <GitBranch className="w-4 h-4 mr-2"/> {hasNC ? `Uygunsuzluk Açıldı (${hasNC.nc_number})` : 'Uygunsuzluk Oluştur'}
-                               </Button>
+                            <div className="mt-3 flex items-center justify-between">
+                                {hasNC && isOverdue(hasNC) && (
+                                    <Badge variant="destructive" className="flex items-center gap-1">
+                                        <AlertTriangle className="w-3 h-3" />
+                                        Gecikti ({getDaysOverdue(hasNC)} gün)
+                                    </Badge>
+                                )}
+                                <div className="ml-auto">
+                                    <Button variant={hasNC ? 'success' : 'destructive'} size="sm" onClick={() => handleOpenNCModal(finding)} disabled={!!hasNC}>
+                                        <GitBranch className="w-4 h-4 mr-2"/> {hasNC ? `Uygunsuzluk Açıldı (${hasNC.nc_number})` : 'Uygunsuzluk Oluştur'}
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </motion.div>

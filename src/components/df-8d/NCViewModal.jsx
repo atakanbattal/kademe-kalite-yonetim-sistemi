@@ -50,6 +50,7 @@ import RevisionHistory from './RevisionHistory';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { DialogClose } from '@/components/ui/dialog';
+import PdfViewerModal from '@/components/document/PdfViewerModal';
 
 const EightDStepView = ({ stepKey, step }) => {
   if (!step || typeof step !== 'object') {
@@ -98,6 +99,8 @@ const getDefault8DTitle = (stepKey) => {
 
 const AttachmentItem = ({ path, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
+    const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
+    const [isLoading, setIsLoading] = React.useState(false);
     
     React.useEffect(() => {
         const fetchSignedUrl = async () => {
@@ -116,9 +119,50 @@ const AttachmentItem = ({ path, onPreview }) => {
         }
     }, [path]);
 
-    if (!signedUrl) return null;
-
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
+    const isPdf = /\.pdf$/i.test(path);
+    const fileName = path.split('/').pop();
+
+    const handlePdfClick = async (e) => {
+        e.preventDefault();
+        if (!path) return;
+        
+        setIsLoading(true);
+        try {
+            // PDF'i blob olarak indir ve blob URL oluştur
+            const { data, error } = await supabase.storage.from('df_attachments').download(path);
+            if (error) {
+                console.error('PDF indirme hatası:', error);
+                // Hata durumunda signed URL'i kullan
+                if (signedUrl) {
+                    setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
+                }
+                return;
+            }
+            
+            const blob = new Blob([data], { type: 'application/pdf' });
+            const blobUrl = window.URL.createObjectURL(blob);
+            setPdfViewerState({ isOpen: true, url: blobUrl, title: fileName });
+        } catch (err) {
+            console.error('PDF açılırken hata:', err);
+            // Hata durumunda signed URL'i kullan
+            if (signedUrl) {
+                setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Modal kapandığında blob URL'i temizle
+    const handlePdfViewerClose = () => {
+        if (pdfViewerState.url && pdfViewerState.url.startsWith('blob:')) {
+            window.URL.revokeObjectURL(pdfViewerState.url);
+        }
+        setPdfViewerState({ isOpen: false, url: null, title: null });
+    };
+
+    if (!signedUrl && !isLoading) return null;
 
     if (isImage) {
         return (
@@ -132,10 +176,38 @@ const AttachmentItem = ({ path, onPreview }) => {
         );
     }
     
+    if (isPdf) {
+        return (
+            <>
+                <div 
+                    className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all cursor-pointer hover:bg-secondary transition-colors"
+                    onClick={handlePdfClick}
+                >
+                    {isLoading ? (
+                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                    ) : (
+                        <>
+                            <FileText className="w-6 h-6 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+                        </>
+                    )}
+                </div>
+                {pdfViewerState.isOpen && (
+                    <PdfViewerModal
+                        isOpen={pdfViewerState.isOpen}
+                        setIsOpen={handlePdfViewerClose}
+                        pdfUrl={pdfViewerState.url}
+                        title={pdfViewerState.title}
+                    />
+                )}
+            </>
+        );
+    }
+    
     return (
-        <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all">
+        <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
             <Paperclip className="w-6 h-6 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground truncate w-full">{path.split('/').pop()}</span>
+            <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
         </a>
     );
 };

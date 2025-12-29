@@ -12,6 +12,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Badge } from '@/components/ui/badge';
 import { useNCForm } from '@/hooks/useNCForm';
 import { Lightbox } from 'react-modal-image';
+import PdfViewerModal from '@/components/document/PdfViewerModal';
+import { Loader2 } from 'lucide-react';
 
 const getStatusBadgeVariant = (status) => {
     switch (status) {
@@ -24,6 +26,8 @@ const getStatusBadgeVariant = (status) => {
 
 const AttachmentItem = ({ path, onRemove, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
+    const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
+    const [isLoading, setIsLoading] = React.useState(false);
     
     React.useEffect(() => {
         const fetchSignedUrl = async () => {
@@ -42,35 +46,100 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
         }
     }, [path]);
 
-    if (!signedUrl) return null;
-
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
+    const isPdf = /\.pdf$/i.test(path);
+    const fileName = path.split('/').pop();
+
+    const handlePdfClick = async (e) => {
+        e.preventDefault();
+        if (!path) return;
+        
+        setIsLoading(true);
+        try {
+            // PDF'i blob olarak indir ve blob URL oluştur
+            const { data, error } = await supabase.storage.from('df_attachments').download(path);
+            if (error) {
+                console.error('PDF indirme hatası:', error);
+                // Hata durumunda signed URL'i kullan
+                if (signedUrl) {
+                    setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
+                }
+                return;
+            }
+            
+            const blob = new Blob([data], { type: 'application/pdf' });
+            const blobUrl = window.URL.createObjectURL(blob);
+            setPdfViewerState({ isOpen: true, url: blobUrl, title: fileName });
+        } catch (err) {
+            console.error('PDF açılırken hata:', err);
+            // Hata durumunda signed URL'i kullan
+            if (signedUrl) {
+                setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Modal kapandığında blob URL'i temizle
+    const handlePdfViewerClose = () => {
+        if (pdfViewerState.url && pdfViewerState.url.startsWith('blob:')) {
+            window.URL.revokeObjectURL(pdfViewerState.url);
+        }
+        setPdfViewerState({ isOpen: false, url: null, title: null });
+    };
+
+    if (!signedUrl && !isLoading) return null;
 
     return (
-        <div className="relative group w-24 h-24">
-            {isImage ? (
-                <img
-                    src={signedUrl}
-                    alt="Ek"
-                    className="rounded-lg object-cover w-full h-full cursor-pointer"
-                    onClick={() => onPreview(signedUrl)}
+        <>
+            <div className="relative group w-24 h-24">
+                {isImage ? (
+                    <img
+                        src={signedUrl}
+                        alt="Ek"
+                        className="rounded-lg object-cover w-full h-full cursor-pointer"
+                        onClick={() => onPreview(signedUrl)}
+                    />
+                ) : isPdf ? (
+                    <div 
+                        className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all cursor-pointer hover:bg-secondary transition-colors"
+                        onClick={handlePdfClick}
+                    >
+                        {isLoading ? (
+                            <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                        ) : (
+                            <>
+                                <FileIcon className="w-6 h-6 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all hover:bg-secondary transition-colors">
+                        <FileIcon className="w-6 h-6 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+                    </a>
+                )}
+                <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => onRemove(path)}
+                >
+                    <Trash2 className="h-3 w-3" />
+                </Button>
+            </div>
+            {pdfViewerState.isOpen && (
+                <PdfViewerModal
+                    isOpen={pdfViewerState.isOpen}
+                    setIsOpen={handlePdfViewerClose}
+                    pdfUrl={pdfViewerState.url}
+                    title={pdfViewerState.title}
                 />
-            ) : (
-                <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all">
-                    <FileIcon className="w-6 h-6 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground truncate w-full">{path.split('/').pop()}</span>
-                </a>
             )}
-            <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onRemove(path)}
-            >
-                <Trash2 className="h-3 w-3" />
-            </Button>
-        </div>
+        </>
     );
 };
 

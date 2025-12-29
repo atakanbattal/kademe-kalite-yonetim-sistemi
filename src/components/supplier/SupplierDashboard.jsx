@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
     import { motion } from 'framer-motion';
     import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
-    import { AlertCircle, ShieldCheck, TrendingUp, Users, CalendarClock, Target, ArrowDownCircle, Lightbulb, FilePlus, CheckCircle } from 'lucide-react';
+    import { AlertCircle, ShieldCheck, TrendingUp, Users, CalendarClock, Target, ArrowDownCircle, Lightbulb, FilePlus, CheckCircle, Printer } from 'lucide-react';
     import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
     import { Badge } from '@/components/ui/badge';
     import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +9,7 @@ import React, { useMemo, useState } from 'react';
     import { Button } from '@/components/ui/button';
     import SupplierAuditPlanModal from '@/components/supplier/SupplierAuditPlanModal';
     import { useData } from '@/contexts/DataContext';
+    import { openPrintableReport } from '@/lib/reportUtils';
 
     const StatCard = ({ icon: Icon, title, value, colorClass, description }) => (
         <Card className={`overflow-hidden border-l-4 ${colorClass}`}>
@@ -39,7 +40,7 @@ import React, { useMemo, useState } from 'react';
         return null;
     };
 
-    const SupplierDashboard = ({ suppliers, loading, refreshData }) => {
+    const SupplierDashboard = ({ suppliers, loading, refreshData, allSuppliers }) => {
         const { incomingInspections, nonConformities } = useData();
         const [filterDate, setFilterDate] = useState({
             month: 'all',
@@ -228,19 +229,38 @@ import React, { useMemo, useState } from 'react';
                     <StatCard icon={Target} title="Genel PPM" value={dashboardData.overallPPM.toLocaleString()} colorClass="border-purple-500" description={getFilterDescription()} />
                 </div>
 
-                <div className="flex justify-end gap-4 mb-6">
-                    <Select value={filterDate.month} onValueChange={(v) => handleFilterChange('month', v)}>
-                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Ay Seçin" /></SelectTrigger>
-                        <SelectContent>
-                            {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <Select value={filterDate.year} onValueChange={(v) => handleFilterChange('year', v)}>
-                        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Yıl Seçin" /></SelectTrigger>
-                        <SelectContent>
-                            {years.map(y => <SelectItem key={y} value={y}>{y === 'all' ? 'Tüm Yıllar' : y}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
+                <div className="flex justify-between items-center gap-4 mb-6">
+                    <Button 
+                        variant="outline" 
+                        onClick={() => {
+                            const reportData = {
+                                id: `supplier-dashboard-${Date.now()}`,
+                                title: 'Tedarikçi Kalite Genel Bakış Raporu',
+                                reportDate: new Date().toISOString(),
+                                dashboardData,
+                                filterDescription: getFilterDescription(),
+                                suppliers: allSuppliers || suppliers || []
+                            };
+                            openPrintableReport(reportData, 'supplier_dashboard', true);
+                        }}
+                    >
+                        <Printer className="w-4 h-4 mr-2" />
+                        PDF Rapor Oluştur
+                    </Button>
+                    <div className="flex gap-4">
+                        <Select value={filterDate.month} onValueChange={(v) => handleFilterChange('month', v)}>
+                            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Ay Seçin" /></SelectTrigger>
+                            <SelectContent>
+                                {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={filterDate.year} onValueChange={(v) => handleFilterChange('year', v)}>
+                            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Yıl Seçin" /></SelectTrigger>
+                            <SelectContent>
+                                {years.map(y => <SelectItem key={y} value={y}>{y === 'all' ? 'Tüm Yıllar' : y}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 <div className="space-y-6">
