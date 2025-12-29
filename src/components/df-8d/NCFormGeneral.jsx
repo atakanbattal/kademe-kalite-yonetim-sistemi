@@ -28,13 +28,15 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
     const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
     const [isLoading, setIsLoading] = React.useState(false);
-    const [imageBlobUrl, setImageBlobUrl] = React.useState(null);
-    const [imageLoading, setImageLoading] = React.useState(true);
-    const [imageError, setImageError] = React.useState(false);
-    const imageBlobUrlRef = React.useRef(null);
+    const [loadingUrl, setLoadingUrl] = React.useState(true);
     
     React.useEffect(() => {
         const fetchSignedUrl = async () => {
+            if (!path) {
+                setLoadingUrl(false);
+                return;
+            }
+            
             try {
                 const { data, error } = await supabase.storage.from('df_attachments').createSignedUrl(path, 3600);
                 if (!error && data?.signedUrl) {
@@ -42,78 +44,17 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
                 }
             } catch (err) {
                 console.error('Signed URL fetch error:', err);
+            } finally {
+                setLoadingUrl(false);
             }
         };
         
-        if (path) {
-            fetchSignedUrl();
-        }
+        fetchSignedUrl();
     }, [path]);
 
     const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
     const isPdf = /\.pdf$/i.test(path);
     const fileName = path.split('/').pop();
-
-    // Görsel dosyaları blob olarak indir ve blob URL oluştur
-    React.useEffect(() => {
-        if (!isImage || !path) {
-            setImageLoading(false);
-            return;
-        }
-        
-        setImageLoading(true);
-        setImageError(false);
-        
-        const loadImageAsBlob = async () => {
-            try {
-                const { data, error } = await supabase.storage.from('df_attachments').download(path);
-                if (error) {
-                    console.error('Görsel indirme hatası:', error);
-                    setImageError(true);
-                    setImageLoading(false);
-                    return;
-                }
-                
-                // Dosya uzantısına göre MIME type belirle
-                const extension = path.split('.').pop().toLowerCase();
-                const mimeTypes = {
-                    'jpg': 'image/jpeg',
-                    'jpeg': 'image/jpeg',
-                    'png': 'image/png',
-                    'gif': 'image/gif',
-                    'webp': 'image/webp',
-                    'bmp': 'image/bmp'
-                };
-                const mimeType = mimeTypes[extension] || 'image/jpeg';
-                
-                const blob = new Blob([data], { type: mimeType });
-                const blobUrl = window.URL.createObjectURL(blob);
-                
-                // Eski blob URL'i temizle
-                if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
-                    window.URL.revokeObjectURL(imageBlobUrlRef.current);
-                }
-                
-                imageBlobUrlRef.current = blobUrl;
-                setImageBlobUrl(blobUrl);
-                setImageLoading(false);
-            } catch (err) {
-                console.error('Görsel yüklenirken hata:', err);
-                setImageError(true);
-                setImageLoading(false);
-            }
-        };
-        
-        loadImageAsBlob();
-        
-        // Cleanup: blob URL'i temizle
-        return () => {
-            if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
-                window.URL.revokeObjectURL(imageBlobUrlRef.current);
-                imageBlobUrlRef.current = null;
-            }
-        };
-    }, [isImage, path]);
 
     const handlePdfClick = async (e) => {
         e.preventDefault();
@@ -154,48 +95,29 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
         setPdfViewerState({ isOpen: false, url: null, title: null });
     };
 
-    // Loading durumunda veya URL yoksa placeholder göster
+    // Loading durumunda placeholder göster
+    if (loadingUrl) {
+        return (
+            <div className="relative group w-24 h-24">
+                <div className="flex items-center justify-center bg-secondary rounded-lg w-full h-full">
+                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                </div>
+            </div>
+        );
+    }
+
+    // Signed URL yoksa hiçbir şey gösterme
+    if (!signedUrl) return null;
+
+    // Görsel dosyalar için direkt signed URL kullan (sapma modülü gibi)
     if (isImage) {
-        const imageUrl = imageBlobUrl || signedUrl;
-        
-        if (imageLoading || (!imageUrl && !signedUrl)) {
-            return (
-                <div className="relative group w-24 h-24">
-                    <div className="flex items-center justify-center bg-secondary rounded-lg w-full h-full">
-                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                    </div>
-                </div>
-            );
-        }
-        
-        if (imageError && !signedUrl) {
-            return (
-                <div className="relative group w-24 h-24">
-                    <div className="flex flex-col items-center justify-center bg-destructive/10 rounded-lg w-full h-full text-center p-2">
-                        <AlertCircle className="w-6 h-6 text-destructive mb-1" />
-                        <span className="text-xs text-destructive">Hata</span>
-                    </div>
-                </div>
-            );
-        }
-        
         return (
             <div className="relative group w-24 h-24">
                 <img
-                    src={imageUrl || signedUrl}
+                    src={signedUrl}
                     alt="Ek"
-                    className="rounded-lg object-cover w-full h-full cursor-pointer"
-                    onClick={() => onPreview(imageUrl || signedUrl)}
-                    onLoad={() => setImageLoading(false)}
-                    onError={(e) => {
-                        // Blob URL başarısız olursa signed URL'e geri dön
-                        if (imageBlobUrl && signedUrl && imageBlobUrl !== signedUrl) {
-                            e.target.src = signedUrl;
-                            setImageError(false);
-                        } else {
-                            setImageError(true);
-                        }
-                    }}
+                    className="rounded-lg object-cover w-full h-full cursor-pointer border border-border"
+                    onClick={() => onPreview(signedUrl)}
                 />
                 <Button
                     type="button"
@@ -209,8 +131,6 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
             </div>
         );
     }
-    
-    if (!signedUrl && !isLoading) return null;
 
     return (
         <>

@@ -101,13 +101,15 @@ const AttachmentItem = ({ path, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
     const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
     const [isLoading, setIsLoading] = React.useState(false);
-    const [imageBlobUrl, setImageBlobUrl] = React.useState(null);
-    const [imageLoading, setImageLoading] = React.useState(true);
-    const [imageError, setImageError] = React.useState(false);
-    const imageBlobUrlRef = React.useRef(null);
+    const [loadingUrl, setLoadingUrl] = React.useState(true);
     
     React.useEffect(() => {
         const fetchSignedUrl = async () => {
+            if (!path) {
+                setLoadingUrl(false);
+                return;
+            }
+            
             try {
                 const { data, error } = await supabase.storage.from('df_attachments').createSignedUrl(path, 3600);
                 if (!error && data?.signedUrl) {
@@ -115,82 +117,21 @@ const AttachmentItem = ({ path, onPreview }) => {
                 }
             } catch (err) {
                 console.error('Signed URL fetch error:', err);
+            } finally {
+                setLoadingUrl(false);
             }
         };
         
-        if (path) {
-            fetchSignedUrl();
-        }
+        fetchSignedUrl();
     }, [path]);
 
     const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
     const isPdf = /\.pdf$/i.test(path);
     const fileName = path.split('/').pop();
 
-    // Görsel dosyaları blob olarak indir ve blob URL oluştur
-    React.useEffect(() => {
-        if (!isImage || !path) {
-            setImageLoading(false);
-            return;
-        }
-        
-        setImageLoading(true);
-        setImageError(false);
-        
-        const loadImageAsBlob = async () => {
-            try {
-                const { data, error } = await supabase.storage.from('df_attachments').download(path);
-                if (error) {
-                    console.error('Görsel indirme hatası:', error);
-                    setImageError(true);
-                    setImageLoading(false);
-                    return;
-                }
-                
-                // Dosya uzantısına göre MIME type belirle
-                const extension = path.split('.').pop().toLowerCase();
-                const mimeTypes = {
-                    'jpg': 'image/jpeg',
-                    'jpeg': 'image/jpeg',
-                    'png': 'image/png',
-                    'gif': 'image/gif',
-                    'webp': 'image/webp',
-                    'bmp': 'image/bmp'
-                };
-                const mimeType = mimeTypes[extension] || 'image/jpeg';
-                
-                const blob = new Blob([data], { type: mimeType });
-                const blobUrl = window.URL.createObjectURL(blob);
-                
-                // Eski blob URL'i temizle
-                if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
-                    window.URL.revokeObjectURL(imageBlobUrlRef.current);
-                }
-                
-                imageBlobUrlRef.current = blobUrl;
-                setImageBlobUrl(blobUrl);
-                setImageLoading(false);
-            } catch (err) {
-                console.error('Görsel yüklenirken hata:', err);
-                setImageError(true);
-                setImageLoading(false);
-            }
-        };
-        
-        loadImageAsBlob();
-        
-        // Cleanup: blob URL'i temizle
-        return () => {
-            if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
-                window.URL.revokeObjectURL(imageBlobUrlRef.current);
-                imageBlobUrlRef.current = null;
-            }
-        };
-    }, [isImage, path]);
-
     const handlePdfClick = async (e) => {
         e.preventDefault();
-        if (!path) return;
+        if (!path || !signedUrl) return;
         
         setIsLoading(true);
         try {
@@ -199,9 +140,7 @@ const AttachmentItem = ({ path, onPreview }) => {
             if (error) {
                 console.error('PDF indirme hatası:', error);
                 // Hata durumunda signed URL'i kullan
-                if (signedUrl) {
-                    setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
-                }
+                setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
                 return;
             }
             
@@ -211,9 +150,7 @@ const AttachmentItem = ({ path, onPreview }) => {
         } catch (err) {
             console.error('PDF açılırken hata:', err);
             // Hata durumunda signed URL'i kullan
-            if (signedUrl) {
-                setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
-            }
+            setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
         } finally {
             setIsLoading(false);
         }
@@ -227,55 +164,37 @@ const AttachmentItem = ({ path, onPreview }) => {
         setPdfViewerState({ isOpen: false, url: null, title: null });
     };
 
-    // Loading durumunda veya URL yoksa placeholder göster
-    if (isImage) {
-        const imageUrl = imageBlobUrl || signedUrl;
-        
-        if (imageLoading || (!imageUrl && !signedUrl)) {
-            return (
-                <div className="flex items-center justify-center bg-secondary rounded-lg w-full h-32">
-                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                </div>
-            );
-        }
-        
-        if (imageError && !signedUrl) {
-            return (
-                <div className="flex flex-col items-center justify-center bg-destructive/10 rounded-lg w-full h-32 text-center p-2">
-                    <AlertTriangle className="w-6 h-6 text-destructive mb-1" />
-                    <span className="text-xs text-destructive">Yüklenemedi</span>
-                </div>
-            );
-        }
-        
+    // Loading durumunda placeholder göster
+    if (loadingUrl) {
         return (
-            <div className="group cursor-pointer" onClick={() => onPreview(imageUrl || signedUrl)}>
+            <div className="flex items-center justify-center bg-secondary rounded-lg w-full h-32">
+                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+            </div>
+        );
+    }
+
+    // Signed URL yoksa hiçbir şey gösterme
+    if (!signedUrl) return null;
+
+    // Görsel dosyalar için direkt signed URL kullan (sapma modülü gibi)
+    if (isImage) {
+        return (
+            <div className="group cursor-pointer" onClick={() => onPreview(signedUrl)}>
                 <img
-                    src={imageUrl || signedUrl}
+                    src={signedUrl}
                     alt="Ek"
-                    className="rounded-lg object-cover w-full h-32 transition-transform duration-300 group-hover:scale-105"
-                    onLoad={() => setImageLoading(false)}
-                    onError={(e) => {
-                        // Blob URL başarısız olursa signed URL'e geri dön
-                        if (imageBlobUrl && signedUrl && imageBlobUrl !== signedUrl) {
-                            e.target.src = signedUrl;
-                            setImageError(false);
-                        } else {
-                            setImageError(true);
-                        }
-                    }}
+                    className="rounded-lg object-cover w-full h-32 transition-transform duration-300 group-hover:scale-105 border border-border"
                 />
             </div>
         );
     }
     
-    if (!signedUrl && !isLoading) return null;
-    
+    // PDF dosyaları için
     if (isPdf) {
         return (
             <>
                 <div 
-                    className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all cursor-pointer hover:bg-secondary transition-colors"
+                    className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all cursor-pointer hover:bg-secondary transition-colors border border-border"
                     onClick={handlePdfClick}
                 >
                     {isLoading ? (
@@ -299,8 +218,9 @@ const AttachmentItem = ({ path, onPreview }) => {
         );
     }
     
+    // Diğer dosyalar için
     return (
-        <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
+        <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors border border-border">
             <Paperclip className="w-6 h-6 text-muted-foreground" />
             <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
         </a>
@@ -615,9 +535,12 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                       Kanıt Dokümanları
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {allAttachments.map((path, index) => (
-                        <AttachmentItem key={index} path={path} onPreview={setLightboxUrl} />
-                      ))}
+                      {allAttachments.map((path, index) => {
+                        if (!path || path.trim() === '') {
+                          return null;
+                        }
+                        return <AttachmentItem key={index} path={path} onPreview={setLightboxUrl} />;
+                      })}
                     </div>
                   </div>
                 </>
