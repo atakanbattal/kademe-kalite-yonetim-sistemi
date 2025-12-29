@@ -46,9 +46,61 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
         }
     }, [path]);
 
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
+    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
     const isPdf = /\.pdf$/i.test(path);
     const fileName = path.split('/').pop();
+    const [imageBlobUrl, setImageBlobUrl] = React.useState(null);
+    const imageBlobUrlRef = React.useRef(null);
+
+    // Görsel dosyaları blob olarak indir ve blob URL oluştur
+    React.useEffect(() => {
+        if (!isImage || !path) return;
+        
+        const loadImageAsBlob = async () => {
+            try {
+                const { data, error } = await supabase.storage.from('df_attachments').download(path);
+                if (error) {
+                    console.error('Görsel indirme hatası:', error);
+                    return;
+                }
+                
+                // Dosya uzantısına göre MIME type belirle
+                const extension = path.split('.').pop().toLowerCase();
+                const mimeTypes = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp',
+                    'bmp': 'image/bmp'
+                };
+                const mimeType = mimeTypes[extension] || 'image/jpeg';
+                
+                const blob = new Blob([data], { type: mimeType });
+                const blobUrl = window.URL.createObjectURL(blob);
+                
+                // Eski blob URL'i temizle
+                if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
+                    window.URL.revokeObjectURL(imageBlobUrlRef.current);
+                }
+                
+                imageBlobUrlRef.current = blobUrl;
+                setImageBlobUrl(blobUrl);
+            } catch (err) {
+                console.error('Görsel yüklenirken hata:', err);
+            }
+        };
+        
+        loadImageAsBlob();
+        
+        // Cleanup: blob URL'i temizle
+        return () => {
+            if (imageBlobUrlRef.current && imageBlobUrlRef.current.startsWith('blob:')) {
+                window.URL.revokeObjectURL(imageBlobUrlRef.current);
+                imageBlobUrlRef.current = null;
+            }
+        };
+    }, [isImage, path]);
 
     const handlePdfClick = async (e) => {
         e.preventDefault();
@@ -96,10 +148,16 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
             <div className="relative group w-24 h-24">
                 {isImage ? (
                     <img
-                        src={signedUrl}
+                        src={imageBlobUrl || signedUrl}
                         alt="Ek"
                         className="rounded-lg object-cover w-full h-full cursor-pointer"
-                        onClick={() => onPreview(signedUrl)}
+                        onClick={() => onPreview(imageBlobUrl || signedUrl)}
+                        onError={(e) => {
+                            // Blob URL başarısız olursa signed URL'e geri dön
+                            if (imageBlobUrl && imageBlobUrl !== signedUrl) {
+                                e.target.src = signedUrl;
+                            }
+                        }}
                     />
                 ) : isPdf ? (
                     <div 
