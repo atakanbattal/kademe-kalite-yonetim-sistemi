@@ -171,12 +171,16 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                 // Güvenli dosya yolu oluştur
                 let filePath = createSafeFilePath(originalFileName, ncId, stepKey);
 
-                // Dosyayı storage'a yükle - encoding sorunlarını önlemek için File nesnesini doğrudan kullan
+                // Safari uyumluluğu için dosyayı ArrayBuffer olarak oku
+                const arrayBuffer = await file.arrayBuffer();
+                const blob = new Blob([arrayBuffer], { type: file.type || 'application/octet-stream' });
+
+                // Dosyayı storage'a yükle
                 let uploadError = null;
                 try {
                     const { error } = await supabase.storage
                         .from('df_attachments')
-                        .upload(filePath, file, {
+                        .upload(filePath, blob, {
                             cacheControl: '3600',
                             upsert: false,
                             contentType: file.type || 'application/octet-stream'
@@ -203,7 +207,7 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                         try {
                             const { error: retryError } = await supabase.storage
                                 .from('df_attachments')
-                                .upload(retryFilePath, file, {
+                                .upload(retryFilePath, blob, {
                                     cacheControl: '3600',
                                     upsert: false,
                                     contentType: file.type || 'application/octet-stream'

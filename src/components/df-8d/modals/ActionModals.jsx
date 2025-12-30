@@ -24,9 +24,9 @@ export const RejectModal = ({ isOpen, setIsOpen, record, onSave }) => {
         setIsSubmitting(true);
         const { error } = await supabase
             .from('non_conformities')
-            .update({ 
-                status: 'Reddedildi', 
-                rejection_reason: notes, 
+            .update({
+                status: 'Reddedildi',
+                rejection_reason: notes,
                 rejected_at: new Date().toISOString(),
                 due_date: null,
                 due_at: null
@@ -72,7 +72,7 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
     // Dosya adını normalize et ve güvenli hale getir
     const normalizeFileName = (fileName) => {
         if (!fileName) return 'file';
-        
+
         // Türkçe karakterleri ASCII'ye çevir
         const turkishToAscii = {
             'ç': 'c', 'Ç': 'C',
@@ -82,31 +82,31 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
             'ş': 's', 'Ş': 'S',
             'ü': 'u', 'Ü': 'U'
         };
-        
+
         let normalized = fileName;
         Object.keys(turkishToAscii).forEach(key => {
             normalized = normalized.replace(new RegExp(key, 'g'), turkishToAscii[key]);
         });
-        
+
         // Dosya adını ve uzantısını ayır
         const lastDotIndex = normalized.lastIndexOf('.');
         let name = normalized;
         let ext = '';
-        
+
         if (lastDotIndex > 0 && lastDotIndex < normalized.length - 1) {
             name = normalized.substring(0, lastDotIndex);
             ext = normalized.substring(lastDotIndex + 1);
         }
-        
+
         // Özel karakterleri temizle ve boşlukları tire ile değiştir
         name = name
             .replace(/[^a-zA-Z0-9\-_]/g, '-')
             .replace(/-+/g, '-')
             .replace(/^-|-$/g, '');
-        
+
         // Uzantıyı temizle
         ext = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        
+
         // Eğer uzantı yoksa orijinal dosyadan al
         if (!ext || ext.length === 0) {
             const originalLastDot = fileName.lastIndexOf('.');
@@ -114,10 +114,10 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
                 ext = fileName.substring(originalLastDot + 1).toLowerCase();
             }
         }
-        
+
         if (!ext || ext.length === 0) ext = 'file';
         if (!name || name.length === 0) name = 'file';
-        
+
         return `${name}.${ext}`;
     };
 
@@ -137,14 +137,14 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
         }))]);
     }, []);
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         accept: {
             'image/*': ['.jpeg', '.png', '.jpg'],
             'application/pdf': ['.pdf'],
         }
     });
-    
+
     const removeFile = (fileToRemove) => {
         setFiles(files.filter(file => file !== fileToRemove));
     };
@@ -162,11 +162,15 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
             const uploadPromises = files.map(async (file) => {
                 const originalFileName = file.name || 'unnamed-file';
                 const filePath = createSafeFilePath(originalFileName, record.id);
-                
+
                 try {
+                    // Safari uyumluluğu için dosyayı ArrayBuffer olarak oku
+                    const arrayBuffer = await file.arrayBuffer();
+                    const blob = new Blob([arrayBuffer], { type: file.type || 'application/octet-stream' });
+
                     const { data, error } = await supabase.storage
                         .from('df_attachments')
-                        .upload(filePath, file, {
+                        .upload(filePath, blob, {
                             cacheControl: '3600',
                             upsert: false,
                             contentType: file.type || 'application/octet-stream'
@@ -192,7 +196,7 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
             }
             closing_attachments.push(...newPaths);
         }
-        
+
         const { error } = await supabase
             .from('non_conformities')
             .update({ status: 'Kapatıldı', closed_at: new Date().toISOString(), closing_notes: notes, closing_attachments })
@@ -210,10 +214,10 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
 
     useEffect(() => {
         if (isOpen) {
-          setNotes(record?.closing_notes || '');
+            setNotes(record?.closing_notes || '');
         } else {
-          setNotes('');
-          setFiles([]);
+            setNotes('');
+            setFiles([]);
         }
         return () => files.forEach(file => URL.revokeObjectURL(file.preview));
     }, [isOpen, record, files]);
@@ -240,7 +244,7 @@ export const CloseModal = ({ isOpen, setIsOpen, record, onSave }) => {
                             <p className="mt-2 text-sm text-muted-foreground">Dokümanları buraya sürükleyin veya seçmek için tıklayın.</p>
                         </div>
                         {files.length > 0 && (
-                             <div className="mt-2 space-y-2">
+                            <div className="mt-2 space-y-2">
                                 {files.map((file, index) => (
                                     <div key={index} className="flex items-center justify-between bg-secondary p-2 rounded-md">
                                         <div className="flex items-center gap-2"><FileIcon className="w-4 h-4" /><span className="text-sm">{file.name}</span></div>
@@ -285,7 +289,7 @@ export const ForwardNCModal = ({ isOpen, setIsOpen, record, onSave }) => {
             return;
         }
         setIsSubmitting(true);
-        
+
         const selectedPersonnel = personnel.find(p => p.id === targetPersonnelId);
         if (!selectedPersonnel) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Seçilen personel bulunamadı.' });
@@ -295,7 +299,7 @@ export const ForwardNCModal = ({ isOpen, setIsOpen, record, onSave }) => {
 
         const { error } = await supabase
             .from('non_conformities')
-            .update({ 
+            .update({
                 responsible_person: selectedPersonnel.full_name,
                 department: selectedPersonnel.department,
                 forwarded_to_personnel_id: targetPersonnelId,
@@ -354,9 +358,9 @@ export const InProgressModal = ({ isOpen, setIsOpen, record, onSave }) => {
     const { toast } = useToast();
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     useEffect(() => {
-        if(isOpen) {
+        if (isOpen) {
             setNotes(record?.closing_notes || '');
         }
     }, [isOpen, record]);
@@ -392,11 +396,11 @@ export const InProgressModal = ({ isOpen, setIsOpen, record, onSave }) => {
                     <p className="text-xs text-muted-foreground mb-2">
                         📝 Birimlerden aldığınız dönüşleri, yapılan iyileştirmeleri ve ilerleme durumunu buraya ekleyin. Bu notlar görüntüleme ekranında gösterilecektir.
                     </p>
-                    <Textarea 
-                        id="in_progress_notes" 
-                        value={notes} 
-                        onChange={e => setNotes(e.target.value)} 
-                        placeholder="Örnek: Üretim bölümü ile görüşüldü, kök neden analizi yapıldı, düzeltici faaliyet planlandı..." 
+                    <Textarea
+                        id="in_progress_notes"
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        placeholder="Örnek: Üretim bölümü ile görüşüldü, kök neden analizi yapıldı, düzeltici faaliyet planlandı..."
                         rows={6}
                         className="resize-none"
                     />
@@ -447,7 +451,7 @@ export const UpdateDueDateModal = ({ isOpen, setIsOpen, record, onSave }) => {
 
             const { error } = await supabase
                 .from('non_conformities')
-                .update({ 
+                .update({
                     due_date: dueDateString,
                     due_at: dueAtISO
                 })
