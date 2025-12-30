@@ -24,9 +24,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'X-Client-Info': 'kademe-qms',
-      'Content-Type': 'application/json; charset=utf-8',
-      'Accept': 'application/json; charset=utf-8'
+      'X-Client-Info': 'kademe-qms'
+      // NOT: Content-Type header'ı burada TANIMLANMAMALI!
+      // Supabase client dosya yüklemelerinde otomatik olarak doğru
+      // Content-Type'ı (multipart/form-data) ayarlar. Manuel tanımlamak
+      // dosya yüklemelerini bozar.
     }
   },
   db: {
