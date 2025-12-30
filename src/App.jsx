@@ -474,7 +474,7 @@ const MainLayout = () => {
             return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
         }
         switch (module) {
-            case 'dashboard': return <Dashboard setActiveModule={setActiveModule} />;
+            case 'dashboard': return <Dashboard setActiveModule={setActiveModule} onOpenNCView={handleOpenNCView} />;
             case 'tasks': return <TaskModule />;
             case 'kpi': return <KPIModule />;
             case 'kaizen': return <KaizenManagement />;
