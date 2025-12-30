@@ -247,16 +247,28 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                 // Eğer parça kodu varsa, bu parçanın ilk girdi muayene tarihini, tedarikçisini ve ölçümlerini bul
                 if (existingReport?.part_code) {
                     try {
-                        // İlk muayene kaydını al
-                        const { data: firstInspection, error } = await supabase
-                            .from('incoming_inspections')
-                            .select('id, inspection_date, supplier_id')
-                            .eq('part_code', existingReport.part_code)
-                            .order('inspection_date', { ascending: true })
-                            .limit(1)
-                            .maybeSingle();
+                        // İlk muayene kaydını ve kontrol planını paralel olarak al
+                        const [inspectionRes, controlPlanRes] = await Promise.all([
+                            supabase
+                                .from('incoming_inspections')
+                                .select('id, inspection_date, supplier_id')
+                                .eq('part_code', existingReport.part_code)
+                                .order('inspection_date', { ascending: true })
+                                .limit(1)
+                                .maybeSingle(),
+                            supabase
+                                .from('incoming_control_plans')
+                                .select('*')
+                                .eq('part_code', existingReport.part_code)
+                                .order('revision_number', { ascending: false })
+                                .limit(1)
+                                .maybeSingle()
+                        ]);
 
-                        if (!error && firstInspection) {
+                        const firstInspection = inspectionRes.data;
+                        const controlPlan = controlPlanRes.data;
+
+                        if (firstInspection) {
                             // Ürünün firmamıza ilk geldiği tarihi kullan
                             if (firstInspection.inspection_date) {
                                 initialReportDate = new Date(firstInspection.inspection_date).toISOString().split('T')[0];
@@ -273,6 +285,18 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                 .eq('inspection_id', firstInspection.id);
 
                             if (!resultsError && inspectionResults && inspectionResults.length > 0) {
+                                // Kontrol planı items'ını Map'e dönüştür (control_plan_item_id ile eşleştirmek için)
+                                const controlPlanItemsMap = new Map();
+                                if (controlPlan?.items) {
+                                    controlPlan.items.forEach(item => {
+                                        controlPlanItemsMap.set(item.id, item);
+                                        // Ayrıca karakteristik ID'si ile de eşleştir
+                                        if (item.characteristic_id) {
+                                            controlPlanItemsMap.set(`char_${item.characteristic_id}`, item);
+                                        }
+                                    });
+                                }
+
                                 // Ölçüm sonuçlarını INKR item formatına dönüştür
                                 // Her karakteristik için sadece ilk ölçümü al (measurement_number = 1 veya en düşük)
                                 const uniqueCharacteristics = new Map();
@@ -296,18 +320,46 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                         e.label?.toLowerCase() === result.measurement_method?.toLowerCase()
                                     );
 
+                                    // Kontrol planından standart bilgilerini al
+                                    let standardId = null;
+                                    let toleranceClass = null;
+                                    let standardClass = '';
+
+                                    // Önce control_plan_item_id ile eşleştir
+                                    let planItem = result.control_plan_item_id ? controlPlanItemsMap.get(result.control_plan_item_id) : null;
+
+                                    // Bulunamazsa karakteristik ID ile eşleştir
+                                    if (!planItem && matchingChar?.value) {
+                                        planItem = controlPlanItemsMap.get(`char_${matchingChar.value}`);
+                                    }
+
+                                    if (planItem) {
+                                        standardId = planItem.standard_id || null;
+                                        toleranceClass = planItem.tolerance_class || null;
+                                        standardClass = planItem.standard_class || '';
+                                    }
+
+                                    // Standart sınıfını oluştur (eğer boşsa)
+                                    if (!standardClass && standardId && toleranceClass && standards) {
+                                        const matchingStd = standards.find(s => s.value === standardId);
+                                        if (matchingStd) {
+                                            const stdBaseName = matchingStd.label.split(' ')[0];
+                                            standardClass = `${stdBaseName}_${toleranceClass}`;
+                                        }
+                                    }
+
                                     initialItems.push({
                                         id: uuidv4(),
                                         characteristic_id: matchingChar?.value || '',
                                         characteristic_type: result.characteristic_type || matchingChar?.type || '',
                                         equipment_id: matchingEquip?.value || '',
-                                        standard_id: null,
-                                        tolerance_class: null,
+                                        standard_id: standardId,
+                                        tolerance_class: toleranceClass,
                                         nominal_value: result.nominal_value !== undefined && result.nominal_value !== null ? result.nominal_value : '',
                                         min_value: result.min_value !== undefined && result.min_value !== null ? result.min_value : null,
                                         max_value: result.max_value !== undefined && result.max_value !== null ? result.max_value : null,
-                                        tolerance_direction: '±',
-                                        standard_class: '',
+                                        tolerance_direction: planItem?.tolerance_direction || '±',
+                                        standard_class: standardClass,
                                         measured_value: result.measured_value || result.actual_value || ''
                                     });
                                 });
@@ -438,77 +490,79 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                     <DialogDescription>İlk numune kontrol raporu bilgilerini girin ve ölçümleri kaydedin.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                    <ScrollArea className="flex-1 p-4 min-h-0">
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><Label>Parça Kodu</Label><Input value={formData.part_code || ''} onChange={(e) => setFormData(f => ({ ...f, part_code: e.target.value }))} required disabled={isEditMode || !!(existingReport && existingReport.part_code && !existingReport.id)} /></div>
-                                <div><Label>Parça Adı</Label><Input value={formData.part_name || ''} onChange={(e) => setFormData(f => ({ ...f, part_name: e.target.value }))} required /></div>
-                                <div className="col-span-2">
-                                    <Label>Tedarikçi <span className="text-muted-foreground text-xs font-normal">(Opsiyonel - Fabrika içi üretim için boş bırakın)</span></Label>
-                                    <Select value={formData.supplier_id || 'none'} onValueChange={(v) => handleSelectChange('supplier_id', v)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tedarikçi seçin (fabrika içi üretim için boş bırakın)" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Tedarikçi Yok (Fabrika İçi Üretim)</SelectItem>
-                                            {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                    <ScrollArea className="flex-1 min-h-0" style={{ maxHeight: 'calc(95vh - 200px)', overflow: 'auto' }}>
+                        <div className="p-4">
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><Label>Parça Kodu</Label><Input value={formData.part_code || ''} onChange={(e) => setFormData(f => ({ ...f, part_code: e.target.value }))} required disabled={isEditMode || !!(existingReport && existingReport.part_code && !existingReport.id)} /></div>
+                                    <div><Label>Parça Adı</Label><Input value={formData.part_name || ''} onChange={(e) => setFormData(f => ({ ...f, part_name: e.target.value }))} required /></div>
+                                    <div className="col-span-2">
+                                        <Label>Tedarikçi <span className="text-muted-foreground text-xs font-normal">(Opsiyonel - Fabrika içi üretim için boş bırakın)</span></Label>
+                                        <Select value={formData.supplier_id || 'none'} onValueChange={(v) => handleSelectChange('supplier_id', v)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Tedarikçi seçin (fabrika içi üretim için boş bırakın)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Tedarikçi Yok (Fabrika İçi Üretim)</SelectItem>
+                                                {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div><Label>Rapor Tarihi</Label><Input type="date" value={formData.report_date || ''} onChange={(e) => setFormData(f => ({ ...f, report_date: e.target.value }))} required /></div>
+                                    <div><Label>Durum</Label><Select value={formData.status || ''} onValueChange={(v) => setFormData(f => ({ ...f, status: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Beklemede">Beklemede</SelectItem><SelectItem value="Onaylandı">Onaylandı</SelectItem><SelectItem value="Reddedildi">Reddedildi</SelectItem></SelectContent></Select></div>
                                 </div>
-                                <div><Label>Rapor Tarihi</Label><Input type="date" value={formData.report_date || ''} onChange={(e) => setFormData(f => ({ ...f, report_date: e.target.value }))} required /></div>
-                                <div><Label>Durum</Label><Select value={formData.status || ''} onValueChange={(v) => setFormData(f => ({ ...f, status: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Beklemede">Beklemede</SelectItem><SelectItem value="Onaylandı">Onaylandı</SelectItem><SelectItem value="Reddedildi">Reddedildi</SelectItem></SelectContent></Select></div>
-                            </div>
 
-                            <div className="border-t pt-4">
-                                <div className="flex justify-between items-center mb-4">
-                                    <Label className="text-lg font-semibold">Ölçüm Özellikleri</Label>
-                                    <Button type="button" variant="outline" size="sm" onClick={handleAddItem} disabled={dataLoading}>
-                                        <Plus className="w-4 h-4 mr-2" /> Özellik Ekle
-                                    </Button>
-                                </div>
-                                {dataLoading ? (
-                                    <div className="text-center py-8 text-muted-foreground">Veriler yükleniyor...</div>
-                                ) : items.length === 0 ? (
-                                    <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                                        <p>Henüz özellik eklenmedi.</p>
-                                        <Button type="button" variant="outline" size="sm" onClick={handleAddItem} className="mt-4">
-                                            <Plus className="w-4 h-4 mr-2" /> İlk Özelliği Ekle
+                                <div className="border-t pt-4">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <Label className="text-lg font-semibold">Ölçüm Özellikleri</Label>
+                                        <Button type="button" variant="outline" size="sm" onClick={handleAddItem} disabled={dataLoading}>
+                                            <Plus className="w-4 h-4 mr-2" /> Özellik Ekle
                                         </Button>
                                     </div>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full border-collapse" style={{ minWidth: '1350px' }}>
-                                            <thead>
-                                                <tr className="border-b bg-muted/50">
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground w-12">#</th>
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[200px]">Karakteristik</th>
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[200px]">Ekipman</th>
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[220px]">Standart/Sınıf</th>
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[130px]">Nominal</th>
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[100px]">Yön</th>
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[110px]">Min</th>
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[110px]">Max</th>
-                                                    <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[140px]">Ölçülen Değer</th>
-                                                    <th className="p-2 text-center text-xs font-semibold text-muted-foreground min-w-[120px]">Sonuç</th>
-                                                    <th className="p-2 text-center text-xs font-semibold text-muted-foreground w-12"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {items.map((item, index) => (
-                                                    <InkrItem
-                                                        key={item.id}
-                                                        item={item}
-                                                        index={index}
-                                                        onUpdate={handleItemUpdate}
-                                                        characteristics={characteristics}
-                                                        equipment={equipment}
-                                                        standards={standards}
-                                                    />
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
+                                    {dataLoading ? (
+                                        <div className="text-center py-8 text-muted-foreground">Veriler yükleniyor...</div>
+                                    ) : items.length === 0 ? (
+                                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                                            <p>Henüz özellik eklenmedi.</p>
+                                            <Button type="button" variant="outline" size="sm" onClick={handleAddItem} className="mt-4">
+                                                <Plus className="w-4 h-4 mr-2" /> İlk Özelliği Ekle
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full border-collapse" style={{ minWidth: '1350px' }}>
+                                                <thead>
+                                                    <tr className="border-b bg-muted/50">
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground w-12">#</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[200px]">Karakteristik</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[200px]">Ekipman</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[220px]">Standart/Sınıf</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[130px]">Nominal</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[100px]">Yön</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[110px]">Min</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[110px]">Max</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[140px]">Ölçülen Değer</th>
+                                                        <th className="p-2 text-center text-xs font-semibold text-muted-foreground min-w-[120px]">Sonuç</th>
+                                                        <th className="p-2 text-center text-xs font-semibold text-muted-foreground w-12"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {items.map((item, index) => (
+                                                        <InkrItem
+                                                            key={item.id}
+                                                            item={item}
+                                                            index={index}
+                                                            onUpdate={handleItemUpdate}
+                                                            characteristics={characteristics}
+                                                            equipment={equipment}
+                                                            standards={standards}
+                                                        />
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </ScrollArea>
