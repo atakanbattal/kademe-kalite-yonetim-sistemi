@@ -39,6 +39,8 @@ const TodayTasks = ({ onTaskClick }) => {
             calibrations.forEach(cal => {
                 if (cal.next_calibration_date) {
                     const dueDate = new Date(cal.next_calibration_date);
+                    dueDate.setHours(0, 0, 0, 0); // Tarih kısmını gece yarısına ayarla
+
                     if (isToday(dueDate) || isPast(dueDate)) {
                         tasks.dueCalibrations.push({
                             equipment: eq.name,
@@ -115,9 +117,9 @@ const TodayTasks = ({ onTaskClick }) => {
                             )}
                         </div>
                         {onTaskClick && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="mt-2 w-full"
                                 onClick={() => onTaskClick('overdue-8d', todayTasks.overdue8D)}
                             >
@@ -155,9 +157,9 @@ const TodayTasks = ({ onTaskClick }) => {
                             )}
                         </div>
                         {onTaskClick && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="mt-2 w-full"
                                 onClick={() => onTaskClick('due-calibration', todayTasks.dueCalibrations)}
                             >

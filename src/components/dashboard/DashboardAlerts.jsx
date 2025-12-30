@@ -8,12 +8,12 @@ import { tr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 
 const DashboardAlerts = ({ onAlertClick }) => {
-    const { 
-        nonConformities, 
-        equipments, 
-        documents, 
+    const {
+        nonConformities,
+        equipments,
+        documents,
         qualityCosts,
-        loading 
+        loading
     } = useData();
 
     // 30 gün üzerinde kapanmayan DF/8D (Kapatılan ve Reddedilen hariç)
@@ -35,13 +35,16 @@ const DashboardAlerts = ({ onAlertClick }) => {
     const overdueCalibrations = useMemo(() => {
         if (!equipments) return [];
         const today = new Date();
+        today.setHours(0, 0, 0, 0); // Bugünü gece yarısına ayarla
         const overdue = [];
-        
+
         equipments.forEach(eq => {
             const calibrations = eq.equipment_calibrations || [];
             calibrations.forEach(cal => {
                 if (cal.next_calibration_date) {
                     const dueDate = new Date(cal.next_calibration_date);
+                    dueDate.setHours(0, 0, 0, 0); // Tarih kısmını gece yarısına ayarla
+
                     if (dueDate < today) {
                         overdue.push({
                             equipment: eq.name,
@@ -52,7 +55,7 @@ const DashboardAlerts = ({ onAlertClick }) => {
                 }
             });
         });
-        
+
         return overdue.sort((a, b) => b.daysOverdue - a.daysOverdue);
     }, [equipments]);
 
@@ -61,7 +64,7 @@ const DashboardAlerts = ({ onAlertClick }) => {
         if (!documents) return [];
         const thirtyDaysFromNow = addDays(new Date(), 30);
         const today = new Date();
-        
+
         return documents
             .filter(doc => {
                 if (!doc.valid_until) return false;
@@ -78,31 +81,31 @@ const DashboardAlerts = ({ onAlertClick }) => {
     // Maliyet anomali tespiti (bu ay ortalamadan %50 fazla)
     const costAnomalies = useMemo(() => {
         if (!qualityCosts) return [];
-        
+
         const today = new Date();
         const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        
+
         // Bu ayki maliyetler
         const thisMonthCosts = qualityCosts.filter(c => {
             const costDate = new Date(c.cost_date);
             return costDate >= firstDayOfMonth;
         });
-        
+
         // Geçen ayki maliyetler
         const lastMonthCosts = qualityCosts.filter(c => {
             const costDate = new Date(c.cost_date);
             return costDate >= firstDayOfLastMonth && costDate <= lastDayOfLastMonth;
         });
-        
+
         const thisMonthTotal = thisMonthCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
         const lastMonthTotal = lastMonthCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
-        
+
         if (lastMonthTotal === 0) return [];
-        
+
         const increasePercentage = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal * 100);
-        
+
         if (increasePercentage > 50) {
             return [{
                 type: 'Maliyet Anomalisi',
@@ -112,7 +115,7 @@ const DashboardAlerts = ({ onAlertClick }) => {
                 increase: increasePercentage
             }];
         }
-        
+
         return [];
     }, [qualityCosts]);
 
@@ -177,8 +180,8 @@ const DashboardAlerts = ({ onAlertClick }) => {
                         </div>
                         <div className="space-y-1 text-sm text-red-800 dark:text-red-200">
                             {overdueNCs.slice(0, 3).map((nc, idx) => (
-                                <div 
-                                    key={idx} 
+                                <div
+                                    key={idx}
                                     className="flex items-center justify-between cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 p-1 rounded transition-colors"
                                     onClick={() => onAlertClick && onAlertClick('overdue-nc-detail', nc)}
                                 >
@@ -191,9 +194,9 @@ const DashboardAlerts = ({ onAlertClick }) => {
                             )}
                         </div>
                         {onAlertClick && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="mt-2 w-full"
                                 onClick={() => onAlertClick('overdue-nc', overdueNCs)}
                             >
@@ -217,8 +220,8 @@ const DashboardAlerts = ({ onAlertClick }) => {
                         </div>
                         <div className="space-y-1 text-sm text-orange-800 dark:text-orange-200">
                             {overdueCalibrations.slice(0, 3).map((cal, idx) => (
-                                <div 
-                                    key={idx} 
+                                <div
+                                    key={idx}
                                     className="flex items-center justify-between cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30 p-1 rounded transition-colors"
                                     onClick={() => onAlertClick && onAlertClick('overdue-calibration-detail', cal)}
                                 >
@@ -231,9 +234,9 @@ const DashboardAlerts = ({ onAlertClick }) => {
                             )}
                         </div>
                         {onAlertClick && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="mt-2 w-full"
                                 onClick={() => onAlertClick('overdue-calibration', overdueCalibrations)}
                             >
@@ -257,8 +260,8 @@ const DashboardAlerts = ({ onAlertClick }) => {
                         </div>
                         <div className="space-y-1 text-sm text-yellow-800 dark:text-yellow-200">
                             {expiringDocuments.slice(0, 3).map((doc, idx) => (
-                                <div 
-                                    key={idx} 
+                                <div
+                                    key={idx}
                                     className="flex items-center justify-between cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/30 p-1 rounded transition-colors"
                                     onClick={() => onAlertClick && onAlertClick('expiring-docs-detail', doc)}
                                 >
@@ -271,9 +274,9 @@ const DashboardAlerts = ({ onAlertClick }) => {
                             )}
                         </div>
                         {onAlertClick && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="mt-2 w-full"
                                 onClick={() => onAlertClick('expiring-docs', expiringDocuments)}
                             >
@@ -302,9 +305,9 @@ const DashboardAlerts = ({ onAlertClick }) => {
                             </div>
                         </div>
                         {onAlertClick && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="mt-2 w-full"
                                 onClick={() => onAlertClick('cost-anomaly', costAnomalies)}
                             >
