@@ -21,7 +21,7 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
     // Dosya adını normalize et ve güvenli hale getir
     const normalizeFileName = (fileName) => {
         if (!fileName) return 'file';
-        
+
         // Türkçe karakterleri ASCII'ye çevir
         const turkishToAscii = {
             'ç': 'c', 'Ç': 'C',
@@ -31,31 +31,31 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
             'ş': 's', 'Ş': 'S',
             'ü': 'u', 'Ü': 'U'
         };
-        
+
         let normalized = fileName;
         Object.keys(turkishToAscii).forEach(key => {
             normalized = normalized.replace(new RegExp(key, 'g'), turkishToAscii[key]);
         });
-        
+
         // Dosya adını ve uzantısını ayır
         const lastDotIndex = normalized.lastIndexOf('.');
         let name = normalized;
         let ext = '';
-        
+
         if (lastDotIndex > 0 && lastDotIndex < normalized.length - 1) {
             name = normalized.substring(0, lastDotIndex);
             ext = normalized.substring(lastDotIndex + 1);
         }
-        
+
         // Özel karakterleri temizle ve boşlukları tire ile değiştir
         name = name
             .replace(/[^a-zA-Z0-9\-_]/g, '-') // Sadece harf, rakam, tire ve alt çizgi bırak
             .replace(/-+/g, '-') // Birden fazla tireyi tek tireye çevir
             .replace(/^-|-$/g, ''); // Başta ve sonda tire varsa kaldır
-        
+
         // Uzantıyı temizle
         ext = ext.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        
+
         // Eğer uzantı yoksa veya geçersizse, orijinal dosyadan al
         if (!ext || ext.length === 0) {
             const originalLastDot = fileName.lastIndexOf('.');
@@ -63,17 +63,17 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                 ext = fileName.substring(originalLastDot + 1).toLowerCase();
             }
         }
-        
+
         // Eğer hala uzantı yoksa varsayılan ekle
         if (!ext || ext.length === 0) {
             ext = 'file';
         }
-        
+
         // Eğer isim boşsa varsayılan isim kullan
         if (!name || name.length === 0) {
             name = 'file';
         }
-        
+
         return `${name}.${ext}`;
     };
 
@@ -83,11 +83,11 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(2, 9);
         const safeFileName = `${timestamp}-${randomStr}-${normalizedName}`;
-        
+
         // ncId ve stepKey'i de güvenli hale getir
         const safeNcId = String(ncId || 'unknown').replace(/[^a-zA-Z0-9\-_]/g, '-');
         const safeStepKey = String(stepKey || 'step').replace(/[^a-zA-Z0-9\-_]/g, '-');
-        
+
         return `nc-evidence/${safeNcId}/${safeStepKey}/${safeFileName}`;
     };
 
@@ -110,30 +110,30 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
         const selectedFiles = Array.from(e.target.files);
         const validFiles = [];
         const errors = [];
-        
+
         selectedFiles.forEach(file => {
             // Dosya adı kontrolü
             if (!file.name || file.name.trim().length === 0) {
                 errors.push('Geçersiz dosya adı');
                 return;
             }
-            
+
             // Dosya boyutu kontrolü
             const maxSize = 50 * 1024 * 1024; // 50 MB
             if (file.size > maxSize) {
                 errors.push(`${file.name} dosyası 50 MB'dan büyük (${formatFileSize(file.size)})`);
                 return;
             }
-            
+
             // Boş dosya kontrolü
             if (file.size === 0) {
                 errors.push(`${file.name} dosyası boş`);
                 return;
             }
-            
+
             validFiles.push(file);
         });
-        
+
         // Hataları göster
         if (errors.length > 0) {
             toast({
@@ -142,12 +142,12 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                 description: errors.slice(0, 3).join(', ') + (errors.length > 3 ? ` ve ${errors.length - 3} hata daha...` : '')
             });
         }
-        
+
         // Geçerli dosyaları ekle
         if (validFiles.length > 0) {
             setFiles(prev => [...prev, ...validFiles.map(f => ({ file: f, uploaded: false, path: null }))]);
         }
-        
+
         // Input'u temizle (aynı dosyayı tekrar seçebilmek için)
         e.target.value = '';
     };
@@ -167,7 +167,7 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
 
                 const file = fileData.file;
                 const originalFileName = file.name || 'unnamed-file';
-                
+
                 // Güvenli dosya yolu oluştur
                 let filePath = createSafeFilePath(originalFileName, ncId, stepKey);
 
@@ -196,7 +196,7 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                         fileSize: file.size,
                         fileType: file.type
                     });
-                    
+
                     // Eğer dosya adı sorunluysa, tekrar normalize et ve dene
                     if (errorMessage.includes('Invalid') || errorMessage.includes('invalid') || errorMessage.includes('path')) {
                         const retryFilePath = createSafeFilePath(`file-${Date.now()}`, ncId, stepKey);
@@ -208,11 +208,11 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
                                     upsert: false,
                                     contentType: file.type || 'application/octet-stream'
                                 });
-                            
+
                             if (retryError) {
                                 throw new Error(`${originalFileName} yüklenemedi: ${retryError.message}`);
                             }
-                            
+
                             // Retry başarılı, filePath'i güncelle
                             filePath = retryFilePath;
                         } catch (retryErr) {
@@ -261,13 +261,13 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
 
     const handleRemove = async (index) => {
         const fileToRemove = files[index];
-        
+
         if (fileToRemove.uploaded && fileToRemove.path) {
             try {
                 const { error } = await supabase.storage
                     .from('df_attachments')
                     .remove([fileToRemove.path]);
-                
+
                 if (error) throw error;
             } catch (error) {
                 toast({
@@ -286,17 +286,60 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
         }
     };
 
+    // Dosya uzantısından MIME tipini belirle
+    const getFileTypeFromExtension = (fileName) => {
+        if (!fileName) return 'application/octet-stream';
+
+        const ext = fileName.split('.').pop()?.toLowerCase();
+        const mimeTypes = {
+            // Resimler
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'bmp': 'image/bmp',
+            'svg': 'image/svg+xml',
+            'heic': 'image/heic',
+            'heif': 'image/heif',
+            'tiff': 'image/tiff',
+            'tif': 'image/tiff',
+            // Videolar
+            'mp4': 'video/mp4',
+            'webm': 'video/webm',
+            'ogg': 'video/ogg',
+            'mov': 'video/quicktime',
+            'avi': 'video/x-msvideo',
+            'mkv': 'video/x-matroska',
+            // Dokümanlar
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+        };
+
+        return mimeTypes[ext] || 'application/octet-stream';
+    };
+
     const handlePreview = async (file) => {
+        // Dosya tipini belirle - önce file.type, yoksa dosya adından
+        const fileName = file.name || file.path?.split('/').pop() || '';
+        const effectiveType = file.type || getFileTypeFromExtension(fileName);
+
         if (file.uploaded && file.path) {
             try {
                 const { data, error } = await supabase.storage
                     .from('df_attachments')
                     .createSignedUrl(file.path, 3600);
-                
+
                 if (error) throw error;
-                
+
                 setPreviewUrl(data.signedUrl);
-                setPreviewType(file.type);
+                setPreviewType(effectiveType);
             } catch (error) {
                 toast({
                     variant: 'destructive',
@@ -307,13 +350,15 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
         } else {
             const url = URL.createObjectURL(file.file);
             setPreviewUrl(url);
-            setPreviewType(file.type);
+            setPreviewType(effectiveType);
         }
     };
 
     const getFileIcon = (type, name) => {
-        if (type?.startsWith('image/')) return <Image className="h-5 w-5" />;
-        if (type?.startsWith('video/')) return <Video className="h-5 w-5" />;
+        // Tip yoksa dosya adından belirle
+        const effectiveType = type || getFileTypeFromExtension(name);
+        if (effectiveType?.startsWith('image/')) return <Image className="h-5 w-5" />;
+        if (effectiveType?.startsWith('video/')) return <Video className="h-5 w-5" />;
         return <FileText className="h-5 w-5" />;
     };
 
