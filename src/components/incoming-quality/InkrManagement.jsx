@@ -286,25 +286,24 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                             // Kontrol planı varsa, kontrol planındaki tüm item'ları kullan
                             // Muayene sonuçlarından sadece ölçülen değerleri eşleştir
                             if (controlPlan?.items && controlPlan.items.length > 0) {
-                                // Muayene sonuçlarını Map'e dönüştür (control_plan_item_id ile eşleştirmek için)
+                                // Muayene sonuçlarını Map'e dönüştür
                                 const resultsMap = new Map();
                                 if (!resultsError && inspectionResults) {
                                     inspectionResults.forEach(result => {
-                                        // control_plan_item_id ile eşleştir
+                                        // 1. control_plan_item_id ile eşleştir (en güvenilir)
                                         if (result.control_plan_item_id) {
-                                            // İlk ölçümü (measurement_number = 1) al
                                             const key = result.control_plan_item_id;
+                                            // İlk ölçümü (measurement_number = 1) al
                                             if (!resultsMap.has(key) || (result.measurement_number === 1)) {
                                                 resultsMap.set(key, result);
                                             }
                                         }
-                                        // Karakteristik ismi ile de eşleştir (fallback)
-                                        const charName = result.characteristic_name || result.feature;
-                                        if (charName) {
-                                            const nameKey = `name_${charName.toLowerCase()}`;
-                                            if (!resultsMap.has(nameKey) || (result.measurement_number === 1)) {
-                                                resultsMap.set(nameKey, result);
-                                            }
+
+                                        // 2. Nominal + Min + Max değerlerine göre eşleştir (fallback)
+                                        // Bu kombinasyon her karakteristik için benzersiz olmalı
+                                        const nominalKey = `values_${result.nominal_value || ''}_${result.min_value || ''}_${result.max_value || ''}`;
+                                        if (!resultsMap.has(nominalKey) || (result.measurement_number === 1)) {
+                                            resultsMap.set(nominalKey, result);
                                         }
                                     });
                                 }
@@ -319,10 +318,16 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
 
                                     // Muayene sonuçlarından ölçülen değeri bul
                                     let measuredValue = '';
+
+                                    // 1. Önce control_plan_item_id ile eşleştir
                                     let result = resultsMap.get(planItem.id);
-                                    if (!result && matchingChar?.label) {
-                                        result = resultsMap.get(`name_${matchingChar.label.toLowerCase()}`);
+
+                                    // 2. Bulunamazsa nominal + min + max değerleri ile eşleştir
+                                    if (!result) {
+                                        const nominalKey = `values_${planItem.nominal_value || ''}_${planItem.min_value || ''}_${planItem.max_value || ''}`;
+                                        result = resultsMap.get(nominalKey);
                                     }
+
                                     if (result) {
                                         measuredValue = result.measured_value || result.actual_value || '';
                                     }
