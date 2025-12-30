@@ -316,6 +316,9 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                     // Ekipman bilgilerini bul
                                     const matchingEquip = equipment?.find(e => e.value === planItem.equipment_id);
 
+                                    // Ekipmanın boyutsal olup olmadığını kontrol et
+                                    const isDimensional = matchingEquip && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(matchingEquip.label);
+
                                     // Muayene sonuçlarından ölçülen değeri bul
                                     let measuredValue = '';
 
@@ -332,13 +335,28 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                         measuredValue = result.measured_value || result.actual_value || '';
                                     }
 
-                                    // Standart sınıfını oluştur
+                                    // Standart bilgilerini kontrol planından al
+                                    let standardId = planItem.standard_id || null;
+                                    let toleranceClass = planItem.tolerance_class || null;
                                     let standardClass = planItem.standard_class || '';
-                                    if (!standardClass && planItem.standard_id && planItem.tolerance_class && standards) {
-                                        const matchingStd = standards.find(s => s.value === planItem.standard_id);
+
+                                    // Eğer boyutsal ekipman seçili ama standart yoksa, varsayılan olarak ISO 2768-1 m ata
+                                    if (isDimensional && !standardClass && !standardId) {
+                                        standardClass = 'ISO 2768-1_m';
+                                        toleranceClass = 'm';
+                                        // Standards listesinden ISO 2768-1 bul
+                                        const isoStandard = standards?.find(s => s.label?.includes('ISO 2768-1'));
+                                        if (isoStandard) {
+                                            standardId = isoStandard.value;
+                                        }
+                                    }
+
+                                    // Standart sınıfını oluştur (eğer hala boşsa)
+                                    if (!standardClass && standardId && toleranceClass && standards) {
+                                        const matchingStd = standards.find(s => s.value === standardId);
                                         if (matchingStd) {
                                             const stdBaseName = matchingStd.label.split(' ')[0];
-                                            standardClass = `${stdBaseName}_${planItem.tolerance_class}`;
+                                            standardClass = `${stdBaseName}_${toleranceClass}`;
                                         }
                                     }
 
@@ -347,8 +365,8 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                         characteristic_id: planItem.characteristic_id || '',
                                         characteristic_type: planItem.characteristic_type || matchingChar?.type || '',
                                         equipment_id: planItem.equipment_id || '',
-                                        standard_id: planItem.standard_id || null,
-                                        tolerance_class: planItem.tolerance_class || null,
+                                        standard_id: standardId,
+                                        tolerance_class: toleranceClass,
                                         nominal_value: planItem.nominal_value !== undefined && planItem.nominal_value !== null ? planItem.nominal_value : '',
                                         min_value: planItem.min_value !== undefined && planItem.min_value !== null ? planItem.min_value : null,
                                         max_value: planItem.max_value !== undefined && planItem.max_value !== null ? planItem.max_value : null,
