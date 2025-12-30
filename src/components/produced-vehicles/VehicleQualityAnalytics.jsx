@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line } from 'recharts';
 import { useData } from '@/contexts/DataContext';
-import { Car, TrendingUp, AlertTriangle, CheckCircle, Percent, Factory, HelpCircle } from 'lucide-react';
+import { Car, TrendingUp, CheckCircle, Percent, Factory, HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
@@ -23,14 +23,14 @@ const formatNumber = (value) => {
 
 const VehicleQualityAnalytics = () => {
     const { producedVehicles, productionDepartments, loading } = useData();
-    const [activeTab, setActiveTab] = useState('vehicle-type'); // 'vehicle-type', 'production-line', 'critical'
+    const [activeTab, setActiveTab] = useState('vehicle-type'); // 'vehicle-type', 'production-line'
 
     // Araç tipine göre kalite sonuçları
     const vehicleTypeQuality = useMemo(() => {
         if (!producedVehicles || producedVehicles.length === 0) return [];
 
         const typeMap = {};
-        
+
         producedVehicles.forEach(vehicle => {
             const vehicleType = vehicle.vehicle_type || 'Belirtilmemiş';
             if (!typeMap[vehicleType]) {
@@ -46,7 +46,7 @@ const VehicleQualityAnalytics = () => {
             }
 
             typeMap[vehicleType].total++;
-            
+
             // Durum bazlı sayım
             if (vehicle.status === 'Sevk Edildi') typeMap[vehicleType].shipped++;
             else if (['Kaliteye Girdi', 'Kontrol Başladı', 'Kontrol Bitti'].includes(vehicle.status)) {
@@ -73,13 +73,13 @@ const VehicleQualityAnalytics = () => {
             readyForShipment: data.readyForShipment,
             totalFaults: data.faults,
             vehiclesWithFaults: data.vehiclesWithFaults.size,
-            qualityIndex: data.total > 0 
+            qualityIndex: data.total > 0
                 ? ((data.shipped + data.readyForShipment) / data.total * 100).toFixed(2)
                 : '0.00',
-            faultRate: data.total > 0 
+            faultRate: data.total > 0
                 ? ((data.vehiclesWithFaults.size / data.total) * 100).toFixed(2)
                 : '0.00',
-            avgFaultsPerVehicle: data.total > 0 
+            avgFaultsPerVehicle: data.total > 0
                 ? (data.faults / data.total).toFixed(2)
                 : '0.00'
         })).sort((a, b) => b.total - a.total);
@@ -90,11 +90,11 @@ const VehicleQualityAnalytics = () => {
         if (!producedVehicles || !productionDepartments || producedVehicles.length === 0) return [];
 
         const lineMap = {};
-        
+
         producedVehicles.forEach(vehicle => {
             // Üretim hattını belirle (department veya başka bir alan)
             const productionLine = vehicle.production_line || vehicle.production_department || 'Genel';
-            
+
             if (!lineMap[productionLine]) {
                 lineMap[productionLine] = {
                     total: 0,
@@ -109,7 +109,7 @@ const VehicleQualityAnalytics = () => {
             }
 
             lineMap[productionLine].total++;
-            
+
             if (vehicle.status === 'Sevk Edildi') lineMap[productionLine].shipped++;
             else if (vehicle.status === 'Sevk Hazır') lineMap[productionLine].readyForShipment++;
             else if (vehicle.status === 'Yeniden İşlemde') lineMap[productionLine].inRework++;
@@ -139,10 +139,10 @@ const VehicleQualityAnalytics = () => {
         });
 
         return Object.entries(lineMap).map(([line, data]) => {
-            const qualityIndex = data.total > 0 
+            const qualityIndex = data.total > 0
                 ? ((data.shipped + data.readyForShipment) / data.total * 100).toFixed(2)
                 : '0.00';
-            
+
             const avgInspectionTime = data.inspectionCount > 0
                 ? (data.totalInspectionTime / data.inspectionCount / 60000).toFixed(1) // dakika cinsinden
                 : '0';
@@ -156,10 +156,10 @@ const VehicleQualityAnalytics = () => {
                 totalFaults: data.totalFaults,
                 vehiclesWithFaults: data.vehiclesWithFaults.size,
                 qualityIndex: parseFloat(qualityIndex),
-                faultRate: data.total > 0 
+                faultRate: data.total > 0
                     ? ((data.vehiclesWithFaults.size / data.total) * 100).toFixed(2)
                     : '0.00',
-                avgFaultsPerVehicle: data.total > 0 
+                avgFaultsPerVehicle: data.total > 0
                     ? (data.totalFaults / data.total).toFixed(2)
                     : '0.00',
                 avgInspectionTime: parseFloat(avgInspectionTime)
@@ -167,61 +167,12 @@ const VehicleQualityAnalytics = () => {
         }).sort((a, b) => b.qualityIndex - a.qualityIndex);
     }, [producedVehicles, productionDepartments]);
 
-    // Kritik karakteristiklerin kontrol yüzdesi
-    const criticalCharacteristics = useMemo(() => {
-        if (!producedVehicles || producedVehicles.length === 0) return [];
 
-        const characteristicMap = {};
-        
-        producedVehicles.forEach(vehicle => {
-            const faults = vehicle.quality_inspection_faults || [];
-            
-            faults.forEach(fault => {
-                const category = fault.category?.name || fault.fault_category || 'Genel';
-                const isCritical = fault.is_critical || false; // Kritik karakteristik flag'i
-                
-                if (isCritical) {
-                    if (!characteristicMap[category]) {
-                        characteristicMap[category] = {
-                            totalVehicles: new Set(),
-                            vehiclesWithFault: new Set(),
-                            totalFaults: 0
-                        };
-                    }
-                    
-                    characteristicMap[category].totalVehicles.add(vehicle.id);
-                    if (!fault.is_resolved) {
-                        characteristicMap[category].vehiclesWithFault.add(vehicle.id);
-                        characteristicMap[category].totalFaults += (fault.quantity || 1);
-                    }
-                }
-            });
-        });
-
-        return Object.entries(characteristicMap).map(([category, data]) => {
-            const totalVehicles = data.totalVehicles.size;
-            const vehiclesWithFault = data.vehiclesWithFault.size;
-            const controlPercentage = totalVehicles > 0
-                ? ((totalVehicles - vehiclesWithFault) / totalVehicles * 100).toFixed(2)
-                : '100.00';
-
-            return {
-                category,
-                totalVehicles,
-                vehiclesWithFault,
-                totalFaults: data.totalFaults,
-                controlPercentage: parseFloat(controlPercentage),
-                faultRate: totalVehicles > 0
-                    ? ((vehiclesWithFault / totalVehicles) * 100).toFixed(2)
-                    : '0.00'
-            };
-        }).sort((a, b) => a.controlPercentage - b.controlPercentage); // En düşük kontrol yüzdesi önce
-    }, [producedVehicles]);
 
     return (
         <div className="space-y-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="vehicle-type">
                         <Car className="w-4 h-4 mr-2" />
                         Araç Tipine Göre
@@ -229,10 +180,6 @@ const VehicleQualityAnalytics = () => {
                     <TabsTrigger value="production-line">
                         <Factory className="w-4 h-4 mr-2" />
                         Üretim Hatları
-                    </TabsTrigger>
-                    <TabsTrigger value="critical">
-                        <AlertTriangle className="w-4 h-4 mr-2" />
-                        Kritik Karakteristikler
                     </TabsTrigger>
                 </TabsList>
 
@@ -246,17 +193,17 @@ const VehicleQualityAnalytics = () => {
                             <CardContent>
                                 <ResponsiveContainer width="100%" height={400}>
                                     <BarChart data={vehicleTypeQuality} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                                        <XAxis 
-                                            dataKey="vehicleType" 
-                                            angle={-45} 
-                                            textAnchor="end" 
+                                        <XAxis
+                                            dataKey="vehicleType"
+                                            angle={-45}
+                                            textAnchor="end"
                                             height={100}
                                             tick={{ fontSize: 11 }}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
-                                        <RechartsTooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: 'hsl(var(--background))', 
+                                        <RechartsTooltip
+                                            contentStyle={{
+                                                backgroundColor: 'hsl(var(--background))',
                                                 border: '1px solid hsl(var(--border))',
                                                 borderRadius: '0.5rem'
                                             }}
@@ -264,11 +211,11 @@ const VehicleQualityAnalytics = () => {
                                         />
                                         <Bar dataKey="qualityIndex" name="Kalite İndeksi (%)" radius={[4, 4, 0, 0]}>
                                             {vehicleTypeQuality.map((entry, index) => (
-                                                <Cell 
-                                                    key={`cell-${index}`} 
-                                                    fill={parseFloat(entry.qualityIndex) >= 90 ? '#22c55e' : 
-                                                          parseFloat(entry.qualityIndex) >= 75 ? '#eab308' : 
-                                                          '#ef4444'} 
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={parseFloat(entry.qualityIndex) >= 90 ? '#22c55e' :
+                                                        parseFloat(entry.qualityIndex) >= 75 ? '#eab308' :
+                                                            '#ef4444'}
                                                 />
                                             ))}
                                         </Bar>
@@ -284,17 +231,17 @@ const VehicleQualityAnalytics = () => {
                             <CardContent>
                                 <ResponsiveContainer width="100%" height={400}>
                                     <BarChart data={vehicleTypeQuality} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                                        <XAxis 
-                                            dataKey="vehicleType" 
-                                            angle={-45} 
-                                            textAnchor="end" 
+                                        <XAxis
+                                            dataKey="vehicleType"
+                                            angle={-45}
+                                            textAnchor="end"
                                             height={100}
                                             tick={{ fontSize: 11 }}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
-                                        <RechartsTooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: 'hsl(var(--background))', 
+                                        <RechartsTooltip
+                                            contentStyle={{
+                                                backgroundColor: 'hsl(var(--background))',
                                                 border: '1px solid hsl(var(--border))',
                                                 borderRadius: '0.5rem'
                                             }}
@@ -302,11 +249,11 @@ const VehicleQualityAnalytics = () => {
                                         />
                                         <Bar dataKey="faultRate" name="Hata Oranı (%)" radius={[4, 4, 0, 0]}>
                                             {vehicleTypeQuality.map((entry, index) => (
-                                                <Cell 
-                                                    key={`cell-${index}`} 
-                                                    fill={parseFloat(entry.faultRate) <= 5 ? '#22c55e' : 
-                                                          parseFloat(entry.faultRate) <= 15 ? '#eab308' : 
-                                                          '#ef4444'} 
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={parseFloat(entry.faultRate) <= 5 ? '#22c55e' :
+                                                        parseFloat(entry.faultRate) <= 15 ? '#eab308' :
+                                                            '#ef4444'}
                                                 />
                                             ))}
                                         </Bar>
@@ -377,22 +324,22 @@ const VehicleQualityAnalytics = () => {
                                                         <Badge variant="destructive">{formatNumber(item.inRework)}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge 
+                                                        <Badge
                                                             variant={
                                                                 parseFloat(item.qualityIndex) >= 90 ? 'default' :
-                                                                parseFloat(item.qualityIndex) >= 75 ? 'secondary' :
-                                                                'destructive'
+                                                                    parseFloat(item.qualityIndex) >= 75 ? 'secondary' :
+                                                                        'destructive'
                                                             }
                                                         >
                                                             {item.qualityIndex}%
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge 
+                                                        <Badge
                                                             variant={
                                                                 parseFloat(item.faultRate) <= 5 ? 'default' :
-                                                                parseFloat(item.faultRate) <= 15 ? 'secondary' :
-                                                                'destructive'
+                                                                    parseFloat(item.faultRate) <= 15 ? 'secondary' :
+                                                                        'destructive'
                                                             }
                                                         >
                                                             {item.faultRate}%
@@ -443,17 +390,17 @@ const VehicleQualityAnalytics = () => {
                             <CardContent>
                                 <ResponsiveContainer width="100%" height={400}>
                                     <BarChart data={productionLineQuality} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                                        <XAxis 
-                                            dataKey="productionLine" 
-                                            angle={-45} 
-                                            textAnchor="end" 
+                                        <XAxis
+                                            dataKey="productionLine"
+                                            angle={-45}
+                                            textAnchor="end"
                                             height={100}
                                             tick={{ fontSize: 11 }}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
-                                        <RechartsTooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: 'hsl(var(--background))', 
+                                        <RechartsTooltip
+                                            contentStyle={{
+                                                backgroundColor: 'hsl(var(--background))',
                                                 border: '1px solid hsl(var(--border))',
                                                 borderRadius: '0.5rem'
                                             }}
@@ -461,11 +408,11 @@ const VehicleQualityAnalytics = () => {
                                         />
                                         <Bar dataKey="qualityIndex" name="Kalite İndeksi (%)" radius={[4, 4, 0, 0]}>
                                             {productionLineQuality.map((entry, index) => (
-                                                <Cell 
-                                                    key={`cell-${index}`} 
-                                                    fill={entry.qualityIndex >= 90 ? '#22c55e' : 
-                                                          entry.qualityIndex >= 75 ? '#eab308' : 
-                                                          '#ef4444'} 
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={entry.qualityIndex >= 90 ? '#22c55e' :
+                                                        entry.qualityIndex >= 75 ? '#eab308' :
+                                                            '#ef4444'}
                                                 />
                                             ))}
                                         </Bar>
@@ -481,17 +428,17 @@ const VehicleQualityAnalytics = () => {
                             <CardContent>
                                 <ResponsiveContainer width="100%" height={400}>
                                     <BarChart data={productionLineQuality} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                                        <XAxis 
-                                            dataKey="productionLine" 
-                                            angle={-45} 
-                                            textAnchor="end" 
+                                        <XAxis
+                                            dataKey="productionLine"
+                                            angle={-45}
+                                            textAnchor="end"
                                             height={100}
                                             tick={{ fontSize: 11 }}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
-                                        <RechartsTooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: 'hsl(var(--background))', 
+                                        <RechartsTooltip
+                                            contentStyle={{
+                                                backgroundColor: 'hsl(var(--background))',
                                                 border: '1px solid hsl(var(--border))',
                                                 borderRadius: '0.5rem'
                                             }}
@@ -566,22 +513,22 @@ const VehicleQualityAnalytics = () => {
                                                         <Badge variant="secondary">{formatNumber(item.readyForShipment)}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge 
+                                                        <Badge
                                                             variant={
                                                                 item.qualityIndex >= 90 ? 'default' :
-                                                                item.qualityIndex >= 75 ? 'secondary' :
-                                                                'destructive'
+                                                                    item.qualityIndex >= 75 ? 'secondary' :
+                                                                        'destructive'
                                                             }
                                                         >
                                                             {item.qualityIndex.toFixed(2)}%
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge 
+                                                        <Badge
                                                             variant={
                                                                 parseFloat(item.faultRate) <= 5 ? 'default' :
-                                                                parseFloat(item.faultRate) <= 15 ? 'secondary' :
-                                                                'destructive'
+                                                                    parseFloat(item.faultRate) <= 15 ? 'secondary' :
+                                                                        'destructive'
                                                             }
                                                         >
                                                             {item.faultRate}%
@@ -598,108 +545,8 @@ const VehicleQualityAnalytics = () => {
                         </CardContent>
                     </Card>
                 </TabsContent>
-
-                {/* Kritik Karakteristiklerin Kontrol Yüzdesi */}
-                <TabsContent value="critical" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Kritik Karakteristiklerin Kontrol Yüzdesi</CardTitle>
-                            <p className="text-sm text-muted-foreground mt-2">
-                                Kritik karakteristikler için kontrol yüzdesi ve hata oranları
-                            </p>
-                        </CardHeader>
-                        <CardContent>
-                            <ResponsiveContainer width="100%" height={400}>
-                                <BarChart data={criticalCharacteristics} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                                    <XAxis 
-                                        dataKey="category" 
-                                        angle={-45} 
-                                        textAnchor="end" 
-                                        height={100}
-                                        tick={{ fontSize: 11 }}
-                                    />
-                                    <YAxis tick={{ fontSize: 12 }} />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: 'hsl(var(--background))', 
-                                            border: '1px solid hsl(var(--border))',
-                                            borderRadius: '0.5rem'
-                                        }}
-                                        formatter={(value) => `${parseFloat(value).toFixed(2)}%`}
-                                    />
-                                    <Bar dataKey="controlPercentage" name="Kontrol Yüzdesi (%)" radius={[4, 4, 0, 0]}>
-                                        {criticalCharacteristics.map((entry, index) => (
-                                            <Cell 
-                                                key={`cell-${index}`} 
-                                                fill={entry.controlPercentage >= 95 ? '#22c55e' : 
-                                                      entry.controlPercentage >= 85 ? '#eab308' : 
-                                                      '#ef4444'} 
-                                            />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Kritik Karakteristik Detay Tablosu</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Kategori</TableHead>
-                                            <TableHead className="text-right">Toplam Araç</TableHead>
-                                            <TableHead className="text-right">Hatalı Araç</TableHead>
-                                            <TableHead className="text-right">Toplam Hata</TableHead>
-                                            <TableHead className="text-right">Kontrol Yüzdesi</TableHead>
-                                            <TableHead className="text-right">Hata Oranı</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {criticalCharacteristics.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                                    Kritik karakteristik verisi bulunamadı. Hata kayıtlarında kritik karakteristik işaretlemesi yapılmamış olabilir.
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            criticalCharacteristics.map((item, index) => (
-                                                <TableRow key={index}>
-                                                    <TableCell className="font-medium">{item.category}</TableCell>
-                                                    <TableCell className="text-right">{formatNumber(item.totalVehicles)}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Badge variant="destructive">{formatNumber(item.vehiclesWithFault)}</Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">{formatNumber(item.totalFaults)}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Badge 
-                                                            variant={
-                                                                item.controlPercentage >= 95 ? 'default' :
-                                                                item.controlPercentage >= 85 ? 'secondary' :
-                                                                'destructive'
-                                                            }
-                                                        >
-                                                            {item.controlPercentage.toFixed(2)}%
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Badge variant="outline">{item.faultRate}%</Badge>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
             </Tabs>
-        </div>
+        </div >
     );
 };
 
