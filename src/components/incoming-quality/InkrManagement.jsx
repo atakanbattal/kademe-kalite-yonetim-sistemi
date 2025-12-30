@@ -11,7 +11,6 @@ import { Plus, Trash2, Edit, Search, FileText, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { v4 as uuidv4 } from 'uuid';
 import { useData } from '@/contexts/DataContext';
 import { Combobox } from '@/components/ui/combobox';
@@ -284,23 +283,78 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                 .select('*')
                                 .eq('inspection_id', firstInspection.id);
 
-                            if (!resultsError && inspectionResults && inspectionResults.length > 0) {
-                                // Kontrol planı items'ını Map'e dönüştür (control_plan_item_id ile eşleştirmek için)
-                                const controlPlanItemsMap = new Map();
-                                if (controlPlan?.items) {
-                                    controlPlan.items.forEach(item => {
-                                        controlPlanItemsMap.set(item.id, item);
-                                        // Ayrıca karakteristik ID'si ile de eşleştir
-                                        if (item.characteristic_id) {
-                                            controlPlanItemsMap.set(`char_${item.characteristic_id}`, item);
+                            // Kontrol planı varsa, kontrol planındaki tüm item'ları kullan
+                            // Muayene sonuçlarından sadece ölçülen değerleri eşleştir
+                            if (controlPlan?.items && controlPlan.items.length > 0) {
+                                // Muayene sonuçlarını Map'e dönüştür (control_plan_item_id ile eşleştirmek için)
+                                const resultsMap = new Map();
+                                if (!resultsError && inspectionResults) {
+                                    inspectionResults.forEach(result => {
+                                        // control_plan_item_id ile eşleştir
+                                        if (result.control_plan_item_id) {
+                                            // İlk ölçümü (measurement_number = 1) al
+                                            const key = result.control_plan_item_id;
+                                            if (!resultsMap.has(key) || (result.measurement_number === 1)) {
+                                                resultsMap.set(key, result);
+                                            }
+                                        }
+                                        // Karakteristik ismi ile de eşleştir (fallback)
+                                        const charName = result.characteristic_name || result.feature;
+                                        if (charName) {
+                                            const nameKey = `name_${charName.toLowerCase()}`;
+                                            if (!resultsMap.has(nameKey) || (result.measurement_number === 1)) {
+                                                resultsMap.set(nameKey, result);
+                                            }
                                         }
                                     });
                                 }
 
-                                // Ölçüm sonuçlarını INKR item formatına dönüştür
-                                // Her karakteristik için sadece ilk ölçümü al (measurement_number = 1 veya en düşük)
-                                const uniqueCharacteristics = new Map();
+                                // Kontrol planındaki her item için INKR item oluştur
+                                controlPlan.items.forEach(planItem => {
+                                    // Karakteristik bilgilerini bul
+                                    const matchingChar = characteristics?.find(c => c.value === planItem.characteristic_id);
 
+                                    // Ekipman bilgilerini bul
+                                    const matchingEquip = equipment?.find(e => e.value === planItem.equipment_id);
+
+                                    // Muayene sonuçlarından ölçülen değeri bul
+                                    let measuredValue = '';
+                                    let result = resultsMap.get(planItem.id);
+                                    if (!result && matchingChar?.label) {
+                                        result = resultsMap.get(`name_${matchingChar.label.toLowerCase()}`);
+                                    }
+                                    if (result) {
+                                        measuredValue = result.measured_value || result.actual_value || '';
+                                    }
+
+                                    // Standart sınıfını oluştur
+                                    let standardClass = planItem.standard_class || '';
+                                    if (!standardClass && planItem.standard_id && planItem.tolerance_class && standards) {
+                                        const matchingStd = standards.find(s => s.value === planItem.standard_id);
+                                        if (matchingStd) {
+                                            const stdBaseName = matchingStd.label.split(' ')[0];
+                                            standardClass = `${stdBaseName}_${planItem.tolerance_class}`;
+                                        }
+                                    }
+
+                                    initialItems.push({
+                                        id: uuidv4(),
+                                        characteristic_id: planItem.characteristic_id || '',
+                                        characteristic_type: planItem.characteristic_type || matchingChar?.type || '',
+                                        equipment_id: planItem.equipment_id || '',
+                                        standard_id: planItem.standard_id || null,
+                                        tolerance_class: planItem.tolerance_class || null,
+                                        nominal_value: planItem.nominal_value !== undefined && planItem.nominal_value !== null ? planItem.nominal_value : '',
+                                        min_value: planItem.min_value !== undefined && planItem.min_value !== null ? planItem.min_value : null,
+                                        max_value: planItem.max_value !== undefined && planItem.max_value !== null ? planItem.max_value : null,
+                                        tolerance_direction: planItem.tolerance_direction || '±',
+                                        standard_class: standardClass,
+                                        measured_value: measuredValue
+                                    });
+                                });
+                            } else if (!resultsError && inspectionResults && inspectionResults.length > 0) {
+                                // Kontrol planı yoksa, muayene sonuçlarını kullan (eski mantık)
+                                const uniqueCharacteristics = new Map();
                                 inspectionResults.forEach(result => {
                                     const charName = result.characteristic_name || result.feature;
                                     if (charName && !uniqueCharacteristics.has(charName)) {
@@ -308,58 +362,26 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                     }
                                 });
 
-                                // Her benzersiz karakteristik için INKR item oluştur
                                 uniqueCharacteristics.forEach((result, charName) => {
-                                    // Karakteristik ID'sini bul
                                     const matchingChar = characteristics?.find(c =>
                                         c.label?.toLowerCase() === charName?.toLowerCase()
                                     );
-
-                                    // Ekipman ID'sini bul
                                     const matchingEquip = equipment?.find(e =>
                                         e.label?.toLowerCase() === result.measurement_method?.toLowerCase()
                                     );
-
-                                    // Kontrol planından standart bilgilerini al
-                                    let standardId = null;
-                                    let toleranceClass = null;
-                                    let standardClass = '';
-
-                                    // Önce control_plan_item_id ile eşleştir
-                                    let planItem = result.control_plan_item_id ? controlPlanItemsMap.get(result.control_plan_item_id) : null;
-
-                                    // Bulunamazsa karakteristik ID ile eşleştir
-                                    if (!planItem && matchingChar?.value) {
-                                        planItem = controlPlanItemsMap.get(`char_${matchingChar.value}`);
-                                    }
-
-                                    if (planItem) {
-                                        standardId = planItem.standard_id || null;
-                                        toleranceClass = planItem.tolerance_class || null;
-                                        standardClass = planItem.standard_class || '';
-                                    }
-
-                                    // Standart sınıfını oluştur (eğer boşsa)
-                                    if (!standardClass && standardId && toleranceClass && standards) {
-                                        const matchingStd = standards.find(s => s.value === standardId);
-                                        if (matchingStd) {
-                                            const stdBaseName = matchingStd.label.split(' ')[0];
-                                            standardClass = `${stdBaseName}_${toleranceClass}`;
-                                        }
-                                    }
 
                                     initialItems.push({
                                         id: uuidv4(),
                                         characteristic_id: matchingChar?.value || '',
                                         characteristic_type: result.characteristic_type || matchingChar?.type || '',
                                         equipment_id: matchingEquip?.value || '',
-                                        standard_id: standardId,
-                                        tolerance_class: toleranceClass,
+                                        standard_id: null,
+                                        tolerance_class: null,
                                         nominal_value: result.nominal_value !== undefined && result.nominal_value !== null ? result.nominal_value : '',
                                         min_value: result.min_value !== undefined && result.min_value !== null ? result.min_value : null,
                                         max_value: result.max_value !== undefined && result.max_value !== null ? result.max_value : null,
-                                        tolerance_direction: planItem?.tolerance_direction || '±',
-                                        standard_class: standardClass,
+                                        tolerance_direction: '±',
+                                        standard_class: '',
                                         measured_value: result.measured_value || result.actual_value || ''
                                     });
                                 });
@@ -490,8 +512,8 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                     <DialogDescription>İlk numune kontrol raporu bilgilerini girin ve ölçümleri kaydedin.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                    <ScrollArea className="flex-1 min-h-0" style={{ maxHeight: 'calc(95vh - 200px)', overflow: 'auto' }}>
-                        <div className="p-4">
+                    <div className="flex-1 min-h-0 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 180px)' }}>
+                        <div className="p-4 space-y-6">
                             <div className="space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div><Label>Parça Kodu</Label><Input value={formData.part_code || ''} onChange={(e) => setFormData(f => ({ ...f, part_code: e.target.value }))} required disabled={isEditMode || !!(existingReport && existingReport.part_code && !existingReport.id)} /></div>
@@ -565,7 +587,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                 </div>
                             </div>
                         </div>
-                    </ScrollArea>
+                    </div>
                     <DialogFooter className="mt-4 border-t pt-4 flex-shrink-0">
                         <DialogClose asChild><Button type="button" variant="outline">İptal</Button></DialogClose>
                         <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
