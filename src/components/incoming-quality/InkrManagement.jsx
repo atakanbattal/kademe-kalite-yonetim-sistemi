@@ -17,8 +17,8 @@ import { useData } from '@/contexts/DataContext';
 import { Combobox } from '@/components/ui/combobox';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
-    "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme", 
-    "Fonksiyonel Test", "Manuel Kontrol", "Pürüzlülük Ölçüm Cihazı", 
+    "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
+    "Fonksiyonel Test", "Manuel Kontrol", "Pürüzlülük Ölçüm Cihazı",
     "Sertlik Test Cihazı", "Vida Diş Ölçer (Pitch Gauge)", "Gözle Kontrol"
 ];
 
@@ -51,14 +51,14 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
 
     const autoCalculateTolerance = useCallback((currentItem) => {
         const { nominal_value, tolerance_class, tolerance_direction } = currentItem;
-        
+
         if (!isDimensional || !tolerance_class || !nominal_value) {
             return { ...currentItem };
         }
 
         const nominal = parseFloat(String(nominal_value).replace(',', '.'));
         if (isNaN(nominal)) {
-             return { ...currentItem };
+            return { ...currentItem };
         }
 
         const toleranceRule = ISO_2768_1_TOLERANCES.linear.find(
@@ -68,7 +68,7 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
         if (toleranceRule && toleranceRule[tolerance_class] !== null) {
             const tolerance = toleranceRule[tolerance_class];
             let min, max;
-            
+
             switch (tolerance_direction) {
                 case '+':
                     min = nominal;
@@ -95,13 +95,13 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
 
     const handleFieldChange = (field, value) => {
         let newItem = { ...item, [field]: value };
-        
+
         if (field === 'standard_class') {
             if (value && standards) {
                 const [standardName, toleranceClass] = value.split('_');
                 const standard = standards.find(s => s.label.startsWith(standardName));
                 newItem = { ...newItem, standard_id: standard ? standard.value : null, tolerance_class: toleranceClass };
-                
+
                 const calculatedItem = autoCalculateTolerance(newItem);
                 onUpdate(index, calculatedItem);
                 return;
@@ -109,7 +109,7 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
                 newItem = { ...newItem, standard_id: null, tolerance_class: null };
             }
         }
-    
+
         if (field === 'equipment_id' && equipment) {
             const selectedEquipment = equipment.find(e => e.value === value);
             const isNowDimensional = selectedEquipment && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(selectedEquipment.label);
@@ -117,14 +117,14 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
                 newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null, tolerance_direction: '±', min_value: null, max_value: null };
             }
         }
-    
+
         if (field === 'characteristic_id' && characteristics) {
             const selectedCharacteristic = characteristics.find(c => c.value === value);
-            if(selectedCharacteristic) {
+            if (selectedCharacteristic) {
                 newItem.characteristic_type = selectedCharacteristic.type;
             }
         }
-        
+
         if (['nominal_value', 'tolerance_direction'].includes(field)) {
             const calculatedItem = autoCalculateTolerance(newItem);
             onUpdate(index, calculatedItem);
@@ -134,7 +134,7 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
     };
 
     const selectedCharacteristic = characteristics?.find(c => c.value === item.characteristic_id);
-    
+
     const standardClassValue = useMemo(() => {
         if (!standards) return item.standard_class || '';
         const standard = standards.find(s => s.value === item.standard_id);
@@ -151,44 +151,44 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
             <td className="p-2 align-top min-w-[200px]">
                 <Combobox options={characteristics || []} value={item.characteristic_id} onChange={(v) => handleFieldChange('characteristic_id', v)} placeholder="Karakteristik seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı." />
             </td>
-            <td className="p-2 align-top min-w-[200px]"><Combobox options={equipment || []} value={item.equipment_id} onChange={(v) => handleFieldChange('equipment_id', v)} placeholder="Ekipman seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı."/></td>
-            <td className="p-2 align-top min-w-[220px]"><Combobox options={STANDARD_OPTIONS} value={standardClassValue} onChange={(v) => handleFieldChange('standard_class', v)} placeholder="Standart ve Sınıf seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı." disabled={!isDimensional}/></td>
+            <td className="p-2 align-top min-w-[200px]"><Combobox options={equipment || []} value={item.equipment_id} onChange={(v) => handleFieldChange('equipment_id', v)} placeholder="Ekipman seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı." /></td>
+            <td className="p-2 align-top min-w-[220px]"><Combobox options={STANDARD_OPTIONS} value={standardClassValue} onChange={(v) => handleFieldChange('standard_class', v)} placeholder="Standart ve Sınıf seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı." disabled={!isDimensional} /></td>
             <td className="p-2 align-top min-w-[130px]">
-                <Input 
-                    type="text" 
-                    placeholder="Örn: M8, 15.5, OK" 
-                    value={item.nominal_value || ''} 
-                    onChange={(e) => handleFieldChange('nominal_value', e.target.value)} 
+                <Input
+                    type="text"
+                    placeholder="Örn: M8, 15.5, OK"
+                    value={item.nominal_value || ''}
+                    onChange={(e) => handleFieldChange('nominal_value', e.target.value)}
                     maxLength="50"
                     className="w-full"
                 />
             </td>
             <td className="p-2 align-top min-w-[100px]">
-              <Combobox 
-                options={[{value: '±', label: '±'}, {value: '+', label: '+'}, {value: '-', label: '-'}]} 
-                value={item.tolerance_direction} 
-                onChange={(v) => handleFieldChange('tolerance_direction', v)} 
-                placeholder="Yön" 
-                disabled={!isDimensional}
-              />
+                <Combobox
+                    options={[{ value: '±', label: '±' }, { value: '+', label: '+' }, { value: '-', label: '-' }]}
+                    value={item.tolerance_direction}
+                    onChange={(v) => handleFieldChange('tolerance_direction', v)}
+                    placeholder="Yön"
+                    disabled={!isDimensional}
+                />
             </td>
-            <td className="p-2 align-top min-w-[110px]"><Input type="text" inputMode="decimal" placeholder="Min" value={item.min_value ?? ''} onChange={(e) => handleFieldChange('min_value', e.target.value)} disabled={!isDimensional} className="w-full"/></td>
-            <td className="p-2 align-top min-w-[110px]"><Input type="text" inputMode="decimal" placeholder="Max" value={item.max_value ?? ''} onChange={(e) => handleFieldChange('max_value', e.target.value)} disabled={!isDimensional} className="w-full"/></td>
+            <td className="p-2 align-top min-w-[110px]"><Input type="text" inputMode="decimal" placeholder="Min" value={item.min_value ?? ''} onChange={(e) => handleFieldChange('min_value', e.target.value)} disabled={!isDimensional} className="w-full" /></td>
+            <td className="p-2 align-top min-w-[110px]"><Input type="text" inputMode="decimal" placeholder="Max" value={item.max_value ?? ''} onChange={(e) => handleFieldChange('max_value', e.target.value)} disabled={!isDimensional} className="w-full" /></td>
             <td className="p-2 align-top min-w-[140px]"><Input type="text" inputMode="decimal" placeholder="Ölçülen Değer" value={item.measured_value ?? ''} onChange={(e) => handleFieldChange('measured_value', e.target.value)} className="w-full" /></td>
             <td className="p-2 align-top text-center min-w-[120px]">
                 {(() => {
                     const measured = parseFloat(String(item.measured_value || '').replace(',', '.'));
                     const min = parseFloat(String(item.min_value || '').replace(',', '.'));
                     const max = parseFloat(String(item.max_value || '').replace(',', '.'));
-                    
+
                     if (!item.measured_value || item.measured_value === '') {
                         return <span className="text-xs text-muted-foreground">-</span>;
                     }
-                    
+
                     if (isNaN(measured) || isNaN(min) || isNaN(max) || min === 0 && max === 0) {
                         return <span className="text-xs text-muted-foreground">-</span>;
                     }
-                    
+
                     const isInRange = measured >= min && measured <= max;
                     return isInRange ? (
                         <Badge variant="success" className="bg-green-500 text-white">Kabul</Badge>
@@ -209,7 +209,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
     const [suppliers, setSuppliers] = useState([]);
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     const { characteristics, equipment, standards, loading: dataLoading } = useData();
 
     const initialItemState = { id: uuidv4(), characteristic_id: '', characteristic_type: '', equipment_id: '', standard_id: null, tolerance_class: null, nominal_value: '', min_value: null, max_value: null, tolerance_direction: '±', standard_class: '', measured_value: '' };
@@ -218,9 +218,9 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
         const initializeForm = async () => {
             if (existingReport && existingReport.id) {
                 // Mevcut raporu düzenleme modu
-                setFormData({ 
-                    ...existingReport, 
-                    report_date: existingReport.report_date ? new Date(existingReport.report_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0] 
+                setFormData({
+                    ...existingReport,
+                    report_date: existingReport.report_date ? new Date(existingReport.report_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
                 });
                 const reportItems = existingReport.items || [];
                 const loadedItems = reportItems.map((item) => ({
@@ -241,34 +241,41 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
             } else {
                 // Yeni rapor oluşturma modu
                 let initialReportDate = new Date().toISOString().split('T')[0];
-                
-                // Eğer parça kodu varsa, bu parçanın ilk girdi muayene tarihini bul
+                let initialSupplierId = null;
+
+                // Eğer parça kodu varsa, bu parçanın ilk girdi muayene tarihini ve tedarikçisini bul
                 if (existingReport?.part_code) {
                     try {
                         const { data: firstInspection, error } = await supabase
                             .from('incoming_inspections')
-                            .select('inspection_date')
+                            .select('inspection_date, supplier_id')
                             .eq('part_code', existingReport.part_code)
                             .order('inspection_date', { ascending: true })
                             .limit(1)
                             .maybeSingle();
-                        
-                        if (!error && firstInspection?.inspection_date) {
+
+                        if (!error && firstInspection) {
                             // Ürünün firmamıza ilk geldiği tarihi kullan
-                            initialReportDate = new Date(firstInspection.inspection_date).toISOString().split('T')[0];
+                            if (firstInspection.inspection_date) {
+                                initialReportDate = new Date(firstInspection.inspection_date).toISOString().split('T')[0];
+                            }
+                            // İlk gelen tedarikçiyi kullan
+                            if (firstInspection.supplier_id) {
+                                initialSupplierId = firstInspection.supplier_id;
+                            }
                         }
                     } catch (err) {
-                        console.error('İlk muayene tarihi alınamadı:', err);
+                        console.error('İlk muayene bilgileri alınamadı:', err);
                     }
                 }
-                
+
                 setFormData({
-                    part_code: existingReport?.part_code || '', 
-                    part_name: existingReport?.part_name || '', 
-                    supplier_id: null,
+                    part_code: existingReport?.part_code || '',
+                    part_name: existingReport?.part_name || '',
+                    supplier_id: initialSupplierId,
                     report_date: initialReportDate,
-                    status: 'Beklemede', 
-                    notes: '', 
+                    status: 'Beklemede',
+                    notes: '',
                     items: []
                 });
                 setItems([]);
@@ -308,12 +315,12 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
         e.preventDefault();
         setIsSubmitting(true);
 
-        const reportData = { 
-            ...formData, 
+        const reportData = {
+            ...formData,
             items: items.filter(item => item.characteristic_id && item.equipment_id)
         };
         if (reportData.supplier_id === '' || reportData.supplier_id === 'none') reportData.supplier_id = null;
-        
+
         // INKR numarası oluştur - parça numarası ile ilişkili: INKR-parça_kodu
         if (!reportData.inkr_number || !reportData.inkr_number.startsWith('INKR-')) {
             if (reportData.part_code) {
@@ -332,7 +339,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                     .order('inkr_number', { ascending: false })
                     .limit(1)
                     .maybeSingle();
-                
+
                 let sequence = 1;
                 if (lastReport?.inkr_number) {
                     const match = lastReport.inkr_number.match(new RegExp(`INKR-${currentYear}-(\\d+)`));
@@ -343,10 +350,10 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                 reportData.inkr_number = `INKR-${currentYear}-${String(sequence).padStart(4, '0')}`;
             }
         }
-        
-        delete reportData.id; 
-        delete reportData.created_at; 
-        delete reportData.updated_at; 
+
+        delete reportData.id;
+        delete reportData.created_at;
+        delete reportData.updated_at;
         delete reportData.supplier;
 
         const { error } = await supabase.from('inkr_reports').upsert(reportData, { onConflict: 'part_code' });
@@ -369,7 +376,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
         }
         setIsSubmitting(false);
     };
-    
+
     const handleSelectChange = (id, value) => {
         setFormData(prev => ({ ...prev, [id]: value === '' || value === 'none' ? null : value }));
     };
@@ -506,7 +513,7 @@ const InkrManagement = ({ onViewPdf }) => {
             refreshData();
         }
     };
-    
+
     const handleViewRecord = (report) => {
         setSelectedInkrDetail(report);
         setIsDetailModalOpen(true);
@@ -515,7 +522,7 @@ const InkrManagement = ({ onViewPdf }) => {
     const handleDownloadDetailPDF = (enrichedData) => {
         openPrintableReport(enrichedData, 'inkr_management', true);
     };
-    
+
     const getStatusVariant = (status) => {
         switch (status) {
             case 'Onaylandı': return 'success';
@@ -571,7 +578,7 @@ const InkrManagement = ({ onViewPdf }) => {
                 });
 
                 const inkrMap = new Map((inkrReports || []).map(r => [r.part_code, r]));
-                
+
                 const partsWithInkrStatus = Array.from(uniquePartsMap.values()).map(part => {
                     const inkrReport = inkrMap.get(part.part_code);
                     return {
@@ -687,8 +694,8 @@ const InkrManagement = ({ onViewPdf }) => {
                             <tr><td colSpan="7" className="text-center py-8">Parça bulunamadı.</td></tr>
                         ) : (
                             filteredParts.map((part, index) => (
-                                <tr 
-                                    key={part.part_code} 
+                                <tr
+                                    key={part.part_code}
                                     onClick={() => part.inkrReport && handleViewRecord(part.inkrReport)}
                                     className={`transition-colors ${part.inkrReport ? 'cursor-pointer hover:bg-muted/50' : ''}`}
                                     style={{
