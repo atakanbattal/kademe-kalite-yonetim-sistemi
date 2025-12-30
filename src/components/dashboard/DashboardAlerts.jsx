@@ -40,20 +40,32 @@ const DashboardAlerts = ({ onAlertClick }) => {
 
         equipments.forEach(eq => {
             const calibrations = eq.equipment_calibrations || [];
-            calibrations.forEach(cal => {
-                if (cal.next_calibration_date) {
-                    const dueDate = new Date(cal.next_calibration_date);
+
+            // Her ekipman için EN SON kalibrasyon kaydını bul
+            if (calibrations.length > 0) {
+                // Kalibrasyon tarihine göre sırala (en yeni en başta)
+                const sortedCalibrations = [...calibrations].sort((a, b) => {
+                    const dateA = new Date(a.calibration_date || 0);
+                    const dateB = new Date(b.calibration_date || 0);
+                    return dateB - dateA; // Azalan sıralama
+                });
+
+                // En son kalibrasyon kaydını al
+                const latestCalibration = sortedCalibrations[0];
+
+                if (latestCalibration.next_calibration_date) {
+                    const dueDate = new Date(latestCalibration.next_calibration_date);
                     dueDate.setHours(0, 0, 0, 0); // Tarih kısmını gece yarısına ayarla
 
                     if (dueDate < today) {
                         overdue.push({
                             equipment: eq.name,
-                            dueDate: cal.next_calibration_date,
+                            dueDate: latestCalibration.next_calibration_date,
                             daysOverdue: differenceInDays(today, dueDate)
                         });
                     }
                 }
-            });
+            }
         });
 
         return overdue.sort((a, b) => b.daysOverdue - a.daysOverdue);
