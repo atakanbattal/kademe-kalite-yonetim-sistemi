@@ -14,7 +14,7 @@ const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', 
 const normalizeTurkishChars = (text) => {
 	if (!text) return null;
 	if (typeof text !== 'string') return text;
-	
+
 	// Unicode normalization ile Türkçe karakterleri düzelt
 	const normalized = String(text)
 		.normalize('NFC') // Unicode normalization
@@ -22,18 +22,18 @@ const normalizeTurkishChars = (text) => {
 		.replace(/\u0130/g, 'İ') // dotted I
 		.replace(/\u0069\u0307/g, 'i') // i with combining dot
 		.replace(/\u0049\u0307/g, 'İ'); // I with combining dot
-	
+
 	return normalized;
 };
 
 // Obje içindeki tüm string değerleri normalize et (recursive)
 const normalizeRecord = (record) => {
 	if (!record || typeof record !== 'object') return record;
-	
+
 	if (Array.isArray(record)) {
 		return record.map(item => normalizeRecord(item));
 	}
-	
+
 	const normalized = {};
 	for (const [key, value] of Object.entries(record)) {
 		if (typeof value === 'string') {
@@ -52,31 +52,31 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 		console.error("openPrintableReport called with invalid record:", record);
 		return;
 	}
-	
+
 	// Türkçe karakterleri normalize et - tüm raporlar için geçerli
 	const normalizedRecord = normalizeRecord(record);
 
 	// Liste tipleri için özel ID kontrolü (id olmasa da devam et)
 	const isListType = type.endsWith('_list') || type === 'document_list';
 	const hasValidId = normalizedRecord.id || normalizedRecord.delivery_note_number;
-	
+
 	if (!isListType && !hasValidId) {
 		console.error("openPrintableReport: record has no valid ID field:", normalizedRecord);
 		return;
 	}
 
-	const reportId = type === 'sheet_metal_entry' 
-		? normalizedRecord.delivery_note_number 
-		: type === 'inkr_management' 
-		? (normalizedRecord.inkr_number || normalizedRecord.id)
-		: (normalizedRecord.id || normalizedRecord.delivery_note_number || `list-${Date.now()}`);
-	
+	const reportId = type === 'sheet_metal_entry'
+		? normalizedRecord.delivery_note_number
+		: type === 'inkr_management'
+			? (normalizedRecord.inkr_number || normalizedRecord.id)
+			: (normalizedRecord.id || normalizedRecord.delivery_note_number || `list-${Date.now()}`);
+
 	if (useUrlParams) {
 		try {
 			// localStorage kullanarak URL limitini aş (tab'ler arası çalışır)
 			// Benzersiz bir key oluştur
 			const storageKey = `report_${type}_${reportId}_${Date.now()}`;
-			
+
 			// Deviation için deviation_vehicles ve deviation_attachments'ı da dahil et
 			let recordToStore = normalizedRecord;
 			if (type === 'deviation' && normalizedRecord.id) {
@@ -94,7 +94,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 						console.warn('Deviation vehicles çekilemedi:', vehiclesError);
 					}
 				}
-				
+
 				// Eğer deviation_attachments yoksa, database'den çek
 				if (!normalizedRecord.deviation_attachments || normalizedRecord.deviation_attachments.length === 0) {
 					try {
@@ -110,37 +110,37 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 					}
 				}
 			}
-			
+
 			// Veriyi localStorage'a kaydet (zaten normalize edilmiş)
 			const normalizedRecordToStore = recordToStore;
 			localStorage.setItem(storageKey, JSON.stringify(normalizedRecordToStore));
-			
+
 			// Sadece storage key'ini URL'de gönder
 			const params = new URLSearchParams({
 				storageKey: storageKey,
 				autoprint: 'true',
 			});
-			
+
 			const reportUrl = `/print/report/${type}/${reportId}?${params.toString()}`;
 			console.log('📄 Rapor URL:', reportUrl);
 			console.log('📄 Storage Key:', storageKey);
 			console.log('📄 Record Data (normalized):', normalizedRecordToStore);
-			
+
 			// Her zaman yeni sekmede aç
 			const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
-			
+
 			if (reportWindow) {
 				reportWindow.focus();
 				console.log('✅ Rapor penceresi açıldı');
 			}
-			
+
 			// PDF yüklendikten sonra localStorage'ı temizle (30 saniye sonra - yavaş bağlantılarda da çalışsın)
 			setTimeout(() => {
 				localStorage.removeItem(storageKey);
 			}, 30000);
 		} catch (error) {
 			console.error("Error storing report data:", error);
-			
+
 			// Fallback: Liste tipleri için hata, diğerleri için database fetch
 			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list'].includes(type);
 			if (isListTypeFallback) {
@@ -233,16 +233,16 @@ const generateCertificateReportHtml = (record) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd MMMM yyyy', { locale: tr }) : '-';
 	const participantName = record?.personnelName || 'VERİ YOK';
 	const certificateType = record?.certificateType || 'success'; // 'success' veya 'participation'
-	
+
 	// Sertifika tipine göre başlık ve metinler
 	const certificateTitle = certificateType === 'success' ? 'BAŞARI SERTİFİKASI' : 'KATILIM SERTİFİKASI';
-	const subtitleText = certificateType === 'success' 
+	const subtitleText = certificateType === 'success'
 		? 'Bu sertifika, aşağıdaki eğitimi başarıyla tamamlayan'
 		: 'Bu sertifika, aşağıdaki eğitime katılan';
 	const descriptionText = certificateType === 'success'
 		? `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimini başarıyla tamamladığı için verilmiştir.`
 		: `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimine katıldığı için verilmiştir.`;
-	
+
 	return `
 		<div class="certificate-container">
 			<div class="certificate-content">
@@ -368,7 +368,7 @@ const generateExamPaperHtml = (record) => {
 const generateDynamicBalanceReportHtml = (record) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy', { locale: tr }) : '-';
 	const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm', { locale: tr }) : '-';
-	
+
 	const getResultBadge = (result) => {
 		if (result === 'PASS') {
 			return '<span style="background: #10b981; color: white; padding: 6px 16px; border-radius: 6px; font-weight: 700; font-size: 13px; display: inline-block;">✓ PASS</span>';
@@ -630,7 +630,7 @@ const generateWPSReportHtml = (record) => {
 	const getGasDescription = (gasName) => {
 		if (!gasName) return '';
 		const nameUpper = gasName.toUpperCase();
-		
+
 		// I Grubu - İnert Gazlar
 		// I1 (I-1): 100% Argon
 		if (nameUpper.includes('I1') || nameUpper.includes('I-1')) {
@@ -644,7 +644,7 @@ const generateWPSReportHtml = (record) => {
 		if (nameUpper.includes('I3') || nameUpper.includes('I-3')) {
 			return 'Argon + Helyum Karışımı (He: 0.5-95%, Ar: balance) - Alüminyum için yüksek nüfuziyet';
 		}
-		
+
 		// M1 Grubu - Düşük Oksitleyici Bileşenli Argon Bazlı Karışımlar
 		// M1-1: CO2 0.5-5%, Ar: balance
 		if (nameUpper.includes('M1-1')) {
@@ -662,7 +662,7 @@ const generateWPSReportHtml = (record) => {
 		if (nameUpper.includes('M1-4')) {
 			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 0.5-5%, O₂: 0.5-3%, Ar: balance)';
 		}
-		
+
 		// M2 Grubu - Orta Oksitleyici Bileşenli Argon Bazlı Karışımlar
 		// M2-0: CO2 5-15%, Ar: balance
 		if (nameUpper.includes('M2-0')) {
@@ -696,12 +696,12 @@ const generateWPSReportHtml = (record) => {
 		if (nameUpper.includes('M2-7')) {
 			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 15-25%, O₂: 3-10%, Ar: balance)';
 		}
-		
+
 		// M20 genellikle M1-1 veya M2-0 kategorisinde (CO2 0.5-15%)
 		if (nameUpper.includes('M20')) {
 			return 'Argon + CO₂ Karışımı (CO₂: 0.5-15%, Ar: balance) - İnce saclar için düşük sıçrantı';
 		}
-		
+
 		// M3 Grubu - Yüksek Oksitleyici Bileşenli Argon Bazlı Karışımlar
 		// M3-1: CO2 25-50%, Ar: balance
 		if (nameUpper.includes('M3-1')) {
@@ -723,7 +723,7 @@ const generateWPSReportHtml = (record) => {
 		if (nameUpper.includes('M3-5')) {
 			return 'Argon + CO₂ + O₂ Karışımı (CO₂: 25-50%, O₂: 10-15%, Ar: balance)';
 		}
-		
+
 		return '';
 	};
 
@@ -731,23 +731,23 @@ const generateWPSReportHtml = (record) => {
 	const getFillerDescription = (classification) => {
 		if (!classification) return '';
 		const classUpper = classification.toUpperCase();
-		
+
 		// AWS/AWS benzeri kodlar (G3Si1, G4Si1, G2Si1 vb.)
 		if (classUpper.includes('G3SI1') || classUpper.includes('G3SI-1')) return 'Karbon Çelik Dolgu Teli (Silisyum içerikli, genel amaçlı)';
 		if (classUpper.includes('G4SI1') || classUpper.includes('G4SI-1')) return 'Karbon Çelik Dolgu Teli (Yüksek silisyum içerikli)';
 		if (classUpper.includes('G2SI1') || classUpper.includes('G2SI-1')) return 'Karbon Çelik Dolgu Teli (Düşük silisyum içerikli)';
 		if (classUpper.includes('G3SI') || classUpper.match(/G\d+SI/)) return 'Karbon Çelik Dolgu Teli (Silisyum içerikli)';
-		
+
 		// ER70S-6, ER70S-3 gibi → Karbon Çelik Dolgu Teli
 		if (classUpper.includes('ER70') || classUpper.includes('ER49')) return 'Karbon Çelik Dolgu Teli';
 		// ER308L, ER316L gibi → Paslanmaz Çelik Dolgu Teli
 		if (classUpper.includes('ER308') || classUpper.includes('ER316') || classUpper.includes('ER309')) return 'Paslanmaz Çelik Dolgu Teli';
 		// ER4043, ER5356 gibi → Alüminyum Dolgu Teli
 		if (classUpper.includes('ER4043') || classUpper.includes('ER5356') || classUpper.includes('ER5183')) return 'Alüminyum Dolgu Teli';
-		
+
 		// Genel karbon çelik kodları
 		if (classUpper.includes('G') && (classUpper.includes('SI') || classUpper.includes('MN'))) return 'Karbon Çelik Dolgu Teli';
-		
+
 		return '';
 	};
 
@@ -785,27 +785,27 @@ const generateWPSReportHtml = (record) => {
 					<tr><td>Kaynak Prosesi</td><td>${record.welding_process_code || '-'}${processCodeMap[record.welding_process_code] ? ` (${processCodeMap[record.welding_process_code]})` : ''}</td></tr>
 					<tr><td>Kaynak Pozisyonu</td><td>${record.welding_position || '-'}${positionMap[record.welding_position] ? ` (${positionMap[record.welding_position]})` : ''}</td></tr>
 					<tr><td>Birleşim Tipi</td><td>${jointTypeMap[record.joint_type] || record.joint_type || '-'}</td></tr>
-					${record.joint_type === 'Butt' 
-						? `<tr><td>Kaynak Ağzı Tasarımı</td><td>${record.joint_detail || '-'} (${record.joint_detail === 'I' ? 'N/A' : (record.joint_angle || 'N/A') + '°'}) / Kök Aralığı: ${record.root_gap || 'N/A'} mm</td></tr>`
-						: record.joint_type === 'Fillet'
-						? (() => {
-							const thickness = parseFloat(record.thickness_1) || parseFloat(record.thickness_2) || 0;
-							const legSize = thickness > 0 ? (thickness * 0.7).toFixed(1) : 'N/A';
-							const throatThickness = thickness > 0 ? (thickness * 0.7 * 0.707).toFixed(1) : 'N/A';
-							const jointDetailMap = {
-								'Standard': 'Standart Köşe Kaynak',
-								'Double': 'Çift Köşe Kaynak',
-								'Partial': 'Kısmi Nüfuziyetli Köşe Kaynak',
-								'Full': 'Tam Nüfuziyetli Köşe Kaynak'
-							};
-							const jointDetailLabel = jointDetailMap[record.joint_detail] || record.joint_detail || 'Standart Köşe Kaynak';
-							return `
+					${record.joint_type === 'Butt'
+			? `<tr><td>Kaynak Ağzı Tasarımı</td><td>${record.joint_detail || '-'} (${record.joint_detail === 'I' ? 'N/A' : (record.joint_angle || 'N/A') + '°'}) / Kök Aralığı: ${record.root_gap || 'N/A'} mm</td></tr>`
+			: record.joint_type === 'Fillet'
+				? (() => {
+					const thickness = parseFloat(record.thickness_1) || parseFloat(record.thickness_2) || 0;
+					const legSize = thickness > 0 ? (thickness * 0.7).toFixed(1) : 'N/A';
+					const throatThickness = thickness > 0 ? (thickness * 0.7 * 0.707).toFixed(1) : 'N/A';
+					const jointDetailMap = {
+						'Standard': 'Standart Köşe Kaynak',
+						'Double': 'Çift Köşe Kaynak',
+						'Partial': 'Kısmi Nüfuziyetli Köşe Kaynak',
+						'Full': 'Tam Nüfuziyetli Köşe Kaynak'
+					};
+					const jointDetailLabel = jointDetailMap[record.joint_detail] || record.joint_detail || 'Standart Köşe Kaynak';
+					return `
 								<tr><td>Köşe Kaynak Ağzı Tipi</td><td>${jointDetailLabel}</td></tr>
 								<tr><td>Bacak Boyutu</td><td>${legSize} mm</td></tr>
 								<tr><td>Boğaz Kalınlığı</td><td>${throatThickness} mm</td></tr>
 							`;
-						})()
-						: ''}
+				})()
+				: ''}
 				</tbody>
 			</table>
 		</div>
@@ -878,7 +878,7 @@ const generateWPSReportHtml = (record) => {
 
 const generatePolyvalenceMatrixHtml = (record) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
-	
+
 	// Seviye renk konfigürasyonu
 	const SKILL_LEVELS = {
 		0: { label: 'Bilgi Yok', color: '#e5e7eb', textColor: '#6b7280', description: 'Eğitim almamış / Bilgi yok' },
@@ -887,7 +887,7 @@ const generatePolyvalenceMatrixHtml = (record) => {
 		3: { label: 'Bağımsız', color: '#bbf7d0', textColor: '#166534', description: 'Bağımsız çalışabilir' },
 		4: { label: 'Eğitmen', color: '#bfdbfe', textColor: '#1e40af', description: 'Eğitmen / Mentor seviyesi' }
 	};
-	
+
 	// Skill'leri kategoriye göre grupla
 	const skillsByCategory = {};
 	(record.skills || []).forEach(skill => {
@@ -897,7 +897,7 @@ const generatePolyvalenceMatrixHtml = (record) => {
 		}
 		skillsByCategory[categoryName].push(skill);
 	});
-	
+
 	// Polivalans skoru hesaplama
 	// Polivalans skoru: Kişinin sahip olduğu yetkinlikler içinde seviye 3+ olanların oranı
 	const calculatePolyvalenceScore = (personnelId) => {
@@ -908,12 +908,12 @@ const generatePolyvalenceMatrixHtml = (record) => {
 		// Kişinin sahip olduğu yetkinlikler içinde yetkin olanların oranı
 		return Math.round((proficientSkills / personSkills.length) * 100);
 	};
-	
+
 	// Personel-Skill mapping
 	const getPersonnelSkill = (personnelId, skillId) => {
 		return (record.personnelSkills || []).find(ps => ps.personnel_id === personnelId && ps.skill_id === skillId);
 	};
-	
+
 	// Matris tablosu oluştur
 	const matrixTableHtml = `
 		<table class="matrix-table" style="width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 15px;">
@@ -923,11 +923,11 @@ const generatePolyvalenceMatrixHtml = (record) => {
 						<strong>Personel</strong>
 					</th>
 					${Object.keys(skillsByCategory).map(categoryName => {
-						const categorySkills = skillsByCategory[categoryName];
-						return `<th colspan="${categorySkills.length}" style="border: 1px solid #d1d5db; padding: 6px; text-align: center; background-color: #dbeafe; color: #1e40af; font-weight: 600;">
+		const categorySkills = skillsByCategory[categoryName];
+		return `<th colspan="${categorySkills.length}" style="border: 1px solid #d1d5db; padding: 6px; text-align: center; background-color: #dbeafe; color: #1e40af; font-weight: 600;">
 							${categoryName}
 						</th>`;
-					}).join('')}
+	}).join('')}
 					<th rowspan="2" style="border: 1px solid #d1d5db; padding: 6px; text-align: center; background-color: #dbeafe; min-width: 60px;">
 						<strong>Polivalans<br>Skoru</strong>
 					</th>
@@ -944,38 +944,38 @@ const generatePolyvalenceMatrixHtml = (record) => {
 			</thead>
 			<tbody>
 				${(record.personnel || []).map((person, idx) => {
-					const polyvalenceScore = calculatePolyvalenceScore(person.id);
-					return `
+		const polyvalenceScore = calculatePolyvalenceScore(person.id);
+		return `
 						<tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#fafafa'};">
 							<td style="border: 1px solid #d1d5db; padding: 6px; font-weight: 600; position: sticky; left: 0; background-color: ${idx % 2 === 0 ? '#ffffff' : '#fafafa'}; z-index: 5;">
 								${person.full_name}<br>
 								<small style="color: #6b7280; font-weight: normal;">${person.department || ''} ${person.job_title ? '• ' + person.job_title : ''}</small>
 							</td>
 							${(record.skills || []).map(skill => {
-								const personnelSkill = getPersonnelSkill(person.id, skill.id);
-								const level = personnelSkill?.current_level || 0;
-								const levelConfig = SKILL_LEVELS[level];
-								const isCertified = personnelSkill?.is_certified;
-								const needsTraining = personnelSkill?.training_required;
-								
-								return `
+			const personnelSkill = getPersonnelSkill(person.id, skill.id);
+			const level = personnelSkill?.current_level || 0;
+			const levelConfig = SKILL_LEVELS[level];
+			const isCertified = personnelSkill?.is_certified;
+			const needsTraining = personnelSkill?.training_required;
+
+			return `
 									<td style="border: 1px solid #d1d5db; padding: 4px; text-align: center; background-color: ${levelConfig.color}; color: ${levelConfig.textColor};">
 										<strong style="font-size: 14px;">${level}</strong>
 										${isCertified ? '<br><small style="font-size: 7px;">S</small>' : ''}
 										${needsTraining ? '<br><small style="font-size: 7px;">E</small>' : ''}
 									</td>
 								`;
-							}).join('')}
+		}).join('')}
 							<td style="border: 1px solid #d1d5db; padding: 6px; text-align: center; background-color: #dbeafe; font-weight: 700; color: #1e40af; font-size: 11px;">
 								${polyvalenceScore}%
 							</td>
 						</tr>
 					`;
-				}).join('')}
+	}).join('')}
 			</tbody>
 		</table>
 	`;
-	
+
 	// Seviye legend
 	const legendHtml = `
 		<div style="margin-top: 20px; padding: 15px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
@@ -993,7 +993,7 @@ const generatePolyvalenceMatrixHtml = (record) => {
 			</div>
 		</div>
 	`;
-	
+
 	// Özet istatistikler
 	const summaryHtml = `
 		<div style="margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
@@ -1011,7 +1011,7 @@ const generatePolyvalenceMatrixHtml = (record) => {
 			</div>
 		</div>
 	`;
-	
+
 	// Yetkinlik Tanımları Tablosu (Son sayfa için)
 	const skillDefinitionsHtml = `
 		<div class="section" style="page-break-before: always;">
@@ -1064,7 +1064,7 @@ const generatePolyvalenceMatrixHtml = (record) => {
 			</div>
 		</div>
 	`;
-	
+
 	return `
 		<div class="report-header">
 			<div class="report-logo">
@@ -1269,8 +1269,8 @@ const generateListReportHtml = (record, type) => {
 								<td style="font-weight: 600;">${rec.nc_number}</td>
 								<td style="text-align: center;">
 									${rec.type === 'DF' ? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #3b82f6; color: white;">DF</span>' :
-									  rec.type === '8D' ? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>' :
-									  rec.type === 'MDI' ? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>' : rec.type}
+					rec.type === '8D' ? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>' :
+						rec.type === 'MDI' ? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>' : rec.type}
 								</td>
 								<td>${rec.title}</td>
 								<td>${rec.department}</td>
@@ -1314,27 +1314,27 @@ const generateListReportHtml = (record, type) => {
 					</thead>
 					<tbody>
 						${record.allRecords.map(item => {
-							const statusBadge = item.status === 'Kapatıldı' 
-								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Kapatıldı</span>'
-								: item.status === 'Reddedildi'
-								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
-								: item.status === 'Gecikmiş'
-								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Gecikmiş</span>'
-								: item.status === 'İşlemde'
+				const statusBadge = item.status === 'Kapatıldı'
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Kapatıldı</span>'
+					: item.status === 'Reddedildi'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
+						: item.status === 'Gecikmiş'
+							? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Gecikmiş</span>'
+							: item.status === 'İşlemde'
 								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">İşlemde</span>'
 								: item.status === 'Onay Bekliyor'
-								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Onay Bekliyor</span>'
-								: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Açık</span>';
-							
-							const typeBadge = item.type === 'DF'
-								? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #3b82f6; color: white;">DF</span>'
-								: item.type === '8D'
-								? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>'
-								: item.type === 'MDI'
-								? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>'
-								: item.type;
-							
-							return `
+									? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Onay Bekliyor</span>'
+									: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Açık</span>';
+
+				const typeBadge = item.type === 'DF'
+					? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #3b82f6; color: white;">DF</span>'
+					: item.type === '8D'
+						? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>'
+						: item.type === 'MDI'
+							? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>'
+							: item.type;
+
+				return `
 								<tr>
 									<td style="white-space: nowrap; font-weight: 600;">${item.nc_number}</td>
 									<td style="text-align: center;">${typeBadge}</td>
@@ -1347,7 +1347,7 @@ const generateListReportHtml = (record, type) => {
 									<td style="font-size: 0.85em;">${item.responsible_person}</td>
 								</tr>
 							`;
-						}).join('')}
+			}).join('')}
 					</tbody>
 				</table>
 			`
@@ -1392,12 +1392,11 @@ const generateListReportHtml = (record, type) => {
 					<small class="muted" style="font-size: 0.75em;">Lot: ${item.lot_no || '-'}</small>
 				</td>
 				<td style="text-align: center; width: 8%; white-space: nowrap;"><strong>${item.quantity || '0'}</strong> ${item.unit || 'Adet'}</td>
-				<td style="width: 10%;"><span style="padding: 3px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; white-space: nowrap; display: inline-block; ${
-					item.status === 'Karantinada' ? 'background-color: #fee2e2; color: #991b1b;' :
-					item.status === 'Tamamlandı' ? 'background-color: #d1fae5; color: #065f46;' :
+				<td style="width: 10%;"><span style="padding: 3px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; white-space: nowrap; display: inline-block; ${item.status === 'Karantinada' ? 'background-color: #fee2e2; color: #991b1b;' :
+				item.status === 'Tamamlandı' ? 'background-color: #d1fae5; color: #065f46;' :
 					item.status === 'Serbest Bırakıldı' ? 'background-color: #dbeafe; color: #1e40af;' :
-					'background-color: #e5e7eb; color: #374151;'
-				}">${item.status || 'Bilinmiyor'}</span></td>
+						'background-color: #e5e7eb; color: #374151;'
+			}">${item.status || 'Bilinmiyor'}</span></td>
 				<td style="width: 12%; font-size: 0.85em;">
 					<strong>${item.source_department || '-'}</strong><br>
 					<small class="muted" style="font-size: 0.8em;">Talep: ${item.requesting_department || '-'}</small>
@@ -1405,7 +1404,7 @@ const generateListReportHtml = (record, type) => {
 				<td style="width: 40%; font-size: 0.8em;"><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${item.description || '-'}</pre></td>
 			</tr>
 		`).join('');
-		
+
 		// Durum bazlı özet
 		const statusCounts = record.items.reduce((acc, item) => {
 			acc[item.status] = (acc[item.status] || 0) + 1;
@@ -1414,7 +1413,7 @@ const generateListReportHtml = (record, type) => {
 		const statusSummary = Object.entries(statusCounts)
 			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
 			.join('');
-		
+
 		summaryHtml = `
 			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
 			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
@@ -1423,26 +1422,26 @@ const generateListReportHtml = (record, type) => {
 		title = 'Ekipman ve Kalibrasyon Listesi Raporu';
 		headers = ['Ekipman Adı', 'Seri No', 'Durum', 'Kalibrasyon Durumu', 'Sonraki Kalibrasyon', 'Model', 'Sorumlu Birim', 'Zimmet Durumu'];
 		rowsHtml = record.items.map(item => {
-			const statusBadge = item.status === 'Aktif' 
+			const statusBadge = item.status === 'Aktif'
 				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Aktif</span>'
 				: item.status === 'Zimmetli'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Zimmetli</span>'
-				: item.status === 'Bakımda'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">Bakımda</span>'
-				: item.status === 'Kullanım Dışı'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Kullanım Dışı</span>'
-				: item.status === 'Hurdaya Ayrıldı'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Hurdaya Ayrıldı</span>'
-				: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (item.status || '-') + '</span>';
-			
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Zimmetli</span>'
+					: item.status === 'Bakımda'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">Bakımda</span>'
+						: item.status === 'Kullanım Dışı'
+							? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Kullanım Dışı</span>'
+							: item.status === 'Hurdaya Ayrıldı'
+								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Hurdaya Ayrıldı</span>'
+								: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (item.status || '-') + '</span>';
+
 			const calStatusBadge = item.calibration_status?.includes('Geçmiş')
 				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">' + item.calibration_status + '</span>'
 				: item.calibration_status?.includes('Yaklaşıyor')
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">' + item.calibration_status + '</span>'
-				: item.calibration_status === 'Tamam'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Tamam</span>'
-				: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (item.calibration_status || '-') + '</span>';
-			
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">' + item.calibration_status + '</span>'
+					: item.calibration_status === 'Tamam'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Tamam</span>'
+						: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (item.calibration_status || '-') + '</span>';
+
 			return `
 				<tr>
 					<td style="width: 18%; font-weight: 600;">${item.name}</td>
@@ -1456,7 +1455,7 @@ const generateListReportHtml = (record, type) => {
 				</tr>
 			`;
 		}).join('');
-		
+
 		// Durum bazlı özet
 		const statusCounts = record.items.reduce((acc, item) => {
 			acc[item.status] = (acc[item.status] || 0) + 1;
@@ -1465,7 +1464,7 @@ const generateListReportHtml = (record, type) => {
 		const statusSummary = Object.entries(statusCounts)
 			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
 			.join('');
-		
+
 		// Kalibrasyon durumu bazlı özet
 		const calStatusCounts = record.items.reduce((acc, item) => {
 			const calStatus = item.calibration_status || 'Bilinmiyor';
@@ -1475,7 +1474,7 @@ const generateListReportHtml = (record, type) => {
 		const calStatusSummary = Object.entries(calStatusCounts)
 			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
 			.join('');
-		
+
 		summaryHtml = `
 			<p><strong>Toplam Ekipman Sayısı:</strong> ${totalCount}</p>
 			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
@@ -1513,7 +1512,7 @@ const generateListReportHtml = (record, type) => {
 				</tr>
 			`;
 		}).join('');
-		
+
 		summaryHtml = `
 			<p><strong>Toplam Doküman Sayısı:</strong> ${totalCount}</p>
 			<p><strong>Kategori:</strong> ${record.categoryName || '-'}</p>
@@ -1522,26 +1521,26 @@ const generateListReportHtml = (record, type) => {
 		title = 'Uygunsuzluk (DF/8D) Listesi Raporu';
 		headers = ['No', 'Tip', 'Problem', 'Departman', 'Açılış Tarihi', 'Kapanış Tarihi', 'Termin Tarihi', 'Durum', 'Sorumlu Kişi'];
 		rowsHtml = record.items.map(item => {
-			const statusBadge = item.status === 'Kapatıldı' 
+			const statusBadge = item.status === 'Kapatıldı'
 				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Kapatıldı</span>'
 				: item.status === 'Reddedildi'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
-				: item.status === 'Gecikmiş'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Gecikmiş</span>'
-				: item.status === 'İşlemde'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">İşlemde</span>'
-				: item.status === 'Onay Bekliyor'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Onay Bekliyor</span>'
-				: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Açık</span>';
-			
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
+					: item.status === 'Gecikmiş'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Gecikmiş</span>'
+						: item.status === 'İşlemde'
+							? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">İşlemde</span>'
+							: item.status === 'Onay Bekliyor'
+								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Onay Bekliyor</span>'
+								: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Açık</span>';
+
 			const typeBadge = item.type === 'DF'
 				? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #3b82f6; color: white;">DF</span>'
 				: item.type === '8D'
-				? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>'
-				: item.type === 'MDI'
-				? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>'
-				: item.type;
-			
+					? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #9333ea; color: white;">8D</span>'
+					: item.type === 'MDI'
+						? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #4f46e5; color: white;">MDI</span>'
+						: item.type;
+
 			return `
 				<tr>
 					<td style="width: 10%; white-space: nowrap; font-weight: 600;">${item.nc_number}</td>
@@ -1556,7 +1555,7 @@ const generateListReportHtml = (record, type) => {
 				</tr>
 			`;
 		}).join('');
-		
+
 		// Durum bazlı özet
 		const statusCounts = record.items.reduce((acc, item) => {
 			acc[item.status] = (acc[item.status] || 0) + 1;
@@ -1565,7 +1564,7 @@ const generateListReportHtml = (record, type) => {
 		const statusSummary = Object.entries(statusCounts)
 			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
 			.join('');
-		
+
 		// Tip bazlı özet
 		const typeCounts = record.items.reduce((acc, item) => {
 			acc[item.type] = (acc[item.type] || 0) + 1;
@@ -1574,7 +1573,7 @@ const generateListReportHtml = (record, type) => {
 		const typeSummary = Object.entries(typeCounts)
 			.map(([type, count]) => `<span style="margin-right: 15px;"><strong>${type}:</strong> ${count}</span>`)
 			.join('');
-		
+
 		summaryHtml = `
 			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
 			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
@@ -1583,20 +1582,20 @@ const generateListReportHtml = (record, type) => {
 	} else if (type === 'quality_cost_list') {
 		title = record.unit ? `${record.unit} Birimi - Kalitesizlik Maliyetleri Raporu` : 'Kalitesizlik Maliyetleri Raporu';
 		headers = ['Tarih', 'Maliyet Türü', 'Parça Adı', 'Parça Kodu', 'Araç Tipi', 'Miktar', 'Tutar', 'Açıklama', 'Sorumlu'];
-		
+
 		rowsHtml = record.items.map(item => {
-			const amountFormatted = typeof item.amount === 'number' 
+			const amountFormatted = typeof item.amount === 'number'
 				? item.amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
 				: '-';
-			
-			const quantityText = item.quantity && item.quantity !== '-' 
+
+			const quantityText = item.quantity && item.quantity !== '-'
 				? `${item.quantity} ${item.measurement_unit || ''}`.trim()
 				: '-';
-			
+
 			const supplierBadge = item.is_supplier_nc && item.supplier_name
 				? `<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #fef3c7; color: #92400e;">Tedarikçi: ${item.supplier_name}</span>`
 				: '';
-			
+
 			return `
 				<tr>
 					<td style="width: 8%; white-space: nowrap;">${item.cost_date}</td>
@@ -1611,7 +1610,7 @@ const generateListReportHtml = (record, type) => {
 				</tr>
 			`;
 		}).join('');
-		
+
 		// Maliyet türü bazlı özet
 		const typeSummary = record.costsByType && record.costsByType.length > 0
 			? record.costsByType.map(typeData => {
@@ -1619,15 +1618,15 @@ const generateListReportHtml = (record, type) => {
 				return `<span style="margin-right: 15px;"><strong>${typeData.type}:</strong> ${typeAmountFormatted} (${typeData.count} kayıt, %${typeData.percentage.toFixed(1)})</span>`;
 			}).join('')
 			: '';
-		
-		const totalAmountFormatted = record.totalAmount 
+
+		const totalAmountFormatted = record.totalAmount
 			? record.totalAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
 			: '0,00 ₺';
-		
+
 		const periodInfo = record.periodStart && record.periodEnd
 			? `${record.periodStart} - ${record.periodEnd}`
 			: record.period || 'Tüm Zamanlar';
-		
+
 		summaryHtml = `
 			<p><strong>Birim:</strong> ${record.unit || 'Belirtilmemiş'}</p>
 			<p><strong>Dönem:</strong> ${periodInfo}</p>
@@ -1638,34 +1637,34 @@ const generateListReportHtml = (record, type) => {
 	} else if (type === 'supplier_list') {
 		title = record.title || 'Tedarikçi Listesi Raporu';
 		headers = ['S.No', 'Tedarikçi Adı', 'Ürün Grubu', 'Durum', 'Puan / Sınıf', 'Ana Tedarikçi', 'Alternatif Tedarikçiler', 'İletişim'];
-		
+
 		rowsHtml = (record.suppliers || []).map((supplier, idx) => {
 			const statusBadge = supplier.status === 'Onaylı'
 				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Onaylı</span>'
 				: supplier.status === 'Alternatif'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Alternatif</span>'
-				: supplier.status === 'Askıya Alınmış'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Askıya Alınmış</span>'
-				: supplier.status === 'Red'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
-				: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (supplier.status || '-') + '</span>';
-			
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Alternatif</span>'
+					: supplier.status === 'Askıya Alınmış'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Askıya Alınmış</span>'
+						: supplier.status === 'Red'
+							? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
+							: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (supplier.status || '-') + '</span>';
+
 			const gradeInfo = supplier.gradeInfo || {};
 			const gradeBadge = gradeInfo.grade === 'A'
 				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">A - Stratejik</span>'
 				: gradeInfo.grade === 'B'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">B - Güvenilir</span>'
-				: gradeInfo.grade === 'C'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">C - İzlenecek</span>'
-				: gradeInfo.grade === 'D'
-				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">D - Riskli</span>'
-				: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">N/A</span>';
-			
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">B - Güvenilir</span>'
+					: gradeInfo.grade === 'C'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">C - İzlenecek</span>'
+						: gradeInfo.grade === 'D'
+							? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">D - Riskli</span>'
+							: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">N/A</span>';
+
 			const mainSupplier = supplier.alternativeSupplier ? supplier.alternativeSupplier.name : '-';
 			const alternatives = supplier.alternativeSuppliers && supplier.alternativeSuppliers.length > 0
 				? supplier.alternativeSuppliers.map(alt => alt.name).join(', ')
 				: '-';
-			
+
 			return `
 				<tr>
 					<td style="width: 5%; text-align: center; font-weight: 600;">${supplier.serialNumber || (idx + 1)}</td>
@@ -1679,7 +1678,7 @@ const generateListReportHtml = (record, type) => {
 				</tr>
 			`;
 		}).join('');
-		
+
 		const statusCounts = (record.suppliers || []).reduce((acc, s) => {
 			acc[s.status] = (acc[s.status] || 0) + 1;
 			return acc;
@@ -1687,7 +1686,7 @@ const generateListReportHtml = (record, type) => {
 		const statusSummary = Object.entries(statusCounts)
 			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
 			.join('');
-		
+
 		summaryHtml = `
 			<p><strong>Toplam Tedarikçi Sayısı:</strong> ${record.totalCount || 0}</p>
 			<p><strong>Onaylı Tedarikçi:</strong> ${record.approvedCount || 0}</p>
@@ -1696,7 +1695,7 @@ const generateListReportHtml = (record, type) => {
 		`;
 	} else if (type === 'supplier_dashboard') {
 		title = record.title || 'Tedarikçi Kalite Genel Bakış Raporu';
-		
+
 		const dashboardData = record.dashboardData || {};
 		const statsHtml = `
 			<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 25px;">
@@ -1722,7 +1721,7 @@ const generateListReportHtml = (record, type) => {
 				</div>
 			</div>
 		`;
-		
+
 		const supplierPPMHtml = dashboardData.supplierPPM && dashboardData.supplierPPM.length > 0
 			? `
 				<h3 style="font-size: 16px; font-weight: 600; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #bfdbfe; padding-bottom: 5px;">Tedarikçi Bazlı PPM (En Yüksek 10)</h3>
@@ -1748,7 +1747,7 @@ const generateListReportHtml = (record, type) => {
 				</table>
 			`
 			: '<p style="color: #6b7280; font-style: italic; margin-bottom: 25px;">Seçili dönem için PPM verisi bulunmamaktadır.</p>';
-		
+
 		const gradeDistributionHtml = dashboardData.gradeDistribution && dashboardData.gradeDistribution.length > 0
 			? `
 				<h3 style="font-size: 16px; font-weight: 600; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #bfdbfe; padding-bottom: 5px;">Tedarikçi Puan Dağılımı</h3>
@@ -1762,22 +1761,22 @@ const generateListReportHtml = (record, type) => {
 					</thead>
 					<tbody>
 						${dashboardData.gradeDistribution.map(g => {
-							const total = dashboardData.totalSuppliers || 1;
-							const percentage = ((g.value / total) * 100).toFixed(1);
-							const color = g.name === 'A' ? '#d1fae5' : g.name === 'B' ? '#dbeafe' : g.name === 'C' ? '#fef3c7' : g.name === 'D' ? '#fee2e2' : '#e5e7eb';
-							return `
+				const total = dashboardData.totalSuppliers || 1;
+				const percentage = ((g.value / total) * 100).toFixed(1);
+				const color = g.name === 'A' ? '#d1fae5' : g.name === 'B' ? '#dbeafe' : g.name === 'C' ? '#fef3c7' : g.name === 'D' ? '#fee2e2' : '#e5e7eb';
+				return `
 								<tr style="background-color: ${color};">
 									<td style="font-weight: 600;">${g.label}</td>
 									<td style="text-align: right; font-weight: 700;">${g.value}</td>
 									<td style="text-align: right;">%${percentage}</td>
 								</tr>
 							`;
-						}).join('')}
+			}).join('')}
 					</tbody>
 				</table>
 			`
 			: '';
-		
+
 		const upcomingAuditsHtml = dashboardData.upcomingAudits && dashboardData.upcomingAudits.length > 0
 			? `
 				<h3 style="font-size: 16px; font-weight: 600; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #bfdbfe; padding-bottom: 5px;">Yaklaşan Denetimler (30 Gün)</h3>
@@ -1799,7 +1798,7 @@ const generateListReportHtml = (record, type) => {
 				</table>
 			`
 			: '<p style="color: #6b7280; font-style: italic; margin-bottom: 25px;">Yaklaşan denetim bulunmuyor.</p>';
-		
+
 		const auditRecommendationsHtml = dashboardData.auditRecommendations && dashboardData.auditRecommendations.length > 0
 			? `
 				<h3 style="font-size: 16px; font-weight: 600; color: #f59e0b; margin-bottom: 15px; border-bottom: 2px solid #fcd34d; padding-bottom: 5px;">Akıllı Tavsiyeler: Denetim Gereken Tedarikçiler</h3>
@@ -1825,7 +1824,7 @@ const generateListReportHtml = (record, type) => {
 				</table>
 			`
 			: '<p style="color: #10b981; font-weight: 600; text-align: center; padding: 20px; margin-bottom: 25px;">✓ Şu anda acil denetim gerektiren bir tedarikçi bulunmuyor. Harika iş!</p>';
-		
+
 		summaryHtml = `
 			${statsHtml}
 			${supplierPPMHtml}
@@ -1834,7 +1833,7 @@ const generateListReportHtml = (record, type) => {
 			${auditRecommendationsHtml}
 			<p style="margin-top: 20px;"><strong>Filtre:</strong> ${record.filterDescription || 'Tüm Zamanlar'}</p>
 		`;
-		
+
 		headers = [];
 		rowsHtml = '';
 	}
@@ -1916,13 +1915,13 @@ const generateGenericReportHtml = (record, type) => {
 			case 'kaizen': return record.kaizen_no || '-';
 			case 'quarantine': return record.lot_no || '-';
 			case 'incoming_inspection': return record.record_no || '-';
-		case 'incoming_control_plans': return record.part_code || '-';
-		case 'process_control_plans': return record.part_code || '-';
+			case 'incoming_control_plans': return record.part_code || '-';
+			case 'process_control_plans': return record.part_code || '-';
 			case 'sheet_metal_entry': return record.delivery_note_number || '-';
 			case 'supplier_audit': return `TDA-${format(new Date(record.planned_date || record.actual_date || new Date()), 'yyyy-MM')}-${record.id.substring(0, 4)}`;
 			case 'internal_audit': return record.report_number || '-';
 			case 'equipment': return record.serial_number || '-';
-			case 'inkr_management': 
+			case 'inkr_management':
 				// INKR numarası varsa onu kullan
 				if (record.inkr_number && record.inkr_number.startsWith('INKR-')) {
 					return record.inkr_number;
@@ -1936,7 +1935,7 @@ const generateGenericReportHtml = (record, type) => {
 			default: return record.id;
 		}
 	};
-	
+
 	const getDocumentType = () => {
 		switch (type) {
 			case 'nonconformity': return `${record.type} Raporu`;
@@ -1944,8 +1943,8 @@ const generateGenericReportHtml = (record, type) => {
 			case 'kaizen': return 'Kaizen Raporu';
 			case 'quarantine': return 'Karantina Raporu';
 			case 'incoming_inspection': return 'Girdi Kontrol Raporu';
-		case 'incoming_control_plans': return 'Kontrol Planı Raporu';
-		case 'process_control_plans': return 'Proses Kontrol Planı Raporu';
+			case 'incoming_control_plans': return 'Kontrol Planı Raporu';
+			case 'process_control_plans': return 'Proses Kontrol Planı Raporu';
 			case 'sheet_metal_entry': return 'Sac Metal Giriş Raporu';
 			case 'supplier_audit': return 'Tedarikçi Denetim Raporu';
 			case 'internal_audit': return 'İç Tetkik Raporu';
@@ -1958,10 +1957,10 @@ const generateGenericReportHtml = (record, type) => {
 	const getPublicationDate = () => {
 		return formatDate(record.created_at || record.opening_date || record.df_opened_at || record.quarantine_date || record.inspection_date || record.entry_date || record.audit_date || record.planned_date);
 	};
-	
+
 	const getDeviationApprovalReference = (ref) => {
 		if (!ref || typeof ref !== 'string') return '-';
-		
+
 		const deviationNoMatch = ref.match(/ST-\d{4}-\d+/i);
 		if (deviationNoMatch) {
 			return `Sapma No: ${deviationNoMatch[0]}`;
@@ -1969,20 +1968,20 @@ const generateGenericReportHtml = (record, type) => {
 
 		const uuidMatch = ref.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
 		if (uuidMatch) {
-			 return `Sapma No: ${record.nc_number || uuidMatch[0]}`;
+			return `Sapma No: ${record.nc_number || uuidMatch[0]}`;
 		}
 
 		if (ref.includes('/') && ref.length > 40) {
 			const parts = ref.split('/');
 			const lastPart = parts[parts.length - 1];
-			 if (lastPart) return `Sapma No: ${lastPart}`;
+			if (lastPart) return `Sapma No: ${lastPart}`;
 		}
 		return `Sapma Ref: ${ref}`;
 	};
 
 
 	const getGeneralInfo = () => {
-	const formatDate = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+		const formatDate = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
 		switch (type) {
 			case 'nonconformity':
 				console.log('DEBUG: NC Report record:', {
@@ -2005,14 +2004,14 @@ const generateGenericReportHtml = (record, type) => {
 					};
 					return text.replace(/[&<>"']/g, m => map[m]);
 				};
-				
+
 				// Türkçe karakterleri normalize et (Unicode normalization)
 				const normalizeTurkishChars = (text) => {
 					if (!text || typeof text !== 'string') return text;
-					
+
 					// Unicode normalize et (NFD -> NFC) - birleşik karakterleri düzelt
 					let normalized = text.normalize('NFC');
-					
+
 					// Bozuk Türkçe karakterleri düzelt
 					const fixes = {
 						// Bozuk İ karakterleri
@@ -2032,34 +2031,34 @@ const generateGenericReportHtml = (record, type) => {
 						'ç': 'ç',
 						'Ç': 'Ç'
 					};
-					
+
 					Object.keys(fixes).forEach(broken => {
 						normalized = normalized.replace(new RegExp(broken, 'g'), fixes[broken]);
 					});
-					
+
 					return normalized;
 				};
-				
+
 				// Problem tanımı için profesyonel formatlama
 				const formatProblemDescription = (text) => {
 					if (!text || typeof text !== 'string') return '-';
-					
+
 					// Önce Türkçe karakterleri normalize et
 					text = normalizeTurkishChars(text);
-					
+
 					// HTML escape yap
 					let escaped = escapeHtml(text);
-					
+
 					// Satır geçişlerini koru - boş satırları da koru
 					let lines = escaped.split('\n');
 					let formattedLines = [];
 					let inList = false;
 					let currentParagraph = [];
-					
+
 					for (let i = 0; i < lines.length; i++) {
 						let line = lines[i];
 						let trimmedLine = line.trim();
-						
+
 						// Boş satır - paragraf sonu veya boşluk
 						if (!trimmedLine) {
 							// Önceki paragrafı bitir
@@ -2076,24 +2075,24 @@ const generateGenericReportHtml = (record, type) => {
 							formattedLines.push('<div style="height: 4px;"></div>');
 							continue;
 						}
-						
+
 						// Başlık tespiti: "Başlık:" veya "Başlık: Değer" formatı
 						const headingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
 						if (headingMatch) {
 							const [, title, value] = headingMatch;
-							
+
 							// Önceki paragrafı bitir
 							if (currentParagraph.length > 0) {
 								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
 								currentParagraph = [];
 							}
-							
+
 							// Liste durumunu bitir
 							if (inList) {
 								formattedLines.push('</ul>');
 								inList = false;
 							}
-							
+
 							// Başlığı formatla - siyah bold, mavi renk yok
 							if (value && value.trim()) {
 								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #1f2937; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
@@ -2102,7 +2101,7 @@ const generateGenericReportHtml = (record, type) => {
 							}
 							continue;
 						}
-						
+
 						// Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
 						const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
 						if (listMatch) {
@@ -2111,43 +2110,43 @@ const generateGenericReportHtml = (record, type) => {
 								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
 								currentParagraph = [];
 							}
-							
+
 							if (!inList) {
 								formattedLines.push('<ul style="margin: 4px 0; padding-left: 20px; list-style-type: disc;">');
 								inList = true;
 							}
-							
+
 							const itemText = listMatch[2];
 							formattedLines.push(`<li style="margin-bottom: 4px; line-height: 1.5; color: #374151; font-size: 13px;">${itemText}</li>`);
 							continue;
 						}
-						
+
 						// Liste durumunu bitir
 						if (inList) {
 							formattedLines.push('</ul>');
 							inList = false;
 						}
-						
+
 						// Normal metin - paragrafa ekle
 						currentParagraph.push(trimmedLine);
 					}
-					
+
 					// Son paragrafı ekle
 					if (currentParagraph.length > 0) {
 						formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
 					}
-					
+
 					// Son liste durumunu bitir
 					if (inList) {
 						formattedLines.push('</ul>');
 					}
-					
+
 					return formattedLines.join('\n');
 				};
-				
+
 				// Problem tanımını tablo dışında tutmak için ayrı bir değişkende sakla
 				const problemDescriptionHtml = record.description ? formatProblemDescription(record.description) : '-';
-				
+
 				return {
 					tableRows: `
 						<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
@@ -2171,14 +2170,14 @@ const generateGenericReportHtml = (record, type) => {
 					};
 					return text.replace(/[&<>"']/g, m => map[m]);
 				};
-				
+
 				// Türkçe karakterleri normalize et (Unicode normalization)
 				const normalizeTurkishCharsDeviation = (text) => {
 					if (!text || typeof text !== 'string') return text;
-					
+
 					// Unicode normalize et (NFD -> NFC) - birleşik karakterleri düzelt
 					let normalized = text.normalize('NFC');
-					
+
 					// Bozuk Türkçe karakterleri düzelt
 					const fixes = {
 						// Bozuk İ karakterleri
@@ -2198,35 +2197,35 @@ const generateGenericReportHtml = (record, type) => {
 						'ç': 'ç',
 						'Ç': 'Ç'
 					};
-					
+
 					Object.keys(fixes).forEach(broken => {
 						normalized = normalized.replace(new RegExp(broken, 'g'), fixes[broken]);
 					});
-					
+
 					return normalized;
 				};
-				
+
 				// Sapma açıklaması için profesyonel formatlama - Detaylı ve sapmaya özel
 				// DeviationDetailModal.jsx'deki formatDescription ile aynı mantık - recursive tokenization
 				const formatDeviationDescription = (text) => {
 					if (!text || typeof text !== 'string') return '-';
-					
+
 					// Önce Türkçe karakterleri normalize et
 					text = normalizeTurkishCharsDeviation(text);
-					
+
 					// Escape edilmiş \n karakterlerini gerçek \n karakterlerine çevir
 					text = text.replace(/\\n/g, '\n');
-					
+
 					// HTML escape yap
 					let escaped = escapeHtmlDeviation(text);
-					
+
 					// Atlanacak başlıklar (gereksiz, zaten alt başlıklar var)
 					const skipHeadings = [
 						'Ölçüm Sonuçlari Ve Tespi̇tler',
 						'Ölçüm Sonuçları Ve Tespitler',
 						'ÖLÇÜM SONUÇLARI VE TESPİTLER',
 					];
-					
+
 					// Bölüm başlıkları (render edilecek)
 					const sectionHeadings = [
 						'Uygunsuz Bulunan Ölçümler',
@@ -2237,10 +2236,10 @@ const generateGenericReportHtml = (record, type) => {
 						'Tespit Edilen Hatalar',
 						'Hata Detayları',
 					];
-					
+
 					// Tüm başlıklar (ayrıştırma için)
 					const allHeadings = [...skipHeadings, ...sectionHeadings];
-					
+
 					// Tüm key-value anahtarları (sıralı - uzundan kısaya)
 					const knownKeys = [
 						'Beklenen Değer \\(nominal\\)',
@@ -2269,11 +2268,11 @@ const generateGenericReportHtml = (record, type) => {
 						'Ret Nedeni̇',
 						'Ret Nedeni',
 					].sort((a, b) => b.length - a.length);
-					
+
 					// Bir sonraki key veya heading pozisyonunu bul
 					const findNextKeyOrHeadingPosition = (str, startPos) => {
 						let minPos = str.length;
-						
+
 						// Önce tüm headings ara (skip dahil)
 						for (const heading of allHeadings) {
 							const regex = new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
@@ -2282,14 +2281,14 @@ const generateGenericReportHtml = (record, type) => {
 								minPos = startPos + match.index;
 							}
 						}
-						
+
 						// Sonra numaralı ölçüm başlıkları ara
 						const numberedMeasurementRegex = /\d+\.\s+(?:Minör|Majör|Kritik)\s+Özellik\s*\([^)]+\)/gi;
 						const numberedMatch = numberedMeasurementRegex.exec(str.substring(startPos));
 						if (numberedMatch && (startPos + numberedMatch.index) < minPos) {
 							minPos = startPos + numberedMatch.index;
 						}
-						
+
 						// Sonra key-value pattern'leri ara
 						for (const key of knownKeys) {
 							const regex = new RegExp(key + ':', 'gi');
@@ -2298,29 +2297,29 @@ const generateGenericReportHtml = (record, type) => {
 								minPos = startPos + match.index;
 							}
 						}
-						
+
 						return minPos;
 					};
-					
+
 					// Metni token'lara ayır - recursive tokenization
 					const tokenize = (str) => {
 						const tokens = [];
 						let remaining = str;
-						
+
 						// Önce ana başlığı kontrol et
 						const mainTitleMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
 						if (mainTitleMatch) {
 							tokens.push({ type: 'mainHeading', value: mainTitleMatch[0].trim() });
 							remaining = remaining.substring(mainTitleMatch[0].length).trim();
 						}
-						
+
 						// Geri kalan metni işle
 						while (remaining.length > 0) {
 							remaining = remaining.trim();
 							if (!remaining) break;
-							
+
 							let matched = false;
-							
+
 							// Skip heading kontrol et (atla, render etme)
 							for (const heading of skipHeadings) {
 								const regex = new RegExp('^(' + heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')[:\\s]*', 'i');
@@ -2333,7 +2332,7 @@ const generateGenericReportHtml = (record, type) => {
 								}
 							}
 							if (matched) continue;
-							
+
 							// Section heading kontrol et (render et)
 							for (const heading of sectionHeadings) {
 								const regex = new RegExp('^(' + heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')[:\\s]*', 'i');
@@ -2346,7 +2345,7 @@ const generateGenericReportHtml = (record, type) => {
 								}
 							}
 							if (matched) continue;
-							
+
 							// Numaralı ölçüm başlığı kontrol et
 							const numberedMeasurementMatch = remaining.match(/^(\d+\.\s+(?:Minör|Majör|Kritik)\s+Özellik\s*\([^)]+\))[:\s]*/i);
 							if (numberedMeasurementMatch) {
@@ -2354,7 +2353,7 @@ const generateGenericReportHtml = (record, type) => {
 								remaining = remaining.substring(numberedMeasurementMatch[0].length).trim();
 								continue;
 							}
-							
+
 							// Key-value kontrol et
 							for (const key of knownKeys) {
 								const regex = new RegExp('^(' + key + '):\\s*', 'i');
@@ -2362,12 +2361,12 @@ const generateGenericReportHtml = (record, type) => {
 								if (match) {
 									const keyName = match[1];
 									remaining = remaining.substring(match[0].length).trim();
-									
+
 									// Bir sonraki key veya heading pozisyonunu bul
 									const nextPos = findNextKeyOrHeadingPosition(remaining, 0);
 									let valueStr = remaining.substring(0, nextPos).trim();
 									remaining = remaining.substring(nextPos).trim();
-									
+
 									// Value içinde herhangi bir heading varsa (skip dahil), onu ayır
 									let foundSectionInValue = false;
 									for (const heading of allHeadings) {
@@ -2384,7 +2383,7 @@ const generateGenericReportHtml = (record, type) => {
 											break;
 										}
 									}
-									
+
 									// Value içinde "Bu Parça Için Sapma Onayı Talep Edilmektedir." varsa, ayır
 									const conclusionInValueMatch = valueStr.match(/(.*?)(Bu Parça [İI]çin Sapma Onayı Talep Edilmektedir\.?)/i);
 									if (conclusionInValueMatch) {
@@ -2399,7 +2398,7 @@ const generateGenericReportHtml = (record, type) => {
 								}
 							}
 							if (matched) continue;
-							
+
 							// "Bu Parça Için Sapma Onayı Talep Edilmektedir." kontrol et
 							const conclusionMatch = remaining.match(/^(Bu Parça [İI]çin Sapma Onayı Talep Edilmektedir\.?)/i);
 							if (conclusionMatch) {
@@ -2407,7 +2406,7 @@ const generateGenericReportHtml = (record, type) => {
 								remaining = remaining.substring(conclusionMatch[0].length).trim();
 								continue;
 							}
-							
+
 							// Eğer hiçbir pattern eşleşmediyse, bir sonraki key/heading'e kadar olan kısmı al
 							const nextPos = findNextKeyOrHeadingPosition(remaining, 1);
 							if (nextPos > 0 && nextPos < remaining.length) {
@@ -2424,13 +2423,13 @@ const generateGenericReportHtml = (record, type) => {
 								break;
 							}
 						}
-						
+
 						return tokens;
 					};
-					
+
 					const tokens = tokenize(escaped);
 					let formattedLines = [];
-					
+
 					for (const token of tokens) {
 						switch (token.type) {
 							case 'mainHeading':
@@ -2444,7 +2443,7 @@ const generateGenericReportHtml = (record, type) => {
 								break;
 							case 'keyValue':
 								let displayValue = (token.value === 'N/A' || token.value === 'N/A adet' || !token.value) ? 'Belirtilmemiş' : token.value;
-								
+
 								// skipHeadings'i value'dan temizle (veritabanından gelen eski veriler için)
 								// Önce spesifik başlıkları temizle
 								for (const skipHeading of skipHeadings) {
@@ -2454,27 +2453,27 @@ const generateGenericReportHtml = (record, type) => {
 									const skipRegex = new RegExp('\\s*' + escapedHeading.replace(/\\s+/g, '\\s+') + '[:\\s]*', 'gi');
 									displayValue = displayValue.replace(skipRegex, ' ').trim();
 								}
-								
+
 								// Genel pattern: "Ölçüm Sonuç" ile başlayan ve "Tespit" içeren her şeyi temizle
 								// Bu, tüm varyasyonları (noktalı i, büyük/küçük harf, vb.) yakalar
 								const generalSkipRegex = /\s*Ölçüm\s+Sonuç[^\s]*\s+Ve\s+Tespit[^\s]*[:]?\s*/gi;
 								displayValue = displayValue.replace(generalSkipRegex, ' ').trim();
-								
+
 								// Tekrar tekrar boşlukları temizle
 								displayValue = displayValue.replace(/\s+/g, ' ').trim();
-								
+
 								// Sonuç için Türkçe isimler ve renk
 								const isSonucKey = token.key.toLowerCase() === 'sonuç';
 								const isFailResult = isSonucKey && token.value.toLowerCase() === 'false';
 								const isPassResult = isSonucKey && token.value.toLowerCase() === 'true';
-								
+
 								// False/True değerlerini Türkçe'ye çevir
 								if (isFailResult) {
 									displayValue = 'Uygunsuz';
 								} else if (isPassResult) {
 									displayValue = 'Uygun';
 								}
-								
+
 								const valueStyle = isFailResult
 									? 'color: #dc2626; font-weight: 500;'
 									: 'color: #374151;';
@@ -2489,13 +2488,13 @@ const generateGenericReportHtml = (record, type) => {
 								break;
 						}
 					}
-					
+
 					return formattedLines.join('\n');
 				};
-				
+
 				// Sapma açıklamasını tablo dışında tutmak için ayrı bir değişkende sakla
 				const deviationDescriptionHtml = record.description ? formatDeviationDescription(record.description) : '-';
-				
+
 				// Etkilenen Araçlar tablosu
 				let vehiclesHtml = '';
 				if (record.deviation_vehicles && Array.isArray(record.deviation_vehicles) && record.deviation_vehicles.length > 0) {
@@ -2523,7 +2522,7 @@ const generateGenericReportHtml = (record, type) => {
 						</td></tr>
 					`;
 				}
-				
+
 				return {
 					tableRows: `
 						<tr><td>Talep Eden Kişi</td><td>${record.requesting_person || '-'}</td></tr>
@@ -2549,13 +2548,13 @@ const generateGenericReportHtml = (record, type) => {
 					};
 					return text.replace(/[&<>"']/g, m => map[m]);
 				};
-				
+
 				// Türkçe karakterleri normalize et (Unicode normalization)
 				const normalizeTurkishCharsKaizen = (text) => {
 					if (!text || typeof text !== 'string') return text;
-					
+
 					let normalized = text.normalize('NFC');
-					
+
 					const fixes = {
 						'i̇': 'i',
 						'İ̇': 'İ',
@@ -2572,33 +2571,33 @@ const generateGenericReportHtml = (record, type) => {
 						'ç': 'ç',
 						'Ç': 'Ç'
 					};
-					
+
 					Object.keys(fixes).forEach(broken => {
 						normalized = normalized.replace(new RegExp(broken, 'g'), fixes[broken]);
 					});
-					
+
 					return normalized;
 				};
-				
+
 				// Problem tanımı için profesyonel formatlama
 				const formatProblemDescriptionKaizen = (text) => {
 					if (!text || typeof text !== 'string') return '-';
-					
+
 					// Önce Türkçe karakterleri normalize et
 					text = normalizeTurkishCharsKaizen(text);
-					
+
 					let escaped = escapeHtmlKaizen(text);
-					
+
 					// Satır geçişlerini koru - boş satırları da koru
 					let lines = escaped.split('\n');
 					let formattedLines = [];
 					let inList = false;
 					let currentParagraph = [];
-					
+
 					for (let i = 0; i < lines.length; i++) {
 						let line = lines[i];
 						let trimmedLine = line.trim();
-						
+
 						// Boş satır - paragraf sonu veya boşluk
 						if (!trimmedLine) {
 							// Önceki paragrafı bitir
@@ -2615,24 +2614,24 @@ const generateGenericReportHtml = (record, type) => {
 							formattedLines.push('<div style="height: 4px;"></div>');
 							continue;
 						}
-						
+
 						// Başlık tespiti: "Başlık:" veya "Başlık: Değer" formatı
 						const headingMatch = trimmedLine.match(/^([A-ZÇĞİÖŞÜ][^:]+):\s*(.*)$/);
 						if (headingMatch) {
 							const [, title, value] = headingMatch;
-							
+
 							// Önceki paragrafı bitir
 							if (currentParagraph.length > 0) {
 								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
 								currentParagraph = [];
 							}
-							
+
 							// Liste durumunu bitir
 							if (inList) {
 								formattedLines.push('</ul>');
 								inList = false;
 							}
-							
+
 							// Başlığı formatla - daha küçük ve profesyonel
 							if (value && value.trim()) {
 								formattedLines.push(`<div style="margin-top: 10px; margin-bottom: 4px;"><strong style="color: #2563eb; font-weight: 600; font-size: 13px;">${title}:</strong> <span style="color: #374151; font-size: 13px;">${value}</span></div>`);
@@ -2641,7 +2640,7 @@ const generateGenericReportHtml = (record, type) => {
 							}
 							continue;
 						}
-						
+
 						// Liste öğesi tespiti: "* ", "- ", veya sayısal "1. ", "2. "
 						const listMatch = trimmedLine.match(/^([*•-]|\d+[.,])\s+(.+)$/);
 						if (listMatch) {
@@ -2650,40 +2649,40 @@ const generateGenericReportHtml = (record, type) => {
 								formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
 								currentParagraph = [];
 							}
-							
+
 							if (!inList) {
 								formattedLines.push('<ul style="margin: 4px 0; padding-left: 20px; list-style-type: disc;">');
 								inList = true;
 							}
-							
+
 							const itemText = listMatch[2];
 							formattedLines.push(`<li style="margin-bottom: 4px; line-height: 1.5; color: #374151; font-size: 13px;">${itemText}</li>`);
 							continue;
 						}
-						
+
 						// Liste durumunu bitir
 						if (inList) {
 							formattedLines.push('</ul>');
 							inList = false;
 						}
-						
+
 						// Normal metin - paragrafa ekle
 						currentParagraph.push(trimmedLine);
 					}
-					
+
 					// Son paragrafı ekle
 					if (currentParagraph.length > 0) {
 						formattedLines.push(`<p style="margin: 6px 0; line-height: 1.5; color: #374151; font-size: 13px;">${currentParagraph.join(' ')}</p>`);
 					}
-					
+
 					// Son liste durumunu bitir
 					if (inList) {
 						formattedLines.push('</ul>');
 					}
-					
+
 					return formattedLines.join('\n');
 				};
-				
+
 				const teamMembers = record.team_members_profiles?.map(p => p.full_name).join(', ') || '-';
 				const duration = record.start_date && record.end_date ? `${differenceInDays(new Date(record.end_date), new Date(record.start_date))} gün` : '-';
 				return `
@@ -2695,21 +2694,20 @@ const generateGenericReportHtml = (record, type) => {
 					<tr><td>Kaizen Ekibi</td><td>${teamMembers}</td></tr>
 					<tr><td>Süre</td><td>${duration}</td></tr>
 				`;
-		case 'quarantine':
-			 const deviationRef = record.deviation_approval_url ? `<tr><td>İlişkili Sapma</td><td>${getDeviationApprovalReference(record.deviation_approval_url)}</td></tr>` : '';
-			 const nonConformityRef = record.non_conformity_id ? `<tr><td>İlişkili Uygunsuzluk</td><td>${record.nc_number || 'Uygunsuzluk ID: ' + record.non_conformity_id}</td></tr>` : '';
-			return `
+			case 'quarantine':
+				const deviationRef = record.deviation_approval_url ? `<tr><td>İlişkili Sapma</td><td>${getDeviationApprovalReference(record.deviation_approval_url)}</td></tr>` : '';
+				const nonConformityRef = record.non_conformity_id ? `<tr><td>İlişkili Uygunsuzluk</td><td>${record.nc_number || 'Uygunsuzluk ID: ' + record.non_conformity_id}</td></tr>` : '';
+				return `
 				<tr><td>Parça Adı</td><td><strong>${record.part_name}</strong></td></tr>
 				<tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
 				<tr><td>Lot / Seri No</td><td>${record.lot_no || '-'}</td></tr>
 				<tr><td>Mevcut Miktar</td><td><strong>${record.quantity} ${record.unit}</strong></td></tr>
 				<tr><td>Karantina Tarihi</td><td>${formatDate(record.quarantine_date)}</td></tr>
-				<tr><td>Durum</td><td><span style="padding: 4px 12px; border-radius: 4px; font-weight: 600; ${
-					record.status === 'Karantinada' ? 'background-color: #fee2e2; color: #991b1b;' :
-					record.status === 'Tamamlandı' ? 'background-color: #d1fae5; color: #065f46;' :
-					record.status === 'Serbest Bırakıldı' ? 'background-color: #dbeafe; color: #1e40af;' :
-					'background-color: #e5e7eb; color: #374151;'
-				}">${record.status || 'Bilinmiyor'}</span></td></tr>
+				<tr><td>Durum</td><td><span style="padding: 4px 12px; border-radius: 4px; font-weight: 600; ${record.status === 'Karantinada' ? 'background-color: #fee2e2; color: #991b1b;' :
+						record.status === 'Tamamlandı' ? 'background-color: #d1fae5; color: #065f46;' :
+							record.status === 'Serbest Bırakıldı' ? 'background-color: #dbeafe; color: #1e40af;' :
+								'background-color: #e5e7eb; color: #374151;'
+					}">${record.status || 'Bilinmiyor'}</span></td></tr>
 				<tr><td>Sebep Olan Birim</td><td>${record.source_department || '-'}</td></tr>
 				<tr><td>Talebi Yapan Birim</td><td>${record.requesting_department || '-'}</td></tr>
 				<tr><td>Talebi Yapan Kişi</td><td>${record.requesting_person_name || '-'}</td></tr>
@@ -2717,13 +2715,13 @@ const generateGenericReportHtml = (record, type) => {
 				${deviationRef}
 				${nonConformityRef}
 			`;
-		case 'incoming_inspection':
-			const defectsHtml = record.defects && record.defects.length > 0 
-				? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
-				: '<li>Kusur tespit edilmemiştir.</li>';
-			
-			const resultsTableHtml = record.results && record.results.length > 0
-				? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+			case 'incoming_inspection':
+				const defectsHtml = record.defects && record.defects.length > 0
+					? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
+					: '<li>Kusur tespit edilmemiştir.</li>';
+
+				const resultsTableHtml = record.results && record.results.length > 0
+					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
 					<thead>
 						<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Özellik</th>
@@ -2751,13 +2749,13 @@ const generateGenericReportHtml = (record, type) => {
 						`).join('')}
 					</tbody>
 				</table>`
-				: '<p>Muayene sonuçları bulunamadı.</p>';
+					: '<p>Muayene sonuçları bulunamadı.</p>';
 
-			// Stok risk kontrolü bilgisi
-			let stockRiskControlHtml = '';
-			if (record.stock_risk_controls && Array.isArray(record.stock_risk_controls) && record.stock_risk_controls.length > 0) {
-				const controls = record.stock_risk_controls;
-				stockRiskControlHtml = `
+				// Stok risk kontrolü bilgisi
+				let stockRiskControlHtml = '';
+				if (record.stock_risk_controls && Array.isArray(record.stock_risk_controls) && record.stock_risk_controls.length > 0) {
+					const controls = record.stock_risk_controls;
+					stockRiskControlHtml = `
 					<tr><td colspan="2">
 						<h3 style="margin-top: 15px; margin-bottom: 10px; color: #dc2626;">Stok Risk Kontrolü</h3>
 						<div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 10px; margin: 10px 0;">
@@ -2768,9 +2766,9 @@ const generateGenericReportHtml = (record, type) => {
 						</div>
 					</td></tr>
 				`;
-			}
+				}
 
-					return `
+				return `
 			<tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
 			<tr><td>İrsaliye Numarası</td><td>${record.delivery_note_number || '-'}</td></tr>
 			<tr><td>Parça Adı / Kodu</td><td>${record.part_name || '-'} / ${record.part_code || '-'}</td></tr>
@@ -2784,9 +2782,9 @@ const generateGenericReportHtml = (record, type) => {
 			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
 			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları (Ölçüm Detayları)</h3>${resultsTableHtml}</td></tr>
 		`;
-		case 'sheet_metal_entry': {
-			const itemsTableHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
-				? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+			case 'sheet_metal_entry': {
+				const itemsTableHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
+					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
 					<thead>
 						<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Kalem No</th>
@@ -2818,11 +2816,11 @@ const generateGenericReportHtml = (record, type) => {
 						`).join('')}
 					</tbody>
 				</table>`
-				: '<p>Kalem bilgisi bulunamadı.</p>';
+					: '<p>Kalem bilgisi bulunamadı.</p>';
 
-			// Detaylı bilgiler her kalem için
-			const detailedItemsHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
-				? record.sheet_metal_items.map((item, idx) => `
+				// Detaylı bilgiler her kalem için
+				const detailedItemsHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
+					? record.sheet_metal_items.map((item, idx) => `
 				<div style="margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; background-color: #fafafa;">
 					<h4 style="margin-top: 0; margin-bottom: 10px; border-bottom: 2px solid #2563eb; padding-bottom: 8px; color: #1f2937;">Kalem ${idx + 1} - Detaylı Bilgiler</h4>
 					
@@ -2863,30 +2861,30 @@ const generateGenericReportHtml = (record, type) => {
 						<div>
 							<h5 style="margin: 0 0 10px 0; color: #374151; font-size: 0.95em;">Sertifika Bilgileri</h5>
 							${item.certificates && item.certificates.length > 0
-								? `<ul style="margin: 0; padding-left: 20px; font-size: 0.9em;">
+							? `<ul style="margin: 0; padding-left: 20px; font-size: 0.9em;">
 									${item.certificates.map((cert, cidx) => {
-										const certName = typeof cert === 'string' ? cert.split('/').pop() : cert.name || cert.path?.split('/').pop() || `Sertifika ${cidx + 1}`;
-										return `<li>${certName}</li>`;
-									}).join('')}
+								const certName = typeof cert === 'string' ? cert.split('/').pop() : cert.name || cert.path?.split('/').pop() || `Sertifika ${cidx + 1}`;
+								return `<li>${certName}</li>`;
+							}).join('')}
 								  </ul>`
-								: '<p style="margin: 0; font-size: 0.9em; color: #6b7280;">Sertifika belirtilmemiş</p>'
-							}
+							: '<p style="margin: 0; font-size: 0.9em; color: #6b7280;">Sertifika belirtilmemiş</p>'
+						}
 						</div>
 					</div>
 				</div>
 			`).join('')
-			: '<p>Kalem bilgisi bulunamadı.</p>';
+					: '<p>Kalem bilgisi bulunamadı.</p>';
 
-					return `
+				return `
 			<tr><td>Tedarikçi</td><td>${record.supplier?.name || record.supplier_name || '-'}</td></tr>
 						<tr><td>İrsaliye No</td><td>${record.delivery_note_number || '-'}</td></tr>
 						<tr><td>Giriş Tarihi</td><td>${formatDate(record.entry_date)}</td></tr>
 			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Giriş Yapılan Kalemler (Özet Tablo)</h3>${itemsTableHtml}</td></tr>
 			<tr><td colspan="2"><h3 style="margin-top: 20px; margin-bottom: 15px;">Giriş Yapılan Kalemler (Detaylı Bilgiler)</h3>${detailedItemsHtml}</td></tr>
 					`;
-			break;
-		}
-	case 'supplier_audit': {
+				break;
+			}
+			case 'supplier_audit': {
 				const getGradeInfo = (score) => {
 					if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış', color: '#6b7280' };
 					if (score >= 90) return { grade: 'A', description: 'Stratejik İş Ortağı', color: '#16a34a' };
@@ -2895,11 +2893,11 @@ const generateGenericReportHtml = (record, type) => {
 					return { grade: 'D', description: 'İş Birliği Sonlandırılacak', color: '#dc2626' };
 				};
 				const gradeInfo = getGradeInfo(record.score);
-				
+
 				// Denetçiler ve tedarikçi temsilcileri formatla
 				const auditorsText = formatArray(record.participants);
 				const supplierAttendeesText = formatArray(record.supplier_attendees);
-				
+
 				return `
 					<tr>
 						<td style="width: 25%; vertical-align: top; font-weight: 600; padding: 10px 8px; background-color: #f9fafb;">Tedarikçi</td>
@@ -2932,33 +2930,33 @@ const generateGenericReportHtml = (record, type) => {
 						<td style="padding: 10px 8px;"><pre style="white-space: pre-wrap; margin: 0; font-family: inherit; background-color: #f3f4f6; padding: 10px; border-radius: 4px; border-left: 3px solid #3b82f6;">${record.notes}</pre></td>
 					</tr>` : ''}
 				`;
-		break;
-		}
-		case 'internal_audit': {
-					return `
+				break;
+			}
+			case 'internal_audit': {
+				return `
 						<tr><td>İç Tetkik Standartı</td><td>${record.audit_standard ? `${record.audit_standard.code} - ${record.audit_standard.name}` : '-'}</td></tr>
 						<tr><td>Tetkik Başlığı</td><td>${record.title || '-'}</td></tr>
 						<tr><td>Denetlenen Birim</td><td>${record.department?.unit_name || '-'}</td></tr>
 						<tr><td>Tetkik Tarihi</td><td>${formatDate(record.audit_date)}</td></tr>
 						<tr><td>Tetkikçi</td><td>${record.auditor_name || '-'}</td></tr>
 					`;
-			break;
+				break;
 			}
-		case 'equipment': {
-					const latestCalibration = record.equipment_calibrations?.sort((a,b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
-					return `
+			case 'equipment': {
+				const latestCalibration = record.equipment_calibrations?.sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
+				return `
 						<tr><td>Ekipman Adı</td><td>${record.name}</td></tr>
 						<tr><td>Marka/Model</td><td>${record.brand_model || '-'}</td></tr>
 						<tr><td>Sorumlu Birim</td><td>${record.responsible_unit}</td></tr>
 						<tr><td>Son Kalibrasyon</td><td>${latestCalibration ? formatDate(latestCalibration.calibration_date) : '-'}</td></tr>
 						<tr><td>Sonraki Kalibrasyon</td><td>${latestCalibration ? formatDate(latestCalibration.next_calibration_date) : '-'}</td></tr>
 					`;
-			break;
+				break;
 			}
-		case 'incoming_control_plans': {
-			// Girdi kontrol planı raporunu process control gibi okunaklı hale getir
-			const itemsTableHtml = record.items && record.items.length > 0
-				? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+			case 'incoming_control_plans': {
+				// Girdi kontrol planı raporunu process control gibi okunaklı hale getir
+				const itemsTableHtml = record.items && record.items.length > 0
+					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
 					<thead>
 						<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Sıra</th>
@@ -2973,26 +2971,26 @@ const generateGenericReportHtml = (record, type) => {
 					</thead>
 					<tbody>
 						${record.items.map((item, idx) => {
-							// Karakteristik bilgilerini göster
-							const characteristicName = item.characteristic_name || item.characteristic_id || '-';
-							const characteristicType = item.characteristic_type ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tip: ${item.characteristic_type}</div>` : '';
-							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tolerans: ${item.tolerance_class}</div>` : '';
-							
-							// Ölçüm ekipmanı bilgilerini göster
-							const equipmentName = item.equipment_name || item.equipment_id || '-';
-							
-							// Standart bilgilerini göster - standard_class varsa onu göster, yoksa standard_name veya standard_id
-							let standardName = '-';
-							if (item.standard_class) {
-								standardName = item.standard_class;
-							} else if (item.standard_name) {
-								standardName = item.standard_name;
-							} else if (item.standard_id) {
-								standardName = item.standard_id;
-							}
-							const standardInfo = item.tolerance_class && !item.standard_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Sınıf: ${item.tolerance_class}</div>` : '';
-							
-							return `
+						// Karakteristik bilgilerini göster
+						const characteristicName = item.characteristic_name || item.characteristic_id || '-';
+						const characteristicType = item.characteristic_type ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tip: ${item.characteristic_type}</div>` : '';
+						const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Tolerans: ${item.tolerance_class}</div>` : '';
+
+						// Ölçüm ekipmanı bilgilerini göster
+						const equipmentName = item.equipment_name || item.equipment_id || '-';
+
+						// Standart bilgilerini göster - standard_class varsa onu göster, yoksa standard_name veya standard_id
+						let standardName = '-';
+						if (item.standard_class) {
+							standardName = item.standard_class;
+						} else if (item.standard_name) {
+							standardName = item.standard_name;
+						} else if (item.standard_id) {
+							standardName = item.standard_id;
+						}
+						const standardInfo = item.tolerance_class && !item.standard_class ? `<div style="font-size: 0.85em; color: #6b7280; margin-top: 2px;">Sınıf: ${item.tolerance_class}</div>` : '';
+
+						return `
 								<tr style="border-bottom: 1px solid #d1d5db;">
 									<td style="border: 1px solid #d1d5db; padding: 8px; font-weight: 600; text-align: center; background-color: #f9fafb;">${idx + 1}</td>
 									<td style="border: 1px solid #d1d5db; padding: 8px;">
@@ -3011,26 +3009,26 @@ const generateGenericReportHtml = (record, type) => {
 									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600; font-size: 1.1em;">${item.tolerance_direction || '±'}</td>
 								</tr>
 							`;
-						}).join('')}
+					}).join('')}
 					</tbody>
 				</table>`
-				: '<p style="color: #6b7280; padding: 20px; text-align: center;">Ölçüm noktası bulunamadı.</p>';
-			
-			const formatDate = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
-			
-			return `
+					: '<p style="color: #6b7280; padding: 20px; text-align: center;">Ölçüm noktası bulunamadı.</p>';
+
+				const formatDate = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+
+				return `
 				<tr><td>Parça Kodu</td><td><strong>${record.part_code || '-'}</strong></td></tr>
 				<tr><td>Parça Adı</td><td><strong>${record.part_name || '-'}</strong></td></tr>
 				<tr><td>Revizyon No</td><td>${record.revision_number || 0}</td></tr>
 				<tr><td>Revizyon Tarihi</td><td>${record.revision_date ? formatDate(record.revision_date) : (record.updated_at ? formatDate(record.updated_at) : (record.created_at ? formatDate(record.created_at) : '-'))}</td></tr>
 				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
 			`;
-			break;
+				break;
 			}
-		case 'process_control_plans': {
-			// Ölçülmesi gereken noktalar ve ölçüleri net bir şekilde göster
-			const itemsTableHtml = record.items && record.items.length > 0
-				? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse; table-layout: fixed;">
+			case 'process_control_plans': {
+				// Ölçülmesi gereken noktalar ve ölçüleri net bir şekilde göster
+				const itemsTableHtml = record.items && record.items.length > 0
+					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse; table-layout: fixed;">
 					<colgroup>
 						<col style="width: 35px;">
 						<col style="width: 18%;">
@@ -3055,34 +3053,34 @@ const generateGenericReportHtml = (record, type) => {
 					</thead>
 					<tbody>
 						${record.items.map((item, idx) => {
-							// Türkçe karakterleri korumak için güvenli metin encoding
-							const safeText = (text) => {
-								if (!text) return '-';
-								// HTML entity encoding - sadece özel karakterleri encode et, Türkçe karakterleri koru
-								return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-							};
-							
-							// Karakteristik bilgilerini göster
-							const characteristicName = safeText(item.characteristic_name || item.characteristic_id || '-');
-							const characteristicType = item.characteristic_type ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tip: ${safeText(item.characteristic_type)}</div>` : '';
-							const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tolerans: ${safeText(item.tolerance_class)}</div>` : '';
-							
-							// Ölçüm ekipmanı bilgilerini göster
-							const equipmentName = safeText(item.equipment_name || item.equipment_id || '-');
-							
-							// Standart bilgilerini göster - standard_class varsa onu göster, yoksa standard_name veya standard_id
-							let standardName = '-';
-							if (item.standard_class) {
-								// standard_class varsa direkt göster (TS 13920, TS 9013 gibi)
-								standardName = safeText(item.standard_class);
-							} else if (item.standard_name) {
-								standardName = safeText(item.standard_name);
-							} else if (item.standard_id) {
-								standardName = safeText(item.standard_id);
-							}
-							const standardInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; word-wrap: break-word; line-height: 1.3; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tolerans Sınıfı: ${safeText(item.tolerance_class)}</div>` : '';
-							
-							return `
+						// Türkçe karakterleri korumak için güvenli metin encoding
+						const safeText = (text) => {
+							if (!text) return '-';
+							// HTML entity encoding - sadece özel karakterleri encode et, Türkçe karakterleri koru
+							return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+						};
+
+						// Karakteristik bilgilerini göster
+						const characteristicName = safeText(item.characteristic_name || item.characteristic_id || '-');
+						const characteristicType = item.characteristic_type ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tip: ${safeText(item.characteristic_type)}</div>` : '';
+						const toleranceInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tolerans: ${safeText(item.tolerance_class)}</div>` : '';
+
+						// Ölçüm ekipmanı bilgilerini göster
+						const equipmentName = safeText(item.equipment_name || item.equipment_id || '-');
+
+						// Standart bilgilerini göster - standard_class varsa onu göster, yoksa standard_name veya standard_id
+						let standardName = '-';
+						if (item.standard_class) {
+							// standard_class varsa direkt göster (TS 13920, TS 9013 gibi)
+							standardName = safeText(item.standard_class);
+						} else if (item.standard_name) {
+							standardName = safeText(item.standard_name);
+						} else if (item.standard_id) {
+							standardName = safeText(item.standard_id);
+						}
+						const standardInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; word-wrap: break-word; line-height: 1.3; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tolerans Sınıfı: ${safeText(item.tolerance_class)}</div>` : '';
+
+						return `
 								<tr style="border-bottom: 1px solid #d1d5db;">
 									<td style="border: 1px solid #d1d5db; padding: 6px 4px; font-weight: 600; text-align: center; background-color: #f9fafb; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${idx + 1}</td>
 									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">
@@ -3101,14 +3099,14 @@ const generateGenericReportHtml = (record, type) => {
 									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; font-size: 10px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.tolerance_direction || '±'}</td>
 								</tr>
 							`;
-						}).join('')}
+					}).join('')}
 					</tbody>
 				</table>`
-				: '<p style="color: #6b7280; padding: 20px; text-align: center;">Ölçüm noktası bulunamadı.</p>';
-			
-			let revisionNotesHtml = '';
-			if (record.revision_number > 0 && record.revision_notes) {
-				revisionNotesHtml = `
+					: '<p style="color: #6b7280; padding: 20px; text-align: center;">Ölçüm noktası bulunamadı.</p>';
+
+				let revisionNotesHtml = '';
+				if (record.revision_number > 0 && record.revision_notes) {
+					revisionNotesHtml = `
 					<tr><td colspan="2">
 						<div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #d1d5db;">
 							<h3 style="margin-bottom: 10px; color: #1f2937; font-size: 1.1em;">REVİZYON NOTLARI</h3>
@@ -3118,16 +3116,16 @@ const generateGenericReportHtml = (record, type) => {
 						</div>
 					</td></tr>
 				`;
-			}
-			
-			// Türkçe karakterleri korumak için güvenli metin encoding
-			const encodeTurkishChars = (text) => {
-				if (!text) return '-';
-				// HTML entity encoding - sadece özel karakterleri encode et, Türkçe karakterleri koru
-				return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-			};
-			
-			return `
+				}
+
+				// Türkçe karakterleri korumak için güvenli metin encoding
+				const encodeTurkishChars = (text) => {
+					if (!text) return '-';
+					// HTML entity encoding - sadece özel karakterleri encode et, Türkçe karakterleri koru
+					return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+				};
+
+				return `
 				<tr><td>Araç Tipi</td><td><strong style="font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${encodeTurkishChars(record.vehicle_type)}</strong></td></tr>
 				<tr><td>Parça Kodu</td><td><strong style="font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${encodeTurkishChars(record.part_code)}</strong></td></tr>
 				<tr><td>Parça Adı</td><td><strong style="font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif; word-wrap: break-word; overflow-wrap: break-word;">${encodeTurkishChars(record.part_name)}</strong></td></tr>
@@ -3136,12 +3134,12 @@ const generateGenericReportHtml = (record, type) => {
 				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">ÖLÇÜLMESİ GEREKEN NOKTALAR VE ÖLÇÜLER</h3>${itemsTableHtml}</td></tr>
 				${revisionNotesHtml}
 			`;
-			break;
+				break;
 			}
-		case 'inkr_management': {
-			// Ölçüm sonuçları tablosu
-			const itemsTableHtml = record.items && record.items.length > 0
-				? `<table class="info-table results-table" style="width: 100%; margin-top: 15px; border-collapse: collapse;">
+			case 'inkr_management': {
+				// Ölçüm sonuçları tablosu
+				const itemsTableHtml = record.items && record.items.length > 0
+					? `<table class="info-table results-table" style="width: 100%; margin-top: 15px; border-collapse: collapse;">
 					<thead>
 						<tr style="background-color: #f3f4f6; border-bottom: 2px solid #d1d5db;">
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">#</th>
@@ -3156,64 +3154,103 @@ const generateGenericReportHtml = (record, type) => {
 					</thead>
 					<tbody>
 						${record.items.map((item, idx) => {
-							const safeText = (text) => {
-								if (!text) return '-';
-								return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-							};
-							
-							const characteristicName = safeText(item.characteristic_name || item.characteristic_id || '-');
-							const equipmentName = safeText(item.equipment_name || item.equipment_id || '-');
-							const nominal = safeText(item.nominal_value || '-');
-							const min = safeText(item.min_value || '-');
-							const max = safeText(item.max_value || '-');
-							const measured = safeText(item.measured_value || '-');
-							
-							// Sonuç hesaplama
-							let resultHtml = '<span style="color: #6b7280;">-</span>';
-							if (item.measured_value) {
-								const measuredVal = parseFloat(String(item.measured_value).replace(',', '.'));
-								const minVal = parseFloat(String(item.min_value || '').replace(',', '.'));
-								const maxVal = parseFloat(String(item.max_value || '').replace(',', '.'));
-								
-								if (!isNaN(measuredVal) && !isNaN(minVal) && !isNaN(maxVal) && minVal !== 0 && maxVal !== 0) {
-									const isInRange = measuredVal >= minVal && measuredVal <= maxVal;
-									if (isInRange) {
-										resultHtml = '<span style="background-color: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 10px;">KABUL</span>';
-									} else {
-										resultHtml = '<span style="background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 10px;">RET</span>';
+						const safeText = (text) => {
+							if (!text) return '-';
+							return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+						};
+
+						const characteristicName = safeText(item.characteristic_name || item.characteristic_id || '-');
+						const equipmentName = safeText(item.equipment_name || item.equipment_id || '-');
+						const nominal = safeText(item.nominal_value || '-');
+						const min = safeText(item.min_value || '-');
+						const max = safeText(item.max_value || '-');
+						const measured = safeText(item.measured_value || '-');
+
+						//                            // Sonuç hesaplama
+						let resultHtml = '<span style="color: #6b7280;">-</span>';
+
+						if (item.measured_value !== null && item.measured_value !== undefined && item.measured_value !== '') {
+							const valStr = String(item.measured_value).trim().toUpperCase();
+							const nominalValStr = item.nominal_value ? String(item.nominal_value).trim().toUpperCase() : '';
+
+							const normalizedVal = valStr.replace(',', '.');
+							const measuredVal = parseFloat(normalizedVal);
+							const minVal = parseFloat(String(item.min_value || '').replace(',', '.'));
+							const maxVal = parseFloat(String(item.max_value || '').replace(',', '.'));
+
+							// 1. KESİN RED KELİMELERİ
+							const isExplicitFail = ['RET', 'UYGUNSUZ', 'NOK', 'NG', 'HATALI', 'RED'].some(failText =>
+								valStr === failText || valStr.startsWith(failText + ' ')
+							);
+
+							// 2. KESİN KABUL KELİMELERİ
+							const isExplicitPass = ['OK', 'UYGUN', 'KABUL', 'PASS', 'GEÇER', 'VAR', 'EVET'].some(okText =>
+								valStr === okText || valStr.startsWith(okText + ' ')
+							);
+
+							let isCompliant = false;
+
+							if (isExplicitFail) {
+								isCompliant = false;
+							} else if (isExplicitPass) {
+								isCompliant = true;
+							} else if (nominalValStr && valStr === nominalValStr) {
+								// 3. NOMİNAL DEĞER İLE BİREBİR EŞLEŞME (Metin olarak)
+								isCompliant = true;
+							} else if (!isNaN(measuredVal)) {
+								// 4. SAYISAL KONTROL
+								if (!isNaN(minVal) && !isNaN(maxVal)) {
+									isCompliant = measuredVal >= minVal && measuredVal <= maxVal;
+								} else if (!isNaN(minVal)) {
+									isCompliant = measuredVal >= minVal;
+								} else if (!isNaN(maxVal)) {
+									isCompliant = measuredVal <= maxVal;
+								} else {
+									// Sayısal değer var ama limit yoksa ve nominal de eşleşmediyse
+									// Eğer nominal değer sayısal ise ve eşitse kabul et
+									const nominalNum = parseFloat(String(item.nominal_value || '').replace(',', '.'));
+									if (!isNaN(nominalNum) && measuredVal === nominalNum) {
+										isCompliant = true;
 									}
 								}
 							}
-							
-							return `
-								<tr style="border-bottom: 1px solid #e5e7eb;">
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${idx + 1}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px;">${characteristicName}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px;">${equipmentName}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">${nominal}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${min}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${max}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">${measured}</td>
-									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${resultHtml}</td>
-								</tr>
-							`;
-						}).join('')}
+
+							if (isCompliant) {
+								resultHtml = '<span style="background-color: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 10px;">KABUL</span>';
+							} else {
+								resultHtml = '<span style="background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 10px;">RET</span>';
+							}
+						}
+
+						return `
+						<tr style="border-bottom: 1px solid #e5e7eb;">
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${idx + 1}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px;">${characteristicName}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px;">${equipmentName}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">${nominal}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${min}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${max}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">${measured}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${resultHtml}</td>
+						</tr>
+						`;
+					}).join('')}
 					</tbody>
 				</table>`
-				: '<p style="color: #6b7280; margin-top: 15px;">Ölçüm sonucu bulunamadı.</p>';
-			
-			// INKR numarası - varsa göster, yoksa parça kodundan oluştur
-			let displayInkrNumber = '-';
-			if (record.inkr_number && record.inkr_number.startsWith('INKR-')) {
-				displayInkrNumber = record.inkr_number;
-			} else if (record.part_code) {
-				// Parça kodundan INKR numarası oluştur
-				const cleanPartCode = record.part_code.replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-				displayInkrNumber = `INKR-${cleanPartCode}`;
-			}
-			
-			return `
-				<tr><td>INKR Numarası</td><td>${displayInkrNumber}</td></tr>
+					: '<p style="color: #6b7280; margin-top: 15px;">Ölçüm sonucu bulunamadı.</p>';
+
+				// INKR numarası - varsa göster, yoksa parça kodundan oluştur
+				let displayInkrNumber = '-';
+				if (record.inkr_number && record.inkr_number.startsWith('INKR-')) {
+					displayInkrNumber = record.inkr_number;
+				} else if (record.part_code) {
+					// Parça kodundan INKR numarası oluştur
+					const cleanPartCode = record.part_code.replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+					displayInkrNumber = `INKR - ${cleanPartCode} `;
+				}
+
+				return `
+	< tr ><td>INKR Numarası</td><td>${displayInkrNumber}</td></tr >
 				<tr><td>Ürün Adı</td><td>${record.part_name || '-'}</td></tr>
 				<tr><td>Ürün Kodu</td><td>${record.part_code || '-'}</td></tr>
 				<tr><td>Tedarikçi</td><td>${record.supplier_name || record.supplier?.name || '-'}</td></tr>
@@ -3221,45 +3258,45 @@ const generateGenericReportHtml = (record, type) => {
 				<tr><td>Durum</td><td>${record.status || 'Aktif'}</td></tr>
 				<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px; color: #1e40af;">Ölçüm Sonuçları</h3>${itemsTableHtml}</td></tr>
 				${record.notes ? `<tr><td>Notlar</td><td><pre style="white-space: pre-wrap; font-family: inherit;">${record.notes}</pre></td></tr>` : ''}
-			`;
-			break;
+`;
+				break;
 			}
-		case 'stock_risk_controls': {
-			const riskLevelColor = {
-				'Yüksek': '#dc2626',
-				'Orta': '#f59e0b',
-				'Düşük': '#16a34a',
-			};
-			const color = riskLevelColor[record.decision] || '#6b7280';
-			
-			// Build results table if exists
-			const resultsTableHtml = record.results && Array.isArray(record.results) && record.results.length > 0
-				? `
-					<tr><td colspan="2"><h4 style="margin: 10px 0;">Kontrol Sonuçları</h4>
-						<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
-							<thead>
-								<tr style="background-color: #f3f4f6;">
-									<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Ölçüm Türü</th>
-									<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Değer</th>
-									<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Sonuç</th>
-								</tr>
-							</thead>
-							<tbody>
-								${record.results.map(r => `
+			case 'stock_risk_controls': {
+				const riskLevelColor = {
+					'Yüksek': '#dc2626',
+					'Orta': '#f59e0b',
+					'Düşük': '#16a34a',
+				};
+				const color = riskLevelColor[record.decision] || '#6b7280';
+
+				// Build results table if exists
+				const resultsTableHtml = record.results && Array.isArray(record.results) && record.results.length > 0
+					? `
+	< tr > <td colspan="2"><h4 style="margin: 10px 0;">Kontrol Sonuçları</h4>
+		<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+			<thead>
+				<tr style="background-color: #f3f4f6;">
+					<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Ölçüm Türü</th>
+					<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Değer</th>
+					<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Sonuç</th>
+				</tr>
+			</thead>
+			<tbody>
+				${record.results.map(r => `
 									<tr>
 										<td style="border: 1px solid #d1d5db; padding: 8px;">${r.measurement_type || '-'}</td>
 										<td style="border: 1px solid #d1d5db; padding: 8px;">${r.value || '-'}</td>
 										<td style="border: 1px solid #d1d5db; padding: 8px;">${r.result || '-'}</td>
 									</tr>
 								`).join('')}
-							</tbody>
-						</table>
-					</td></tr>
-				`
-				: '';
-			
-			return `
-				<tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
+			</tbody>
+		</table>
+	</td></tr >
+		`
+					: '';
+
+				return `
+		< tr ><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr >
 				<tr><td>Parça Adı</td><td>${record.part_name || '-'}</td></tr>
 				<tr><td>Tedarikçi</td><td>${record.supplier?.name || '-'}</td></tr>
 				<tr><td>Kaynak GKK No</td><td>${record.source_inspection?.record_no || '-'}</td></tr>
@@ -3269,34 +3306,34 @@ const generateGenericReportHtml = (record, type) => {
 				<tr><td>Kontrol Eden</td><td>${record.controlled_by?.full_name || '-'}</td></tr>
 				${resultsTableHtml}
 				${record.notes ? `<tr><td>Notlar</td><td><pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;">${record.notes}</pre></td></tr>` : ''}
-			`;
-			break;
+`;
+				break;
 			}
-				default: return `<tr><td>Detaylar</td><td>Bu modül için özel rapor formatı tanımlanmamış.</td></tr>`;
-			}
-		};
-	
+			default: return `< tr ><td>Detaylar</td><td>Bu modül için özel rapor formatı tanımlanmamış.</td></tr > `;
+		}
+	};
+
 	const getAdditionalSections = () => {
 		let html = '';
-		
+
 		// Problem Tanımı (nonconformity için - eğer getGeneralInfo'dan gelmediyse)
 		const generalInfo = getGeneralInfo();
 		const hasProblemDescription = typeof generalInfo === 'object' && generalInfo.problemDescription;
 		let sectionNumber = hasProblemDescription ? '3' : '2';
-		
+
 		// İlerleme Notları / Yapılan Çalışmalar (Tüm uygunsuzluklar için)
 		if (type === 'nonconformity' && record.closing_notes) {
-			html += `<div class="section">
+			html += `< div class="section" >
 				<h2 class="section-title blue">${sectionNumber}. İLERLEME NOTLARI / YAPILAN ÇALIŞMALAR</h2>
 				<div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px; margin-top: 10px;">
 					<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: inherit; margin: 0;">${record.closing_notes}</pre>
 				</div>
-			</div>`;
+			</div > `;
 		}
-		
+
 		// Karantina İşlem Geçmişi
 		if (type === 'quarantine' && record.history && record.history.length > 0) {
-			html += `<div class="section">
+			html += `< div class="section" >
 				<h2 class="section-title green">2. İŞLEM GEÇMİŞİ</h2>
 				<table class="results-table">
 					<thead>
@@ -3318,9 +3355,9 @@ const generateGenericReportHtml = (record, type) => {
 						`).join('')}
 					</tbody>
 				</table>
-			</div>`;
+			</div > `;
 		}
-		
+
 		// Kök Neden Analizleri (her zaman göster - doldurulabilir alanlar için)
 		if (type === 'nonconformity') {
 			// Problem tanımı artık 2. section, bu yüzden numaraları güncelle
@@ -3328,9 +3365,9 @@ const generateGenericReportHtml = (record, type) => {
 			if (record.eight_d_steps) {
 				sectionNumber = record.closing_notes ? '5' : '4';
 			}
-			
-			html += `<div class="section"><h2 class="section-title red">${sectionNumber}. KÖK NEDEN ANALİZİ</h2>`;
-			
+
+			html += `< div class="section" > <h2 class="section-title red">${sectionNumber}. KÖK NEDEN ANALİZİ</h2>`;
+
 			// HTML escape fonksiyonu (güvenlik ve doğru gösterim için)
 			const escapeHtml = (text) => {
 				if (!text) return '';
@@ -3342,7 +3379,7 @@ const generateGenericReportHtml = (record, type) => {
 					.replace(/'/g, '&#39;')
 					.replace(/\n/g, '<br>');
 			};
-			
+
 			// Veri varsa göster, yoksa boş alan göster
 			const renderField = (value, emptyPattern) => {
 				// null, undefined, boş string kontrolü
@@ -3356,19 +3393,19 @@ const generateGenericReportHtml = (record, type) => {
 				}
 				return ''; // Boş alanlar için alt çizgi karakterleri kaldırıldı, CSS border-bottom kullanılıyor
 			};
-			
+
 			// 5N1K Analizi - Her zaman göster
 			const fiveN1K = record.five_n1k_analysis || {};
 			// Türkçe ve İngilizce alan adlarını destekle
 			const get5N1KValue = (field) => {
-				return fiveN1K[field] || fiveN1K[field === 'what' ? 'ne' : 
-					field === 'where' ? 'nerede' : 
-					field === 'when' ? 'neZaman' : 
-					field === 'who' ? 'kim' : 
-					field === 'how' ? 'nasil' : 
-					field === 'why' ? 'neden' : field] || '';
+				return fiveN1K[field] || fiveN1K[field === 'what' ? 'ne' :
+					field === 'where' ? 'nerede' :
+						field === 'when' ? 'neZaman' :
+							field === 'who' ? 'kim' :
+								field === 'how' ? 'nasil' :
+									field === 'why' ? 'neden' : field] || '';
 			};
-			html += `<div class="analysis-box fillable">
+			html += `< div class="analysis-box fillable" >
 				<h4>5N1K Analizi</h4>
 				<div class="fillable-field">
 					<strong>Ne:</strong>
@@ -3394,11 +3431,11 @@ const generateGenericReportHtml = (record, type) => {
 					<strong>Neden Önemli:</strong>
 					<div class="fillable-line">${renderField(get5N1KValue('why'), '')}</div>
 				</div>
-			</div>`;
-			
+			</div > `;
+
 			// 5 Neden Analizi - Her zaman göster
 			const fiveWhy = record.five_why_analysis || {};
-			html += `<div class="analysis-box fillable">
+			html += `< div class="analysis-box fillable" >
 				<h4>5 Neden Analizi</h4>
 				<div class="fillable-field">
 					<strong>1. Neden:</strong>
@@ -3432,8 +3469,8 @@ const generateGenericReportHtml = (record, type) => {
 					<strong>Önleyici Aksiyon:</strong>
 					<div class="fillable-area">${renderField(fiveWhy.preventiveAction, '')}</div>
 				</div>
-			</div>`;
-			
+			</div > `;
+
 			// Ishikawa (Balık Kılçığı) Analizi - Her zaman göster
 			const ishikawa = record.ishikawa_analysis || {};
 			// Ishikawa verileri array olarak saklanabilir, string'e çevir
@@ -3445,7 +3482,7 @@ const generateGenericReportHtml = (record, type) => {
 				}
 				return value.toString();
 			};
-			html += `<div class="analysis-box fillable">
+			html += `< div class="analysis-box fillable" >
 				<h4>Ishikawa (Balık Kılçığı) Analizi - 6M</h4>
 				<div class="fillable-field">
 					<strong>İnsan (Man):</strong>
@@ -3471,8 +3508,8 @@ const generateGenericReportHtml = (record, type) => {
 					<strong>Ölçüm (Measurement):</strong>
 					<div class="fillable-area">${renderField(getIshikawaValue('measurement'), '')}</div>
 				</div>
-			</div>`;
-			
+			</div > `;
+
 			// FTA (Hata Ağacı) Analizi - Her zaman göster
 			const fta = record.fta_analysis || {};
 			// FTA verileri events array'i olarak saklanabilir, string formatına çevir
@@ -3503,7 +3540,7 @@ const generateGenericReportHtml = (record, type) => {
 				}
 				return fta[field] || '';
 			};
-			html += `<div class="analysis-box fillable">
+			html += `< div class="analysis-box fillable" >
 				<h4>FTA (Hata Ağacı) Analizi</h4>
 				<div class="fillable-field">
 					<strong>Üst Olay:</strong>
@@ -3529,11 +3566,11 @@ const generateGenericReportHtml = (record, type) => {
 					<strong>Özet:</strong>
 					<div class="fillable-area">${renderField(fta.summary, '')}</div>
 				</div>
-			</div>`;
-			
-			html += `</div>`;
+			</div > `;
+
+			html += `</div > `;
 		}
-		
+
 		if (type === 'nonconformity' && record.eight_d_steps) {
 			// Problem tanımı artık 2. section, bu yüzden numaraları güncelle
 			let sectionNumber = record.closing_notes ? '4' : '3';
@@ -3544,34 +3581,34 @@ const generateGenericReportHtml = (record, type) => {
 			if (hasAnalysis) {
 				sectionNumber = record.closing_notes ? '5' : '4';
 			}
-			html += `<div class="section"><h2 class="section-title red">${sectionNumber}. 8D ADIMLARI</h2>`;
+			html += `< div class="section" > <h2 class="section-title red">${sectionNumber}. 8D ADIMLARI</h2>`;
 			Object.entries(record.eight_d_steps).forEach(([key, step]) => {
-				html += `<div class="step-section">
+				html += `< div class="step-section" >
 					<h3 class="step-title">${key}: ${step.title || ''}</h3>
 					<p><strong>Sorumlu:</strong> ${step.responsible || '-'}</p>
 					<p><strong>Tarih:</strong> ${formatDate(step.completionDate)}</p>
 					<p class="step-description"><strong>Açıklama:</strong> <pre>${step.description || '-'}</pre></p>
-				</div>`;
+				</div > `;
 			});
-			html += `</div>`;
+			html += `</div > `;
 		}
 		if (type === 'deviation' && record.deviation_approvals?.length > 0) {
 			// Deviation için description varsa 3. section, yoksa 2. section
 			const generalInfo = getGeneralInfo();
 			const hasDescription = typeof generalInfo === 'object' && generalInfo.problemDescription;
 			const sectionNumber = hasDescription ? '3' : '2';
-			html += `<div class="section"><h2 class="section-title red">${sectionNumber}. ONAY SÜRECİ</h2><table class="info-table"><tbody>`;
+			html += `< div class="section" ><h2 class="section-title red">${sectionNumber}. ONAY SÜRECİ</h2><table class="info-table"><tbody>`;
 			record.deviation_approvals.forEach(approval => {
 				html += `<tr><td>${approval.approval_stage}</td><td>${approval.approver_name || 'Bekleniyor'} - <strong>${approval.status}</strong><br><i>"${approval.notes || ''}"</i></td></tr>`;
 			});
-			html += `</tbody></table></div>`;
+			html += `</tbody></table></div > `;
 		}
 		if (type === 'kaizen') {
 			const analysis_5n1k = record.analysis_5n1k || {};
 			const analysis_5_whys = record.analysis_5_whys || {};
 			const analysis_fishbone = record.analysis_fishbone || {};
 			html += `
-				<div class="section">
+	< div class="section" >
 					<h2 class="section-title red">2. KÖK NEDEN ANALİZİ</h2>
 					<div class="analysis-box">
 						<h4>5N1K Analizi</h4>
@@ -3599,26 +3636,26 @@ const generateGenericReportHtml = (record, type) => {
 						<p><strong>Çevre:</strong> ${analysis_fishbone.environment || '-'}</p>
 						<p><strong>Ölçüm:</strong> ${analysis_fishbone.measurement || '-'}</p>
 					</div>
-				</div>
-				<div class="section">
-					<h2 class="section-title green">3. ÇÖZÜM VE KAZANÇLAR</h2>
-					<table class="info-table">
-						<tbody>
-							<tr><td>Uygulanan Çözüm</td><td><pre>${record.solution_description || '-'}</pre></td></tr>
-							<tr><td>Aylık Kazanç</td><td>${formatCurrency(record.total_monthly_gain)}</td></tr>
-							<tr><td>Yıllık Kazanç</td><td>${formatCurrency(record.total_yearly_gain)}</td></tr>
-							<tr><td>İSG Etkileri</td><td>${formatArray(record.isg_effect)}</td></tr>
-							<tr><td>Çevresel Etkiler</td><td>${formatArray(record.environmental_effect)}</td></tr>
-						</tbody>
-					</table>
-				</div>
-			`;
+				</div >
+	<div class="section">
+		<h2 class="section-title green">3. ÇÖZÜM VE KAZANÇLAR</h2>
+		<table class="info-table">
+			<tbody>
+				<tr><td>Uygulanan Çözüm</td><td><pre>${record.solution_description || '-'}</pre></td></tr>
+				<tr><td>Aylık Kazanç</td><td>${formatCurrency(record.total_monthly_gain)}</td></tr>
+				<tr><td>Yıllık Kazanç</td><td>${formatCurrency(record.total_yearly_gain)}</td></tr>
+				<tr><td>İSG Etkileri</td><td>${formatArray(record.isg_effect)}</td></tr>
+				<tr><td>Çevresel Etkiler</td><td>${formatArray(record.environmental_effect)}</td></tr>
+			</tbody>
+		</table>
+	</div>
+`;
 		}
-		
-		 if (type === 'supplier_audit' || type === 'internal_audit') {
+
+		if (type === 'supplier_audit' || type === 'internal_audit') {
 			// Denetim sonuçlarını doğru formatta işle
 			const results = record.audit_results || record.results || [];
-			
+
 			// Eğer results bir obje ise (question_id: {answer, notes} formatında), array'e çevir
 			let resultsArray = [];
 			if (results && typeof results === 'object' && !Array.isArray(results)) {
@@ -3639,10 +3676,10 @@ const generateGenericReportHtml = (record, type) => {
 			} else if (Array.isArray(results)) {
 				resultsArray = results;
 			}
-			
+
 			if (resultsArray.length > 0) {
-				html += `<div class="section"><h2 class="section-title red">2. DENETİM SONUÇLARI VE BULGULAR</h2>`;
-				
+				html += `< div class="section" > <h2 class="section-title red">2. DENETİM SONUÇLARI VE BULGULAR</h2>`;
+
 				// Kategori bazlı gruplama
 				const categorizedResults = {};
 				resultsArray.forEach((result) => {
@@ -3654,17 +3691,17 @@ const generateGenericReportHtml = (record, type) => {
 						categorizedResults[category].push(result);
 					}
 				});
-				
+
 				// Her kategori için tablo oluştur
 				Object.entries(categorizedResults).forEach(([category, categoryResults]) => {
-					html += `<h3 style="font-size: 1.1em; font-weight: 700; color: #1f2937; margin-top: 15px; margin-bottom: 10px; padding: 8px; background-color: #f3f4f6; border-left: 4px solid #2563eb;">${category}</h3>`;
+					html += `< h3 style = "font-size: 1.1em; font-weight: 700; color: #1f2937; margin-top: 15px; margin-bottom: 10px; padding: 8px; background-color: #f3f4f6; border-left: 4px solid #2563eb;" > ${category}</h3 > `;
 					// İç tetkik için puan sütunu yok, tedarikçi denetimi için var
 					if (type === 'internal_audit') {
-						html += `<table class="info-table results-table" style="margin-bottom: 20px;"><thead><tr><th style="width: 50%;">Soru</th><th style="width: 15%;">Cevap</th><th style="width: 35%;">Denetçi Notları / Bulgular</th></tr></thead><tbody>`;
+						html += `< table class="info-table results-table" style = "margin-bottom: 20px;" ><thead><tr><th style="width: 50%;">Soru</th><th style="width: 15%;">Cevap</th><th style="width: 35%;">Denetçi Notları / Bulgular</th></tr></thead><tbody>`;
 					} else {
 						html += `<table class="info-table results-table" style="margin-bottom: 20px;"><thead><tr><th style="width: 10%;">Puan</th><th style="width: 40%;">Soru</th><th style="width: 15%;">Cevap</th><th style="width: 35%;">Denetçi Notları / Bulgular</th></tr></thead><tbody>`;
 					}
-					
+
 					categoryResults.forEach((result) => {
 						const answerValue = result.answer;
 						let answerColor = '#6b7280';
@@ -3682,7 +3719,7 @@ const generateGenericReportHtml = (record, type) => {
 							answerColor = '#6b7280';
 							answerBg = '#e5e7eb';
 						}
-						
+
 						// İç tetkik için puan sütunu yok
 						if (type === 'internal_audit') {
 							html += `<tr style="vertical-align: top;">
@@ -3707,9 +3744,9 @@ const generateGenericReportHtml = (record, type) => {
 							</tr>`;
 						}
 					});
-					html += `</tbody></table>`;
+					html += `</tbody></table > `;
 				});
-				
+
 				// Özet İstatistikler
 				const totalQuestions = resultsArray.length;
 				// İç tetkik için cevaplar: 'Uygun', 'Uygunsuz', 'Gözlem', 'Kısmen Uygun', 'Uygulanamaz'
@@ -3726,8 +3763,8 @@ const generateGenericReportHtml = (record, type) => {
 					partialCount = resultsArray.filter(r => r.answer === 'Kısmen' || r.answer === 'Gözlem' || r.answer === 'Kısmen Uygun').length;
 					naCount = resultsArray.filter(r => r.answer === 'Uygulanamaz').length;
 				}
-				
-				html += `<div style="margin-top: 20px; padding: 15px; background-color: #eff6ff; border-radius: 8px; border: 2px solid #3b82f6;">
+
+				html += `< div style = "margin-top: 20px; padding: 15px; background-color: #eff6ff; border-radius: 8px; border: 2px solid #3b82f6;" >
 					<h4 style="margin: 0 0 10px 0; color: #1e40af; font-size: 1.1em;">Denetim Özeti</h4>
 					<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center;">
 						<div style="padding: 10px; background: white; border-radius: 6px;">
@@ -3751,14 +3788,14 @@ const generateGenericReportHtml = (record, type) => {
 							<div style="font-size: 0.85em; color: #374151;">Uygulanamaz</div>
 						</div>
 					</div>
-				</div>`;
-				
-				html += `</div>`;
+				</div > `;
+
+				html += `</div > `;
 			} else {
-				html += `<div class="section"><h2 class="section-title red">2. DENETİM SONUÇLARI</h2><p style="color: #6b7280; padding: 20px; text-align: center;">Denetim sonucu bulunamadı.</p></div>`;
+				html += `< div class="section" ><h2 class="section-title red">2. DENETİM SONUÇLARI</h2><p style="color: #6b7280; padding: 20px; text-align: center;">Denetim sonucu bulunamadı.</p></div > `;
 			}
 		}
-		
+
 		let attachments = [];
 		let bucket = '';
 
@@ -3781,14 +3818,14 @@ const generateGenericReportHtml = (record, type) => {
 		}
 
 		if (attachments.length > 0) {
-			html += `<div class="section"><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
+			html += `< div class="section" ><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
 			attachments.forEach(attachment => {
 				// Deviation attachments için file_path alanını kullan
 				let pathToUse = attachment;
 				if (type === 'deviation' && typeof attachment === 'object' && attachment !== null) {
 					pathToUse = attachment.file_path || attachment.path || attachment;
 				}
-				
+
 				const url = getAttachmentUrl(pathToUse, bucket);
 				const fileName = type === 'deviation' && typeof attachment === 'object' && attachment !== null
 					? (attachment.file_name || attachment.name || (typeof pathToUse === 'string' ? pathToUse.split('/').pop() : ''))
@@ -3800,13 +3837,13 @@ const generateGenericReportHtml = (record, type) => {
 					html += `<div class="attachment-file"><a href="${url}" target="_blank">${fileName}</a></div>`;
 				}
 			});
-			html += `</div></div>`;
+			html += `</div></div > `;
 		}
 		return html;
 	};
 
 	return `
-		<div class="report-header">
+	< div class="report-header" >
 			<div class="report-logo">
 				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
 			</div>
@@ -3818,14 +3855,14 @@ const generateGenericReportHtml = (record, type) => {
 				Yazdır: ${getDocumentNumber()}<br>
 				Yazdırılma: ${formatDateTime(new Date())}
 			</div>
-		</div>
+		</div >
 
 		<div class="meta-box">
 			<div class="meta-item"><strong>Belge Türü:</strong> ${getDocumentType()}</div>
-			${type === 'inkr_management' 
-				? `<div class="meta-item"><strong>INKR No:</strong> ${getDocumentNumber()}</div>`
-				: `<div class="meta-item"><strong>No:</strong> ${getDocumentNumber()}</div>`
-			}
+			${type === 'inkr_management'
+			? `<div class="meta-item"><strong>INKR No:</strong> ${getDocumentNumber()}</div>`
+			: `<div class="meta-item"><strong>No:</strong> ${getDocumentNumber()}</div>`
+		}
 			<div class="meta-item"><strong>Revizyon:</strong> ${record.revision || '0'}</div>
 			<div class="meta-item"><strong>Sistem:</strong> Kademe Kalite Yönetim Sistemi</div>
 			<div class="meta-item"><strong>Yayın Tarihi:</strong> ${getPublicationDate()}</div>
@@ -3837,9 +3874,9 @@ const generateGenericReportHtml = (record, type) => {
 			<table class="info-table">
 				<tbody>
 					${(() => {
-						const generalInfo = getGeneralInfo();
-						return typeof generalInfo === 'object' && generalInfo.tableRows ? generalInfo.tableRows : generalInfo;
-					})()}
+			const generalInfo = getGeneralInfo();
+			return typeof generalInfo === 'object' && generalInfo.tableRows ? generalInfo.tableRows : generalInfo;
+		})()}
 				</tbody>
 			</table>
 		</div>
@@ -3857,14 +3894,15 @@ const generateGenericReportHtml = (record, type) => {
 				`;
 			}
 			return '';
-		})()}
+		})()
+		}
 		
 		${getAdditionalSections()}
 
-		<div class="section signature-section">
-			<h2 class="section-title dark">İMZA VE ONAY</h2>
-			<div class="signature-area">
-				${type === 'deviation' ? `
+<div class="section signature-section">
+	<h2 class="section-title dark">İMZA VE ONAY</h2>
+	<div class="signature-area">
+		${type === 'deviation' ? `
 					<div class="signature-box">
 						<p class="role">TALEP EDEN</p>
 						<div class="signature-line"></div>
@@ -3907,24 +3945,24 @@ const generateGenericReportHtml = (record, type) => {
 						<p class="name">${type === 'incoming_inspection' ? (record.created_by ? record.created_by : '&nbsp;') : '&nbsp;'}</p>
 					</div>
 				`}
-			</div>
-		</div>
-	`;
+	</div>
+</div>
+`;
 };
 
 const generatePrintableReportHtml = (record, type) => {
 	// Record'u normalize et (Türkçe karakterler için)
 	const normalizedRecord = normalizeRecord(record);
-	
+
 	let reportContentHtml = '';
 	let cssOverrides = ''; // CSS overrides for specific report types
-	
+
 	if (type === 'nonconformity_executive') {
 		const contentHtml = generateListReportHtml(record, type);
 		// nonconformity_executive için tam HTML formatı (başlık ve imza dahil)
 		const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
 		reportContentHtml = `
-			<div class="report-header">
+	< div class="report-header" >
 				<div class="report-logo">
 					<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
 				</div>
@@ -3935,25 +3973,25 @@ const generatePrintableReportHtml = (record, type) => {
 				<div class="print-info">
 					Rapor Tarihi: ${formatDateTime(new Date())}
 				</div>
-			</div>
+			</div >
 
-			<div class="meta-box">
-				<div class="meta-item"><strong>Belge Türü:</strong> DF/8D Yönetici Özet Raporu</div>
-			</div>
+	<div class="meta-box">
+		<div class="meta-item"><strong>Belge Türü:</strong> DF/8D Yönetici Özet Raporu</div>
+	</div>
 
 			${contentHtml}
 
-			<div class="section signature-section">
-				<h2 class="section-title dark">İMZA VE ONAY</h2>
-				<div class="signature-area">
-					<div class="signature-box">
-						<p class="role">HAZIRLAYAN</p>
-						<div class="signature-line"></div>
-						<p class="name">Atakan BATTAL</p>
-					</div>
-				</div>
-			</div>
-		`;
+<div class="section signature-section">
+	<h2 class="section-title dark">İMZA VE ONAY</h2>
+	<div class="signature-area">
+		<div class="signature-box">
+			<p class="role">HAZIRLAYAN</p>
+			<div class="signature-line"></div>
+			<p class="name">Atakan BATTAL</p>
+		</div>
+	</div>
+</div>
+`;
 	} else if (type === 'document_list' || type === 'equipment_list') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'supplier_list' || type === 'supplier_dashboard') {
@@ -3972,246 +4010,246 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generatePolyvalenceMatrixHtml(record);
 		// Override page style for landscape
 		cssOverrides = `
-			/* Landscape format - TAM GENİŞLİK - HEM EKRAN HEM PRINT */
-			@page {
-				size: A4 landscape !important;
-				margin: 5mm !important;
-			}
+/* Landscape format - TAM GENİŞLİK - HEM EKRAN HEM PRINT */
+@page {
+	size: A4 landscape!important;
+	margin: 5mm!important;
+}
 			
 			* {
-				box-sizing: border-box !important;
+	box- sizing: border - box!important;
 			}
 			
 			html {
-				max-width: 100% !important;
-				width: 100% !important;
-				margin: 0 !important;
-				padding: 0 !important;
-			}
+	max - width: 100 % !important;
+	width: 100 % !important;
+	margin: 0!important;
+	padding: 0!important;
+}
 			
 			body {
-				max-width: 100% !important;
-				width: 100% !important;
-				margin: 0 !important;
-				padding: 0 !important;
-				print-color-adjust: exact !important;
-				-webkit-print-color-adjust: exact !important;
-			}
+	max - width: 100 % !important;
+	width: 100 % !important;
+	margin: 0!important;
+	padding: 0!important;
+	print - color - adjust: exact!important;
+	-webkit - print - color - adjust: exact!important;
+}
 			
-			.page-container {
-				max-width: 100% !important;
-				width: 100% !important;
-				margin: 0 !important;
-				padding: 0 !important;
-				box-shadow: none !important;
-			}
+			.page - container {
+	max - width: 100 % !important;
+	width: 100 % !important;
+	margin: 0!important;
+	padding: 0!important;
+	box - shadow: none!important;
+}
 			
-			.report-wrapper {
-				padding: 8px !important;
-				max-width: 100% !important;
-				width: 100% !important;
-				margin: 0 !important;
-			}
+			.report - wrapper {
+	padding: 8px!important;
+	max - width: 100 % !important;
+	width: 100 % !important;
+	margin: 0!important;
+}
 			
-			.report-header {
-				padding: 5px 0 !important;
-				margin-bottom: 8px !important;
-			}
+			.report - header {
+	padding: 5px 0!important;
+	margin - bottom: 8px!important;
+}
 			
-			.report-header h1 {
-				font-size: 16px !important;
-				margin: 0 !important;
-			}
+			.report - header h1 {
+	font - size: 16px!important;
+	margin: 0!important;
+}
 			
-			.report-header p {
-				font-size: 10px !important;
-			}
+			.report - header p {
+	font - size: 10px!important;
+}
 			
-			.meta-box {
-				padding: 6px 10px !important;
-				margin-bottom: 8px !important;
-			}
+			.meta - box {
+	padding: 6px 10px!important;
+	margin - bottom: 8px!important;
+}
 			
-			.meta-box .meta-item {
-				font-size: 8px !important;
-			}
+			.meta - box.meta - item {
+	font - size: 8px!important;
+}
 			
 			.section {
-				margin-bottom: 10px !important;
-			}
+	margin - bottom: 10px!important;
+}
 			
-			.section-title {
-				font-size: 11px !important;
-				padding: 5px 10px !important;
-				margin-bottom: 8px !important;
-			}
+			.section - title {
+	font - size: 11px!important;
+	padding: 5px 10px!important;
+	margin - bottom: 8px!important;
+}
 			
 			table {
-				font-size: 6.5px !important;
-				width: 100% !important;
-				table-layout: auto !important;
-			}
+	font - size: 6.5px!important;
+	width: 100 % !important;
+	table - layout: auto!important;
+}
 			
 			table th,
-			table td {
-				padding: 3px 4px !important;
-				line-height: 1.2 !important;
-			}
+	table td {
+	padding: 3px 4px!important;
+	line - height: 1.2!important;
+}
 			
 			table th {
-				font-size: 6px !important;
-			}
+	font - size: 6px!important;
+}
 			
-			.signature-area {
-				margin-top: 15px !important;
-			}
+			.signature - area {
+	margin - top: 15px!important;
+}
 			
-			.signature-box {
-				padding: 8px !important;
-				display: flex !important;
-				flex-direction: column !important;
-				align-items: center !important;
-			}
+			.signature - box {
+	padding: 8px!important;
+	display: flex!important;
+	flex - direction: column!important;
+	align - items: center!important;
+}
 			
-			.signature-box .role {
-				font-size: 8px !important;
-				min-height: 32px !important;
-				display: flex !important;
-				align-items: flex-start !important;
-				justify-content: center !important;
-				margin-bottom: 0 !important;
-				text-align: center;
-			}
+			.signature - box.role {
+	font - size: 8px!important;
+	min - height: 32px!important;
+	display: flex!important;
+	align - items: flex - start!important;
+	justify - content: center!important;
+	margin - bottom: 0!important;
+	text - align: center;
+}
 			
-			.signature-line {
-				margin-top: 8px !important;
-				width: 100% !important;
-			}
-			
-			/* PRINT - AYNI AYARLAR */
-			@media print {
-				@page {
-					size: A4 landscape !important;
-					margin: 5mm !important;
-				}
+			.signature - line {
+	margin - top: 8px!important;
+	width: 100 % !important;
+}
+
+/* PRINT - AYNI AYARLAR */
+@media print {
+	@page {
+		size: A4 landscape!important;
+		margin: 5mm!important;
+	}
 				
 				* {
-					box-sizing: border-box !important;
-				}
+		box- sizing: border - box!important;
+}
 				
 				html {
-					max-width: 100% !important;
-					width: 100% !important;
-					margin: 0 !important;
-					padding: 0 !important;
-				}
+	max - width: 100 % !important;
+	width: 100 % !important;
+	margin: 0!important;
+	padding: 0!important;
+}
 				
 				body {
-					max-width: 100% !important;
-					width: 100% !important;
-					margin: 0 !important;
-					padding: 0 !important;
-					print-color-adjust: exact !important;
-					-webkit-print-color-adjust: exact !important;
-				}
+	max - width: 100 % !important;
+	width: 100 % !important;
+	margin: 0!important;
+	padding: 0!important;
+	print - color - adjust: exact!important;
+	-webkit - print - color - adjust: exact!important;
+}
 				
-				.page-container {
-					max-width: 100% !important;
-					width: 100% !important;
-					margin: 0 !important;
-					padding: 0 !important;
-					box-shadow: none !important;
-				}
+				.page - container {
+	max - width: 100 % !important;
+	width: 100 % !important;
+	margin: 0!important;
+	padding: 0!important;
+	box - shadow: none!important;
+}
 				
-				.report-wrapper {
-					padding: 8px !important;
-					max-width: 100% !important;
-					width: 100% !important;
-					margin: 0 !important;
-				}
+				.report - wrapper {
+	padding: 8px!important;
+	max - width: 100 % !important;
+	width: 100 % !important;
+	margin: 0!important;
+}
 				
-				.report-header {
-					padding: 5px 0 !important;
-					margin-bottom: 8px !important;
-				}
+				.report - header {
+	padding: 5px 0!important;
+	margin - bottom: 8px!important;
+}
 				
-				.report-header h1 {
-					font-size: 16px !important;
-					margin: 0 !important;
-				}
+				.report - header h1 {
+	font - size: 16px!important;
+	margin: 0!important;
+}
 				
-				.report-header p {
-					font-size: 10px !important;
-				}
+				.report - header p {
+	font - size: 10px!important;
+}
 				
-				.meta-box {
-					padding: 6px 10px !important;
-					margin-bottom: 8px !important;
-				}
+				.meta - box {
+	padding: 6px 10px!important;
+	margin - bottom: 8px!important;
+}
 				
-				.meta-box .meta-item {
-					font-size: 8px !important;
-				}
+				.meta - box.meta - item {
+	font - size: 8px!important;
+}
 				
 				.section {
-					margin-bottom: 10px !important;
-				}
+	margin - bottom: 10px!important;
+}
 				
-				.section-title {
-					font-size: 11px !important;
-					padding: 5px 10px !important;
-					margin-bottom: 8px !important;
-				}
+				.section - title {
+	font - size: 11px!important;
+	padding: 5px 10px!important;
+	margin - bottom: 8px!important;
+}
 				
 				table {
-					font-size: 6.5px !important;
-					width: 100% !important;
-					table-layout: auto !important;
-				}
+	font - size: 6.5px!important;
+	width: 100 % !important;
+	table - layout: auto!important;
+}
 				
 				table th,
-				table td {
-					padding: 3px 4px !important;
-					line-height: 1.2 !important;
-				}
+	table td {
+	padding: 3px 4px!important;
+	line - height: 1.2!important;
+}
 				
 				table th {
-					font-size: 6px !important;
-				}
+	font - size: 6px!important;
+}
 				
-				.signature-area {
-					margin-top: 15px !important;
-					page-break-inside: avoid !important;
-				}
+				.signature - area {
+	margin - top: 15px!important;
+	page -break-inside: avoid!important;
+}
 				
-				.signature-box {
-					padding: 8px !important;
-					display: flex !important;
-					flex-direction: column !important;
-					align-items: center !important;
-				}
+				.signature - box {
+	padding: 8px!important;
+	display: flex!important;
+	flex - direction: column!important;
+	align - items: center!important;
+}
 				
-				.signature-box .role {
-					font-size: 8px !important;
-					min-height: 32px !important;
-					display: flex !important;
-					align-items: flex-start !important;
-					justify-content: center !important;
-					margin-bottom: 0 !important;
-					text-align: center;
-				}
+				.signature - box.role {
+	font - size: 8px!important;
+	min - height: 32px!important;
+	display: flex!important;
+	align - items: flex - start!important;
+	justify - content: center!important;
+	margin - bottom: 0!important;
+	text - align: center;
+}
 				
-				.signature-line {
-					margin-top: 8px !important;
-					width: 100% !important;
-				}
-				
+				.signature - line {
+	margin - top: 8px!important;
+	width: 100 % !important;
+}
+
 				/* Footer print için */
-				.report-footer {
-					page-break-inside: avoid !important;
-				}
+				.report - footer {
+	page -break-inside: avoid!important;
+}
 			}
-		`;
+`;
 	} else {
 		reportContentHtml = generateGenericReportHtml(normalizedRecord, type);
 	}
@@ -4221,922 +4259,922 @@ const generatePrintableReportHtml = (record, type) => {
 	const isExam = type === 'exam_paper';
 
 	const defaultStyles = `
-		@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
-		
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
+
 		/* ============================================
 		   SAYFA AYARLARI - PDF OPTİMİZASYONU
 		   ============================================ */
-		body { 
-			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
-			color: #1f2937; 
-			margin: 0; 
-			padding: 0;
-			background-color: #f3f4f6; 
-			font-size: 10px; 
-			-webkit-print-color-adjust: exact;
-			print-color-adjust: exact;
-		}
+		body {
+	font - family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans - serif;
+	color: #1f2937;
+	margin: 0;
+	padding: 0;
+	background - color: #f3f4f6;
+	font - size: 10px;
+	-webkit - print - color - adjust: exact;
+	print - color - adjust: exact;
+}
 		
-	.page-container {
-		background-color: white;
-		box-sizing: border-box;
-		box-shadow: 0 0 10px rgba(0,0,0,0.1);
-		margin: 20px auto;
-		width: 210mm;
-		page-break-after: auto;
-		min-height: calc(297mm - 40px); /* Full page height */
-		display: flex;
-		flex-direction: column;
-	}
+	.page - container {
+	background - color: white;
+	box - sizing: border - box;
+	box - shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+	margin: 20px auto;
+	width: 210mm;
+	page -break-after: auto;
+	min - height: calc(297mm - 40px); /* Full page height */
+	display: flex;
+	flex - direction: column;
+}
 	
-	.report-wrapper {
-		padding: 15mm;
-		flex: 1; /* Take remaining space */
-		display: flex;
-		flex-direction: column;
-	}
-		
+	.report - wrapper {
+	padding: 15mm;
+	flex: 1; /* Take remaining space */
+	display: flex;
+	flex - direction: column;
+}
+
 		/* ============================================
 		   BAŞLIK BÖLÜMÜ - Sayfa başında bütün kalmalı
 		   ============================================ */
-		.report-header { 
-			display: grid; 
-			grid-template-columns: auto 1fr auto; 
-			gap: 20px; 
-			align-items: center; 
-			border-bottom: 1px solid #e5e7eb; 
-			padding-bottom: 10px; 
-			margin-bottom: 15px; 
-			page-break-inside: avoid;
-			page-break-after: avoid;
-		}
+		.report - header {
+	display: grid;
+	grid - template - columns: auto 1fr auto;
+	gap: 20px;
+	align - items: center;
+	border - bottom: 1px solid #e5e7eb;
+	padding - bottom: 10px;
+	margin - bottom: 15px;
+	page -break-inside: avoid;
+	page -break-after: avoid;
+}
 		
-		.report-logo img { height: 50px; }
+		.report - logo img { height: 50px; }
 		
-		.company-title { text-align: center; }
-		.company-title h1 { 
-			font-size: 20px; 
-			font-weight: 700; 
-			margin: 0; 
-			color: #111827; 
-		}
-		.company-title p { 
-			font-size: 12px; 
-			margin: 0; 
-			color: #4b5563; 
-		}
+		.company - title { text - align: center; }
+		.company - title h1 {
+	font - size: 20px;
+	font - weight: 700;
+	margin: 0;
+	color: #111827;
+}
+		.company - title p {
+	font - size: 12px;
+	margin: 0;
+	color: #4b5563;
+}
 		
-		.print-info { 
-			text-align: right; 
-			font-size: 9px; 
-			color: #4b5563;
-			line-height: 1.4;
-			white-space: nowrap;
-		}
+		.print - info {
+	text - align: right;
+	font - size: 9px;
+	color: #4b5563;
+	line - height: 1.4;
+	white - space: nowrap;
+}
 
 		/* ============================================
 		   META KUTUSU - Başlık ile birlikte kalmalı
 		   ============================================ */
-		.meta-box { 
-			display: grid; 
-			grid-template-columns: 1fr 1fr 1fr; 
-			gap: 12px 15px; 
-			background-color: #f9fafb; 
-			padding: 16px; 
-			border-radius: 8px; 
-			margin-bottom: 20px; 
-			border: 1px solid #e5e7eb; 
-			page-break-inside: avoid;
-			page-break-after: auto; /* Meta'dan sonra bölünebilir */
-			box-sizing: border-box;
-			width: 100%;
-		}
-		.meta-item { 
-			font-size: 10px; 
-			color: #374151; 
-			padding: 0;
-			word-wrap: break-word;
-			overflow-wrap: break-word;
-			line-height: 1.6;
-		}
-		.meta-item strong { 
-			color: #1f2937;
-			font-weight: 600;
-			margin-right: 6px;
-		}
+		.meta - box {
+	display: grid;
+	grid - template - columns: 1fr 1fr 1fr;
+	gap: 12px 15px;
+	background - color: #f9fafb;
+	padding: 16px;
+	border - radius: 8px;
+	margin - bottom: 20px;
+	border: 1px solid #e5e7eb;
+	page -break-inside: avoid;
+	page -break-after: auto; /* Meta'dan sonra bölünebilir */
+	box - sizing: border - box;
+	width: 100 %;
+}
+		.meta - item {
+	font - size: 10px;
+	color: #374151;
+	padding: 0;
+	word - wrap: break-word;
+	overflow - wrap: break-word;
+	line - height: 1.6;
+}
+		.meta - item strong {
+	color: #1f2937;
+	font - weight: 600;
+	margin - right: 6px;
+}
 
 		/* ============================================
 		   SEKSİYONLAR - Başlık ve içerik birlikte
 		   ============================================ */
-		.section { 
-			margin-bottom: 15px; 
-			page-break-inside: auto; /* Section içi bölünebilir */
-		}
+		.section {
+	margin - bottom: 15px;
+	page -break-inside: auto; /* Section içi bölünebilir */
+}
 		
-		.section-title { 
-			font-size: 12px; 
-			font-weight: 700; 
-			color: white; 
-			padding: 5px 10px; 
-			border-radius: 4px; 
-			margin-bottom: 10px; 
-			text-transform: uppercase;
-			page-break-after: avoid; /* Başlık içerikten ayrılmasın */
-			page-break-inside: avoid;
-		}
-		.section-title.blue { background-color: #2563eb; }
-		.section-title.red { background-color: #dc2626; }
-		.section-title.green { background-color: #16a34a; }
-		.section-title.gray { background-color: #6b7280; }
-		.section-title.dark { background-color: #374151; }
+		.section - title {
+	font - size: 12px;
+	font - weight: 700;
+	color: white;
+	padding: 5px 10px;
+	border - radius: 4px;
+	margin - bottom: 10px;
+	text - transform: uppercase;
+	page -break-after: avoid; /* Başlık içerikten ayrılmasın */
+	page -break-inside: avoid;
+}
+		.section - title.blue { background - color: #2563eb; }
+		.section - title.red { background - color: #dc2626; }
+		.section - title.green { background - color: #16a34a; }
+		.section - title.gray { background - color: #6b7280; }
+		.section - title.dark { background - color: #374151; }
 		
-		.list-summary { 
-			margin-bottom: 10px; 
-			font-size: 11px; 
-			page-break-inside: avoid;
-		}
+		.list - summary {
+	margin - bottom: 10px;
+	font - size: 11px;
+	page -break-inside: avoid;
+}
 
 		/* ============================================
 		   TABLOLAR - Akıllı sayfa bölünmesi
 		   ============================================ */
-		.info-table { 
-			width: 100%; 
-			border-collapse: collapse; 
-			page-break-inside: auto;
-			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-			border-radius: 6px;
-			overflow: hidden;
-		}
-		.info-table td { 
-			border: 1px solid #e5e7eb; 
-			padding: 8px 10px; 
-			font-size: 10px; 
-			vertical-align: top;
-			line-height: 1.5;
-		}
-		.info-table tr { 
-			page-break-inside: avoid;
-			page-break-after: auto;
-		}
-		.info-table tr:nth-child(even) td { background-color: #f9fafb; }
-		.info-table tr:nth-child(odd) td { background-color: #ffffff; }
-		.info-table tr:hover td { background-color: #f0f9ff; }
-		.info-table tr td:first-child { 
-			font-weight: 600; 
-			width: 25%; 
-			background-color: #f3f4f6;
-			color: #374151;
-		}
-		.info-table pre { 
-			white-space: pre-wrap; 
-			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
-			margin: 0; 
-			font-size: 10px; 
-		}
+		.info - table {
+	width: 100 %;
+	border - collapse: collapse;
+	page -break-inside: auto;
+	box - shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	border - radius: 6px;
+	overflow: hidden;
+}
+		.info - table td {
+	border: 1px solid #e5e7eb;
+	padding: 8px 10px;
+	font - size: 10px;
+	vertical - align: top;
+	line - height: 1.5;
+}
+		.info - table tr {
+	page -break-inside: avoid;
+	page -break-after: auto;
+}
+		.info - table tr: nth - child(even) td { background - color: #f9fafb; }
+		.info - table tr: nth - child(odd) td { background - color: #ffffff; }
+		.info - table tr:hover td { background - color: #f0f9ff; }
+		.info - table tr td: first - child {
+	font - weight: 600;
+	width: 25 %;
+	background - color: #f3f4f6;
+	color: #374151;
+}
+		.info - table pre {
+	white - space: pre - wrap;
+	font - family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans - serif;
+	margin: 0;
+	font - size: 10px;
+}
 		
-		.item-section-title { 
-			font-size: 1.1em; 
-			font-weight: 600; 
-			margin-top: 10px; 
-			margin-bottom: 5px; 
-			padding-bottom: 3px; 
-			border-bottom: 1px solid #ccc;
-			page-break-after: avoid;
-		}
+		.item - section - title {
+	font - size: 1.1em;
+	font - weight: 600;
+	margin - top: 10px;
+	margin - bottom: 5px;
+	padding - bottom: 3px;
+	border - bottom: 1px solid #ccc;
+	page -break-after: avoid;
+}
 		
-		.item-box { 
-			border: 1px solid #eee; 
-			border-radius: 4px; 
-			padding: 8px; 
-			margin-bottom: 5px; 
-			font-size: 9px; 
-			background: #fdfdfd;
-			page-break-inside: avoid;
-		}
-		.item-box p { margin: 2px 0; }
-		.item-box:last-child { margin-bottom: 0; }
+		.item - box {
+	border: 1px solid #eee;
+	border - radius: 4px;
+	padding: 8px;
+	margin - bottom: 5px;
+	font - size: 9px;
+	background: #fdfdfd;
+	page -break-inside: avoid;
+}
+		.item - box p { margin: 2px 0; }
+		.item - box: last - child { margin - bottom: 0; }
 		
-		.pass-table { 
-			width: 100%; 
-			border-collapse: collapse; 
-			font-size: 10px; 
-			text-align: center; 
-			page-break-inside: auto;
-			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-			border-radius: 6px;
-			overflow: hidden;
-		}
-		.pass-table th, .pass-table td { 
-			border: 1px solid #e5e7eb; 
-			padding: 8px; 
-		}
-		.pass-table thead { 
-			background-color: #3b82f6; 
-			color: white;
-			font-weight: 600;
-			page-break-after: avoid;
-		}
-		.pass-table thead th {
-			padding: 10px 8px;
-		}
-		.pass-table tbody tr:nth-child(even) { 
-			background-color: #f9fafb; 
-		}
-		.pass-table tbody tr:nth-child(odd) { 
-			background-color: #ffffff; 
-		}
-		.pass-table tbody tr:hover { 
-			background-color: #f0f9ff; 
-		}
-		.pass-table tbody tr {
-			page-break-inside: avoid;
-			page-break-after: auto;
-		}
-		
+		.pass - table {
+	width: 100 %;
+	border - collapse: collapse;
+	font - size: 10px;
+	text - align: center;
+	page -break-inside: auto;
+	box - shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	border - radius: 6px;
+	overflow: hidden;
+}
+		.pass - table th, .pass - table td {
+	border: 1px solid #e5e7eb;
+	padding: 8px;
+}
+		.pass - table thead {
+	background - color: #3b82f6;
+	color: white;
+	font - weight: 600;
+	page -break-after: avoid;
+}
+		.pass - table thead th {
+	padding: 10px 8px;
+}
+		.pass - table tbody tr: nth - child(even) {
+	background - color: #f9fafb;
+}
+		.pass - table tbody tr: nth - child(odd) {
+	background - color: #ffffff;
+}
+		.pass - table tbody tr:hover {
+	background - color: #f0f9ff;
+}
+		.pass - table tbody tr {
+	page -break-inside: avoid;
+	page -break-after: auto;
+}
+
 		/* SONUÇ TABLOLARI - Uzun tablolar için özel ayar */
-		.results-table { 
-			width: 100%; 
-			border-collapse: collapse; 
-			page-break-inside: auto;
-		}
-		.results-table th, .results-table td { 
-			border: 1px solid #e5e7eb; 
-			padding: 6px 8px; 
-			font-size: 10px; 
-			vertical-align: top; 
-			text-align: left; 
-		}
-		.results-table thead { 
-			background-color: #f9fafb; 
-			font-weight: 600;
-			page-break-after: avoid;
-		}
-		.results-table tbody tr {
-			page-break-inside: avoid;
-			page-break-after: auto;
-		}
-		.results-table pre { 
-			white-space: pre-wrap; 
-			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
-			margin: 0; 
-			font-size: 10px; 
-		}
-		.results-table small.muted { 
-			color: #6b7280; 
-			font-size: 9px; 
-		}
+		.results - table {
+	width: 100 %;
+	border - collapse: collapse;
+	page -break-inside: auto;
+}
+		.results - table th, .results - table td {
+	border: 1px solid #e5e7eb;
+	padding: 6px 8px;
+	font - size: 10px;
+	vertical - align: top;
+	text - align: left;
+}
+		.results - table thead {
+	background - color: #f9fafb;
+	font - weight: 600;
+	page -break-after: avoid;
+}
+		.results - table tbody tr {
+	page -break-inside: avoid;
+	page -break-after: auto;
+}
+		.results - table pre {
+	white - space: pre - wrap;
+	font - family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans - serif;
+	margin: 0;
+	font - size: 10px;
+}
+		.results - table small.muted {
+	color: #6b7280;
+	font - size: 9px;
+}
 
 		/* ============================================
 		   NOTLAR VE AÇIKLAMA KUTULARI
 		   ============================================ */
-		.notes-box { 
-			border: 1px solid #e5e7eb; 
-			padding: 10px; 
-			border-radius: 4px; 
-			min-height: 50px; 
-			font-size: 10px; 
-			page-break-inside: avoid;
-		}
-		.notes-box pre { 
-			white-space: pre-wrap; 
-			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
-			margin: 0; 
-		}
+		.notes - box {
+	border: 1px solid #e5e7eb;
+	padding: 10px;
+	border - radius: 4px;
+	min - height: 50px;
+	font - size: 10px;
+	page -break-inside: avoid;
+}
+		.notes - box pre {
+	white - space: pre - wrap;
+	font - family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans - serif;
+	margin: 0;
+}
 
 		/* ============================================
 		   İMZA ALANI - Sayfanın sonunda bütün kalmalı
 		   ============================================ */
-		.signature-section { 
-			page-break-inside: avoid !important;
-			page-break-before: auto;
-			margin-top: 30px;
-			visibility: visible !important;
-			display: block !important;
-		}
+		.signature - section {
+	page -break-inside: avoid!important;
+	page -break-before: auto;
+	margin - top: 30px;
+	visibility: visible!important;
+	display: block!important;
+}
 		
-		.signature-area { 
-			display: flex !important;
-			visibility: visible !important;
-			justify-content: space-around; 
-			text-align: center; 
-			margin-top: 30px; 
-			padding-top: 15px; 
-			border-top: 1px solid #e5e7eb;
-			page-break-inside: avoid !important;
-			page-break-before: auto;
-		}
+		.signature - area {
+	display: flex!important;
+	visibility: visible!important;
+	justify - content: space - around;
+	text - align: center;
+	margin - top: 30px;
+	padding - top: 15px;
+	border - top: 1px solid #e5e7eb;
+	page -break-inside: avoid!important;
+	page -break-before: auto;
+}
 		
-		.signature-box { 
-			flex: 1;
-			min-width: 0;
-			visibility: visible !important;
-			display: flex !important;
-			flex-direction: column !important;
-			align-items: center !important;
-		}
-		.signature-box .role { 
-			font-weight: 600; 
-			font-size: 10px; 
-			margin-bottom: 0;
-			visibility: visible !important;
-			text-align: center;
-			min-height: 40px;
-			display: flex;
-			align-items: flex-start;
-			justify-content: center;
-			padding: 0 4px;
-		}
-		.signature-line { 
-			border-bottom: 1px solid #9ca3af; 
-			margin-top: 8px;
-			margin-bottom: 5px; 
-			width: 100%;
-			height: 20px;
-			visibility: visible !important;
-		}
-		.signature-box .name { 
-			font-size: 11px; 
-			font-weight: 500; 
-			margin: 0; 
-			min-height: 16px;
-			visibility: visible !important;
-			text-align: center;
-		}
-		.signature-box .title { 
-			font-size: 9px; 
-			color: #6b7280; 
-			margin: 0;
-			visibility: visible !important;
-		}
+		.signature - box {
+	flex: 1;
+	min - width: 0;
+	visibility: visible!important;
+	display: flex!important;
+	flex - direction: column!important;
+	align - items: center!important;
+}
+		.signature - box.role {
+	font - weight: 600;
+	font - size: 10px;
+	margin - bottom: 0;
+	visibility: visible!important;
+	text - align: center;
+	min - height: 40px;
+	display: flex;
+	align - items: flex - start;
+	justify - content: center;
+	padding: 0 4px;
+}
+		.signature - line {
+	border - bottom: 1px solid #9ca3af;
+	margin - top: 8px;
+	margin - bottom: 5px;
+	width: 100 %;
+	height: 20px;
+	visibility: visible!important;
+}
+		.signature - box.name {
+	font - size: 11px;
+	font - weight: 500;
+	margin: 0;
+	min - height: 16px;
+	visibility: visible!important;
+	text - align: center;
+}
+		.signature - box.title {
+	font - size: 9px;
+	color: #6b7280;
+	margin: 0;
+	visibility: visible!important;
+}
 
 		/* ============================================
 		   FOOTER - Ekranda göster, yazdırmada gizle
 		   ============================================ */
-		.footer { 
-			text-align: center; 
-			font-size: 9px; 
-			color: #9ca3af; 
-			padding-top: 10px; 
-			padding-bottom: 10px; 
-			border-top: 1px solid #e5e7eb; 
-			position: relative; 
-			margin-top: 20px; 
-		}
-		.footer-content { 
-			display: flex; 
-			justify-content: space-between; 
-			align-items: center; 
-		}
+		.footer {
+	text - align: center;
+	font - size: 9px;
+	color: #9ca3af;
+	padding - top: 10px;
+	padding - bottom: 10px;
+	border - top: 1px solid #e5e7eb;
+	position: relative;
+	margin - top: 20px;
+}
+		.footer - content {
+	display: flex;
+	justify - content: space - between;
+	align - items: center;
+}
 
 		/* ============================================
 		   ADIM VE ANALİZ KUTULARI
 		   ============================================ */
-		.step-section { 
-			margin-top: 10px; 
-			padding: 10px; 
-			border-left: 3px solid #2563eb; 
-			background-color: #fafafa; 
-			border-radius: 0 4px 4px 0; 
-			page-break-inside: avoid;
-		}
-		.step-title { 
-			font-weight: bold; 
-			color: #1e40af; 
-			page-break-after: avoid;
-		}
-		.step-description { white-space: pre-wrap; }
-		.step-description pre { 
-			white-space: pre-wrap; 
-			font-family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans-serif; 
-			margin: 0; 
-		}
+		.step - section {
+	margin - top: 10px;
+	padding: 10px;
+	border - left: 3px solid #2563eb;
+	background - color: #fafafa;
+	border - radius: 0 4px 4px 0;
+	page -break-inside: avoid;
+}
+		.step - title {
+	font - weight: bold;
+	color: #1e40af;
+	page -break-after: avoid;
+}
+		.step - description { white - space: pre - wrap; }
+		.step - description pre {
+	white - space: pre - wrap;
+	font - family: 'Noto Sans', 'Roboto', 'Arial Unicode MS', 'Segoe UI', Tahoma, sans - serif;
+	margin: 0;
+}
 		
-		.analysis-box { 
-			margin-top: 10px; 
-			padding: 10px; 
-			border: 1px solid #eee; 
-			border-radius: 4px; 
-			page-break-inside: avoid;
-		}
-		.analysis-box h4 { 
-			font-weight: bold; 
-			margin-bottom: 10px;
-			page-break-after: avoid;
-			color: #1f2937;
-			font-size: 11px;
-		}
-		.analysis-box p { margin: 2px 0; }
-		
+		.analysis - box {
+	margin - top: 10px;
+	padding: 10px;
+	border: 1px solid #eee;
+	border - radius: 4px;
+	page -break-inside: avoid;
+}
+		.analysis - box h4 {
+	font - weight: bold;
+	margin - bottom: 10px;
+	page -break-after: avoid;
+	color: #1f2937;
+	font - size: 11px;
+}
+		.analysis - box p { margin: 2px 0; }
+
 		/* Doldurulabilir alanlar için özel stiller */
-		.analysis-box.fillable {
-			background-color: #ffffff;
-			border: 2px solid #d1d5db;
-			padding: 12px;
-			margin-bottom: 15px;
-		}
-		.fillable-field {
-			margin-bottom: 12px;
-			page-break-inside: avoid;
-		}
-		.fillable-field strong {
-			display: block;
-			font-size: 10px;
-			font-weight: 600;
-			color: #374151;
-			margin-bottom: 4px;
-		}
-		.fillable-line {
-			min-height: 20px;
-			border-bottom: 1.5px solid #9ca3af;
-			padding: 4px 0;
-			font-size: 10px;
-			color: #1f2937;
-			line-height: 1.5;
-			word-wrap: break-word;
-			width: 100%;
-			display: block;
-		}
-		.fillable-area {
-			min-height: 50px;
-			border: 1.5px solid #9ca3af;
-			border-radius: 3px;
-			padding: 8px;
-			font-size: 10px;
-			color: #1f2937;
-			line-height: 1.6;
-			background-color: #fafafa;
-			word-wrap: break-word;
-			white-space: pre-wrap;
-		}
+		.analysis - box.fillable {
+	background - color: #ffffff;
+	border: 2px solid #d1d5db;
+	padding: 12px;
+	margin - bottom: 15px;
+}
+		.fillable - field {
+	margin - bottom: 12px;
+	page -break-inside: avoid;
+}
+		.fillable - field strong {
+	display: block;
+	font - size: 10px;
+	font - weight: 600;
+	color: #374151;
+	margin - bottom: 4px;
+}
+		.fillable - line {
+	min - height: 20px;
+	border - bottom: 1.5px solid #9ca3af;
+	padding: 4px 0;
+	font - size: 10px;
+	color: #1f2937;
+	line - height: 1.5;
+	word - wrap: break-word;
+	width: 100 %;
+	display: block;
+}
+		.fillable - area {
+	min - height: 50px;
+	border: 1.5px solid #9ca3af;
+	border - radius: 3px;
+	padding: 8px;
+	font - size: 10px;
+	color: #1f2937;
+	line - height: 1.6;
+	background - color: #fafafa;
+	word - wrap: break-word;
+	white - space: pre - wrap;
+}
 
 		/* ============================================
 		   GÖRSELLER - Sayfa ortasında bölünmesin
 		   ============================================ */
-		.image-grid { 
-			display: grid; 
-			grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
-			gap: 15px; 
-			page-break-inside: auto;
-			margin-top: 10px;
-		}
-		.image-container { 
-			page-break-inside: avoid;
-			page-break-after: auto;
-		}
-		.attachment-image { 
-			max-width: 100%; 
-			height: auto; 
-			border-radius: 8px; 
-			border: 2px solid #d1d5db; 
-			object-fit: cover;
-			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-			transition: transform 0.2s;
-		}
-		.attachment-image:hover {
-			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-		}
-		.attachment-file a { 
-			text-decoration: none; 
-			color: #2563eb; 
-			word-break: break-all; 
-		}
-		
-	/* ============================================
-	   LINK URL GİZLEME - Hem ekranda hem print'te
-	   ============================================ */
-	a:after,
-	a[href]:after,
-	a[href]::after {
-		content: none !important;
-		display: none !important;
-	}
+		.image - grid {
+	display: grid;
+	grid - template - columns: repeat(auto - fill, minmax(180px, 1fr));
+	gap: 15px;
+	page -break-inside: auto;
+	margin - top: 10px;
+}
+		.image - container {
+	page -break-inside: avoid;
+	page -break-after: auto;
+}
+		.attachment - image {
+	max - width: 100 %;
+	height: auto;
+	border - radius: 8px;
+	border: 2px solid #d1d5db;
+	object - fit: cover;
+	box - shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	transition: transform 0.2s;
+}
+		.attachment - image:hover {
+	box - shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+		.attachment - file a {
+	text - decoration: none;
+	color: #2563eb;
+	word -break: break-all;
+}
+
+/* ============================================
+   LINK URL GİZLEME - Hem ekranda hem print'te
+   ============================================ */
+a: after,
+	a[href]: after,
+		a[href]::after {
+	content: none!important;
+	display: none!important;
+}
 
 	/* ============================================
 	   FOOTER - Flexbox ile sayfanın altında
 	   ============================================ */
-	.report-footer {
-		margin-top: auto; /* Push to bottom with flexbox */
-		padding: 8px 15px;
-		border-top: 1px solid #e5e7eb;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 10px;
-		font-size: 7px;
-		color: #9ca3af;
-		text-transform: none;
-		page-break-inside: avoid;
-		flex-shrink: 0; /* Don't shrink */
-	}
+	.report - footer {
+	margin - top: auto; /* Push to bottom with flexbox */
+	padding: 8px 15px;
+	border - top: 1px solid #e5e7eb;
+	display: flex;
+	justify - content: space - between;
+	align - items: center;
+	flex - wrap: wrap;
+	gap: 10px;
+	font - size: 7px;
+	color: #9ca3af;
+	text - transform: none;
+	page -break-inside: avoid;
+	flex - shrink: 0; /* Don't shrink */
+}
 	
-	.report-footer span {
-		white-space: nowrap;
-		opacity: 0.8;
+	.report - footer span {
+	white - space: nowrap;
+	opacity: 0.8;
+}
+
+/* ============================================
+   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
+   ============================================ */
+@media print {
+	/* Sayfa ayarları - dengeli margin */
+	@page {
+		size: A4 portrait;
+		margin: 12mm; /* Tüm kenarlarda eşit boşluk */
 	}
 
-	/* ============================================
-	   YAZDIR MOD - OPTİMİZE SAYFA DÜZENİ
-	   ============================================ */
-	@media print {
-			/* Sayfa ayarları - dengeli margin */
-			@page {
-				size: A4 portrait;
-				margin: 12mm; /* Tüm kenarlarda eşit boşluk */
-			}
+	/* Tüm URL gösterimlerini kapat */
+	a: link: after,
+		a: visited: after,
+			a[href]: after,
+				a[href]::after {
+		content: ""!important;
+		display: none!important;
+	}
+
+	html, body {
+		width: 210mm;
+		height: auto; /* Auto height - esnek sayfa */
+		background - color: white!important;
+		margin: 0;
+		padding: 0;
+	}
 			
-			/* Tüm URL gösterimlerini kapat */
-			a:link:after,
-			a:visited:after,
-			a[href]:after,
-			a[href]::after {
-				content: "" !important;
-				display: none !important;
-			}
-			
-			html, body {
-				width: 210mm;
-				height: auto; /* Auto height - esnek sayfa */
-				background-color: white !important;
-				margin: 0;
-				padding: 0;
-			}
-			
-		.page-container { 
-			margin: 0 !important; 
-			box-shadow: none !important; 
-			border: none !important;
-			width: 100% !important;
-			min-height: 297mm !important; /* Full page height in print */
-			padding: 0 !important;
-			display: flex !important;
-			flex-direction: column !important;
-		}
+		.page - container {
+		margin: 0!important;
+		box - shadow: none!important;
+		border: none!important;
+		width: 100 % !important;
+		min - height: 297mm!important; /* Full page height in print */
+		padding: 0!important;
+		display: flex!important;
+		flex - direction: column!important;
+	}
 		
-		.report-wrapper {
-			padding: 0 !important;
-			flex: 1 !important; /* Take remaining space */
-			margin: 0 !important;
-			display: flex !important;
-			flex-direction: column !important;
-		}
+		.report - wrapper {
+		padding: 0!important;
+		flex: 1!important; /* Take remaining space */
+		margin: 0!important;
+		display: flex!important;
+		flex - direction: column!important;
+	}
 		
-		.report-footer {
-			margin-top: auto !important; /* Push to bottom */
-			flex-shrink: 0 !important;
-		}
-			
+		.report - footer {
+		margin - top: auto!important; /* Push to bottom */
+		flex - shrink: 0!important;
+	}
+
 			/* Başlık her zaman en başta */
-			.report-header {
-				page-break-inside: avoid;
-				page-break-after: auto; /* Sonra bölünebilir */
-			}
-			
+			.report - header {
+		page -break-inside: avoid;
+		page -break-after: auto; /* Sonra bölünebilir */
+	}
+
 			/* Meta kutusu esnekliği */
-			.meta-box {
-				page-break-inside: avoid;
-				page-break-after: auto; /* Sonra bölünebilir */
-			}
-			
+			.meta - box {
+		page -break-inside: avoid;
+		page -break-after: auto; /* Sonra bölünebilir */
+	}
+
 			/* Bölüm başlıkları içerikten ayrılmasın */
-			.section-title {
-				page-break-inside: avoid;
-				page-break-after: avoid; /* Başlık altındaki içerik ile beraber */
-			}
-			
+			.section - title {
+		page -break-inside: avoid;
+		page -break-after: avoid; /* Başlık altındaki içerik ile beraber */
+	}
+
 			/* Section'lar esnekliği */
 			.section {
-				page-break-inside: auto; /* İçerik bölünebilir */
-			}
-			
+		page -break-inside: auto; /* İçerik bölünebilir */
+	}
+
 			/* Tablolar akıllıca bölünsün */
-			.results-table {
-				page-break-inside: auto; /* Tablo bölünebilir */
-			}
+			.results - table {
+		page -break-inside: auto; /* Tablo bölünebilir */
+	}
 			
-			.results-table thead {
-				display: table-header-group; /* Her sayfada header */
-			}
+			.results - table thead {
+		display: table - header - group; /* Her sayfada header */
+	}
 			
-			.results-table tbody tr {
-				page-break-inside: avoid; /* Satır bölünmez */
-				page-break-after: auto; /* Sonra bölünebilir */
-			}
-			
+			.results - table tbody tr {
+		page -break-inside: avoid; /* Satır bölünmez */
+		page -break-after: auto; /* Sonra bölünebilir */
+	}
+
 			/* Pass/Info tablolar */
-			.pass-table,
-			.info-table {
-				page-break-inside: auto;
-			}
+			.pass - table,
+			.info - table {
+		page -break-inside: auto;
+	}
 			
-			.pass-table tr,
-			.info-table tr {
-				page-break-inside: avoid;
-				page-break-after: auto;
-			}
-			
+			.pass - table tr,
+			.info - table tr {
+		page -break-inside: avoid;
+		page -break-after: auto;
+	}
+
 			/* Notes ve Analysis kutular */
-			.notes-box,
-			.analysis-box {
-				page-break-inside: auto; /* Uzunsa bölünebilir */
-			}
-			
+			.notes - box,
+			.analysis - box {
+		page -break-inside: auto; /* Uzunsa bölünebilir */
+	}
+
 			/* İmza alanı - sayfanın sonunda bütün kal */
-			.signature-section {
-				page-break-inside: avoid !important;
-				page-break-before: auto; /* Gerekirse yeni sayfada başla */
-				margin-top: 20px;
-			}
+			.signature - section {
+		page -break-inside: avoid!important;
+		page -break-before: auto; /* Gerekirse yeni sayfada başla */
+		margin - top: 20px;
+	}
 			
-			.signature-area {
-				page-break-inside: avoid !important;
-			}
-			
+			.signature - area {
+		page -break-inside: avoid!important;
+	}
+
 			/* Footer gizle */
 			.footer {
-				display: none !important;
-			}
-			
+		display: none!important;
+	}
+
 			/* Görseller yarım kesilmesin */
-			.image-container {
-				page-break-inside: avoid;
-			}
-			
+			.image - container {
+		page -break-inside: avoid;
+	}
+
 			/* Kutu elementleri bölünmesin */
-			.item-box,
-			.notes-box,
-			.analysis-box,
-			.step-section {
-				page-break-inside: avoid;
-			}
-		}
-	`;
+			.item - box,
+			.notes - box,
+			.analysis - box,
+			.step - section {
+		page -break-inside: avoid;
+	}
+}
+`;
 
 	const certificateStyles = `
-		@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@700&display=swap');
-		body { 
-			background-color: #f0f2f5; 
-			font-family: 'Montserrat', sans-serif;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			min-height: 100vh;
-			margin: 0;
-			-webkit-print-color-adjust: exact;
-			print-color-adjust: exact;
-		}
-		.page-container {
-			width: 297mm;
-			height: 210mm;
-			background-color: #ffffff;
-			box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-			margin: 0;
-			overflow: hidden;
-		}
-		.report-wrapper {
-			padding: 0;
-			height: 100%;
-		}
-		.certificate-container {
-			width: 100%;
-			height: 100%;
-			box-sizing: border-box;
-			position: relative;
-			overflow: hidden;
-		}
-		.certificate-content {
-			width: 100%;
-			height: 100%;
-			text-align: center;
-			display: flex;
-			flex-direction: column;
-			justify-content: space-between;
-			align-items: center;
-			padding: 20mm;
-			box-sizing: border-box;
-			position: relative;
-			z-index: 2;
-			border: 10px solid #f0f0f0;
-		}
-		.bg-shape {
-			position: absolute;
-			background: linear-gradient(45deg, #0033a0, #0056b3);
-			border-radius: 50%;
-			opacity: 0.1;
-			z-index: 1;
-		}
-		.bg-shape.top-right {
-			width: 300px;
-			height: 300px;
-			top: -100px;
-			right: -100px;
-		}
-		.bg-shape.bottom-left {
-			width: 400px;
-			height: 400px;
-			bottom: -150px;
-			left: -150px;
-		}
-		.certificate-content::before {
-			content: '';
-			position: absolute;
-			top: 20px;
-			left: 20px;
-			right: 20px;
-			bottom: 20px;
-			border: 2px solid #d4af37;
-			z-index: -1;
-		}
-		.logo-header {
-			width: 100%;
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			cursor: default;
-		}
-		.header-logo {
-			height: 50px;
-			object-fit: contain;
-			cursor: default;
-		}
-		.header-section { margin-bottom: 10px; }
-		.company-name { font-size: 14pt; color: #555; letter-spacing: 1px; font-weight: 500; }
-		.main-title {
-			font-family: 'Playfair Display', serif;
-			font-size: 36pt;
-			font-weight: 700;
-			color: #0033a0;
-			margin: 5px 0;
-		}
-		.subtitle { font-size: 11pt; color: #666; margin: 0; }
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@700&display=swap');
+		body {
+	background - color: #f0f2f5;
+	font - family: 'Montserrat', sans - serif;
+	display: flex;
+	align - items: center;
+	justify - content: center;
+	min - height: 100vh;
+	margin: 0;
+	-webkit - print - color - adjust: exact;
+	print - color - adjust: exact;
+}
+		.page - container {
+	width: 297mm;
+	height: 210mm;
+	background - color: #ffffff;
+	box - shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+	margin: 0;
+	overflow: hidden;
+}
+		.report - wrapper {
+	padding: 0;
+	height: 100 %;
+}
+		.certificate - container {
+	width: 100 %;
+	height: 100 %;
+	box - sizing: border - box;
+	position: relative;
+	overflow: hidden;
+}
+		.certificate - content {
+	width: 100 %;
+	height: 100 %;
+	text - align: center;
+	display: flex;
+	flex - direction: column;
+	justify - content: space - between;
+	align - items: center;
+	padding: 20mm;
+	box - sizing: border - box;
+	position: relative;
+	z - index: 2;
+	border: 10px solid #f0f0f0;
+}
+		.bg - shape {
+	position: absolute;
+	background: linear - gradient(45deg, #0033a0, #0056b3);
+	border - radius: 50 %;
+	opacity: 0.1;
+	z - index: 1;
+}
+		.bg - shape.top - right {
+	width: 300px;
+	height: 300px;
+	top: -100px;
+	right: -100px;
+}
+		.bg - shape.bottom - left {
+	width: 400px;
+	height: 400px;
+	bottom: -150px;
+	left: -150px;
+}
+		.certificate - content::before {
+	content: '';
+	position: absolute;
+	top: 20px;
+	left: 20px;
+	right: 20px;
+	bottom: 20px;
+	border: 2px solid #d4af37;
+	z - index: -1;
+}
+		.logo - header {
+	width: 100 %;
+	display: flex;
+	justify - content: space - between;
+	align - items: center;
+	cursor: default ;
+}
+		.header - logo {
+	height: 50px;
+	object - fit: contain;
+	cursor: default ;
+}
+		.header - section { margin - bottom: 10px; }
+		.company - name { font - size: 14pt; color: #555; letter - spacing: 1px; font - weight: 500; }
+		.main - title {
+	font - family: 'Playfair Display', serif;
+	font - size: 36pt;
+	font - weight: 700;
+	color: #0033a0;
+	margin: 5px 0;
+}
+		.subtitle { font - size: 11pt; color: #666; margin: 0; }
 		
-		.participant-name {
-			font-family: 'Dancing Script', cursive;
-			font-size: 48pt;
-			color: #0033a0;
-			margin: 10px 0;
-		}
+		.participant - name {
+	font - family: 'Dancing Script', cursive;
+	font - size: 48pt;
+	color: #0033a0;
+	margin: 10px 0;
+}
 		
-		.training-title {
-			font-size: 12pt;
-			color: #555;
-			margin: 0 auto 20px auto;
-			max-width: 80%;
-		}
+		.training - title {
+	font - size: 12pt;
+	color: #555;
+	margin: 0 auto 20px auto;
+	max - width: 80 %;
+}
 
-		.details-section {
-			width: 100%;
-			display: flex;
-			justify-content: space-around;
-			align-items: center;
-			margin: 15px 0;
-		}
-		.detail-item { text-align: center; display: flex; flex-direction: column; }
-		.detail-item strong { font-size: 10pt; color: #555; margin-bottom: 4px; }
-		.detail-item span { font-size: 11pt; font-weight: 500; }
+		.details - section {
+	width: 100 %;
+	display: flex;
+	justify - content: space - around;
+	align - items: center;
+	margin: 15px 0;
+}
+		.detail - item { text - align: center; display: flex; flex - direction: column; }
+		.detail - item strong { font - size: 10pt; color: #555; margin - bottom: 4px; }
+		.detail - item span { font - size: 11pt; font - weight: 500; }
 
-		.signature-area {
-			width: 100%;
-			display: flex;
-			justify-content: space-between;
-			align-items: flex-end;
-			padding-top: 20px;
-		}
-		.signature-block { text-align: center; width: 30%; }
-		.signature-line {
-			border-bottom: 1px solid #333;
-			margin-bottom: 8px;
-			height: 30px;
-			width: 100%;
-		}
-		.name { font-size: 11pt; font-weight: 700; margin: 0; }
-		.title { font-size: 9pt; color: #666; margin: 0; }
+		.signature - area {
+	width: 100 %;
+	display: flex;
+	justify - content: space - between;
+	align - items: flex - end;
+	padding - top: 20px;
+}
+		.signature - block { text - align: center; width: 30 %; }
+		.signature - line {
+	border - bottom: 1px solid #333;
+	margin - bottom: 8px;
+	height: 30px;
+	width: 100 %;
+}
+		.name { font - size: 11pt; font - weight: 700; margin: 0; }
+		.title { font - size: 9pt; color: #666; margin: 0; }
 		
 		.footer { display: none; }
-		
-		/* Link URL gizle */
-		a:after,
-		a[href]:after,
-		a[href]::after {
-			content: none !important;
-			display: none !important;
-		}
 
-		@media print {
-			@page { size: A4 landscape; margin: 0; }
-			body { background-color: #fff; }
-			.page-container { box-shadow: none; border: none; margin: 0; height: 100vh; }
-		}
-	`;
-	
+/* Link URL gizle */
+a: after,
+	a[href]: after,
+		a[href]::after {
+	content: none!important;
+	display: none!important;
+}
+
+@media print {
+	@page { size: A4 landscape; margin: 0; }
+			body { background - color: #fff; }
+			.page - container { box - shadow: none; border: none; margin: 0; height: 100vh; }
+}
+`;
+
 	const examPaperStyles = `
-		body { 
-			font-size: 11px; 
-			color: #333;
-			-webkit-print-color-adjust: exact;
-			print-color-adjust: exact;
-		}
-		.report-wrapper { padding: 10mm; }
+		body {
+	font - size: 11px;
+	color: #333;
+	-webkit - print - color - adjust: exact;
+	print - color - adjust: exact;
+}
+		.report - wrapper { padding: 10mm; }
 		
-		.exam-header {
-			display: grid;
-			grid-template-columns: auto 1fr auto;
-			gap: 20px;
-			align-items: center;
-			border-bottom: 2px solid #0033a0;
-			padding-bottom: 10px;
-			margin-bottom: 15px;
-		}
-		.company-logo-exam img { height: 60px; }
-		.exam-title-section { text-align: center; }
-		.exam-title-section h1 { font-size: 18px; font-weight: 700; color: #0033a0; margin: 0; }
-		.exam-title-section p { font-size: 12px; color: #555; margin: 0; }
-		.exam-meta-grid { font-size: 9px; text-align: right; color: #666; }
+		.exam - header {
+	display: grid;
+	grid - template - columns: auto 1fr auto;
+	gap: 20px;
+	align - items: center;
+	border - bottom: 2px solid #0033a0;
+	padding - bottom: 10px;
+	margin - bottom: 15px;
+}
+		.company - logo - exam img { height: 60px; }
+		.exam - title - section { text - align: center; }
+		.exam - title - section h1 { font - size: 18px; font - weight: 700; color: #0033a0; margin: 0; }
+		.exam - title - section p { font - size: 12px; color: #555; margin: 0; }
+		.exam - meta - grid { font - size: 9px; text - align: right; color: #666; }
 
-		.exam-participant-info {
-			display: grid;
-			grid-template-columns: repeat(4, 1fr);
-			gap: 15px;
-			background-color: #f9fafb;
-			padding: 15px;
-			border-radius: 8px;
-			margin-bottom: 20px;
-			border: 1px solid #e5e7eb;
-		}
-		.exam-info-field { display: flex; flex-direction: column; }
-		.exam-info-field label { font-size: 10px; font-weight: 600; color: #555; margin-bottom: 4px; }
-		.exam-info-field span {
-			height: 24px;
-			border-bottom: 1px dotted #999;
-			font-size: 12px;
-			font-weight: 500;
-		}
-		.exam-info-field span.static-value { border-bottom: none; }
+		.exam - participant - info {
+	display: grid;
+	grid - template - columns: repeat(4, 1fr);
+	gap: 15px;
+	background - color: #f9fafb;
+	padding: 15px;
+	border - radius: 8px;
+	margin - bottom: 20px;
+	border: 1px solid #e5e7eb;
+}
+		.exam - info - field { display: flex; flex - direction: column; }
+		.exam - info - field label { font - size: 10px; font - weight: 600; color: #555; margin - bottom: 4px; }
+		.exam - info - field span {
+	height: 24px;
+	border - bottom: 1px dotted #999;
+	font - size: 12px;
+	font - weight: 500;
+}
+		.exam - info - field span.static - value { border - bottom: none; }
 
-		.exam-questions-container { display: flex; flex-direction: column; gap: 15px; }
-		.exam-question-card {
-			border: 1px solid #e5e7eb;
-			border-radius: 8px;
-			padding: 15px;
-			page-break-inside: avoid;
-			background: #fff;
-		}
-		.exam-question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-		.exam-question-number { font-size: 13px; font-weight: 700; color: #0033a0; }
-		.exam-question-points { font-size: 11px; font-weight: 500; background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 12px; }
-		.exam-question-text { font-size: 12px; line-height: 1.6; margin-bottom: 15px; }
+		.exam - questions - container { display: flex; flex - direction: column; gap: 15px; }
+		.exam - question - card {
+	border: 1px solid #e5e7eb;
+	border - radius: 8px;
+	padding: 15px;
+	page -break-inside: avoid;
+	background: #fff;
+}
+		.exam - question - header { display: flex; justify - content: space - between; align - items: center; margin - bottom: 10px; }
+		.exam - question - number { font - size: 13px; font - weight: 700; color: #0033a0; }
+		.exam - question - points { font - size: 11px; font - weight: 500; background: #e0e7ff; color: #3730a3; padding: 3px 8px; border - radius: 12px; }
+		.exam - question - text { font - size: 12px; line - height: 1.6; margin - bottom: 15px; }
 		
-		.exam-options-grid {
-			display: grid;
-			grid-template-columns: 1fr 1fr;
-			gap: 10px;
-		}
-		.exam-option { display: flex; align-items: center; background: #f9fafb; padding: 8px; border-radius: 6px; border: 1px solid #f3f4f6;}
-		.exam-option-letter {
-			flex-shrink: 0;
-			width: 24px;
-			height: 24px;
-			border-radius: 50%;
-			background: #fff;
-			border: 1px solid #d1d5db;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			font-weight: 600;
-			margin-right: 10px;
-		}
-		.exam-option-text { font-size: 11px; }
+		.exam - options - grid {
+	display: grid;
+	grid - template - columns: 1fr 1fr;
+	gap: 10px;
+}
+		.exam - option { display: flex; align - items: center; background: #f9fafb; padding: 8px; border - radius: 6px; border: 1px solid #f3f4f6; }
+		.exam - option - letter {
+	flex - shrink: 0;
+	width: 24px;
+	height: 24px;
+	border - radius: 50 %;
+	background: #fff;
+	border: 1px solid #d1d5db;
+	display: flex;
+	align - items: center;
+	justify - content: center;
+	font - weight: 600;
+	margin - right: 10px;
+}
+		.exam - option - text { font - size: 11px; }
 
-		.footer { display: block !important; }
-		
-		/* Link URL gizle */
-		a:after,
-		a[href]:after,
+		.footer { display: block!important; }
+
+/* Link URL gizle */
+a: after,
+	a[href]: after,
 		a[href]::after {
-			content: none !important;
-			display: none !important;
-		}
-	`;
+	content: none!important;
+	display: none!important;
+}
+`;
 
 	return `
-	<!DOCTYPE html>
-	<html lang="tr">
-	<head>
-		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<meta http-equiv="X-UA-Compatible" content="IE=edge">
-		<title>${getReportTitle(record, type)}</title>
-		<style>
-			${isCertificate ? certificateStyles : (isExam ? `${defaultStyles} ${examPaperStyles}` : defaultStyles)}
-			${cssOverrides}
-		</style>
-	</head>
-	<body>
-		<div class="page-container">
-		<div class="report-wrapper">
-			${reportContentHtml}
-		</div>
-		${!isCertificate ? `
+	< !DOCTYPE html >
+		<html lang="tr">
+			<head>
+				<meta charset="UTF-8">
+					<meta name="viewport" content="width=device-width, initial-scale=1.0">
+						<meta http-equiv="X-UA-Compatible" content="IE=edge">
+							<title>${getReportTitle(record, type)}</title>
+							<style>
+								${isCertificate ? certificateStyles : (isExam ? `${defaultStyles} ${examPaperStyles}` : defaultStyles)}
+								${cssOverrides}
+							</style>
+						</head>
+						<body>
+							<div class="page-container">
+								<div class="report-wrapper">
+									${reportContentHtml}
+								</div>
+								${!isCertificate ? `
 			<div class="report-footer">
 				<span>Bu belge, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.</span>
 				<span>Belge Tarihi: ${format(new Date(), 'dd.MM.yyyy HH:mm')}</span>
@@ -5145,10 +5183,10 @@ const generatePrintableReportHtml = (record, type) => {
 				<span>Rev: 01</span>
 			</div>
 		` : ''}
-		</div>
-	</body>
-	</html>
-`
+							</div>
+						</body>
+					</html>
+					`
 };
 
 export { openPrintableReport, getReportTitle, generatePrintableReportHtml };

@@ -176,24 +176,80 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
             <td className="p-2 align-top min-w-[140px]"><Input type="text" inputMode="decimal" placeholder="Ölçülen Değer" value={item.measured_value ?? ''} onChange={(e) => handleFieldChange('measured_value', e.target.value)} className="w-full" /></td>
             <td className="p-2 align-top text-center min-w-[120px]">
                 {(() => {
-                    const measured = parseFloat(String(item.measured_value || '').replace(',', '.'));
-                    const min = parseFloat(String(item.min_value || '').replace(',', '.'));
-                    const max = parseFloat(String(item.max_value || '').replace(',', '.'));
+                    const measuredStr = String(item.measured_value || '').trim().toUpperCase();
+                    const nominalStr = String(item.nominal_value || '').trim().toUpperCase();
 
-                    if (!item.measured_value || item.measured_value === '') {
+                    if (!measuredStr) {
                         return <span className="text-xs text-muted-foreground">-</span>;
                     }
 
-                    if (isNaN(measured) || isNaN(min) || isNaN(max) || min === 0 && max === 0) {
-                        return <span className="text-xs text-muted-foreground">-</span>;
-                    }
+                    const normalizeValue = (val) => {
+                        if (val === null || val === undefined || val === '') return NaN;
+                        return parseFloat(String(val).replace(',', '.'));
+                    };
 
-                    const isInRange = measured >= min && measured <= max;
-                    return isInRange ? (
-                        <Badge variant="success" className="bg-green-500 text-white">Kabul</Badge>
-                    ) : (
-                        <Badge variant="destructive" className="bg-red-500 text-white">Ret</Badge>
+                    const measured = normalizeValue(item.measured_value);
+                    const min = normalizeValue(item.min_value);
+                    const max = normalizeValue(item.max_value);
+
+                    // 1. KESİN RED KELİMELERİ
+                    const isExplicitFail = ['RET', 'UYGUNSUZ', 'NOK', 'NG', 'HATALI', 'RED'].some(failText =>
+                        measuredStr === failText || measuredStr.startsWith(failText + ' ')
                     );
+
+                    if (isExplicitFail) {
+                        return <Badge variant="destructive" className="bg-red-500 text-white hover:bg-red-600">Ret</Badge>;
+                    }
+
+                    // 2. KESİN KABUL KELİMELERİ
+                    const isExplicitPass = ['OK', 'UYGUN', 'KABUL', 'PASS', 'GEÇER', 'VAR', 'EVET'].some(okText =>
+                        measuredStr === okText || measuredStr.startsWith(okText + ' ')
+                    );
+
+                    if (isExplicitPass) {
+                        return <Badge variant="success" className="bg-green-500 text-white hover:bg-green-600">Kabul</Badge>;
+                    }
+
+                    // 3. NOMİNAL DEĞER İLE BİREBİR EŞLEŞME (Metin olarak)
+                    if (nominalStr && measuredStr === nominalStr) {
+                        return <Badge variant="success" className="bg-green-500 text-white hover:bg-green-600">Kabul</Badge>;
+                    }
+
+                    // 4. SAYISAL KONTROL
+                    if (!isNaN(measured)) {
+                        let isInRange = false;
+                        if (!isNaN(min) && !isNaN(max)) {
+                            isInRange = measured >= min && measured <= max;
+                        } else if (!isNaN(min)) {
+                            isInRange = measured >= min;
+                        } else if (!isNaN(max)) {
+                            isInRange = measured <= max;
+                        } else {
+                            // Aralık yoksa ve nominal sayısal ise eşitliğe bak
+                            const nominalNum = normalizeValue(item.nominal_value);
+                            if (!isNaN(nominalNum) && measured === nominalNum) {
+                                isInRange = true;
+                            } else {
+                                // Hiçbir kriter yoksa ama değer girildiyse (ve fail kelimesi değilse)
+                                // Kullanıcı sadece değer girdi, min/max yok. 
+                                // Varsayılan olarak nötr veya kabul gösterilebilir.
+                                // Şimdilik nötr (-) bırakalım veya kabul diyelim?
+                                // Önceki mantıkta "-" dönüyordu. Ancak kullanıcı "dinamik uygun" istiyor.
+                                // Eğer min/max yoksa ve değer varsa genelde "bilgi" amaçlıdır.
+                                return <span className="text-xs text-muted-foreground">-</span>;
+                            }
+                        }
+
+                        return isInRange ? (
+                            <Badge variant="success" className="bg-green-500 text-white hover:bg-green-600">Kabul</Badge>
+                        ) : (
+                            <Badge variant="destructive" className="bg-red-500 text-white hover:bg-red-600">Ret</Badge>
+                        );
+                    }
+
+                    // Sayısal değil ve özel kelime de değilse, ve nominal ile eşleşmiyorsa -> RET
+                    // Ayrıca boş değilse (yukarıda kontrol edildi)
+                    return <Badge variant="destructive" className="bg-red-500 text-white hover:bg-red-600">Ret</Badge>;
                 })()}
             </td>
             <td className="p-2 align-top text-center"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => onUpdate(index, null)}><Trash2 className="h-4 w-4" /></Button></td>

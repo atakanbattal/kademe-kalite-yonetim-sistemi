@@ -176,48 +176,50 @@ const InkrDetailModal = ({
                                                         return parseFloat(val.toString().replace(',', '.'));
                                                     };
 
-                                                    const measuredValStr = item.measured_value?.toString().toUpperCase() || '';
+                                                    const measuredValStr = item.measured_value?.toString().trim().toUpperCase() || '';
+                                                    const nominalValStr = item.nominal_value?.toString().trim().toUpperCase() || '';
+
                                                     const measured = normalizeValue(item.measured_value);
                                                     const min = normalizeValue(item.min_value);
                                                     const max = normalizeValue(item.max_value);
 
-                                                    // "OK", "UYGUN", "KABUL" gibi metinsel ifadeler için kontrol
-                                                    const isTextCompliant = ['OK', 'UYGUN', 'KABUL', 'PASS', 'GEÇER', 'VAR'].some(okText =>
-                                                        measuredValStr.includes(okText)
+                                                    // 1. KESİN RED KELİMELERİ (Önce kontrol et)
+                                                    const isExplicitFail = ['RET', 'UYGUNSUZ', 'NOK', 'NG', 'HATALI', 'RED'].some(failText =>
+                                                        measuredValStr === failText || measuredValStr.startsWith(failText + ' ')
+                                                    );
+
+                                                    // 2. KESİN KABUL KELİMELERİ
+                                                    const isExplicitPass = ['OK', 'UYGUN', 'KABUL', 'PASS', 'GEÇER', 'VAR', 'EVET'].some(okText =>
+                                                        measuredValStr === okText || measuredValStr.startsWith(okText + ' ')
                                                     );
 
                                                     let isInRange = false;
 
-                                                    if (isTextCompliant) {
+                                                    if (isExplicitFail) {
+                                                        isInRange = false;
+                                                    } else if (isExplicitPass) {
                                                         isInRange = true;
-                                                    } else if (!isNaN(measured) && !isNaN(min) && !isNaN(max)) {
-                                                        // Sayısal aralık kontrolü
-                                                        isInRange = measured >= min && measured <= max;
-                                                    } else if (!isNaN(measured) && !isNaN(min) && isNaN(max)) {
-                                                        // Sadece min varsa
-                                                        isInRange = measured >= min;
-                                                    } else if (!isNaN(measured) && isNaN(min) && !isNaN(max)) {
-                                                        // Sadece max varsa
-                                                        isInRange = measured <= max;
-                                                    } else if (item.nominal_value && !isNaN(measured)) {
-                                                        // Tolerans yoksa nominal değere tam eşitlik (opsiyonel, genelde tolerans olur)
-                                                        // Şimdilik toleranssız ve min/max'sız durumda uygunsuz dememek için true yapabiliriz
-                                                        // Veya kullanıcı notlarına bakılabilir.
-                                                        // Ancak burada katı kural yerine, min/max yoksa ve değer varsa "Bilgi" amaçlıdır diyebiliriz.
-                                                        // Kullanıcı talebi: min/max varsa kesin kontrol, yoksa veya OK ise yeşil.
-                                                        const nominal = normalizeValue(item.nominal_value);
-                                                        if (!isNaN(nominal)) {
-                                                            // Toleranssız tam eşitlik riskli olabilir (float precision)
-                                                            // Basitçe %1 sapma kabul edilebilir veya direkt eşitlik
-                                                            isInRange = Math.abs(measured - nominal) < 0.0001;
+                                                    } else if (nominalValStr && measuredValStr === nominalValStr) {
+                                                        // 3. NOMİNAL DEĞER İLE BİREBİR EŞLEŞME (Metin olarak)
+                                                        isInRange = true;
+                                                    } else if (!isNaN(measured)) {
+                                                        // 4. SAYISAL KONTROL
+                                                        if (!isNaN(min) && !isNaN(max)) {
+                                                            isInRange = measured >= min && measured <= max;
+                                                        } else if (!isNaN(min)) {
+                                                            isInRange = measured >= min;
+                                                        } else if (!isNaN(max)) {
+                                                            isInRange = measured <= max;
                                                         } else {
-                                                            // Nominal de sayısal değilse (örn: "Görsel")
-                                                            isInRange = true;
+                                                            // Sayısal değer var ama limit yoksa ve nominal de eşleşmediyse
+                                                            // Eğer nominal değer sayısal ise ve eşitse kabul et
+                                                            const nominalNum = normalizeValue(item.nominal_value);
+                                                            if (!isNaN(nominalNum) && measured === nominalNum) {
+                                                                isInRange = true;
+                                                            }
                                                         }
-                                                    } else if (measuredValStr && isNaN(min) && isNaN(max)) {
-                                                        // Hiçbir kriter (min/max) yoksa ve bir değer girildiyse, uygun kabul et
-                                                        isInRange = true;
                                                     }
+
 
                                                     const statusBadge = item.measured_value ? (
                                                         isInRange ? (
