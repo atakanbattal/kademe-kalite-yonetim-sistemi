@@ -242,13 +242,15 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                 // Yeni rapor oluşturma modu
                 let initialReportDate = new Date().toISOString().split('T')[0];
                 let initialSupplierId = null;
+                let initialItems = [];
 
-                // Eğer parça kodu varsa, bu parçanın ilk girdi muayene tarihini ve tedarikçisini bul
+                // Eğer parça kodu varsa, bu parçanın ilk girdi muayene tarihini, tedarikçisini ve ölçümlerini bul
                 if (existingReport?.part_code) {
                     try {
+                        // İlk muayene kaydını al
                         const { data: firstInspection, error } = await supabase
                             .from('incoming_inspections')
-                            .select('inspection_date, supplier_id')
+                            .select('id, inspection_date, supplier_id')
                             .eq('part_code', existingReport.part_code)
                             .order('inspection_date', { ascending: true })
                             .limit(1)
@@ -262,6 +264,53 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                             // İlk gelen tedarikçiyi kullan
                             if (firstInspection.supplier_id) {
                                 initialSupplierId = firstInspection.supplier_id;
+                            }
+
+                            // İlk muayenenin ölçüm sonuçlarını al
+                            const { data: inspectionResults, error: resultsError } = await supabase
+                                .from('incoming_inspection_results')
+                                .select('*')
+                                .eq('inspection_id', firstInspection.id);
+
+                            if (!resultsError && inspectionResults && inspectionResults.length > 0) {
+                                // Ölçüm sonuçlarını INKR item formatına dönüştür
+                                // Her karakteristik için sadece ilk ölçümü al (measurement_number = 1 veya en düşük)
+                                const uniqueCharacteristics = new Map();
+
+                                inspectionResults.forEach(result => {
+                                    const charName = result.characteristic_name || result.feature;
+                                    if (charName && !uniqueCharacteristics.has(charName)) {
+                                        uniqueCharacteristics.set(charName, result);
+                                    }
+                                });
+
+                                // Her benzersiz karakteristik için INKR item oluştur
+                                uniqueCharacteristics.forEach((result, charName) => {
+                                    // Karakteristik ID'sini bul
+                                    const matchingChar = characteristics?.find(c =>
+                                        c.label?.toLowerCase() === charName?.toLowerCase()
+                                    );
+
+                                    // Ekipman ID'sini bul
+                                    const matchingEquip = equipment?.find(e =>
+                                        e.label?.toLowerCase() === result.measurement_method?.toLowerCase()
+                                    );
+
+                                    initialItems.push({
+                                        id: uuidv4(),
+                                        characteristic_id: matchingChar?.value || '',
+                                        characteristic_type: result.characteristic_type || matchingChar?.type || '',
+                                        equipment_id: matchingEquip?.value || '',
+                                        standard_id: null,
+                                        tolerance_class: null,
+                                        nominal_value: result.nominal_value !== undefined && result.nominal_value !== null ? result.nominal_value : '',
+                                        min_value: result.min_value !== undefined && result.min_value !== null ? result.min_value : null,
+                                        max_value: result.max_value !== undefined && result.max_value !== null ? result.max_value : null,
+                                        tolerance_direction: '±',
+                                        standard_class: '',
+                                        measured_value: result.measured_value || result.actual_value || ''
+                                    });
+                                });
                             }
                         }
                     } catch (err) {
@@ -278,7 +327,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                     notes: '',
                     items: []
                 });
-                setItems([]);
+                setItems(initialItems);
             }
         };
 
