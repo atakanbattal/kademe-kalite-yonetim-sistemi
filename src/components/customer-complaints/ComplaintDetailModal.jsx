@@ -11,7 +11,7 @@ import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -174,7 +174,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                         )}
                     </div>
                 </DialogHeader>
-                
+
                 {complaintData && (
                     <div className="flex gap-2 px-6 pb-4 border-b">
                         <Button
@@ -203,9 +203,9 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                             .from('customer_complaints')
                                             .delete()
                                             .eq('id', complaintData.id);
-                                        
+
                                         if (error) throw error;
-                                        
+
                                         toast({
                                             title: 'Başarılı',
                                             description: 'Şikayet başarıyla silindi.'
@@ -237,104 +237,104 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                     </div>
                 ) : (
                     <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-5">
-                            <TabsTrigger value="overview">
-                                <FileText className="w-4 h-4 mr-2" />
-                                Genel Bakış
-                            </TabsTrigger>
-                            <TabsTrigger value="analysis">
-                                <BarChart3 className="w-4 h-4 mr-2" />
-                                Analizler
-                            </TabsTrigger>
-                            <TabsTrigger value="actions">
-                                <CheckCircle2 className="w-4 h-4 mr-2" />
-                                Aksiyonlar
-                            </TabsTrigger>
-                            <TabsTrigger value="documents">
-                                <Upload className="w-4 h-4 mr-2" />
-                                Dokümanlar
-                            </TabsTrigger>
-                            <TabsTrigger value="communication">
-                                <MessageSquare className="w-4 h-4 mr-2" />
-                                İletişim
-                            </TabsTrigger>
-                        </TabsList>
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                            <TabsList className="grid w-full grid-cols-5">
+                                <TabsTrigger value="overview">
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Genel Bakış
+                                </TabsTrigger>
+                                <TabsTrigger value="analysis">
+                                    <BarChart3 className="w-4 h-4 mr-2" />
+                                    Analizler
+                                </TabsTrigger>
+                                <TabsTrigger value="actions">
+                                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                                    Aksiyonlar
+                                </TabsTrigger>
+                                <TabsTrigger value="documents">
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Dokümanlar
+                                </TabsTrigger>
+                                <TabsTrigger value="communication">
+                                    <MessageSquare className="w-4 h-4 mr-2" />
+                                    İletişim
+                                </TabsTrigger>
+                            </TabsList>
 
-                        {/* Genel Bakış */}
-                        <TabsContent value="overview" className="space-y-6">
-                            {/* Önemli Bilgiler */}
-                            <div>
-                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                    <AlertCircle className="h-5 w-5 text-primary" />
-                                    Önemli Bilgiler
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <InfoCard 
-                                        icon={Hash} 
-                                        label="Şikayet No" 
-                                        value={complaintData?.complaint_number} 
-                                        variant="primary"
-                                    />
-                                    <InfoCard 
-                                        icon={Calendar} 
-                                        label="Şikayet Tarihi" 
-                                        value={complaintData?.complaint_date ? new Date(complaintData.complaint_date).toLocaleDateString('tr-TR') : '-'} 
-                                    />
-                                    <InfoCard 
-                                        icon={Clock} 
-                                        label="Açık Süre" 
-                                        value={`${getDaysOpen(complaintData?.complaint_date, complaintData?.actual_close_date)} gün`}
-                                        variant="warning"
-                                    />
-                                </div>
-                            </div>
-
-                            <Separator />
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Müşteri Bilgileri */}
+                            {/* Genel Bakış */}
+                            <TabsContent value="overview" className="space-y-6">
+                                {/* Önemli Bilgiler */}
                                 <div>
                                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                        <Users className="h-5 w-5 text-primary" />
-                                        Müşteri Bilgileri
+                                        <AlertCircle className="h-5 w-5 text-primary" />
+                                        Önemli Bilgiler
                                     </h3>
-                                    <Card>
-                                        <CardContent className="p-6 space-y-4">
-                                            <InfoCard 
-                                                icon={Users} 
-                                                label="Müşteri Adı" 
-                                                value={complaintData.customer?.customer_name} 
-                                            />
-                                            <InfoCard 
-                                                icon={Hash} 
-                                                label="Müşteri Kodu" 
-                                                value={complaintData.customer?.customer_code} 
-                                            />
-                                            {complaintData.customer?.contact_person && (
-                                                <InfoCard 
-                                                    icon={User} 
-                                                    label="Yetkili Kişi" 
-                                                    value={complaintData.customer.contact_person} 
-                                                />
-                                            )}
-                                            {complaintData.customer?.contact_email && (
-                                                <InfoCard 
-                                                    icon={Package} 
-                                                    label="Email" 
-                                                    value={complaintData.customer.contact_email} 
-                                                />
-                                            )}
-                                            {complaintData.customer?.contact_phone && (
-                                                <InfoCard 
-                                                    icon={Package} 
-                                                    label="Telefon" 
-                                                    value={complaintData.customer.contact_phone} 
-                                                />
-                                            )}
-                                        </CardContent>
-                                    </Card>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <InfoCard
+                                            icon={Hash}
+                                            label="Şikayet No"
+                                            value={complaintData?.complaint_number}
+                                            variant="primary"
+                                        />
+                                        <InfoCard
+                                            icon={Calendar}
+                                            label="Şikayet Tarihi"
+                                            value={complaintData?.complaint_date ? new Date(complaintData.complaint_date).toLocaleDateString('tr-TR') : '-'}
+                                        />
+                                        <InfoCard
+                                            icon={Clock}
+                                            label="Açık Süre"
+                                            value={`${getDaysOpen(complaintData?.complaint_date, complaintData?.actual_close_date)} gün`}
+                                            variant="warning"
+                                        />
+                                    </div>
                                 </div>
+
+                                <Separator />
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Müşteri Bilgileri */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                            <Users className="h-5 w-5 text-primary" />
+                                            Müşteri Bilgileri
+                                        </h3>
+                                        <Card>
+                                            <CardContent className="p-6 space-y-4">
+                                                <InfoCard
+                                                    icon={Users}
+                                                    label="Müşteri Adı"
+                                                    value={complaintData.customer?.customer_name}
+                                                />
+                                                <InfoCard
+                                                    icon={Hash}
+                                                    label="Müşteri Kodu"
+                                                    value={complaintData.customer?.customer_code}
+                                                />
+                                                {complaintData.customer?.contact_person && (
+                                                    <InfoCard
+                                                        icon={User}
+                                                        label="Yetkili Kişi"
+                                                        value={complaintData.customer.contact_person}
+                                                    />
+                                                )}
+                                                {complaintData.customer?.contact_email && (
+                                                    <InfoCard
+                                                        icon={Package}
+                                                        label="Email"
+                                                        value={complaintData.customer.contact_email}
+                                                    />
+                                                )}
+                                                {complaintData.customer?.contact_phone && (
+                                                    <InfoCard
+                                                        icon={Package}
+                                                        label="Telefon"
+                                                        value={complaintData.customer.contact_phone}
+                                                    />
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    </div>
 
                                     {/* SLA Bilgileri */}
                                     {complaintData.sla_status && (
@@ -350,18 +350,18 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                                     <div className="text-sm font-medium text-muted-foreground">
                                                         SLA Durumu
                                                     </div>
-                                                    <Badge 
+                                                    <Badge
                                                         variant={
                                                             complaintData.sla_status === 'Overdue' ? 'destructive' :
-                                                            complaintData.sla_status === 'At Risk' ? 'warning' :
-                                                            'default'
+                                                                complaintData.sla_status === 'At Risk' ? 'warning' :
+                                                                    'default'
                                                         }
                                                         className="mt-1"
                                                     >
                                                         {complaintData.sla_status === 'Overdue' ? 'Gecikmiş' :
-                                                         complaintData.sla_status === 'At Risk' ? 'Risk Altında' :
-                                                         complaintData.sla_status === 'On Time' ? 'Zamanında' :
-                                                         'Beklemede'}
+                                                            complaintData.sla_status === 'At Risk' ? 'Risk Altında' :
+                                                                complaintData.sla_status === 'On Time' ? 'Zamanında' :
+                                                                    'Beklemede'}
                                                     </Badge>
                                                 </div>
                                                 {complaintData.sla_first_response_hours && (
@@ -372,11 +372,10 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                                         <div className="text-sm">
                                                             {complaintData.sla_first_response_hours} saat
                                                             {complaintData.first_response_hours && (
-                                                                <span className={`ml-2 ${
-                                                                    complaintData.first_response_hours > complaintData.sla_first_response_hours 
-                                                                        ? 'text-red-600 font-semibold' 
+                                                                <span className={`ml-2 ${complaintData.first_response_hours > complaintData.sla_first_response_hours
+                                                                        ? 'text-red-600 font-semibold'
                                                                         : 'text-green-600'
-                                                                }`}>
+                                                                    }`}>
                                                                     (Gerçekleşen: {complaintData.first_response_hours.toFixed(1)} saat)
                                                                 </span>
                                                             )}
@@ -391,11 +390,10 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                                         <div className="text-sm">
                                                             {complaintData.sla_resolution_hours} saat
                                                             {complaintData.resolution_hours && (
-                                                                <span className={`ml-2 ${
-                                                                    complaintData.resolution_hours > complaintData.sla_resolution_hours 
-                                                                        ? 'text-red-600 font-semibold' 
+                                                                <span className={`ml-2 ${complaintData.resolution_hours > complaintData.sla_resolution_hours
+                                                                        ? 'text-red-600 font-semibold'
                                                                         : 'text-green-600'
-                                                                }`}>
+                                                                    }`}>
                                                                     (Gerçekleşen: {complaintData.resolution_hours.toFixed(1)} saat)
                                                                 </span>
                                                             )}
@@ -658,7 +656,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                     onRefresh={handleRefresh}
                                 />
                             </TabsContent>
-                    </Tabs>
+                        </Tabs>
                     </ScrollArea>
                 )}
 
