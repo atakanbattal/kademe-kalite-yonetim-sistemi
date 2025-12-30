@@ -28,15 +28,9 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
     const [signedUrl, setSignedUrl] = React.useState(null);
     const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
     const [isLoading, setIsLoading] = React.useState(false);
-    const [loadingUrl, setLoadingUrl] = React.useState(true);
     
     React.useEffect(() => {
         const fetchSignedUrl = async () => {
-            if (!path) {
-                setLoadingUrl(false);
-                return;
-            }
-            
             try {
                 const { data, error } = await supabase.storage.from('df_attachments').createSignedUrl(path, 3600);
                 if (!error && data?.signedUrl) {
@@ -44,15 +38,15 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
                 }
             } catch (err) {
                 console.error('Signed URL fetch error:', err);
-            } finally {
-                setLoadingUrl(false);
             }
         };
         
-        fetchSignedUrl();
+        if (path) {
+            fetchSignedUrl();
+        }
     }, [path]);
 
-    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
     const isPdf = /\.pdf$/i.test(path);
     const fileName = path.split('/').pop();
 
@@ -95,47 +89,19 @@ const AttachmentItem = ({ path, onRemove, onPreview }) => {
         setPdfViewerState({ isOpen: false, url: null, title: null });
     };
 
-    // Loading durumunda placeholder göster
-    if (loadingUrl) {
-        return (
-            <div className="relative group w-24 h-24">
-                <div className="flex items-center justify-center bg-secondary rounded-lg w-full h-full">
-                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                </div>
-            </div>
-        );
-    }
-
-    // Signed URL yoksa hiçbir şey gösterme
-    if (!signedUrl) return null;
-
-    // Görsel dosyalar için direkt signed URL kullan (sapma modülü gibi)
-    if (isImage) {
-        return (
-            <div className="relative group w-24 h-24">
-                <img
-                    src={signedUrl}
-                    alt="Ek"
-                    className="rounded-lg object-cover w-full h-full cursor-pointer border border-border"
-                    onClick={() => onPreview(signedUrl)}
-                />
-                <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => onRemove(path)}
-                >
-                    <Trash2 className="h-3 w-3" />
-                </Button>
-            </div>
-        );
-    }
+    if (!signedUrl && !isLoading) return null;
 
     return (
         <>
             <div className="relative group w-24 h-24">
-                {isPdf ? (
+                {isImage ? (
+                    <img
+                        src={signedUrl}
+                        alt="Ek"
+                        className="rounded-lg object-cover w-full h-full cursor-pointer"
+                        onClick={() => onPreview(signedUrl)}
+                    />
+                ) : isPdf ? (
                     <div 
                         className="flex flex-col items-center justify-center gap-2 p-2 bg-background rounded-lg h-full text-center break-all cursor-pointer hover:bg-secondary transition-colors"
                         onClick={handlePdfClick}

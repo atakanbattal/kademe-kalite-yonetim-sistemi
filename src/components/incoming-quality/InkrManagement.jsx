@@ -215,7 +215,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
     const initialItemState = { id: uuidv4(), characteristic_id: '', characteristic_type: '', equipment_id: '', standard_id: null, tolerance_class: null, nominal_value: '', min_value: null, max_value: null, tolerance_direction: '±', standard_class: '', measured_value: '' };
 
     useEffect(() => {
-        if (isOpen) {
+        const initializeForm = async () => {
             if (existingReport && existingReport.id) {
                 // Mevcut raporu düzenleme modu
                 setFormData({ 
@@ -240,17 +240,43 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                 setItems(loadedItems);
             } else {
                 // Yeni rapor oluşturma modu
+                let initialReportDate = new Date().toISOString().split('T')[0];
+                
+                // Eğer parça kodu varsa, bu parçanın ilk girdi muayene tarihini bul
+                if (existingReport?.part_code) {
+                    try {
+                        const { data: firstInspection, error } = await supabase
+                            .from('incoming_inspections')
+                            .select('inspection_date')
+                            .eq('part_code', existingReport.part_code)
+                            .order('inspection_date', { ascending: true })
+                            .limit(1)
+                            .maybeSingle();
+                        
+                        if (!error && firstInspection?.inspection_date) {
+                            // Ürünün firmamıza ilk geldiği tarihi kullan
+                            initialReportDate = new Date(firstInspection.inspection_date).toISOString().split('T')[0];
+                        }
+                    } catch (err) {
+                        console.error('İlk muayene tarihi alınamadı:', err);
+                    }
+                }
+                
                 setFormData({
                     part_code: existingReport?.part_code || '', 
                     part_name: existingReport?.part_name || '', 
                     supplier_id: null,
-                    report_date: new Date().toISOString().split('T')[0],
+                    report_date: initialReportDate,
                     status: 'Beklemede', 
                     notes: '', 
                     items: []
                 });
                 setItems([]);
             }
+        };
+
+        if (isOpen) {
+            initializeForm();
         }
     }, [isOpen, existingReport]);
 

@@ -39,9 +39,7 @@ import {
   Paperclip,
   Printer,
   Loader2,
-  AlertTriangle,
-  Image as ImageIcon,
-  ExternalLink
+  AlertTriangle
 } from 'lucide-react';
 import { Lightbox } from 'react-modal-image';
 import { RejectModal } from '@/components/df-8d/modals/ActionModals';
@@ -99,103 +97,118 @@ const getDefault8DTitle = (stepKey) => {
   return titles[stepKey] || stepKey;
 };
 
-const AttachmentItem = ({ path }) => {
-    const [isLoading, setIsLoading] = React.useState(false);
+const AttachmentItem = ({ path, onPreview }) => {
+    const [signedUrl, setSignedUrl] = React.useState(null);
     const [pdfViewerState, setPdfViewerState] = React.useState({ isOpen: false, url: null, title: null });
+    const [isLoading, setIsLoading] = React.useState(false);
     
-    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path);
+    React.useEffect(() => {
+        const fetchSignedUrl = async () => {
+            try {
+                const { data, error } = await supabase.storage.from('df_attachments').createSignedUrl(path, 3600);
+                if (!error && data?.signedUrl) {
+                    setSignedUrl(data.signedUrl);
+                }
+            } catch (err) {
+                console.error('Signed URL fetch error:', err);
+            }
+        };
+        
+        if (path) {
+            fetchSignedUrl();
+        }
+    }, [path]);
+
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
     const isPdf = /\.pdf$/i.test(path);
     const fileName = path.split('/').pop();
-    
-    // Dosya tipine göre ikon belirle
-    const getIcon = () => {
-        if (isImage) return <ImageIcon className="w-5 h-5 text-blue-500" />;
-        if (isPdf) return <FileText className="w-5 h-5 text-red-500" />;
-        return <Paperclip className="w-5 h-5 text-muted-foreground" />;
-    };
-    
-    // MIME type belirleme
-    const getMimeType = (filePath) => {
-        const ext = filePath.split('.').pop()?.toLowerCase();
-        const mimeTypes = {
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
-            'webp': 'image/webp',
-            'bmp': 'image/bmp',
-            'pdf': 'application/pdf'
-        };
-        return mimeTypes[ext] || 'application/octet-stream';
-    };
 
-    const handleClick = async () => {
-        if (!path || isLoading) return;
+    const handlePdfClick = async (e) => {
+        e.preventDefault();
+        if (!path) return;
         
         setIsLoading(true);
         try {
-            // Dosyayı blob olarak indir
-            const { data, error: downloadError } = await supabase.storage
-                .from('df_attachments')
-                .download(path);
-            
-            if (downloadError || !data) {
-                console.error('Dosya indirme hatası:', downloadError);
-                setIsLoading(false);
+            // PDF'i blob olarak indir ve blob URL oluştur
+            const { data, error } = await supabase.storage.from('df_attachments').download(path);
+            if (error) {
+                console.error('PDF indirme hatası:', error);
+                // Hata durumunda signed URL'i kullan
+                if (signedUrl) {
+                    setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
+                }
                 return;
             }
             
-            // Blob URL oluştur
-            const mimeType = getMimeType(path);
-            const blob = new Blob([data], { type: mimeType });
-            const blobUrl = URL.createObjectURL(blob);
-            
-            if (isPdf) {
-                // PDF için modal aç
-                setPdfViewerState({ isOpen: true, url: blobUrl, title: fileName });
-            } else {
-                // Diğer dosyalar için yeni sekmede aç
-                window.open(blobUrl, '_blank');
-                // Bir süre sonra blob URL'yi temizle
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-            }
+            const blob = new Blob([data], { type: 'application/pdf' });
+            const blobUrl = window.URL.createObjectURL(blob);
+            setPdfViewerState({ isOpen: true, url: blobUrl, title: fileName });
         } catch (err) {
-            console.error('Dosya açma hatası:', err);
+            console.error('PDF açılırken hata:', err);
+            // Hata durumunda signed URL'i kullan
+            if (signedUrl) {
+                setPdfViewerState({ isOpen: true, url: signedUrl, title: fileName });
+            }
         } finally {
             setIsLoading(false);
         }
     };
 
+    // Modal kapandığında blob URL'i temizle
     const handlePdfViewerClose = () => {
-        if (pdfViewerState.url) {
-            URL.revokeObjectURL(pdfViewerState.url);
+        if (pdfViewerState.url && pdfViewerState.url.startsWith('blob:')) {
+            window.URL.revokeObjectURL(pdfViewerState.url);
         }
         setPdfViewerState({ isOpen: false, url: null, title: null });
     };
 
-    return (
-        <>
-            <div 
-                className="flex items-center gap-3 p-3 bg-background rounded-lg cursor-pointer hover:bg-secondary transition-colors border border-border"
-                onClick={handleClick}
-            >
-                {isLoading ? (
-                    <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
-                ) : (
-                    getIcon()
-                )}
-                <span className="text-sm truncate flex-1">{fileName}</span>
-                <ExternalLink className="w-4 h-4 text-muted-foreground" />
-            </div>
-            {pdfViewerState.isOpen && (
-                <PdfViewerModal
-                    isOpen={pdfViewerState.isOpen}
-                    setIsOpen={handlePdfViewerClose}
-                    pdfUrl={pdfViewerState.url}
-                    title={pdfViewerState.title}
+    if (!signedUrl && !isLoading) return null;
+
+    if (isImage) {
+        return (
+            <div className="group cursor-pointer" onClick={() => onPreview(signedUrl)}>
+                <img
+                    src={signedUrl}
+                    alt="Ek"
+                    className="rounded-lg object-cover w-full h-32 transition-transform duration-300 group-hover:scale-105"
                 />
-            )}
-        </>
+            </div>
+        );
+    }
+    
+    if (isPdf) {
+        return (
+            <>
+                <div 
+                    className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all cursor-pointer hover:bg-secondary transition-colors"
+                    onClick={handlePdfClick}
+                >
+                    {isLoading ? (
+                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                    ) : (
+                        <>
+                            <FileText className="w-6 h-6 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+                        </>
+                    )}
+                </div>
+                {pdfViewerState.isOpen && (
+                    <PdfViewerModal
+                        isOpen={pdfViewerState.isOpen}
+                        setIsOpen={handlePdfViewerClose}
+                        pdfUrl={pdfViewerState.url}
+                        title={pdfViewerState.title}
+                    />
+                )}
+            </>
+        );
+    }
+    
+    return (
+        <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-2 p-4 bg-background rounded-lg h-32 text-center break-all hover:bg-secondary transition-colors">
+            <Paperclip className="w-6 h-6 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground truncate w-full">{fileName}</span>
+        </a>
     );
 };
 
@@ -507,12 +520,9 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                       Kanıt Dokümanları
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {allAttachments.map((path, index) => {
-                        if (!path || path.trim() === '') {
-                          return null;
-                        }
-                        return <AttachmentItem key={index} path={path} />;
-                      })}
+                      {allAttachments.map((path, index) => (
+                        <AttachmentItem key={index} path={path} onPreview={setLightboxUrl} />
+                      ))}
                     </div>
                   </div>
                 </>
