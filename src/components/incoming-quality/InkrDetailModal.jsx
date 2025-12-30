@@ -49,7 +49,7 @@ const InkrDetailModal = ({
                 characteristic_name: getCharacteristicName(item.characteristic_id),
                 equipment_name: getEquipmentName(item.equipment_id)
             }));
-            
+
             const enrichedData = {
                 ...report,
                 items: enrichedItems,
@@ -170,20 +170,65 @@ const InkrDetailModal = ({
                                             </thead>
                                             <tbody>
                                                 {report.items.map((item, idx) => {
-                                                    const measured = parseFloat(item.measured_value);
-                                                    const min = parseFloat(item.min_value);
-                                                    const max = parseFloat(item.max_value);
-                                                    const isInRange = !isNaN(measured) && !isNaN(min) && !isNaN(max) && measured >= min && measured <= max;
+                                                    // Virgülleri noktaya çevirerek sayısal değerleri al
+                                                    const normalizeValue = (val) => {
+                                                        if (!val) return NaN;
+                                                        return parseFloat(val.toString().replace(',', '.'));
+                                                    };
+
+                                                    const measuredValStr = item.measured_value?.toString().toUpperCase() || '';
+                                                    const measured = normalizeValue(item.measured_value);
+                                                    const min = normalizeValue(item.min_value);
+                                                    const max = normalizeValue(item.max_value);
+
+                                                    // "OK", "UYGUN", "KABUL" gibi metinsel ifadeler için kontrol
+                                                    const isTextCompliant = ['OK', 'UYGUN', 'KABUL', 'PASS', 'GEÇER', 'VAR'].some(okText =>
+                                                        measuredValStr.includes(okText)
+                                                    );
+
+                                                    let isInRange = false;
+
+                                                    if (isTextCompliant) {
+                                                        isInRange = true;
+                                                    } else if (!isNaN(measured) && !isNaN(min) && !isNaN(max)) {
+                                                        // Sayısal aralık kontrolü
+                                                        isInRange = measured >= min && measured <= max;
+                                                    } else if (!isNaN(measured) && !isNaN(min) && isNaN(max)) {
+                                                        // Sadece min varsa
+                                                        isInRange = measured >= min;
+                                                    } else if (!isNaN(measured) && isNaN(min) && !isNaN(max)) {
+                                                        // Sadece max varsa
+                                                        isInRange = measured <= max;
+                                                    } else if (item.nominal_value && !isNaN(measured)) {
+                                                        // Tolerans yoksa nominal değere tam eşitlik (opsiyonel, genelde tolerans olur)
+                                                        // Şimdilik toleranssız ve min/max'sız durumda uygunsuz dememek için true yapabiliriz
+                                                        // Veya kullanıcı notlarına bakılabilir.
+                                                        // Ancak burada katı kural yerine, min/max yoksa ve değer varsa "Bilgi" amaçlıdır diyebiliriz.
+                                                        // Kullanıcı talebi: min/max varsa kesin kontrol, yoksa veya OK ise yeşil.
+                                                        const nominal = normalizeValue(item.nominal_value);
+                                                        if (!isNaN(nominal)) {
+                                                            // Toleranssız tam eşitlik riskli olabilir (float precision)
+                                                            // Basitçe %1 sapma kabul edilebilir veya direkt eşitlik
+                                                            isInRange = Math.abs(measured - nominal) < 0.0001;
+                                                        } else {
+                                                            // Nominal de sayısal değilse (örn: "Görsel")
+                                                            isInRange = true;
+                                                        }
+                                                    } else if (measuredValStr && isNaN(min) && isNaN(max)) {
+                                                        // Hiçbir kriter (min/max) yoksa ve bir değer girildiyse, uygun kabul et
+                                                        isInRange = true;
+                                                    }
+
                                                     const statusBadge = item.measured_value ? (
                                                         isInRange ? (
-                                                            <Badge variant="success" className="bg-green-500">Uygun</Badge>
+                                                            <Badge variant="success" className="bg-green-500 hover:bg-green-600">Uygun</Badge>
                                                         ) : (
-                                                            <Badge variant="destructive" className="bg-red-500">Uygunsuz</Badge>
+                                                            <Badge variant="destructive" className="bg-red-500 hover:bg-red-600">Uygunsuz</Badge>
                                                         )
                                                     ) : (
                                                         <Badge variant="secondary">Ölçülmedi</Badge>
                                                     );
-                                                    
+
                                                     return (
                                                         <tr key={item.id || idx} className="border-b">
                                                             <td className="p-2">{idx + 1}</td>
