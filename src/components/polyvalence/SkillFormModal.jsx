@@ -136,6 +136,7 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
                         <div className="space-y-2">
                             <Label>Yetkinlik Adı <span className="text-red-500">*</span></Label>
                             <Input
+                                autoFormat={false}
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="Örn: TIG Kaynak (Paslanmaz Çelik)"
@@ -145,6 +146,7 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
                         <div className="space-y-2">
                             <Label>Yetkinlik Kodu</Label>
                             <Input
+                                autoFormat={false}
                                 value={formData.code}
                                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                                 placeholder="Örn: WLD-TIG-001"
@@ -194,6 +196,7 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
                     <div className="space-y-2">
                         <Label>Açıklama</Label>
                         <Textarea
+                            autoFormat={false}
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             placeholder="Yetkinlik hakkında detaylı açıklama..."

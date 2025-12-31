@@ -124,6 +124,14 @@ const PolyvalenceModule = () => {
             if (categoriesRes.error) throw categoriesRes.error;
             if (personnelSkillsRes.error) throw personnelSkillsRes.error;
 
+            // View'lar mevcut olmayabilir, hataları sessizce handle et
+            if (alertsRes.error) {
+                console.warn('certification_expiry_alerts view bulunamadı:', alertsRes.error.message);
+            }
+            if (summaryRes.error) {
+                console.warn('polyvalence_summary view bulunamadı:', summaryRes.error.message);
+            }
+
             setPersonnel(personnelRes.data || []);
             setSkills(skillsRes.data || []);
             setSkillCategories(categoriesRes.data || []);
