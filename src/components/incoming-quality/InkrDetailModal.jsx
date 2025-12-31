@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
 import { useData } from '@/contexts/DataContext';
+import { supabase } from '@/lib/customSupabaseClient';
 
 const InkrDetailModal = ({
     isOpen,
@@ -30,6 +31,7 @@ const InkrDetailModal = ({
     const [preparedBy, setPreparedBy] = useState('');
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
+    const [inspectionInfo, setInspectionInfo] = useState(null);
 
     const getCharacteristicName = (id) => {
         const char = characteristics?.find(c => c.value === id);
@@ -71,6 +73,32 @@ const InkrDetailModal = ({
             });
         }
     };
+
+    useEffect(() => {
+        const fetchInspectionInfo = async () => {
+            if (report?.part_code) {
+                try {
+                    const { data, error } = await supabase
+                        .from('incoming_inspections')
+                        .select('delivery_note_number, inspection_date, record_no, quantity_received, quantity_rejected, quantity_conditional, decision')
+                        .eq('part_code', report.part_code)
+                        .order('inspection_date', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    
+                    if (!error && data) {
+                        setInspectionInfo(data);
+                    }
+                } catch (err) {
+                    console.error('İrsaliye bilgileri alınamadı:', err);
+                }
+            }
+        };
+
+        if (isOpen && report) {
+            fetchInspectionInfo();
+        }
+    }, [isOpen, report]);
 
     if (!report) return null;
 
@@ -133,6 +161,40 @@ const InkrDetailModal = ({
                                         <Label className="text-gray-600">Durum</Label>
                                         <p className="font-medium">{report.status || 'Aktif'}</p>
                                     </div>
+                                    {inspectionInfo && (
+                                        <>
+                                            <div>
+                                                <Label className="text-gray-600">İrsaliye Numarası</Label>
+                                                <p className="font-medium">{inspectionInfo.delivery_note_number || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-gray-600">Muayene Kayıt No</Label>
+                                                <p className="font-medium">{inspectionInfo.record_no || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-gray-600">Muayene Tarihi</Label>
+                                                <p className="font-medium">
+                                                    {inspectionInfo.inspection_date ? format(new Date(inspectionInfo.inspection_date), 'dd.MM.yyyy') : '-'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-gray-600">Alınan Miktar</Label>
+                                                <p className="font-medium">{inspectionInfo.quantity_received || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-gray-600">Ret Miktarı</Label>
+                                                <p className="font-medium">{inspectionInfo.quantity_rejected || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-gray-600">Şartlı Kabul Miktarı</Label>
+                                                <p className="font-medium">{inspectionInfo.quantity_conditional || '-'}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-gray-600">Karar</Label>
+                                                <p className="font-medium">{inspectionInfo.decision || '-'}</p>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                                 {report.notes && (
                                     <div>

@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Search, FileText, Eye } from 'lucide-react';
+import { Plus, Trash2, Edit, Search, FileText, Eye, UploadCloud, X as XIcon, FileIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { v4 as uuidv4 } from 'uuid';
 import { useData } from '@/contexts/DataContext';
 import { Combobox } from '@/components/ui/combobox';
+import { useDropzone } from 'react-dropzone';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
@@ -264,6 +265,9 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
     const [suppliers, setSuppliers] = useState([]);
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [files, setFiles] = useState([]);
+    const [existingAttachments, setExistingAttachments] = useState([]);
+    const [deletedAttachmentIds, setDeletedAttachmentIds] = useState([]);
 
     const { characteristics, equipment, standards, loading: dataLoading } = useData();
 
@@ -271,6 +275,11 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
 
     useEffect(() => {
         const initializeForm = async () => {
+            // Reset state
+            setFiles([]);
+            setExistingAttachments([]);
+            setDeletedAttachmentIds([]);
+            
             if (existingReport && existingReport.id) {
                 // Mevcut raporu düzenleme modu
                 setFormData({
@@ -293,6 +302,17 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                     measured_value: item.measured_value || ''
                 }));
                 setItems(loadedItems);
+                
+                // Mevcut attachment'ları yükle
+                const { data: attachments, error: attachmentsError } = await supabase
+                    .from('inkr_attachments')
+                    .select('*')
+                    .eq('inkr_report_id', existingReport.id)
+                    .order('uploaded_at', { ascending: false });
+                
+                if (!attachmentsError && attachments) {
+                    setExistingAttachments(attachments);
+                }
             } else {
                 // Yeni rapor oluşturma modu
                 let initialReportDate = new Date().toISOString().split('T')[0];
@@ -489,6 +509,57 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
         }
     }, [isOpen, existingReport]);
 
+    // Dosya yükleme fonksiyonları
+    const onDrop = useCallback(acceptedFiles => {
+        setFiles(prev => [...prev, ...acceptedFiles]);
+    }, []);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+        onDrop,
+        accept: {
+            'image/*': ['.jpeg', '.png', '.jpg', '.gif'],
+            'application/pdf': ['.pdf'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'application/vnd.ms-excel': ['.xls'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+            'application/msword': ['.doc'],
+        }
+    });
+
+    const removeFile = (fileToRemove) => {
+        setFiles(prev => prev.filter(file => file !== fileToRemove));
+    };
+
+    const removeExistingAttachment = (attachmentId) => {
+        setExistingAttachments(prev => prev.filter(att => att.id !== attachmentId));
+        setDeletedAttachmentIds(prev => [...prev, attachmentId]);
+    };
+
+    // Dosya uzantısına göre MIME type belirleme fonksiyonu
+    const getMimeTypeFromFileName = (fileName) => {
+        if (!fileName) return 'application/octet-stream';
+        
+        const extension = fileName.split('.').pop()?.toLowerCase();
+        const mimeTypes = {
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+        };
+        
+        return mimeTypes[extension] || 'application/octet-stream';
+    };
+
+    const sanitizeFileName = (fileName) => {
+        return fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    };
+
     useEffect(() => {
         const fetchSuppliers = async () => {
             const { data, error } = await supabase.from('suppliers').select('id, name').order('name');
@@ -558,24 +629,82 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
         delete reportData.updated_at;
         delete reportData.supplier;
 
-        const { error } = await supabase.from('inkr_reports').upsert(reportData, { onConflict: 'part_code' });
+        const { data: savedReport, error } = await supabase.from('inkr_reports').upsert(reportData, { onConflict: 'part_code' }).select().single();
 
         if (error) {
             toast({ variant: 'destructive', title: 'Hata!', description: `INKR Raporu kaydedilemedi: ${error.message}` });
-        } else {
-            toast({ title: 'Başarılı!', description: `INKR Raporu başarıyla kaydedildi.` });
-            if (refreshReports) refreshReports();
-            if (onReportSaved) {
-                const { data, error: fetchError } = await supabase
-                    .from('inkr_reports')
-                    .select('*, supplier:supplier_id(name)')
-                    .order('created_at', { ascending: false });
-                if (!fetchError) {
-                    onReportSaved(data || []);
+            setIsSubmitting(false);
+            return;
+        }
+
+        // Silinen attachment'ları sil
+        if (deletedAttachmentIds.length > 0) {
+            for (const attachmentId of deletedAttachmentIds) {
+                const attachment = existingAttachments.find(att => att.id === attachmentId);
+                if (attachment) {
+                    // Storage'dan sil
+                    await supabase.storage.from('inkr_attachments').remove([attachment.file_path]);
+                    // Veritabanından sil
+                    await supabase.from('inkr_attachments').delete().eq('id', attachmentId);
                 }
             }
-            setIsOpen(false);
         }
+
+        // Yeni dosyaları yükle
+        if (files.length > 0 && savedReport) {
+            for (const file of files) {
+                try {
+                    const sanitizedFileName = sanitizeFileName(file.name);
+                    const contentType = getMimeTypeFromFileName(file.name);
+                    const timestamp = Date.now();
+                    const randomStr = Math.random().toString(36).substring(2, 9);
+                    const filePath = `${savedReport.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
+
+                    // Dosya boyutunu kontrol et (max 50MB)
+                    const maxSize = 50 * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} çok büyük (max 50MB)` });
+                        continue;
+                    }
+
+                    const fileArrayBuffer = await file.arrayBuffer();
+                    const uploadResult = await supabase.storage.from('inkr_attachments').upload(filePath, fileArrayBuffer, { 
+                        contentType: contentType,
+                        upsert: false
+                    });
+
+                    if (uploadResult.error) {
+                        toast({ variant: 'destructive', title: 'Dosya Yükleme Hatası', description: `${file.name} yüklenemedi: ${uploadResult.error.message}` });
+                        continue;
+                    }
+
+                    // Veritabanına kaydet
+                    await supabase.from('inkr_attachments').insert({
+                        inkr_report_id: savedReport.id,
+                        file_path: uploadResult.data.path,
+                        file_name: file.name,
+                        file_type: contentType,
+                        file_size: file.size
+                    });
+                } catch (fileError) {
+                    console.error(`Dosya yükleme hatası (${file.name}):`, fileError);
+                    toast({ variant: 'destructive', title: 'Hata', description: `${file.name} yüklenemedi` });
+                }
+            }
+        }
+
+        toast({ title: 'Başarılı!', description: `INKR Raporu başarıyla kaydedildi.` });
+        if (refreshReports) refreshReports();
+        if (onReportSaved) {
+            const { data, error: fetchError } = await supabase
+                .from('inkr_reports')
+                .select('*, supplier:supplier_id(name)')
+                .order('created_at', { ascending: false });
+            if (!fetchError) {
+                onReportSaved(data || []);
+            }
+        }
+        setIsOpen(false);
         setIsSubmitting(false);
     };
 
@@ -661,6 +790,52 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                                     ))}
                                                 </tbody>
                                             </table>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Dosya Ekleme Bölümü */}
+                                <div className="border-t pt-4">
+                                    <Label className="text-lg font-semibold mb-4 block">Dosya Ekle</Label>
+                                    <div {...getRootProps()} className={`p-6 border-2 border-dashed rounded-lg cursor-pointer text-center transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}>
+                                        <input {...getInputProps()} />
+                                        <UploadCloud className="w-10 h-10 mx-auto text-muted-foreground" />
+                                        <p className="mt-2 text-sm text-muted-foreground">Dosyaları buraya sürükleyin ya da seçmek için tıklayın.</p>
+                                    </div>
+                                    
+                                    {/* Mevcut attachment'lar (sadece düzenleme modunda) */}
+                                    {isEditMode && existingAttachments.length > 0 && (
+                                        <div className="mt-4 space-y-2">
+                                            <p className="text-xs text-muted-foreground font-medium">Mevcut Ekler:</p>
+                                            {existingAttachments.map((att) => (
+                                                <div key={att.id} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileIcon className="w-4 h-4" />
+                                                        <span className="text-sm">{att.file_name}</span>
+                                                    </div>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeExistingAttachment(att.id)}>
+                                                        <XIcon className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Yeni eklenen dosyalar */}
+                                    {files.length > 0 && (
+                                        <div className="mt-4 space-y-2">
+                                            <p className="text-xs text-muted-foreground font-medium">Yeni Eklenen Dosyalar:</p>
+                                            {files.map((file, index) => (
+                                                <div key={index} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileIcon className="w-4 h-4" />
+                                                        <span className="text-sm">{file.name}</span>
+                                                    </div>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFile(file)}>
+                                                        <XIcon className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
