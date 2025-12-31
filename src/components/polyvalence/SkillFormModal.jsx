@@ -64,8 +64,14 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
 
         setLoading(true);
         try {
+            // Code alanı boşsa NULL gönder (boş string unique constraint hatası verir)
+            const codeValue = formData.code && formData.code.trim() !== '' 
+                ? formData.code.trim() 
+                : null;
+
             const dataToSave = {
                 ...formData,
+                code: codeValue,
                 certification_validity_days: formData.certification_validity_days 
                     ? parseInt(formData.certification_validity_days) 
                     : null,
@@ -81,25 +87,76 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
             }
 
             if (skill) {
+                // Update işleminde: Eğer code değiştiyse ve yeni code başka bir kayıtta varsa kontrol et
+                if (codeValue && codeValue !== skill.code) {
+                    const { data: existingSkill } = await supabase
+                        .from('skills')
+                        .select('id')
+                        .eq('code', codeValue)
+                        .neq('id', skill.id)
+                        .single();
+
+                    if (existingSkill) {
+                        toast({
+                            variant: 'destructive',
+                            title: 'Hata',
+                            description: 'Bu yetkinlik kodu zaten kullanılıyor. Lütfen farklı bir kod girin.'
+                        });
+                        setLoading(false);
+                        return;
+                    }
+                }
+
                 // Update existing
                 const { error } = await supabase
                     .from('skills')
                     .update(cleanedData)
                     .eq('id', skill.id);
 
-                if (error) throw error;
+                if (error) {
+                    // Unique constraint hatası kontrolü
+                    if (error.code === '23505' || error.message.includes('unique') || error.message.includes('duplicate')) {
+                        throw new Error('Bu yetkinlik kodu zaten kullanılıyor. Lütfen farklı bir kod girin.');
+                    }
+                    throw error;
+                }
 
                 toast({
                     title: 'Başarılı',
                     description: 'Yetkinlik güncellendi.'
                 });
             } else {
+                // Insert işleminde: Code varsa ve başka bir kayıtta kullanılıyorsa kontrol et
+                if (codeValue) {
+                    const { data: existingSkill } = await supabase
+                        .from('skills')
+                        .select('id')
+                        .eq('code', codeValue)
+                        .single();
+
+                    if (existingSkill) {
+                        toast({
+                            variant: 'destructive',
+                            title: 'Hata',
+                            description: 'Bu yetkinlik kodu zaten kullanılıyor. Lütfen farklı bir kod girin.'
+                        });
+                        setLoading(false);
+                        return;
+                    }
+                }
+
                 // Insert new
                 const { error } = await supabase
                     .from('skills')
                     .insert([cleanedData]);
 
-                if (error) throw error;
+                if (error) {
+                    // Unique constraint hatası kontrolü
+                    if (error.code === '23505' || error.message.includes('unique') || error.message.includes('duplicate')) {
+                        throw new Error('Bu yetkinlik kodu zaten kullanılıyor. Lütfen farklı bir kod girin.');
+                    }
+                    throw error;
+                }
 
                 toast({
                     title: 'Başarılı',
