@@ -29,6 +29,8 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Building2, BarChart3 } from 'lucide-react';
 
     const formatCurrency = (value) => {
         if (typeof value !== 'number') return '-';
@@ -50,6 +52,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
         const [unitFilter, setUnitFilter] = useState('all');
         const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'produced_vehicle', 'manual', vb.
         const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+        const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
         const [sortConfig, setSortConfig] = useState({ key: 'cost_date', direction: 'desc' });
 
         const hasNCAccess = useMemo(() => {
@@ -182,11 +185,30 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 });
                 return;
             }
-            // Yönetici özeti raporu oluştur
-            handleGenerateExecutiveReport();
+            // Rapor seçim modalını aç
+            setIsReportSelectionModalOpen(true);
         }, [filteredCosts.length, toast]);
 
+        const handleSelectReportType = useCallback((reportType) => {
+            setIsReportSelectionModalOpen(false);
+            if (reportType === 'unit') {
+                // Birim bazlı rapor için UnitReportModal'ı aç
+                setIsReportModalOpen(true);
+            } else if (reportType === 'executive') {
+                // Yönetici özeti raporu oluştur
+                handleGenerateExecutiveReport();
+            }
+        }, [handleGenerateExecutiveReport]);
+
         const handleGenerateExecutiveReport = useCallback(() => {
+            if (filteredCosts.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor oluşturmak için en az bir maliyet kaydı olmalıdır.',
+                });
+                return;
+            }
             const formatDate = (dateString) => {
                 if (!dateString) return '-';
                 try {
@@ -514,6 +536,56 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     costs={filteredCosts}
                     onGenerate={handleGenerateReport}
                 />
+                
+                {/* Rapor Seçim Modalı */}
+                <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-primary" />
+                                Rapor Türü Seçin
+                            </DialogTitle>
+                            <DialogDescription>
+                                Oluşturmak istediğiniz rapor türünü seçin.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <button
+                                onClick={() => handleSelectReportType('unit')}
+                                className="flex items-start gap-4 p-4 rounded-lg border-2 border-border hover:border-primary hover:bg-accent/50 transition-all cursor-pointer text-left group"
+                            >
+                                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                                    <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-base mb-1 text-foreground">Birim Bazlı Rapor</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Seçtiğiniz birimler için detaylı maliyet raporu oluşturun. Birden fazla birim seçebilirsiniz.
+                                    </p>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => handleSelectReportType('executive')}
+                                className="flex items-start gap-4 p-4 rounded-lg border-2 border-border hover:border-primary hover:bg-accent/50 transition-all cursor-pointer text-left group"
+                            >
+                                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
+                                    <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-base mb-1 text-foreground">Yönetici Özeti Raporu</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        İç/dış hata analizi, en çok hata türleri, en maliyetli birimler/parçalar ve trend analizi içeren kapsamlı özet rapor.
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsReportSelectionModalOpen(false)}>
+                                İptal
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 <div className="flex flex-col gap-3 sm:gap-4">
                     <div className="min-w-0">
