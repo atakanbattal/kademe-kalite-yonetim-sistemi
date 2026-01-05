@@ -912,9 +912,9 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
     const timelineHtml = timeline && timeline.length > 0 ? `
         <div class="section">
             <h2 class="section-title">İşlem Geçmişi</h2>
-            <div style="background-color: #f9fafb; border-radius: 8px; padding: 15px; border-left: 3px solid #60a5fa;">
+            <div style="background-color: #f9fafb; border-radius: 8px; padding: 15px; border-left: 3px solid #60a5fa; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
                 ${timeline.map((event, index) => `
-                    <div style="margin-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; padding-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; border-bottom: ${index < timeline.length - 1 ? '1px dashed #d1d5db' : 'none'};">
+                    <div class="timeline-item" style="margin-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; padding-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; border-bottom: ${index < timeline.length - 1 ? '1px dashed #d1d5db' : 'none'};">
                         <p style="margin: 0 0 4px 0; font-size: 13px;"><strong>${eventTypeLabels[event.event_type] || event.event_type}</strong></p>
                         <p style="margin: 0 0 4px 0; font-size: 12px; color: #6b7280;">Tarih: ${formatDate(event.event_timestamp)}</p>
                         ${event.notes ? `<p style="margin: 0; font-size: 12px; color: #4b5563;">Not: ${event.notes}</p>` : ''}
@@ -928,10 +928,10 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
         <div class="section">
             <h2 class="section-title">Tespit Edilen Hatalar (${faults.length} Adet)</h2>
             ${faults.map((fault, index) => `
-                <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; padding: 15px; margin-bottom: ${index < faults.length - 1 ? '12px' : '0'};">
+                <div class="fault-card" style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; padding: 15px; margin-bottom: ${index < faults.length - 1 ? '12px' : '0'}; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <p style="margin: 0; font-size: 14px; font-weight: 600; color: #991b1b;">${fault.category?.name || 'Kategori Belirtilmemiş'}</p>
-                        <span style="background-color: ${fault.is_resolved ? '#86efac' : '#fde047'}; color: ${fault.is_resolved ? '#15803d' : '#713f12'}; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600;">
+                        <span style="background-color: ${fault.is_resolved ? '#86efac' : '#fde047'}; color: ${fault.is_resolved ? '#15803d' : '#713f12'}; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                             ${fault.is_resolved ? 'Çözüldü' : 'Bekliyor'}
                         </span>
                     </div>
@@ -949,7 +949,7 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
         </div>
     ` : `<div class="section">
             <h2 class="section-title">Tespit Edilen Hatalar</h2>
-            <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 8px; padding: 15px;">
+            <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 8px; padding: 15px; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                 <p style="margin: 0; color: #15803d; font-weight: 600; font-size: 14px;">Bu araçta hiç hata kaydı bulunmamaktadır.</p>
             </div>
         </div>`;
@@ -1015,6 +1015,7 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 .section {
                     margin-bottom: 25px;
                     page-break-inside: avoid;
+                    break-inside: avoid;
                 }
                 .section-title {
                     font-size: 16px;
@@ -1023,6 +1024,16 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                     border-bottom: 2px solid #bfdbfe;
                     padding-bottom: 5px;
                     margin-bottom: 15px;
+                    page-break-after: avoid;
+                }
+                .fault-card {
+                    page-break-inside: avoid;
+                    break-inside: avoid;
+                    margin-bottom: 12px;
+                }
+                .timeline-item {
+                    page-break-inside: avoid;
+                    break-inside: avoid;
                 }
                 .info-grid {
                     display: grid;
@@ -1057,8 +1068,37 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                     color: #9ca3af;
                 }
                 @media print {
-                    body { background-color: white; margin: 0; padding: 0; }
-                    .page { margin: 0; box-shadow: none; border: none; }
+                    * {
+                        print-color-adjust: exact;
+                        -webkit-print-color-adjust: exact;
+                        color-adjust: exact;
+                    }
+                    body { 
+                        background-color: white; 
+                        margin: 0; 
+                        padding: 0;
+                        print-color-adjust: exact;
+                        -webkit-print-color-adjust: exact;
+                    }
+                    .page { 
+                        margin: 0; 
+                        box-shadow: none; 
+                        border: none;
+                        print-color-adjust: exact;
+                        -webkit-print-color-adjust: exact;
+                    }
+                    .section {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    .fault-card {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    .timeline-item {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
                     @page {
                         size: A4;
                         margin: 20mm;
@@ -1136,7 +1176,7 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                 ${vehicle.notes ? `
                     <div class="section">
                         <h2 class="section-title">Araç Notları</h2>
-                        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 15px;">
+                        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 15px; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                             <p style="margin: 0; font-size: 13px; color: #92400e; white-space: pre-wrap;">${vehicle.notes}</p>
                         </div>
                     </div>
