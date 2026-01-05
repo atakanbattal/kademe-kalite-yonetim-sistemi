@@ -1202,22 +1202,10 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                     </div>
                 </div>
                 
-                ${equipment && (equipment.measurement_range || equipment.measurement_uncertainty) ? `
+                ${equipment && equipment.id ? `
                     <div class="section">
                         <h2 class="section-title">Ölçüm Ekipmanı Bilgileri</h2>
                         <div class="info-grid">
-                            ${equipment.measurement_range ? `
-                                <div class="info-item">
-                                    <span class="label">Ölçüm Aralığı</span>
-                                    <span class="value">${equipment.measurement_range}</span>
-                                </div>
-                            ` : ''}
-                            ${equipment.measurement_uncertainty ? `
-                                <div class="info-item">
-                                    <span class="label">Ölçüm Belirsizliği</span>
-                                    <span class="value">± ${equipment.measurement_uncertainty}</span>
-                                </div>
-                            ` : ''}
                             ${equipment.name ? `
                                 <div class="info-item">
                                     <span class="label">Ekipman Adı</span>
@@ -1228,6 +1216,24 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                                 <div class="info-item">
                                     <span class="label">Marka/Model</span>
                                     <span class="value">${equipment.brand_model}</span>
+                                </div>
+                            ` : ''}
+                            ${equipment.measurement_range ? `
+                                <div class="info-item">
+                                    <span class="label">Ölçüm Aralığı</span>
+                                    <span class="value">${equipment.measurement_range}</span>
+                                </div>
+                            ` : ''}
+                            ${equipment.measurement_uncertainty ? `
+                                <div class="info-item">
+                                    <span class="label">Ölçüm Belirsizliği</span>
+                                    <span class="value">${equipment.measurement_uncertainty.startsWith('±') ? equipment.measurement_uncertainty : `± ${equipment.measurement_uncertainty}`}</span>
+                                </div>
+                            ` : ''}
+                            ${equipment.assignment ? `
+                                <div class="info-item">
+                                    <span class="label">Zimmet Durumu</span>
+                                    <span class="value">${equipment.assignment.is_assigned ? `Zimmetli - ${equipment.assignment.personnel_name || '-'}` : 'Zimmetli Değil'}</span>
                                 </div>
                             ` : ''}
                         </div>

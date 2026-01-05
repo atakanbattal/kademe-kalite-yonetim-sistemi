@@ -266,8 +266,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     console.log('✅ Timeline yüklendi:', timelineData);
                     setTimeline(timelineData || []);
                     
-                    // Ekipman bilgilerini çek - araçla ilişkili kontrol planlarından veya genel ekipman listesinden
-                    // Önce araçla ilişkili kontrol planlarını kontrol et
+                    // Ekipman bilgilerini çek - araçla ilişkili kontrol planlarından
                     const { data: controlPlanData } = await supabase
                         .from('process_control_plans')
                         .select(`
@@ -289,23 +288,40 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     // Eğer kontrol planı varsa ve ekipman bilgisi varsa kullan
                     if (controlPlanData && controlPlanData.length > 0) {
                         const planItems = controlPlanData[0].control_plan_items || [];
-                        const equipmentIds = [...new Set(planItems.map(item => item.equipment_id).filter(Boolean))];
+                        const equipmentItems = planItems
+                            .filter(item => item.equipment && item.equipment.id)
+                            .map(item => item.equipment);
                         
-                        if (equipmentIds.length > 0) {
-                            const { data: equipmentData } = await supabase
-                                .from('equipments')
-                                .select('id, name, brand_model, measurement_range, measurement_uncertainty')
-                                .in('id', equipmentIds)
-                                .limit(1);
+                        if (equipmentItems.length > 0) {
+                            // İlk ekipmanı al
+                            const selectedEquipment = equipmentItems[0];
                             
-                            if (equipmentData && equipmentData.length > 0) {
-                                setEquipment(equipmentData[0]);
-                            }
+                            // Bu ekipmanın aktif zimmet bilgisini ayrı bir sorgu ile çek
+                            const { data: assignmentData } = await supabase
+                                .from('equipment_assignments')
+                                .select(`
+                                    is_active,
+                                    assigned_personnel_id,
+                                    personnel:personnel(full_name)
+                                `)
+                                .eq('equipment_id', selectedEquipment.id)
+                                .eq('is_active', true)
+                                .limit(1)
+                                .single();
+                            
+                            // Ekipman bilgisini zimmet bilgisiyle birlikte set et
+                            setEquipment({
+                                ...selectedEquipment,
+                                assignment: assignmentData ? {
+                                    personnel_name: assignmentData.personnel?.full_name || '-',
+                                    is_assigned: true
+                                } : {
+                                    personnel_name: null,
+                                    is_assigned: false
+                                }
+                            });
                         }
                     }
-                    
-                    // Eğer hala ekipman bulunamadıysa, genel ekipman listesinden ilk ekipmanı al (opsiyonel)
-                    // Bu kısım kaldırılabilir veya daha spesifik bir mantık eklenebilir
                 } catch (error) {
                     console.error('❌ Veri yükleme hatası:', error);
                     toast({
