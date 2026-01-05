@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText, TrendingUp, CheckCircle2, Printer } from 'lucide-react';
+import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText, TrendingUp, CheckCircle2, Printer, BarChart3, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useData } from '@/contexts/DataContext';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { useToast } from '@/components/ui/use-toast';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { supabase } from '@/lib/customSupabaseClient';
 
 import SupplierDashboard from '@/components/supplier/SupplierDashboard';
 import SupplierList from '@/components/supplier/SupplierList';
@@ -20,11 +25,13 @@ import DevelopmentAssessments from '@/components/supplier-development/Developmen
 
 
 const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) => {
-  const { suppliers, nonConformities, loading, refreshData } = useData();
+  const { suppliers, nonConformities, loading, refreshData, incomingInspections } = useData();
+  const { toast } = useToast();
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
   const [isFormModalOpen, setFormModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [isNewAlternative, setIsNewAlternative] = useState(false);
+  const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
   const [filters, setFilters] = useState({
     searchTerm: '',
     status: 'all',
@@ -88,6 +95,239 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
     setFormModalOpen(true);
   }, []);
 
+  const handleOpenReportModal = useCallback(() => {
+    if (suppliers.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Hata',
+        description: 'Rapor oluşturmak için en az bir tedarikçi kaydı olmalıdır.',
+      });
+      return;
+    }
+    setIsReportSelectionModalOpen(true);
+  }, [suppliers.length, toast]);
+
+  const handleGenerateExecutiveReport = useCallback(async () => {
+    if (suppliers.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Hata',
+        description: 'Rapor oluşturmak için en az bir tedarikçi kaydı olmalıdır.',
+      });
+      return;
+    }
+
+    const formatDate = (dateInput) => {
+      if (!dateInput) return '-';
+      try {
+        const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
+        if (isNaN(dateObj.getTime())) return '-';
+        return format(dateObj, 'dd.MM.yyyy', { locale: tr });
+      } catch {
+        return '-';
+      }
+    };
+
+    try {
+      // Tüm tedarikçi verilerini detaylı olarak çek
+      const { data: suppliersData, error: suppliersError } = await supabase
+        .from('suppliers')
+        .select(`
+          *,
+          supplier_non_conformities:non_conformities!non_conformities_supplier_id_fkey(*),
+          supplier_audit_plans:supplier_audit_plans(*),
+          supplier_certificates:supplier_certificates(*),
+          supplier_development_plans:supplier_development_plans(*)
+        `);
+
+      if (suppliersError) throw suppliersError;
+
+      const allSuppliers = suppliersData || suppliers;
+      const allNCs = nonConformities || [];
+      const allInspections = incomingInspections || [];
+
+      // Genel istatistikler
+      const totalSuppliers = allSuppliers.length;
+      const approvedSuppliers = allSuppliers.filter(s => s.status === 'Onaylı').length;
+      const alternativeSuppliers = allSuppliers.filter(s => s.status === 'Alternatif').length;
+      const suspendedSuppliers = allSuppliers.filter(s => s.status === 'Askıya Alınmış').length;
+      const rejectedSuppliers = allSuppliers.filter(s => s.status === 'Red').length;
+
+      // Uygunsuzluk analizi
+      const totalNCs = allNCs.filter(nc => nc.supplier_id).length;
+      const openNCs = allNCs.filter(nc => nc.supplier_id && nc.status === 'Açık').length;
+      const closedNCs = allNCs.filter(nc => nc.supplier_id && nc.status === 'Kapatıldı').length;
+      const ncBySupplier = {};
+      allNCs.filter(nc => nc.supplier_id).forEach(nc => {
+        if (!ncBySupplier[nc.supplier_id]) {
+          ncBySupplier[nc.supplier_id] = { total: 0, open: 0, closed: 0 };
+        }
+        ncBySupplier[nc.supplier_id].total++;
+        if (nc.status === 'Açık') ncBySupplier[nc.supplier_id].open++;
+        if (nc.status === 'Kapatıldı') ncBySupplier[nc.supplier_id].closed++;
+      });
+
+      // En çok uygunsuzluk olan tedarikçiler (Top 10)
+      const topNCSuppliers = Object.entries(ncBySupplier)
+        .map(([supplierId, data]) => {
+          const supplier = allSuppliers.find(s => s.id === supplierId);
+          return {
+            supplierName: supplier?.name || 'Bilinmeyen',
+            totalNCs: data.total,
+            openNCs: data.open,
+            closedNCs: data.closed
+          };
+        })
+        .sort((a, b) => b.totalNCs - a.totalNCs)
+        .slice(0, 10);
+
+      // Denetim analizi
+      const allAudits = allSuppliers.flatMap(s => (s.supplier_audit_plans || []).map(a => ({ ...a, supplierName: s.name })));
+      const completedAudits = allAudits.filter(a => a.status === 'Tamamlandı' && a.score !== null);
+      const plannedAudits = allAudits.filter(a => a.status === 'Planlandı');
+      const inProgressAudits = allAudits.filter(a => a.status === 'Devam Ediyor');
+      const averageAuditScore = completedAudits.length > 0
+        ? completedAudits.reduce((sum, a) => sum + (a.score || 0), 0) / completedAudits.length
+        : 0;
+
+      // En düşük skorlu tedarikçiler (Top 10)
+      const supplierScores = {};
+      allSuppliers.forEach(s => {
+        const completedAudits = (s.supplier_audit_plans || [])
+          .filter(a => a.status === 'Tamamlandı' && a.score !== null)
+          .sort((a, b) => new Date(b.actual_date || b.planned_date) - new Date(a.actual_date || a.planned_date));
+        if (completedAudits.length > 0) {
+          supplierScores[s.id] = {
+            name: s.name,
+            score: completedAudits[0].score,
+            grade: getGradeInfo(completedAudits[0].score).grade
+          };
+        }
+      });
+      const topLowScoreSuppliers = Object.values(supplierScores)
+        .sort((a, b) => a.score - b.score)
+        .slice(0, 10);
+
+      // Sertifika analizi
+      const allCertificates = allSuppliers.flatMap(s => (s.supplier_certificates || []).map(c => ({ ...c, supplierName: s.name })));
+      const expiringCerts = allCertificates.filter(c => {
+        if (!c.valid_until) return false;
+        const validUntil = new Date(c.valid_until);
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        return validUntil < thirtyDaysFromNow && validUntil > new Date();
+      });
+      const expiredCerts = allCertificates.filter(c => {
+        if (!c.valid_until) return false;
+        return new Date(c.valid_until) < new Date();
+      });
+
+      // Geliştirme planları analizi
+      const allDevPlans = allSuppliers.flatMap(s => (s.supplier_development_plans || []).map(p => ({ ...p, supplierName: s.name })));
+      const plannedDevPlans = allDevPlans.filter(p => p.current_status === 'Planlanan');
+      const inProgressDevPlans = allDevPlans.filter(p => p.current_status === 'Devam Eden');
+      const completedDevPlans = allDevPlans.filter(p => p.current_status === 'Tamamlanan');
+
+      // PPM analizi (giriş kalite kontrolünden)
+      const supplierPerformance = {};
+      allInspections.forEach(inspection => {
+        if (!inspection.supplier_id || !inspection.inspection_date) return;
+        const inspected = Number(inspection.quantity_received) || 0;
+        if (inspected === 0) return;
+        const defective = (Number(inspection.quantity_rejected) || 0) + (Number(inspection.quantity_conditional) || 0);
+        if (!supplierPerformance[inspection.supplier_id]) {
+          supplierPerformance[inspection.supplier_id] = { inspected: 0, defective: 0 };
+        }
+        supplierPerformance[inspection.supplier_id].inspected += inspected;
+        supplierPerformance[inspection.supplier_id].defective += defective;
+      });
+      const supplierPPM = Object.entries(supplierPerformance)
+        .map(([supplierId, data]) => {
+          const supplier = allSuppliers.find(s => s.id === supplierId);
+          const ppm = data.inspected > 0 ? Math.round((data.defective / data.inspected) * 1000000) : 0;
+          return {
+            supplierName: supplier?.name || 'Bilinmeyen',
+            ppm,
+            inspected: data.inspected,
+            defective: data.defective
+          };
+        })
+        .filter(item => item.ppm > 0)
+        .sort((a, b) => b.ppm - a.ppm)
+        .slice(0, 10);
+
+      const totalInspected = Object.values(supplierPerformance).reduce((sum, d) => sum + d.inspected, 0);
+      const totalDefective = Object.values(supplierPerformance).reduce((sum, d) => sum + d.defective, 0);
+      const overallPPM = totalInspected > 0 ? Math.round((totalDefective / totalInspected) * 1000000) : 0;
+
+      // Notlar analizi (DF açılan tedarikçiler)
+      const suppliersWithDF = {};
+      allNCs.filter(nc => nc.supplier_id && nc.nc_type === 'DF').forEach(nc => {
+        if (!suppliersWithDF[nc.supplier_id]) {
+          suppliersWithDF[nc.supplier_id] = {
+            supplierName: allSuppliers.find(s => s.id === nc.supplier_id)?.name || 'Bilinmeyen',
+            dfCount: 0,
+            openDFs: 0
+          };
+        }
+        suppliersWithDF[nc.supplier_id].dfCount++;
+        if (nc.status === 'Açık') suppliersWithDF[nc.supplier_id].openDFs++;
+      });
+      const topDFSuppliers = Object.values(suppliersWithDF)
+        .sort((a, b) => b.dfCount - a.dfCount)
+        .slice(0, 10);
+
+      // Rapor verisi
+      const reportData = {
+        id: `supplier-quality-executive-${Date.now()}`,
+        totalSuppliers,
+        approvedSuppliers,
+        alternativeSuppliers,
+        suspendedSuppliers,
+        rejectedSuppliers,
+        totalNCs,
+        openNCs,
+        closedNCs,
+        topNCSuppliers,
+        completedAudits: completedAudits.length,
+        plannedAudits: plannedAudits.length,
+        inProgressAudits: inProgressAudits.length,
+        averageAuditScore: Math.round(averageAuditScore * 100) / 100,
+        topLowScoreSuppliers,
+        expiringCerts: expiringCerts.length,
+        expiredCerts: expiredCerts.length,
+        plannedDevPlans: plannedDevPlans.length,
+        inProgressDevPlans: inProgressDevPlans.length,
+        completedDevPlans: completedDevPlans.length,
+        supplierPPM,
+        overallPPM,
+        topDFSuppliers,
+        reportDate: formatDate(new Date())
+      };
+
+      openPrintableReport(reportData, 'supplier_quality_executive_summary', true);
+
+      toast({
+        title: 'Başarılı',
+        description: 'Yönetici özeti raporu oluşturuldu.',
+      });
+    } catch (error) {
+      console.error('Rapor oluşturulurken hata:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Hata',
+        description: 'Rapor oluşturulurken hata oluştu: ' + (error.message || 'Bilinmeyen hata'),
+      });
+    }
+  }, [suppliers, nonConformities, incomingInspections, toast]);
+
+  const handleSelectReportType = useCallback((reportType) => {
+    setIsReportSelectionModalOpen(false);
+    if (reportType === 'executive') {
+      handleGenerateExecutiveReport();
+    }
+  }, [handleGenerateExecutiveReport]);
+
 
   return (
     <div className="space-y-6">
@@ -99,12 +339,51 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
         allSuppliers={suppliers}
         isNewAlternative={isNewAlternative}
       />
+
+      {/* Rapor Seçim Modalı */}
+      <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Rapor Türü Seçin
+            </DialogTitle>
+            <DialogDescription>
+              Oluşturmak istediğiniz rapor türünü seçin.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <button
+              onClick={() => handleSelectReportType('executive')}
+              className="flex items-start gap-4 p-4 rounded-lg border-2 border-border hover:border-primary hover:bg-accent/50 transition-all cursor-pointer text-left group"
+            >
+              <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
+                <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-base mb-1 text-foreground">Yönetici Özeti Raporu</h3>
+                <p className="text-sm text-muted-foreground">
+                  Tedarikçi performans analizi, uygunsuzluklar, denetimler, sertifikalar, geliştirme planları ve PPM analizi içeren kapsamlı özet rapor.
+                </p>
+              </div>
+            </button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReportSelectionModalOpen(false)}>
+              İptal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Tedarikçi Kalite Yönetimi</h1>
           <p className="text-muted-foreground mt-1">Tedarikçi performansınızı değerlendirin, denetleyin ve takip edin.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button onClick={handleOpenReportModal} variant="outline">
+            <FileText className="w-4 h-4 mr-2" /> Rapor Al
+          </Button>
           <Button onClick={handleAddNewSupplier}>
             <Plus className="w-4 h-4 mr-2" /> Yeni Tedarikçi
           </Button>

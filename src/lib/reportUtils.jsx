@@ -211,6 +211,8 @@ const getReportTitle = (record, type) => {
 			return 'Girdi Kalite Kontrol Yönetici Özeti Raporu';
 		case 'produced_vehicles_executive_summary':
 			return 'Üretilen Araçlar Yönetici Özeti Raporu';
+		case 'supplier_quality_executive_summary':
+			return 'Tedarikçi Kalite Yönetimi Yönetici Özeti Raporu';
 		default:
 			return 'Detaylı Rapor';
 	}
@@ -2390,6 +2392,189 @@ const generateListReportHtml = (record, type) => {
 			`;
 			
 			// Bu rapor için tablo gerekmediği için boş bırakıyoruz
+			headers = [];
+			rowsHtml = '';
+		}
+	} else if (type === 'supplier_quality_executive_summary') {
+		title = 'Tedarikçi Kalite Yönetimi Yönetici Özeti Raporu';
+		
+		// Veri kontrolü
+		if (!record || typeof record !== 'object') {
+			summaryHtml = '<p style="color: #dc2626; font-weight: 600;">Rapor verisi bulunamadı. Lütfen tekrar deneyin.</p>';
+			headers = [];
+			rowsHtml = '';
+		} else {
+			const formatNumber = (value) => (value || 0).toLocaleString('tr-TR');
+			const formatPercent = (value) => (value || 0).toFixed(2);
+			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+			
+			// Genel Özet Kartları
+			const summaryCardsHtml = `
+				<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+					<div style="background-color: #1e40af; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM TEDARİKÇİ</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalSuppliers)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Kayıtlı tedarikçi</div>
+					</div>
+					<div style="background-color: #059669; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #10b981;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">ONAYLI TEDARİKÇİ</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.approvedSuppliers)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent((record.approvedSuppliers / record.totalSuppliers) * 100)}</div>
+					</div>
+					<div style="background-color: #dc2626; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">AÇIK UYGUNSUZLUK</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.openNCs)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Toplam: ${formatNumber(record.totalNCs)}</div>
+					</div>
+				</div>
+				<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+					<div style="background-color: #2563eb; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #60a5fa;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TAMAMLANAN DENETİM</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.completedAudits)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Ortalama Skor: ${formatNumber(record.averageAuditScore)}</div>
+					</div>
+					<div style="background-color: #f59e0b; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #fbbf24;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">SERTİFİKA YAKLAŞAN</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.expiringCerts)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Süresi Dolan: ${formatNumber(record.expiredCerts)}</div>
+					</div>
+					<div style="background-color: #7c3aed; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #a78bfa;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">GENEL PPM</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.overallPPM)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Parts Per Million</div>
+					</div>
+				</div>
+			`;
+			
+			// En Çok Uygunsuzluk Olan Tedarikçiler Tablosu
+			const topNCSuppliersHtml = record.topNCSuppliers && record.topNCSuppliers.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Uygunsuzluk Olan Tedarikçiler (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #dc2626; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 40%; padding: 12px; text-align: left;">Tedarikçi</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Toplam Uygunsuzluk</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Açık</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Kapatıldı</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.topNCSuppliers.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.supplierName}</td>
+									<td style="padding: 12px; text-align: center; font-weight: 700; color: #dc2626;">${formatNumber(item.totalNCs)}</td>
+									<td style="padding: 12px; text-align: center; color: #f59e0b; font-weight: 600;">${formatNumber(item.openNCs)}</td>
+									<td style="padding: 12px; text-align: center; color: #059669; font-weight: 600;">${formatNumber(item.closedNCs)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// En Düşük Skorlu Tedarikçiler Tablosu
+			const topLowScoreSuppliersHtml = record.topLowScoreSuppliers && record.topLowScoreSuppliers.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Düşük Skorlu Tedarikçiler (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #f59e0b; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 50%; padding: 12px; text-align: left;">Tedarikçi</th>
+								<th style="width: 20%; padding: 12px; text-align: center;">Denetim Skoru</th>
+								<th style="width: 25%; padding: 12px; text-align: center;">Sınıf</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.topLowScoreSuppliers.map((item, idx) => {
+								const gradeColor = item.grade === 'A' ? '#059669' : item.grade === 'B' ? '#2563eb' : item.grade === 'C' ? '#f59e0b' : '#dc2626';
+								const gradeLabel = item.grade === 'A' ? 'A - Stratejik İş Ortağı' : item.grade === 'B' ? 'B - Güvenilir Tedarikçi' : item.grade === 'C' ? 'C - İzlemeye Alınacak' : 'D - İş Birliği Sonlandırılacak';
+								return `
+									<tr style="border-bottom: 1px solid #e5e7eb;">
+										<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+										<td style="padding: 12px; font-weight: 600; color: #111827;">${item.name}</td>
+										<td style="padding: 12px; text-align: center; font-weight: 700; color: ${gradeColor};">${formatNumber(item.score)}</td>
+										<td style="padding: 12px; text-align: center; color: ${gradeColor}; font-weight: 600;">${gradeLabel}</td>
+									</tr>
+								`;
+							}).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// En Yüksek PPM Tedarikçiler Tablosu
+			const supplierPPMHtml = record.supplierPPM && record.supplierPPM.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Yüksek PPM Tedarikçiler (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #7c3aed; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 40%; padding: 12px; text-align: left;">Tedarikçi</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">PPM</th>
+								<th style="width: 20%; padding: 12px; text-align: right;">Muayene Edilen</th>
+								<th style="width: 20%; padding: 12px; text-align: right;">Hatalı</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.supplierPPM.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.supplierName}</td>
+									<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatNumber(item.ppm)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">${formatNumber(item.inspected)}</td>
+									<td style="padding: 12px; text-align: right; color: #dc2626; font-weight: 600;">${formatNumber(item.defective)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// DF Açılan Tedarikçiler Tablosu
+			const topDFSuppliersHtml = record.topDFSuppliers && record.topDFSuppliers.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">DF Açılan Tedarikçiler (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #dc2626; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 50%; padding: 12px; text-align: left;">Tedarikçi</th>
+								<th style="width: 20%; padding: 12px; text-align: center;">Toplam DF</th>
+								<th style="width: 25%; padding: 12px; text-align: center;">Açık DF</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.topDFSuppliers.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.supplierName}</td>
+									<td style="padding: 12px; text-align: center; font-weight: 700; color: #dc2626;">${formatNumber(item.dfCount)}</td>
+									<td style="padding: 12px; text-align: center; color: #f59e0b; font-weight: 600;">${formatNumber(item.openDFs)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			summaryHtml = `
+				<div style="margin-bottom: 25px;">
+					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
+					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Toplam Tedarikçi:</strong> ${formatNumber(record.totalSuppliers)}</p>
+					<p style="font-size: 14px; color: #6b7280;"><strong>Onaylı Tedarikçi:</strong> ${formatNumber(record.approvedSuppliers)} | Alternatif: ${formatNumber(record.alternativeSuppliers)} | Askıya Alınmış: ${formatNumber(record.suspendedSuppliers)} | Reddedildi: ${formatNumber(record.rejectedSuppliers)}</p>
+				</div>
+				${summaryCardsHtml}
+				${topNCSuppliersHtml}
+				${topLowScoreSuppliersHtml}
+				${supplierPPMHtml}
+				${topDFSuppliersHtml}
+			`;
+			
 			headers = [];
 			rowsHtml = '';
 		}
@@ -4788,7 +4973,7 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'supplier_list' || type === 'supplier_dashboard') {
 		reportContentHtml = generateListReportHtml(record, type);
-	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary') {
+	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
