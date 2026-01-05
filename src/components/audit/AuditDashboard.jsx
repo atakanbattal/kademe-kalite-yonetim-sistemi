@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
     import { motion } from 'framer-motion';
     import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
     import { AlertTriangle, ListChecks, CheckCircle, Calendar } from 'lucide-react';
@@ -18,11 +18,18 @@ import React, { useMemo, useState } from 'react';
         </Card>
     );
 
-    const AuditDashboard = ({ audits, findings, loading }) => {
+    const AuditDashboard = ({ audits, findings, loading, onViewAudit, onDateRangeChange }) => {
         const [dateRange, setDateRange] = useState({
             from: startOfMonth(new Date()),
             to: endOfMonth(new Date()),
         });
+
+        // Tarih değiştiğinde parent component'e bildir
+        useEffect(() => {
+            if (onDateRangeChange) {
+                onDateRangeChange(dateRange);
+            }
+        }, [dateRange, onDateRangeChange]);
 
     const analytics = useMemo(() => {
         const filteredAudits = !dateRange || !dateRange.from ? audits : audits.filter(audit => {

@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid, Legend } from 'recharts';
-import { format, startOfToday, addDays } from 'date-fns';
+import { format, startOfToday, addDays, startOfMonth, endOfMonth, parseISO, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -25,11 +25,16 @@ const KpiCard = ({ title, value, subtext }) => (
 
 const PrintableInternalAuditDashboard = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { session } = useAuth();
     const [loading, setLoading] = useState(true);
     const [audits, setAudits] = useState([]);
     const [auditFindings, setAuditFindings] = useState([]);
     const [nonConformities, setNonConformities] = useState([]);
+    
+    // URL parametrelerinden tarih filtresini al
+    const filterMonth = searchParams.get('month'); // YYYY-MM formatında
+    const filterYear = searchParams.get('year'); // YYYY formatında
 
     useEffect(() => {
         if (!session) {
@@ -40,26 +45,57 @@ const PrintableInternalAuditDashboard = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Tüm tetkikleri çek (department ve audit_standard ile)
-                const { data: auditsData, error: auditsError } = await supabase
+                // Tarih filtresi için query oluştur
+                let auditsQuery = supabase
                     .from('audits')
                     .select(`
                         *,
                         department:cost_settings(id, unit_name),
                         audit_standard:audit_standards!audit_standard_id(id, code, name)
-                    `)
+                    `);
+                
+                // Ay filtresi varsa uygula
+                if (filterMonth) {
+                    const monthStart = startOfMonth(parseISO(`${filterMonth}-01`));
+                    const monthEnd = endOfMonth(parseISO(`${filterMonth}-01`));
+                    auditsQuery = auditsQuery
+                        .gte('audit_date', format(monthStart, 'yyyy-MM-dd'))
+                        .lte('audit_date', format(monthEnd, 'yyyy-MM-dd'));
+                } else if (filterYear) {
+                    // Sadece yıl filtresi varsa
+                    const yearStart = startOfMonth(parseISO(`${filterYear}-01-01`));
+                    const yearEnd = endOfMonth(parseISO(`${filterYear}-12-01`));
+                    auditsQuery = auditsQuery
+                        .gte('audit_date', format(yearStart, 'yyyy-MM-dd'))
+                        .lte('audit_date', format(yearEnd, 'yyyy-MM-dd'));
+                }
+                
+                const { data: auditsData, error: auditsError } = await auditsQuery
                     .order('audit_date', { ascending: false });
 
                 if (auditsError) throw auditsError;
 
                 // Tüm bulguları çek (non_conformity ile)
-                const { data: findingsData, error: findingsError } = await supabase
+                // Önce audit ID'lerini al
+                const auditIds = auditsData?.map(a => a.id) || [];
+                
+                let findingsQuery = supabase
                     .from('audit_findings')
                     .select(`
                         *,
                         audit:audits(id, report_number, title, audit_date, department:cost_settings(unit_name), audit_standard:audit_standards!audit_standard_id(code, name)),
                         non_conformity:non_conformities!source_finding_id(id, nc_number, status, type, created_at, due_at, due_date, closed_at)
-                    `)
+                    `);
+                
+                // Filtrelenmiş audit'lere ait bulguları al
+                if (auditIds.length > 0) {
+                    findingsQuery = findingsQuery.in('audit_id', auditIds);
+                } else if (filterMonth || filterYear) {
+                    // Eğer filtre var ama audit yoksa boş array döndür
+                    findingsQuery = findingsQuery.eq('audit_id', '00000000-0000-0000-0000-000000000000'); // Geçersiz ID ile boş sonuç
+                }
+                
+                const { data: findingsData, error: findingsError } = await findingsQuery
                     .order('created_at', { ascending: false });
 
                 if (findingsError) throw findingsError;
@@ -83,7 +119,7 @@ const PrintableInternalAuditDashboard = () => {
         };
 
         fetchData();
-    }, []);
+    }, [filterMonth, filterYear]);
 
     useEffect(() => {
         if (!loading) {
@@ -339,9 +375,9 @@ const PrintableInternalAuditDashboard = () => {
                     .kpi-subtext { font-size: 12px; color: #888; margin-top: 8px; }
                     .chart-container { height: 350px; margin-top: 20px; }
                     .chart-small { height: 280px; margin-top: 20px; }
-                    .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-                    .data-table th { background-color: #1F3A5F; color: white; padding: 12px 8px; text-align: left; font-weight: 600; border: 1px solid #ddd; }
-                    .data-table td { padding: 10px 8px; border: 1px solid #ddd; }
+                    .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
+                    .data-table th { background-color: #1F3A5F; color: white; padding: 10px 6px; text-align: left; font-weight: 600; border: 1px solid #ddd; font-size: 10px; }
+                    .data-table td { padding: 8px 6px; border: 1px solid #ddd; word-wrap: break-word; }
                     .data-table tr:nth-child(even) { background-color: #f9fafb; }
                     .data-table tr:hover { background-color: #f0f2f5; }
                     .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; }
@@ -353,16 +389,33 @@ const PrintableInternalAuditDashboard = () => {
                     @media print {
                         body { background-color: white; }
                         .report-container { margin: 0; padding: 20px; box-shadow: none; border: none; max-width: 100%; }
-                        @page { size: A4 landscape; margin: 10mm; }
+                        @page { size: A4 portrait; margin: 15mm; }
                         .report-section { page-break-inside: avoid; }
-                        .data-table { font-size: 10px; }
-                        .data-table th, .data-table td { padding: 6px 4px; }
+                        .data-table { font-size: 9px; }
+                        .data-table th, .data-table td { padding: 5px 3px; }
+                        .chart-container { height: 300px; }
+                        .chart-small { height: 250px; }
                     }
                 `}</style>
 
                 <header className="report-header">
                     <h1>İç Tetkik Yönetimi Detaylı Genel Raporu</h1>
                     <p>Oluşturma Tarihi: {format(startOfToday(), 'dd MMMM yyyy', { locale: tr })}</p>
+                    {filterMonth && (
+                        <p style={{ fontSize: '14px', color: '#1F3A5F', marginTop: '5px', fontWeight: 600 }}>
+                            Filtre: {format(parseISO(`${filterMonth}-01`), 'MMMM yyyy', { locale: tr })}
+                        </p>
+                    )}
+                    {filterYear && !filterMonth && (
+                        <p style={{ fontSize: '14px', color: '#1F3A5F', marginTop: '5px', fontWeight: 600 }}>
+                            Filtre: {filterYear} Yılı
+                        </p>
+                    )}
+                    {!filterMonth && !filterYear && (
+                        <p style={{ fontSize: '14px', color: '#888', marginTop: '5px' }}>
+                            Tüm Zamanlar
+                        </p>
+                    )}
                     <p style={{ fontSize: '14px', color: '#888', marginTop: '5px' }}>
                         Kademe A.Ş. Kalite Yönetim Sistemi
                     </p>
@@ -403,23 +456,30 @@ const PrintableInternalAuditDashboard = () => {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '40%' }}>Tetkik Türü</th>
-                                    <th style={{ width: '15%', textAlign: 'center' }}>Tetkik Sayısı</th>
-                                    <th style={{ width: '15%', textAlign: 'center' }}>Toplam Bulgu</th>
-                                    <th style={{ width: '15%', textAlign: 'center' }}>Açık Bulgu</th>
-                                    <th style={{ width: '15%', textAlign: 'center' }}>Kapatılan Bulgu</th>
+                                    <th style={{ width: '35%' }}>Tetkik Türü</th>
+                                    <th style={{ width: '13%', textAlign: 'center' }}>Tetkik Sayısı</th>
+                                    <th style={{ width: '13%', textAlign: 'center' }}>Toplam Bulgu</th>
+                                    <th style={{ width: '13%', textAlign: 'center' }}>Açık Bulgu</th>
+                                    <th style={{ width: '13%', textAlign: 'center' }}>Kapatılan Bulgu</th>
+                                    <th style={{ width: '13%', textAlign: 'center' }}>Tamamlanma %</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {analytics.auditTypesData.map((item, idx) => (
-                                    <tr key={idx}>
-                                        <td style={{ fontWeight: 600 }}>{item.name}</td>
-                                        <td style={{ textAlign: 'center' }}>{item.count}</td>
-                                        <td style={{ textAlign: 'center' }}>{item.findings}</td>
-                                        <td style={{ textAlign: 'center', color: '#dc2626', fontWeight: 600 }}>{item.openFindings}</td>
-                                        <td style={{ textAlign: 'center', color: '#059669', fontWeight: 600 }}>{item.findings - item.openFindings}</td>
-                                    </tr>
-                                ))}
+                                {analytics.auditTypesData.map((item, idx) => {
+                                    const completionRate = item.findings > 0 
+                                        ? Math.round(((item.findings - item.openFindings) / item.findings) * 100) 
+                                        : 0;
+                                    return (
+                                        <tr key={idx}>
+                                            <td style={{ fontWeight: 600, fontSize: '10px' }}>{item.name}</td>
+                                            <td style={{ textAlign: 'center' }}>{item.count}</td>
+                                            <td style={{ textAlign: 'center' }}>{item.findings}</td>
+                                            <td style={{ textAlign: 'center', color: '#dc2626', fontWeight: 600 }}>{item.openFindings}</td>
+                                            <td style={{ textAlign: 'center', color: '#059669', fontWeight: 600 }}>{item.findings - item.openFindings}</td>
+                                            <td style={{ textAlign: 'center', fontWeight: 600 }}>{completionRate}%</td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     ) : (
@@ -472,32 +532,38 @@ const PrintableInternalAuditDashboard = () => {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '12%' }}>DF No</th>
-                                    <th style={{ width: '15%' }}>Durum</th>
-                                    <th style={{ width: '18%' }}>Birim</th>
-                                    <th style={{ width: '15%' }}>Tetkik Rapor No</th>
+                                    <th style={{ width: '10%' }}>DF No</th>
+                                    <th style={{ width: '12%' }}>Durum</th>
+                                    <th style={{ width: '15%' }}>Birim</th>
+                                    <th style={{ width: '13%' }}>Tetkik Rapor No</th>
                                     <th style={{ width: '12%' }}>Açılış Tarihi</th>
                                     <th style={{ width: '12%' }}>Termin Tarihi</th>
-                                    <th style={{ width: '16%' }}>Kapanış Tarihi</th>
+                                    <th style={{ width: '12%' }}>Kapanış Tarihi</th>
+                                    <th style={{ width: '14%' }}>Gecikme Durumu</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {analytics.dfData.map((item, idx) => {
                                     const statusClass = item.status === 'Kapatıldı' ? 'status-closed' : 
                                                       item.status === 'Açık' ? 'status-open' : 'status-planned';
+                                    const isOverdue = item.status === 'Açık' && item.dueDate !== '-' && 
+                                                      new Date(item.dueDate.split('.').reverse().join('-')) < new Date();
                                     return (
                                         <tr key={idx}>
-                                            <td style={{ fontWeight: 600 }}>{item.ncNumber}</td>
+                                            <td style={{ fontWeight: 600, fontSize: '10px' }}>{item.ncNumber}</td>
                                             <td>
                                                 <span className={`status-badge ${statusClass}`}>
                                                     {item.status}
                                                 </span>
                                             </td>
-                                            <td>{item.department}</td>
-                                            <td>{item.auditReportNumber}</td>
+                                            <td style={{ fontSize: '10px' }}>{item.department}</td>
+                                            <td style={{ fontSize: '10px' }}>{item.auditReportNumber}</td>
                                             <td>{item.createdDate}</td>
-                                            <td>{item.dueDate}</td>
+                                            <td style={{ color: isOverdue ? '#dc2626' : 'inherit', fontWeight: isOverdue ? 600 : 'normal' }}>{item.dueDate}</td>
                                             <td>{item.closedDate}</td>
+                                            <td style={{ color: isOverdue ? '#dc2626' : '#059669', fontWeight: 600, fontSize: '10px' }}>
+                                                {isOverdue ? 'Gecikmiş' : item.status === 'Kapatıldı' ? 'Tamamlandı' : 'Beklemede'}
+                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -515,36 +581,43 @@ const PrintableInternalAuditDashboard = () => {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '10%' }}>Tetkik Rapor No</th>
-                                    <th style={{ width: '12%' }}>Tetkik Başlığı</th>
-                                    <th style={{ width: '10%' }}>Tetkik Tarihi</th>
-                                    <th style={{ width: '12%' }}>Birim</th>
-                                    <th style={{ width: '15%' }}>Tetkik Türü</th>
-                                    <th style={{ width: '20%' }}>Bulgu Açıklaması</th>
+                                    <th style={{ width: '9%' }}>Tetkik Rapor No</th>
+                                    <th style={{ width: '10%' }}>Tetkik Başlığı</th>
+                                    <th style={{ width: '8%' }}>Tetkik Tarihi</th>
+                                    <th style={{ width: '10%' }}>Birim</th>
+                                    <th style={{ width: '13%' }}>Tetkik Türü</th>
+                                    <th style={{ width: '18%' }}>Bulgu Açıklaması</th>
                                     <th style={{ width: '8%' }}>Uygunsuzluk No</th>
                                     <th style={{ width: '8%' }}>Durum</th>
-                                    <th style={{ width: '5%' }}>Tip</th>
+                                    <th style={{ width: '6%' }}>Tip</th>
+                                    <th style={{ width: '10%' }}>Açılış/Kapanış</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {analytics.findingsDetails.map((item, idx) => {
                                     const statusClass = item.ncStatus === 'Kapatıldı' ? 'status-closed' : 
                                                       item.ncStatus === 'Açık' ? 'status-open' : 'status-planned';
+                                    const dateInfo = item.ncStatus === 'Kapatıldı' && item.ncClosedDate !== '-' 
+                                        ? `Kapanış: ${item.ncClosedDate}`
+                                        : item.ncStatus === 'Açık' && item.ncCreatedDate !== '-'
+                                        ? `Açılış: ${item.ncCreatedDate}`
+                                        : '-';
                                     return (
                                         <tr key={idx}>
-                                            <td style={{ fontWeight: 600 }}>{item.auditReportNumber}</td>
-                                            <td style={{ fontSize: '11px' }}>{item.auditTitle}</td>
-                                            <td>{item.auditDate}</td>
-                                            <td>{item.department}</td>
-                                            <td style={{ fontSize: '11px' }}>{item.auditStandard}</td>
-                                            <td style={{ fontSize: '11px' }}>{item.findingDescription}</td>
-                                            <td style={{ fontWeight: 600 }}>{item.ncNumber}</td>
+                                            <td style={{ fontWeight: 600, fontSize: '10px' }}>{item.auditReportNumber}</td>
+                                            <td style={{ fontSize: '9px' }}>{item.auditTitle}</td>
+                                            <td style={{ fontSize: '9px' }}>{item.auditDate}</td>
+                                            <td style={{ fontSize: '9px' }}>{item.department}</td>
+                                            <td style={{ fontSize: '9px' }}>{item.auditStandard}</td>
+                                            <td style={{ fontSize: '9px' }}>{item.findingDescription}</td>
+                                            <td style={{ fontWeight: 600, fontSize: '10px' }}>{item.ncNumber}</td>
                                             <td>
-                                                <span className={`status-badge ${statusClass}`}>
+                                                <span className={`status-badge ${statusClass}`} style={{ fontSize: '9px' }}>
                                                     {item.ncStatus}
                                                 </span>
                                             </td>
-                                            <td>{item.ncType}</td>
+                                            <td style={{ fontSize: '9px' }}>{item.ncType}</td>
+                                            <td style={{ fontSize: '9px' }}>{dateInfo}</td>
                                         </tr>
                                     );
                                 })}

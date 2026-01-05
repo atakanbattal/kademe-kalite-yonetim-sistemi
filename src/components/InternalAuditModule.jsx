@@ -21,6 +21,7 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
     const [editingAudit, setEditingAudit] = useState(null);
     const [isQuestionBankModalOpen, setIsQuestionBankModalOpen] = useState(false);
+    const [reportDateRange, setReportDateRange] = useState(null);
 
     const handleViewAudit = (auditId) => {
         setSelectedAuditId(auditId);
@@ -87,7 +88,20 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
                         <Plus className="w-4 h-4 mr-2" />
                         Yeni Tetkik Planı
                     </Button>
-                    <Button onClick={() => window.open('/print/internal-audit-dashboard?autoprint=true', '_blank')}>
+                    <Button onClick={() => {
+                        let url = '/print/internal-audit-dashboard?autoprint=true';
+                        if (reportDateRange?.from && reportDateRange?.to) {
+                            const fromDate = new Date(reportDateRange.from);
+                            const toDate = new Date(reportDateRange.to);
+                            // Aynı ay içindeyse ay filtresi, aynı yıl içindeyse yıl filtresi
+                            if (fromDate.getMonth() === toDate.getMonth() && fromDate.getFullYear() === toDate.getFullYear()) {
+                                url += `&month=${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}`;
+                            } else if (fromDate.getFullYear() === toDate.getFullYear()) {
+                                url += `&year=${fromDate.getFullYear()}`;
+                            }
+                        }
+                        window.open(url, '_blank');
+                    }}>
                         <Printer className="w-4 h-4 mr-2" />
                         Genel Rapor
                     </Button>
@@ -101,7 +115,13 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
                     <TabsTrigger value="findings">Bulgular</TabsTrigger>
                 </TabsList>
                 <TabsContent value="dashboard">
-                    <AuditDashboard audits={audits} findings={auditFindings} loading={loading} onViewAudit={handleViewAudit} />
+                    <AuditDashboard 
+                        audits={audits} 
+                        findings={auditFindings} 
+                        loading={loading} 
+                        onViewAudit={handleViewAudit}
+                        onDateRangeChange={setReportDateRange}
+                    />
                 </TabsContent>
                 <TabsContent value="list">
                     <AuditList audits={audits} loading={loading} onViewAudit={handleViewAudit} onEditAudit={handleEditAudit} refreshData={refreshData} onPrintReport={handlePrintReport} />
