@@ -590,15 +590,16 @@ const PrintableInternalAuditDashboard = () => {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '10%' }}>Tetkik Rapor No</th>
-                                    <th style={{ width: '15%' }}>Tetkik Başlığı</th>
-                                    <th style={{ width: '8%' }}>Tetkik Tarihi</th>
-                                    <th style={{ width: '6%' }}>Tetkik Türü Kodu</th>
-                                    <th style={{ width: '12%' }}>Tetkik Türü Adı</th>
-                                    <th style={{ width: '25%' }}>Bulgu Açıklaması</th>
-                                    <th style={{ width: '10%' }}>Uygunsuzluk No / Durum</th>
-                                    <th style={{ width: '6%' }}>Tip</th>
-                                    <th style={{ width: '8%' }}>Uygunsuzluk Tarihi</th>
+                                    <th style={{ width: '9%' }}>Tetkik Rapor No</th>
+                                    <th style={{ width: '14%' }}>Tetkik Başlığı</th>
+                                    <th style={{ width: '7%' }}>Tetkik Tarihi</th>
+                                    <th style={{ width: '5%' }}>Tetkik Türü Kodu</th>
+                                    <th style={{ width: '11%' }}>Tetkik Türü Adı</th>
+                                    <th style={{ width: '22%' }}>Bulgu Açıklaması</th>
+                                    <th style={{ width: '9%' }}>Uygunsuzluk No / Durum</th>
+                                    <th style={{ width: '5%' }}>Tip</th>
+                                    <th style={{ width: '8%' }}>Birim</th>
+                                    <th style={{ width: '10%' }}>Uygunsuzluk Tarihi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -630,6 +631,7 @@ const PrintableInternalAuditDashboard = () => {
                                                 )}
                                             </td>
                                             <td>{item.ncType}</td>
+                                            <td>{item.department}</td>
                                             <td>{item.ncCreatedDate}</td>
                                         </tr>
                                     );
