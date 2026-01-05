@@ -369,11 +369,93 @@ const generatePrintableReport = (record) => {
                     color: #9ca3af;
                 }
                 @media print {
-                    body { background-color: white; margin: 0; padding: 0; }
-                    .page { margin: 0; box-shadow: none; border: none; }
+                    /* Print için renkleri koru */
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
+                    }
+
+                    body { 
+                        background-color: white !important; 
+                        margin: 0 !important; 
+                        padding: 0 !important;
+                        width: 210mm !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+                    
+                    .page { 
+                        margin: 0 !important; 
+                        box-shadow: none !important; 
+                        border: none !important;
+                        width: 100% !important;
+                        padding: 0 !important;
+                    }
+                    
                     @page {
-                        size: A4;
-                        margin: 20mm;
+                        size: A4 portrait;
+                        margin: 12mm;
+                    }
+
+                    /* Section'lar bölünmesin */
+                    .section {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+
+                    .section-title {
+                        page-break-after: avoid;
+                        break-after: avoid;
+                    }
+
+                    /* Step section'lar bölünmesin */
+                    .step-section {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+
+                    /* Info grid ve items bölünmesin */
+                    .info-grid {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+
+                    .info-item {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+
+                    /* Problem description bölünmesin */
+                    .problem-description {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+
+                    /* Image grid ve images bölünmesin */
+                    .image-grid {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+
+                    .image-container {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+
+                    /* Footer bölünmesin */
+                    .footer {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+
+                    /* Link URL'lerini gizle */
+                    a:link:after,
+                    a:visited:after,
+                    a[href]:after,
+                    a[href]::after {
+                        content: "" !important;
+                        display: none !important;
                     }
                 }
             </style>
