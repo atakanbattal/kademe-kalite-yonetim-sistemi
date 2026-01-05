@@ -4,6 +4,11 @@ import { Helmet } from 'react-helmet';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { FileText, BarChart3 } from 'lucide-react';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import IncomingInspectionList from '@/components/incoming-quality/IncomingInspectionList';
 import IncomingInspectionFormModal from '@/components/incoming-quality/IncomingInspectionFormModal';
 import IncomingQualityDashboard from '@/components/incoming-quality/IncomingQualityDashboard';
@@ -47,6 +52,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [isStockRiskDetailOpen, setIsStockRiskDetailOpen] = useState(false);
     const [selectedInspection, setSelectedInspection] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
+    const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
 
     const [filters, setFilters] = useState({
         searchTerm: '',
@@ -286,6 +292,268 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         setCurrentPage(newPage);
     };
 
+    // Filtrelenmiş muayene verilerini al
+    const filteredInspections = useMemo(() => {
+        return dashboardData || [];
+    }, [dashboardData]);
+
+    // Tarih aralığı bilgisi
+    const dateRange = useMemo(() => {
+        const from = filters.dateRange?.from;
+        const to = filters.dateRange?.to;
+        if (from && to) {
+            return {
+                label: `${format(from, 'dd.MM.yyyy', { locale: tr })} - ${format(to, 'dd.MM.yyyy', { locale: tr })}`,
+                startDate: from,
+                endDate: to
+            };
+        }
+        return { label: 'Tüm Zamanlar', startDate: null, endDate: null };
+    }, [filters.dateRange]);
+
+    const handleOpenReportModal = useCallback(() => {
+        if (filteredInspections.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Rapor oluşturmak için en az bir muayene kaydı olmalıdır.',
+            });
+            return;
+        }
+        setIsReportSelectionModalOpen(true);
+    }, [filteredInspections, toast]);
+
+    const handleGenerateExecutiveReport = useCallback(async () => {
+        if (filteredInspections.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Rapor oluşturmak için en az bir muayene kaydı olmalıdır.',
+            });
+            return;
+        }
+
+        const formatDate = (dateString) => {
+            if (!dateString) return '-';
+            try {
+                return format(new Date(dateString), 'dd.MM.yyyy', { locale: tr });
+            } catch {
+                return '-';
+            }
+        };
+
+        try {
+            // Tüm muayene kayıtlarını detaylı olarak çek
+            const inspectionIds = filteredInspections.map(i => i.id);
+            const { data: fullInspections, error: fetchError } = await supabase
+                .from('incoming_inspections')
+                .select('*, supplier:suppliers(id, name)')
+                .in('id', inspectionIds);
+
+            if (fetchError) throw fetchError;
+
+            // DF/8D kayıtlarını çek (tedarikçilere açılan)
+            const { data: deviations, error: devError } = await supabase
+                .from('non_conformities')
+                .select('*, supplier:suppliers(id, name)')
+                .in('source', ['incoming_inspection', 'supplier'])
+                .not('supplier_id', 'is', null);
+
+            // Tedarikçi bazlı DF sayıları
+            const dfBySupplier = {};
+            (deviations || []).forEach(dev => {
+                if (dev.supplier_id && dev.supplier?.name) {
+                    const supplierName = dev.supplier.name;
+                    if (!dfBySupplier[supplierName]) {
+                        dfBySupplier[supplierName] = { count: 0, total: 0 };
+                    }
+                    dfBySupplier[supplierName].count += 1;
+                }
+            });
+
+            // Genel istatistikler
+            const totalInspections = filteredInspections.length;
+            const totalProductsInspected = filteredInspections.reduce((sum, inv) => sum + (inv.quantity_received || 0), 0);
+            const totalProductsRejected = filteredInspections.reduce((sum, inv) => sum + (inv.quantity_rejected || 0), 0);
+            const totalProductsConditional = filteredInspections.reduce((sum, inv) => sum + (inv.quantity_conditional || 0), 0);
+            const totalProductsAccepted = totalProductsInspected - totalProductsRejected - totalProductsConditional;
+
+            // Karar bazlı analiz
+            const decisions = {
+                'Kabul': { count: 0, quantity: 0 },
+                'Şartlı Kabul': { count: 0, quantity: 0 },
+                'Ret': { count: 0, quantity: 0 },
+                'Beklemede': { count: 0, quantity: 0 }
+            };
+
+            filteredInspections.forEach(inv => {
+                const decision = inv.decision || 'Beklemede';
+                if (decisions[decision]) {
+                    decisions[decision].count += 1;
+                    decisions[decision].quantity += inv.quantity_received || 0;
+                }
+            });
+
+            // Tedarikçi bazlı analiz
+            const bySupplier = {};
+            filteredInspections.forEach(inv => {
+                const supplierName = inv.supplier_name || 'Belirtilmemiş';
+                if (!bySupplier[supplierName]) {
+                    bySupplier[supplierName] = {
+                        count: 0,
+                        totalReceived: 0,
+                        totalRejected: 0,
+                        totalConditional: 0,
+                        decisions: { 'Kabul': 0, 'Şartlı Kabul': 0, 'Ret': 0, 'Beklemede': 0 },
+                        dfCount: dfBySupplier[supplierName]?.count || 0
+                    };
+                }
+                bySupplier[supplierName].count += 1;
+                bySupplier[supplierName].totalReceived += inv.quantity_received || 0;
+                bySupplier[supplierName].totalRejected += inv.quantity_rejected || 0;
+                bySupplier[supplierName].totalConditional += inv.quantity_conditional || 0;
+                const decision = inv.decision || 'Beklemede';
+                if (bySupplier[supplierName].decisions[decision] !== undefined) {
+                    bySupplier[supplierName].decisions[decision] += 1;
+                }
+            });
+
+            const topSuppliers = Object.entries(bySupplier)
+                .map(([name, data]) => ({
+                    name,
+                    count: data.count,
+                    totalReceived: data.totalReceived,
+                    totalRejected: data.totalRejected,
+                    totalConditional: data.totalConditional,
+                    rejectionRate: data.totalReceived > 0 ? ((data.totalRejected / data.totalReceived) * 100) : 0,
+                    conditionalRate: data.totalReceived > 0 ? ((data.totalConditional / data.totalReceived) * 100) : 0,
+                    decisions: data.decisions,
+                    dfCount: data.dfCount
+                }))
+                .sort((a, b) => b.totalRejected - a.totalRejected)
+                .slice(0, 10);
+
+            // Parça bazlı analiz
+            const byPart = {};
+            filteredInspections.forEach(inv => {
+                const partCode = inv.part_code || 'Belirtilmemiş';
+                const partName = inv.part_name || '-';
+                if (!byPart[partCode]) {
+                    byPart[partCode] = {
+                        partName,
+                        count: 0,
+                        totalReceived: 0,
+                        totalRejected: 0,
+                        totalConditional: 0
+                    };
+                }
+                byPart[partCode].count += 1;
+                byPart[partCode].totalReceived += inv.quantity_received || 0;
+                byPart[partCode].totalRejected += inv.quantity_rejected || 0;
+                byPart[partCode].totalConditional += inv.quantity_conditional || 0;
+            });
+
+            const topParts = Object.entries(byPart)
+                .map(([code, data]) => ({
+                    partCode: code,
+                    partName: data.partName,
+                    count: data.count,
+                    totalReceived: data.totalReceived,
+                    totalRejected: data.totalRejected,
+                    totalConditional: data.totalConditional,
+                    rejectionRate: data.totalReceived > 0 ? ((data.totalRejected / data.totalReceived) * 100) : 0
+                }))
+                .sort((a, b) => b.totalRejected - a.totalRejected)
+                .slice(0, 10);
+
+            // Aylık trend analizi
+            const monthlyTrends = {};
+            filteredInspections.forEach(inv => {
+                const monthKey = format(new Date(inv.inspection_date), 'yyyy-MM', { locale: tr });
+                if (!monthlyTrends[monthKey]) {
+                    monthlyTrends[monthKey] = {
+                        count: 0,
+                        totalReceived: 0,
+                        totalRejected: 0,
+                        totalConditional: 0
+                    };
+                }
+                monthlyTrends[monthKey].count += 1;
+                monthlyTrends[monthKey].totalReceived += inv.quantity_received || 0;
+                monthlyTrends[monthKey].totalRejected += inv.quantity_rejected || 0;
+                monthlyTrends[monthKey].totalConditional += inv.quantity_conditional || 0;
+            });
+
+            const monthlyData = Object.entries(monthlyTrends)
+                .map(([month, data]) => ({
+                    month: format(new Date(month + '-01'), 'MMMM yyyy', { locale: tr }),
+                    monthKey: month,
+                    count: data.count,
+                    totalReceived: data.totalReceived,
+                    totalRejected: data.totalRejected,
+                    totalConditional: data.totalConditional,
+                    rejectionRate: data.totalReceived > 0 ? ((data.totalRejected / data.totalReceived) * 100) : 0
+                }))
+                .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
+                .slice(-12); // Son 12 ay
+
+            // Ret veren tedarikçiler
+            const rejectedSuppliers = Object.entries(bySupplier)
+                .filter(([name, data]) => data.totalRejected > 0)
+                .map(([name, data]) => ({
+                    name,
+                    rejectionCount: data.decisions['Ret'] || 0,
+                    totalRejected: data.totalRejected,
+                    dfCount: data.dfCount
+                }))
+                .sort((a, b) => b.totalRejected - a.totalRejected)
+                .slice(0, 10);
+
+            // Rapor verisi
+            const reportData = {
+                id: `incoming-quality-executive-${Date.now()}`,
+                period: dateRange.label || 'Tüm Zamanlar',
+                periodStart: dateRange.startDate ? formatDate(dateRange.startDate) : null,
+                periodEnd: dateRange.endDate ? formatDate(dateRange.endDate) : null,
+                totalInspections,
+                totalProductsInspected,
+                totalProductsAccepted,
+                totalProductsRejected,
+                totalProductsConditional,
+                rejectionRate: totalProductsInspected > 0 ? ((totalProductsRejected / totalProductsInspected) * 100) : 0,
+                conditionalRate: totalProductsInspected > 0 ? ((totalProductsConditional / totalProductsInspected) * 100) : 0,
+                acceptanceRate: totalProductsInspected > 0 ? ((totalProductsAccepted / totalProductsInspected) * 100) : 0,
+                decisions,
+                topSuppliers,
+                topParts,
+                rejectedSuppliers,
+                monthlyData,
+                totalDFs: Object.values(dfBySupplier).reduce((sum, data) => sum + data.count, 0),
+                reportDate: formatDate(new Date())
+            };
+
+            openPrintableReport(reportData, 'incoming_quality_executive_summary', true);
+
+            toast({
+                title: 'Başarılı',
+                description: 'Yönetici özeti raporu oluşturuldu.',
+            });
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: `Rapor oluşturulurken hata oluştu: ${error.message}`,
+            });
+        }
+    }, [filteredInspections, dateRange, toast]);
+
+    const handleSelectReportType = useCallback((type) => {
+        setIsReportSelectionModalOpen(false);
+        if (type === 'executive') {
+            handleGenerateExecutiveReport();
+        }
+    }, [handleGenerateExecutiveReport]);
+
     return (
         <div className="space-y-6">
             <Helmet>
@@ -316,6 +584,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         onOpenNCForm={onOpenNCForm}
                         onOpenNCView={onOpenNCView}
                         onDownloadPDF={(record) => handleDownloadPDF(record, 'incoming_inspection')}
+                        onGenerateReport={handleOpenReportModal}
                         refreshData={() => {
                             fetchInspections(currentPage, filters);
                             fetchDashboardData(filters);
@@ -386,6 +655,42 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 pdfUrl={pdfViewerState.url}
                 title={pdfViewerState.title}
             />
+
+            {/* Rapor Seçim Modalı */}
+            <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-primary" />
+                            Rapor Türü Seçin
+                        </DialogTitle>
+                        <DialogDescription>
+                            Oluşturmak istediğiniz rapor türünü seçin.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <button
+                            onClick={() => handleSelectReportType('executive')}
+                            className="flex items-start gap-4 p-4 rounded-lg border-2 border-border hover:border-primary hover:bg-accent/50 transition-all cursor-pointer text-left group"
+                        >
+                            <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
+                                <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-semibold text-base mb-1 text-foreground">Yönetici Özeti Raporu</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Kontrol sayıları, ürün sayıları, ret oranları, tedarikçi analizi, DF açılan tedarikçiler ve trend analizi içeren kapsamlı özet rapor.
+                                </p>
+                            </div>
+                        </button>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsReportSelectionModalOpen(false)}>
+                            İptal
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

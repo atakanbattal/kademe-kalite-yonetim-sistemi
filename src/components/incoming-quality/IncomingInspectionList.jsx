@@ -92,7 +92,7 @@ import React from 'react';
     };
 
 
-    const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, onDecide, onOpenNCForm, onOpenNCView, onDownloadPDF, refreshData, suppliers, filters, setFilters, onOpenControlPlanForm, page, setPage, totalCount, pageSize, onOpenStockRiskModal }) => {
+    const IncomingInspectionList = ({ inspections, loading, onAdd, onEdit, onView, onDecide, onOpenNCForm, onOpenNCView, onDownloadPDF, onGenerateReport, refreshData, suppliers, filters, setFilters, onOpenControlPlanForm, page, setPage, totalCount, pageSize, onOpenStockRiskModal }) => {
         const { toast } = useToast();
         const totalPages = Math.ceil(totalCount / pageSize);
         const [selectedInspection, setSelectedInspection] = React.useState(null);
@@ -228,6 +228,11 @@ import React from 'react';
                             </Button>
                         )}
                         <InspectionFilters filters={filters} setFilters={setFilters} suppliers={suppliers || []} />
+                        {onGenerateReport && (
+                            <Button onClick={onGenerateReport} variant="outline" size="sm">
+                                <FileText className="mr-2 h-4 w-4" /> Rapor Al
+                            </Button>
+                        )}
                         <Button onClick={onAdd}><Plus className="mr-2 h-4 w-4" /> Yeni Muayene</Button>
                     </div>
                 </div>

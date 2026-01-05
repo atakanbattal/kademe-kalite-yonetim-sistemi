@@ -43,7 +43,7 @@ const PrintableReport = () => {
                         });
 
                         // Liste tipleri için localStorage'dan veri okunduysa direkt kullan
-                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'quality_cost_executive_summary') {
+                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'quality_cost_executive_summary' || type === 'incoming_quality_executive_summary') {
                             // Liste tipleri için ek işlem gerekmez, veri zaten hazır
                             console.log(`✅ Liste tipi (${type}) verisi localStorage'dan okundu`);
                         }
@@ -536,11 +536,15 @@ const PrintableReport = () => {
                         break;
                     }
                     case 'quality_cost_list':
-                    case 'quality_cost_executive_summary': {
+                    case 'quality_cost_executive_summary':
+                    case 'incoming_quality_executive_summary': {
                         // Bu tipler localStorage'dan veri çekiyor, buraya gelmemeli
                         // Ancak fallback olarak burada da kontrol edelim
                         if (!recordData) {
-                            throw new Error('Kalitesizlik maliyeti rapor verisi bulunamadı. Lütfen tekrar deneyin.');
+                            const errorMsg = type === 'incoming_quality_executive_summary' 
+                                ? 'Girdi kalite kontrol rapor verisi bulunamadı. Lütfen tekrar deneyin.'
+                                : 'Kalitesizlik maliyeti rapor verisi bulunamadı. Lütfen tekrar deneyin.';
+                            throw new Error(errorMsg);
                         }
                         break;
                     }

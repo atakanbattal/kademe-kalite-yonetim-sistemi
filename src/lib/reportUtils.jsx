@@ -207,6 +207,8 @@ const getReportTitle = (record, type) => {
 			return record.unit ? `${record.unit} Birimi-Kalitesizlik Maliyetleri Raporu` : 'Kalitesizlik Maliyetleri Raporu';
 		case 'quality_cost_executive_summary':
 			return 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
+		case 'incoming_quality_executive_summary':
+			return 'Girdi Kalite Kontrol Yönetici Özeti Raporu';
 		default:
 			return 'Detaylı Rapor';
 	}
@@ -1906,6 +1908,234 @@ const generateListReportHtml = (record, type) => {
 			${monthlyTrendHtml}
 		`;
 		
+			// Bu rapor için tablo gerekmediği için boş bırakıyoruz
+			headers = [];
+			rowsHtml = '';
+		}
+	} else if (type === 'incoming_quality_executive_summary') {
+		title = 'Girdi Kalite Kontrol Yönetici Özeti Raporu';
+		
+		// Veri kontrolü - eğer veri yoksa hata mesajı göster
+		if (!record || typeof record !== 'object') {
+			summaryHtml = '<p style="color: #dc2626; font-weight: 600;">Rapor verisi bulunamadı. Lütfen tekrar deneyin.</p>';
+			headers = [];
+			rowsHtml = '';
+		} else {
+			const formatNumber = (value) => (value || 0).toLocaleString('tr-TR');
+			const formatPercent = (value) => (value || 0).toFixed(2);
+			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+			
+			const periodInfo = record.periodStart && record.periodEnd
+				? `${record.periodStart} - ${record.periodEnd}`
+				: record.period || 'Tüm Zamanlar';
+			
+			// Genel Özet Kartları
+			const summaryCardsHtml = `
+				<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+					<div style="background-color: #1e40af; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM KONTROL</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalInspections)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Muayene kaydı</div>
+					</div>
+					<div style="background-color: #059669; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #10b981;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">KONTROL EDİLEN ÜRÜN</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalProductsInspected)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Adet</div>
+					</div>
+					<div style="background-color: #dc2626; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">RET EDİLEN ÜRÜN</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalProductsRejected)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent(record.rejectionRate)}</div>
+					</div>
+				</div>
+				<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+					<div style="background-color: #2563eb; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #60a5fa;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">KABUL EDİLEN</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalProductsAccepted)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent(record.acceptanceRate)}</div>
+					</div>
+					<div style="background-color: #f59e0b; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #fbbf24;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">ŞARTLI KABUL</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalProductsConditional)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent(record.conditionalRate)}</div>
+					</div>
+					<div style="background-color: #7c3aed; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #a78bfa;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">AÇILAN DF SAYISI</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalDFs)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Düzeltici Faaliyet</div>
+					</div>
+				</div>
+			`;
+			
+			// Karar Bazlı Analiz
+			const decisionsHtml = `
+				<div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 30px; border: 1px solid #e5e7eb;">
+					<h3 style="font-size: 16px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Karar Bazlı Analiz</h3>
+					<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+						<div style="background-color: white; border-radius: 6px; padding: 18px; border-left: 4px solid #059669; border: 1px solid #e5e7eb;">
+							<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">Kabul</div>
+							<div style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${formatNumber(record.decisions?.Kabul?.count || 0)}</div>
+							<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">${formatNumber(record.decisions?.Kabul?.quantity || 0)} adet</div>
+						</div>
+						<div style="background-color: white; border-radius: 6px; padding: 18px; border-left: 4px solid #f59e0b; border: 1px solid #e5e7eb;">
+							<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">Şartlı Kabul</div>
+							<div style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${formatNumber(record.decisions?.['Şartlı Kabul']?.count || 0)}</div>
+							<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">${formatNumber(record.decisions?.['Şartlı Kabul']?.quantity || 0)} adet</div>
+						</div>
+						<div style="background-color: white; border-radius: 6px; padding: 18px; border-left: 4px solid #dc2626; border: 1px solid #e5e7eb;">
+							<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">Ret</div>
+							<div style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${formatNumber(record.decisions?.Ret?.count || 0)}</div>
+							<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">${formatNumber(record.decisions?.Ret?.quantity || 0)} adet</div>
+						</div>
+						<div style="background-color: white; border-radius: 6px; padding: 18px; border-left: 4px solid #6b7280; border: 1px solid #e5e7eb;">
+							<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">Beklemede</div>
+							<div style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${formatNumber(record.decisions?.Beklemede?.count || 0)}</div>
+							<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">${formatNumber(record.decisions?.Beklemede?.quantity || 0)} adet</div>
+						</div>
+					</div>
+				</div>
+			`;
+			
+			// En Çok Ret Veren Tedarikçiler Tablosu
+			const topSuppliersHtml = record.topSuppliers && record.topSuppliers.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Ret Veren Tedarikçiler (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #1e40af; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 30%; padding: 12px; text-align: left;">Tedarikçi</th>
+								<th style="width: 12%; padding: 12px; text-align: center;">Kontrol Sayısı</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Toplam Gelen</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Ret Edilen</th>
+								<th style="width: 12%; padding: 12px; text-align: right;">Ret Oranı</th>
+								<th style="width: 11%; padding: 12px; text-align: center;">Açılan DF</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.topSuppliers.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.name}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.count)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">${formatNumber(item.totalReceived)}</td>
+									<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatNumber(item.totalRejected)}</td>
+									<td style="padding: 12px; text-align: right; color: #dc2626; font-weight: 600;">%${formatPercent(item.rejectionRate)}</td>
+									<td style="padding: 12px; text-align: center; color: #7c3aed; font-weight: 600;">${formatNumber(item.dfCount)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// En Çok Ret Veren Parçalar Tablosu
+			const topPartsHtml = record.topParts && record.topParts.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Ret Veren Parçalar (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #1e40af; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 20%; padding: 12px; text-align: left;">Parça Kodu</th>
+								<th style="width: 25%; padding: 12px; text-align: left;">Parça Adı</th>
+								<th style="width: 12%; padding: 12px; text-align: center;">Kontrol Sayısı</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Toplam Gelen</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Ret Edilen</th>
+								<th style="width: 8%; padding: 12px; text-align: right;">Ret Oranı</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.topParts.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827; font-family: monospace;">${item.partCode}</td>
+									<td style="padding: 12px; color: #6b7280;">${item.partName}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.count)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">${formatNumber(item.totalReceived)}</td>
+									<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatNumber(item.totalRejected)}</td>
+									<td style="padding: 12px; text-align: right; color: #dc2626; font-weight: 600;">%${formatPercent(item.rejectionRate)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// Ret Veren Tedarikçiler ve DF Analizi
+			const rejectedSuppliersHtml = record.rejectedSuppliers && record.rejectedSuppliers.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Ret Veren Tedarikçiler ve DF Analizi (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #dc2626; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 40%; padding: 12px; text-align: left;">Tedarikçi</th>
+								<th style="width: 20%; padding: 12px; text-align: center;">Ret Kayıt Sayısı</th>
+								<th style="width: 20%; padding: 12px; text-align: right;">Toplam Ret Miktarı</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Açılan DF</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.rejectedSuppliers.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.name}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.rejectionCount)}</td>
+									<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatNumber(item.totalRejected)}</td>
+									<td style="padding: 12px; text-align: center; color: #7c3aed; font-weight: 600;">${formatNumber(item.dfCount)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// Aylık Trend Analizi Tablosu
+			const monthlyTrendHtml = record.monthlyData && record.monthlyData.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Aylık Trend Analizi (Son 12 Ay)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #10b981; color: white;">
+								<th style="width: 20%; padding: 12px; text-align: left;">Ay</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Kontrol Sayısı</th>
+								<th style="width: 20%; padding: 12px; text-align: right;">Toplam Gelen</th>
+								<th style="width: 20%; padding: 12px; text-align: right;">Ret Edilen</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Ret Oranı</th>
+								<th style="width: 10%; padding: 12px; text-align: right;">Şartlı Kabul</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.monthlyData.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.month}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.count)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">${formatNumber(item.totalReceived)}</td>
+									<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatNumber(item.totalRejected)}</td>
+									<td style="padding: 12px; text-align: right; color: #dc2626; font-weight: 600;">%${formatPercent(item.rejectionRate)}</td>
+									<td style="padding: 12px; text-align: right; color: #f59e0b; font-weight: 600;">${formatNumber(item.totalConditional)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			summaryHtml = `
+				<div style="margin-bottom: 25px;">
+					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
+					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Dönem:</strong> ${periodInfo}</p>
+					<p style="font-size: 14px; color: #6b7280;"><strong>Toplam Muayene Sayısı:</strong> ${formatNumber(record.totalInspections)}</p>
+				</div>
+				${summaryCardsHtml}
+				${decisionsHtml}
+				${topSuppliersHtml}
+				${topPartsHtml}
+				${rejectedSuppliersHtml}
+				${monthlyTrendHtml}
+			`;
+			
 			// Bu rapor için tablo gerekmediği için boş bırakıyoruz
 			headers = [];
 			rowsHtml = '';
@@ -4305,7 +4535,7 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'supplier_list' || type === 'supplier_dashboard') {
 		reportContentHtml = generateListReportHtml(record, type);
-	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list') {
+	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'incoming_quality_executive_summary') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
