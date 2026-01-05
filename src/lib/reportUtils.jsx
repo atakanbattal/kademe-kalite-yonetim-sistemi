@@ -5335,6 +5335,13 @@ a: after,
 		margin: 12mm; /* Tüm kenarlarda eşit boşluk */
 	}
 
+	/* Print için renkleri koru */
+	* {
+		-webkit-print-color-adjust: exact !important;
+		print-color-adjust: exact !important;
+		color-adjust: exact !important;
+	}
+
 	/* HTML etiketlerini gizle */
 	html::before,
 	html::after,
@@ -5345,20 +5352,21 @@ a: after,
 	}
 
 	/* Tüm URL gösterimlerini kapat */
-	a: link: after,
-		a: visited: after,
-			a[href]: after,
-				a[href]::after {
-		content: ""!important;
-		display: none!important;
+	a:link:after,
+	a:visited:after,
+	a[href]:after,
+	a[href]::after {
+		content: "" !important;
+		display: none !important;
 	}
 
 	html, body {
-		width: 210mm;
-		height: auto; /* Auto height-esnek sayfa */
-		background-color: white!important;
-		margin: 0;
-		padding: 0;
+		width: 210mm !important;
+		height: auto !important;
+		background-color: white !important;
+		margin: 0 !important;
+		padding: 0 !important;
+		overflow: visible !important;
 	}
 			
 		.page-container {

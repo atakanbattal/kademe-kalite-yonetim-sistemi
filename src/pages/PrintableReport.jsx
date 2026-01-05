@@ -635,7 +635,17 @@ const PrintableReport = () => {
             <iframe
                 ref={iframeRef}
                 src={blobUrl || undefined}
-                style={{ width: '100vw', height: '100vh', border: 'none', position: 'fixed', top: 0, left: 0, zIndex: 9999, background: 'white' }}
+                style={{ 
+                    width: '100vw', 
+                    height: '100vh', 
+                    border: 'none', 
+                    position: 'fixed', 
+                    top: 0, 
+                    left: 0, 
+                    zIndex: 9999, 
+                    background: 'white',
+                    print: 'auto'
+                }}
                 title="Printable Report"
                 onLoad={handleIframeLoad}
             />
