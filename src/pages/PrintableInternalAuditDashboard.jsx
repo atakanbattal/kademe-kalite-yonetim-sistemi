@@ -75,7 +75,7 @@ const PrintableInternalAuditDashboard = () => {
 
                 if (auditsError) throw auditsError;
 
-                // Tüm bulguları çek (non_conformity ile)
+                // Tüm bulguları çek (non_conformity ve audit_result ile)
                 // Önce audit ID'lerini al
                 const auditIds = auditsData?.map(a => a.id) || [];
                 
@@ -84,7 +84,8 @@ const PrintableInternalAuditDashboard = () => {
                     .select(`
                         *,
                         audit:audits(id, report_number, title, audit_date, department:cost_settings(unit_name), audit_standard:audit_standards!audit_standard_id(code, name)),
-                        non_conformity:non_conformities!source_finding_id(id, nc_number, status, type, created_at, due_at, due_date, closed_at)
+                        non_conformity:non_conformities!source_finding_id(id, nc_number, status, type, created_at, due_at, due_date, closed_at),
+                        audit_result:audit_results(id, question_text, answer, order_number)
                     `);
                 
                 // Filtrelenmiş audit'lere ait bulguları al
@@ -302,24 +303,31 @@ const PrintableInternalAuditDashboard = () => {
             return dateB - dateA;
         });
 
-        // Detaylı bulgu listesi
+        // Detaylı bulgu listesi (görüntüdeki tablo yapısına göre)
         const findingsDetails = auditFindings.map(finding => {
             const audit = Array.isArray(finding.audit) ? finding.audit[0] : finding.audit;
             const nc = Array.isArray(finding.non_conformity) ? finding.non_conformity[0] : finding.non_conformity;
+            const auditResult = Array.isArray(finding.audit_result) ? finding.audit_result[0] : finding.audit_result;
+            
+            // Bulgu açıklaması: önce description, yoksa audit_result'tan question_text
+            const findingDescription = finding.description || auditResult?.question_text || '-';
+            
+            // Tetkik türü kodu ve adı
+            const auditStandardCode = audit?.audit_standard?.code || '-';
+            const auditStandardName = audit?.audit_standard?.name || '-';
             
             return {
-                findingDescription: finding.description || '-',
                 auditReportNumber: audit?.report_number || '-',
                 auditTitle: audit?.title || '-',
                 auditDate: audit?.audit_date ? format(new Date(audit.audit_date), 'dd.MM.yyyy', { locale: tr }) : '-',
-                department: audit?.department?.unit_name || 'Belirtilmemiş',
-                auditStandard: audit?.audit_standard ? `${audit.audit_standard.code} - ${audit.audit_standard.name}` : '-',
+                auditStandardCode: auditStandardCode,
+                auditStandardName: auditStandardName,
+                findingDescription: findingDescription,
                 ncNumber: nc?.nc_number || '-',
                 ncStatus: nc?.status || 'Uygunsuzluk Oluşturulmadı',
                 ncType: nc?.type || '-',
                 ncCreatedDate: nc?.created_at ? format(new Date(nc.created_at), 'dd.MM.yyyy', { locale: tr }) : '-',
-                ncDueDate: nc?.due_at || nc?.due_date ? format(new Date(nc.due_at || nc.due_date), 'dd.MM.yyyy', { locale: tr }) : '-',
-                ncClosedDate: nc?.closed_at ? format(new Date(nc.closed_at), 'dd.MM.yyyy', { locale: tr }) : '-'
+                department: audit?.department?.unit_name || 'Belirtilmemiş'
             };
         }).sort((a, b) => {
             const dateA = a.auditDate === '-' ? new Date(0) : new Date(a.auditDate.split('.').reverse().join('-'));
@@ -582,40 +590,47 @@ const PrintableInternalAuditDashboard = () => {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '8%' }}>Tetkik Rapor No</th>
-                                    <th style={{ width: '12%' }}>Tetkik Başlığı</th>
-                                    <th style={{ width: '7%' }}>Tetkik Tarihi</th>
-                                    <th style={{ width: '10%' }}>Birim</th>
-                                    <th style={{ width: '12%' }}>Tetkik Türü</th>
-                                    <th style={{ width: '22%' }}>Bulgu Açıklaması</th>
-                                    <th style={{ width: '8%' }}>Uygunsuzluk No</th>
-                                    <th style={{ width: '8%' }}>Durum</th>
-                                    <th style={{ width: '5%' }}>Tip</th>
-                                    <th style={{ width: '8%' }}>Açılış Tarihi</th>
-                                    <th style={{ width: '8%' }}>Kapanış Tarihi</th>
+                                    <th style={{ width: '10%' }}>Tetkik Rapor No</th>
+                                    <th style={{ width: '15%' }}>Tetkik Başlığı</th>
+                                    <th style={{ width: '8%' }}>Tetkik Tarihi</th>
+                                    <th style={{ width: '6%' }}>Tetkik Türü Kodu</th>
+                                    <th style={{ width: '12%' }}>Tetkik Türü Adı</th>
+                                    <th style={{ width: '25%' }}>Bulgu Açıklaması</th>
+                                    <th style={{ width: '10%' }}>Uygunsuzluk No / Durum</th>
+                                    <th style={{ width: '6%' }}>Tip</th>
+                                    <th style={{ width: '8%' }}>Uygunsuzluk Tarihi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {analytics.findingsDetails.map((item, idx) => {
                                     const statusClass = item.ncStatus === 'Kapatıldı' ? 'status-closed' : 
-                                                      item.ncStatus === 'Açık' ? 'status-open' : 'status-planned';
+                                                      item.ncStatus === 'Açık' ? 'status-open' : 
+                                                      item.ncStatus === 'Uygunsuzluk Oluşturulmadı' ? 'status-planned' : 'status-planned';
+                                    const statusText = item.ncStatus === 'Uygunsuzluk Oluşturulmadı' ? 'Uygunsuzluk Oluşturulmadı' : item.ncStatus;
                                     return (
                                         <tr key={idx}>
                                             <td style={{ fontWeight: 600 }}>{item.auditReportNumber}</td>
                                             <td>{item.auditTitle}</td>
                                             <td>{item.auditDate}</td>
-                                            <td>{item.department}</td>
-                                            <td>{item.auditStandard}</td>
-                                            <td className="text-wrap">{item.findingDescription}</td>
-                                            <td style={{ fontWeight: 600 }}>{item.ncNumber}</td>
+                                            <td style={{ fontWeight: 600 }}>{item.auditStandardCode}</td>
+                                            <td>{item.auditStandardName}</td>
+                                            <td className="text-wrap" style={{ fontSize: '10px', lineHeight: '1.4' }}>{item.findingDescription}</td>
                                             <td>
-                                                <span className={`status-badge ${statusClass}`}>
-                                                    {item.ncStatus}
-                                                </span>
+                                                {item.ncNumber !== '-' ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        <span style={{ fontWeight: 600, fontSize: '10px' }}>{item.ncNumber}</span>
+                                                        <span className={`status-badge ${statusClass}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                                                            {statusText}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className={`status-badge ${statusClass}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                                                        {statusText}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td>{item.ncType}</td>
                                             <td>{item.ncCreatedDate}</td>
-                                            <td>{item.ncClosedDate}</td>
                                         </tr>
                                     );
                                 })}
