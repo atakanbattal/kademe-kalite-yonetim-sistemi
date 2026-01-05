@@ -29,6 +29,15 @@ import React, { useMemo, useState } from 'react';
         const setDateRange = onDateRangeChange || setInternalDateRange;
 
     const analytics = useMemo(() => {
+        if (!audits || !findings) {
+            return { 
+                totalAuditsInRange: 0, 
+                openedFindingsInRange: 0, 
+                closedFindingsInRange: 0, 
+                chartData: [] 
+            };
+        }
+
         const filteredAudits = !dateRange || !dateRange.from ? audits : audits.filter(audit => {
             const auditDate = new Date(audit.audit_date);
             return auditDate >= dateRange.from && auditDate <= addDays(dateRange.to, 1);
@@ -39,25 +48,58 @@ import React, { useMemo, useState } from 'react';
             return findingDate >= dateRange.from && findingDate <= addDays(dateRange.to, 1);
         });
 
+        // non_conformity ilişkisini düzgün işle (array olabilir veya tekil olabilir)
+        const getNonConformity = (finding) => {
+            // Önce non_conformities array'ini kontrol et
+            if (finding.non_conformities) {
+                if (Array.isArray(finding.non_conformities)) {
+                    return finding.non_conformities.length > 0 ? finding.non_conformities[0] : null;
+                }
+                return finding.non_conformities;
+            }
+            // Sonra non_conformity (tekil) olarak kontrol et
+            if (finding.non_conformity) {
+                if (Array.isArray(finding.non_conformity)) {
+                    return finding.non_conformity.length > 0 ? finding.non_conformity[0] : null;
+                }
+                return finding.non_conformity;
+            }
+            return null;
+        };
+
         const totalAuditsInRange = filteredAudits.length;
-        const openedFindingsInRange = filteredFindings.length;
-        const closedFindingsInRange = filteredFindings.filter(f => f.non_conformity?.status === 'Kapatıldı').length;
+        
+        // Sadece uygunsuzluk açılan bulguları say (non_conformity olanlar)
+        const openedFindingsInRange = filteredFindings.filter(f => {
+            const nc = getNonConformity(f);
+            return nc !== null && nc !== undefined;
+        }).length;
+        
+        // Kapatılan uygunsuzlukları say
+        const closedFindingsInRange = filteredFindings.filter(f => {
+            const nc = getNonConformity(f);
+            return nc && nc.status === 'Kapatıldı';
+        }).length;
 
-        const allTimeOpenFindings = findings.filter(f => !f.non_conformity || f.non_conformity.status !== 'Kapatıldı');
+        // Tüm zamanlar için açık uygunsuzluklar
+        const allTimeOpenFindings = findings.filter(f => {
+            const nc = getNonConformity(f);
+            return nc && nc.status !== 'Kapatıldı';
+        });
             
-            const departmentFindings = {};
-            allTimeOpenFindings.forEach(finding => {
-                const audit = audits.find(a => a.id === finding.audit_id);
-                const deptName = audit?.department?.unit_name || 'Belirtilmemiş';
-                departmentFindings[deptName] = (departmentFindings[deptName] || 0) + 1;
-            });
+        const departmentFindings = {};
+        allTimeOpenFindings.forEach(finding => {
+            const audit = audits.find(a => a.id === finding.audit_id);
+            const deptName = audit?.department?.unit_name || 'Belirtilmemiş';
+            departmentFindings[deptName] = (departmentFindings[deptName] || 0) + 1;
+        });
 
-            const chartData = Object.entries(departmentFindings)
-                .map(([name, value]) => ({ name, 'Açık Uygunsuzluk Sayısı': value }))
-                .sort((a, b) => b['Açık Uygunsuzluk Sayısı'] - a['Açık Uygunsuzluk Sayısı']);
+        const chartData = Object.entries(departmentFindings)
+            .map(([name, value]) => ({ name, 'Açık Uygunsuzluk Sayısı': value }))
+            .sort((a, b) => b['Açık Uygunsuzluk Sayısı'] - a['Açık Uygunsuzluk Sayısı']);
 
-            return { totalAuditsInRange, openedFindingsInRange, closedFindingsInRange, chartData };
-        }, [audits, findings, dateRange]);
+        return { totalAuditsInRange, openedFindingsInRange, closedFindingsInRange, chartData };
+    }, [audits, findings, dateRange]);
 
         const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'];
 
