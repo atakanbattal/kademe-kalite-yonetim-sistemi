@@ -30,7 +30,7 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Building2, BarChart3, FileText } from 'lucide-react';
+import { Building2, BarChart3 } from 'lucide-react';
 
     const formatCurrency = (value) => {
         if (typeof value !== 'number') return '-';
