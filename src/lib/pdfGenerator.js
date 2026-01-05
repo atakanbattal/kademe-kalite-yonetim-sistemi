@@ -811,7 +811,7 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
     }
 };
 
-export const generateVehicleReport = (vehicle, timeline, faults) => {
+export const generateVehicleReport = (vehicle, timeline, faults, equipment = null) => {
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
     
     // formatDuration fonksiyonunu import etmek yerine burada basit bir versiyonunu kullanıyoruz
@@ -1201,6 +1201,38 @@ export const generateVehicleReport = (vehicle, timeline, faults) => {
                         </div>
                     </div>
                 </div>
+                
+                ${equipment && (equipment.measurement_range || equipment.measurement_uncertainty) ? `
+                    <div class="section">
+                        <h2 class="section-title">Ölçüm Ekipmanı Bilgileri</h2>
+                        <div class="info-grid">
+                            ${equipment.measurement_range ? `
+                                <div class="info-item">
+                                    <span class="label">Ölçüm Aralığı</span>
+                                    <span class="value">${equipment.measurement_range}</span>
+                                </div>
+                            ` : ''}
+                            ${equipment.measurement_uncertainty ? `
+                                <div class="info-item">
+                                    <span class="label">Ölçüm Belirsizliği</span>
+                                    <span class="value">± ${equipment.measurement_uncertainty}</span>
+                                </div>
+                            ` : ''}
+                            ${equipment.name ? `
+                                <div class="info-item">
+                                    <span class="label">Ekipman Adı</span>
+                                    <span class="value">${equipment.name}</span>
+                                </div>
+                            ` : ''}
+                            ${equipment.brand_model ? `
+                                <div class="info-item">
+                                    <span class="label">Marka/Model</span>
+                                    <span class="value">${equipment.brand_model}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                ` : ''}
                 
                 ${faultsHtml}
                 

@@ -225,6 +225,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [faults, setFaults] = useState([]);
         const [timeline, setTimeline] = useState([]);
         const [loadingFaults, setLoadingFaults] = useState(false);
+        const [equipment, setEquipment] = useState(null);
 
         useEffect(() => {
             const fetchData = async () => {
@@ -264,6 +265,47 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     
                     console.log('✅ Timeline yüklendi:', timelineData);
                     setTimeline(timelineData || []);
+                    
+                    // Ekipman bilgilerini çek - araçla ilişkili kontrol planlarından veya genel ekipman listesinden
+                    // Önce araçla ilişkili kontrol planlarını kontrol et
+                    const { data: controlPlanData } = await supabase
+                        .from('process_control_plans')
+                        .select(`
+                            id,
+                            control_plan_items(
+                                equipment_id,
+                                equipment:equipments(
+                                    id,
+                                    name,
+                                    brand_model,
+                                    measurement_range,
+                                    measurement_uncertainty
+                                )
+                            )
+                        `)
+                        .eq('vehicle_type', vehicle.vehicle_type)
+                        .limit(1);
+                    
+                    // Eğer kontrol planı varsa ve ekipman bilgisi varsa kullan
+                    if (controlPlanData && controlPlanData.length > 0) {
+                        const planItems = controlPlanData[0].control_plan_items || [];
+                        const equipmentIds = [...new Set(planItems.map(item => item.equipment_id).filter(Boolean))];
+                        
+                        if (equipmentIds.length > 0) {
+                            const { data: equipmentData } = await supabase
+                                .from('equipments')
+                                .select('id, name, brand_model, measurement_range, measurement_uncertainty')
+                                .in('id', equipmentIds)
+                                .limit(1);
+                            
+                            if (equipmentData && equipmentData.length > 0) {
+                                setEquipment(equipmentData[0]);
+                            }
+                        }
+                    }
+                    
+                    // Eğer hala ekipman bulunamadıysa, genel ekipman listesinden ilk ekipmanı al (opsiyonel)
+                    // Bu kısım kaldırılabilir veya daha spesifik bir mantık eklenebilir
                 } catch (error) {
                     console.error('❌ Veri yükleme hatası:', error);
                     toast({
@@ -285,7 +327,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             if (!vehicle) return;
             
             try {
-                generateVehicleReport(vehicle, timeline, faults);
+                generateVehicleReport(vehicle, timeline, faults, equipment);
                 
                 toast({
                     title: 'Rapor Oluşturuluyor',
