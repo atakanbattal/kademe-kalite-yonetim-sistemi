@@ -379,19 +379,26 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                     .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
                     .slice(-12); // Son 12 ay
 
-                // Ortalama kalite süresi hesaplama (basit versiyon)
-                const vehiclesWithTime = memoizedVehicles.filter(v => v.created_at);
-                const averageDaysInQuality = vehiclesWithTime.length > 0
-                    ? vehiclesWithTime.reduce((sum, v) => {
-                        try {
-                            const created = new Date(v.created_at);
-                            const now = new Date();
-                            const days = Math.floor((now - created) / (1000 * 60 * 60 * 24));
-                            return sum + days;
-                        } catch {
-                            return sum;
+                // Ortalama kontrol süresi hesaplama (control_start ve control_end arasındaki süre)
+                let totalControlMillis = 0;
+                let controlCount = 0;
+                memoizedVehicles.forEach(vehicle => {
+                    const timeline = vehicle.vehicle_timeline_events || [];
+                    for (let i = 0; i < timeline.length; i++) {
+                        const currentEvent = timeline[i];
+                        if (currentEvent.event_type === 'control_start') {
+                            const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'control_end');
+                            if (nextEnd) {
+                                const startTime = new Date(currentEvent.event_timestamp);
+                                const endTime = new Date(nextEnd.event_timestamp);
+                                totalControlMillis += (endTime - startTime);
+                                controlCount++;
+                            }
                         }
-                    }, 0) / vehiclesWithTime.length
+                    }
+                });
+                const averageControlDuration = controlCount > 0 
+                    ? Math.round(totalControlMillis / (1000 * 60 * 60 * 24) / controlCount) // Gün cinsinden
                     : 0;
 
                 // Rapor verisi
@@ -411,7 +418,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                     vehiclesWithFaults,
                     dmoAnalysis,
                     monthlyData,
-                    averageDaysInQuality: Math.round(averageDaysInQuality),
+                    averageControlDuration,
                     reportDate: formatDate(new Date())
                 };
 

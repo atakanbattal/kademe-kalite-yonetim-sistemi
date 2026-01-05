@@ -33,6 +33,7 @@ export const calculateInspectionDuration = (timelineEvents = []) => {
 
 /**
  * Araç için rework süresini hesaplar (dakika cinsinden)
+ * Eğer rework_start var ama rework_end yoksa, şu anki zamana kadar hesaplar (dinamik)
  * @param {Array} timelineEvents - vehicle_timeline_events array'i
  * @returns {number} - Toplam rework süresi (dakika)
  */
@@ -43,15 +44,15 @@ export const calculateReworkDuration = (timelineEvents = []) => {
     const sortedEvents = [...timelineEvents].sort((a, b) => 
         new Date(a.event_timestamp) - new Date(b.event_timestamp)
     );
+    const now = new Date();
     
     for (let i = 0; i < sortedEvents.length; i++) {
         if (sortedEvents[i].event_type === 'rework_start') {
             const endEvent = sortedEvents.slice(i + 1).find(e => e.event_type === 'rework_end');
-            if (endEvent) {
-                const startTime = new Date(sortedEvents[i].event_timestamp);
-                const endTime = new Date(endEvent.event_timestamp);
-                totalMillis += (endTime - startTime);
-            }
+            const startTime = new Date(sortedEvents[i].event_timestamp);
+            // Eğer rework_end yoksa, şu anki zamana kadar hesapla (dinamik)
+            const endTime = endEvent ? new Date(endEvent.event_timestamp) : now;
+            totalMillis += (endTime - startTime);
         }
     }
     

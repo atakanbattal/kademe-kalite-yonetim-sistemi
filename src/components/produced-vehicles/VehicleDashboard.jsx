@@ -78,8 +78,13 @@ import React, { useMemo } from 'react';
                         }
                     } else if (currentEvent.event_type === 'rework_start') {
                         const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'rework_end');
+                        // Eğer rework_end yoksa, şu anki zamana kadar hesapla (dinamik)
                         if (nextEnd) {
                             totalReworkMillis += differenceInMilliseconds(parseISO(nextEnd.event_timestamp), parseISO(currentEvent.event_timestamp));
+                            reworkCount++;
+                        } else {
+                            // Devam eden yeniden işlem - şu anki zamana kadar hesapla
+                            totalReworkMillis += differenceInMilliseconds(new Date(), parseISO(currentEvent.event_timestamp));
                             reworkCount++;
                         }
                     }
