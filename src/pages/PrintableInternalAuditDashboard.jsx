@@ -367,12 +367,14 @@ const PrintableInternalAuditDashboard = () => {
                     .chart-container { height: 350px; margin-top: 20px; }
                     .chart-small { height: 280px; margin-top: 20px; }
                     .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; table-layout: fixed; }
-                    .data-table th { background-color: #1F3A5F; color: white; padding: 10px 6px; text-align: left; font-weight: 600; border: 1px solid #ddd; font-size: 10px; }
-                    .data-table td { padding: 8px 6px; border: 1px solid #ddd; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; vertical-align: top; }
+                    .data-table th { background-color: #1F3A5F; color: white; padding: 10px 6px; text-align: left; font-weight: 600; border: 1px solid #ddd; font-size: 10px; white-space: nowrap; }
+                    .data-table td { padding: 8px 6px; border: 1px solid #ddd; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; vertical-align: top; overflow: hidden; }
                     .data-table tr:nth-child(even) { background-color: #f9fafb; }
                     .data-table tr:hover { background-color: #f0f2f5; }
-                    .text-wrap { word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.4; }
+                    .text-wrap { word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.4; max-width: 100%; display: block; }
                     .text-small { font-size: 10px; line-height: 1.3; }
+                    .finding-description-cell { max-width: 300px; min-width: 200px; }
+                    .nc-info-cell { max-width: 120px; min-width: 100px; white-space: normal; }
                     .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; }
                     .status-open { background-color: #fee2e2; color: #991b1b; }
                     .status-closed { background-color: #d1fae5; color: #065f46; }
@@ -381,13 +383,15 @@ const PrintableInternalAuditDashboard = () => {
                     .status-completed { background-color: #d1fae5; color: #065f46; }
                     @media print {
                         body { background-color: white; }
-                        .report-container { margin: 0; padding: 15px; box-shadow: none; border: none; max-width: 100%; }
-                        @page { size: A4 landscape; margin: 8mm; }
+                        .report-container { margin: 0; padding: 10px; box-shadow: none; border: none; max-width: 100%; }
+                        @page { size: A4 landscape; margin: 5mm; }
                         .report-section { page-break-inside: avoid; }
-                        .data-table { font-size: 9px; }
-                        .data-table th, .data-table td { padding: 5px 4px; }
-                        .text-wrap { font-size: 8px; line-height: 1.3; }
-                        .text-small { font-size: 8px; }
+                        .data-table { font-size: 8px; min-width: 1400px !important; }
+                        .data-table th, .data-table td { padding: 4px 3px; }
+                        .text-wrap { font-size: 7px; line-height: 1.2; }
+                        .text-small { font-size: 7px; }
+                        .finding-description-cell { max-width: 300px !important; min-width: 250px !important; }
+                        .nc-info-cell { max-width: 120px !important; min-width: 100px !important; }
                     }
                 `}</style>
 
@@ -553,59 +557,61 @@ const PrintableInternalAuditDashboard = () => {
 
                 <ReportSection title="Detaylı Bulgu Listesi">
                     {analytics.findingsDetails.length > 0 ? (
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th style={{ width: '8%' }}>Tetkik Rapor No</th>
-                                    <th style={{ width: '10%' }}>Tetkik Başlığı</th>
-                                    <th style={{ width: '7%' }}>Tetkik Tarihi</th>
-                                    <th style={{ width: '10%' }}>Birim</th>
-                                    <th style={{ width: '12%' }}>Tetkik Türü</th>
-                                    <th style={{ width: '25%' }}>Bulgu Açıklaması</th>
-                                    <th style={{ width: '8%' }}>İlişki Uygunsuzluk</th>
-                                    <th style={{ width: '8%' }}>Durum</th>
-                                    <th style={{ width: '5%' }}>Tip</th>
-                                    <th style={{ width: '5%' }}>Açılış</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {analytics.findingsDetails.map((item, idx) => {
-                                    const statusClass = item.ncStatus === 'Kapatıldı' ? 'status-closed' : 
-                                                      item.ncStatus === 'Açık' ? 'status-open' : 
-                                                      item.ncStatus === 'Uygunsuzluk Oluşturulmadı' ? 'status-planned' : 'status-planned';
-                                    const hasNC = item.ncNumber && item.ncNumber !== '-';
-                                    return (
-                                        <tr key={idx}>
-                                            <td style={{ fontWeight: 600, fontSize: '10px' }}>{item.auditReportNumber}</td>
-                                            <td className="text-wrap text-small">{item.auditTitle}</td>
-                                            <td style={{ fontSize: '10px' }}>{item.auditDate}</td>
-                                            <td className="text-small">{item.department}</td>
-                                            <td className="text-wrap text-small">{item.auditStandard}</td>
-                                            <td className="text-wrap text-small" style={{ lineHeight: '1.4' }}>{item.findingDescription}</td>
-                                            <td style={{ fontWeight: 600, fontSize: '10px' }}>
-                                                {hasNC ? (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                                        <span>{item.ncNumber}</span>
-                                                        {item.ncType && item.ncType !== '-' && (
-                                                            <span style={{ fontSize: '9px', color: '#6b7280' }}>({item.ncType})</span>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span style={{ color: '#9ca3af', fontSize: '9px' }}>-</span>
-                                                )}
-                                            </td>
-                                            <td>
-                                                <span className={`status-badge ${statusClass}`} style={{ fontSize: '9px', padding: '3px 6px' }}>
-                                                    {item.ncStatus === 'Uygunsuzluk Oluşturulmadı' ? 'Bulgu' : item.ncStatus}
-                                                </span>
-                                            </td>
-                                            <td style={{ fontSize: '10px' }}>{item.ncType || '-'}</td>
-                                            <td style={{ fontSize: '9px' }}>{item.ncCreatedDate !== '-' ? item.ncCreatedDate : '-'}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table className="data-table" style={{ minWidth: '1400px' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '90px', minWidth: '90px' }}>Tetkik Rapor No</th>
+                                        <th style={{ width: '140px', minWidth: '140px' }}>Tetkik Başlığı</th>
+                                        <th style={{ width: '90px', minWidth: '90px' }}>Tetkik Tarihi</th>
+                                        <th style={{ width: '120px', minWidth: '120px' }}>Birim</th>
+                                        <th style={{ width: '150px', minWidth: '150px' }}>Tetkik Türü</th>
+                                        <th style={{ width: '350px', minWidth: '300px' }}>Bulgu Açıklaması</th>
+                                        <th style={{ width: '130px', minWidth: '130px' }}>İlişki Uygunsuzluk</th>
+                                        <th style={{ width: '100px', minWidth: '100px' }}>Durum</th>
+                                        <th style={{ width: '60px', minWidth: '60px' }}>Tip</th>
+                                        <th style={{ width: '90px', minWidth: '90px' }}>Açılış</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {analytics.findingsDetails.map((item, idx) => {
+                                        const statusClass = item.ncStatus === 'Kapatıldı' ? 'status-closed' : 
+                                                          item.ncStatus === 'Açık' ? 'status-open' : 
+                                                          item.ncStatus === 'Uygunsuzluk Oluşturulmadı' ? 'status-planned' : 'status-planned';
+                                        const hasNC = item.ncNumber && item.ncNumber !== '-';
+                                        return (
+                                            <tr key={idx}>
+                                                <td style={{ fontWeight: 600, fontSize: '10px', whiteSpace: 'nowrap' }}>{item.auditReportNumber}</td>
+                                                <td className="text-wrap text-small" style={{ maxWidth: '140px' }}>{item.auditTitle}</td>
+                                                <td style={{ fontSize: '10px', whiteSpace: 'nowrap' }}>{item.auditDate}</td>
+                                                <td className="text-small" style={{ maxWidth: '120px' }}>{item.department}</td>
+                                                <td className="text-wrap text-small" style={{ maxWidth: '150px' }}>{item.auditStandard}</td>
+                                                <td className="finding-description-cell text-wrap text-small" style={{ lineHeight: '1.4' }}>{item.findingDescription}</td>
+                                                <td className="nc-info-cell" style={{ fontWeight: 600, fontSize: '10px' }}>
+                                                    {hasNC ? (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                                            <span style={{ whiteSpace: 'nowrap' }}>{item.ncNumber}</span>
+                                                            {item.ncType && item.ncType !== '-' && (
+                                                                <span style={{ fontSize: '9px', color: '#6b7280' }}>({item.ncType})</span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span style={{ color: '#9ca3af', fontSize: '9px' }}>-</span>
+                                                    )}
+                                                </td>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <span className={`status-badge ${statusClass}`} style={{ fontSize: '9px', padding: '3px 6px' }}>
+                                                        {item.ncStatus === 'Uygunsuzluk Oluşturulmadı' ? 'Bulgu' : item.ncStatus}
+                                                    </span>
+                                                </td>
+                                                <td style={{ fontSize: '10px', whiteSpace: 'nowrap', textAlign: 'center' }}>{item.ncType || '-'}</td>
+                                                <td style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>{item.ncCreatedDate !== '-' ? item.ncCreatedDate : '-'}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     ) : (
                         <p style={{ textAlign: 'center', color: '#888', padding: '40px' }}>
                             Bulgu verisi bulunmuyor.
