@@ -333,10 +333,13 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             return;
         }
 
-        const formatDate = (dateString) => {
-            if (!dateString) return '-';
+        const formatDate = (dateInput) => {
+            if (!dateInput) return '-';
             try {
-                return format(new Date(dateString), 'dd.MM.yyyy', { locale: tr });
+                // Date objesi ise direkt kullan, string ise Date'e çevir
+                const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
+                if (isNaN(dateObj.getTime())) return '-'; // Geçersiz tarih kontrolü
+                return format(dateObj, 'dd.MM.yyyy', { locale: tr });
             } catch {
                 return '-';
             }
@@ -469,19 +472,27 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             // Aylık trend analizi
             const monthlyTrends = {};
             filteredInspections.forEach(inv => {
-                const monthKey = format(new Date(inv.inspection_date), 'yyyy-MM', { locale: tr });
-                if (!monthlyTrends[monthKey]) {
-                    monthlyTrends[monthKey] = {
-                        count: 0,
-                        totalReceived: 0,
-                        totalRejected: 0,
-                        totalConditional: 0
-                    };
+                if (!inv.inspection_date) return; // Geçersiz tarih kontrolü
+                try {
+                    const inspectionDate = new Date(inv.inspection_date);
+                    if (isNaN(inspectionDate.getTime())) return; // Geçersiz tarih kontrolü
+                    const monthKey = format(inspectionDate, 'yyyy-MM', { locale: tr });
+                    if (!monthlyTrends[monthKey]) {
+                        monthlyTrends[monthKey] = {
+                            count: 0,
+                            totalReceived: 0,
+                            totalRejected: 0,
+                            totalConditional: 0
+                        };
+                    }
+                    monthlyTrends[monthKey].count += 1;
+                    monthlyTrends[monthKey].totalReceived += inv.quantity_received || 0;
+                    monthlyTrends[monthKey].totalRejected += inv.quantity_rejected || 0;
+                    monthlyTrends[monthKey].totalConditional += inv.quantity_conditional || 0;
+                } catch (error) {
+                    console.warn('Geçersiz tarih:', inv.inspection_date, error);
+                    return;
                 }
-                monthlyTrends[monthKey].count += 1;
-                monthlyTrends[monthKey].totalReceived += inv.quantity_received || 0;
-                monthlyTrends[monthKey].totalRejected += inv.quantity_rejected || 0;
-                monthlyTrends[monthKey].totalConditional += inv.quantity_conditional || 0;
             });
 
             const monthlyData = Object.entries(monthlyTrends)
