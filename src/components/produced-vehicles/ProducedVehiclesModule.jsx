@@ -380,7 +380,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                     .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
                     .slice(-12); // Son 12 ay
 
-                // Ortalama kontrol süresi hesaplama (control_start ve control_end arasındaki süre)
+                // Ortalama kontrol süresi hesaplama (control_start ve control_end arasındaki süre - dinamik)
                 let totalControlMillis = 0;
                 let controlCount = 0;
                 memoizedVehicles.forEach(vehicle => {
@@ -389,12 +389,11 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                         const currentEvent = timeline[i];
                         if (currentEvent.event_type === 'control_start') {
                             const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'control_end');
-                            if (nextEnd) {
-                                const startTime = new Date(currentEvent.event_timestamp);
-                                const endTime = new Date(nextEnd.event_timestamp);
-                                totalControlMillis += (endTime - startTime);
-                                controlCount++;
-                            }
+                            const startTime = new Date(currentEvent.event_timestamp);
+                            // Eğer control_end yoksa, şu anki zamana kadar hesapla (dinamik)
+                            const endTime = nextEnd ? new Date(nextEnd.event_timestamp) : new Date();
+                            totalControlMillis += (endTime - startTime);
+                            controlCount++;
                         }
                     }
                 });
