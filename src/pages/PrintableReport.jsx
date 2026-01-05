@@ -550,6 +550,8 @@ const PrintableReport = () => {
                                 errorMsg = 'Üretilen araçlar rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             } else if (type === 'quality_cost_executive_summary') {
                                 errorMsg = 'Kalitesizlik maliyeti rapor verisi bulunamadı. Lütfen tekrar deneyin.';
+                            } else if (type === 'supplier_quality_executive_summary') {
+                                errorMsg = 'Tedarikçi kalite yönetimi rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             }
                             throw new Error(errorMsg);
                         }
