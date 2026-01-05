@@ -66,12 +66,30 @@ export function DateRangePicker({
     return filter ? filter.value : 'custom';
   };
   
-  const [selectedFilter, setSelectedFilter] = useState(getInitialFilter());
+  const [selectedFilter, setSelectedFilter] = useState(() => {
+    if (!date || !date.from) return 'all';
+    const filter = quickFilters.find(f => {
+      const range = getDateRangeFromFilter(f.value);
+      if (!range) return false;
+      return range.from?.toDateString() === date.from?.toDateString() && 
+             range.to?.toDateString() === date.to?.toDateString();
+    });
+    return filter ? filter.value : 'custom';
+  });
 
   // date prop'u değiştiğinde selectedFilter'ı güncelle
   useEffect(() => {
-    const newFilter = getInitialFilter();
-    setSelectedFilter(newFilter);
+    if (!date || !date.from) {
+      setSelectedFilter('all');
+      return;
+    }
+    const filter = quickFilters.find(f => {
+      const range = getDateRangeFromFilter(f.value);
+      if (!range) return false;
+      return range.from?.toDateString() === date.from?.toDateString() && 
+             range.to?.toDateString() === date.to?.toDateString();
+    });
+    setSelectedFilter(filter ? filter.value : 'custom');
   }, [date]);
 
   const handleQuickFilter = (filterValue) => {
