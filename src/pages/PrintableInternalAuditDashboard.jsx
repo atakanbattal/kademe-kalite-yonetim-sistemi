@@ -382,9 +382,23 @@ const PrintableInternalAuditDashboard = () => {
                     .status-in-progress { background-color: #fef3c7; color: #92400e; }
                     .status-completed { background-color: #d1fae5; color: #065f46; }
                     @media print {
-                        body { background-color: white; }
+                        /* Print için renkleri koru */
+                        * {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                            color-adjust: exact !important;
+                        }
+                        
+                        body { background-color: white !important; }
                         .report-container { margin: 0; padding: 15px; box-shadow: none; border: none; max-width: 100%; }
                         @page { size: A4 landscape; margin: 10mm; }
+                        
+                        /* Sayfa kırılmaları */
+                        .section { page-break-inside: avoid; break-inside: avoid; }
+                        .section-title { page-break-after: avoid; break-after: avoid; }
+                        .data-table { page-break-inside: auto; }
+                        .data-table thead { display: table-header-group; }
+                        .data-table tbody tr { page-break-inside: avoid; break-inside: avoid; }
                         .report-section { page-break-inside: avoid; }
                         .data-table { font-size: 10px; }
                         .data-table th, .data-table td { padding: 6px; }
