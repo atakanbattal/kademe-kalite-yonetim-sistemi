@@ -1914,6 +1914,250 @@ const generateListReportHtml = (record, type) => {
 			headers = [];
 			rowsHtml = '';
 		}
+	} else if (type === 'produced_vehicles_executive_summary') {
+		title = 'Üretilen Araçlar Yönetici Özeti Raporu';
+		
+		// Veri kontrolü
+		if (!record || typeof record !== 'object') {
+			summaryHtml = '<p style="color: #dc2626; font-weight: 600;">Rapor verisi bulunamadı. Lütfen tekrar deneyin.</p>';
+			headers = [];
+			rowsHtml = '';
+		} else {
+			const formatNumber = (value) => (value || 0).toLocaleString('tr-TR');
+			const formatPercent = (value) => (value || 0).toFixed(2);
+			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+			
+			const periodInfo = record.periodStart && record.periodEnd
+				? `${record.periodStart} - ${record.periodEnd}`
+				: record.period || 'Tüm Zamanlar';
+			
+			// Genel Özet Kartları
+			const summaryCardsHtml = `
+				<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+					<div style="background-color: #1e40af; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM ARAÇ</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalVehicles)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Araç kaydı</div>
+					</div>
+					<div style="background-color: #dc2626; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM HATA</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.totalFaults)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">${formatNumber(record.activeFaults)} aktif</div>
+					</div>
+					<div style="background-color: #059669; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #10b981;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">GİDERİLEN HATA</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.resolvedFaults)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent(record.faultResolutionRate)}</div>
+					</div>
+				</div>
+				<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
+					<div style="background-color: #7c3aed; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #a78bfa;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">ORTALAMA KALİTE SÜRESİ</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.averageDaysInQuality)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Gün</div>
+					</div>
+					<div style="background-color: #f59e0b; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #fbbf24;">
+						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">AKTİF HATA</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.activeFaults)}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Çözüm bekliyor</div>
+					</div>
+				</div>
+			`;
+			
+			// Durum Bazlı Analiz
+			const statusAnalysisHtml = record.statusAnalysis && record.statusAnalysis.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Durum Bazlı Analiz</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #1e40af; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 50%; padding: 12px; text-align: left;">Durum</th>
+								<th style="width: 20%; padding: 12px; text-align: center;">Araç Sayısı</th>
+								<th style="width: 25%; padding: 12px; text-align: right;">Yüzde</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.statusAnalysis.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.status}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.count)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// En Çok Üretilen Araç Tipleri
+			const topVehicleTypesHtml = record.topVehicleTypes && record.topVehicleTypes.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Üretilen Araç Tipleri (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #1e40af; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 35%; padding: 12px; text-align: left;">Araç Tipi</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Araç Sayısı</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Yüzde</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Toplam Hata</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Aktif Hata</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.topVehicleTypes.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.vehicleType}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.count)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+									<td style="padding: 12px; text-align: center; color: #dc2626; font-weight: 600;">${formatNumber(item.totalFaults)}</td>
+									<td style="padding: 12px; text-align: center; color: #f59e0b; font-weight: 600;">${formatNumber(item.activeFaults)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// En Çok Araç Üreten Müşteriler
+			const topCustomersHtml = record.topCustomers && record.topCustomers.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Araç Üreten Müşteriler (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #1e40af; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 40%; padding: 12px; text-align: left;">Müşteri</th>
+								<th style="width: 20%; padding: 12px; text-align: center;">Araç Sayısı</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Yüzde</th>
+								<th style="width: 20%; padding: 12px; text-align: center;">Toplam Hata</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.topCustomers.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.customer}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.count)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+									<td style="padding: 12px; text-align: center; color: #dc2626; font-weight: 600;">${formatNumber(item.totalFaults)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// En Çok Hata Olan Araçlar
+			const vehiclesWithFaultsHtml = record.vehiclesWithFaults && record.vehiclesWithFaults.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Hata Olan Araçlar (Top 10)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #dc2626; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 15%; padding: 12px; text-align: left;">Şasi No</th>
+								<th style="width: 25%; padding: 12px; text-align: left;">Araç Tipi</th>
+								<th style="width: 20%; padding: 12px; text-align: left;">Müşteri</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Toplam Hata</th>
+								<th style="width: 10%; padding: 12px; text-align: center;">Aktif</th>
+								<th style="width: 10%; padding: 12px; text-align: center;">Giderilen</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.vehiclesWithFaults.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827; font-family: monospace;">${item.chassisNo}</td>
+									<td style="padding: 12px; color: #6b7280;">${item.vehicleType}</td>
+									<td style="padding: 12px; color: #6b7280;">${item.customerName}</td>
+									<td style="padding: 12px; text-align: center; font-weight: 700; color: #dc2626;">${formatNumber(item.totalFaults)}</td>
+									<td style="padding: 12px; text-align: center; color: #f59e0b; font-weight: 600;">${formatNumber(item.activeFaults)}</td>
+									<td style="padding: 12px; text-align: center; color: #059669; font-weight: 600;">${formatNumber(item.resolvedFaults)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// DMO Durumu Analizi
+			const dmoAnalysisHtml = record.dmoAnalysis && record.dmoAnalysis.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">DMO Durumu Analizi</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #7c3aed; color: white;">
+								<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+								<th style="width: 50%; padding: 12px; text-align: left;">DMO Durumu</th>
+								<th style="width: 25%; padding: 12px; text-align: center;">Araç Sayısı</th>
+								<th style="width: 20%; padding: 12px; text-align: right;">Yüzde</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.dmoAnalysis.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.status}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.count)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			// Aylık Trend Analizi
+			const monthlyTrendHtml = record.monthlyData && record.monthlyData.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Aylık Trend Analizi (Son 12 Ay)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #10b981; color: white;">
+								<th style="width: 20%; padding: 12px; text-align: left;">Ay</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Araç Sayısı</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Toplam Hata</th>
+								<th style="width: 15%; padding: 12px; text-align: center;">Aktif Hata</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Ortalama Hata/Araç</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.monthlyData.map((item, idx) => `
+								<tr style="border-bottom: 1px solid #e5e7eb;">
+									<td style="padding: 12px; font-weight: 600; color: #111827;">${item.month}</td>
+									<td style="padding: 12px; text-align: center; color: #6b7280;">${formatNumber(item.count)}</td>
+									<td style="padding: 12px; text-align: center; color: #dc2626; font-weight: 600;">${formatNumber(item.totalFaults)}</td>
+									<td style="padding: 12px; text-align: center; color: #f59e0b; font-weight: 600;">${formatNumber(item.activeFaults)}</td>
+									<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">${formatPercent(item.averageFaultsPerVehicle)}</td>
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+			
+			summaryHtml = `
+				<div style="margin-bottom: 25px;">
+					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
+					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Dönem:</strong> ${periodInfo}</p>
+					<p style="font-size: 14px; color: #6b7280;"><strong>Toplam Araç Sayısı:</strong> ${formatNumber(record.totalVehicles)}</p>
+				</div>
+				${summaryCardsHtml}
+				${statusAnalysisHtml}
+				${topVehicleTypesHtml}
+				${topCustomersHtml}
+				${vehiclesWithFaultsHtml}
+				${dmoAnalysisHtml}
+				${monthlyTrendHtml}
+			`;
+			
+			headers = [];
+			rowsHtml = '';
+		}
 	} else if (type === 'incoming_quality_executive_summary') {
 		title = 'Girdi Kalite Kontrol Yönetici Özeti Raporu';
 		
@@ -4537,7 +4781,7 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'supplier_list' || type === 'supplier_dashboard') {
 		reportContentHtml = generateListReportHtml(record, type);
-	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'incoming_quality_executive_summary') {
+	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
