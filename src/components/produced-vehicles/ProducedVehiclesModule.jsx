@@ -1,12 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
     import { motion } from 'framer-motion';
-    import { Plus, SlidersHorizontal, Search, BarChart2, List, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+    import { Plus, SlidersHorizontal, Search, BarChart2, List, ArrowUpDown, ArrowUp, ArrowDown, FileText, BarChart3 } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
     import { normalizeTurkishForSearch } from '@/lib/utils';
+    import { format } from 'date-fns';
+    import { tr } from 'date-fns/locale';
+    import { openPrintableReport } from '@/lib/reportUtils';
 
     import VehicleDashboard from '@/components/produced-vehicles/VehicleDashboard';
     import VehicleTable from '@/components/produced-vehicles/VehicleTable';
@@ -33,6 +37,7 @@ import React, { useState, useMemo, useEffect } from 'react';
         const [isTimeDetailModalOpen, setTimeDetailModalOpen] = useState(false);
         const [isStatusDetailModalOpen, setStatusDetailModalOpen] = useState(false);
         const [isFilterModalOpen, setFilterModalOpen] = useState(false);
+        const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
         const [statusDetail, setStatusDetail] = useState(null);
         const [filters, setFilters] = useState({ status: [], vehicle_type: [], dateRange: null });
         const [sortConfig, setSortConfig] = useState({ key: 'updated_at', direction: 'desc' });
@@ -174,6 +179,264 @@ import React, { useState, useMemo, useEffect } from 'react';
                 : <ArrowDown className="ml-1 h-3 w-3" />;
         };
 
+        // Tarih aralığı bilgisi
+        const dateRange = useMemo(() => {
+            const from = filters.dateRange?.from;
+            const to = filters.dateRange?.to;
+            if (from && to) {
+                return {
+                    label: `${format(from, 'dd.MM.yyyy', { locale: tr })} - ${format(to, 'dd.MM.yyyy', { locale: tr })}`,
+                    startDate: from,
+                    endDate: to
+                };
+            }
+            return { label: 'Tüm Zamanlar', startDate: null, endDate: null };
+        }, [filters.dateRange]);
+
+        const handleOpenReportModal = useCallback(() => {
+            if (memoizedVehicles.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor oluşturmak için en az bir araç kaydı olmalıdır.',
+                });
+                return;
+            }
+            setIsReportSelectionModalOpen(true);
+        }, [memoizedVehicles, toast]);
+
+        const handleGenerateExecutiveReport = useCallback(async () => {
+            if (memoizedVehicles.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor oluşturmak için en az bir araç kaydı olmalıdır.',
+                });
+                return;
+            }
+
+            const formatDate = (dateInput) => {
+                if (!dateInput) return '-';
+                try {
+                    const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
+                    if (isNaN(dateObj.getTime())) return '-';
+                    return format(dateObj, 'dd.MM.yyyy', { locale: tr });
+                } catch {
+                    return '-';
+                }
+            };
+
+            try {
+                // Genel istatistikler
+                const totalVehicles = memoizedVehicles.length;
+                
+                // Durum bazlı analiz
+                const byStatus = {};
+                memoizedVehicles.forEach(vehicle => {
+                    const status = vehicle.status || 'Belirtilmemiş';
+                    if (!byStatus[status]) {
+                        byStatus[status] = { count: 0, vehicles: [] };
+                    }
+                    byStatus[status].count += 1;
+                    byStatus[status].vehicles.push(vehicle);
+                });
+
+                const statusAnalysis = Object.entries(byStatus)
+                    .map(([status, data]) => ({
+                        status,
+                        count: data.count,
+                        percentage: totalVehicles > 0 ? ((data.count / totalVehicles) * 100) : 0
+                    }))
+                    .sort((a, b) => b.count - a.count);
+
+                // Araç tipi bazlı analiz
+                const byVehicleType = {};
+                memoizedVehicles.forEach(vehicle => {
+                    const vehicleType = vehicle.vehicle_type || 'Belirtilmemiş';
+                    if (!byVehicleType[vehicleType]) {
+                        byVehicleType[vehicleType] = { count: 0, totalFaults: 0, activeFaults: 0 };
+                    }
+                    byVehicleType[vehicleType].count += 1;
+                    const faults = vehicle.quality_inspection_faults || [];
+                    byVehicleType[vehicleType].totalFaults += faults.length;
+                    byVehicleType[vehicleType].activeFaults += faults.filter(f => !f.is_resolved).length;
+                });
+
+                const topVehicleTypes = Object.entries(byVehicleType)
+                    .map(([type, data]) => ({
+                        vehicleType: type,
+                        count: data.count,
+                        percentage: totalVehicles > 0 ? ((data.count / totalVehicles) * 100) : 0,
+                        totalFaults: data.totalFaults,
+                        activeFaults: data.activeFaults,
+                        resolvedFaults: data.totalFaults - data.activeFaults
+                    }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 10);
+
+                // Müşteri bazlı analiz
+                const byCustomer = {};
+                memoizedVehicles.forEach(vehicle => {
+                    const customer = vehicle.customer_name || 'Belirtilmemiş';
+                    if (!byCustomer[customer]) {
+                        byCustomer[customer] = { count: 0, totalFaults: 0, activeFaults: 0 };
+                    }
+                    byCustomer[customer].count += 1;
+                    const faults = vehicle.quality_inspection_faults || [];
+                    byCustomer[customer].totalFaults += faults.length;
+                    byCustomer[customer].activeFaults += faults.filter(f => !f.is_resolved).length;
+                });
+
+                const topCustomers = Object.entries(byCustomer)
+                    .map(([customer, data]) => ({
+                        customer,
+                        count: data.count,
+                        percentage: totalVehicles > 0 ? ((data.count / totalVehicles) * 100) : 0,
+                        totalFaults: data.totalFaults,
+                        activeFaults: data.activeFaults
+                    }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 10);
+
+                // Hata analizi
+                let totalFaults = 0;
+                let activeFaults = 0;
+                let resolvedFaults = 0;
+                memoizedVehicles.forEach(vehicle => {
+                    const faults = vehicle.quality_inspection_faults || [];
+                    totalFaults += faults.length;
+                    activeFaults += faults.filter(f => !f.is_resolved).length;
+                    resolvedFaults += faults.filter(f => f.is_resolved).length;
+                });
+
+                // En çok hata olan araçlar
+                const vehiclesWithFaults = memoizedVehicles
+                    .map(vehicle => {
+                        const faults = vehicle.quality_inspection_faults || [];
+                        return {
+                            chassisNo: vehicle.chassis_no || '-',
+                            vehicleType: vehicle.vehicle_type || '-',
+                            customerName: vehicle.customer_name || '-',
+                            status: vehicle.status || '-',
+                            totalFaults: faults.length,
+                            activeFaults: faults.filter(f => !f.is_resolved).length,
+                            resolvedFaults: faults.filter(f => f.is_resolved).length
+                        };
+                    })
+                    .filter(v => v.totalFaults > 0)
+                    .sort((a, b) => b.totalFaults - a.totalFaults)
+                    .slice(0, 10);
+
+                // DMO durumu analizi
+                const byDMOStatus = {};
+                memoizedVehicles.forEach(vehicle => {
+                    const dmoStatus = vehicle.dmo_status || 'Belirtilmemiş';
+                    if (!byDMOStatus[dmoStatus]) {
+                        byDMOStatus[dmoStatus] = { count: 0 };
+                    }
+                    byDMOStatus[dmoStatus].count += 1;
+                });
+
+                const dmoAnalysis = Object.entries(byDMOStatus)
+                    .map(([status, data]) => ({
+                        status,
+                        count: data.count,
+                        percentage: totalVehicles > 0 ? ((data.count / totalVehicles) * 100) : 0
+                    }))
+                    .sort((a, b) => b.count - a.count);
+
+                // Aylık trend analizi
+                const monthlyTrends = {};
+                memoizedVehicles.forEach(vehicle => {
+                    if (!vehicle.created_at) return;
+                    try {
+                        const monthKey = format(new Date(vehicle.created_at), 'yyyy-MM', { locale: tr });
+                        if (!monthlyTrends[monthKey]) {
+                            monthlyTrends[monthKey] = {
+                                count: 0,
+                                totalFaults: 0,
+                                activeFaults: 0
+                            };
+                        }
+                        monthlyTrends[monthKey].count += 1;
+                        const faults = vehicle.quality_inspection_faults || [];
+                        monthlyTrends[monthKey].totalFaults += faults.length;
+                        monthlyTrends[monthKey].activeFaults += faults.filter(f => !f.is_resolved).length;
+                    } catch (error) {
+                        console.warn('Geçersiz tarih:', vehicle.created_at, error);
+                    }
+                });
+
+                const monthlyData = Object.entries(monthlyTrends)
+                    .map(([month, data]) => ({
+                        month: format(new Date(month + '-01'), 'MMMM yyyy', { locale: tr }),
+                        monthKey: month,
+                        count: data.count,
+                        totalFaults: data.totalFaults,
+                        activeFaults: data.activeFaults,
+                        averageFaultsPerVehicle: data.count > 0 ? (data.totalFaults / data.count) : 0
+                    }))
+                    .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
+                    .slice(-12); // Son 12 ay
+
+                // Ortalama kalite süresi hesaplama (basit versiyon)
+                const vehiclesWithTime = memoizedVehicles.filter(v => v.created_at);
+                const averageDaysInQuality = vehiclesWithTime.length > 0
+                    ? vehiclesWithTime.reduce((sum, v) => {
+                        try {
+                            const created = new Date(v.created_at);
+                            const now = new Date();
+                            const days = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+                            return sum + days;
+                        } catch {
+                            return sum;
+                        }
+                    }, 0) / vehiclesWithTime.length
+                    : 0;
+
+                // Rapor verisi
+                const reportData = {
+                    id: `produced-vehicles-executive-${Date.now()}`,
+                    period: dateRange.label || 'Tüm Zamanlar',
+                    periodStart: dateRange.startDate ? formatDate(dateRange.startDate) : null,
+                    periodEnd: dateRange.endDate ? formatDate(dateRange.endDate) : null,
+                    totalVehicles,
+                    statusAnalysis,
+                    topVehicleTypes,
+                    topCustomers,
+                    totalFaults,
+                    activeFaults,
+                    resolvedFaults,
+                    faultResolutionRate: totalFaults > 0 ? ((resolvedFaults / totalFaults) * 100) : 0,
+                    vehiclesWithFaults,
+                    dmoAnalysis,
+                    monthlyData,
+                    averageDaysInQuality: Math.round(averageDaysInQuality),
+                    reportDate: formatDate(new Date())
+                };
+
+                openPrintableReport(reportData, 'produced_vehicles_executive_summary', true);
+
+                toast({
+                    title: 'Başarılı',
+                    description: 'Yönetici özeti raporu oluşturuldu.',
+                });
+            } catch (error) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: `Rapor oluşturulurken hata oluştu: ${error.message}`,
+                });
+            }
+        }, [memoizedVehicles, dateRange, toast]);
+
+        const handleSelectReportType = useCallback((type) => {
+            setIsReportSelectionModalOpen(false);
+            if (type === 'executive') {
+                handleGenerateExecutiveReport();
+            }
+        }, [handleGenerateExecutiveReport]);
+
         return (
             <div className="space-y-6">
                 <AddVehicleModal isOpen={isAddModalOpen} setIsOpen={setAddModalOpen} refreshVehicles={refreshData} />
@@ -263,6 +526,9 @@ import React, { useState, useMemo, useEffect } from 'react';
                                 <Button variant="outline" onClick={() => setFilterModalOpen(true)} className="shrink-0">
                                     <SlidersHorizontal className="w-4 h-4 mr-2" /> Filtrele
                                 </Button>
+                                <Button onClick={handleOpenReportModal} variant="outline" size="sm" className="shrink-0">
+                                    <FileText className="w-4 h-4 mr-2" /> Rapor Al
+                                </Button>
                             </div>
                              {loading ? (
                                 <div className="text-center py-10 text-muted-foreground">Yükleniyor...</div>
@@ -289,6 +555,42 @@ import React, { useState, useMemo, useEffect } from 'react';
                         <VehicleQualityAnalytics />
                     </TabsContent>
                 </Tabs>
+
+                {/* Rapor Seçim Modalı */}
+                <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-primary" />
+                                Rapor Türü Seçin
+                            </DialogTitle>
+                            <DialogDescription>
+                                Oluşturmak istediğiniz rapor türünü seçin.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <button
+                                onClick={() => handleSelectReportType('executive')}
+                                className="flex items-start gap-4 p-4 rounded-lg border-2 border-border hover:border-primary hover:bg-accent/50 transition-all cursor-pointer text-left group"
+                            >
+                                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
+                                    <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-base mb-1 text-foreground">Yönetici Özeti Raporu</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Durum analizi, araç tipi ve müşteri bazlı analiz, hata istatistikleri, DMO durumu ve trend analizi içeren kapsamlı özet rapor.
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsReportSelectionModalOpen(false)}>
+                                İptal
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         );
     };

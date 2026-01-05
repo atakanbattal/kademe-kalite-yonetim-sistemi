@@ -209,6 +209,8 @@ const getReportTitle = (record, type) => {
 			return 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
 		case 'incoming_quality_executive_summary':
 			return 'Girdi Kalite Kontrol Yönetici Özeti Raporu';
+		case 'produced_vehicles_executive_summary':
+			return 'Üretilen Araçlar Yönetici Özeti Raporu';
 		default:
 			return 'Detaylı Rapor';
 	}
