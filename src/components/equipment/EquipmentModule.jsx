@@ -409,6 +409,11 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                                             };
                                         };
                                         const calStatus = getCalibrationStatus(eq.equipment_calibrations, eq.status);
+                                        
+                                        // Aktif zimmet bilgisini bul
+                                        const activeAssignment = eq.equipment_assignments?.find(a => a.is_active === true);
+                                        const assignedPersonnel = activeAssignment?.personnel?.full_name || '-';
+                                        
                                         return {
                                             name: eq.name || '-',
                                             serial_number: eq.serial_number || '-',
@@ -416,10 +421,12 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                                             calibration_status: calStatus.text,
                                             next_calibration_date: calStatus.date || '-',
                                             brand_model: eq.brand_model || '-',
+                                            model: eq.brand_model || '-', // Raporda model olarak kullanılıyor
                                             responsible_unit: eq.responsible_unit || '-',
                                             location: eq.location || '-',
                                             acquisition_date: eq.acquisition_date || '-',
-                                            description: eq.description || '-'
+                                            description: eq.description || '-',
+                                            assigned_personnel: assignedPersonnel
                                         };
                                     }),
                                     filterInfo: searchTerm ? `Arama: "${searchTerm}"` : 'Tüm Ekipmanlar'

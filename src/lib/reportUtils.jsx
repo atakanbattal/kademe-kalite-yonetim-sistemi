@@ -1459,7 +1459,7 @@ const generateListReportHtml = (record, type) => {
 					<td style="width: 12%;">${statusBadge}</td>
 					<td style="width: 15%;">${calStatusBadge}</td>
 					<td style="width: 12%; white-space: nowrap;">${item.next_calibration_date}</td>
-					<td style="width: 13%; font-size: 0.85em;">${item.model}</td>
+					<td style="width: 13%; font-size: 0.85em;">${item.model || item.brand_model || '-'}</td>
 					<td style="width: 12%; font-size: 0.85em;">${item.responsible_unit}</td>
 					<td style="width: 6%; font-size: 0.85em;">${item.assigned_personnel || '-'}</td>
 				</tr>
