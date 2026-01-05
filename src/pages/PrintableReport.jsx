@@ -607,6 +607,26 @@ const PrintableReport = () => {
         }
     };
 
+    // Ctrl+P veya Cmd+P tuşlarına basıldığında iframe içeriğini print et
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Ctrl+P (Windows/Linux) veya Cmd+P (Mac)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (iframeRef.current && iframeRef.current.contentWindow) {
+                    iframeRef.current.contentWindow.print();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
+
     if (loading) {
         return (
             <div className="flex h-screen w-screen items-center justify-center bg-gray-100">
