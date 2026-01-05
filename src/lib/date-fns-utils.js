@@ -22,12 +22,37 @@ export const formatTimeInStatus = (vehicle) => {
             break;
 
         case 'Yeniden İşlem':
-            const activeReworkCycle = vehicle.quality_inspection_cycles
-                ?.filter(c => c.rework_start_at && !c.rework_end_at)
-                .sort((a, b) => new Date(b.rework_start_at) - new Date(a.rework_start_at))[0];
+        case 'Yeniden İşlemde':
+            // Önce timeline events'ten kontrol et
+            const timelineEvents = vehicle.vehicle_timeline_events || [];
+            const latestReworkStart = timelineEvents
+                .filter(e => e.event_type === 'rework_start')
+                .sort((a, b) => new Date(b.event_timestamp) - new Date(a.event_timestamp))[0];
             
-            start = activeReworkCycle?.rework_start_at || vehicle.status_entered_at;
-            end = now;
+            if (latestReworkStart) {
+                // Timeline'da rework_start var, rework_end var mı kontrol et
+                const reworkEnd = timelineEvents
+                    .filter(e => e.event_type === 'rework_end' && new Date(e.event_timestamp) > new Date(latestReworkStart.event_timestamp))
+                    .sort((a, b) => new Date(a.event_timestamp) - new Date(b.event_timestamp))[0];
+                
+                if (reworkEnd) {
+                    // Rework bitmiş
+                    start = latestReworkStart.event_timestamp;
+                    end = reworkEnd.event_timestamp;
+                } else {
+                    // Rework devam ediyor - dinamik olarak şu anki zamana kadar
+                    start = latestReworkStart.event_timestamp;
+                    end = now;
+                }
+            } else {
+                // Timeline'da yoksa quality_inspection_cycles'dan kontrol et
+                const activeReworkCycle = vehicle.quality_inspection_cycles
+                    ?.filter(c => c.rework_start_at && !c.rework_end_at)
+                    .sort((a, b) => new Date(b.rework_start_at) - new Date(a.rework_start_at))[0];
+                
+                start = activeReworkCycle?.rework_start_at || vehicle.status_entered_at;
+                end = now;
+            }
             break;
 
         default: // For all other statuses

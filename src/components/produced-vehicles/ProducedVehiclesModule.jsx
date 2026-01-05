@@ -404,6 +404,28 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                     : 0;
                 const averageControlDuration = formatDuration(averageControlDurationMillis);
 
+                // Ortalama yeniden işlem süresi hesaplama (dinamik - devam edenler dahil)
+                let totalReworkMillis = 0;
+                let reworkCount = 0;
+                memoizedVehicles.forEach(vehicle => {
+                    const timeline = vehicle.vehicle_timeline_events || [];
+                    for (let i = 0; i < timeline.length; i++) {
+                        const currentEvent = timeline[i];
+                        if (currentEvent.event_type === 'rework_start') {
+                            const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'rework_end');
+                            const startTime = new Date(currentEvent.event_timestamp);
+                            // Eğer rework_end yoksa, şu anki zamana kadar hesapla (dinamik)
+                            const endTime = nextEnd ? new Date(nextEnd.event_timestamp) : new Date();
+                            totalReworkMillis += (endTime - startTime);
+                            reworkCount++;
+                        }
+                    }
+                });
+                const averageReworkDurationMillis = reworkCount > 0 
+                    ? totalReworkMillis / reworkCount
+                    : 0;
+                const averageReworkDuration = formatDuration(averageReworkDurationMillis);
+
                 // Rapor verisi
                 const reportData = {
                     id: `produced-vehicles-executive-${Date.now()}`,
@@ -422,6 +444,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                     dmoAnalysis,
                     monthlyData,
                     averageControlDuration,
+                    averageReworkDuration,
                     reportDate: formatDate(new Date())
                 };
 
