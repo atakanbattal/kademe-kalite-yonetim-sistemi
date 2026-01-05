@@ -422,6 +422,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                                             next_calibration_date: calStatus.date || '-',
                                             brand_model: eq.brand_model || '-',
                                             model: eq.brand_model || '-', // Raporda model olarak kullanılıyor
+                                            measurement_range: eq.measurement_range || '-',
                                             responsible_unit: eq.responsible_unit || '-',
                                             location: eq.location || '-',
                                             acquisition_date: eq.acquisition_date || '-',

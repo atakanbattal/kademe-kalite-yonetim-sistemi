@@ -1430,7 +1430,7 @@ const generateListReportHtml = (record, type) => {
 		`;
 	} else if (type === 'equipment_list') {
 		title = 'Ekipman ve Kalibrasyon Listesi Raporu';
-		headers = ['Ekipman Adı', 'Seri No', 'Durum', 'Kalibrasyon Durumu', 'Sonraki Kalibrasyon', 'Model', 'Sorumlu Birim', 'Zimmet Durumu'];
+		headers = ['Ekipman Adı', 'Seri No', 'Durum', 'Kalibrasyon Durumu', 'Sonraki Kalibrasyon', 'Model', 'Ölçüm Aralığı', 'Sorumlu Birim', 'Zimmet Durumu'];
 		rowsHtml = record.items.map(item => {
 			const statusBadge = item.status === 'Aktif'
 				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Aktif</span>'
@@ -1454,14 +1454,15 @@ const generateListReportHtml = (record, type) => {
 
 			return `
 				<tr>
-					<td style="width: 18%; font-weight: 600;">${item.name}</td>
-					<td style="width: 12%; font-family: monospace; font-size: 0.9em;">${item.serial_number}</td>
-					<td style="width: 12%;">${statusBadge}</td>
-					<td style="width: 15%;">${calStatusBadge}</td>
-					<td style="width: 12%; white-space: nowrap;">${item.next_calibration_date}</td>
-					<td style="width: 13%; font-size: 0.85em;">${item.model || item.brand_model || '-'}</td>
-					<td style="width: 12%; font-size: 0.85em;">${item.responsible_unit}</td>
-					<td style="width: 6%; font-size: 0.85em;">${item.assigned_personnel || '-'}</td>
+					<td style="width: 15%; font-weight: 600;">${item.name}</td>
+					<td style="width: 10%; font-family: monospace; font-size: 0.9em;">${item.serial_number}</td>
+					<td style="width: 10%;">${statusBadge}</td>
+					<td style="width: 12%;">${calStatusBadge}</td>
+					<td style="width: 10%; white-space: nowrap;">${item.next_calibration_date}</td>
+					<td style="width: 11%; font-size: 0.85em;">${item.model || item.brand_model || '-'}</td>
+					<td style="width: 12%; font-size: 0.85em;">${item.measurement_range || '-'}</td>
+					<td style="width: 10%; font-size: 0.85em;">${item.responsible_unit}</td>
+					<td style="width: 10%; font-size: 0.85em;">${item.assigned_personnel || '-'}</td>
 				</tr>
 			`;
 		}).join('');
