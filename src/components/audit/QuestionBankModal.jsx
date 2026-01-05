@@ -437,8 +437,15 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                     }
                     
                     @media print {
+                        /* Print için renkleri koru */
+                        * {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                            color-adjust: exact !important;
+                        }
+                        
                         body {
-                            background-color: white;
+                            background-color: white !important;
                             padding: 0;
                         }
                         
@@ -450,8 +457,16 @@ const QuestionBankModal = ({ isOpen, setIsOpen }) => {
                         
                         @page {
                             size: A4;
-                            margin: 20mm;
+                            margin: 12mm;
                         }
+                        
+                        .section { page-break-inside: avoid; break-inside: avoid; }
+                        .section-title { page-break-after: avoid; break-after: avoid; }
+                        .info-grid { page-break-inside: avoid; break-inside: avoid; }
+                        .info-item { page-break-inside: avoid; break-inside: avoid; }
+                        .questions-section { page-break-inside: auto; }
+                        .question-item { page-break-inside: avoid; break-inside: avoid; }
+                        .footer { page-break-inside: avoid; break-inside: avoid; }
                     }
                 </style>
             </head>

@@ -1147,16 +1147,29 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             color: #1e40af;
         }
         @media print {
-            body { background-color: white; margin: 0; padding: 0; }
+            /* Print için renkleri koru */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            
+            body { background-color: white !important; margin: 0; padding: 0; }
             .page { margin: 0; box-shadow: none; border: none; }
             .page::before { display: none; }
             @page {
                 size: A4;
-                margin: 0;
+                margin: 12mm;
             }
+            .section { page-break-inside: avoid; break-inside: avoid; }
+            .section-title { page-break-after: avoid; break-after: avoid; }
+            table { page-break-inside: auto; }
+            table thead { display: table-header-group; }
+            table tbody tr { page-break-inside: avoid; break-inside: avoid; }
             .footer {
                 position: fixed;
                 bottom: 0;
+                page-break-inside: avoid;
             }
         }
     </style>

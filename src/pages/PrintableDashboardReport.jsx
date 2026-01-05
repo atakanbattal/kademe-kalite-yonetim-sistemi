@@ -101,17 +101,27 @@ const PrintableDashboardReport = () => {
                     .text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
                     .text-wrap { word-wrap: break-word; word-break: break-word; white-space: normal; }
                     @media print {
-                        body { background-color: white; margin: 0; padding: 0; }
+                        /* Print için renkleri koru */
+                        * {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                            color-adjust: exact !important;
+                        }
+                        
+                        body { background-color: white !important; margin: 0; padding: 0; }
                         .report-container { margin: 0; padding: 15mm; box-shadow: none; border: none; max-width: 100%; }
                         @page { size: A4; margin: 15mm; }
-                        .report-section { page-break-inside: avoid; }
-                        .data-table { font-size: 8px; }
+                        .report-section { page-break-inside: avoid; break-inside: avoid; }
+                        .section-title { page-break-after: avoid; break-after: avoid; }
+                        .data-table { font-size: 8px; page-break-inside: auto; }
+                        .data-table thead { display: table-header-group; }
+                        .data-table tbody tr { page-break-inside: avoid; break-inside: avoid; }
                         .data-table th, .data-table td { padding: 4px 3px; }
                         .kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
-                        .kpi-card { padding: 8px; }
+                        .kpi-card { padding: 8px; page-break-inside: avoid; break-inside: avoid; }
                         .kpi-title { font-size: 10px; }
                         .kpi-value { font-size: 18px; }
-                        .chart-container { height: 200px; page-break-inside: avoid; }
+                        .chart-container { height: 200px; page-break-inside: avoid; break-inside: avoid; }
                     }
                 `}</style>
 
