@@ -375,11 +375,12 @@ const PrintableInternalAuditDashboard = () => {
                     .kpi-subtext { font-size: 12px; color: #888; margin-top: 8px; }
                     .chart-container { height: 350px; margin-top: 20px; }
                     .chart-small { height: 280px; margin-top: 20px; }
-                    .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
+                    .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; table-layout: fixed; }
                     .data-table th { background-color: #1F3A5F; color: white; padding: 10px 6px; text-align: left; font-weight: 600; border: 1px solid #ddd; font-size: 10px; }
-                    .data-table td { padding: 8px 6px; border: 1px solid #ddd; word-wrap: break-word; }
+                    .data-table td { padding: 8px 6px; border: 1px solid #ddd; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; hyphens: auto; }
                     .data-table tr:nth-child(even) { background-color: #f9fafb; }
                     .data-table tr:hover { background-color: #f0f2f5; }
+                    .data-table .text-wrap { word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; white-space: normal; }
                     .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; }
                     .status-open { background-color: #fee2e2; color: #991b1b; }
                     .status-closed { background-color: #d1fae5; color: #065f46; }
@@ -609,7 +610,7 @@ const PrintableInternalAuditDashboard = () => {
                                             <td style={{ fontSize: '9px' }}>{item.auditDate}</td>
                                             <td style={{ fontSize: '9px' }}>{item.department}</td>
                                             <td style={{ fontSize: '9px' }}>{item.auditStandard}</td>
-                                            <td style={{ fontSize: '9px' }}>{item.findingDescription}</td>
+                                            <td style={{ fontSize: '9px' }} className="text-wrap">{item.findingDescription}</td>
                                             <td style={{ fontWeight: 600, fontSize: '10px' }}>{item.ncNumber}</td>
                                             <td>
                                                 <span className={`status-badge ${statusClass}`} style={{ fontSize: '9px' }}>
