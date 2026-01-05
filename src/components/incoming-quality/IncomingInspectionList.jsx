@@ -4,7 +4,7 @@ import React from 'react';
     import { Badge } from '@/components/ui/badge';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-    import { MoreHorizontal, Plus, Search, Edit, FileSignature, Trash2, Eye, CheckSquare, Filter, Check, XCircle as CircleX, FilePlus, ChevronLeft, ChevronRight } from 'lucide-react';
+    import { MoreHorizontal, Plus, Search, Edit, FileSignature, Trash2, Eye, CheckSquare, Filter, Check, XCircle as CircleX, FilePlus, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
     import { format } from 'date-fns';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { supabase } from '@/lib/customSupabaseClient';
