@@ -5915,6 +5915,30 @@ a: after,
 			.step-section {
 		page-break-inside: avoid;
 	}
+
+			/* Fillable alanlar için özel ayarlar */
+			.fillable-field {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
+
+			.fillable-line,
+			.fillable-area {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
+
+			/* Section başlıkları ve içerikleri birlikte kalsın */
+			.section-title {
+		page-break-after: avoid;
+		break-after: avoid;
+	}
+
+			/* Section içeriği başlıktan ayrılmasın */
+			.section > *:first-child {
+		page-break-after: avoid;
+		break-after: avoid;
+	}
 }
 `;
 
