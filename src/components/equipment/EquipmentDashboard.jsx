@@ -4,12 +4,12 @@ import { Wrench, CheckSquare, AlertTriangle, Users, XCircle } from 'lucide-react
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const StatCard = ({ icon: Icon, title, value, colorClass }) => (
-    <Card className={`overflow-hidden border-l-4 ${colorClass}`}>
+    <Card className={`overflow-hidden border-l-4 ${colorClass} h-full flex flex-col`}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
             <Icon className={`h-5 w-5 ${colorClass.replace('border-', 'text-')}`} />
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1">
             <p className="text-2xl font-bold text-foreground">{value}</p>
         </CardContent>
     </Card>
@@ -81,7 +81,7 @@ const EquipmentDashboard = ({ equipments, loading }) => {
         >
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
                 {stats.map(stat => (
-                    <motion.div key={stat.title} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+                    <motion.div key={stat.title} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="h-full">
                         <StatCard {...stat} />
                     </motion.div>
                 ))}
