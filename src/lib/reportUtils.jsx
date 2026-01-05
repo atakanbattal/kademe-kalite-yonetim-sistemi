@@ -203,6 +203,10 @@ const getReportTitle = (record, type) => {
 			return record.title || 'Tedarikçi Listesi Raporu';
 		case 'supplier_dashboard':
 			return record.title || 'Tedarikçi Kalite Genel Bakış Raporu';
+		case 'quality_cost_list':
+			return record.unit ? `${record.unit} Birimi-Kalitesizlik Maliyetleri Raporu` : 'Kalitesizlik Maliyetleri Raporu';
+		case 'quality_cost_executive_summary':
+			return 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
 		default:
 			return 'Detaylı Rapor';
 	}
@@ -1634,6 +1638,270 @@ const generateListReportHtml = (record, type) => {
 			<p><strong>Toplam Maliyet:</strong> <span style="font-size: 1.2em; font-weight: 700; color: #dc2626;">${totalAmountFormatted}</span></p>
 			${typeSummary ? `<p><strong>Maliyet Türü Dağılımı:</strong><br>${typeSummary}</p>` : ''}
 		`;
+	} else if (type === 'quality_cost_executive_summary') {
+		title = 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
+		
+		const formatCurrencyLocal = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+		const formatPercent = (value) => (value || 0).toFixed(2);
+		const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+		
+		const periodInfo = record.periodStart && record.periodEnd
+			? `${record.periodStart} - ${record.periodEnd}`
+			: record.period || 'Tüm Zamanlar';
+		
+		// Genel Özet Kartları
+		const summaryCardsHtml = `
+			<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
+				<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+					<div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; font-weight: 600;">TOPLAM MALİYET</div>
+					<div style="font-size: 28px; font-weight: 700;">${formatCurrencyLocal(record.totalCost)}</div>
+					<div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">${record.totalCount} kayıt</div>
+				</div>
+				<div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+					<div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; font-weight: 600;">İÇ HATA</div>
+					<div style="font-size: 28px; font-weight: 700;">${formatCurrencyLocal(record.internalCost)}</div>
+					<div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">%${formatPercent(record.internalPercentage)}</div>
+				</div>
+				<div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+					<div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; font-weight: 600;">DIŞ HATA</div>
+					<div style="font-size: 28px; font-weight: 700;">${formatCurrencyLocal(record.externalCost)}</div>
+					<div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">%${formatPercent(record.externalPercentage)}</div>
+				</div>
+				<div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+					<div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; font-weight: 600;">COPQ TOPLAM</div>
+					<div style="font-size: 28px; font-weight: 700;">${formatCurrencyLocal(record.internalCost + record.externalCost + record.appraisalCost + record.preventionCost)}</div>
+					<div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">Kalitesizlik Maliyeti</div>
+				</div>
+			</div>
+		`;
+		
+		// COPQ Kategorileri
+		const copqCategoriesHtml = `
+			<div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 30px; border: 1px solid #e5e7eb;">
+				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">COPQ Kategorileri (Cost of Poor Quality)</h3>
+				<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+					<div style="background-color: white; border-radius: 6px; padding: 15px; border-left: 4px solid #ef4444;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">İç Hata Maliyetleri</div>
+						<div style="font-size: 20px; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(record.internalCost)}</div>
+						<div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">%${formatPercent(record.internalPercentage)}</div>
+					</div>
+					<div style="background-color: white; border-radius: 6px; padding: 15px; border-left: 4px solid #3b82f6;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Dış Hata Maliyetleri</div>
+						<div style="font-size: 20px; font-weight: 700; color: #2563eb;">${formatCurrencyLocal(record.externalCost)}</div>
+						<div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">%${formatPercent(record.externalPercentage)}</div>
+					</div>
+					<div style="background-color: white; border-radius: 6px; padding: 15px; border-left: 4px solid #10b981;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Değerlendirme Maliyetleri</div>
+						<div style="font-size: 20px; font-weight: 700; color: #059669;">${formatCurrencyLocal(record.appraisalCost)}</div>
+						<div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">%${formatPercent(record.appraisalPercentage)}</div>
+					</div>
+					<div style="background-color: white; border-radius: 6px; padding: 15px; border-left: 4px solid #f59e0b;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Önleme Maliyetleri</div>
+						<div style="font-size: 20px; font-weight: 700; color: #d97706;">${formatCurrencyLocal(record.preventionCost)}</div>
+						<div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">%${formatPercent(record.preventionPercentage)}</div>
+					</div>
+				</div>
+			</div>
+		`;
+		
+		// En Çok Hata Türleri Tablosu
+		const topCostTypesHtml = record.topCostTypes && record.topCostTypes.length > 0
+			? `
+				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Hata Türleri (Top 10)</h3>
+				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+					<thead>
+						<tr style="background-color: #1e40af; color: white;">
+							<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+							<th style="width: 40%; padding: 12px; text-align: left;">Maliyet Türü</th>
+							<th style="width: 15%; padding: 12px; text-align: right;">Toplam Maliyet</th>
+							<th style="width: 15%; padding: 12px; text-align: center;">Kayıt Sayısı</th>
+							<th style="width: 15%; padding: 12px; text-align: right;">Yüzde</th>
+							<th style="width: 10%; padding: 12px; text-align: center;">Ortalama</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.topCostTypes.map((item, idx) => `
+							<tr style="border-bottom: 1px solid #e5e7eb;">
+								<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+								<td style="padding: 12px; font-weight: 600; color: #111827;">${item.type}</td>
+								<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(item.totalAmount)}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280;">${item.count}</td>
+								<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280; font-size: 0.9em;">${formatCurrencyLocal(item.totalAmount / item.count)}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '';
+		
+		// En Çok Maliyetli Birimler/Tedarikçiler Tablosu
+		const topUnitsHtml = record.topUnits && record.topUnits.length > 0
+			? `
+				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Maliyetli Birimler/Tedarikçiler (Top 10)</h3>
+				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+					<thead>
+						<tr style="background-color: #1e40af; color: white;">
+							<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+							<th style="width: 45%; padding: 12px; text-align: left;">Birim/Tedarikçi</th>
+							<th style="width: 20%; padding: 12px; text-align: right;">Toplam Maliyet</th>
+							<th style="width: 15%; padding: 12px; text-align: center;">Kayıt Sayısı</th>
+							<th style="width: 15%; padding: 12px; text-align: right;">Yüzde</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.topUnits.map((item, idx) => `
+							<tr style="border-bottom: 1px solid #e5e7eb;">
+								<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+								<td style="padding: 12px; font-weight: 600; color: #111827;">
+									${item.isSupplier ? '<span style="color: #f59e0b;">🏭</span> ' : ''}
+									${item.unit}
+								</td>
+								<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(item.totalAmount)}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280;">${item.count}</td>
+								<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '';
+		
+		// En Çok Maliyetli Parçalar Tablosu
+		const topPartsHtml = record.topParts && record.topParts.length > 0
+			? `
+				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Maliyetli Parçalar (Top 10)</h3>
+				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+					<thead>
+						<tr style="background-color: #1e40af; color: white;">
+							<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+							<th style="width: 20%; padding: 12px; text-align: left;">Parça Kodu</th>
+							<th style="width: 25%; padding: 12px; text-align: left;">Parça Adı</th>
+							<th style="width: 20%; padding: 12px; text-align: right;">Toplam Maliyet</th>
+							<th style="width: 15%; padding: 12px; text-align: center;">Kayıt Sayısı</th>
+							<th style="width: 15%; padding: 12px; text-align: right;">Yüzde</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.topParts.map((item, idx) => `
+							<tr style="border-bottom: 1px solid #e5e7eb;">
+								<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+								<td style="padding: 12px; font-weight: 600; color: #111827; font-family: monospace;">${item.partCode}</td>
+								<td style="padding: 12px; color: #6b7280;">${item.partName}</td>
+								<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(item.totalAmount)}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280;">${item.count}</td>
+								<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '';
+		
+		// En Çok Maliyetli Araç Tipleri Tablosu
+		const topVehicleTypesHtml = record.topVehicleTypes && record.topVehicleTypes.length > 0
+			? `
+				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Maliyetli Araç Tipleri (Top 10)</h3>
+				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+					<thead>
+						<tr style="background-color: #1e40af; color: white;">
+							<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+							<th style="width: 50%; padding: 12px; text-align: left;">Araç Tipi</th>
+							<th style="width: 20%; padding: 12px; text-align: right;">Toplam Maliyet</th>
+							<th style="width: 15%; padding: 12px; text-align: center;">Kayıt Sayısı</th>
+							<th style="width: 10%; padding: 12px; text-align: right;">Yüzde</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.topVehicleTypes.map((item, idx) => `
+							<tr style="border-bottom: 1px solid #e5e7eb;">
+								<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+								<td style="padding: 12px; font-weight: 600; color: #111827;">${item.vehicleType}</td>
+								<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(item.totalAmount)}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280;">${item.count}</td>
+								<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '';
+		
+		// Tedarikçi Bazlı Analiz Tablosu
+		const topSuppliersHtml = record.topSuppliers && record.topSuppliers.length > 0
+			? `
+				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Tedarikçi Bazlı Analiz (Top 10)</h3>
+				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+					<thead>
+						<tr style="background-color: #f59e0b; color: white;">
+							<th style="width: 5%; padding: 12px; text-align: center;">#</th>
+							<th style="width: 50%; padding: 12px; text-align: left;">Tedarikçi</th>
+							<th style="width: 20%; padding: 12px; text-align: right;">Toplam Maliyet</th>
+							<th style="width: 15%; padding: 12px; text-align: center;">Kayıt Sayısı</th>
+							<th style="width: 10%; padding: 12px; text-align: right;">Yüzde</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.topSuppliers.map((item, idx) => `
+							<tr style="border-bottom: 1px solid #e5e7eb;">
+								<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
+								<td style="padding: 12px; font-weight: 600; color: #111827;">🏭 ${item.supplier}</td>
+								<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(item.totalAmount)}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280;">${item.count}</td>
+								<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '';
+		
+		// Aylık Trend Analizi Tablosu
+		const monthlyTrendHtml = record.monthlyData && record.monthlyData.length > 0
+			? `
+				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Aylık Trend Analizi (Son 12 Ay)</h3>
+				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+					<thead>
+						<tr style="background-color: #10b981; color: white;">
+							<th style="width: 30%; padding: 12px; text-align: left;">Ay</th>
+							<th style="width: 25%; padding: 12px; text-align: right;">Toplam Maliyet</th>
+							<th style="width: 25%; padding: 12px; text-align: center;">Kayıt Sayısı</th>
+							<th style="width: 20%; padding: 12px; text-align: right;">Ortalama</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.monthlyData.map((item, idx) => `
+							<tr style="border-bottom: 1px solid #e5e7eb;">
+								<td style="padding: 12px; font-weight: 600; color: #111827;">${item.month}</td>
+								<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(item.totalAmount)}</td>
+								<td style="padding: 12px; text-align: center; color: #6b7280;">${item.count}</td>
+								<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">${formatCurrencyLocal(item.totalAmount / item.count)}</td>
+							</tr>
+						`).join('')}
+					</tbody>
+				</table>
+			`
+			: '';
+		
+		summaryHtml = `
+			<div style="margin-bottom: 25px;">
+				<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
+				<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Dönem:</strong> ${periodInfo}</p>
+				<p style="font-size: 14px; color: #6b7280;"><strong>Toplam Kayıt Sayısı:</strong> ${record.totalCount || 0}</p>
+			</div>
+			${summaryCardsHtml}
+			${copqCategoriesHtml}
+			${topCostTypesHtml}
+			${topUnitsHtml}
+			${topPartsHtml}
+			${topVehicleTypesHtml}
+			${topSuppliersHtml}
+			${monthlyTrendHtml}
+		`;
+		
+		// Bu rapor için tablo gerekmediği için boş bırakıyoruz
+		headers = [];
+		rowsHtml = '';
 	} else if (type === 'supplier_list') {
 		title = record.title || 'Tedarikçi Listesi Raporu';
 		headers = ['S.No', 'Tedarikçi Adı', 'Ürün Grubu', 'Durum', 'Puan / Sınıf', 'Ana Tedarikçi', 'Alternatif Tedarikçiler', 'İletişim'];

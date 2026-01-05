@@ -182,8 +182,219 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 });
                 return;
             }
-            setIsReportModalOpen(true);
+            // Yönetici özeti raporu oluştur
+            handleGenerateExecutiveReport();
         }, [filteredCosts.length, toast]);
+
+        const handleGenerateExecutiveReport = useCallback(() => {
+            const formatDate = (dateString) => {
+                if (!dateString) return '-';
+                try {
+                    return format(new Date(dateString), 'dd.MM.yyyy', { locale: tr });
+                } catch {
+                    return '-';
+                }
+            };
+
+            // İç ve dış hata kategorileri
+            const internalCostTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'İç Hata Maliyetleri', 'Hurda', 'Yeniden İşlem', 'İç Hata'];
+            const externalCostTypes = ['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti', 'Dış Hata Maliyetleri', 'Dış Hata', 'Müşteri Şikayeti'];
+            const appraisalCostTypes = ['Değerlendirme Maliyetleri', 'Kontrol', 'Test', 'Muayene'];
+            const preventionCostTypes = ['Önleme Maliyetleri', 'Önleme', 'Eğitim', 'Kalite Planlama'];
+
+            // Genel istatistikler
+            const totalCost = filteredCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
+            const totalCount = filteredCosts.length;
+
+            // İç/Dış hata analizi
+            let internalCost = 0;
+            let externalCost = 0;
+            let appraisalCost = 0;
+            let preventionCost = 0;
+            const internalCosts = [];
+            const externalCosts = [];
+
+            filteredCosts.forEach(cost => {
+                const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
+                const costType = cost.cost_type || '';
+                
+                if (isSupplierCost || externalCostTypes.some(type => costType.includes(type))) {
+                    externalCost += cost.amount || 0;
+                    externalCosts.push(cost);
+                } else if (internalCostTypes.some(type => costType.includes(type))) {
+                    internalCost += cost.amount || 0;
+                    internalCosts.push(cost);
+                } else if (appraisalCostTypes.some(type => costType.includes(type))) {
+                    appraisalCost += cost.amount || 0;
+                } else if (preventionCostTypes.some(type => costType.includes(type))) {
+                    preventionCost += cost.amount || 0;
+                } else {
+                    // Belirtilmemiş kategoriler iç hataya dahil edilir
+                    internalCost += cost.amount || 0;
+                    internalCosts.push(cost);
+                }
+            });
+
+            // En çok hata türleri (Top 10)
+            const costsByType = {};
+            filteredCosts.forEach(cost => {
+                const costType = cost.cost_type || 'Belirtilmemiş';
+                if (!costsByType[costType]) {
+                    costsByType[costType] = { count: 0, totalAmount: 0 };
+                }
+                costsByType[costType].count += 1;
+                costsByType[costType].totalAmount += cost.amount || 0;
+            });
+            const topCostTypes = Object.entries(costsByType)
+                .map(([type, data]) => ({
+                    type,
+                    count: data.count,
+                    totalAmount: data.totalAmount,
+                    percentage: totalCost > 0 ? (data.totalAmount / totalCost) * 100 : 0
+                }))
+                .sort((a, b) => b.totalAmount - a.totalAmount)
+                .slice(0, 10);
+
+            // En çok maliyetli birimler/tedarikçiler (Top 10)
+            const costsByUnit = {};
+            filteredCosts.forEach(cost => {
+                let unitKey;
+                if (cost.is_supplier_nc && cost.supplier?.name) {
+                    unitKey = `Tedarikçi: ${cost.supplier.name}`;
+                } else {
+                    unitKey = cost.unit || 'Belirtilmemiş';
+                }
+                if (!costsByUnit[unitKey]) {
+                    costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: cost.is_supplier_nc || false };
+                }
+                costsByUnit[unitKey].count += 1;
+                costsByUnit[unitKey].totalAmount += cost.amount || 0;
+            });
+            const topUnits = Object.entries(costsByUnit)
+                .map(([unit, data]) => ({
+                    unit,
+                    count: data.count,
+                    totalAmount: data.totalAmount,
+                    percentage: totalCost > 0 ? (data.totalAmount / totalCost) * 100 : 0,
+                    isSupplier: data.isSupplier
+                }))
+                .sort((a, b) => b.totalAmount - a.totalAmount)
+                .slice(0, 10);
+
+            // En çok maliyetli parçalar (Top 10)
+            const costsByPart = {};
+            filteredCosts.forEach(cost => {
+                const partCode = cost.part_code || 'Belirtilmemiş';
+                if (!costsByPart[partCode]) {
+                    costsByPart[partCode] = { count: 0, totalAmount: 0, partName: cost.part_name || '-' };
+                }
+                costsByPart[partCode].count += 1;
+                costsByPart[partCode].totalAmount += cost.amount || 0;
+            });
+            const topParts = Object.entries(costsByPart)
+                .map(([partCode, data]) => ({
+                    partCode,
+                    partName: data.partName,
+                    count: data.count,
+                    totalAmount: data.totalAmount,
+                    percentage: totalCost > 0 ? (data.totalAmount / totalCost) * 100 : 0
+                }))
+                .sort((a, b) => b.totalAmount - a.totalAmount)
+                .slice(0, 10);
+
+            // En çok maliyetli araç tipleri (Top 10)
+            const costsByVehicleType = {};
+            filteredCosts.forEach(cost => {
+                const vehicleType = cost.vehicle_type || 'Belirtilmemiş';
+                if (!costsByVehicleType[vehicleType]) {
+                    costsByVehicleType[vehicleType] = { count: 0, totalAmount: 0 };
+                }
+                costsByVehicleType[vehicleType].count += 1;
+                costsByVehicleType[vehicleType].totalAmount += cost.amount || 0;
+            });
+            const topVehicleTypes = Object.entries(costsByVehicleType)
+                .map(([vehicleType, data]) => ({
+                    vehicleType,
+                    count: data.count,
+                    totalAmount: data.totalAmount,
+                    percentage: totalCost > 0 ? (data.totalAmount / totalCost) * 100 : 0
+                }))
+                .sort((a, b) => b.totalAmount - a.totalAmount)
+                .slice(0, 10);
+
+            // Aylık trend analizi (Son 12 ay)
+            const monthlyTrends = {};
+            filteredCosts.forEach(cost => {
+                const costDate = new Date(cost.cost_date);
+                const monthKey = format(costDate, 'yyyy-MM', { locale: tr });
+                if (!monthlyTrends[monthKey]) {
+                    monthlyTrends[monthKey] = { count: 0, totalAmount: 0 };
+                }
+                monthlyTrends[monthKey].count += 1;
+                monthlyTrends[monthKey].totalAmount += cost.amount || 0;
+            });
+            const monthlyData = Object.entries(monthlyTrends)
+                .map(([month, data]) => ({
+                    month: format(new Date(month + '-01'), 'MMMM yyyy', { locale: tr }),
+                    monthKey: month,
+                    count: data.count,
+                    totalAmount: data.totalAmount
+                }))
+                .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
+                .slice(-12); // Son 12 ay
+
+            // Tedarikçi bazlı analiz
+            const costsBySupplier = {};
+            filteredCosts.filter(c => c.is_supplier_nc && c.supplier?.name).forEach(cost => {
+                const supplierName = cost.supplier.name;
+                if (!costsBySupplier[supplierName]) {
+                    costsBySupplier[supplierName] = { count: 0, totalAmount: 0 };
+                }
+                costsBySupplier[supplierName].count += 1;
+                costsBySupplier[supplierName].totalAmount += cost.amount || 0;
+            });
+            const topSuppliers = Object.entries(costsBySupplier)
+                .map(([supplier, data]) => ({
+                    supplier,
+                    count: data.count,
+                    totalAmount: data.totalAmount,
+                    percentage: totalCost > 0 ? (data.totalAmount / totalCost) * 100 : 0
+                }))
+                .sort((a, b) => b.totalAmount - a.totalAmount)
+                .slice(0, 10);
+
+            // Rapor verisi
+            const reportData = {
+                id: `quality-cost-executive-${Date.now()}`,
+                period: dateRange.label || 'Tüm Zamanlar',
+                periodStart: dateRange.startDate ? formatDate(dateRange.startDate) : null,
+                periodEnd: dateRange.endDate ? formatDate(dateRange.endDate) : null,
+                totalCost,
+                totalCount,
+                internalCost,
+                externalCost,
+                appraisalCost,
+                preventionCost,
+                internalPercentage: totalCost > 0 ? (internalCost / totalCost) * 100 : 0,
+                externalPercentage: totalCost > 0 ? (externalCost / totalCost) * 100 : 0,
+                appraisalPercentage: totalCost > 0 ? (appraisalCost / totalCost) * 100 : 0,
+                preventionPercentage: totalCost > 0 ? (preventionCost / totalCost) * 100 : 0,
+                topCostTypes,
+                topUnits,
+                topParts,
+                topVehicleTypes,
+                topSuppliers,
+                monthlyData,
+                reportDate: formatDate(new Date())
+            };
+
+            openPrintableReport(reportData, 'quality_cost_executive_summary', true);
+
+            toast({
+                title: 'Başarılı',
+                description: 'Yönetici özeti raporu oluşturuldu.',
+            });
+        }, [filteredCosts, dateRange, toast]);
 
         const handleGenerateReport = useCallback((selectedUnits) => {
             if (!selectedUnits || selectedUnits.length === 0) {
