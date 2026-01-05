@@ -1655,56 +1655,58 @@ const generateListReportHtml = (record, type) => {
 				? `${record.periodStart} - ${record.periodEnd}`
 				: record.period || 'Tüm Zamanlar';
 		
-		// Genel Özet Kartları
+		// Genel Özet Kartları - Profesyonel renkler ve 3 sütunlu düzen
 		const summaryCardsHtml = `
-			<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
-				<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-					<div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; font-weight: 600;">TOPLAM MALİYET</div>
-					<div style="font-size: 28px; font-weight: 700;">${formatCurrencyLocal(record.totalCost)}</div>
-					<div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">${record.totalCount} kayıt</div>
+			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+				<div style="background-color: #1e40af; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6;">
+					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM MALİYET</div>
+					<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.totalCost)}</div>
+					<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">${record.totalCount} kayıt</div>
 				</div>
-				<div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-					<div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; font-weight: 600;">İÇ HATA</div>
-					<div style="font-size: 28px; font-weight: 700;">${formatCurrencyLocal(record.internalCost)}</div>
-					<div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">%${formatPercent(record.internalPercentage)}</div>
+				<div style="background-color: #dc2626; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
+					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">İÇ HATA</div>
+					<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.internalCost)}</div>
+					<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent(record.internalPercentage)}</div>
 				</div>
-				<div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-					<div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; font-weight: 600;">DIŞ HATA</div>
-					<div style="font-size: 28px; font-weight: 700;">${formatCurrencyLocal(record.externalCost)}</div>
-					<div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">%${formatPercent(record.externalPercentage)}</div>
+				<div style="background-color: #2563eb; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #60a5fa;">
+					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">DIŞ HATA</div>
+					<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.externalCost)}</div>
+					<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent(record.externalPercentage)}</div>
 				</div>
-				<div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-					<div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px; font-weight: 600;">COPQ TOPLAM</div>
-					<div style="font-size: 28px; font-weight: 700;">${formatCurrencyLocal(record.internalCost + record.externalCost + record.appraisalCost + record.preventionCost)}</div>
-					<div style="font-size: 11px; opacity: 0.8; margin-top: 5px;">Kalitesizlik Maliyeti</div>
+			</div>
+			<div style="display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 30px;">
+				<div style="background-color: #374151; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #6b7280;">
+					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">COPQ TOPLAM (Cost of Poor Quality)</div>
+					<div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.internalCost + record.externalCost + record.appraisalCost + record.preventionCost)}</div>
+					<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">İç Hata + Dış Hata + Değerlendirme + Önleme</div>
 				</div>
 			</div>
 		`;
 		
-		// COPQ Kategorileri
+		// COPQ Kategorileri - Profesyonel renkler
 		const copqCategoriesHtml = `
 			<div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 30px; border: 1px solid #e5e7eb;">
-				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">COPQ Kategorileri (Cost of Poor Quality)</h3>
+				<h3 style="font-size: 16px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">COPQ Kategorileri (Cost of Poor Quality)</h3>
 				<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-					<div style="background-color: white; border-radius: 6px; padding: 15px; border-left: 4px solid #ef4444;">
-						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">İç Hata Maliyetleri</div>
-						<div style="font-size: 20px; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(record.internalCost)}</div>
-						<div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">%${formatPercent(record.internalPercentage)}</div>
+					<div style="background-color: white; border-radius: 6px; padding: 18px; border-left: 4px solid #dc2626; border: 1px solid #e5e7eb;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">İç Hata Maliyetleri</div>
+						<div style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${formatCurrencyLocal(record.internalCost)}</div>
+						<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">%${formatPercent(record.internalPercentage)}</div>
 					</div>
-					<div style="background-color: white; border-radius: 6px; padding: 15px; border-left: 4px solid #3b82f6;">
-						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Dış Hata Maliyetleri</div>
-						<div style="font-size: 20px; font-weight: 700; color: #2563eb;">${formatCurrencyLocal(record.externalCost)}</div>
-						<div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">%${formatPercent(record.externalPercentage)}</div>
+					<div style="background-color: white; border-radius: 6px; padding: 18px; border-left: 4px solid #2563eb; border: 1px solid #e5e7eb;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">Dış Hata Maliyetleri</div>
+						<div style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${formatCurrencyLocal(record.externalCost)}</div>
+						<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">%${formatPercent(record.externalPercentage)}</div>
 					</div>
-					<div style="background-color: white; border-radius: 6px; padding: 15px; border-left: 4px solid #10b981;">
-						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Değerlendirme Maliyetleri</div>
-						<div style="font-size: 20px; font-weight: 700; color: #059669;">${formatCurrencyLocal(record.appraisalCost)}</div>
-						<div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">%${formatPercent(record.appraisalPercentage)}</div>
+					<div style="background-color: white; border-radius: 6px; padding: 18px; border-left: 4px solid #059669; border: 1px solid #e5e7eb;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">Değerlendirme Maliyetleri</div>
+						<div style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${formatCurrencyLocal(record.appraisalCost)}</div>
+						<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">%${formatPercent(record.appraisalPercentage)}</div>
 					</div>
-					<div style="background-color: white; border-radius: 6px; padding: 15px; border-left: 4px solid #f59e0b;">
-						<div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Önleme Maliyetleri</div>
-						<div style="font-size: 20px; font-weight: 700; color: #d97706;">${formatCurrencyLocal(record.preventionCost)}</div>
-						<div style="font-size: 11px; color: #9ca3af; margin-top: 3px;">%${formatPercent(record.preventionPercentage)}</div>
+					<div style="background-color: white; border-radius: 6px; padding: 18px; border-left: 4px solid #7c3aed; border: 1px solid #e5e7eb;">
+						<div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 600;">Önleme Maliyetleri</div>
+						<div style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 4px;">${formatCurrencyLocal(record.preventionCost)}</div>
+						<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">%${formatPercent(record.preventionPercentage)}</div>
 					</div>
 				</div>
 			</div>
@@ -1760,7 +1762,6 @@ const generateListReportHtml = (record, type) => {
 							<tr style="border-bottom: 1px solid #e5e7eb;">
 								<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
 								<td style="padding: 12px; font-weight: 600; color: #111827;">
-									${item.isSupplier ? '<span style="color: #f59e0b;">🏭</span> ' : ''}
 									${item.unit}
 								</td>
 								<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(item.totalAmount)}</td>
@@ -1851,7 +1852,7 @@ const generateListReportHtml = (record, type) => {
 						${record.topSuppliers.map((item, idx) => `
 							<tr style="border-bottom: 1px solid #e5e7eb;">
 								<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
-								<td style="padding: 12px; font-weight: 600; color: #111827;">🏭 ${item.supplier}</td>
+								<td style="padding: 12px; font-weight: 600; color: #111827;">${item.supplier}</td>
 								<td style="padding: 12px; text-align: right; font-weight: 700; color: #dc2626;">${formatCurrencyLocal(item.totalAmount)}</td>
 								<td style="padding: 12px; text-align: center; color: #6b7280;">${item.count}</td>
 								<td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">%${formatPercent(item.percentage)}</td>
@@ -2127,12 +2128,12 @@ const generateListReportHtml = (record, type) => {
 			</div>
 		</div>
 
-		<div class="meta-box">
-			<div class="meta-item"><strong>Belge Türü:</strong> ${title}</div>
+		<div class="meta-box" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center; padding: 15px;">
+			<div class="meta-item" style="flex: 1; min-width: 200px; word-wrap: break-word; word-break: break-word;"><strong>Belge Türü:</strong> ${title}</div>
 		</div>
 
 		<div class="section">
-			<h2 class="section-title blue">${title}</h2>
+			<h2 class="section-title blue" style="word-wrap: break-word; word-break: break-word; line-height: 1.4; white-space: normal;">${title}</h2>
 			<div class="list-summary">${summaryHtml}</div>
 			${headers.length > 0 ? `
 			<table class="info-table results-table">
