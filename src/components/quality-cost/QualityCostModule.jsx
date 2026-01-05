@@ -189,17 +189,6 @@ import { Building2, BarChart3 } from 'lucide-react';
             setIsReportSelectionModalOpen(true);
         }, [filteredCosts.length, toast]);
 
-        const handleSelectReportType = useCallback((reportType) => {
-            setIsReportSelectionModalOpen(false);
-            if (reportType === 'unit') {
-                // Birim bazlı rapor için UnitReportModal'ı aç
-                setIsReportModalOpen(true);
-            } else if (reportType === 'executive') {
-                // Yönetici özeti raporu oluştur
-                handleGenerateExecutiveReport();
-            }
-        }, [handleGenerateExecutiveReport]);
-
         const handleGenerateExecutiveReport = useCallback(() => {
             if (filteredCosts.length === 0) {
                 toast({
@@ -417,6 +406,17 @@ import { Building2, BarChart3 } from 'lucide-react';
                 description: 'Yönetici özeti raporu oluşturuldu.',
             });
         }, [filteredCosts, dateRange, toast]);
+
+        const handleSelectReportType = useCallback((reportType) => {
+            setIsReportSelectionModalOpen(false);
+            if (reportType === 'unit') {
+                // Birim bazlı rapor için UnitReportModal'ı aç
+                setIsReportModalOpen(true);
+            } else if (reportType === 'executive') {
+                // Yönetici özeti raporu oluştur
+                handleGenerateExecutiveReport();
+            }
+        }, [handleGenerateExecutiveReport]);
 
         const handleGenerateReport = useCallback((selectedUnits) => {
             if (!selectedUnits || selectedUnits.length === 0) {
