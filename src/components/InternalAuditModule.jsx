@@ -22,10 +22,7 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
     const [editingAudit, setEditingAudit] = useState(null);
     const [isQuestionBankModalOpen, setIsQuestionBankModalOpen] = useState(false);
-    const [dateRange, setDateRange] = useState({
-        from: startOfMonth(new Date()),
-        to: endOfMonth(new Date()),
-    });
+    const [dateRange, setDateRange] = useState(null);
 
     const handleViewAudit = (auditId) => {
         setSelectedAuditId(auditId);

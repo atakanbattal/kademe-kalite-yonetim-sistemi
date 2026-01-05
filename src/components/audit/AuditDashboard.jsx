@@ -19,13 +19,10 @@ import React, { useMemo, useState } from 'react';
     );
 
     const AuditDashboard = ({ audits, findings, loading, dateRange: externalDateRange, onDateRangeChange }) => {
-        const [internalDateRange, setInternalDateRange] = useState({
-            from: startOfMonth(new Date()),
-            to: endOfMonth(new Date()),
-        });
+        const [internalDateRange, setInternalDateRange] = useState(null);
         
         // External dateRange varsa onu kullan, yoksa internal state'i kullan
-        const dateRange = externalDateRange || internalDateRange;
+        const dateRange = externalDateRange !== undefined ? externalDateRange : internalDateRange;
         const setDateRange = onDateRangeChange || setInternalDateRange;
 
     const analytics = useMemo(() => {

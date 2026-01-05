@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { format, subDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -54,7 +54,25 @@ export function DateRangePicker({
   date,
   onDateChange,
 }) {
-  const [selectedFilter, setSelectedFilter] = useState('thisMonth');
+  // date null ise 'all', değilse mevcut filtreyi bul veya 'custom'
+  const getInitialFilter = () => {
+    if (!date || !date.from) return 'all';
+    const filter = quickFilters.find(f => {
+      const range = getDateRangeFromFilter(f.value);
+      if (!range) return false;
+      return range.from?.toDateString() === date.from?.toDateString() && 
+             range.to?.toDateString() === date.to?.toDateString();
+    });
+    return filter ? filter.value : 'custom';
+  };
+  
+  const [selectedFilter, setSelectedFilter] = useState(getInitialFilter());
+
+  // date prop'u değiştiğinde selectedFilter'ı güncelle
+  useEffect(() => {
+    const newFilter = getInitialFilter();
+    setSelectedFilter(newFilter);
+  }, [date]);
 
   const handleQuickFilter = (filterValue) => {
     setSelectedFilter(filterValue);
@@ -68,8 +86,9 @@ export function DateRangePicker({
   };
 
   const getDisplayText = () => {
+    // date null ise "Tüm Zamanlar" göster
     if (!date || !date.from) {
-      return 'Tarih aralığı seçin';
+      return 'Tüm Zamanlar';
     }
     
     const filter = quickFilters.find(f => {
