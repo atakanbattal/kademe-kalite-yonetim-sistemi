@@ -34,7 +34,6 @@ const PrintableInternalAuditDashboard = () => {
     
     // URL parametrelerinden tarih filtresini al
     const filterMonth = searchParams.get('month'); // YYYY-MM formatında
-    const filterYear = searchParams.get('year'); // YYYY formatında
 
     useEffect(() => {
         if (!session) {
@@ -61,13 +60,6 @@ const PrintableInternalAuditDashboard = () => {
                     auditsQuery = auditsQuery
                         .gte('audit_date', format(monthStart, 'yyyy-MM-dd'))
                         .lte('audit_date', format(monthEnd, 'yyyy-MM-dd'));
-                } else if (filterYear) {
-                    // Sadece yıl filtresi varsa
-                    const yearStart = startOfMonth(parseISO(`${filterYear}-01-01`));
-                    const yearEnd = endOfMonth(parseISO(`${filterYear}-12-01`));
-                    auditsQuery = auditsQuery
-                        .gte('audit_date', format(yearStart, 'yyyy-MM-dd'))
-                        .lte('audit_date', format(yearEnd, 'yyyy-MM-dd'));
                 }
                 
                 const { data: auditsData, error: auditsError } = await auditsQuery
@@ -75,8 +67,7 @@ const PrintableInternalAuditDashboard = () => {
 
                 if (auditsError) throw auditsError;
 
-                // Tüm bulguları çek (non_conformity ve audit_result ile)
-                // Önce audit ID'lerini al
+                // Filtrelenmiş audit'lere ait bulguları çek
                 const auditIds = auditsData?.map(a => a.id) || [];
                 
                 let findingsQuery = supabase
@@ -84,14 +75,13 @@ const PrintableInternalAuditDashboard = () => {
                     .select(`
                         *,
                         audit:audits(id, report_number, title, audit_date, department:cost_settings(unit_name), audit_standard:audit_standards!audit_standard_id(code, name)),
-                        non_conformity:non_conformities!source_finding_id(id, nc_number, status, type, created_at, due_at, due_date, closed_at),
-                        audit_result:audit_results(id, question_text, answer, order_number)
+                        non_conformity:non_conformities!source_finding_id(id, nc_number, status, type, created_at, due_at, due_date, closed_at)
                     `);
                 
                 // Filtrelenmiş audit'lere ait bulguları al
                 if (auditIds.length > 0) {
                     findingsQuery = findingsQuery.in('audit_id', auditIds);
-                } else if (filterMonth || filterYear) {
+                } else if (filterMonth) {
                     // Eğer filtre var ama audit yoksa boş array döndür
                     findingsQuery = findingsQuery.eq('audit_id', '00000000-0000-0000-0000-000000000000'); // Geçersiz ID ile boş sonuç
                 }
@@ -120,7 +110,7 @@ const PrintableInternalAuditDashboard = () => {
         };
 
         fetchData();
-    }, [filterMonth, filterYear]);
+    }, [filterMonth]);
 
     useEffect(() => {
         if (!loading) {
@@ -303,31 +293,24 @@ const PrintableInternalAuditDashboard = () => {
             return dateB - dateA;
         });
 
-        // Detaylı bulgu listesi (görüntüdeki tablo yapısına göre)
+        // Detaylı bulgu listesi
         const findingsDetails = auditFindings.map(finding => {
             const audit = Array.isArray(finding.audit) ? finding.audit[0] : finding.audit;
             const nc = Array.isArray(finding.non_conformity) ? finding.non_conformity[0] : finding.non_conformity;
-            const auditResult = Array.isArray(finding.audit_result) ? finding.audit_result[0] : finding.audit_result;
-            
-            // Bulgu açıklaması: önce description, yoksa audit_result'tan question_text
-            const findingDescription = finding.description || auditResult?.question_text || '-';
-            
-            // Tetkik türü kodu ve adı
-            const auditStandardCode = audit?.audit_standard?.code || '-';
-            const auditStandardName = audit?.audit_standard?.name || '-';
             
             return {
+                findingDescription: finding.description || '-',
                 auditReportNumber: audit?.report_number || '-',
                 auditTitle: audit?.title || '-',
                 auditDate: audit?.audit_date ? format(new Date(audit.audit_date), 'dd.MM.yyyy', { locale: tr }) : '-',
-                auditStandardCode: auditStandardCode,
-                auditStandardName: auditStandardName,
-                findingDescription: findingDescription,
+                department: audit?.department?.unit_name || 'Belirtilmemiş',
+                auditStandard: audit?.audit_standard ? `${audit.audit_standard.code} - ${audit.audit_standard.name}` : '-',
                 ncNumber: nc?.nc_number || '-',
                 ncStatus: nc?.status || 'Uygunsuzluk Oluşturulmadı',
                 ncType: nc?.type || '-',
                 ncCreatedDate: nc?.created_at ? format(new Date(nc.created_at), 'dd.MM.yyyy', { locale: tr }) : '-',
-                department: audit?.department?.unit_name || 'Belirtilmemiş'
+                ncDueDate: nc?.due_at || nc?.due_date ? format(new Date(nc.due_at || nc.due_date), 'dd.MM.yyyy', { locale: tr }) : '-',
+                ncClosedDate: nc?.closed_at ? format(new Date(nc.closed_at), 'dd.MM.yyyy', { locale: tr }) : '-'
             };
         }).sort((a, b) => {
             const dateA = a.auditDate === '-' ? new Date(0) : new Date(a.auditDate.split('.').reverse().join('-'));
@@ -383,12 +366,11 @@ const PrintableInternalAuditDashboard = () => {
                     .kpi-subtext { font-size: 12px; color: #888; margin-top: 8px; }
                     .chart-container { height: 350px; margin-top: 20px; }
                     .chart-small { height: 280px; margin-top: 20px; }
-                    .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
-                    .data-table th { background-color: #1F3A5F; color: white; padding: 12px 8px; text-align: left; font-weight: 600; border: 1px solid #ddd; font-size: 11px; }
-                    .data-table td { padding: 10px 8px; border: 1px solid #ddd; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; }
+                    .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+                    .data-table th { background-color: #1F3A5F; color: white; padding: 12px 8px; text-align: left; font-weight: 600; border: 1px solid #ddd; }
+                    .data-table td { padding: 10px 8px; border: 1px solid #ddd; }
                     .data-table tr:nth-child(even) { background-color: #f9fafb; }
                     .data-table tr:hover { background-color: #f0f2f5; }
-                    .data-table .text-wrap { word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 300px; }
                     .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; }
                     .status-open { background-color: #fee2e2; color: #991b1b; }
                     .status-closed { background-color: #d1fae5; color: #065f46; }
@@ -402,8 +384,6 @@ const PrintableInternalAuditDashboard = () => {
                         .report-section { page-break-inside: avoid; }
                         .data-table { font-size: 10px; }
                         .data-table th, .data-table td { padding: 6px 4px; }
-                        .chart-container { height: 350px; }
-                        .chart-small { height: 280px; }
                     }
                 `}</style>
 
@@ -415,12 +395,7 @@ const PrintableInternalAuditDashboard = () => {
                             Filtre: {format(parseISO(`${filterMonth}-01`), 'MMMM yyyy', { locale: tr })}
                         </p>
                     )}
-                    {filterYear && !filterMonth && (
-                        <p style={{ fontSize: '14px', color: '#1F3A5F', marginTop: '5px', fontWeight: 600 }}>
-                            Filtre: {filterYear} Yılı
-                        </p>
-                    )}
-                    {!filterMonth && !filterYear && (
+                    {!filterMonth && (
                         <p style={{ fontSize: '14px', color: '#888', marginTop: '5px' }}>
                             Tüm Zamanlar
                         </p>
@@ -466,29 +441,22 @@ const PrintableInternalAuditDashboard = () => {
                             <thead>
                                 <tr>
                                     <th style={{ width: '40%' }}>Tetkik Türü</th>
-                                    <th style={{ width: '12%', textAlign: 'center' }}>Tetkik Sayısı</th>
-                                    <th style={{ width: '12%', textAlign: 'center' }}>Toplam Bulgu</th>
-                                    <th style={{ width: '12%', textAlign: 'center' }}>Açık Bulgu</th>
-                                    <th style={{ width: '12%', textAlign: 'center' }}>Kapatılan Bulgu</th>
-                                    <th style={{ width: '12%', textAlign: 'center' }}>Tamamlanma %</th>
+                                    <th style={{ width: '15%', textAlign: 'center' }}>Tetkik Sayısı</th>
+                                    <th style={{ width: '15%', textAlign: 'center' }}>Toplam Bulgu</th>
+                                    <th style={{ width: '15%', textAlign: 'center' }}>Açık Bulgu</th>
+                                    <th style={{ width: '15%', textAlign: 'center' }}>Kapatılan Bulgu</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {analytics.auditTypesData.map((item, idx) => {
-                                    const completionRate = item.findings > 0 
-                                        ? Math.round(((item.findings - item.openFindings) / item.findings) * 100) 
-                                        : 0;
-                                    return (
-                                        <tr key={idx}>
-                                            <td style={{ fontWeight: 600 }}>{item.name}</td>
-                                            <td style={{ textAlign: 'center' }}>{item.count}</td>
-                                            <td style={{ textAlign: 'center' }}>{item.findings}</td>
-                                            <td style={{ textAlign: 'center', color: '#dc2626', fontWeight: 600 }}>{item.openFindings}</td>
-                                            <td style={{ textAlign: 'center', color: '#059669', fontWeight: 600 }}>{item.findings - item.openFindings}</td>
-                                            <td style={{ textAlign: 'center', fontWeight: 600 }}>{completionRate}%</td>
-                                        </tr>
-                                    );
-                                })}
+                                {analytics.auditTypesData.map((item, idx) => (
+                                    <tr key={idx}>
+                                        <td style={{ fontWeight: 600 }}>{item.name}</td>
+                                        <td style={{ textAlign: 'center' }}>{item.count}</td>
+                                        <td style={{ textAlign: 'center' }}>{item.findings}</td>
+                                        <td style={{ textAlign: 'center', color: '#dc2626', fontWeight: 600 }}>{item.openFindings}</td>
+                                        <td style={{ textAlign: 'center', color: '#059669', fontWeight: 600 }}>{item.findings - item.openFindings}</td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     ) : (
@@ -541,22 +509,19 @@ const PrintableInternalAuditDashboard = () => {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '10%' }}>DF No</th>
-                                    <th style={{ width: '12%' }}>Durum</th>
+                                    <th style={{ width: '12%' }}>DF No</th>
+                                    <th style={{ width: '15%' }}>Durum</th>
                                     <th style={{ width: '18%' }}>Birim</th>
                                     <th style={{ width: '15%' }}>Tetkik Rapor No</th>
                                     <th style={{ width: '12%' }}>Açılış Tarihi</th>
                                     <th style={{ width: '12%' }}>Termin Tarihi</th>
-                                    <th style={{ width: '12%' }}>Kapanış Tarihi</th>
-                                    <th style={{ width: '9%' }}>Gecikme</th>
+                                    <th style={{ width: '16%' }}>Kapanış Tarihi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {analytics.dfData.map((item, idx) => {
                                     const statusClass = item.status === 'Kapatıldı' ? 'status-closed' : 
                                                       item.status === 'Açık' ? 'status-open' : 'status-planned';
-                                    const isOverdue = item.status === 'Açık' && item.dueDate !== '-' && 
-                                                      new Date(item.dueDate.split('.').reverse().join('-')) < new Date();
                                     return (
                                         <tr key={idx}>
                                             <td style={{ fontWeight: 600 }}>{item.ncNumber}</td>
@@ -568,11 +533,8 @@ const PrintableInternalAuditDashboard = () => {
                                             <td>{item.department}</td>
                                             <td>{item.auditReportNumber}</td>
                                             <td>{item.createdDate}</td>
-                                            <td style={{ color: isOverdue ? '#dc2626' : 'inherit', fontWeight: isOverdue ? 600 : 'normal' }}>{item.dueDate}</td>
+                                            <td>{item.dueDate}</td>
                                             <td>{item.closedDate}</td>
-                                            <td style={{ color: isOverdue ? '#dc2626' : '#059669', fontWeight: 600 }}>
-                                                {isOverdue ? 'Gecikmiş' : item.status === 'Kapatıldı' ? 'Tamamlandı' : 'Beklemede'}
-                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -590,49 +552,36 @@ const PrintableInternalAuditDashboard = () => {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '9%' }}>Tetkik Rapor No</th>
-                                    <th style={{ width: '14%' }}>Tetkik Başlığı</th>
-                                    <th style={{ width: '7%' }}>Tetkik Tarihi</th>
-                                    <th style={{ width: '5%' }}>Tetkik Türü Kodu</th>
-                                    <th style={{ width: '11%' }}>Tetkik Türü Adı</th>
-                                    <th style={{ width: '22%' }}>Bulgu Açıklaması</th>
-                                    <th style={{ width: '9%' }}>Uygunsuzluk No / Durum</th>
+                                    <th style={{ width: '10%' }}>Tetkik Rapor No</th>
+                                    <th style={{ width: '12%' }}>Tetkik Başlığı</th>
+                                    <th style={{ width: '10%' }}>Tetkik Tarihi</th>
+                                    <th style={{ width: '12%' }}>Birim</th>
+                                    <th style={{ width: '15%' }}>Tetkik Türü</th>
+                                    <th style={{ width: '20%' }}>Bulgu Açıklaması</th>
+                                    <th style={{ width: '8%' }}>Uygunsuzluk No</th>
+                                    <th style={{ width: '8%' }}>Durum</th>
                                     <th style={{ width: '5%' }}>Tip</th>
-                                    <th style={{ width: '8%' }}>Birim</th>
-                                    <th style={{ width: '10%' }}>Uygunsuzluk Tarihi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {analytics.findingsDetails.map((item, idx) => {
                                     const statusClass = item.ncStatus === 'Kapatıldı' ? 'status-closed' : 
-                                                      item.ncStatus === 'Açık' ? 'status-open' : 
-                                                      item.ncStatus === 'Uygunsuzluk Oluşturulmadı' ? 'status-planned' : 'status-planned';
-                                    const statusText = item.ncStatus === 'Uygunsuzluk Oluşturulmadı' ? 'Uygunsuzluk Oluşturulmadı' : item.ncStatus;
+                                                      item.ncStatus === 'Açık' ? 'status-open' : 'status-planned';
                                     return (
                                         <tr key={idx}>
                                             <td style={{ fontWeight: 600 }}>{item.auditReportNumber}</td>
-                                            <td>{item.auditTitle}</td>
+                                            <td style={{ fontSize: '11px' }}>{item.auditTitle}</td>
                                             <td>{item.auditDate}</td>
-                                            <td style={{ fontWeight: 600 }}>{item.auditStandardCode}</td>
-                                            <td>{item.auditStandardName}</td>
-                                            <td className="text-wrap" style={{ fontSize: '10px', lineHeight: '1.4' }}>{item.findingDescription}</td>
+                                            <td>{item.department}</td>
+                                            <td style={{ fontSize: '11px' }}>{item.auditStandard}</td>
+                                            <td style={{ fontSize: '11px' }}>{item.findingDescription}</td>
+                                            <td style={{ fontWeight: 600 }}>{item.ncNumber}</td>
                                             <td>
-                                                {item.ncNumber !== '-' ? (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        <span style={{ fontWeight: 600, fontSize: '10px' }}>{item.ncNumber}</span>
-                                                        <span className={`status-badge ${statusClass}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
-                                                            {statusText}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className={`status-badge ${statusClass}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
-                                                        {statusText}
-                                                    </span>
-                                                )}
+                                                <span className={`status-badge ${statusClass}`}>
+                                                    {item.ncStatus}
+                                                </span>
                                             </td>
                                             <td>{item.ncType}</td>
-                                            <td>{item.department}</td>
-                                            <td>{item.ncCreatedDate}</td>
                                         </tr>
                                     );
                                 })}

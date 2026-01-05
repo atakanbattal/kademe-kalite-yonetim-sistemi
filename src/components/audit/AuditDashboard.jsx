@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
     import { motion } from 'framer-motion';
     import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
     import { AlertTriangle, ListChecks, CheckCircle, Calendar } from 'lucide-react';
@@ -18,18 +18,15 @@ import React, { useMemo, useState, useEffect } from 'react';
         </Card>
     );
 
-    const AuditDashboard = ({ audits, findings, loading, onViewAudit, onDateRangeChange }) => {
-        const [dateRange, setDateRange] = useState({
+    const AuditDashboard = ({ audits, findings, loading, dateRange: externalDateRange, onDateRangeChange }) => {
+        const [internalDateRange, setInternalDateRange] = useState({
             from: startOfMonth(new Date()),
             to: endOfMonth(new Date()),
         });
-
-        // Tarih değiştiğinde parent component'e bildir
-        useEffect(() => {
-            if (onDateRangeChange) {
-                onDateRangeChange(dateRange);
-            }
-        }, [dateRange, onDateRangeChange]);
+        
+        // External dateRange varsa onu kullan, yoksa internal state'i kullan
+        const dateRange = externalDateRange || internalDateRange;
+        const setDateRange = onDateRangeChange || setInternalDateRange;
 
     const analytics = useMemo(() => {
         const filteredAudits = !dateRange || !dateRange.from ? audits : audits.filter(audit => {

@@ -11,6 +11,7 @@ import AuditPlanModal from '@/components/audit/AuditPlanModal';
 import QuestionBankModal from '@/components/audit/QuestionBankModal';
 import { useData } from '@/contexts/DataContext';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { audits, auditFindings, loading, refreshData } = useData();
@@ -21,7 +22,10 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
     const [editingAudit, setEditingAudit] = useState(null);
     const [isQuestionBankModalOpen, setIsQuestionBankModalOpen] = useState(false);
-    const [reportDateRange, setReportDateRange] = useState(null);
+    const [dateRange, setDateRange] = useState({
+        from: startOfMonth(new Date()),
+        to: endOfMonth(new Date()),
+    });
 
     const handleViewAudit = (auditId) => {
         setSelectedAuditId(auditId);
@@ -89,18 +93,15 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
                         Yeni Tetkik Planı
                     </Button>
                     <Button onClick={() => {
-                        let url = '/print/internal-audit-dashboard?autoprint=true';
-                        if (reportDateRange?.from && reportDateRange?.to) {
-                            const fromDate = new Date(reportDateRange.from);
-                            const toDate = new Date(reportDateRange.to);
-                            // Aynı ay içindeyse ay filtresi, aynı yıl içindeyse yıl filtresi
-                            if (fromDate.getMonth() === toDate.getMonth() && fromDate.getFullYear() === toDate.getFullYear()) {
-                                url += `&month=${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}`;
-                            } else if (fromDate.getFullYear() === toDate.getFullYear()) {
-                                url += `&year=${fromDate.getFullYear()}`;
-                            }
+                        // Tarih filtresini URL parametresi olarak ekle
+                        const params = new URLSearchParams();
+                        params.append('autoprint', 'true');
+                        if (dateRange?.from && dateRange?.to) {
+                            // Ay ve yıl bilgisini ekle
+                            const month = format(dateRange.from, 'yyyy-MM');
+                            params.append('month', month);
                         }
-                        window.open(url, '_blank');
+                        window.open(`/print/internal-audit-dashboard?${params.toString()}`, '_blank');
                     }}>
                         <Printer className="w-4 h-4 mr-2" />
                         Genel Rapor
@@ -120,7 +121,8 @@ const InternalAuditModule = ({ onOpenNCForm, onOpenNCView }) => {
                         findings={auditFindings} 
                         loading={loading} 
                         onViewAudit={handleViewAudit}
-                        onDateRangeChange={setReportDateRange}
+                        dateRange={dateRange}
+                        onDateRangeChange={setDateRange}
                     />
                 </TabsContent>
                 <TabsContent value="list">
