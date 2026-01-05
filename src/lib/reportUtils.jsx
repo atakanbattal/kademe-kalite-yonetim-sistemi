@@ -1641,13 +1641,19 @@ const generateListReportHtml = (record, type) => {
 	} else if (type === 'quality_cost_executive_summary') {
 		title = 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
 		
-		const formatCurrencyLocal = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
-		const formatPercent = (value) => (value || 0).toFixed(2);
-		const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
-		
-		const periodInfo = record.periodStart && record.periodEnd
-			? `${record.periodStart} - ${record.periodEnd}`
-			: record.period || 'Tüm Zamanlar';
+		// Veri kontrolü - eğer veri yoksa hata mesajı göster
+		if (!record || typeof record !== 'object') {
+			summaryHtml = '<p style="color: #dc2626; font-weight: 600;">Rapor verisi bulunamadı. Lütfen tekrar deneyin.</p>';
+			headers = [];
+			rowsHtml = '';
+		} else {
+			const formatCurrencyLocal = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+			const formatPercent = (value) => (value || 0).toFixed(2);
+			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+			
+			const periodInfo = record.periodStart && record.periodEnd
+				? `${record.periodStart} - ${record.periodEnd}`
+				: record.period || 'Tüm Zamanlar';
 		
 		// Genel Özet Kartları
 		const summaryCardsHtml = `
@@ -1899,9 +1905,10 @@ const generateListReportHtml = (record, type) => {
 			${monthlyTrendHtml}
 		`;
 		
-		// Bu rapor için tablo gerekmediği için boş bırakıyoruz
-		headers = [];
-		rowsHtml = '';
+			// Bu rapor için tablo gerekmediği için boş bırakıyoruz
+			headers = [];
+			rowsHtml = '';
+		}
 	} else if (type === 'supplier_list') {
 		title = record.title || 'Tedarikçi Listesi Raporu';
 		headers = ['S.No', 'Tedarikçi Adı', 'Ürün Grubu', 'Durum', 'Puan / Sınıf', 'Ana Tedarikçi', 'Alternatif Tedarikçiler', 'İletişim'];
@@ -4296,6 +4303,8 @@ const generatePrintableReportHtml = (record, type) => {
 	} else if (type === 'document_list' || type === 'equipment_list') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'supplier_list' || type === 'supplier_dashboard') {
+		reportContentHtml = generateListReportHtml(record, type);
+	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
