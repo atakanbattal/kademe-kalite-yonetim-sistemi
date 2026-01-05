@@ -1953,8 +1953,8 @@ const generateListReportHtml = (record, type) => {
 				<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
 					<div style="background-color: #7c3aed; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #a78bfa;">
 						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">ORTALAMA KONTROL SÜRESİ</div>
-						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatNumber(record.averageControlDuration)}</div>
-						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Gün</div>
+						<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${record.averageControlDuration || '0 dk'}</div>
+						<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Saat ve Dakika</div>
 					</div>
 					<div style="background-color: #f59e0b; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #fbbf24;">
 						<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">AKTİF HATA</div>

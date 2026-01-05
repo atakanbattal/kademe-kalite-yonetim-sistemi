@@ -8,6 +8,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
     import { normalizeTurkishForSearch } from '@/lib/utils';
+    import { formatDuration } from '@/lib/formatDuration';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { openPrintableReport } from '@/lib/reportUtils';
@@ -397,9 +398,11 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                         }
                     }
                 });
-                const averageControlDuration = controlCount > 0 
-                    ? Math.round(totalControlMillis / (1000 * 60 * 60 * 24) / controlCount) // Gün cinsinden
+                // Ortalama kontrol süresini saat ve dakika formatında hesapla
+                const averageControlDurationMillis = controlCount > 0 
+                    ? totalControlMillis / controlCount
                     : 0;
+                const averageControlDuration = formatDuration(averageControlDurationMillis);
 
                 // Rapor verisi
                 const reportData = {
