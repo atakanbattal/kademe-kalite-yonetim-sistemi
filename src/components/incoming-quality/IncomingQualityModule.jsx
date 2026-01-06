@@ -65,15 +65,15 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const buildFilterQuery = useCallback((query, currentFilters) => {
         if (currentFilters.searchTerm && currentFilters.searchTerm.trim()) {
-            const searchTerm = currentFilters.searchTerm.trim();
+            const searchTerm = `%${currentFilters.searchTerm.trim()}%`;
             // Kapsamlı arama: sadece view'de mevcut olduğunu bildiğimiz kolonlar
             // View kolonları: id, record_no, inspection_date, part_code, part_name, supplier_id, supplier_name, decision, quantity_received, quantity_rejected, vb.
             try {
-                // .or() içindeki değerleri URL encode et ve doğru format kullan
-                const encodedSearchTerm = encodeURIComponent(`%${searchTerm}%`);
                 // Supabase .or() syntax: column1.ilike.value,column2.ilike.value
-                // Her bir kolon için ayrı ayrı .or() kullanmak yerine tek bir .or() kullan
-                query = query.or(`part_name.ilike.${encodedSearchTerm},part_code.ilike.${encodedSearchTerm},record_no.ilike.${encodedSearchTerm},supplier_name.ilike.${encodedSearchTerm}`);
+                // Değerler otomatik olarak encode edilir, manuel encode gerekmez
+                // Ancak özel karakterler için güvenli format kullan
+                const safeSearchTerm = searchTerm.replace(/'/g, "''"); // SQL injection koruması
+                query = query.or(`part_name.ilike."${safeSearchTerm}",part_code.ilike."${safeSearchTerm}",record_no.ilike."${safeSearchTerm}",supplier_name.ilike."${safeSearchTerm}"`);
             } catch (error) {
                 console.error('❌ Search query oluşturma hatası:', error);
                 // Hata durumunda arama yapmadan devam et
