@@ -71,17 +71,17 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                     table_name: table,
                 });
                 if (error) {
-                    // 403 hatası RLS politikası sorunu olabilir, sessizce geç
-                    if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {
-                        console.warn('⚠️ Audit log yazılamadı (RLS politikası):', error.message);
+                    // 403 veya 500 hatası RLS politikası veya sunucu sorunu olabilir, sessizce geç
+                    if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403 || error.status === 500) {
+                        console.warn('⚠️ Audit log yazılamadı (RLS politikası veya sunucu hatası):', error.message);
                         return;
                     }
                     console.error('❌ Audit log error:', error);
                 }
             } catch (error) {
-                // 403 hatası RLS politikası sorunu olabilir, sessizce geç
-                if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {
-                    console.warn('⚠️ Audit log yazılamadı (RLS politikası):', error.message);
+                // 403 veya 500 hatası RLS politikası veya sunucu sorunu olabilir, sessizce geç
+                if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403 || error.status === 500) {
+                    console.warn('⚠️ Audit log yazılamadı (RLS politikası veya sunucu hatası):', error.message);
                     return;
                 }
                 console.error('❌ Audit log error:', error);

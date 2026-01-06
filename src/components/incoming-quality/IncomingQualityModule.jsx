@@ -65,21 +65,22 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const buildFilterQuery = useCallback((query, currentFilters) => {
         if (currentFilters.searchTerm && currentFilters.searchTerm.trim()) {
-            const searchTerm = `%${currentFilters.searchTerm.trim()}%`;
+            const searchTerm = currentFilters.searchTerm.trim();
             // Kapsamlı arama: sadece view'de mevcut olduğunu bildiğimiz kolonlar
             // View kolonları: id, record_no, inspection_date, part_code, part_name, supplier_id, supplier_name, decision, quantity_received, quantity_rejected, vb.
             try {
-                // Supabase .or() syntax: column1.ilike.value1,column2.ilike.value2
-                // Değerler otomatik olarak encode edilir, tırnak işareti gerekmez
-                // .or() içindeki değerler virgülle ayrılır ve her biri column.operator.value formatında olmalı
-                query = query.or(`part_name.ilike.${searchTerm},part_code.ilike.${searchTerm},record_no.ilike.${searchTerm},supplier_name.ilike.${searchTerm}`);
+                // Supabase .or() syntax: column1.ilike.%value%,column2.ilike.%value%
+                // EquipmentModule.jsx'teki gibi % karakterlerini direkt string içinde kullan
+                // searchTerm değişkeni sadece değer olmalı, % karakterleri .or() içinde eklenmeli
+                query = query.or(`part_name.ilike.%${searchTerm}%,part_code.ilike.%${searchTerm}%,record_no.ilike.%${searchTerm}%,supplier_name.ilike.%${searchTerm}%`);
             } catch (error) {
                 console.error('❌ Search query oluşturma hatası:', error);
                 console.error('❌ Hata detayları:', {
                     message: error.message,
                     code: error.code,
                     details: error.details,
-                    hint: error.hint
+                    hint: error.hint,
+                    searchTerm: searchTerm
                 });
                 // Hata durumunda arama yapmadan devam et
             }
