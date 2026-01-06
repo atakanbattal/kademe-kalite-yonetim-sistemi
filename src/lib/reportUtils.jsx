@@ -4984,86 +4984,107 @@ const generatePrintableReportHtml = (record, type) => {
 		if (type === 'incoming_quality_executive_summary') {
 			cssOverrides = `
 /* incoming_quality_executive_summary için kompakt layout */
+/* Tüm rapor içeriğini tek blok olarak tut - SAYFA KIRILMASI ENGELLE */
+.report-wrapper {
+	display: block !important;
+}
 .report-header {
-	padding-bottom: 8px !important;
-	margin-bottom: 10px !important;
+	padding-bottom: 6px !important;
+	margin-bottom: 6px !important;
+	page-break-after: avoid !important;
 }
 .report-header h1 {
-	font-size: 18px !important;
+	font-size: 16px !important;
 }
 .report-header p {
-	font-size: 10px !important;
-}
-.meta-box {
-	padding: 10px 12px !important;
-	margin-bottom: 12px !important;
-}
-.meta-item {
 	font-size: 9px !important;
 }
-/* Özet kartları kompakt */
-.list-summary > div:first-child > p {
-	font-size: 12px !important;
-	margin-bottom: 4px !important;
+.meta-box {
+	padding: 8px 10px !important;
+	margin-bottom: 6px !important;
+	page-break-after: avoid !important;
 }
-/* Rapor başlığı ve özet birlikte kalsın */
+.meta-item {
+	font-size: 8px !important;
+}
+/* Section header'dan hemen sonra başlamalı */
+.section {
+	page-break-before: avoid !important;
+	margin-top: 0 !important;
+}
+.section-title {
+	font-size: 11px !important;
+	padding: 4px 8px !important;
+	margin-bottom: 6px !important;
+}
+/* Özet kartları kompakt */
 .list-summary {
-	page-break-inside: avoid !important;
+	page-break-before: avoid !important;
 }
 .list-summary > div:first-child {
-	margin-bottom: 15px !important;
+	margin-bottom: 10px !important;
+}
+.list-summary > div:first-child > p {
+	font-size: 11px !important;
+	margin-bottom: 3px !important;
 }
 /* Kartları kompakt tut */
 .list-summary > div > div[style*="display: grid"] {
-	gap: 12px !important;
-	margin-bottom: 15px !important;
+	gap: 8px !important;
+	margin-bottom: 10px !important;
 }
 .list-summary > div > div[style*="display: grid"] > div {
-	padding: 14px !important;
-	border-radius: 6px !important;
+	padding: 10px !important;
+	border-radius: 5px !important;
 }
 .list-summary > div > div[style*="display: grid"] > div > div:first-child {
-	font-size: 9px !important;
-	margin-bottom: 6px !important;
-}
-.list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
-	font-size: 20px !important;
+	font-size: 8px !important;
 	margin-bottom: 4px !important;
 }
+.list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
+	font-size: 18px !important;
+	margin-bottom: 3px !important;
+}
 .list-summary > div > div[style*="display: grid"] > div > div:last-child {
-	font-size: 9px !important;
-	padding-top: 4px !important;
-	margin-top: 4px !important;
+	font-size: 8px !important;
+	padding-top: 3px !important;
+	margin-top: 3px !important;
 }
 /* Tablolar kompakt */
 table {
-	font-size: 9px !important;
+	font-size: 8px !important;
 }
 table th, table td {
-	padding: 8px 6px !important;
+	padding: 5px 4px !important;
 }
 h3 {
-	font-size: 14px !important;
-	margin-bottom: 10px !important;
-	padding-bottom: 6px !important;
+	font-size: 12px !important;
+	margin-bottom: 8px !important;
+	padding-bottom: 4px !important;
 }
 /* Karar bazlı analiz kompakt */
 .list-summary > div > div[style*="background-color: #f9fafb"] {
-	padding: 12px !important;
-	margin-bottom: 15px !important;
-}
-.list-summary > div > div[style*="background-color: #f9fafb"] h3 {
-	font-size: 13px !important;
+	padding: 10px !important;
 	margin-bottom: 10px !important;
 }
+.list-summary > div > div[style*="background-color: #f9fafb"] h3 {
+	font-size: 11px !important;
+	margin-bottom: 8px !important;
+}
 .list-summary > div > div[style*="background-color: #f9fafb"] > div[style*="display: grid"] > div {
-	padding: 12px !important;
+	padding: 10px !important;
+}
+.list-summary > div > div[style*="background-color: #f9fafb"] > div[style*="display: grid"] > div > div:first-child {
+	font-size: 10px !important;
+}
+.list-summary > div > div[style*="background-color: #f9fafb"] > div[style*="display: grid"] > div > div:nth-child(2) {
+	font-size: 16px !important;
 }
 
 @media print {
 	@page {
 		size: A4 portrait;
-		margin: 10mm;
+		margin: 8mm;
 	}
 	* {
 		-webkit-print-color-adjust: exact !important;
@@ -5071,59 +5092,84 @@ h3 {
 		color-adjust: exact !important;
 	}
 	body {
-		font-size: 9px !important;
+		font-size: 8px !important;
 	}
 	.page-container {
 		margin: 0 !important;
 		padding: 0 !important;
+		min-height: auto !important;
 	}
 	.report-wrapper {
-		padding: 8mm !important;
+		padding: 5mm !important;
 	}
-	/* Header ve meta kompakt */
+	/* ÖNEMLİ: Header, meta-box ve section arasında sayfa kırılması ENGELLE */
 	.report-header {
-		padding-bottom: 6px !important;
-		margin-bottom: 8px !important;
+		padding-bottom: 4px !important;
+		margin-bottom: 4px !important;
+		page-break-inside: avoid !important;
+		page-break-after: avoid !important;
 	}
 	.report-header h1 {
-		font-size: 16px !important;
+		font-size: 14px !important;
 	}
-	.meta-box {
-		padding: 8px 10px !important;
-		margin-bottom: 8px !important;
-	}
-	.meta-item {
+	.report-header p {
 		font-size: 8px !important;
 	}
-	/* İlk bölüm sayfa kırılmasından önce tamamlansın */
-	.list-summary > div:first-child {
+	.meta-box {
+		padding: 6px 8px !important;
+		margin-bottom: 4px !important;
 		page-break-inside: avoid !important;
-		page-break-after: auto !important;
+		page-break-after: avoid !important;
+	}
+	.meta-item {
+		font-size: 7px !important;
+	}
+	/* Section başlığı önceki içerikten ayrılmasın */
+	.section {
+		page-break-before: avoid !important;
+		margin-top: 0 !important;
+	}
+	.section-title {
+		font-size: 10px !important;
+		padding: 3px 6px !important;
+		margin-bottom: 4px !important;
+		page-break-after: avoid !important;
+	}
+	/* Özet bilgileri ve kartlar */
+	.list-summary {
+		page-break-before: avoid !important;
+	}
+	.list-summary > div:first-child {
+		margin-bottom: 6px !important;
+	}
+	.list-summary > div:first-child > p {
+		font-size: 9px !important;
+		margin-bottom: 2px !important;
 	}
 	/* Kartları daha kompakt tut */
 	.list-summary > div > div[style*="display: grid"] {
-		gap: 8px !important;
-		margin-bottom: 10px !important;
+		gap: 6px !important;
+		margin-bottom: 8px !important;
 	}
 	.list-summary > div > div[style*="display: grid"] > div {
-		padding: 10px !important;
+		padding: 8px !important;
 	}
 	.list-summary > div > div[style*="display: grid"] > div > div:first-child {
-		font-size: 8px !important;
-		margin-bottom: 4px !important;
+		font-size: 7px !important;
+		margin-bottom: 3px !important;
 	}
 	.list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
-		font-size: 16px !important;
+		font-size: 14px !important;
 		margin-bottom: 2px !important;
 	}
 	.list-summary > div > div[style*="display: grid"] > div > div:last-child {
-		font-size: 8px !important;
+		font-size: 7px !important;
 		padding-top: 2px !important;
 		margin-top: 2px !important;
 	}
 	/* Tablolar kompakt */
 	table {
-		font-size: 8px !important;
+		font-size: 7px !important;
 		page-break-inside: auto !important;
 	}
 	table thead {
@@ -5133,24 +5179,40 @@ h3 {
 		page-break-inside: avoid !important;
 	}
 	table th, table td {
-		padding: 5px 4px !important;
+		padding: 4px 3px !important;
 	}
 	h3 {
-		font-size: 12px !important;
-		margin-bottom: 8px !important;
-		padding-bottom: 4px !important;
+		font-size: 10px !important;
+		margin-bottom: 6px !important;
+		padding-bottom: 3px !important;
 		page-break-after: avoid !important;
 	}
 	/* Karar bazlı analiz */
 	.list-summary > div > div[style*="background-color: #f9fafb"] {
+		padding: 6px !important;
+		margin-bottom: 8px !important;
+	}
+	.list-summary > div > div[style*="background-color: #f9fafb"] h3 {
+		font-size: 9px !important;
+	}
+	.list-summary > div > div[style*="background-color: #f9fafb"] > div[style*="display: grid"] > div {
 		padding: 8px !important;
-		margin-bottom: 10px !important;
-		page-break-inside: avoid !important;
+	}
+	.list-summary > div > div[style*="background-color: #f9fafb"] > div[style*="display: grid"] > div > div:first-child {
+		font-size: 8px !important;
+	}
+	.list-summary > div > div[style*="background-color: #f9fafb"] > div[style*="display: grid"] > div > div:nth-child(2) {
+		font-size: 14px !important;
 	}
 	/* İmza alanı */
 	.signature-section {
 		page-break-inside: avoid !important;
-		margin-top: 15px !important;
+		margin-top: 10px !important;
+	}
+	/* Footer */
+	.report-footer {
+		font-size: 6px !important;
+		padding: 4px 8px !important;
 	}
 }
 `;
