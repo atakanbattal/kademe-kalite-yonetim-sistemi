@@ -364,13 +364,44 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
         try {
             // Tüm muayene kayıtlarını detaylı olarak çek
-            const inspectionIds = filteredInspections.map(i => i.id);
-            const { data: fullInspections, error: fetchError } = await supabase
-                .from('incoming_inspections')
-                .select('*, supplier:suppliers(id, name)')
-                .in('id', inspectionIds);
-
-            if (fetchError) throw fetchError;
+            // Geçersiz ID'leri filtrele ve URL sınırlarını aşmamak için batch olarak çek
+            const inspectionIds = filteredInspections
+                .map(i => i.id)
+                .filter(id => id && typeof id === 'string' && id.length > 0);
+            
+            console.log('📊 Rapor oluşturuluyor, muayene sayısı:', inspectionIds.length);
+            
+            if (inspectionIds.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Geçerli muayene kaydı bulunamadı.',
+                });
+                return;
+            }
+            
+            // Çok fazla ID varsa batch olarak çek (URL sınırlarını aşmamak için)
+            let fullInspections = [];
+            const BATCH_SIZE = 100;
+            
+            for (let i = 0; i < inspectionIds.length; i += BATCH_SIZE) {
+                const batchIds = inspectionIds.slice(i, i + BATCH_SIZE);
+                const { data: batchData, error: batchError } = await supabase
+                    .from('incoming_inspections')
+                    .select('*, supplier:suppliers(id, name)')
+                    .in('id', batchIds);
+                
+                if (batchError) {
+                    console.error('❌ Batch fetch hatası:', batchError);
+                    throw batchError;
+                }
+                
+                if (batchData) {
+                    fullInspections = [...fullInspections, ...batchData];
+                }
+            }
+            
+            console.log('✅ Detaylı muayene verileri çekildi:', fullInspections.length);
 
             // DF/8D kayıtlarını çek (tedarikçilere açılan)
             const { data: deviations, error: devError } = await supabase
