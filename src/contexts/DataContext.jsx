@@ -63,15 +63,28 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
         const logAudit = useCallback(async (action, details, table) => {
             if (!profile) return;
             try {
-                await supabase.from('audit_log_entries').insert({
+                const { error } = await supabase.from('audit_log_entries').insert({
                     user_id: profile.id,
                     user_full_name: profile.full_name,
                     action: action,
                     details: details,
                     table_name: table,
                 });
+                if (error) {
+                    // 403 hatası RLS politikası sorunu olabilir, sessizce geç
+                    if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {
+                        console.warn('⚠️ Audit log yazılamadı (RLS politikası):', error.message);
+                        return;
+                    }
+                    console.error('❌ Audit log error:', error);
+                }
             } catch (error) {
-                console.error('Audit log error:', error);
+                // 403 hatası RLS politikası sorunu olabilir, sessizce geç
+                if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {
+                    console.warn('⚠️ Audit log yazılamadı (RLS politikası):', error.message);
+                    return;
+                }
+                console.error('❌ Audit log error:', error);
             }
         }, [profile]);
 
@@ -186,7 +199,27 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*').limit(500),
                 incomingControlPlans: supabase.from('incoming_control_plans').select('part_code, is_current'),
                 questions: supabase.from('supplier_audit_questions').select('*'),
-                auditLogs: supabase.from('audit_log_entries').select('*').order('created_at', { ascending: false }).limit(200),
+                auditLogs: (async () => {
+                    try {
+                        const { data, error } = await supabase
+                            .from('audit_log_entries')
+                            .select('*')
+                            .order('created_at', { ascending: false })
+                            .limit(200);
+                        if (error) {
+                            // 403 hatası RLS politikası sorunu olabilir, sessizce geç
+                            if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {
+                                console.warn('⚠️ Audit logs çekilemedi (RLS politikası):', error.message);
+                                return { data: [], error: null };
+                            }
+                            throw error;
+                        }
+                        return { data: data || [], error: null };
+                    } catch (error) {
+                        console.warn('⚠️ Audit logs fetch failed:', error);
+                        return { data: [], error: null };
+                    }
+                })(),
                 stockRiskControls: supabase.from('stock_risk_controls').select(`
                     *,
                     supplier:suppliers!stock_risk_controls_supplier_id_fkey(id, name),

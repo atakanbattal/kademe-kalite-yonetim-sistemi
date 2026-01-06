@@ -64,11 +64,16 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     });
 
     const buildFilterQuery = useCallback((query, currentFilters) => {
-        if (currentFilters.searchTerm) {
-            const searchTerm = `%${currentFilters.searchTerm}%`;
+        if (currentFilters.searchTerm && currentFilters.searchTerm.trim()) {
+            const searchTerm = `%${currentFilters.searchTerm.trim()}%`;
             // Kapsamlı arama: sadece view'de mevcut olduğunu bildiğimiz kolonlar
             // View kolonları: id, record_no, inspection_date, part_code, part_name, supplier_id, supplier_name, decision, quantity_received, quantity_rejected, vb.
-            query = query.or(`part_name.ilike.${searchTerm},part_code.ilike.${searchTerm},record_no.ilike.${searchTerm},supplier_name.ilike.${searchTerm}`);
+            try {
+                query = query.or(`part_name.ilike.${searchTerm},part_code.ilike.${searchTerm},record_no.ilike.${searchTerm},supplier_name.ilike.${searchTerm}`);
+            } catch (error) {
+                console.error('❌ Search query oluşturma hatası:', error);
+                // Hata durumunda arama yapmadan devam et
+            }
         }
         // Tarih filtresi: null ise tüm zamanlar, from/to varsa filtre uygula
         if (currentFilters.dateRange && currentFilters.dateRange.from) {
