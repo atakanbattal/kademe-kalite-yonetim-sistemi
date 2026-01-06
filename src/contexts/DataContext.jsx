@@ -356,8 +356,22 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 
                 lowPriorityResults.forEach((result, index) => {
                     const key = lowPriorityKeys[index];
-                    if (result.status === 'fulfilled' && !result.value.error) {
-                        newState[key] = result.value.data || [];
+                    if (result.status === 'fulfilled') {
+                        // auditLogs için özel kontrol (async fonksiyon { data, error } döndürüyor)
+                        if (key === 'auditLogs') {
+                            const auditLogsResult = result.value;
+                            if (!auditLogsResult.error && auditLogsResult.data) {
+                                newState[key] = auditLogsResult.data || [];
+                            } else {
+                                console.warn(`⚠️ ${key} fetch failed:`, auditLogsResult.error);
+                                newState[key] = [];
+                            }
+                        } else if (!result.value.error) {
+                            newState[key] = result.value.data || [];
+                        } else {
+                            console.warn(`⚠️ ${key} fetch failed:`, result.value.error);
+                            newState[key] = [];
+                        }
                     } else {
                         console.warn(`⚠️ ${key} fetch failed:`, result.reason || result.value?.error);
                         newState[key] = [];
