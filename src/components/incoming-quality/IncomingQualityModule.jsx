@@ -403,24 +403,57 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             
             console.log('✅ Detaylı muayene verileri çekildi:', fullInspections.length);
 
-            // DF/8D kayıtlarını çek (tedarikçilere açılan)
+            // DF/8D kayıtlarını çek (tedarikçilere açılan - tüm source değerleri dahil)
+            // Source filtresi kaldırıldı çünkü farklı modüllerden de DF açılabilir
             const { data: deviations, error: devError } = await supabase
                 .from('non_conformities')
                 .select('*, supplier:suppliers(id, name)')
-                .in('source', ['incoming_inspection', 'supplier'])
                 .not('supplier_id', 'is', null);
 
-            // Tedarikçi bazlı DF sayıları
+            console.log('📊 DF/8D kayıtları çekildi:', deviations?.length || 0);
+            
+            if (devError) {
+                console.error('❌ DF kayıtları çekilirken hata:', devError);
+            }
+
+            // Tedarikçi bazlı DF sayıları - tedarikçi adını normalize et
             const dfBySupplier = {};
+            const dfBySupplierNormalized = {}; // Normalize edilmiş isimler için
+            
             (deviations || []).forEach(dev => {
                 if (dev.supplier_id && dev.supplier?.name) {
                     const supplierName = dev.supplier.name;
+                    // Normalize edilmiş isim (küçük harf, trim, fazla boşlukları temizle)
+                    const normalizedName = supplierName.toLowerCase().trim().replace(/\s+/g, ' ');
+                    
                     if (!dfBySupplier[supplierName]) {
                         dfBySupplier[supplierName] = { count: 0, total: 0 };
                     }
                     dfBySupplier[supplierName].count += 1;
+                    
+                    // Normalize edilmiş isim için de kaydet
+                    if (!dfBySupplierNormalized[normalizedName]) {
+                        dfBySupplierNormalized[normalizedName] = { count: 0, originalName: supplierName };
+                    }
+                    dfBySupplierNormalized[normalizedName].count += 1;
                 }
             });
+            
+            console.log('📊 Tedarikçi bazlı DF sayıları:', dfBySupplier);
+            
+            // DF sayısını bulmak için helper fonksiyon (normalize edilmiş eşleştirme)
+            const getDfCount = (supplierName) => {
+                // Önce tam eşleşme dene
+                if (dfBySupplier[supplierName]) {
+                    return dfBySupplier[supplierName].count;
+                }
+                // Normalize edilmiş eşleşme dene
+                const normalizedName = supplierName.toLowerCase().trim().replace(/\s+/g, ' ');
+                if (dfBySupplierNormalized[normalizedName]) {
+                    return dfBySupplierNormalized[normalizedName].count;
+                }
+                return 0;
+            };
 
             // Genel istatistikler
             const totalInspections = filteredInspections.length;
@@ -450,13 +483,15 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             filteredInspections.forEach(inv => {
                 const supplierName = inv.supplier_name || 'Belirtilmemiş';
                 if (!bySupplier[supplierName]) {
+                    // getDfCount fonksiyonunu kullanarak normalize edilmiş eşleştirme yap
+                    const dfCount = getDfCount(supplierName);
                     bySupplier[supplierName] = {
                         count: 0,
                         totalReceived: 0,
                         totalRejected: 0,
                         totalConditional: 0,
                         decisions: { 'Kabul': 0, 'Şartlı Kabul': 0, 'Ret': 0, 'Beklemede': 0 },
-                        dfCount: dfBySupplier[supplierName]?.count || 0
+                        dfCount: dfCount
                     };
                 }
                 bySupplier[supplierName].count += 1;
