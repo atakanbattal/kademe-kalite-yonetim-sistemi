@@ -4980,6 +4980,181 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
 		reportContentHtml = generateListReportHtml(record, type);
+		// incoming_quality_executive_summary için özel print CSS
+		if (type === 'incoming_quality_executive_summary') {
+			cssOverrides = `
+/* incoming_quality_executive_summary için kompakt layout */
+.report-header {
+	padding-bottom: 8px !important;
+	margin-bottom: 10px !important;
+}
+.report-header h1 {
+	font-size: 18px !important;
+}
+.report-header p {
+	font-size: 10px !important;
+}
+.meta-box {
+	padding: 10px 12px !important;
+	margin-bottom: 12px !important;
+}
+.meta-item {
+	font-size: 9px !important;
+}
+/* Özet kartları kompakt */
+.list-summary > div:first-child > p {
+	font-size: 12px !important;
+	margin-bottom: 4px !important;
+}
+/* Rapor başlığı ve özet birlikte kalsın */
+.list-summary {
+	page-break-inside: avoid !important;
+}
+.list-summary > div:first-child {
+	margin-bottom: 15px !important;
+}
+/* Kartları kompakt tut */
+.list-summary > div > div[style*="display: grid"] {
+	gap: 12px !important;
+	margin-bottom: 15px !important;
+}
+.list-summary > div > div[style*="display: grid"] > div {
+	padding: 14px !important;
+	border-radius: 6px !important;
+}
+.list-summary > div > div[style*="display: grid"] > div > div:first-child {
+	font-size: 9px !important;
+	margin-bottom: 6px !important;
+}
+.list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
+	font-size: 20px !important;
+	margin-bottom: 4px !important;
+}
+.list-summary > div > div[style*="display: grid"] > div > div:last-child {
+	font-size: 9px !important;
+	padding-top: 4px !important;
+	margin-top: 4px !important;
+}
+/* Tablolar kompakt */
+table {
+	font-size: 9px !important;
+}
+table th, table td {
+	padding: 8px 6px !important;
+}
+h3 {
+	font-size: 14px !important;
+	margin-bottom: 10px !important;
+	padding-bottom: 6px !important;
+}
+/* Karar bazlı analiz kompakt */
+.list-summary > div > div[style*="background-color: #f9fafb"] {
+	padding: 12px !important;
+	margin-bottom: 15px !important;
+}
+.list-summary > div > div[style*="background-color: #f9fafb"] h3 {
+	font-size: 13px !important;
+	margin-bottom: 10px !important;
+}
+.list-summary > div > div[style*="background-color: #f9fafb"] > div[style*="display: grid"] > div {
+	padding: 12px !important;
+}
+
+@media print {
+	@page {
+		size: A4 portrait;
+		margin: 10mm;
+	}
+	* {
+		-webkit-print-color-adjust: exact !important;
+		print-color-adjust: exact !important;
+		color-adjust: exact !important;
+	}
+	body {
+		font-size: 9px !important;
+	}
+	.page-container {
+		margin: 0 !important;
+		padding: 0 !important;
+	}
+	.report-wrapper {
+		padding: 8mm !important;
+	}
+	/* Header ve meta kompakt */
+	.report-header {
+		padding-bottom: 6px !important;
+		margin-bottom: 8px !important;
+	}
+	.report-header h1 {
+		font-size: 16px !important;
+	}
+	.meta-box {
+		padding: 8px 10px !important;
+		margin-bottom: 8px !important;
+	}
+	.meta-item {
+		font-size: 8px !important;
+	}
+	/* İlk bölüm sayfa kırılmasından önce tamamlansın */
+	.list-summary > div:first-child {
+		page-break-inside: avoid !important;
+		page-break-after: auto !important;
+	}
+	/* Kartları daha kompakt tut */
+	.list-summary > div > div[style*="display: grid"] {
+		gap: 8px !important;
+		margin-bottom: 10px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] > div {
+		padding: 10px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] > div > div:first-child {
+		font-size: 8px !important;
+		margin-bottom: 4px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
+		font-size: 16px !important;
+		margin-bottom: 2px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] > div > div:last-child {
+		font-size: 8px !important;
+		padding-top: 2px !important;
+		margin-top: 2px !important;
+	}
+	/* Tablolar kompakt */
+	table {
+		font-size: 8px !important;
+		page-break-inside: auto !important;
+	}
+	table thead {
+		display: table-header-group !important;
+	}
+	table tbody tr {
+		page-break-inside: avoid !important;
+	}
+	table th, table td {
+		padding: 5px 4px !important;
+	}
+	h3 {
+		font-size: 12px !important;
+		margin-bottom: 8px !important;
+		padding-bottom: 4px !important;
+		page-break-after: avoid !important;
+	}
+	/* Karar bazlı analiz */
+	.list-summary > div > div[style*="background-color: #f9fafb"] {
+		padding: 8px !important;
+		margin-bottom: 10px !important;
+		page-break-inside: avoid !important;
+	}
+	/* İmza alanı */
+	.signature-section {
+		page-break-inside: avoid !important;
+		margin-top: 15px !important;
+	}
+}
+`;
+		}
 	} else if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'wps') {
