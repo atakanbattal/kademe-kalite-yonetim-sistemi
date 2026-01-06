@@ -403,14 +403,35 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             
             console.log('✅ Detaylı muayene verileri çekildi:', fullInspections.length);
 
-            // DF/8D kayıtlarını çek (tedarikçilere açılan - tüm source değerleri dahil)
-            // Source filtresi kaldırıldı çünkü farklı modüllerden de DF açılabilir
-            const { data: deviations, error: devError } = await supabase
+            // Raporda bulunan tedarikçileri belirle
+            const reportSupplierIds = [...new Set(fullInspections
+                .map(inv => inv.supplier?.id || inv.supplier_id)
+                .filter(Boolean))];
+            
+            console.log('📊 Rapordaki tedarikçi ID\'leri:', reportSupplierIds);
+
+            // DF/8D kayıtlarını çek - sadece rapordaki tedarikçilere ait ve tarih aralığında olanlar
+            let deviationsQuery = supabase
                 .from('non_conformities')
                 .select('*, supplier:suppliers(id, name)')
                 .not('supplier_id', 'is', null);
+            
+            // Tarih filtresi uygula (seçilen dönem için)
+            if (dateRange.startDate) {
+                deviationsQuery = deviationsQuery.gte('created_at', dateRange.startDate.toISOString());
+            }
+            if (dateRange.endDate) {
+                deviationsQuery = deviationsQuery.lte('created_at', dateRange.endDate.toISOString());
+            }
+            
+            // Sadece rapordaki tedarikçilerin DF'lerini çek
+            if (reportSupplierIds.length > 0) {
+                deviationsQuery = deviationsQuery.in('supplier_id', reportSupplierIds);
+            }
 
-            console.log('📊 DF/8D kayıtları çekildi:', deviations?.length || 0);
+            const { data: deviations, error: devError } = await deviationsQuery;
+
+            console.log('📊 DF/8D kayıtları çekildi (filtrelenmiş):', deviations?.length || 0);
             
             if (devError) {
                 console.error('❌ DF kayıtları çekilirken hata:', devError);
