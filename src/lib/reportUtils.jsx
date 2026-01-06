@@ -403,8 +403,8 @@ const generateDynamicBalanceReportHtml = (record) => {
 		</div>
 
 		<div class="meta-box" style="display: flex; justify-content: space-between; align-items: center;">
-			<div class="meta-item"><strong>Belge Türü:</strong> Dinamik Balans Kalite Kontrol Raporu</div>
-			<div class="meta-item" style="margin-left: auto; text-align: right;"><strong>Standard:</strong> ISO 1940-1</div>
+			<div class="meta-item"><strong>Belge Türü / Document Type:</strong> Dinamik Balans Kalite Kontrol Raporu / Dynamic Balance Quality Control Report</div>
+			<div class="meta-item" style="margin-left: auto; text-align: right;"><strong>Standard:</strong> ISO 21940-11:2016</div>
 		</div>
 
 		<div class="section">
@@ -442,16 +442,20 @@ const generateDynamicBalanceReportHtml = (record) => {
 			<table class="info-table">
 				<tbody>
 					<tr>
-						<td style="width: 30%; font-weight: 600; background-color: #f8fafc;">Fan Ağırlığı / Fan Weight:</td>
-						<td style="width: 35%;">${record.fan_weight_kg ? record.fan_weight_kg.toFixed(3) : '-'} kg</td>
-						<td style="width: 35%; font-weight: 600; background-color: #f8fafc;">Çalışma Devri / Operating RPM:</td>
-						<td>${record.operating_rpm || '-'} RPM</td>
+						<td style="width: 25%; font-weight: 600; background-color: #f8fafc;">Fan Ağırlığı / Fan Weight:</td>
+						<td style="width: 25%;">${record.fan_weight_kg ? record.fan_weight_kg.toFixed(3) : '-'} kg</td>
+						<td style="width: 25%; font-weight: 600; background-color: #f8fafc;">Çalışma Devri / Operating RPM:</td>
+						<td style="width: 25%;">${record.operating_rpm || '-'} RPM</td>
 					</tr>
 					<tr>
 						<td style="font-weight: 600; background-color: #f8fafc;">Kalite Sınıfı / Quality Grade:</td>
 						<td><strong>${record.balancing_grade || '-'}</strong></td>
+						<td style="font-weight: 600; background-color: #f8fafc;">Balans Yarıçapı / Correction Radius:</td>
+						<td><strong>${record.correction_radius_mm ? record.correction_radius_mm.toFixed(1) : '-'} mm</strong></td>
+					</tr>
+					<tr>
 						<td style="font-weight: 600; background-color: #f8fafc;">İzin Verilen Limit (Uper) / Allowed Limit:</td>
-						<td><strong>${record.calculated_uper_per_plane ? record.calculated_uper_per_plane.toFixed(3) : '-'} gr</strong></td>
+						<td colspan="3"><strong>${record.calculated_uper_per_plane ? record.calculated_uper_per_plane.toFixed(3) : '-'} gr</strong> (her düzlem için / per plane)</td>
 					</tr>
 				</tbody>
 			</table>

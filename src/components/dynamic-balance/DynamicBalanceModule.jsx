@@ -90,7 +90,7 @@ const DynamicBalanceModule = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-foreground">Dinamik Balans Kalite Kontrol</h1>
                         <p className="text-muted-foreground mt-1">
-                            ISO 1940-1 standardına göre fan balans kayıtlarını yönetin ve raporlayın.
+                            ISO 21940-11:2016 standardına göre fan balans kayıtlarını yönetin ve raporlayın.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
