@@ -5108,30 +5108,44 @@ const generatePrintableReportHtml = (record, type) => {
 
 /* PRINT-AYNI AYARLAR */
 @media print {
+	/* Print için renkleri koru */
+	* {
+		-webkit-print-color-adjust: exact !important;
+		print-color-adjust: exact !important;
+		color-adjust: exact !important;
+	}
+	
 	@page {
 		size: A4 landscape!important;
 		margin: 5mm!important;
 	}
 				
-				* {
+	* {
 		box-sizing: border-box!important;
-}
+	}
 				
-				html {
-	max-width: 100% !important;
-	width: 100% !important;
-	margin: 0!important;
-	padding: 0!important;
-}
+	html {
+		max-width: 100% !important;
+		width: 100% !important;
+		margin: 0!important;
+		padding: 0!important;
+	}
 				
-				body {
-	max-width: 100% !important;
-	width: 100% !important;
-	margin: 0!important;
-	padding: 0!important;
-	print-color-adjust: exact!important;
-	-webkit-print-color-adjust: exact!important;
-}
+	body {
+		max-width: 100% !important;
+		width: 100% !important;
+		margin: 0!important;
+		padding: 0!important;
+		print-color-adjust: exact!important;
+		-webkit-print-color-adjust: exact!important;
+	}
+	
+	/* Sayfa kırılmaları */
+	.section { page-break-inside: avoid; break-inside: avoid; }
+	.section-title { page-break-after: avoid; break-after: avoid; }
+	table { page-break-inside: auto; }
+	table thead { display: table-header-group; }
+	table tbody tr { page-break-inside: avoid; break-inside: avoid; }
 				
 				.page-container {
 	max-width: 100% !important;

@@ -56,7 +56,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const [filters, setFilters] = useState({
         searchTerm: '',
-        dateRange: { from: null, to: null },
+        dateRange: null, // Başlangıçta null olarak ayarlandı (tüm zamanlar)
         decision: 'all',
         supplier: 'all',
         controlPlanStatus: 'all',
@@ -70,10 +70,11 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             // View kolonları: id, record_no, inspection_date, part_code, part_name, supplier_id, supplier_name, decision, quantity_received, quantity_rejected, vb.
             query = query.or(`part_name.ilike.${searchTerm},part_code.ilike.${searchTerm},record_no.ilike.${searchTerm},supplier_name.ilike.${searchTerm}`);
         }
-        if (currentFilters.dateRange.from) {
+        // Tarih filtresi: null ise tüm zamanlar, from/to varsa filtre uygula
+        if (currentFilters.dateRange && currentFilters.dateRange.from) {
             query = query.gte('inspection_date', currentFilters.dateRange.from.toISOString());
         }
-        if (currentFilters.dateRange.to) {
+        if (currentFilters.dateRange && currentFilters.dateRange.to) {
             query = query.lte('inspection_date', currentFilters.dateRange.to.toISOString());
         }
         if (currentFilters.decision !== 'all') {
@@ -299,16 +300,17 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     // Tarih aralığı bilgisi
     const dateRange = useMemo(() => {
-        const from = filters.dateRange?.from;
-        const to = filters.dateRange?.to;
-        if (from && to) {
-            return {
-                label: `${format(from, 'dd.MM.yyyy', { locale: tr })} - ${format(to, 'dd.MM.yyyy', { locale: tr })}`,
-                startDate: from,
-                endDate: to
-            };
+        // dateRange null ise veya from/to yoksa tüm zamanlar
+        if (!filters.dateRange || !filters.dateRange.from || !filters.dateRange.to) {
+            return { label: 'Tüm Zamanlar', startDate: null, endDate: null };
         }
-        return { label: 'Tüm Zamanlar', startDate: null, endDate: null };
+        const from = filters.dateRange.from;
+        const to = filters.dateRange.to;
+        return {
+            label: `${format(from, 'dd.MM.yyyy', { locale: tr })} - ${format(to, 'dd.MM.yyyy', { locale: tr })}`,
+            startDate: from,
+            endDate: to
+        };
     }, [filters.dateRange]);
 
     const handleOpenReportModal = useCallback(() => {

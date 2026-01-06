@@ -23,7 +23,7 @@ import React from 'react';
                 supplier: 'all',
                 controlPlanStatus: 'all',
                 decision: 'all',
-                dateRange: { from: null, to: null },
+                dateRange: null, // Tüm zamanlar için null
             });
         };
 
@@ -81,7 +81,7 @@ import React from 'react';
                             <Label>Tarih Aralığı</Label>
                             <DateRangePicker
                                 date={filters.dateRange}
-                                onDateChange={(range) => setFilters(prev => ({...prev, dateRange: range || { from: null, to: null }}))}
+                                onDateChange={(range) => setFilters(prev => ({...prev, dateRange: range || null }))}
                             />
                         </div>
                         <Button onClick={handleClear} variant="outline" className="w-full">Temizle</Button>
