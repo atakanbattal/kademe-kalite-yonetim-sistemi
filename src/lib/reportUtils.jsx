@@ -5217,6 +5217,211 @@ h3 {
 }
 `;
 		}
+		// quality_cost_executive_summary için özel print CSS
+		if (type === 'quality_cost_executive_summary') {
+			cssOverrides = `
+/* quality_cost_executive_summary için kompakt layout */
+.report-wrapper {
+	display: block !important;
+}
+.report-header {
+	padding-bottom: 6px !important;
+	margin-bottom: 6px !important;
+	page-break-after: avoid !important;
+}
+.report-header h1 {
+	font-size: 16px !important;
+}
+.report-header p {
+	font-size: 9px !important;
+}
+.meta-box {
+	padding: 8px 10px !important;
+	margin-bottom: 6px !important;
+	page-break-after: avoid !important;
+}
+.meta-item {
+	font-size: 8px !important;
+}
+.section {
+	page-break-before: avoid !important;
+	margin-top: 0 !important;
+}
+.section-title {
+	font-size: 11px !important;
+	padding: 4px 8px !important;
+	margin-bottom: 6px !important;
+}
+.list-summary {
+	page-break-before: avoid !important;
+}
+.list-summary > div:first-child {
+	margin-bottom: 10px !important;
+}
+.list-summary > div:first-child > p {
+	font-size: 11px !important;
+	margin-bottom: 3px !important;
+}
+.list-summary > div > div[style*="display: grid"] {
+	gap: 8px !important;
+	margin-bottom: 10px !important;
+}
+.list-summary > div > div[style*="display: grid"] > div {
+	padding: 10px !important;
+	border-radius: 5px !important;
+}
+.list-summary > div > div[style*="display: grid"] > div > div:first-child {
+	font-size: 8px !important;
+	margin-bottom: 4px !important;
+}
+.list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
+	font-size: 18px !important;
+	margin-bottom: 3px !important;
+}
+.list-summary > div > div[style*="display: grid"] > div > div:last-child {
+	font-size: 8px !important;
+	padding-top: 3px !important;
+	margin-top: 3px !important;
+}
+table {
+	font-size: 8px !important;
+}
+table th, table td {
+	padding: 5px 4px !important;
+}
+h3 {
+	font-size: 12px !important;
+	margin-bottom: 8px !important;
+	padding-bottom: 4px !important;
+}
+.list-summary > div > div[style*="background-color: #f9fafb"] {
+	padding: 10px !important;
+	margin-bottom: 10px !important;
+}
+.list-summary > div > div[style*="background-color: #f9fafb"] h3 {
+	font-size: 11px !important;
+	margin-bottom: 8px !important;
+}
+
+@media print {
+	@page {
+		size: A4 portrait;
+		margin: 8mm;
+	}
+	* {
+		-webkit-print-color-adjust: exact !important;
+		print-color-adjust: exact !important;
+		color-adjust: exact !important;
+	}
+	body {
+		font-size: 8px !important;
+	}
+	.page-container {
+		margin: 0 !important;
+		padding: 0 !important;
+		min-height: auto !important;
+	}
+	.report-wrapper {
+		padding: 5mm !important;
+	}
+	.report-header {
+		padding-bottom: 4px !important;
+		margin-bottom: 4px !important;
+		page-break-inside: avoid !important;
+		page-break-after: avoid !important;
+	}
+	.report-header h1 {
+		font-size: 14px !important;
+	}
+	.report-header p {
+		font-size: 8px !important;
+	}
+	.meta-box {
+		padding: 6px 8px !important;
+		margin-bottom: 4px !important;
+		page-break-inside: avoid !important;
+		page-break-after: avoid !important;
+	}
+	.meta-item {
+		font-size: 7px !important;
+	}
+	.section {
+		page-break-before: avoid !important;
+		margin-top: 0 !important;
+	}
+	.section-title {
+		font-size: 10px !important;
+		padding: 3px 6px !important;
+		margin-bottom: 4px !important;
+		page-break-after: avoid !important;
+	}
+	.list-summary {
+		page-break-before: avoid !important;
+	}
+	.list-summary > div:first-child {
+		margin-bottom: 6px !important;
+	}
+	.list-summary > div:first-child > p {
+		font-size: 9px !important;
+		margin-bottom: 2px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] {
+		gap: 6px !important;
+		margin-bottom: 8px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] > div {
+		padding: 8px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] > div > div:first-child {
+		font-size: 7px !important;
+		margin-bottom: 3px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
+		font-size: 14px !important;
+		margin-bottom: 2px !important;
+	}
+	.list-summary > div > div[style*="display: grid"] > div > div:last-child {
+		font-size: 7px !important;
+		padding-top: 2px !important;
+		margin-top: 2px !important;
+	}
+	table {
+		font-size: 7px !important;
+		page-break-inside: auto !important;
+	}
+	table thead {
+		display: table-header-group !important;
+	}
+	table tbody tr {
+		page-break-inside: avoid !important;
+	}
+	table th, table td {
+		padding: 4px 3px !important;
+	}
+	h3 {
+		font-size: 10px !important;
+		margin-bottom: 6px !important;
+		padding-bottom: 3px !important;
+		page-break-after: avoid !important;
+	}
+	.list-summary > div > div[style*="background-color: #f9fafb"] {
+		padding: 6px !important;
+		margin-bottom: 8px !important;
+	}
+	.list-summary > div > div[style*="background-color: #f9fafb"] h3 {
+		font-size: 9px !important;
+	}
+	.signature-section {
+		page-break-inside: avoid !important;
+		margin-top: 10px !important;
+	}
+	.report-footer {
+		font-size: 6px !important;
+		padding: 4px 8px !important;
+	}
+}
+`;
+		}
 	} else if (type.endsWith('_list')) {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'wps') {
