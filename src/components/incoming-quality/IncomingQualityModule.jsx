@@ -672,7 +672,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     return (
         <div className="space-y-6">
             <Helmet>
-                <title>Girdi Kalite Kontrol</title>
+                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
                 <meta name="description" content="Gelen malzeme kalite kontrol süreçlerini yönetin." />
             </Helmet>
 

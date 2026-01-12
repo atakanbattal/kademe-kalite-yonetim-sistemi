@@ -36,23 +36,27 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
             };
         }
 
-        // Internal Failure kategorileri
+        // Internal Failure kategorileri - Fabrika içinde tespit edilen hatalar (tedarikçi kaynaklı dahil)
+        // Tedarikçi kaynaklı maliyetler de iç hata olarak sayılır çünkü girdi kontrolünde tespit edilir
         const internalFailureTypes = [
             'Hurda Maliyeti',
             'Yeniden İşlem Maliyeti',
             'Fire Maliyeti',
             'İç Kalite Kontrol Maliyeti',
-            'Final Hataları Maliyeti'
+            'Final Hataları Maliyeti',
+            'Tedarikçi Hata Maliyeti' // Girdi kontrolünde tespit edilen tedarikçi hataları
         ];
 
-        // External Failure kategorileri
+        // External Failure kategorileri - SADECE müşteride tespit edilen hatalar
+        // Ürün müşteriye ulaştıktan sonra ortaya çıkan maliyetler
         const externalFailureTypes = [
             'Garanti Maliyeti',
             'İade Maliyeti',
             'Şikayet Maliyeti',
             'Dış Hata Maliyeti',
             'Geri Çağırma Maliyeti',
-            'Müşteri Kaybı Maliyeti'
+            'Müşteri Kaybı Maliyeti',
+            'Müşteri Reklaması'
         ];
 
         // Appraisal kategorileri
@@ -132,16 +136,18 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                 finalFaultsBreakdown.totalReworkDuration += (cost.rework_duration || 0);
             }
             
-            // Tedarikçi kaynaklı maliyetler otomatik olarak External Failure
-            if (cost.is_supplier_nc && cost.supplier_id) {
+            const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
+            
+            // External Failure - SADECE müşteride tespit edilen hatalar
+            if (externalFailureTypes.some(type => costType.includes(type))) {
                 externalFailure += amount;
                 breakdown.externalFailure.push(cost);
-            } else if (internalFailureTypes.some(type => costType.includes(type))) {
+            } 
+            // Internal Failure - Fabrika içinde tespit edilen hatalar (tedarikçi kaynaklı dahil)
+            // Tedarikçi kaynaklı maliyetler de iç hata olarak sayılır çünkü girdi kontrolünde tespit edilir
+            else if (internalFailureTypes.some(type => costType.includes(type)) || isSupplierCost) {
                 internalFailure += amount;
                 breakdown.internalFailure.push(cost);
-            } else if (externalFailureTypes.some(type => costType.includes(type))) {
-                externalFailure += amount;
-                breakdown.externalFailure.push(cost);
             } else if (appraisalTypes.some(type => costType.includes(type))) {
                 appraisal += amount;
                 breakdown.appraisal.push(cost);

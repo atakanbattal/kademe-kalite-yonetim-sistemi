@@ -20,7 +20,7 @@ import React, { useState, useEffect } from 'react';
     import { ScrollArea } from '@/components/ui/scroll-area';
 
     const TaskFormModal = ({ isOpen, setIsOpen, task, onSaveSuccess }) => {
-        const { personnel, taskTags } = useData();
+        const { personnel, taskTags, taskProjects } = useData();
         const { user } = useAuth();
         const { toast } = useToast();
 
@@ -45,6 +45,7 @@ import React, { useState, useEffect } from 'react';
                     priority: taskData.priority || 'Orta',
                     due_date: taskData.due_date ? new Date(taskData.due_date) : null,
                     owner_id: taskData.owner_id || ownerPersonnelId,
+                    project_id: taskData.project_id || null, // Proje ID'si
                     assignees: taskData.assignees?.map(a => a.personnel_id || a.personnel.id) || [],
                     tags: taskData.tags?.map(t => t.tag_id || t.task_tags.id) || [],
                     checklist: taskData.checklist?.map(item => ({ ...item, id: item.id || uuidv4() })) || [],
@@ -58,6 +59,7 @@ import React, { useState, useEffect } from 'react';
                 priority: 'Orta',
                 due_date: null,
                 owner_id: ownerPersonnelId,
+                project_id: null, // Proje ID'si
                 assignees: [],
                 tags: [],
                 checklist: [],
@@ -162,7 +164,8 @@ import React, { useState, useEffect } from 'react';
             const validColumns = new Set([
                 'title', 'description', 'owner_id', 'approver_id', 'start_date', 'due_date',
                 'completed_at', 'priority', 'status', 'wip_limit', 'blocked_reason',
-                'related_df_id', 'related_vehicle_id', 'related_kaizen_id', 'assignees_text', 'tags_text'
+                'related_df_id', 'related_vehicle_id', 'related_kaizen_id', 'assignees_text', 'tags_text',
+                'project_id' // Proje ID'si
             ]);
 
             // Undefined key'leri ve geçersiz kolonları temizle
@@ -248,10 +251,11 @@ import React, { useState, useEffect } from 'react';
 
         const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
         const tagOptions = taskTags.map(t => ({ value: t.id, label: t.name }));
+        const projectOptions = (taskProjects || []).map(p => ({ value: p.id, label: p.name, color: p.color }));
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-3xl">
+                <DialogContent className="sm:max-w-4xl w-[95vw]">
                     <DialogHeader>
                         <DialogTitle>{isEditMode ? `Görevi Düzenle: ${formData.task_no || ''}` : 'Yeni Görev Oluştur'}</DialogTitle>
                         <DialogDescription>
@@ -261,33 +265,70 @@ import React, { useState, useEffect } from 'react';
                     <form onSubmit={handleSubmit}>
                         <ScrollArea className="h-[65vh] p-1">
                             <div className="space-y-6 p-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="title">Görev Başlığı</Label>
-                                    <Input id="title" name="title" value={formData.title || ''} onChange={handleInputChange} required />
-                                </div>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="title">Görev Başlığı <span className="text-red-500">*</span></Label>
+                                                        <Input id="title" name="title" value={formData.title || ''} onChange={handleInputChange} required />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="project_id">Proje / Konu</Label>
+                                                        <Select value={formData.project_id || 'none'} onValueChange={(value) => handleSelectChange('project_id', value === 'none' ? null : value)}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Proje seçin..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">
+                                                                    <span className="text-muted-foreground">Proje seçilmedi</span>
+                                                                </SelectItem>
+                                                                {projectOptions.map(option => (
+                                                                    <SelectItem key={option.value} value={option.value}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: option.color }} />
+                                                                            {option.label}
+                                                                        </div>
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="owner_id">Görevi Atayan</Label>
-                                        <Select value={formData.owner_id || ''} onValueChange={(value) => handleSelectChange('owner_id', value)}>
-                                            <SelectTrigger><SelectValue placeholder="Atayan kişiyi seçin..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {personnelOptions.map(option => (
-                                                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="assignees">Atanan Personeller</Label>
-                                        <MultiSelectPopover
-                                            options={personnelOptions}
-                                            value={formData.assignees || []}
-                                            onChange={(selected) => handleMultiSelectChange('assignees', selected)}
-                                            placeholder="Personel seçin..."
-                                        />
-                                    </div>
-                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="owner_id">Görevi Atayan</Label>
+                                                    <Select value={formData.owner_id || ''} onValueChange={(value) => handleSelectChange('owner_id', value)}>
+                                                        <SelectTrigger><SelectValue placeholder="Atayan kişiyi seçin..." /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {personnelOptions.map(option => (
+                                                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="assignees">Atanan Personeller</Label>
+                                                    <div className="flex items-start gap-2">
+                                                        <div className="flex-1">
+                                                            <MultiSelectPopover
+                                                                options={personnelOptions}
+                                                                value={formData.assignees || []}
+                                                                onChange={(selected) => handleMultiSelectChange('assignees', selected)}
+                                                                placeholder="Personel seçin..."
+                                                            />
+                                                        </div>
+                                                        <Button 
+                                                            type="button" 
+                                                            variant="ghost" 
+                                                            size="icon"
+                                                            className="h-10 w-10 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                                            onClick={() => handleMultiSelectChange('assignees', [])}
+                                                            title="Seçimi Temizle"
+                                                            disabled={!formData.assignees || formData.assignees.length === 0}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
 
                                 <div className="space-y-2">
                                     <Label htmlFor="description">Açıklama</Label>

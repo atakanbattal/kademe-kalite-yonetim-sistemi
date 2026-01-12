@@ -33,17 +33,18 @@ import React from 'react';
             <div className="border rounded-lg">
                 <ScrollArea className="h-[calc(100vh-22rem)]">
                     <Table>
-                        <TableHeader className="sticky top-0 bg-card z-10">
-                            <TableRow>
-                                <TableHead className="w-[120px]">Görev No</TableHead>
-                                <TableHead>Başlık</TableHead>
-                                <TableHead>Atananlar</TableHead>
-                                <TableHead>Öncelik</TableHead>
-                                <TableHead>Durum</TableHead>
-                                <TableHead>Bitiş Tarihi</TableHead>
-                                <TableHead className="text-right w-[120px]">İşlemler</TableHead>
-                            </TableRow>
-                        </TableHeader>
+<TableHeader className="sticky top-0 bg-card z-10">
+                                            <TableRow>
+                                                <TableHead className="w-[120px]">Görev No</TableHead>
+                                                <TableHead>Proje</TableHead>
+                                                <TableHead>Başlık</TableHead>
+                                                <TableHead>Atananlar</TableHead>
+                                                <TableHead>Öncelik</TableHead>
+                                                <TableHead>Durum</TableHead>
+                                                <TableHead>Bitiş Tarihi</TableHead>
+                                                <TableHead className="text-right w-[120px]">İşlemler</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
                         <TableBody>
                             {tasks.map(task => (
                                 <TableRow 
@@ -51,8 +52,20 @@ import React from 'react';
                                     className="hover:bg-muted/50 cursor-pointer"
                                     onClick={() => onViewTask(task)}
                                 >
-                                    <TableCell className="font-medium">{task.task_no}</TableCell>
-                                    <TableCell>{task.title}</TableCell>
+<TableCell className="font-medium">{task.task_no}</TableCell>
+                                                    <TableCell>
+                                                        {task.project ? (
+                                                            <span 
+                                                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                                                                style={{ backgroundColor: task.project.color || '#6366f1' }}
+                                                            >
+                                                                {task.project.name}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground text-xs">-</span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>{task.title}</TableCell>
                                     <TableCell>
                                         <div className="flex flex-col text-xs">
                                             {task.assignees?.map(assignee => (

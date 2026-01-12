@@ -115,7 +115,7 @@ const DeviationModule = ({ onOpenNCForm }) => {
     return (
         <div className="space-y-6">
             <Helmet>
-                <title>Sapma Yönetimi</title>
+                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
                 <meta name="description" content="Üretim ve süreç sapmalarını yönetin, onay süreçlerini takip edin." />
             </Helmet>
 

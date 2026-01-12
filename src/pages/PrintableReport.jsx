@@ -659,7 +659,7 @@ const PrintableReport = () => {
     return (
         <>
             <Helmet>
-                <title>{reportTitle}</title>
+                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
             </Helmet>
             <iframe
                 ref={iframeRef}

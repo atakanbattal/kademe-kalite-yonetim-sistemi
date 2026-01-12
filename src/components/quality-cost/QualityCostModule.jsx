@@ -208,8 +208,21 @@ import { Building2, BarChart3 } from 'lucide-react';
             };
 
             // İç ve dış hata kategorileri
-            const internalCostTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'İç Hata Maliyetleri', 'Hurda', 'Yeniden İşlem', 'İç Hata'];
-            const externalCostTypes = ['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti', 'Dış Hata Maliyetleri', 'Dış Hata', 'Müşteri Şikayeti'];
+            // İÇ HATA: Fabrika içinde (tedarikçi dahil girdi kontrolünde) tespit edilen hatalar
+            // Tedarikçi kaynaklı maliyetler de fabrika içinde tespit edildiği için İÇ HATA'dır
+            const internalCostTypes = [
+                'Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 
+                'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 
+                'İç Hata Maliyetleri', 'Hurda', 'Yeniden İşlem', 'İç Hata',
+                'Tedarikçi Hata Maliyeti' // Girdi kontrolünde tespit edilen tedarikçi hataları
+            ];
+            // DIŞ HATA: SADECE müşteride tespit edilen hatalar
+            // Ürün müşteriye ulaştıktan sonra ortaya çıkan maliyetler
+            const externalCostTypes = [
+                'Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 
+                'Dış Hata Maliyeti', 'Dış Hata Maliyetleri', 'Dış Hata', 
+                'Müşteri Şikayeti', 'Müşteri Reklaması'
+            ];
             const appraisalCostTypes = ['Değerlendirme Maliyetleri', 'Kontrol', 'Test', 'Muayene'];
             const preventionCostTypes = ['Önleme Maliyetleri', 'Önleme', 'Eğitim', 'Kalite Planlama'];
 
@@ -229,10 +242,14 @@ import { Building2, BarChart3 } from 'lucide-react';
                 const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
                 const costType = cost.cost_type || '';
                 
-                if (isSupplierCost || externalCostTypes.some(type => costType.includes(type))) {
+                // DIŞ HATA: Sadece müşteride tespit edilen hatalar
+                if (externalCostTypes.some(type => costType.includes(type))) {
                     externalCost += cost.amount || 0;
                     externalCosts.push(cost);
-                } else if (internalCostTypes.some(type => costType.includes(type))) {
+                } 
+                // İÇ HATA: Fabrika içinde tespit edilen tüm hatalar (tedarikçi kaynaklı dahil)
+                // Tedarikçi kaynaklı maliyetler de iç hata olarak sayılır çünkü girdi kontrolünde tespit edilir
+                else if (internalCostTypes.some(type => costType.includes(type)) || isSupplierCost) {
                     internalCost += cost.amount || 0;
                     internalCosts.push(cost);
                 } else if (appraisalCostTypes.some(type => costType.includes(type))) {

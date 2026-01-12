@@ -42,24 +42,43 @@ export function sanitizeFileName(fileName) {
 /**
  * Türkçe karakterleri normalize eder (arama için)
  * Örnek: "İzin" -> "izin", "Öğrenci" -> "ogrenci"
+ * Tüm Türkçe karakter varyasyonlarını destekler (farklı Unicode kodlamaları dahil)
  */
 export function normalizeTurkishForSearch(text) {
     if (!text) return '';
     
-    return String(text)
-        .toLowerCase()
-        .replace(/ı/g, 'i')
-        .replace(/İ/g, 'i')
-        .replace(/ğ/g, 'g')
-        .replace(/Ğ/g, 'g')
-        .replace(/ü/g, 'u')
-        .replace(/Ü/g, 'u')
-        .replace(/ş/g, 's')
-        .replace(/Ş/g, 's')
-        .replace(/ö/g, 'o')
-        .replace(/Ö/g, 'o')
-        .replace(/ç/g, 'c')
-        .replace(/Ç/g, 'c');
+    // Önce NFD ve NFC normalize et (farklı unicode formları için)
+    let normalized = String(text).normalize('NFD').normalize('NFC');
+    
+    // Türkçe karakter dönüşümleri (büyük ve küçük harf)
+    const turkishCharMap = {
+        'ı': 'i', 'İ': 'i', 'I': 'i', // Türkçe I ve ı -> i
+        'ğ': 'g', 'Ğ': 'g',
+        'ü': 'u', 'Ü': 'u',
+        'ş': 's', 'Ş': 's',
+        'ö': 'o', 'Ö': 'o',
+        'ç': 'c', 'Ç': 'c',
+        // Aksan işaretli karakterler için ek dönüşümler
+        'â': 'a', 'Â': 'a',
+        'î': 'i', 'Î': 'i',
+        'û': 'u', 'Û': 'u',
+    };
+    
+    // Her karakteri kontrol et ve dönüştür
+    let result = '';
+    for (const char of normalized) {
+        const mapped = turkishCharMap[char];
+        if (mapped) {
+            result += mapped;
+        } else {
+            result += char.toLowerCase();
+        }
+    }
+    
+    // Boşlukları normalize et ve birden fazla boşluğu tek boşluğa indir
+    result = result.replace(/\s+/g, ' ').trim();
+    
+    return result;
 }
 
 /**

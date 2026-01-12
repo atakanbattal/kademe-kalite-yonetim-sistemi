@@ -347,7 +347,7 @@ const PrintableInternalAuditDashboard = () => {
     return (
         <>
             <Helmet>
-                <title>İç Tetkik Detaylı Genel Raporu - {format(startOfToday(), 'dd.MM.yyyy')}</title>
+                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
             </Helmet>
             <div className="report-container">
                 <style>{`

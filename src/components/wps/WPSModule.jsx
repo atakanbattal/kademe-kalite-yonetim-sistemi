@@ -85,7 +85,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         return (
             <div className="space-y-6">
                 <Helmet>
-                    <title>WPS Yönetimi</title>
+                    <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
                     <meta name="description" content="Kaynak Prosedür Şartnamelerini (WPS) yönetin." />
                 </Helmet>
 

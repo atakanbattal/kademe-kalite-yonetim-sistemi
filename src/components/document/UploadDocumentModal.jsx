@@ -64,7 +64,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                     try {
                         const { data: allRevisions, error: revError } = await supabase
                             .from('document_revisions')
-                            .select('revision_number, publish_date')
+                            .select('revision_number, publish_date, revision_date, created_at')
                             .eq('document_id', existingDocument.id)
                             .order('revision_number', { ascending: true }); // İlk revizyonu bulmak için ascending
 
@@ -88,22 +88,27 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                         }
                         
                         const nextRevisionNumber = (maxRevisionNumber + 1).toString();
+                        // Yeni revizyon için bugünün tarihini revizyon tarihi olarak ayarla
+                        const todayDate = new Date().toISOString().slice(0, 10);
                         
-                        // FormData'yı güncelle - revizyon numarası ve ilk yayın tarihi
+                        // FormData'yı güncelle - revizyon numarası, ilk yayın tarihi ve bugünün revizyon tarihi
                         setFormData(prev => ({
                             ...prev,
                             revision_number: nextRevisionNumber,
-                            publish_date: firstPublishDate || prev.publish_date // İlk yayın tarihini koru
+                            publish_date: firstPublishDate || prev.publish_date, // İlk yayın tarihini koru
+                            revision_date: todayDate // Yeni revizyon için bugünün tarihini kullan
                         }));
                     } catch (error) {
                         console.error('Revizyon verileri hesaplanamadı:', error);
                         // Hata durumunda mevcut revizyon numarasına +1 ekle ve mevcut publish_date'i koru
                         const revision = existingDocument.document_revisions;
                         const currentRevNum = parseInt(revision?.revision_number || '0', 10);
+                        const todayDate = new Date().toISOString().slice(0, 10);
                         setFormData(prev => ({
                             ...prev,
                             revision_number: (currentRevNum + 1).toString(),
-                            publish_date: revision?.publish_date || prev.publish_date // Mevcut publish_date'i koru
+                            publish_date: revision?.publish_date || prev.publish_date, // Mevcut publish_date'i koru
+                            revision_date: todayDate // Yeni revizyon için bugünün tarihini kullan
                         }));
                     }
                 };
@@ -153,7 +158,9 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
                             valid_until: existingDocument.valid_until ? new Date(existingDocument.valid_until).toISOString().slice(0, 10) : '',
                             revision_number: nextRevisionNumber,
                             publish_date: publishDate, // Revizyon modunda da ilk yayın tarihini koru
-                            revision_date: isRevisionMode ? '' : (revision?.revision_date ? new Date(revision.revision_date).toISOString().slice(0, 10) : (revision?.created_at ? new Date(revision.created_at).toISOString().slice(0, 10) : '')),
+                            // Revizyon modunda: Revizyon tarihi async useEffect ile bugünün tarihi olarak ayarlanacak
+                            // Düzenleme modunda: Mevcut revizyon tarihini göster
+                            revision_date: isRevisionMode ? '' : (revision?.revision_date ? new Date(revision.revision_date).toISOString().slice(0, 10) : ''),
                             revision_reason: isRevisionMode ? '' : (revision?.revision_reason || ''),
                             file_name: revision?.attachments?.[0]?.name,
                             department_id: existingDocument.department_id || null,

@@ -87,8 +87,26 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
             };
         }
 
-        const internalCostTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti'];
-        const externalCostTypes = ['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti'];
+        // İç Hata Maliyetleri: Fabrika içinde (tedarikçi dahil girdi kontrolünde) tespit edilen hatalar
+        // Tedarikçi kaynaklı maliyetler de fabrika içinde (girdi kalite kontrolünde) tespit edildiği için iç hata maliyetidir
+        const internalCostTypes = [
+            'Hurda Maliyeti', 
+            'Yeniden İşlem Maliyeti', 
+            'Fire Maliyeti', 
+            'İç Kalite Kontrol Maliyeti', 
+            'Final Hataları Maliyeti',
+            'Tedarikçi Hata Maliyeti' // Girdi kontrolünde tespit edilen tedarikçi hataları
+        ];
+        
+        // Dış Hata Maliyetleri: SADECE müşteride tespit edilen hatalar
+        // Bunlar ürün müşteriye ulaştıktan sonra ortaya çıkan maliyetlerdir
+        const externalCostTypes = [
+            'Garanti Maliyeti',      // Müşteriye teslim sonrası garanti kapsamında
+            'İade Maliyeti',         // Müşteri iadesi
+            'Şikayet Maliyeti',      // Müşteri şikayeti
+            'Dış Hata Maliyeti',     // Müşteride tespit edilen diğer hatalar
+            'Müşteri Reklaması'      // Müşteri şikayetleri/reklamasyonlar
+        ];
 
         let totalCost = 0;
         let internalCost = 0;
@@ -98,13 +116,15 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
 
         costs.forEach(cost => {
             totalCost += cost.amount;
-            // Tedarikçi kaynaklı maliyetler otomatik olarak Dış Hata Maliyeti
-            const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
             
-            if (isSupplierCost || externalCostTypes.includes(cost.cost_type)) {
+            // Dış Hata: Sadece müşteride tespit edilen hatalar
+            if (externalCostTypes.includes(cost.cost_type)) {
                 externalCost += cost.amount;
                 externalCosts.push(cost);
-            } else if (internalCostTypes.includes(cost.cost_type)) {
+            } 
+            // İç Hata: Fabrika içinde tespit edilen tüm hatalar (tedarikçi kaynaklı dahil)
+            // Tedarikçi kaynaklı maliyetler de iç hata olarak sayılır çünkü girdi kontrolünde tespit edilir
+            else if (internalCostTypes.includes(cost.cost_type) || (cost.is_supplier_nc && cost.supplier_id)) {
                 internalCost += cost.amount;
                 internalCosts.push(cost);
             }

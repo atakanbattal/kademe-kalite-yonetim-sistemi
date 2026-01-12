@@ -133,7 +133,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
     return (
         <>
             <Helmet>
-                <title>Proses Kontrol Yönetimi - Kademe QMS</title>
+                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
             </Helmet>
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

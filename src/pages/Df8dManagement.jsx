@@ -415,7 +415,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
         return (
             <>
                 <Helmet>
-                    <title>DF ve 8D Yönetimi - Kalite Yönetim Sistemi</title>
+                    <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
                 </Helmet>
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}

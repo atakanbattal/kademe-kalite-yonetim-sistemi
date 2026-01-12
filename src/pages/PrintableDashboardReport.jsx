@@ -66,7 +66,7 @@ const PrintableDashboardReport = () => {
     return (
         <>
             <Helmet>
-                <title>Yönetici Özet Raporu - {periodLabel}</title>
+                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
             </Helmet>
             <div className="report-container">
                 <style>{`

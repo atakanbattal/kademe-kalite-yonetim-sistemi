@@ -38,14 +38,15 @@ const UnitCostDistribution = ({ costs }) => {
             totalCost += cost.amount || 0;
 
             const costType = cost.cost_type || '';
+            const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
             
-            // Internal Failure
-            if (['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti'].some(t => costType.includes(t))) {
-                unitMap[unit].internalCost += cost.amount || 0;
-            }
-            // External Failure
-            else if (['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti', 'Geri Çağırma Maliyeti', 'Müşteri Kaybı Maliyeti'].some(t => costType.includes(t))) {
+            // External Failure - SADECE müşteride tespit edilen hatalar
+            if (['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti', 'Geri Çağırma Maliyeti', 'Müşteri Kaybı Maliyeti', 'Müşteri Reklaması'].some(t => costType.includes(t))) {
                 unitMap[unit].externalCost += cost.amount || 0;
+            }
+            // Internal Failure - Fabrika içinde tespit edilen hatalar (tedarikçi kaynaklı dahil)
+            else if (['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'Tedarikçi Hata Maliyeti'].some(t => costType.includes(t)) || isSupplierCost) {
+                unitMap[unit].internalCost += cost.amount || 0;
             }
             // Appraisal
             else if (['Girdi Kalite Kontrol Maliyeti', 'Üretim Kalite Kontrol Maliyeti', 'Test ve Ölçüm Maliyeti', 'Kalite Kontrol Maliyeti'].some(t => costType.includes(t))) {

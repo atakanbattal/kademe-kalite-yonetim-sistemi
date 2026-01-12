@@ -213,8 +213,13 @@ const getReportTitle = (record, type) => {
 			return 'Üretilen Araçlar Yönetici Özeti Raporu';
 		case 'supplier_quality_executive_summary':
 			return 'Tedarikçi Kalite Yönetimi Yönetici Özeti Raporu';
+		case 'document_list':
+			return record.categoryName 
+				? `${record.categoryName} Listesi` 
+				: 'Doküman Listesi Raporu';
 		default:
-			return 'Detaylı Rapor';
+			// Eğer record'da title varsa onu kullan, yoksa genel başlık
+			return record?.title ? `${record.title} Raporu` : 'Detaylı Rapor';
 	}
 };
 

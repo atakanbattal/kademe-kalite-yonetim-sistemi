@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { Button } from '@/components/ui/button';
-import { Plus, LayoutGrid, List } from 'lucide-react';
+import { Plus, LayoutGrid, List, FolderPlus } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import TaskBoard from '@/components/tasks/TaskBoard';
 import TaskList from '@/components/tasks/TaskList';
@@ -10,13 +10,21 @@ import { supabase } from '@/lib/customSupabaseClient';
 import TaskFormModal from '@/components/tasks/TaskFormModal';
 import TaskViewModal from '@/components/tasks/TaskViewModal';
 import TaskFilters from '@/components/tasks/TaskFilters';
+import ProjectModal from '@/components/tasks/ProjectModal';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 const TaskModule = () => {
   const {
     tasks,
     personnel,
     taskTags,
+    taskProjects,
     loading,
     refreshData
   } = useData();
@@ -29,12 +37,15 @@ const TaskModule = () => {
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [viewMode, setViewMode] = useState('board');
+  const [isProjectModalOpen, setProjectModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
   const [filters, setFilters] = useState({
     searchTerm: '',
     assignees: [],
     priorities: [],
     statuses: [],
-    tags: []
+    tags: [],
+    projectId: null // Proje filtresi
   });
   const filteredTasks = useMemo(() => {
     if (loading) return [];
@@ -44,7 +55,10 @@ const TaskModule = () => {
       const priorityMatch = filters.priorities.length === 0 || filters.priorities.includes(task.priority);
       const statusMatch = filters.statuses.length === 0 || filters.statuses.includes(task.status);
       const tagMatch = filters.tags.length === 0 || task.tags.some(t => filters.tags.includes(t.task_tags.id));
-      return searchTermMatch && assigneeMatch && priorityMatch && statusMatch && tagMatch;
+      // Proje filtresi: 'none' seçiliyse projesi olmayanları göster, ID seçiliyse o projedekileri göster
+      const projectMatch = !filters.projectId || 
+        (filters.projectId === 'none' ? !task.project_id : task.project_id === filters.projectId);
+      return searchTermMatch && assigneeMatch && priorityMatch && statusMatch && tagMatch && projectMatch;
     });
   }, [tasks, filters, loading]);
   const handleUpdateStatus = async (taskId, newStatus) => {
@@ -120,13 +134,13 @@ const TaskModule = () => {
   };
   return <div className="space-y-6">
                 <Helmet>
-                    <title>Görev Yönetimi</title>
+                    <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
                     <meta name="description" content="Görevlerinizi yönetin, atayın ve takip edin." />
                 </Helmet>
 
                 <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <h1 className="text-3xl font-bold text-foreground"></h1>
-                     <TaskFilters filters={filters} setFilters={setFilters} personnel={personnel} tags={taskTags} />
+                     <TaskFilters filters={filters} setFilters={setFilters} personnel={personnel} tags={taskTags} projects={taskProjects} />
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="icon" onClick={() => setViewMode('board')} className={viewMode === 'board' ? 'bg-accent' : ''}>
                             <LayoutGrid className="h-4 w-4" />
@@ -134,6 +148,38 @@ const TaskModule = () => {
                         <Button variant="outline" size="icon" onClick={() => setViewMode('list')} className={viewMode === 'list' ? 'bg-accent' : ''}>
                             <List className="h-4 w-4" />
                         </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    <FolderPlus className="h-4 w-4 mr-2" /> Projeler
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuItem onClick={() => {
+                                    setSelectedProject(null);
+                                    setProjectModalOpen(true);
+                                }}>
+                                    <FolderPlus className="h-4 w-4 mr-2" />
+                                    Yeni Proje Oluştur
+                                </DropdownMenuItem>
+                                {taskProjects && taskProjects.length > 0 && (
+                                    <>
+                                        <div className="h-px bg-border my-1" />
+                                        {taskProjects.map((project) => (
+                                            <DropdownMenuItem 
+                                                key={project.id}
+                                                onClick={() => {
+                                                    setSelectedProject(project);
+                                                    setProjectModalOpen(true);
+                                                }}
+                                            >
+                                                <span className="truncate">{project.name}</span>
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button onClick={handleOpenNewTask}>
                             <Plus className="h-4 w-4 mr-2" /> Yeni Görev
                         </Button>
@@ -156,6 +202,16 @@ const TaskModule = () => {
                 <TaskFormModal isOpen={isFormModalOpen} setIsOpen={setFormModalOpen} task={selectedTask} onSaveSuccess={handleSaveSuccess} />
 
                 <TaskViewModal isOpen={isViewModalOpen} setIsOpen={setViewModalOpen} task={selectedTask} onEdit={handleEditTask} onDelete={confirmDeleteTask} />
+
+                <ProjectModal 
+                    isOpen={isProjectModalOpen} 
+                    setIsOpen={setProjectModalOpen} 
+                    project={selectedProject} 
+                    onSaveSuccess={() => {
+                        refreshData();
+                        setSelectedProject(null);
+                    }} 
+                />
 
                 <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                     <AlertDialogContent>

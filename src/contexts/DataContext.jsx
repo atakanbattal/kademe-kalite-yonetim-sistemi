@@ -38,6 +38,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             kpis: [],
             tasks: [],
             taskTags: [],
+            taskProjects: [], // Görev projeleri
             incomingControlPlans: [],
             characteristics: [],
             equipment: [],
@@ -113,6 +114,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 unitCostSettings: supabase.from('cost_settings').select('*'),
                 productionDepartments: supabase.from('production_departments').select('*'),
                 taskTags: supabase.from('task_tags').select('*'),
+                taskProjects: supabase.from('task_projects').select('*').order('name'), // Görev projeleri
                 characteristics: supabase.from('characteristics').select('id, name, type, sampling_rate'),
                 equipment: supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true }),
                 standards: supabase.from('audit_standards').select('id, code, name'),
@@ -126,7 +128,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
                 nonConformities: supabase.from('non_conformities').select('*'),
                 deviations: supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)'),
                 kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
-                tasks: supabase.from('tasks').select('*, owner:owner_id(full_name, email), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)'),
+                tasks: supabase.from('tasks').select('*, owner:owner_id(full_name, email), project:project_id(id, name, color), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)'),
                 qualityCosts: supabase.from('quality_costs').select('*, responsible_personnel:personnel!responsible_personnel_id(full_name), non_conformities(nc_number, id), supplier:suppliers!supplier_id(name)'),
                 kpis: supabase.from('kpis').select('*'),
                 materialCostSettings: supabase.from('material_costs').select('*'),

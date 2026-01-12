@@ -83,7 +83,7 @@ const DynamicBalanceModule = () => {
     return (
         <>
             <Helmet>
-                <title>Dinamik Balans Kalite Kontrol - Kademe KYS</title>
+                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
             </Helmet>
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

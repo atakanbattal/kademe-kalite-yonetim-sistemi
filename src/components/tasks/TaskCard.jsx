@@ -73,6 +73,7 @@ const TaskCard = ({ task, onEditTask, onViewTask }) => {
     // Tamamlanan veya iptal edilen görevlerde overdue gösterme
     const overdue = (task.status === 'Tamamlandı' || task.status === 'İptal') ? false : isOverdue(task.due_date);
     const formattedDate = formatFullDate(task.due_date);
+    const project = task.project || null;
 
     return (
         <Card
@@ -80,7 +81,19 @@ const TaskCard = ({ task, onEditTask, onViewTask }) => {
             onClick={() => onViewTask(task)}
             className={`mb-4 bg-card/80 backdrop-blur-sm hover:shadow-lg transition-shadow duration-200 group cursor-pointer ${isDragging ? 'opacity-50' : 'opacity-100'} ${overdue ? 'border-l-4 border-l-red-500' : ''}`}
         >
-            <div className="p-4 space-y-3">
+            {/* Proje Etiketi - Kartın En Üstünde */}
+            {project && (
+                <div className="px-4 pt-3 pb-2 border-b border-border/50">
+                    <span 
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-white shadow-sm"
+                        style={{ backgroundColor: project.color || '#6366f1' }}
+                    >
+                        {project.name}
+                    </span>
+                </div>
+            )}
+            
+            <div className={`p-4 space-y-3 ${project ? '' : 'pt-4'}`}>
                 {/* Başlık ve Menu */}
                 <div className="flex justify-between items-start gap-2">
                     <div className="flex-1 min-w-0">

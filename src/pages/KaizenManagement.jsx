@@ -109,7 +109,7 @@ const KaizenManagement = () => {
     return (
         <>
             <Helmet>
-                <title>Kaizen Yönetimi - Kalite Yönetim Sistemi</title>
+                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
                 <meta name="description" content="Sürekli iyileştirme (Kaizen) faaliyetlerini yönetin, takip edin ve raporlayın." />
             </Helmet>
             <motion.div
