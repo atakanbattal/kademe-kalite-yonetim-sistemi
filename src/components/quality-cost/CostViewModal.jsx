@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { DollarSign, Calendar, Building2, Car, Package, User, CheckCircle, AlertTriangle, Clock, Users } from 'lucide-react';
+import { DollarSign, Calendar, Building2, Car, Package, User, CheckCircle, AlertTriangle, Clock, Users, FileText } from 'lucide-react';
 import { InfoCard } from '@/components/ui/InfoCard';
+import { openPrintableReport } from '@/lib/reportUtils';
 
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
@@ -288,6 +289,21 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                 </ScrollArea>
 
                 <DialogFooter className="mt-6">
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="lg"
+                        onClick={() => {
+                            const reportData = {
+                                id: cost.id,
+                                ...cost
+                            };
+                            openPrintableReport(reportData, 'quality_cost_detail', true);
+                        }}
+                    >
+                        <FileText className="w-4 h-4 mr-2" />
+                        PDF Rapor Al
+                    </Button>
                     <DialogClose asChild>
                         <Button type="button" variant="secondary" size="lg">Kapat</Button>
                     </DialogClose>

@@ -318,6 +318,96 @@ const ControlPlanForm = ({ isOpen, setIsOpen, existingPlan, refreshPlans, onEdit
         setItems(newItems);
     };
 
+    // İki item'ı karşılaştır ve değişiklikleri bul
+    const compareItems = (oldItem, newItem) => {
+        const changes = {};
+        const fields = ['characteristic_id', 'equipment_id', 'standard_id', 'tolerance_class', 'standard_class', 'nominal_value', 'min_value', 'max_value', 'tolerance_direction', 'characteristic_type'];
+        
+        fields.forEach(field => {
+            const oldVal = oldItem[field] || null;
+            const newVal = newItem[field] || null;
+            if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                changes[field] = {
+                    old: oldVal,
+                    new: newVal
+                };
+            }
+        });
+        
+        return Object.keys(changes).length > 0 ? changes : null;
+    };
+
+    // İki plan versiyonunu karşılaştır
+    const comparePlans = (oldPlan, newPlan) => {
+        const changes = {};
+        const changedItems = [];
+        
+        // Temel alanları karşılaştır
+        if (oldPlan.part_code !== newPlan.part_code) {
+            changes.part_code = { old: oldPlan.part_code, new: newPlan.part_code };
+        }
+        if (oldPlan.part_name !== newPlan.part_name) {
+            changes.part_name = { old: oldPlan.part_name, new: newPlan.part_name };
+        }
+        if (oldPlan.file_path !== newPlan.file_path) {
+            changes.file_path = { old: oldPlan.file_path, new: newPlan.file_path };
+        }
+        if (oldPlan.file_name !== newPlan.file_name) {
+            changes.file_name = { old: oldPlan.file_name, new: newPlan.file_name };
+        }
+        
+        // Item'ları karşılaştır
+        const oldItems = oldPlan.items || [];
+        const newItems = newPlan.items || [];
+        
+        // Eski item'ları ID'ye göre map'le
+        const oldItemsMap = new Map();
+        oldItems.forEach(item => {
+            if (item.id) oldItemsMap.set(item.id, item);
+        });
+        
+        // Yeni item'ları kontrol et
+        newItems.forEach((newItem, index) => {
+            if (newItem.id && oldItemsMap.has(newItem.id)) {
+                // Mevcut item - değişiklik var mı?
+                const oldItem = oldItemsMap.get(newItem.id);
+                const itemChanges = compareItems(oldItem, newItem);
+                if (itemChanges) {
+                    changedItems.push({
+                        type: 'updated',
+                        item_id: newItem.id,
+                        index: index + 1,
+                        old_item: oldItem,
+                        new_item: newItem,
+                        changes: itemChanges
+                    });
+                }
+                oldItemsMap.delete(newItem.id);
+            } else {
+                // Yeni eklenen item
+                changedItems.push({
+                    type: 'added',
+                    item_id: newItem.id || `new_${index}`,
+                    index: index + 1,
+                    item: newItem
+                });
+            }
+        });
+        
+        // Silinen item'lar
+        oldItemsMap.forEach((oldItem, id) => {
+            const oldIndex = oldItems.findIndex(item => item.id === id);
+            changedItems.push({
+                type: 'deleted',
+                item_id: id,
+                index: oldIndex + 1,
+                item: oldItem
+            });
+        });
+        
+        return { changes, changedItems };
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -417,9 +507,79 @@ const ControlPlanForm = ({ isOpen, setIsOpen, existingPlan, refreshPlans, onEdit
 
             let savedData, error;
             if (isEditMode) {
+                // Revizyon yapıldıktan sonra düzenleme yapılıyorsa, değişiklikleri kaydet
+                const oldPlan = existingPlan;
+                const newPlan = planData;
+                
+                // Plan güncelle
                 const { data, error: updateError } = await supabase.from('incoming_control_plans').update(planData).eq('id', existingPlan.id).select().single();
                 savedData = data;
                 error = updateError;
+                
+                // Eğer revizyon yapılmışsa (revision_number > 0), değişiklikleri kaydet
+                if (!error && savedData && existingPlan.revision_number > 0) {
+                    const comparison = comparePlans(oldPlan, newPlan);
+                    
+                    // Mevcut revizyon numarasına göre revizyon geçmişi kaydını bul
+                    const { data: lastRevision } = await supabase
+                        .from('incoming_control_plan_revisions')
+                        .select('*')
+                        .eq('control_plan_id', existingPlan.id)
+                        .eq('revision_number', existingPlan.revision_number) // Mevcut revizyon numarasına göre bul
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    
+                    if (lastRevision) {
+                        // Değişiklik varsa revizyon geçmişi kaydını güncelle
+                        if (Object.keys(comparison.changes).length > 0 || comparison.changedItems.length > 0) {
+                            const { error: updateHistoryError } = await supabase
+                                .from('incoming_control_plan_revisions')
+                                .update({
+                                    new_part_code: newPlan.part_code,
+                                    new_part_name: newPlan.part_name,
+                                    new_items: newPlan.items,
+                                    new_file_path: newPlan.file_path,
+                                    new_file_name: newPlan.file_name,
+                                    changes: comparison.changes,
+                                    changed_items: comparison.changedItems,
+                                    updated_at: new Date().toISOString()
+                                })
+                                .eq('id', lastRevision.id);
+                            
+                            if (updateHistoryError && updateHistoryError.code !== '42P01') {
+                                console.warn('Revizyon geçmişi güncellenemedi:', updateHistoryError);
+                            }
+                        }
+                    } else {
+                        // Revizyon geçmişi kaydı yoksa oluştur (eski sistemden gelen planlar için)
+                        const { error: insertHistoryError } = await supabase
+                            .from('incoming_control_plan_revisions')
+                            .insert({
+                                control_plan_id: existingPlan.id,
+                                revision_number: existingPlan.revision_number,
+                                revision_date: existingPlan.revision_date || new Date().toISOString(),
+                                old_part_code: oldPlan.part_code,
+                                old_part_name: oldPlan.part_name,
+                                old_items: oldPlan.items || [],
+                                old_file_path: oldPlan.file_path,
+                                old_file_name: oldPlan.file_name,
+                                new_part_code: newPlan.part_code,
+                                new_part_name: newPlan.part_name,
+                                new_items: newPlan.items || [],
+                                new_file_path: newPlan.file_path,
+                                new_file_name: newPlan.file_name,
+                                changes: comparison.changes,
+                                changed_items: comparison.changedItems,
+                                revision_note: `Revizyon ${existingPlan.revision_number} kaydedildi.`,
+                                created_by: (await supabase.auth.getUser()).data.user?.id || null,
+                            });
+                        
+                        if (insertHistoryError && insertHistoryError.code !== '42P01') {
+                            console.warn('Revizyon geçmişi oluşturulamadı:', insertHistoryError);
+                        }
+                    }
+                }
             } else {
                 const { data, error: insertError } = await supabase.from('incoming_control_plans').insert(planData).select().single();
                 savedData = data;
@@ -610,11 +770,52 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
 
     const handleRevise = async (plan) => {
         const newRevisionNumber = (plan.revision_number || 0) + 1;
+        const revisionDate = new Date().toISOString();
+
+        // Eski plan verilerini kaydet (revizyon geçmişi için)
+        const revisionHistoryData = {
+            control_plan_id: plan.id,
+            revision_number: newRevisionNumber, // YENİ revizyon numarası
+            revision_date: revisionDate, // YENİ revizyon tarihi
+            old_part_code: plan.part_code,
+            old_part_name: plan.part_name,
+            old_items: plan.items || [],
+            old_file_path: plan.file_path || null,
+            old_file_name: plan.file_name || null,
+            // Yeni değerler başlangıçta eski değerlerle aynı (düzenleme sonrası güncellenecek)
+            new_part_code: plan.part_code,
+            new_part_name: plan.part_name,
+            new_items: plan.items || [],
+            new_file_path: plan.file_path || null,
+            new_file_name: plan.file_name || null,
+            revision_note: `Revizyon ${newRevisionNumber} başlatıldı.`,
+            created_by: (await supabase.auth.getUser()).data.user?.id || null,
+        };
+
+        // Revizyon geçmişini kaydet (tablo yoksa sessizce devam et)
+        const { error: historyError } = await supabase
+            .from('incoming_control_plan_revisions')
+            .insert(revisionHistoryData);
+
+        if (historyError) {
+            // Tablo yoksa veya başka bir hata varsa sadece log'la, revizyon işlemini durdurma
+            if (historyError.code === '42P01' || historyError.message?.includes('does not exist')) {
+                console.warn('Revizyon geçmişi tablosu henüz oluşturulmamış. Migration script çalıştırılmalı:', historyError);
+            } else {
+                console.error('Revizyon geçmişi kaydedilemedi:', historyError);
+                // Kritik olmayan bir hata, sadece uyarı göster
+                toast({ 
+                    variant: 'default', 
+                    title: 'Bilgi', 
+                    description: `Revizyon yapıldı ancak geçmiş kaydı oluşturulamadı. Lütfen migration script'i çalıştırın.` 
+                });
+            }
+        }
 
         const updateData = {
             revision_number: newRevisionNumber,
-            revision_date: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            revision_date: revisionDate,
+            updated_at: revisionDate,
         };
 
         const { data: updatedPlan, error } = await supabase

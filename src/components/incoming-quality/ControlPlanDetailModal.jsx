@@ -13,11 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileDown, X } from 'lucide-react';
+import { FileDown, X, History, RotateCcw, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
 import { useData } from '@/contexts/DataContext';
+import { supabase } from '@/lib/customSupabaseClient';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const ControlPlanDetailModal = ({
     isOpen,
@@ -30,14 +32,99 @@ const ControlPlanDetailModal = ({
     const [preparedBy, setPreparedBy] = useState('');
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
+    const [revisionHistory, setRevisionHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+    const [restoreRevisionId, setRestoreRevisionId] = useState(null);
 
     useEffect(() => {
         if (plan) {
             console.log('📋 ControlPlanDetailModal opened with plan:', plan);
             console.log('📊 Plan items:', plan.items);
             console.log('📊 Items count:', plan.items ? plan.items.length : 0);
+            fetchRevisionHistory();
         }
     }, [plan, isOpen]);
+
+    const fetchRevisionHistory = async () => {
+        if (!plan?.id) return;
+        setLoadingHistory(true);
+        try {
+            const { data, error } = await supabase
+                .from('incoming_control_plan_revisions')
+                .select('*')
+                .eq('control_plan_id', plan.id)
+                .order('revision_number', { ascending: false });
+            
+            if (error) {
+                // Tablo yoksa veya başka bir hata varsa sessizce boş liste döndür
+                if (error.code === '42P01' || error.message?.includes('does not exist')) {
+                    console.warn('Revizyon geçmişi tablosu henüz oluşturulmamış. Migration script çalıştırılmalı.');
+                    setRevisionHistory([]);
+                    return;
+                }
+                throw error;
+            }
+            setRevisionHistory(data || []);
+        } catch (error) {
+            console.error('Revizyon geçmişi yüklenemedi:', error);
+            // Sadece kritik hatalarda toast göster
+            if (error.code !== '42P01' && !error.message?.includes('does not exist')) {
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Hata', 
+                    description: `Revizyon geçmişi yüklenemedi: ${error.message || 'Bilinmeyen hata'}` 
+                });
+            }
+            setRevisionHistory([]);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    const handleRestoreRevision = async (revisionId) => {
+        try {
+            const revision = revisionHistory.find(r => r.id === revisionId);
+            if (!revision) return;
+
+            // Plan'ı eski haline geri yükle
+            const { error: updateError } = await supabase
+                .from('incoming_control_plans')
+                .update({
+                    part_code: revision.old_part_code,
+                    part_name: revision.old_part_name,
+                    items: revision.old_items,
+                    file_path: revision.old_file_path,
+                    file_name: revision.old_file_name,
+                    revision_number: revision.revision_number,
+                    revision_date: revision.revision_date,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', plan.id);
+
+            if (updateError) throw updateError;
+
+            // Revizyon geçmişini işaretle
+            await supabase
+                .from('incoming_control_plan_revisions')
+                .update({
+                    is_active: false,
+                    restored_at: new Date().toISOString()
+                })
+                .eq('id', revisionId);
+
+            toast({ title: 'Başarılı!', description: 'Revizyon geri alındı. Plan eski haline döndürüldü.' });
+            setRestoreRevisionId(null);
+            fetchRevisionHistory();
+            setIsOpen(false);
+            // Parent component'e bildir
+            if (onDownloadPDF) {
+                window.location.reload(); // Sayfayı yenile
+            }
+        } catch (error) {
+            console.error('Revizyon geri alınamadı:', error);
+            toast({ variant: 'destructive', title: 'Hata', description: `Revizyon geri alınamadı: ${error.message}` });
+        }
+    };
 
     // Karakteristik ve ekipman bilgilerini al
     const getCharacteristicName = (id) => {
@@ -123,9 +210,10 @@ const ControlPlanDetailModal = ({
                 </DialogHeader>
 
                 <Tabs defaultValue="basic" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="basic">Temel Bilgiler</TabsTrigger>
                         <TabsTrigger value="measurements">Ölçüm Noktaları</TabsTrigger>
+                        <TabsTrigger value="history">Revizyon Geçmişi</TabsTrigger>
                         <TabsTrigger value="report">Rapor</TabsTrigger>
                     </TabsList>
 
@@ -233,7 +321,120 @@ const ControlPlanDetailModal = ({
                         </Card>
                     </TabsContent>
 
-                    {/* TAB 3: RAPOR */}
+                    {/* TAB 3: REVİZYON GEÇMİŞİ */}
+                    <TabsContent value="history" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <History className="w-5 h-5" />
+                                    Revizyon Geçmişi
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {loadingHistory ? (
+                                    <p className="text-center py-8 text-muted-foreground">Yükleniyor...</p>
+                                ) : revisionHistory.length === 0 ? (
+                                    <p className="text-center py-8 text-muted-foreground">Revizyon geçmişi bulunamadı.</p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {revisionHistory.map((revision, index) => (
+                                            <Card key={revision.id} className={revision.is_active ? '' : 'opacity-60 border-dashed'}>
+                                                <CardHeader className="pb-3">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <CardTitle className="text-base">
+                                                                Rev. {revision.revision_number}
+                                                                {!revision.is_active && (
+                                                                    <Badge variant="secondary" className="ml-2">Geri Alındı</Badge>
+                                                                )}
+                                                            </CardTitle>
+                                                            <p className="text-sm text-muted-foreground mt-1">
+                                                                {formatSafeDate(revision.revision_date, 'dd MMMM yyyy HH:mm')}
+                                                            </p>
+                                                        </div>
+                                                        {revision.is_active && index === 0 && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => setRestoreRevisionId(revision.id)}
+                                                                className="text-destructive hover:text-destructive"
+                                                            >
+                                                                <RotateCcw className="w-4 h-4 mr-2" />
+                                                                Geri Al
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3">
+                                                    {revision.changes && Object.keys(revision.changes).length > 0 && (
+                                                        <div>
+                                                            <Label className="text-sm font-semibold mb-2 block">Değişiklikler:</Label>
+                                                            <div className="space-y-1 text-sm">
+                                                                {Object.entries(revision.changes).map(([field, change]) => (
+                                                                    <div key={field} className="flex items-start gap-2">
+                                                                        <Badge variant="outline" className="text-xs">
+                                                                            {field === 'part_code' ? 'Parça Kodu' : 
+                                                                             field === 'part_name' ? 'Parça Adı' : 
+                                                                             field === 'file_path' ? 'Dosya' : field}
+                                                                        </Badge>
+                                                                        <span className="text-muted-foreground">
+                                                                            {change.old || '-'} → {change.new || '-'}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {revision.changed_items && revision.changed_items.length > 0 && (
+                                                        <div>
+                                                            <Label className="text-sm font-semibold mb-2 block">
+                                                                Değişen Öğeler ({revision.changed_items.length}):
+                                                            </Label>
+                                                            <div className="space-y-2 text-sm">
+                                                                {revision.changed_items.map((item, idx) => (
+                                                                    <div key={idx} className="border-l-2 border-primary pl-3 py-1">
+                                                                        <div className="font-medium">Öğe #{item.index}</div>
+                                                                        {item.action === 'added' && (
+                                                                            <Badge variant="default" className="mt-1">Yeni Eklendi</Badge>
+                                                                        )}
+                                                                        {item.action === 'removed' && (
+                                                                            <Badge variant="destructive" className="mt-1">Silindi</Badge>
+                                                                        )}
+                                                                        {item.changes && (
+                                                                            <div className="mt-1 space-y-1">
+                                                                                {Object.entries(item.changes).map(([field, change]) => (
+                                                                                    <div key={field} className="text-xs text-muted-foreground">
+                                                                                        {field}: {change.old || '-'} → {change.new || '-'}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {revision.revision_note && (
+                                                        <div>
+                                                            <Label className="text-sm font-semibold mb-2 block">Not:</Label>
+                                                            <p className="text-sm text-muted-foreground">{revision.revision_note}</p>
+                                                        </div>
+                                                    )}
+                                                    {revision.restored_at && (
+                                                        <div className="text-xs text-muted-foreground">
+                                                            Geri alındı: {formatSafeDate(revision.restored_at, 'dd MMMM yyyy HH:mm')}
+                                                        </div>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* TAB 4: RAPOR */}
                     <TabsContent value="report" className="space-y-4">
                         <Card>
                             <CardHeader>
@@ -286,6 +487,31 @@ const ControlPlanDetailModal = ({
                     </Button>
                 </DialogFooter>
             </DialogContent>
+            
+            {/* Revizyon Geri Alma Onay Dialog */}
+            <AlertDialog open={!!restoreRevisionId} onOpenChange={() => setRestoreRevisionId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-destructive" />
+                            Revizyonu Geri Al
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bu işlem planı önceki revizyona geri döndürecektir. Mevcut revizyon kaybolacak ve plan eski haline dönecektir. 
+                            Bu işlemi geri alamazsınız. Devam etmek istediğinizden emin misiniz?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => handleRestoreRevision(restoreRevisionId)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Evet, Geri Al
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Dialog>
     );
 };

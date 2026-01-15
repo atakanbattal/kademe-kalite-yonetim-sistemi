@@ -462,6 +462,7 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                                             <th>Doküman Adı / Numarası</th>
                                             {activeTab === 'Personel Sertifikaları' && <th>Personel</th>}
                                             {(activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) && <th>Birim</th>}
+                                            <th>Doküman Tipi</th>
                                             <th>Versiyon</th>
                                             <th>Yayın Tarihi</th>
                                             <th>Revizyon Tarihi</th>
@@ -471,9 +472,9 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '8' : '7'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '9' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '9' : '8'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
                                         ) : filteredDocuments.length === 0 ? (
-                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '8' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '8' : '7'} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
+                                            <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '9' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '9' : '8'} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
                                         ) : (
                                             filteredDocuments.map((doc, index) => {
                                                 // filteredDocuments içinde zaten revision tek bir obje olarak set edilmiş
@@ -502,6 +503,9 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
                                                     {(activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) && (
                                                         <td className="text-muted-foreground">{doc.department?.unit_name || doc.personnel?.full_name || '-'}</td>
                                                     )}
+                                                    <td className="text-muted-foreground">
+                                                        <Badge variant="outline">{doc.document_type || '-'}</Badge>
+                                                    </td>
                                                     <td className="text-muted-foreground">{revision?.revision_number || '-'}</td>
                                                     <td className="text-muted-foreground">
                                                         {revision?.publish_date ? (() => {

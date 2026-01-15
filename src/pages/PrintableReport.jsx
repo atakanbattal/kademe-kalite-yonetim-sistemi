@@ -43,7 +43,7 @@ const PrintableReport = () => {
                         });
 
                         // Liste tipleri için localStorage'dan veri okunduysa direkt kullan
-                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'quality_cost_executive_summary' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
+                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'quality_cost_executive_summary' || type === 'quality_cost_detail' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
                             // Liste tipleri için ek işlem gerekmez, veri zaten hazır
                             console.log(`✅ Liste tipi (${type}) verisi localStorage'dan okundu`);
                         }
@@ -537,6 +537,7 @@ const PrintableReport = () => {
                     }
                     case 'quality_cost_list':
                     case 'quality_cost_executive_summary':
+                    case 'quality_cost_detail':
                     case 'incoming_quality_executive_summary':
                     case 'produced_vehicles_executive_summary':
                     case 'supplier_quality_executive_summary': {
@@ -550,6 +551,8 @@ const PrintableReport = () => {
                                 errorMsg = 'Üretilen araçlar rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             } else if (type === 'quality_cost_executive_summary') {
                                 errorMsg = 'Kalitesizlik maliyeti rapor verisi bulunamadı. Lütfen tekrar deneyin.';
+                            } else if (type === 'quality_cost_detail') {
+                                errorMsg = 'Kalitesizlik maliyeti detay rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             } else if (type === 'supplier_quality_executive_summary') {
                                 errorMsg = 'Tedarikçi kalite yönetimi rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             }

@@ -10,6 +10,51 @@ const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.y
 const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
 
+// Logo cache - logoları bir kez yükleyip cache'le
+const logoCache = {};
+
+// Harici URL'den görüntüyü base64'e çevir
+const imageUrlToBase64 = async (url) => {
+	// Cache'de varsa direkt döndür
+	if (logoCache[url]) {
+		return logoCache[url];
+	}
+
+	try {
+		const response = await fetch(url, { mode: 'cors' });
+		if (!response.ok) {
+			console.warn(`Logo yüklenemedi: ${url}`);
+			return null;
+		}
+		const blob = await response.blob();
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onloadend = () => {
+				const base64 = reader.result;
+				logoCache[url] = base64; // Cache'e kaydet
+				resolve(base64);
+			};
+			reader.onerror = reject;
+			reader.readAsDataURL(blob);
+		});
+	} catch (error) {
+		console.error(`Logo base64'e çevrilemedi: ${url}`, error);
+		return null;
+	}
+};
+
+// Tüm logoları önceden yükle ve cache'le
+const preloadLogos = async () => {
+	const logoUrls = [
+		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png',
+		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png',
+		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png'
+	];
+
+	// Tüm logoları paralel olarak yükle
+	await Promise.all(logoUrls.map(url => imageUrlToBase64(url)));
+};
+
 // Türkçe karakterleri korumak için normalize fonksiyonu
 const normalizeTurkishChars = (text) => {
 	if (!text) return null;
@@ -52,6 +97,9 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 		console.error("openPrintableReport called with invalid record:", record);
 		return;
 	}
+
+	// Logoları önceden yükle (cache'de yoksa)
+	await preloadLogos();
 
 	// Türkçe karakterleri normalize et-tüm raporlar için geçerli
 	const normalizedRecord = normalizeRecord(record);
@@ -207,6 +255,8 @@ const getReportTitle = (record, type) => {
 			return record.unit ? `${record.unit} Birimi-Kalitesizlik Maliyetleri Raporu` : 'Kalitesizlik Maliyetleri Raporu';
 		case 'quality_cost_executive_summary':
 			return 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
+		case 'quality_cost_detail':
+			return 'Kalitesizlik Maliyeti Detay Raporu';
 		case 'incoming_quality_executive_summary':
 			return 'Girdi Kalite Kontrol Yönetici Özeti Raporu';
 		case 'produced_vehicles_executive_summary':
@@ -258,6 +308,12 @@ const generateCertificateReportHtml = (record) => {
 		? `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimini başarıyla tamamladığı için verilmiştir.`
 		: `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimine katıldığı için verilmiştir.`;
 
+	// Logoları base64 olarak al
+	const kademeLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png';
+	const albayrakLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png';
+	const kademeLogoBase64 = logoCache[kademeLogoUrl] || kademeLogoUrl;
+	const albayrakLogoBase64 = logoCache[albayrakLogoUrl] || albayrakLogoUrl;
+
 	return `
 		<div class="certificate-container">
 			<div class="certificate-content">
@@ -265,8 +321,8 @@ const generateCertificateReportHtml = (record) => {
 				<div class="bg-shape bottom-left"></div>
 				
 				<div class="logo-header">
-					<img class="header-logo" alt="Kademe Logosu" src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png" />
-					<img class="header-logo" alt="Albayrak Logosu" src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png" />
+					<img class="header-logo" alt="Kademe Logosu" src="${kademeLogoBase64}" />
+					<img class="header-logo" alt="Albayrak Logosu" src="${albayrakLogoBase64}" />
 				</div>
 
 		<div class="header-section">
@@ -338,10 +394,14 @@ const generateExamPaperHtml = (record) => {
 		`;
 	}).join('');
 
+	// Logo base64
+	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+
 	return `
 		<div class="exam-header">
 			<div class="company-logo-exam">
-				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
 			</div>
 			<div class="exam-title-section">
 				<h1>${exam.title || 'Sınav Değerlendirme Formu'}</h1>
@@ -393,10 +453,14 @@ const generateDynamicBalanceReportHtml = (record) => {
 		return '<span style="background: #6b7280; color: white; padding: 6px 16px; border-radius: 6px; font-size: 13px; display: inline-block;">-</span>';
 	};
 
+	// Logo base64
+	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+
 	return `
 		<div class="report-header">
 			<div class="report-logo">
-				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
 			</div>
 			<div class="company-title">
 				<h1>KADEME A.Ş.</h1>
@@ -1084,10 +1148,14 @@ const generatePolyvalenceMatrixHtml = (record) => {
 		</div>
 	`;
 
+	// Logo base64
+	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+
 	return `
 		<div class="report-header">
 			<div class="report-logo">
-				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
 			</div>
 			<div class="company-title">
 				<h1>KADEME A.Ş.</h1>
@@ -1654,6 +1722,146 @@ const generateListReportHtml = (record, type) => {
 			<p><strong>Toplam Maliyet:</strong> <span style="font-size: 1.2em; font-weight: 700; color: #dc2626;">${totalAmountFormatted}</span></p>
 			${typeSummary ? `<p><strong>Maliyet Türü Dağılımı:</strong><br>${typeSummary}</p>` : ''}
 		`;
+	} else if (type === 'quality_cost_detail') {
+		// Tek kayıt için detaylı rapor
+		title = 'Kalitesizlik Maliyeti Detay Raporu';
+		const formatCurrencyLocal = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+		const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
+		
+		// Ana bilgiler kartı
+		const mainInfoHtml = `
+			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+				<div style="background-color: #1e40af; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6;">
+					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM TUTAR</div>
+					<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.amount)}</div>
+				</div>
+				<div style="background-color: #dc2626; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
+					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">MALİYET TÜRÜ</div>
+					<div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">${record.cost_type || '-'}</div>
+				</div>
+				<div style="background-color: #2563eb; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #60a5fa;">
+					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TARİH</div>
+					<div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">${formatDateLocal(record.cost_date)}</div>
+				</div>
+			</div>
+		`;
+		
+		// Genel bilgiler tablosu
+		const generalInfoRows = [];
+		if (record.unit) generalInfoRows.push(`<tr><td style="font-weight: 600; width: 30%;">Birim (Kaynak)</td><td>${record.unit}</td></tr>`);
+		if (record.vehicle_type) generalInfoRows.push(`<tr><td style="font-weight: 600;">Araç Türü</td><td>${record.vehicle_type}</td></tr>`);
+		if (record.part_code) generalInfoRows.push(`<tr><td style="font-weight: 600;">Parça Kodu</td><td>${record.part_code}</td></tr>`);
+		if (record.part_name) generalInfoRows.push(`<tr><td style="font-weight: 600;">Parça Adı</td><td>${record.part_name}</td></tr>`);
+		if (record.quantity) generalInfoRows.push(`<tr><td style="font-weight: 600;">Miktar</td><td>${record.quantity}</td></tr>`);
+		if (record.measurement_unit) generalInfoRows.push(`<tr><td style="font-weight: 600;">Ölçü Birimi</td><td>${record.measurement_unit}</td></tr>`);
+		if (record.scrap_weight) generalInfoRows.push(`<tr><td style="font-weight: 600;">Hurda Ağırlığı (kg)</td><td>${record.scrap_weight}</td></tr>`);
+		if (record.responsible_personnel?.full_name) generalInfoRows.push(`<tr><td style="font-weight: 600;">Sorumlu Personel</td><td>${record.responsible_personnel.full_name}</td></tr>`);
+		if (record.status) generalInfoRows.push(`<tr><td style="font-weight: 600;">Durum</td><td>${record.status}</td></tr>`);
+		
+		const generalInfoHtml = generalInfoRows.length > 0
+			? `<table class="info-table" style="width: 100%; margin-bottom: 20px;">
+				<tbody>
+					${generalInfoRows.join('')}
+				</tbody>
+			</table>`
+			: '';
+		
+		// Tedarikçi bilgisi
+		const supplierInfoHtml = record.is_supplier_nc && record.supplier?.name
+			? `<div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+				<div style="font-weight: 600; color: #92400e; margin-bottom: 8px;">Tedarikçi Kaynaklı Maliyet</div>
+				<div style="font-size: 16px; color: #78350f; font-weight: 600;">${record.supplier.name}</div>
+			</div>`
+			: '';
+		
+		// Yeniden İşlem Maliyeti Detayları
+		let reworkDetailsHtml = '';
+		if (record.cost_type === 'Yeniden İşlem Maliyeti') {
+			const mainReworkCost = record.rework_duration && record.unit 
+				? `${record.unit}: ${record.rework_duration} dk` 
+				: record.rework_duration 
+					? `(Ana: ${record.rework_duration} dk)` 
+					: '';
+			
+			const affectedUnitsCosts = record.affected_units && Array.isArray(record.affected_units) && record.affected_units.length > 0
+				? record.affected_units
+					.filter(au => au.unit !== record.unit)
+					.map(au => `${au.unit}: ${au.duration} dk`)
+					.join(', ')
+				: '';
+			
+			const reworkDetails = [mainReworkCost, affectedUnitsCosts].filter(Boolean).join(' | ');
+			
+			if (reworkDetails) {
+				reworkDetailsHtml = `
+					<div class="section">
+						<h2 class="section-title blue">İŞLEM SÜRELERİ</h2>
+						<div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin-top: 10px;">
+							<p style="margin: 0; font-size: 14px;">${reworkDetails}</p>
+						</div>
+					</div>
+				`;
+			}
+		}
+		
+		// Final Hataları Maliyeti Detayları
+		let finalFaultsDetailsHtml = '';
+		if (record.cost_type === 'Final Hataları Maliyeti') {
+			const finalFaultsRows = [];
+			if (record.rework_duration) finalFaultsRows.push(`<tr><td style="font-weight: 600; width: 30%;">Giderilme Süresi</td><td>${record.rework_duration} dakika</td></tr>`);
+			if (record.quality_control_duration) finalFaultsRows.push(`<tr><td style="font-weight: 600;">Kalite Kontrol Süresi</td><td>${record.quality_control_duration} dakika</td></tr>`);
+			
+			const affectedUnitsHtml = record.affected_units && Array.isArray(record.affected_units) && record.affected_units.length > 0
+				? record.affected_units
+					.filter(au => au.unit !== record.unit)
+					.map(au => `<span style="display: inline-block; padding: 4px 12px; margin: 4px; border-radius: 4px; background-color: #e5e7eb; font-size: 0.85em;">${au.unit}: ${au.duration} dk</span>`)
+					.join('')
+				: '';
+			
+			if (finalFaultsRows.length > 0 || affectedUnitsHtml) {
+				finalFaultsDetailsHtml = `
+					<div class="section">
+						<h2 class="section-title blue">SÜRE DETAYLARI</h2>
+						${finalFaultsRows.length > 0 ? `<table class="info-table" style="width: 100%; margin-top: 10px; margin-bottom: 15px;">
+							<tbody>
+								${finalFaultsRows.join('')}
+							</tbody>
+						</table>` : ''}
+						${affectedUnitsHtml ? `<div style="margin-top: 15px;">
+							<div style="font-weight: 600; margin-bottom: 8px;">Etkilenen Birimler:</div>
+							<div>${affectedUnitsHtml}</div>
+						</div>` : ''}
+					</div>
+				`;
+			}
+		}
+		
+		// Açıklama
+		const descriptionHtml = record.description
+			? `<div class="section">
+				<h2 class="section-title blue">${record.cost_type === 'Final Hataları Maliyeti' ? 'HATA AÇIKLAMASI' : 'AÇIKLAMA'}</h2>
+				<div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-top: 10px;">
+					<pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.6; font-size: 13px;">${record.description}</pre>
+				</div>
+			</div>`
+			: '';
+		
+		// quality_cost_detail için summaryHtml oluştur (header ve meta-box için)
+		summaryHtml = `
+			${mainInfoHtml}
+			${supplierInfoHtml}
+			<div class="section">
+				<h2 class="section-title blue">GENEL BİLGİLER</h2>
+				${generalInfoHtml}
+			</div>
+			${reworkDetailsHtml}
+			${finalFaultsDetailsHtml}
+			${descriptionHtml}
+		`;
+		
+		// Header ve meta-box generateListReportHtml'in sonunda oluşturulacak, burada sadece içeriği hazırlıyoruz
+		headers = [];
+		rowsHtml = '';
 	} else if (type === 'quality_cost_executive_summary') {
 		title = 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
 		
@@ -2792,22 +3000,41 @@ const generateListReportHtml = (record, type) => {
 		rowsHtml = '';
 	}
 
+	// Logo base64
+	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+	
+	// Rapor numarası oluştur
+	const reportNo = type === 'produced_vehicles_executive_summary' 
+		? `ARAC-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+		: type === 'incoming_quality_executive_summary'
+		? `GIRDI-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+		: type === 'supplier_quality_executive_summary'
+		? `TEDARIKCI-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+		: type === 'quality_cost_executive_summary'
+		? `MALIYET-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+		: type === 'quality_cost_detail'
+		? `MALIYET-DETAY-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+		: `RAPOR-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`;
+
 	return `
 		<div class="report-header">
-			 <div class="report-logo">
-				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+			<div class="report-logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
 			</div>
 			<div class="company-title">
 				<h1>KADEME A.Ş.</h1>
 				<p>Kalite Yönetim Sistemi</p>
 			</div>
 			<div class="print-info">
-				Rapor Tarihi: ${formatDateTime(new Date())}
+				<div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Rapor No: ${reportNo}</div>
+				<div style="font-size: 11px; color: #374151; font-weight: 600;">${formatDateTime(new Date())}</div>
 			</div>
 		</div>
 
 		<div class="meta-box" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center; padding: 15px;">
 			<div class="meta-item" style="flex: 1; min-width: 200px; word-wrap: break-word; word-break: break-word;"><strong>Belge Türü:</strong> ${title}</div>
+			<div class="meta-item" style="flex: 1; min-width: 200px;"><strong>Rapor No:</strong> ${reportNo}</div>
 		</div>
 
 		<div class="section">
@@ -4814,10 +5041,14 @@ const generateGenericReportHtml = (record, type) => {
 		return html;
 	};
 
+	// Logo base64
+	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+
 	return `
 		<div class="report-header">
 			<div class="report-logo">
-				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
 			</div>
 			<div class="company-title">
 				<h1>KADEME A.Ş.</h1>
@@ -4983,7 +5214,7 @@ const generatePrintableReportHtml = (record, type) => {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'supplier_list' || type === 'supplier_dashboard') {
 		reportContentHtml = generateListReportHtml(record, type);
-	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
+	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'quality_cost_detail' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
 		reportContentHtml = generateListReportHtml(record, type);
 		// incoming_quality_executive_summary için özel print CSS
 		if (type === 'incoming_quality_executive_summary') {
@@ -5733,7 +5964,7 @@ h3 {
 }
 	
 	.report-wrapper {
-	padding: 15mm;
+	padding: 10mm;
 	flex: 1; /* Take remaining space */
 	display: flex;
 	flex-direction: column;
@@ -5783,11 +6014,11 @@ h3 {
 		.meta-box {
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
-	gap: 12px 15px;
+	gap: 10px 12px;
 	background-color: #f9fafb;
-	padding: 16px;
-	border-radius: 8px;
-	margin-bottom: 20px;
+	padding: 12px;
+	border-radius: 6px;
+	margin-bottom: 12px;
 	border: 1px solid #e5e7eb;
 	page-break-inside: avoid;
 	page-break-after: auto; /* Meta'dan sonra bölünebilir */
@@ -5812,7 +6043,7 @@ h3 {
 		   SEKSİYONLAR-Başlık ve içerik birlikte
 		   ============================================ */
 		.section {
-	margin-bottom: 15px;
+	margin-bottom: 12px;
 	page-break-inside: auto; /* Section içi bölünebilir */
 }
 		
@@ -5820,9 +6051,9 @@ h3 {
 	font-size: 12px;
 	font-weight: 700;
 	color: white;
-	padding: 5px 10px;
+	padding: 6px 10px;
 	border-radius: 4px;
-	margin-bottom: 10px;
+	margin-bottom: 8px;
 	text-transform: uppercase;
 	page-break-after: avoid; /* Başlık içerikten ayrılmasın */
 	page-break-inside: avoid;
@@ -6236,7 +6467,7 @@ a: after,
 	/* Sayfa ayarları-dengeli margin */
 	@page {
 		size: A4 portrait;
-		margin: 12mm; /* Tüm kenarlarda eşit boşluk */
+		margin: 10mm; /* Tüm kenarlarda eşit boşluk */
 	}
 
 	/* Print için renkleri koru */
@@ -6447,7 +6678,7 @@ a: after,
 	flex-direction: column;
 	justify-content: space-between;
 	align-items: center;
-	padding: 20mm;
+	padding: 10mm;
 	box-sizing: border-box;
 	position: relative;
 	z-index: 2;

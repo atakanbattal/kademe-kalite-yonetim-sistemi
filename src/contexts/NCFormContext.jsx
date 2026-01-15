@@ -98,7 +98,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 
                 // Tüm bilgileri içeren şeffaf açıklama oluştur
                 let descParts = [];
-                descParts.push('=== MALIYET KAYDI DETAYLARI ===\n');
+                descParts.push('MALIYET KAYDI DETAYLARI\n');
                 
                 // Temel Bilgiler
                 if (initialRecord.cost_type) descParts.push(`Maliyet Türü: ${initialRecord.cost_type}`);
@@ -112,7 +112,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 if (initialRecord.part_location) descParts.push(`Parça Lokasyonu: ${initialRecord.part_location}`);
                 
                 // Maliyet Bilgileri
-                descParts.push('\n=== MALİYET BİLGİLERİ ===');
+                descParts.push('\nMALİYET BİLGİLERİ');
                 if (initialRecord.amount) descParts.push(`Tutar: ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(initialRecord.amount)}`);
                 if (initialRecord.quantity) descParts.push(`Miktar: ${initialRecord.quantity}${initialRecord.measurement_unit ? ` ${initialRecord.measurement_unit}` : ''}`);
                 if (initialRecord.scrap_weight) descParts.push(`Hurda Ağırlığı: ${initialRecord.scrap_weight} kg`);
@@ -121,7 +121,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 
                 // Süre Bilgileri
                 if (initialRecord.rework_duration || initialRecord.quality_control_duration) {
-                    descParts.push('\n=== SÜRE BİLGİLERİ ===');
+                    descParts.push('\nSÜRE BİLGİLERİ');
                     if (initialRecord.rework_duration) {
                         const hours = Math.floor(initialRecord.rework_duration / 60);
                         const minutes = initialRecord.rework_duration % 60;
@@ -136,7 +136,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 
                 // Açıklama
                 if (initialRecord.description) {
-                    descParts.push('\n=== AÇIKLAMA ===');
+                    descParts.push('\nAÇIKLAMA');
                     descParts.push(initialRecord.description);
                 }
                 

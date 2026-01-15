@@ -25,6 +25,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 import { useData } from '@/contexts/DataContext';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -37,7 +38,7 @@ import { Building2, BarChart3 } from 'lucide-react';
         return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
     };
 
-    const QualityCostModule = () => {
+    const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         const { toast } = useToast();
         const { profile } = useAuth();
         const { qualityCosts, personnel, unitCostSettings, materialCostSettings, producedVehicles, loading, refreshData } = useData();
@@ -53,6 +54,9 @@ import { Building2, BarChart3 } from 'lucide-react';
         const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'produced_vehicle', 'manual', vb.
         const [isReportModalOpen, setIsReportModalOpen] = useState(false);
         const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
+        const [isCreateNCModalOpen, setIsCreateNCModalOpen] = useState(false);
+        const [costForNC, setCostForNC] = useState(null);
+        const [selectedNCType, setSelectedNCType] = useState('DF');
         const [sortConfig, setSortConfig] = useState({ key: 'cost_date', direction: 'desc' });
 
         const hasNCAccess = useMemo(() => {
@@ -138,6 +142,53 @@ import { Building2, BarChart3 } from 'lucide-react';
         const handleOpenViewModal = (cost) => {
             setSelectedCost(cost);
             setIsViewModalOpen(true);
+        };
+
+        const handleCreateNC = (cost) => {
+            if (!onOpenNCForm) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Uygunsuzluk formu açılamadı.',
+                });
+                return;
+            }
+            setCostForNC(cost);
+            setSelectedNCType('DF'); // Varsayılan olarak DF seçili
+            setIsCreateNCModalOpen(true);
+        };
+
+        const handleConfirmCreateNC = (ncType) => {
+            if (!costForNC || !onOpenNCForm) return;
+
+            const recordForNC = {
+                id: costForNC.id, // NCFormContext için gerekli
+                source: 'cost', // NCFormContext'te source === 'cost' kontrolü var
+                source_cost_id: costForNC.id,
+                cost_type: costForNC.cost_type,
+                cost_date: costForNC.cost_date,
+                unit: costForNC.unit,
+                amount: costForNC.amount,
+                part_name: costForNC.part_name,
+                part_code: costForNC.part_code,
+                vehicle_type: costForNC.vehicle_type,
+                description: costForNC.description,
+                quantity: costForNC.quantity,
+                measurement_unit: costForNC.measurement_unit,
+                scrap_weight: costForNC.scrap_weight,
+                rework_duration: costForNC.rework_duration,
+                quality_control_duration: costForNC.quality_control_duration,
+                affected_units: costForNC.affected_units,
+                responsible_personnel_id: costForNC.responsible_personnel_id,
+                is_supplier_nc: costForNC.is_supplier_nc,
+                supplier_id: costForNC.supplier_id,
+                supplier_name: costForNC.supplier?.name,
+                type: ncType, // DF, 8D veya MDI
+            };
+
+            onOpenNCForm(recordForNC);
+            setIsCreateNCModalOpen(false);
+            setCostForNC(null);
         };
 
         const handleSort = (key) => {
@@ -553,6 +604,57 @@ import { Building2, BarChart3 } from 'lucide-react';
                     costs={filteredCosts}
                     onGenerate={handleGenerateReport}
                 />
+
+                {/* Uygunsuzluk Oluşturma Modalı */}
+                <Dialog open={isCreateNCModalOpen} onOpenChange={setIsCreateNCModalOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Uygunsuzluk Kaydı Oluştur</DialogTitle>
+                            <DialogDescription>
+                                {costForNC && (
+                                    <>
+                                        <b>{costForNC.cost_type}</b> maliyeti için uygunsuzluk türünü seçin.
+                                        <br />
+                                        <span className="text-xs text-muted-foreground mt-2 block">
+                                            Seçiminize göre form, maliyet bilgileriyle önceden doldurulmuş olarak açılacaktır.
+                                        </span>
+                                    </>
+                                )}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                            <div>
+                                <Label htmlFor="nc-type-select">Uygunsuzluk Türü</Label>
+                                <Select value={selectedNCType} onValueChange={setSelectedNCType}>
+                                    <SelectTrigger id="nc-type-select">
+                                        <SelectValue placeholder="Tür seçin..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="DF">DF (Düzeltici Faaliyet)</SelectItem>
+                                        <SelectItem value="8D">8D Raporu</SelectItem>
+                                        <SelectItem value="MDI">MDI (Mini Düzeltici İyileştirme)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => {
+                                setIsCreateNCModalOpen(false);
+                                setCostForNC(null);
+                                setSelectedNCType('DF');
+                            }}>
+                                İptal
+                            </Button>
+                            <Button onClick={() => {
+                                if (costForNC) {
+                                    handleConfirmCreateNC(selectedNCType);
+                                }
+                            }}>
+                                Devam Et
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
                 
                 {/* Rapor Seçim Modalı */}
                 <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
@@ -770,13 +872,8 @@ import { Building2, BarChart3 } from 'lucide-react';
                                                                                 <Tooltip>
                                                                                     <TooltipTrigger asChild>
                                                                                         <DropdownMenuItem 
-                                                                                            onClick={() => {
-                                                                                                toast({ 
-                                                                                                    title: 'Bilgi', 
-                                                                                                    description: 'Kalitesizlik maliyeti uygunsuzluktan bağımsızdır. İsterseniz manuel olarak uygunsuzluk oluşturabilirsiniz.' 
-                                                                                                });
-                                                                                            }}
-                                                                                            onSelect={(e) => e.preventDefault()}
+                                                                                            onClick={() => handleCreateNC(cost)}
+                                                                                            disabled={!hasNCAccess}
                                                                                         >
                                                                                             <LinkIcon className="mr-2 h-4 w-4" />
                                                                                             <span>Uygunsuzluk Oluştur</span>

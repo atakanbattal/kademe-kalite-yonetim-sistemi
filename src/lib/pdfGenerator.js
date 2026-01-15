@@ -239,66 +239,66 @@ const generatePrintableReport = (record) => {
                     background-color: white;
                     width: 210mm;
                     min-height: 297mm;
-                    margin: 20px auto;
-                    padding: 20mm;
+                    margin: 0;
+                    padding: 10mm;
                     box-sizing: border-box;
                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                 }
                 .header {
                     text-align: center;
                     border-bottom: 2px solid #e5e7eb;
-                    padding-bottom: 15px;
-                    margin-bottom: 20px;
+                    padding-bottom: 10px;
+                    margin-bottom: 12px;
                 }
                 .header h1 {
-                    font-size: 24px;
+                    font-size: 22px;
                     font-weight: 700;
                     color: #111827;
                     margin: 0;
                 }
                 .header p {
-                    font-size: 14px;
+                    font-size: 13px;
                     color: #6b7280;
-                    margin: 5px 0 0;
+                    margin: 3px 0 0;
                 }
                 .report-title-section {
                     display: flex;
                     justify-content: space-between;
                     align-items: flex-start;
-                    margin-bottom: 25px;
+                    margin-bottom: 15px;
                 }
                 .report-title h2 {
-                    font-size: 20px;
+                    font-size: 18px;
                     font-weight: 600;
                     margin: 0;
                 }
                 .report-title p {
-                    font-size: 14px;
+                    font-size: 13px;
                     color: #4b5563;
-                    margin: 5px 0 0;
+                    margin: 3px 0 0;
                 }
 
                 .section {
-                    margin-bottom: 25px;
+                    margin-bottom: 15px;
                     page-break-inside: avoid;
                 }
                 .section-title {
-                    font-size: 16px;
+                    font-size: 14px;
                     font-weight: 600;
                     color: #1e40af;
                     border-bottom: 2px solid #bfdbfe;
-                    padding-bottom: 5px;
-                    margin-bottom: 15px;
+                    padding-bottom: 4px;
+                    margin-bottom: 10px;
                 }
                 .info-grid {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
-                    gap: 15px;
+                    gap: 10px;
                 }
                 .info-item {
                     background-color: #f9fafb;
-                    border-radius: 6px;
-                    padding: 8px;
+                    border-radius: 4px;
+                    padding: 6px;
                     border: 1px solid #e5e7eb;
                 }
                 .info-item .label {
@@ -318,29 +318,29 @@ const generatePrintableReport = (record) => {
                     white-space: normal;
                     word-wrap: break-word;
                     font-family: 'Inter', sans-serif;
-                    font-size: 13px;
+                    font-size: 12px;
                     line-height: 1.5;
                     margin: 0;
-                    padding: 8px;
+                    padding: 6px;
                     background-color: #ffffff;
                     border-radius: 4px;
                     border: 1px solid #e5e7eb;
                 }
 
                 .step-section {
-                    margin-bottom: 15px;
+                    margin-bottom: 12px;
                 }
                 .step-title {
-                    font-size: 14px;
+                    font-size: 13px;
                     font-weight: 600;
                     color: #1e40af;
-                    margin: 0 0 10px 0;
+                    margin: 0 0 8px 0;
                 }
                 .step-content {
                     background-color: #f9fafb;
                     border-left: 3px solid #60a5fa;
-                    padding: 15px;
-                    border-radius: 0 8px 8px 0;
+                    padding: 12px;
+                    border-radius: 0 6px 6px 0;
                 }
                 .step-content p { margin: 0 0 8px 0; font-size: 13px; }
                 .step-content p:last-child { margin-bottom: 0; }
@@ -362,10 +362,10 @@ const generatePrintableReport = (record) => {
                 }
                 .footer {
                     text-align: center;
-                    margin-top: 30px;
-                    padding-top: 15px;
+                    margin-top: 15px;
+                    padding-top: 10px;
                     border-top: 1px solid #e5e7eb;
-                    font-size: 12px;
+                    font-size: 11px;
                     color: #9ca3af;
                 }
                 @media print {
@@ -395,7 +395,7 @@ const generatePrintableReport = (record) => {
                     
                     @page {
                         size: A4 portrait;
-                        margin: 12mm;
+                        margin: 10mm;
                     }
 
                     /* Section'lar bölünmesin */
@@ -691,6 +691,13 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
         `;
     }).join('');
 
+    // Logo base64 (reportUtils'den import edilmiş olmalı, şimdilik URL kullanıyoruz)
+    const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+    
+    // Rapor numarası oluştur
+    const reportNo = `ARAC-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`;
+    const reportDate = formatDate(new Date());
+
     const htmlContent = `
         <!DOCTYPE html>
         <html lang="tr">
@@ -712,37 +719,80 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                     width: 210mm;
                     min-height: 297mm;
                     margin: 20px auto;
-                    padding: 20mm;
+                    padding: 10mm;
                     box-sizing: border-box;
                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                 }
                 .header {
+                    display: grid;
+                    grid-template-columns: auto 1fr auto;
+                    gap: 15px;
+                    align-items: center;
+                    border-bottom: 1px solid #e5e7eb;
+                    padding-bottom: 8px;
+                    margin-bottom: 10px;
+                    page-break-inside: avoid;
+                    page-break-after: avoid;
+                }
+                .header-logo {
+                    height: 50px;
+                    width: auto;
+                }
+                .company-title {
                     text-align: center;
-                    border-bottom: 2px solid #e5e7eb;
-                    padding-bottom: 15px;
-                    margin-bottom: 20px;
                 }
-                .header h1 {
-                    font-size: 24px;
+                .company-title h1 {
+                    font-size: 20px;
                     font-weight: 700;
-                    color: #111827;
                     margin: 0;
+                    color: #111827;
                 }
-                .header p {
-                    font-size: 14px;
-                    color: #6b7280;
-                    margin: 5px 0 0;
+                .company-title p {
+                    font-size: 12px;
+                    margin: 0;
+                    color: #4b5563;
+                }
+                .print-info {
+                    text-align: right;
+                    font-size: 9px;
+                    color: #4b5563;
+                    line-height: 1.4;
+                    white-space: nowrap;
+                }
+                .meta-box {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 1fr;
+                    gap: 10px 12px;
+                    background-color: #f9fafb;
+                    padding: 12px;
+                    border-radius: 6px;
+                    margin-bottom: 12px;
+                    border: 1px solid #e5e7eb;
+                    page-break-inside: avoid;
+                }
+                .meta-item {
+                    font-size: 10px;
+                    color: #374151;
+                    padding: 0;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    line-height: 1.6;
+                }
+                .meta-item strong {
+                    color: #1f2937;
+                    font-weight: 600;
+                    margin-right: 6px;
                 }
                 .summary-section {
                     display: grid;
                     grid-template-columns: repeat(3, 1fr);
-                    gap: 15px;
-                    margin-bottom: 25px;
+                    gap: 12px;
+                    margin-bottom: 15px;
                 }
                 .summary-card {
                     background-color: #f9fafb;
-                    border-radius: 8px;
-                    padding: 15px;
+                    border-radius: 6px;
+                    padding: 12px;
                     border: 1px solid #e5e7eb;
                     text-align: center;
                 }
@@ -758,16 +808,27 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                     color: #111827;
                 }
                 .section {
-                    margin-bottom: 25px;
+                    margin-bottom: 15px;
                     page-break-inside: avoid;
                 }
                 .section-title {
-                    font-size: 16px;
-                    font-weight: 600;
-                    color: #1e40af;
-                    border-bottom: 2px solid #bfdbfe;
-                    padding-bottom: 5px;
-                    margin-bottom: 15px;
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: white;
+                    padding: 6px 10px;
+                    border-radius: 4px;
+                    margin-bottom: 10px;
+                    text-transform: uppercase;
+                    page-break-after: avoid;
+                }
+                .section-title.blue {
+                    background-color: #1e40af;
+                }
+                .section-title.red {
+                    background-color: #dc2626;
+                }
+                .section-title.green {
+                    background-color: #059669;
                 }
                 table {
                     width: 100%;
@@ -792,10 +853,10 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                 }
                 .footer {
                     text-align: center;
-                    margin-top: 30px;
-                    padding-top: 15px;
+                    margin-top: 15px;
+                    padding-top: 10px;
                     border-top: 1px solid #e5e7eb;
-                    font-size: 12px;
+                    font-size: 11px;
                     color: #9ca3af;
                 }
                 @media print {
@@ -803,7 +864,7 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                     .page { margin: 0; box-shadow: none; border: none; }
                     @page {
                         size: A4;
-                        margin: 20mm;
+                        margin: 10mm;
                     }
                 }
             </style>
@@ -811,8 +872,25 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
         <body>
             <div class="page">
                 <div class="header">
-                    <h1>KADEME A.Ş.</h1>
-                    <p>Kalite Yönetim Sistemi - Araç İşlemleri Özet Raporu</p>
+                    <div class="report-logo">
+                        <img src="${mainLogoUrl}" alt="Kademe Logo" class="header-logo" />
+                    </div>
+                    <div class="company-title">
+                        <h1>KADEME A.Ş.</h1>
+                        <p>Kalite Yönetim Sistemi</p>
+                    </div>
+                    <div class="print-info">
+                        Yazdır: ${reportNo.split('-').pop()}<br>
+                        Yazdırılma: ${reportDate} ${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-item"><strong>Belge Türü:</strong> Araç İşlemleri Özet Raporu</div>
+                    <div class="meta-item"><strong>No:</strong> ${reportNo}</div>
+                    <div class="meta-item"><strong>Revizyon:</strong> 0</div>
+                    <div class="meta-item"><strong>Sistem:</strong> Kademe Kalite Yönetim Sistemi</div>
+                    <div class="meta-item"><strong>Yayın Tarihi:</strong> ${reportDate}</div>
+                    <div class="meta-item"><strong>Toplam Araç:</strong> ${vehicles.length}</div>
                 </div>
 
                 <div class="summary-section">
@@ -834,7 +912,7 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                 </div>
 
                 <div class="section">
-                    <h2 class="section-title">Durum Dağılımı</h2>
+                    <h2 class="section-title blue">1. DURUM DAĞILIMI</h2>
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
                         ${Object.entries(statusStats).map(([status, count]) => {
                             const badge = getStatusBadgeColor(status);
@@ -849,7 +927,7 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                 </div>
 
                 <div class="section">
-                    <h2 class="section-title">Araç Listesi</h2>
+                    <h2 class="section-title blue">2. ARAÇ LİSTESİ</h2>
                     <table>
                         <thead>
                             <tr>
@@ -993,7 +1071,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
 
     const timelineHtml = timeline && timeline.length > 0 ? `
         <div class="section">
-            <h2 class="section-title">İşlem Geçmişi</h2>
+            <h2 class="section-title blue">${vehicle.notes ? '3' : '2'}. İŞLEM GEÇMİŞİ</h2>
             <div style="background-color: #f9fafb; border-radius: 8px; padding: 15px; border-left: 3px solid #60a5fa; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
                 ${timeline.map((event, index) => `
                     <div class="timeline-item" style="margin-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; padding-bottom: ${index < timeline.length - 1 ? '12px' : '0'}; border-bottom: ${index < timeline.length - 1 ? '1px dashed #d1d5db' : 'none'};">
@@ -1006,9 +1084,17 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
         </div>
     ` : '';
 
+    // Section numarasını dinamik olarak hesapla
+    let sectionNum = 1;
+    if (vehicle.notes) sectionNum++;
+    if (timeline && timeline.length > 0) sectionNum++;
+    sectionNum++; // Kalite Süre Özeti
+    if (equipment && equipment.id) sectionNum++;
+    const faultsSectionNum = sectionNum;
+
     const faultsHtml = faults && faults.length > 0 ? `
         <div class="section">
-            <h2 class="section-title">Tespit Edilen Hatalar (${faults.length} Adet)</h2>
+            <h2 class="section-title red">${faultsSectionNum}. TESPİT EDİLEN HATALAR (${faults.length} Adet)</h2>
             ${faults.map((fault, index) => `
                 <div class="fault-card" style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; padding: 15px; margin-bottom: ${index < faults.length - 1 ? '12px' : '0'}; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
@@ -1030,11 +1116,18 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
             `).join('')}
         </div>
     ` : `<div class="section">
-            <h2 class="section-title">Tespit Edilen Hatalar</h2>
+            <h2 class="section-title green">${faultsSectionNum}. TESPİT EDİLEN HATALAR</h2>
             <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 8px; padding: 15px; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                 <p style="margin: 0; color: #15803d; font-weight: 600; font-size: 14px;">Bu araçta hiç hata kaydı bulunmamaktadır.</p>
             </div>
         </div>`;
+
+    // Logo base64
+    const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+    
+    // Rapor numarası oluştur
+    const reportNo = `ARAC-${vehicle.chassis_no || 'N/A'}-${Date.now().toString().slice(-6)}`;
+    const reportDate = formatDate(new Date());
 
     const htmlContent = `
         <!DOCTYPE html>
@@ -1057,56 +1150,93 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                     width: 210mm;
                     min-height: 297mm;
                     margin: 20px auto;
-                    padding: 20mm;
+                    padding: 10mm;
                     box-sizing: border-box;
                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                 }
                 .header {
+                    display: grid;
+                    grid-template-columns: auto 1fr auto;
+                    gap: 15px;
+                    align-items: center;
+                    border-bottom: 1px solid #e5e7eb;
+                    padding-bottom: 8px;
+                    margin-bottom: 10px;
+                    page-break-inside: avoid;
+                    page-break-after: avoid;
+                }
+                .header-logo {
+                    height: 50px;
+                    width: auto;
+                }
+                .company-title {
                     text-align: center;
-                    border-bottom: 2px solid #e5e7eb;
-                    padding-bottom: 15px;
-                    margin-bottom: 20px;
                 }
-                .header h1 {
-                    font-size: 24px;
-                    font-weight: 700;
-                    color: #111827;
-                    margin: 0;
-                }
-                .header p {
-                    font-size: 14px;
-                    color: #6b7280;
-                    margin: 5px 0 0;
-                }
-                .report-title-section {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    margin-bottom: 25px;
-                }
-                .report-title h2 {
+                .company-title h1 {
                     font-size: 20px;
-                    font-weight: 600;
+                    font-weight: 700;
                     margin: 0;
+                    color: #111827;
                 }
-                .report-title p {
-                    font-size: 14px;
+                .company-title p {
+                    font-size: 12px;
+                    margin: 0;
                     color: #4b5563;
-                    margin: 5px 0 0;
+                }
+                .print-info {
+                    text-align: right;
+                    font-size: 9px;
+                    color: #4b5563;
+                    line-height: 1.4;
+                    white-space: nowrap;
                 }
                 .section {
-                    margin-bottom: 25px;
+                    margin-bottom: 15px;
                     page-break-inside: avoid;
                     break-inside: avoid;
                 }
-                .section-title {
-                    font-size: 16px;
+                .meta-box {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 1fr;
+                    gap: 10px 12px;
+                    background-color: #f9fafb;
+                    padding: 12px;
+                    border-radius: 6px;
+                    margin-bottom: 12px;
+                    border: 1px solid #e5e7eb;
+                    page-break-inside: avoid;
+                }
+                .meta-item {
+                    font-size: 10px;
+                    color: #374151;
+                    padding: 0;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    line-height: 1.6;
+                }
+                .meta-item strong {
+                    color: #1f2937;
                     font-weight: 600;
-                    color: #1e40af;
-                    border-bottom: 2px solid #bfdbfe;
-                    padding-bottom: 5px;
-                    margin-bottom: 15px;
+                    margin-right: 6px;
+                }
+                .section-title {
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: white;
+                    padding: 6px 10px;
+                    border-radius: 4px;
+                    margin-bottom: 10px;
+                    text-transform: uppercase;
                     page-break-after: avoid;
+                }
+                .section-title.blue {
+                    background-color: #1e40af;
+                }
+                .section-title.red {
+                    background-color: #dc2626;
+                }
+                .section-title.green {
+                    background-color: #059669;
                 }
                 .fault-card {
                     page-break-inside: avoid;
@@ -1120,12 +1250,12 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                 .info-grid {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
-                    gap: 15px;
+                    gap: 10px;
                 }
                 .info-item {
                     background-color: #f9fafb;
-                    border-radius: 6px;
-                    padding: 8px;
+                    border-radius: 4px;
+                    padding: 6px;
                     border: 1px solid #e5e7eb;
                 }
                 .info-item .label {
@@ -1143,10 +1273,10 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                 }
                 .footer {
                     text-align: center;
-                    margin-top: 30px;
-                    padding-top: 15px;
+                    margin-top: 15px;
+                    padding-top: 10px;
                     border-top: 1px solid #e5e7eb;
-                    font-size: 12px;
+                    font-size: 11px;
                     color: #9ca3af;
                 }
                 @media print {
@@ -1183,7 +1313,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                     }
                     @page {
                         size: A4;
-                        margin: 20mm;
+                        margin: 10mm;
                     }
                 }
             </style>
@@ -1191,22 +1321,29 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
         <body>
             <div class="page">
                 <div class="header">
-                    <h1>KADEME A.Ş.</h1>
-                    <p>Kalite Yönetim Sistemi</p>
+                    <div class="report-logo">
+                        <img src="${mainLogoUrl}" alt="Kademe Logo" class="header-logo" />
+                    </div>
+                    <div class="company-title">
+                        <h1>KADEME A.Ş.</h1>
+                        <p>Kalite Yönetim Sistemi</p>
+                    </div>
+                    <div class="print-info">
+                        Yazdır: ${reportNo.split('-').pop()}<br>
+                        Yazdırılma: ${formatDate(new Date())} ${new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                 </div>
-                <div class="report-title-section">
-                    <div class="report-title">
-                        <h2>Araç Kalite Raporu</h2>
-                        <p>${vehicle.chassis_no} - ${vehicle.serial_no || '-'}</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <p style="margin: 0; font-size: 12px; color: #6b7280;">Rapor Tarihi</p>
-                        <p style="margin: 2px 0 0; font-size: 13px; font-weight: 600;">${formatDate(new Date())}</p>
-                    </div>
+                <div class="meta-box">
+                    <div class="meta-item"><strong>Belge Türü:</strong> Araç Kalite Raporu</div>
+                    <div class="meta-item"><strong>No:</strong> ${reportNo}</div>
+                    <div class="meta-item"><strong>Revizyon:</strong> 0</div>
+                    <div class="meta-item"><strong>Sistem:</strong> Kademe Kalite Yönetim Sistemi</div>
+                    <div class="meta-item"><strong>Yayın Tarihi:</strong> ${reportDate}</div>
+                    <div class="meta-item"><strong>Durum:</strong> ${vehicle.status || '-'}</div>
                 </div>
 
                 <div class="section">
-                    <h2 class="section-title">Araç Bilgileri</h2>
+                    <h2 class="section-title blue">1. ARAÇ BİLGİLERİ</h2>
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="label">Şasi Numarası</span>
@@ -1257,7 +1394,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                 
                 ${vehicle.notes ? `
                     <div class="section">
-                        <h2 class="section-title">Araç Notları</h2>
+                        <h2 class="section-title blue">2. ARAÇ NOTLARI</h2>
                         <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 15px; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                             <p style="margin: 0; font-size: 13px; color: #92400e; white-space: pre-wrap;">${vehicle.notes}</p>
                         </div>
@@ -1267,7 +1404,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                 ${timelineHtml}
                 
                 <div class="section">
-                    <h2 class="section-title">Kalite Süre Özeti</h2>
+                    <h2 class="section-title blue">${timeline && timeline.length > 0 ? (vehicle.notes ? '4' : '3') : (vehicle.notes ? '3' : '2')}. KALİTE SÜRE ÖZETİ</h2>
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="label">Toplam Kontrol Süresi</span>
@@ -1286,7 +1423,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                 
                 ${equipment && equipment.id ? `
                     <div class="section">
-                        <h2 class="section-title">Ölçüm Ekipmanı Bilgileri</h2>
+                        <h2 class="section-title blue">${timeline && timeline.length > 0 ? (vehicle.notes ? '5' : '4') : (vehicle.notes ? '4' : '3')}. ÖLÇÜM EKİPMANI BİLGİLERİ</h2>
                         <div class="info-grid">
                             ${equipment.name ? `
                                 <div class="info-item">

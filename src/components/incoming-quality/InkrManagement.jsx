@@ -696,12 +696,36 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
         toast({ title: 'Başarılı!', description: `INKR Raporu başarıyla kaydedildi.` });
         if (refreshReports) refreshReports();
         if (onReportSaved) {
+            // Tüm INKR raporlarını report_date'e göre sırala (en yeni en üstte)
+            // report_date NULL olanlar için updated_at veya created_at kullan
             const { data, error: fetchError } = await supabase
                 .from('inkr_reports')
-                .select('*, supplier:supplier_id(name)')
-                .order('created_at', { ascending: false });
-            if (!fetchError) {
-                onReportSaved(data || []);
+                .select('*, supplier:supplier_id(name)');
+            
+            if (!fetchError && data) {
+                // report_date'e göre sırala (en yeni en üstte)
+                data.sort((a, b) => {
+                    const getDateValue = (report) => {
+                        const dateStr = report.report_date || report.updated_at || report.created_at;
+                        if (!dateStr) return null;
+                        const date = new Date(dateStr);
+                        return isNaN(date.getTime()) ? null : date.getTime();
+                    };
+
+                    const dateA = getDateValue(a);
+                    const dateB = getDateValue(b);
+
+                    if (dateA && dateB) {
+                        return dateB - dateA; // En yeni tarih en üstte
+                    } else if (dateA && !dateB) {
+                        return -1;
+                    } else if (!dateA && dateB) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                });
+                onReportSaved(data);
             }
         }
         setIsOpen(false);
@@ -884,10 +908,32 @@ const InkrManagement = ({ onViewPdf }) => {
             toast({ title: 'Başarılı!', description: 'INKR raporu silindi.' });
             const { data, error: fetchError } = await supabase
                 .from('inkr_reports')
-                .select('*, supplier:supplier_id(name)')
-                .order('created_at', { ascending: false });
-            if (!fetchError) {
-                setInkrReports(data || []);
+                .select('*, supplier:supplier_id(name)');
+            
+            if (!fetchError && data) {
+                // report_date'e göre sırala (en yeni en üstte)
+                data.sort((a, b) => {
+                    const getDateValue = (report) => {
+                        const dateStr = report.report_date || report.updated_at || report.created_at;
+                        if (!dateStr) return null;
+                        const date = new Date(dateStr);
+                        return isNaN(date.getTime()) ? null : date.getTime();
+                    };
+
+                    const dateA = getDateValue(a);
+                    const dateB = getDateValue(b);
+
+                    if (dateA && dateB) {
+                        return dateB - dateA; // En yeni tarih en üstte
+                    } else if (dateA && !dateB) {
+                        return -1;
+                    } else if (!dateA && dateB) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                });
+                setInkrReports(data);
             }
             refreshData();
         }
@@ -916,10 +962,36 @@ const InkrManagement = ({ onViewPdf }) => {
             try {
                 const { data, error } = await supabase
                     .from('inkr_reports')
-                    .select('*, supplier:supplier_id(name)')
-                    .order('created_at', { ascending: false });
+                    .select('*, supplier:supplier_id(name)');
 
                 if (error) throw error;
+                
+                // report_date'e göre sırala (en yeni en üstte)
+                // report_date NULL olanlar için updated_at veya created_at kullan
+                if (data) {
+                    data.sort((a, b) => {
+                        const getDateValue = (report) => {
+                            const dateStr = report.report_date || report.updated_at || report.created_at;
+                            if (!dateStr) return null;
+                            const date = new Date(dateStr);
+                            return isNaN(date.getTime()) ? null : date.getTime();
+                        };
+
+                        const dateA = getDateValue(a);
+                        const dateB = getDateValue(b);
+
+                        if (dateA && dateB) {
+                            return dateB - dateA; // En yeni tarih en üstte
+                        } else if (dateA && !dateB) {
+                            return -1;
+                        } else if (!dateA && dateB) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    });
+                }
+                
                 setInkrReports(data || []);
             } catch (error) {
                 console.error('INKR raporları alınamadı:', error);
@@ -978,10 +1050,31 @@ const InkrManagement = ({ onViewPdf }) => {
                     }
                 });
 
+                // Tarihe göre sıralama (en yeni en üstte) - allParts için
                 partsWithInkrStatus.sort((a, b) => {
-                    if (a.part_code < b.part_code) return -1;
-                    if (a.part_code > b.part_code) return 1;
-                    return 0;
+                    const getDateValue = (part) => {
+                        if (!part.inkrReport) return null;
+                        // report_date en önemli (INKR raporunun asıl tarihi), sonra updated_at, sonra created_at
+                        const dateStr = part.inkrReport.report_date || part.inkrReport.updated_at || part.inkrReport.created_at;
+                        if (!dateStr) return null;
+                        // DATE formatını (YYYY-MM-DD) ve TIMESTAMPTZ formatını destekle
+                        const date = new Date(dateStr);
+                        return isNaN(date.getTime()) ? null : date.getTime();
+                    };
+
+                    const dateA = getDateValue(a);
+                    const dateB = getDateValue(b);
+
+                    if (dateA && dateB) {
+                        return dateB - dateA; // En yeni tarih en üstte
+                    } else if (dateA && !dateB) {
+                        return -1; // INKR raporu olanlar önce
+                    } else if (!dateA && dateB) {
+                        return 1; // INKR raporu olmayanlar sonra
+                    } else {
+                        // İkisi de INKR raporu yoksa part_code'a göre alfabetik
+                        return a.part_code.localeCompare(b.part_code);
+                    }
                 });
 
                 setAllParts(partsWithInkrStatus);
@@ -1015,6 +1108,33 @@ const InkrManagement = ({ onViewPdf }) => {
         } else if (inkrStatusFilter === 'Mevcut Değil') {
             filtered = filtered.filter(part => !part.hasInkr);
         }
+
+        // En son tarih en üstte olacak şekilde sırala
+        filtered.sort((a, b) => {
+            const getDateValue = (part) => {
+                if (!part.inkrReport) return null;
+                // report_date en önemli (INKR raporunun asıl tarihi), sonra updated_at, sonra created_at
+                const dateStr = part.inkrReport.report_date || part.inkrReport.updated_at || part.inkrReport.created_at;
+                if (!dateStr) return null;
+                // DATE formatını (YYYY-MM-DD) ve TIMESTAMPTZ formatını destekle
+                const date = new Date(dateStr);
+                return isNaN(date.getTime()) ? null : date.getTime();
+            };
+
+            const dateA = getDateValue(a);
+            const dateB = getDateValue(b);
+
+            if (dateA && dateB) {
+                return dateB - dateA; // En yeni tarih en üstte
+            } else if (dateA && !dateB) {
+                return -1; // INKR raporu olanlar önce
+            } else if (!dateA && dateB) {
+                return 1; // INKR raporu olmayanlar sonra
+            } else {
+                // İkisi de INKR raporu yoksa part_code'a göre alfabetik
+                return a.part_code.localeCompare(b.part_code);
+            }
+        });
 
         return filtered;
     }, [allParts, searchTerm, inkrStatusFilter]);
