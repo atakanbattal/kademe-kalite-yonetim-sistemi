@@ -96,13 +96,94 @@ import React from 'react';
             if (['Sevk Edildi'].includes(vehicle.status)) {
                 return 'N/A';
             }
-            if (!vehicle.status_entered_at) return '-';
+
+            let start, end;
+            const now = new Date();
+
+            // Duruma göre başlangıç zamanını belirle
+            switch (vehicle.status) {
+                case 'Yeniden İşlem':
+                case 'Yeniden İşlemde':
+                    // Önce timeline events'ten kontrol et
+                    const timelineEvents = vehicle.vehicle_timeline_events || [];
+                    const latestReworkStart = timelineEvents
+                        .filter(e => e.event_type === 'rework_start')
+                        .sort((a, b) => new Date(b.event_timestamp) - new Date(a.event_timestamp))[0];
+                    
+                    if (latestReworkStart) {
+                        // Timeline'da rework_start var, rework_end var mı kontrol et
+                        const reworkEnd = timelineEvents
+                            .filter(e => e.event_type === 'rework_end' && new Date(e.event_timestamp) > new Date(latestReworkStart.event_timestamp))
+                            .sort((a, b) => new Date(a.event_timestamp) - new Date(b.event_timestamp))[0];
+                        
+                        if (reworkEnd) {
+                            // Rework bitmiş
+                            start = latestReworkStart.event_timestamp;
+                            end = reworkEnd.event_timestamp;
+                        } else {
+                            // Rework devam ediyor - dinamik olarak şu anki zamana kadar
+                            start = latestReworkStart.event_timestamp;
+                            end = now;
+                        }
+                    } else {
+                        // Timeline'da yoksa quality_inspection_cycles'dan kontrol et
+                        const activeReworkCycle = vehicle.quality_inspection_cycles
+                            ?.filter(c => c.rework_start_at && !c.rework_end_at)
+                            .sort((a, b) => new Date(b.rework_start_at) - new Date(a.rework_start_at))[0];
+                        
+                        start = activeReworkCycle?.rework_start_at || vehicle.status_entered_at;
+                        end = now;
+                    }
+                    break;
+
+                case 'Kontrol Başladı':
+                    // Timeline events'ten en son control_start'i bul
+                    const timeline = vehicle.vehicle_timeline_events || [];
+                    const latestControlStart = timeline
+                        .filter(e => e.event_type === 'control_start')
+                        .sort((a, b) => new Date(b.event_timestamp) - new Date(a.event_timestamp))[0];
+                    
+                    if (latestControlStart) {
+                        const controlEnd = timeline
+                            .filter(e => e.event_type === 'control_end' && new Date(e.event_timestamp) > new Date(latestControlStart.event_timestamp))
+                            .sort((a, b) => new Date(a.event_timestamp) - new Date(b.event_timestamp))[0];
+                        
+                        start = latestControlStart.event_timestamp;
+                        end = controlEnd ? controlEnd.event_timestamp : now;
+                    } else {
+                        start = vehicle.status_entered_at;
+                        end = now;
+                    }
+                    break;
+
+                default:
+                    // Diğer durumlar için status_entered_at kullan
+                    start = vehicle.status_entered_at;
+                    end = now;
+                    break;
+            }
+
+            // Fallback if primary start time is missing
+            if (!start) {
+                start = vehicle.created_at;
+            }
+
+            if (!start) {
+                return '-';
+            }
+
             try {
-                const date = parseISO(vehicle.status_entered_at);
-                const now = new Date();
-                const diffMs = differenceInMilliseconds(now, date);
+                const startDate = start instanceof Date ? start : parseISO(start);
+                const endDate = end instanceof Date ? end : (end ? parseISO(end) : now);
+                const diffMs = differenceInMilliseconds(endDate, startDate);
+                
+                if (diffMs < 0) {
+                    return '0 dk';
+                }
+                
                 return formatDuration(diffMs);
             } catch (error) {
+                console.error('formatElapsedTime error:', error, { vehicle, start, end });
                 return 'Geçersiz tarih';
             }
         };

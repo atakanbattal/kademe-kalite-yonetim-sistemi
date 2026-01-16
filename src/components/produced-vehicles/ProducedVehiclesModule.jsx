@@ -17,7 +17,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
     import VehicleTable from '@/components/produced-vehicles/VehicleTable';
     import VehicleFaultAnalytics from '@/components/produced-vehicles/VehicleFaultAnalytics';
     import VehicleQualityAnalytics from '@/components/produced-vehicles/VehicleQualityAnalytics';
-    import { AddVehicleModal, EditVehicleModal, VehicleFaultsModal } from '@/components/produced-vehicles/modals';
+    import { AddVehicleModal, EditVehicleModal, VehicleFaultsModal, VehicleReportModal } from '@/components/produced-vehicles/modals';
     import VehicleDetailModal from '@/components/produced-vehicles/modals/VehicleDetailModal';
     import VehicleStatusDetailModal from '@/components/produced-vehicles/VehicleStatusDetailModal';
     import VehicleTimeDetailModal from '@/components/produced-vehicles/modals/VehicleTimeDetailModal';
@@ -39,6 +39,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
         const [isStatusDetailModalOpen, setStatusDetailModalOpen] = useState(false);
         const [isFilterModalOpen, setFilterModalOpen] = useState(false);
         const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
+        const [isVehicleReportModalOpen, setIsVehicleReportModalOpen] = useState(false);
         const [statusDetail, setStatusDetail] = useState(null);
         const [filters, setFilters] = useState({ status: [], vehicle_type: [], dateRange: null });
         const [sortConfig, setSortConfig] = useState({ key: 'updated_at', direction: 'desc' });
@@ -466,6 +467,8 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
             setIsReportSelectionModalOpen(false);
             if (type === 'executive') {
                 handleGenerateExecutiveReport();
+            } else if (type === 'vehicle') {
+                setIsVehicleReportModalOpen(true);
             }
         }, [handleGenerateExecutiveReport]);
 
@@ -615,6 +618,20 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                                     </p>
                                 </div>
                             </button>
+                            <button
+                                onClick={() => handleSelectReportType('vehicle')}
+                                className="flex items-start gap-4 p-4 rounded-lg border-2 border-border hover:border-primary hover:bg-accent/50 transition-all cursor-pointer text-left group"
+                            >
+                                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                                    <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-base mb-1 text-foreground">Araç İşlemleri Raporu</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Durum ve tarih filtrelerine göre tüm araçlar için detaylı işlem raporu. Filtrelere göre tüm araçları içerir.
+                                    </p>
+                                </div>
+                            </button>
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setIsReportSelectionModalOpen(false)}>
@@ -623,6 +640,14 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                {/* Araç İşlemleri Rapor Modalı */}
+                <VehicleReportModal
+                    isOpen={isVehicleReportModalOpen}
+                    setIsOpen={setIsVehicleReportModalOpen}
+                    vehicles={producedVehicles}
+                    filters={filters}
+                />
             </div>
         );
     };

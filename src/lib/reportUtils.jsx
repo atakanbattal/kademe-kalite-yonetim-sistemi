@@ -11,10 +11,10 @@ const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 
 const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
 
 // Logo cache - logoları bir kez yükleyip cache'le
-const logoCache = {};
+export const logoCache = {};
 
 // Harici URL'den görüntüyü base64'e çevir
-const imageUrlToBase64 = async (url) => {
+export const imageUrlToBase64 = async (url) => {
 	// Cache'de varsa direkt döndür
 	if (logoCache[url]) {
 		return logoCache[url];

@@ -1,4 +1,5 @@
 import { toCamelCase } from './utils';
+import { logoCache, imageUrlToBase64 } from './reportUtils';
 
 const generatePrintableReport = (record) => {
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
@@ -237,8 +238,8 @@ const generatePrintableReport = (record) => {
                 }
                 .page {
                     background-color: white;
-                    width: 210mm;
-                    min-height: 297mm;
+                    width: 297mm;
+                    min-height: 210mm;
                     margin: 0;
                     padding: 10mm;
                     box-sizing: border-box;
@@ -608,6 +609,9 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                         totalControlMillis += (endTime - currentEventTime);
                     } else if (waitingForShippingStart) {
                         totalControlMillis += (waitingForShippingStart - currentEventTime);
+                    } else {
+                        // Devam eden kontrol - şu anki zamana kadar hesapla
+                        totalControlMillis += (new Date() - currentEventTime);
                     }
                 } else if (currentEvent.event_type === 'rework_start') {
                     const nextEnd = timeline.slice(i + 1).find(e => {
@@ -624,6 +628,9 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                         totalReworkMillis += (endTime - currentEventTime);
                     } else if (waitingForShippingStart) {
                         totalReworkMillis += (waitingForShippingStart - currentEventTime);
+                    } else {
+                        // Devam eden yeniden işlem - şu anki zamana kadar hesapla
+                        totalReworkMillis += (new Date() - currentEventTime);
                     }
                 }
             }
@@ -632,7 +639,7 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
         return {
             totalControlTime: formatDuration(totalControlMillis),
             totalReworkTime: formatDuration(totalReworkMillis),
-            totalQualityTime: formatDuration(totalControlMillis)
+            totalQualityTime: formatDuration(totalControlMillis + totalReworkMillis)
         };
     };
 
@@ -668,31 +675,32 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
 
         return `
             <tr style="page-break-inside: avoid; border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 12px; text-align: center; font-weight: 600;">${index + 1}</td>
-                <td style="padding: 12px;">
+                <td style="padding: 12px 8px; text-align: center; font-weight: 600;"><span style="display: none;">${index + 1}</span></td>
+                <td style="padding: 12px 8px;">
                     <div style="font-weight: 600; color: #111827;">${vehicle.chassis_no || '-'}</div>
                     <div style="font-size: 11px; color: #6b7280;">${vehicle.serial_no || '-'}</div>
                 </td>
-                <td style="padding: 12px;">${vehicle.vehicle_type || '-'}</td>
-                <td style="padding: 12px;">${vehicle.customer_name || '-'}</td>
-                <td style="padding: 12px;">
-                    <span style="background-color: ${statusBadge.bg}; color: ${statusBadge.text}; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; border: 1px solid ${statusBadge.border};">
+                <td style="padding: 12px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${vehicle.vehicle_type || '-'}</td>
+                <td style="padding: 12px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${vehicle.customer_name || '-'}</td>
+                <td style="padding: 12px 8px; overflow: hidden; white-space: nowrap;">
+                    <span style="background-color: ${statusBadge.bg}; color: ${statusBadge.text}; padding: 4px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; border: 1px solid ${statusBadge.border}; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
                         ${vehicle.status || '-'}
                     </span>
                 </td>
-                <td style="padding: 12px; text-align: center;">
-                    ${unresolvedFaultCount > 0 ? `<span style="color: #ef4444; font-weight: 600;">${unresolvedFaultCount}</span>` : '0'}
-                    ${resolvedFaultCount > 0 ? `<span style="color: #22c55e; margin-left: 4px;">(${resolvedFaultCount})</span>` : ''}
+                <td style="padding: 12px 8px; text-align: center; white-space: nowrap;">
+                    ${unresolvedFaultCount > 0 ? `<span style="color: #ef4444; font-weight: 600; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${unresolvedFaultCount}</span>` : '<span style="print-color-adjust: exact; -webkit-print-color-adjust: exact;">0</span>'}
+                    ${resolvedFaultCount > 0 ? `<span style="color: #22c55e; margin-left: 4px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">(${resolvedFaultCount})</span>` : ''}
                 </td>
-                <td style="padding: 12px; text-align: center; font-size: 12px;">${times.totalControlTime}</td>
-                <td style="padding: 12px; text-align: center; font-size: 12px;">${times.totalReworkTime}</td>
-                <td style="padding: 12px; text-align: center; font-size: 12px;">${formatDate(vehicle.created_at)}</td>
+                <td style="padding: 12px 8px; text-align: center; font-size: 11px; white-space: nowrap;">${times.totalControlTime}</td>
+                <td style="padding: 12px 8px; text-align: center; font-size: 11px; white-space: nowrap;">${times.totalReworkTime}</td>
+                <td style="padding: 12px 8px; text-align: center; font-size: 11px; white-space: nowrap;">${formatDate(vehicle.created_at)}</td>
             </tr>
         `;
     }).join('');
 
-    // Logo base64 (reportUtils'den import edilmiş olmalı, şimdilik URL kullanıyoruz)
+    // Logo base64
     const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+    const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
     
     // Rapor numarası oluştur
     const reportNo = `ARAC-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`;
@@ -716,8 +724,8 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                 }
                 .page {
                     background-color: white;
-                    width: 210mm;
-                    min-height: 297mm;
+                    width: 297mm;
+                    min-height: 210mm;
                     margin: 20px auto;
                     padding: 10mm;
                     box-sizing: border-box;
@@ -834,22 +842,56 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                     width: 100%;
                     border-collapse: collapse;
                     font-size: 12px;
+                    table-layout: fixed;
+                    counter-reset: row-number 0;
+                }
+                tbody {
+                    counter-reset: row-number 0;
+                }
+                tbody tr {
+                    counter-increment: row-number;
+                }
+                tbody tr td:first-child {
+                    position: relative;
+                    text-align: center;
+                }
+                tbody tr td:first-child::before {
+                    content: counter(row-number);
+                    font-weight: 600;
+                    display: inline-block;
                 }
                 thead {
                     background-color: #f9fafb;
+                    print-color-adjust: exact;
+                    -webkit-print-color-adjust: exact;
                 }
                 th {
-                    padding: 12px;
+                    padding: 12px 8px;
                     text-align: left;
                     font-weight: 600;
                     color: #374151;
                     border-bottom: 2px solid #e5e7eb;
                     font-size: 11px;
                     text-transform: uppercase;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    background-color: #f9fafb;
+                    print-color-adjust: exact;
+                    -webkit-print-color-adjust: exact;
                 }
                 td {
-                    padding: 12px;
+                    padding: 12px 8px;
                     border-bottom: 1px solid #e5e7eb;
+                    overflow: hidden;
+                    word-wrap: break-word;
+                    vertical-align: middle;
+                }
+                td:first-child {
+                    text-align: center;
+                }
+                td:first-child::before {
+                    display: block;
                 }
                 .footer {
                     text-align: center;
@@ -860,10 +902,39 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                     color: #9ca3af;
                 }
                 @media print {
-                    body { background-color: white; margin: 0; padding: 0; }
-                    .page { margin: 0; box-shadow: none; border: none; }
+                    * {
+                        print-color-adjust: exact !important;
+                        -webkit-print-color-adjust: exact !important;
+                        color-adjust: exact !important;
+                    }
+                    body { 
+                        background-color: white !important; 
+                        margin: 0 !important; 
+                        padding: 0 !important;
+                        print-color-adjust: exact !important;
+                        -webkit-print-color-adjust: exact !important;
+                    }
+                    .page { 
+                        margin: 0 !important; 
+                        box-shadow: none !important; 
+                        border: none !important;
+                        print-color-adjust: exact !important;
+                        -webkit-print-color-adjust: exact !important;
+                    }
+                    table {
+                        print-color-adjust: exact !important;
+                        -webkit-print-color-adjust: exact !important;
+                    }
+                    thead {
+                        print-color-adjust: exact !important;
+                        -webkit-print-color-adjust: exact !important;
+                    }
+                    th, td {
+                        print-color-adjust: exact !important;
+                        -webkit-print-color-adjust: exact !important;
+                    }
                     @page {
-                        size: A4;
+                        size: A4 landscape;
                         margin: 10mm;
                     }
                 }
@@ -873,7 +944,7 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
             <div class="page">
                 <div class="header">
                     <div class="report-logo">
-                        <img src="${mainLogoUrl}" alt="Kademe Logo" class="header-logo" />
+                        <img src="${mainLogoBase64}" alt="Kademe Logo" class="header-logo" />
                     </div>
                     <div class="company-title">
                         <h1>KADEME A.Ş.</h1>
@@ -917,9 +988,9 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                         ${Object.entries(statusStats).map(([status, count]) => {
                             const badge = getStatusBadgeColor(status);
                             return `
-                                <div style="background-color: ${badge.bg}; border: 1px solid ${badge.border}; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="color: ${badge.text}; font-weight: 600; font-size: 13px;">${status}</span>
-                                    <span style="color: ${badge.text}; font-weight: 700; font-size: 18px;">${count}</span>
+                                <div style="background-color: ${badge.bg}; border: 1px solid ${badge.border}; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                                    <span style="color: ${badge.text}; font-weight: 600; font-size: 13px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${status}</span>
+                                    <span style="color: ${badge.text}; font-weight: 700; font-size: 18px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${count}</span>
                                 </div>
                             `;
                         }).join('')}
@@ -931,15 +1002,15 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 40px;">#</th>
-                                <th>Şasi/Seri No</th>
-                                <th>Araç Tipi</th>
-                                <th>Müşteri</th>
-                                <th>Durum</th>
-                                <th style="width: 80px; text-align: center;">Hata</th>
-                                <th style="width: 100px; text-align: center;">Kontrol Süresi</th>
-                                <th style="width: 100px; text-align: center;">Yeniden İşlem</th>
-                                <th style="width: 100px; text-align: center;">Oluşturma</th>
+                                <th style="width: 3%;">#</th>
+                                <th style="width: 12%;">Şasi/Seri No</th>
+                                <th style="width: 12%;">Araç Tipi</th>
+                                <th style="width: 15%;">Müşteri</th>
+                                <th style="width: 15%;">Durum</th>
+                                <th style="width: 8%; text-align: center;">Hata</th>
+                                <th style="width: 12%; text-align: center;">Kontrol Süresi</th>
+                                <th style="width: 12%; text-align: center;">Yeniden İşlem</th>
+                                <th style="width: 11%; text-align: center;">Oluşturma</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -952,22 +1023,33 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                     Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
                 </div>
             </div>
-            <script>
-                window.onload = () => {
-                    setTimeout(() => {
-                        window.print();
-                    }, 500);
-                };
-            </script>
         </body>
         </html>
     `;
 
+    // Mevcut pencereyi kapat ve yeni bir pencere aç (iç içe açılmayı önlemek için)
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    const printWindow = window.open(url, '_blank');
+    
+    // Eğer önceki bir print penceresi açıksa kapat
+    if (window.printWindow && !window.printWindow.closed) {
+        window.printWindow.close();
+    }
+    
+    const printWindow = window.open(url, '_blank', 'width=800,height=600');
     if (printWindow) {
-        printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+        window.printWindow = printWindow; // Referansı sakla
+        printWindow.addEventListener('load', () => {
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        });
+        printWindow.addEventListener('afterprint', () => {
+            URL.revokeObjectURL(url);
+            if (window.printWindow) {
+                window.printWindow = null;
+            }
+        });
     }
 };
 
@@ -1036,6 +1118,9 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                         totalControlMillis += (endTime - currentEventTime);
                     } else if (waitingForShippingStart) {
                         totalControlMillis += (waitingForShippingStart - currentEventTime);
+                    } else {
+                        // Devam eden kontrol - şu anki zamana kadar hesapla
+                        totalControlMillis += (new Date() - currentEventTime);
                     }
                 } else if (currentEvent.event_type === 'rework_start') {
                     const nextEnd = timeline.slice(i + 1).find(e => {
@@ -1052,13 +1137,16 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                         totalReworkMillis += (endTime - currentEventTime);
                     } else if (waitingForShippingStart) {
                         totalReworkMillis += (waitingForShippingStart - currentEventTime);
+                    } else {
+                        // Devam eden yeniden işlem - şu anki zamana kadar hesapla
+                        totalReworkMillis += (new Date() - currentEventTime);
                     }
                 }
             }
         }
         
-        // Kalitede geçen toplam süre sadece kontrol başladı-bitti arasındaki sürelerdir
-        const totalQualityMillis = totalControlMillis;
+        // Kalitede geçen toplam süre kontrol ve yeniden işlem sürelerinin toplamıdır
+        const totalQualityMillis = totalControlMillis + totalReworkMillis;
         
         return {
             totalControlTime: formatDuration(totalControlMillis),
@@ -1124,6 +1212,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
 
     // Logo base64
     const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+    const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
     
     // Rapor numarası oluştur
     const reportNo = `ARAC-${vehicle.chassis_no || 'N/A'}-${Date.now().toString().slice(-6)}`;
@@ -1147,8 +1236,8 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                 }
                 .page {
                     background-color: white;
-                    width: 210mm;
-                    min-height: 297mm;
+                    width: 297mm;
+                    min-height: 210mm;
                     margin: 20px auto;
                     padding: 10mm;
                     box-sizing: border-box;
@@ -1312,7 +1401,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                         break-inside: avoid;
                     }
                     @page {
-                        size: A4;
+                        size: A4 landscape;
                         margin: 10mm;
                     }
                 }
@@ -1322,7 +1411,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
             <div class="page">
                 <div class="header">
                     <div class="report-logo">
-                        <img src="${mainLogoUrl}" alt="Kademe Logo" class="header-logo" />
+                        <img src="${mainLogoBase64}" alt="Kademe Logo" class="header-logo" />
                     </div>
                     <div class="company-title">
                         <h1>KADEME A.Ş.</h1>
@@ -1465,21 +1554,32 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                     Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
                 </div>
             </div>
-            <script>
-                window.onload = () => {
-                    setTimeout(() => {
-                        window.print();
-                    }, 500);
-                };
-            </script>
         </body>
         </html>
     `;
 
+    // Mevcut pencereyi kapat ve yeni bir pencere aç (iç içe açılmayı önlemek için)
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    const printWindow = window.open(url, '_blank');
+    
+    // Eğer önceki bir print penceresi açıksa kapat
+    if (window.printWindow && !window.printWindow.closed) {
+        window.printWindow.close();
+    }
+    
+    const printWindow = window.open(url, '_blank', 'width=800,height=600');
     if (printWindow) {
-        printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+        window.printWindow = printWindow; // Referansı sakla
+        printWindow.addEventListener('load', () => {
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        });
+        printWindow.addEventListener('afterprint', () => {
+            URL.revokeObjectURL(url);
+            if (window.printWindow) {
+                window.printWindow = null;
+            }
+        });
     }
 };

@@ -11,6 +11,7 @@ import { CalendarIcon, FileText } from 'lucide-react';
 import { format, subDays, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { generateVehicleSummaryReport } from '@/lib/pdfGenerator';
+import { imageUrlToBase64 } from '@/lib/reportUtils';
 
 const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
     const { toast } = useToast();
@@ -22,13 +23,16 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [filteredVehicles, setFilteredVehicles] = useState([]);
 
-    // Aralık bazlı durum seçenekleri
+    // Mevcut durum seçenekleri (quality_inspections tablosundaki status field'ına göre)
     const statusOptions = [
-        { value: 'Kalite Kontrolde', label: 'Kalite Kontrolde', eventTypes: ['control_start'], checkEnd: 'control_end' },
-        { value: 'Yeniden İşlemde', label: 'Yeniden İşlemde', eventTypes: ['rework_start'], checkEnd: 'rework_end' },
-        { value: 'Sevk Bilgisi Bekleniyor', label: 'Sevk Bilgisi Bekleniyor', eventTypes: ['waiting_for_shipping_info'] },
-        { value: 'Sevke Hazır', label: 'Sevke Hazır', eventTypes: ['ready_to_ship'] },
-        { value: 'Sevk Edildi', label: 'Sevk Edildi', eventTypes: ['shipped'] },
+        { value: 'Kaliteye Girdi', label: 'Kaliteye Girdi' },
+        { value: 'Kontrol Başladı', label: 'Kontrol Başladı' },
+        { value: 'Kontrol Bitti', label: 'Kontrol Bitti' },
+        { value: 'Yeniden İşlemde', label: 'Yeniden İşlemde' },
+        { value: 'Yeniden İşlem Bitti', label: 'Yeniden İşlem Bitti' },
+        { value: 'Sevk Bilgisi Bekleniyor', label: 'Sevk Bilgisi Bekleniyor' },
+        { value: 'Sevk Hazır', label: 'Sevk Hazır' },
+        { value: 'Sevk Edildi', label: 'Sevk Edildi' },
     ];
 
     const datePresets = [
@@ -74,83 +78,58 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
     }, [isOpen]);
 
     const filterVehicles = async () => {
-        if (!vehicles || vehicles.length === 0) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'Filtrelenecek araç bulunamadı.' });
-            return;
-        }
-
         setIsGenerating(true);
         try {
-            let filtered = [...vehicles];
+            // Supabase'den tüm araçları çek (pagination ile)
+            let allVehicles = [];
+            let from = 0;
+            const pageSize = 1000;
+            let hasMore = true;
 
-            // Tarih filtresi
-            let dateRange = null;
-            if (dateFilterType === 'preset' && datePreset !== 'all') {
-                dateRange = getDateRangeFromPreset(datePreset);
-            } else if (dateFilterType === 'custom' && dateFrom && dateTo) {
-                dateRange = { from: dateFrom, to: dateTo };
-            }
+            while (hasMore) {
+                let query = supabase
+                    .from('quality_inspections')
+                    .select('*')
+                    .range(from, from + pageSize - 1)
+                    .order('created_at', { ascending: false });
 
-            if (dateRange) {
-                const fromDate = new Date(dateRange.from);
-                fromDate.setHours(0, 0, 0, 0);
-                const toDate = new Date(dateRange.to);
-                toDate.setHours(23, 59, 59, 999);
+                // Tarih filtresi
+                let dateRange = null;
+                if (dateFilterType === 'preset' && datePreset !== 'all') {
+                    dateRange = getDateRangeFromPreset(datePreset);
+                } else if (dateFilterType === 'custom' && dateFrom && dateTo) {
+                    dateRange = { from: dateFrom, to: dateTo };
+                }
 
-                filtered = filtered.filter(v => {
-                    const createdAt = new Date(v.created_at);
-                    return createdAt >= fromDate && createdAt <= toDate;
-                });
-            }
+                if (dateRange) {
+                    const fromDate = new Date(dateRange.from);
+                    fromDate.setHours(0, 0, 0, 0);
+                    const toDate = new Date(dateRange.to);
+                    toDate.setHours(23, 59, 59, 999);
+                    query = query
+                        .gte('created_at', fromDate.toISOString())
+                        .lte('created_at', toDate.toISOString());
+                }
 
-            // Durum filtresi
-            if (selectedStatus && selectedStatus !== 'all') {
-                const statusOption = statusOptions.find(opt => opt.value === selectedStatus);
-                if (statusOption) {
-                    // Kalite Kontrolde için hem control_start hem de quality_entry eventlerini kontrol et
-                    const eventTypesToCheck = statusOption.value === 'Kalite Kontrolde' 
-                        ? [...statusOption.eventTypes, 'quality_entry']
-                        : statusOption.eventTypes;
-                    
-                    // Timeline eventlerini al
-                    const { data: timelineEvents, error } = await supabase
-                        .from('vehicle_timeline_events')
-                        .select('inspection_id, event_type, event_timestamp')
-                        .in('event_type', eventTypesToCheck)
-                        .order('event_timestamp', { ascending: false });
+                const { data, error } = await query;
+                if (error) throw error;
 
-                    if (error) throw error;
-
-                    const vehicleIds = new Set();
-                    
-                    if (statusOption.checkEnd) {
-                        // Aralık kontrolü: Başlangıç var ama bitiş yok
-                        timelineEvents.forEach(event => {
-                            if (eventTypesToCheck.includes(event.event_type)) {
-                                // Bu araç için bitiş eventi var mı kontrol et
-                                const hasEnd = timelineEvents.some(e => 
-                                    e.inspection_id === event.inspection_id && 
-                                    e.event_type === statusOption.checkEnd &&
-                                    new Date(e.event_timestamp) > new Date(event.event_timestamp)
-                                );
-                                if (!hasEnd) {
-                                    vehicleIds.add(event.inspection_id);
-                                }
-                            }
-                        });
-                    } else {
-                        // Tekil event: Sadece bu evente sahip araçlar
-                        timelineEvents.forEach(event => {
-                            vehicleIds.add(event.inspection_id);
-                        });
-                    }
-
-                    filtered = filtered.filter(v => vehicleIds.has(v.id));
+                if (data && data.length > 0) {
+                    allVehicles = [...allVehicles, ...data];
+                    from += pageSize;
+                    hasMore = data.length === pageSize;
+                } else {
+                    hasMore = false;
                 }
             }
 
-            setFilteredVehicles(filtered);
-            toast({ title: 'Başarılı', description: `${filtered.length} araç bulundu.` });
+            // Durum filtresi uygula - mevcut status field'ına göre
+            if (selectedStatus && selectedStatus !== 'all') {
+                allVehicles = allVehicles.filter(v => v.status === selectedStatus);
+            }
+
+            setFilteredVehicles(allVehicles);
+            toast({ title: 'Başarılı', description: `${allVehicles.length} araç bulundu.` });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Hata', description: `Filtreleme hatası: ${error.message}` });
         } finally {
@@ -200,6 +179,10 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
 
         setIsGenerating(true);
         try {
+            // Logo'yu base64'e çevir (cache'de yoksa)
+            const logoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+            await imageUrlToBase64(logoUrl);
+            
             const vehicleIds = filteredVehicles.map(v => v.id);
             
             // Paginated fetch ile tüm verileri çek
