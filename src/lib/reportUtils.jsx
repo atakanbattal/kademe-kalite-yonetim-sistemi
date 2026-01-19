@@ -13,7 +13,7 @@ const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', 
 // Logo cache - logoları bir kez yükleyip cache'le
 export const logoCache = {};
 
-// Harici URL'den görüntüyü base64'e çevir
+// Harici URL veya yerel dosyadan görüntüyü base64'e çevir
 export const imageUrlToBase64 = async (url) => {
 	// Cache'de varsa direkt döndür
 	if (logoCache[url]) {
@@ -21,9 +21,11 @@ export const imageUrlToBase64 = async (url) => {
 	}
 
 	try {
+		// Yerel dosya için (public klasöründen) veya harici URL için fetch kullan
 		const response = await fetch(url, { mode: 'cors' });
 		if (!response.ok) {
 			console.warn(`Logo yüklenemedi: ${url}`);
+			// Yerel dosya yoksa null döndür, harici URL'ler için de null
 			return null;
 		}
 		const blob = await response.blob();
@@ -43,16 +45,34 @@ export const imageUrlToBase64 = async (url) => {
 	}
 };
 
+// Logo URL'leri - önce yerel dosyadan, yoksa harici URL'den
+export const getLogoUrl = (filename) => {
+	// Public klasöründen çek (Vite'da public klasörü root'tan erişilebilir)
+	return `/${filename}`;
+};
+
 // Tüm logoları önceden yükle ve cache'le
-const preloadLogos = async () => {
+export const preloadLogos = async () => {
+	// Önce yerel dosyalardan çekmeyi dene, yoksa harici URL'leri kullan
 	const logoUrls = [
+		getLogoUrl('logo.png'), // Ana Kademe logosu (public klasöründen)
+		getLogoUrl('kademe-logo.png'), // Alternatif isim
+		getLogoUrl('kademe-logo-cert.png'), // Kademe logosu (sertifika için)
+		getLogoUrl('albayrak-logo.png'), // Albayrak logosu
+		// Fallback: Harici URL'ler (yerel dosya yoksa)
+		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png',
 		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png',
-		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png',
-		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png'
+		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png'
 	];
 
-	// Tüm logoları paralel olarak yükle
-	await Promise.all(logoUrls.map(url => imageUrlToBase64(url)));
+	// Tüm logoları paralel olarak yükle (başarısız olanlar sessizce atlanır)
+	await Promise.all(logoUrls.map(async (url) => {
+		try {
+			await imageUrlToBase64(url);
+		} catch (error) {
+			console.warn(`Logo yüklenemedi (atlanıyor): ${url}`);
+		}
+	}));
 };
 
 // Türkçe karakterleri korumak için normalize fonksiyonu
@@ -309,8 +329,16 @@ const generateCertificateReportHtml = (record) => {
 		: `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimine katıldığı için verilmiştir.`;
 
 	// Logoları base64 olarak al
-	const kademeLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png';
-	const albayrakLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png';
+	// Önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	const localKademeLogo = getLogoUrl('logo.png');
+	const kademeLogoUrl = logoCache[localKademeLogo] 
+		? localKademeLogo
+		: (logoCache[getLogoUrl('kademe-logo-cert.png')] 
+			? getLogoUrl('kademe-logo-cert.png')
+			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png');
+	const albayrakLogoUrl = logoCache[getLogoUrl('albayrak-logo.png')]
+		? getLogoUrl('albayrak-logo.png')
+		: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png';
 	const kademeLogoBase64 = logoCache[kademeLogoUrl] || kademeLogoUrl;
 	const albayrakLogoBase64 = logoCache[albayrakLogoUrl] || albayrakLogoUrl;
 
@@ -394,8 +422,13 @@ const generateExamPaperHtml = (record) => {
 		`;
 	}).join('');
 
-	// Logo base64
-	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoUrl = logoCache[localLogoUrl] 
+		? localLogoUrl
+		: (logoCache[getLogoUrl('kademe-logo.png')] 
+			? getLogoUrl('kademe-logo.png')
+			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
 
 	return `
@@ -453,8 +486,13 @@ const generateDynamicBalanceReportHtml = (record) => {
 		return '<span style="background: #6b7280; color: white; padding: 6px 16px; border-radius: 6px; font-size: 13px; display: inline-block;">-</span>';
 	};
 
-	// Logo base64
-	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoUrl = logoCache[localLogoUrl] 
+		? localLogoUrl
+		: (logoCache[getLogoUrl('kademe-logo.png')] 
+			? getLogoUrl('kademe-logo.png')
+			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
 
 	return `
@@ -834,10 +872,19 @@ const generateWPSReportHtml = (record) => {
 		return '';
 	};
 
+	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoUrl = logoCache[localLogoUrl] 
+		? localLogoUrl
+		: (logoCache[getLogoUrl('kademe-logo.png')] 
+			? getLogoUrl('kademe-logo.png')
+			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
+	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+
 	return `
 		<div class="report-header">
 			 <div class="report-logo">
-				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
 			</div>
 			<div class="company-title">
 				<h1>KADEME A.Ş.</h1>
@@ -1148,8 +1195,13 @@ const generatePolyvalenceMatrixHtml = (record) => {
 		</div>
 	`;
 
-	// Logo base64
-	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoUrl = logoCache[localLogoUrl] 
+		? localLogoUrl
+		: (logoCache[getLogoUrl('kademe-logo.png')] 
+			? getLogoUrl('kademe-logo.png')
+			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
 
 	return `
@@ -3000,8 +3052,13 @@ const generateListReportHtml = (record, type) => {
 		rowsHtml = '';
 	}
 
-	// Logo base64
-	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoUrl = logoCache[localLogoUrl] 
+		? localLogoUrl
+		: (logoCache[getLogoUrl('kademe-logo.png')] 
+			? getLogoUrl('kademe-logo.png')
+			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
 	
 	// Rapor numarası oluştur
@@ -5041,8 +5098,13 @@ const generateGenericReportHtml = (record, type) => {
 		return html;
 	};
 
-	// Logo base64
-	const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoUrl = logoCache[localLogoUrl] 
+		? localLogoUrl
+		: (logoCache[getLogoUrl('kademe-logo.png')] 
+			? getLogoUrl('kademe-logo.png')
+			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
 
 	return `
@@ -5168,7 +5230,10 @@ const generateGenericReportHtml = (record, type) => {
 `;
 };
 
-const generatePrintableReportHtml = (record, type) => {
+const generatePrintableReportHtml = async (record, type) => {
+	// Logoları önceden yükle (cache'de yoksa) - uygunsuzluk yönetimindeki gibi
+	await preloadLogos();
+	
 	// Record'u normalize et (Türkçe karakterler için)
 	const normalizedRecord = normalizeRecord(record);
 
@@ -5179,10 +5244,12 @@ const generatePrintableReportHtml = (record, type) => {
 		const contentHtml = generateListReportHtml(record, type);
 		// nonconformity_executive için tam HTML formatı (başlık ve imza dahil)
 		const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
+		const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+		const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
 		reportContentHtml = `
 		<div class="report-header">
 			<div class="report-logo">
-				<img src="https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png" alt="Kademe Logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
 			</div>
 			<div class="company-title">
 				<h1>KADEME A.Ş.</h1>

@@ -24,6 +24,7 @@ import ActionsTab from './ActionsTab';
 import DocumentsTab from './DocumentsTab';
 import CommunicationTab from './CommunicationTab';
 import CreateNCFromComplaintModal from './CreateNCFromComplaintModal';
+import { generateComplaintReport } from '@/lib/pdfGenerator';
 
 const SEVERITY_COLORS = {
     'Kritik': 'destructive',
@@ -148,10 +149,24 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
         return null;
     }
 
+    const handleGenerateReport = async () => {
+        if (!complaintData) return;
+        try {
+            await generateComplaintReport(complaintData, analyses, actions);
+        } catch (error) {
+            console.error('Error generating report:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Rapor oluşturulurken hata oluştu.'
+            });
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogHeader className="px-6 pt-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
                         <div>
                             <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -176,7 +191,14 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                 </DialogHeader>
 
                 {complaintData && (
-                    <div className="flex gap-2 px-6 pb-4 border-b">
+                    <div className="flex gap-2 px-6 py-4 border-b bg-muted/30">
+                        <Button
+                            variant="outline"
+                            onClick={handleGenerateReport}
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            Rapor Al
+                        </Button>
                         <Button
                             variant="outline"
                             onClick={() => setNCModalOpen(true)}
@@ -236,33 +258,37 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                         </div>
                     </div>
                 ) : (
-                    <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="grid w-full grid-cols-5">
-                                <TabsTrigger value="overview">
-                                    <FileText className="w-4 h-4 mr-2" />
-                                    Genel Bakış
-                                </TabsTrigger>
-                                <TabsTrigger value="analysis">
-                                    <BarChart3 className="w-4 h-4 mr-2" />
-                                    Analizler
-                                </TabsTrigger>
-                                <TabsTrigger value="actions">
-                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    Aksiyonlar
-                                </TabsTrigger>
-                                <TabsTrigger value="documents">
-                                    <Upload className="w-4 h-4 mr-2" />
-                                    Dokümanlar
-                                </TabsTrigger>
-                                <TabsTrigger value="communication">
-                                    <MessageSquare className="w-4 h-4 mr-2" />
-                                    İletişim
-                                </TabsTrigger>
-                            </TabsList>
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
+                            <div className="px-6 pt-4">
+                                <TabsList className="grid w-full grid-cols-5">
+                                    <TabsTrigger value="overview">
+                                        <FileText className="w-4 h-4 mr-2" />
+                                        Genel Bakış
+                                    </TabsTrigger>
+                                    <TabsTrigger value="analysis">
+                                        <BarChart3 className="w-4 h-4 mr-2" />
+                                        Analizler
+                                    </TabsTrigger>
+                                    <TabsTrigger value="actions">
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        Aksiyonlar
+                                    </TabsTrigger>
+                                    <TabsTrigger value="documents">
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Dokümanlar
+                                    </TabsTrigger>
+                                    <TabsTrigger value="communication">
+                                        <MessageSquare className="w-4 h-4 mr-2" />
+                                        İletişim
+                                    </TabsTrigger>
+                                </TabsList>
+                            </div>
+                            
+                            <ScrollArea className="flex-1 px-6">
 
                             {/* Genel Bakış */}
-                            <TabsContent value="overview" className="space-y-6">
+                            <TabsContent value="overview" className="space-y-6 mt-6 pb-6">
                                 {/* Önemli Bilgiler */}
                                 <div>
                                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -290,51 +316,51 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                     </div>
                                 </div>
 
-                                <Separator />
+                                <Separator className="my-6" />
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {/* Müşteri Bilgileri */}
-                                    <div>
-                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                            <Users className="h-5 w-5 text-primary" />
-                                            Müşteri Bilgileri
-                                        </h3>
-                                        <Card>
-                                            <CardContent className="p-6 space-y-4">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2 text-lg">
+                                                <Users className="h-5 w-5 text-primary" />
+                                                Müşteri Bilgileri
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <InfoCard
+                                                icon={Users}
+                                                label="Müşteri Adı"
+                                                value={complaintData.customer?.customer_name || complaintData.customer?.name || '-'}
+                                            />
+                                            <InfoCard
+                                                icon={Hash}
+                                                label="Müşteri Kodu"
+                                                value={complaintData.customer?.customer_code || '-'}
+                                            />
+                                            {complaintData.customer?.contact_person && (
                                                 <InfoCard
-                                                    icon={Users}
-                                                    label="Müşteri Adı"
-                                                    value={complaintData.customer?.customer_name}
+                                                    icon={User}
+                                                    label="Yetkili Kişi"
+                                                    value={complaintData.customer.contact_person}
                                                 />
+                                            )}
+                                            {complaintData.customer?.contact_email && (
                                                 <InfoCard
-                                                    icon={Hash}
-                                                    label="Müşteri Kodu"
-                                                    value={complaintData.customer?.customer_code}
+                                                    icon={Package}
+                                                    label="Email"
+                                                    value={complaintData.customer.contact_email}
                                                 />
-                                                {complaintData.customer?.contact_person && (
-                                                    <InfoCard
-                                                        icon={User}
-                                                        label="Yetkili Kişi"
-                                                        value={complaintData.customer.contact_person}
-                                                    />
-                                                )}
-                                                {complaintData.customer?.contact_email && (
-                                                    <InfoCard
-                                                        icon={Package}
-                                                        label="Email"
-                                                        value={complaintData.customer.contact_email}
-                                                    />
-                                                )}
-                                                {complaintData.customer?.contact_phone && (
-                                                    <InfoCard
-                                                        icon={Package}
-                                                        label="Telefon"
-                                                        value={complaintData.customer.contact_phone}
-                                                    />
-                                                )}
-                                            </CardContent>
-                                        </Card>
-                                    </div>
+                                            )}
+                                            {complaintData.customer?.contact_phone && (
+                                                <InfoCard
+                                                    icon={Package}
+                                                    label="Telefon"
+                                                    value={complaintData.customer.contact_phone}
+                                                />
+                                            )}
+                                        </CardContent>
+                                    </Card>
 
                                     {/* SLA Bilgileri */}
                                     {complaintData.sla_status && (
@@ -583,8 +609,8 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                         <CardTitle className="text-lg">Şikayet Açıklaması</CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="whitespace-pre-wrap text-sm">
-                                            {complaintData.description}
+                                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                            {complaintData.description || '-'}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -596,7 +622,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                             <CardTitle className="text-lg">Müşteri Etkisi</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="whitespace-pre-wrap text-sm">
+                                            <div className="whitespace-pre-wrap text-sm leading-relaxed">
                                                 {complaintData.customer_impact}
                                             </div>
                                         </CardContent>
@@ -622,7 +648,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                             </TabsContent>
 
                             {/* Analizler Tab */}
-                            <TabsContent value="analysis" className="mt-0">
+                            <TabsContent value="analysis" className="mt-6 pb-6">
                                 <AnalysisTab
                                     complaintId={complaintData?.id}
                                     analyses={analyses}
@@ -631,7 +657,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                             </TabsContent>
 
                             {/* Aksiyonlar Tab */}
-                            <TabsContent value="actions" className="mt-0">
+                            <TabsContent value="actions" className="mt-6 pb-6">
                                 <ActionsTab
                                     complaintId={complaintData?.id}
                                     actions={actions}
@@ -640,7 +666,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                             </TabsContent>
 
                             {/* Dokümanlar Tab */}
-                            <TabsContent value="documents" className="mt-0">
+                            <TabsContent value="documents" className="mt-6 pb-6">
                                 <DocumentsTab
                                     complaintId={complaintData?.id}
                                     documents={documents}
@@ -649,18 +675,19 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                             </TabsContent>
 
                             {/* İletişim Tab */}
-                            <TabsContent value="communication" className="mt-0">
+                            <TabsContent value="communication" className="mt-6 pb-6">
                                 <CommunicationTab
                                     complaintId={complaintData?.id}
                                     communications={communications}
                                     onRefresh={handleRefresh}
                                 />
                             </TabsContent>
+                            </ScrollArea>
                         </Tabs>
-                    </ScrollArea>
+                    </div>
                 )}
 
-                <DialogFooter className="mt-6">
+                <DialogFooter className="px-6 py-4 border-t bg-muted/30">
                     <DialogClose asChild>
                         <Button type="button" variant="secondary" size="lg">Kapat</Button>
                     </DialogClose>

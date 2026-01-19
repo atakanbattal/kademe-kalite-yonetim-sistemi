@@ -330,6 +330,12 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                     eight_d_progress: eightDProgress,
                     attachments: initialRecord.attachments || [],
                 };
+                
+                // Eğer supplier_id varsa ama is_supplier_nc yoksa, is_supplier_nc'yi true yap
+                if (finalData.supplier_id && !finalData.is_supplier_nc) {
+                    finalData.is_supplier_nc = true;
+                }
+                
                 delete finalData.source;
             } else {
                 finalData = baseData;

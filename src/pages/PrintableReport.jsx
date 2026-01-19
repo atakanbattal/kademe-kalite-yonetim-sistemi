@@ -586,16 +586,21 @@ const PrintableReport = () => {
 
     useEffect(() => {
         if (data) {
-            const html = generatePrintableReportHtml(data, type);
-            
-            // Araç modülündeki gibi Blob URL kullan (doğru çalışan yöntem)
-            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            setBlobUrl(url);
+            let url = null;
+            (async () => {
+                const html = await generatePrintableReportHtml(data, type);
+                
+                // Araç modülündeki gibi Blob URL kullan (doğru çalışan yöntem)
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                url = URL.createObjectURL(blob);
+                setBlobUrl(url);
+            })();
             
             // Cleanup function - URL'i temizle
             return () => {
-                URL.revokeObjectURL(url);
+                if (url) {
+                    URL.revokeObjectURL(url);
+                }
             };
         }
     }, [data, type]);

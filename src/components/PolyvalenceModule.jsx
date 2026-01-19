@@ -49,7 +49,7 @@ const PolyvalenceModule = () => {
         fetchData();
     }, []);
 
-    const handleDownloadReport = () => {
+    const handleDownloadReport = async () => {
         // Prepare polivalance matrix data for printing - WITH FILTERS
         const reportData = {
             id: 'polyvalence-' + Date.now(),
@@ -72,7 +72,7 @@ const PolyvalenceModule = () => {
 
         // Direct HTML print for polyvalence (no route needed)
         try {
-            const htmlContent = generatePrintableReportHtml(reportData, 'polyvalence_matrix');
+            const htmlContent = await generatePrintableReportHtml(reportData, 'polyvalence_matrix');
             
             const printWindow = window.open('', '_blank');
             if (printWindow) {

@@ -30,6 +30,7 @@ const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData 
                         <TableHead>Revizyon</TableHead>
                         <TableHead>Tarih</TableHead>
                         <TableHead>Ana Malzeme</TableHead>
+                        <TableHead>Malzeme Kalınlığı</TableHead>
                         <TableHead>Kaynak Prosesi</TableHead>
                         <TableHead>Durum</TableHead>
                         <TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
@@ -37,11 +38,24 @@ const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData 
                 </TableHeader>
                 <TableBody>
                     {loading ? (
-                        <TableRow><TableCell colSpan="7" className="text-center">Yükleniyor...</TableCell></TableRow>
+                        <TableRow><TableCell colSpan="8" className="text-center">Yükleniyor...</TableCell></TableRow>
                     ) : wpsList.length === 0 ? (
-                        <TableRow><TableCell colSpan="7" className="text-center">Kayıtlı WPS bulunamadı.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan="8" className="text-center">Kayıtlı WPS bulunamadı.</TableCell></TableRow>
                     ) : (
-                        wpsList.map(wps => (
+                        wpsList.map(wps => {
+                            // Kalınlık bilgisini formatla
+                            const formatThickness = () => {
+                                if (wps.thickness_1 && wps.thickness_2) {
+                                    return `${wps.thickness_1} - ${wps.thickness_2} mm`;
+                                } else if (wps.thickness_1) {
+                                    return `${wps.thickness_1} mm`;
+                                } else if (wps.thickness_2) {
+                                    return `${wps.thickness_2} mm`;
+                                }
+                                return '-';
+                            };
+                            
+                            return (
                             <TableRow 
                                 key={wps.id}
                                 className="cursor-pointer hover:bg-muted/50"
@@ -58,6 +72,7 @@ const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData 
                                 <TableCell>{wps.revision}</TableCell>
                                 <TableCell>{format(new Date(wps.wps_date), 'dd.MM.yyyy')}</TableCell>
                                 <TableCell>{wps.base_material_1?.name || '-'}</TableCell>
+                                <TableCell>{formatThickness()}</TableCell>
                                 <TableCell>{wps.welding_process_code || '-'}</TableCell>
                                 <TableCell>{wps.status}</TableCell>
                                 <TableCell className="text-right">
@@ -90,7 +105,8 @@ const WPSList = ({ wpsList, loading, onEdit, onView, onDownloadPDF, refreshData 
                                     </AlertDialog>
                                 </TableCell>
                             </TableRow>
-                        ))
+                            );
+                        })
                     )}
                 </TableBody>
             </Table>

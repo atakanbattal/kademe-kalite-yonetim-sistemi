@@ -6,6 +6,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Plus, Trash2, Edit, Search, FileText, Eye, UploadCloud, X as XIcon, FileIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -284,7 +285,8 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                 // Mevcut raporu düzenleme modu
                 setFormData({
                     ...existingReport,
-                    report_date: existingReport.report_date ? new Date(existingReport.report_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+                    report_date: existingReport.report_date ? new Date(existingReport.report_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                    notes: existingReport.notes || ''
                 });
                 const reportItems = existingReport.items || [];
                 const loadedItems = reportItems.map((item) => ({
@@ -764,6 +766,16 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                     </div>
                                     <div><Label>Rapor Tarihi</Label><Input type="date" value={formData.report_date || ''} onChange={(e) => setFormData(f => ({ ...f, report_date: e.target.value }))} required /></div>
                                     <div><Label>Durum</Label><Select value={formData.status || ''} onValueChange={(v) => setFormData(f => ({ ...f, status: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Beklemede">Beklemede</SelectItem><SelectItem value="Onaylandı">Onaylandı</SelectItem><SelectItem value="Reddedildi">Reddedildi</SelectItem></SelectContent></Select></div>
+                                    <div className="col-span-2">
+                                        <Label>Kritik Bilgiler / Notlar</Label>
+                                        <Textarea 
+                                            value={formData.notes || ''} 
+                                            onChange={(e) => setFormData(f => ({ ...f, notes: e.target.value }))} 
+                                            placeholder="Örn: Parça, ISO 2081 standardına uygun olarak komple elektrolitik galvaniz ile kaplanacaktır. Kaplama kalınlığı 8 µm ±2 µm olacaktır..."
+                                            rows={4}
+                                            className="resize-none"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="border-t pt-4">

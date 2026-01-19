@@ -1,11 +1,10 @@
-import { toCamelCase } from './utils';
-import { logoCache, imageUrlToBase64 } from './reportUtils';
+import { logoCache, imageUrlToBase64, preloadLogos, getLogoUrl } from './reportUtils';
 
 const generatePrintableReport = (record) => {
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
     
-    // Metin alanlarını camelCase formatına çevir
-    const formatText = (text) => typeof text === 'string' ? toCamelCase(text) : text;
+    // Metin alanlarını formatla (camelCase kaldırıldı)
+    const formatText = (text) => typeof text === 'string' ? text : (text || '-');
 
     // HTML escape fonksiyonu (güvenlik için)
     const escapeHtml = (text) => {
@@ -549,7 +548,19 @@ export const generate8DPDF = (record) => {
     generatePrintableReport(record);
 };
 
-export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faultsByVehicle) => {
+export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, faultsByVehicle) => {
+    // Logoları önceden yükle (cache'de yoksa) - uygunsuzluk yönetimindeki gibi
+    await preloadLogos();
+    
+    // Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+    const localLogoUrl = getLogoUrl('logo.png');
+    const mainLogoUrl = logoCache[localLogoUrl] 
+        ? localLogoUrl
+        : (logoCache[getLogoUrl('kademe-logo.png')] 
+            ? getLogoUrl('kademe-logo.png')
+            : 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
+    const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+    
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
     
     const formatDuration = (milliseconds) => {
@@ -688,20 +699,41 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                     </span>
                 </td>
                 <td style="padding: 12px 8px; text-align: center; white-space: nowrap;">
-                    ${unresolvedFaultCount > 0 ? `<span style="color: #ef4444; font-weight: 600; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${unresolvedFaultCount}</span>` : '<span style="print-color-adjust: exact; -webkit-print-color-adjust: exact;">0</span>'}
-                    ${resolvedFaultCount > 0 ? `<span style="color: #22c55e; margin-left: 4px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">(${resolvedFaultCount})</span>` : ''}
+                    <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                        ${unresolvedFaultCount > 0 ? `
+                            <div style="display: inline-flex; align-items: center; gap: 4px; background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; border: 1px solid #ef4444; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                                <span style="display: inline-block; width: 6px; height: 6px; background-color: #ef4444; border-radius: 50%; print-color-adjust: exact; -webkit-print-color-adjust: exact;"></span>
+                                Bekleyen: ${unresolvedFaultCount}
+                            </div>
+                        ` : `
+                            <div style="display: inline-flex; align-items: center; gap: 4px; background-color: #f3f4f6; color: #6b7280; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; border: 1px solid #d1d5db; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                                <span style="display: inline-block; width: 6px; height: 6px; background-color: #9ca3af; border-radius: 50%; print-color-adjust: exact; -webkit-print-color-adjust: exact;"></span>
+                                Bekleyen: 0
+                            </div>
+                        `}
+                        ${resolvedFaultCount > 0 ? `
+                            <div style="display: inline-flex; align-items: center; gap: 4px; background-color: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; border: 1px solid #22c55e; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                                <span style="display: inline-block; width: 6px; height: 6px; background-color: #22c55e; border-radius: 50%; print-color-adjust: exact; -webkit-print-color-adjust: exact;"></span>
+                                Çözülen: ${resolvedFaultCount}
+                            </div>
+                        ` : `
+                            <div style="display: inline-flex; align-items: center; gap: 4px; background-color: #f3f4f6; color: #6b7280; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; border: 1px solid #d1d5db; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                                <span style="display: inline-block; width: 6px; height: 6px; background-color: #9ca3af; border-radius: 50%; print-color-adjust: exact; -webkit-print-color-adjust: exact;"></span>
+                                Çözülen: 0
+                            </div>
+                        `}
+                        ${(unresolvedFaultCount + resolvedFaultCount) > 0 ? `
+                            <div style="margin-top: 2px; font-size: 9px; color: #6b7280; font-weight: 500;">
+                                Toplam: ${unresolvedFaultCount + resolvedFaultCount}
+                            </div>
+                        ` : ''}
+                    </div>
                 </td>
-                <td style="padding: 12px 8px; text-align: center; font-size: 11px; white-space: nowrap;">${times.totalControlTime}</td>
                 <td style="padding: 12px 8px; text-align: center; font-size: 11px; white-space: nowrap;">${times.totalReworkTime}</td>
-                <td style="padding: 12px 8px; text-align: center; font-size: 11px; white-space: nowrap;">${formatDate(vehicle.created_at)}</td>
             </tr>
         `;
     }).join('');
 
-    // Logo base64
-    const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
-    const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
-    
     // Rapor numarası oluştur
     const reportNo = `ARAC-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`;
     const reportDate = formatDate(new Date());
@@ -724,8 +756,8 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                 }
                 .page {
                     background-color: white;
-                    width: 297mm;
-                    min-height: 210mm;
+                    width: 210mm;
+                    min-height: 297mm;
                     margin: 20px auto;
                     padding: 10mm;
                     box-sizing: border-box;
@@ -934,7 +966,7 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                         -webkit-print-color-adjust: exact !important;
                     }
                     @page {
-                        size: A4 landscape;
+                        size: A4 portrait;
                         margin: 10mm;
                     }
                 }
@@ -1003,14 +1035,12 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
                         <thead>
                             <tr>
                                 <th style="width: 3%;">#</th>
-                                <th style="width: 12%;">Şasi/Seri No</th>
-                                <th style="width: 12%;">Araç Tipi</th>
-                                <th style="width: 15%;">Müşteri</th>
-                                <th style="width: 15%;">Durum</th>
-                                <th style="width: 8%; text-align: center;">Hata</th>
-                                <th style="width: 12%; text-align: center;">Kontrol Süresi</th>
-                                <th style="width: 12%; text-align: center;">Yeniden İşlem</th>
-                                <th style="width: 11%; text-align: center;">Oluşturma</th>
+                                <th style="width: 14%;">Şasi/Seri No</th>
+                                <th style="width: 14%;">Araç Tipi</th>
+                                <th style="width: 17%;">Müşteri</th>
+                                <th style="width: 17%;">Durum</th>
+                                <th style="width: 18%; text-align: center;">Hata Durumu</th>
+                                <th style="width: 17%; text-align: center;">Yeniden İşlem</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1053,7 +1083,7 @@ export const generateVehicleSummaryReport = (vehicles, timelineByVehicle, faults
     }
 };
 
-export const generateVehicleReport = (vehicle, timeline, faults, equipment = null) => {
+export const generateVehicleReport = async (vehicle, timeline, faults, equipment = null) => {
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
     
     // formatDuration fonksiyonunu import etmek yerine burada basit bir versiyonunu kullanıyoruz
@@ -1210,8 +1240,16 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
             </div>
         </div>`;
 
-    // Logo base64
-    const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
+    // Logoları önceden yükle (cache'de yoksa) - uygunsuzluk yönetimindeki gibi
+    await preloadLogos();
+    
+    // Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+    const localLogoUrl = getLogoUrl('logo.png');
+    const mainLogoUrl = logoCache[localLogoUrl] 
+        ? localLogoUrl
+        : (logoCache[getLogoUrl('kademe-logo.png')] 
+            ? getLogoUrl('kademe-logo.png')
+            : 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
     const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
     
     // Rapor numarası oluştur
@@ -1236,8 +1274,8 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                 }
                 .page {
                     background-color: white;
-                    width: 297mm;
-                    min-height: 210mm;
+                    width: 210mm;
+                    min-height: 297mm;
                     margin: 20px auto;
                     padding: 10mm;
                     box-sizing: border-box;
@@ -1401,7 +1439,7 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                         break-inside: avoid;
                     }
                     @page {
-                        size: A4 landscape;
+                        size: A4 portrait;
                         margin: 10mm;
                     }
                 }
@@ -1581,5 +1619,170 @@ export const generateVehicleReport = (vehicle, timeline, faults, equipment = nul
                 window.printWindow = null;
             }
         });
+    }
+};
+export const generateComplaintReport = async (complaint, analyses = [], actions = []) => {
+    await preloadLogos();
+    const localLogoUrl = getLogoUrl('logo.png');
+    const mainLogoUrl = logoCache[localLogoUrl] ? localLogoUrl : (logoCache[getLogoUrl('kademe-logo.png')] ? getLogoUrl('kademe-logo.png') : 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
+    const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+    const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
+    const escapeHtml = (text) => {
+        if (!text || typeof text !== 'string') return text || '-';
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    };
+    
+    // Açıklamayı paragraflara böl ve formatla - görseldeki gibi profesyonel formatlama
+    const formatDescription = (text) => {
+        if (!text || typeof text !== 'string') return '<p style="color: #9ca3af; font-style: italic;">Açıklama bulunmamaktadır.</p>';
+        const escaped = escapeHtml(text);
+        
+        // Önce çift satır sonlarını paragraf ayırıcı olarak kullan
+        let paragraphs = escaped.split(/\n\s*\n+/).filter(p => p.trim());
+        
+        // Eğer çift satır sonu yoksa, tek satır sonlarını kullan
+        if (paragraphs.length === 1) {
+            paragraphs = escaped.split(/\n/).filter(p => p.trim());
+        }
+        
+        if (paragraphs.length === 0) return escaped;
+        
+        // Her paragrafı formatla
+        return paragraphs.map(p => {
+            const trimmed = p.trim();
+            // Eğer paragraf başlık gibi görünüyorsa (büyük harfle başlıyor ve kısa ise)
+            if (trimmed.length < 100 && /^[A-ZÇĞİÖŞÜ]/.test(trimmed)) {
+                return `<p style="margin: 0 0 8px 0; line-height: 1.6; font-size: 12px; font-weight: 600; color: #1f2937;">${trimmed}</p>`;
+            }
+            // Normal paragraf
+            return `<p style="margin: 0 0 12px 0; line-height: 1.7; font-size: 12px; color: #374151; text-align: justify;">${trimmed.replace(/\n/g, ' ')}</p>`;
+        }).join('');
+    };
+    const getSeverityBadge = (severity) => {
+        const colors = { 'Kritik': { bg: '#dc2626', text: '#ffffff' }, 'Yüksek': { bg: '#ea580c', text: '#ffffff' }, 'Orta': { bg: '#f59e0b', text: '#ffffff' }, 'Düşük': { bg: '#84cc16', text: '#ffffff' } };
+        const c = colors[severity] || { bg: '#6b7280', text: '#ffffff' };
+        return `<span style="background-color: ${c.bg}; color: ${c.text}; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; display: inline-block;">${severity}</span>`;
+    };
+    const getStatusBadge = (status) => {
+        const colors = { 'Açık': { bg: '#fde047', text: '#713f12' }, 'Analiz Aşamasında': { bg: '#fbbf24', text: '#78350f' }, 'Aksiyon Alınıyor': { bg: '#60a5fa', text: '#1e3a8a' }, 'Doğrulama Bekleniyor': { bg: '#a78bfa', text: '#4c1d95' }, 'Kapalı': { bg: '#86efac', text: '#15803d' }, 'İptal': { bg: '#fca5a5', text: '#b91c1c' } };
+        const c = colors[status] || { bg: '#e5e7eb', text: '#4b5563' };
+        return `<span style="background-color: ${c.bg}; color: ${c.text}; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; display: inline-block;">${status}</span>`;
+    };
+    // Analizler HTML'i oluştur
+    const analysesHtml = analyses && analyses.length > 0 ? analyses.map((analysis, idx) => {
+        let analysisContent = '';
+        if (analysis.analysis_type === '5N1K') {
+            analysisContent = `
+                ${analysis.what_ne ? `<p style="margin: 0 0 10px 0;"><strong style="color: #1e40af;">Ne oldu?</strong><br><span style="margin-left: 0;">${escapeHtml(analysis.what_ne)}</span></p>` : ''}
+                ${analysis.where_nerede ? `<p style="margin: 0 0 10px 0;"><strong style="color: #1e40af;">Nerede oldu?</strong><br><span style="margin-left: 0;">${escapeHtml(analysis.where_nerede)}</span></p>` : ''}
+                ${analysis.when_ne_zaman ? `<p style="margin: 0 0 10px 0;"><strong style="color: #1e40af;">Ne zaman oldu?</strong><br><span style="margin-left: 0;">${escapeHtml(analysis.when_ne_zaman)}</span></p>` : ''}
+                ${analysis.who_kim ? `<p style="margin: 0 0 10px 0;"><strong style="color: #1e40af;">Kim tespit etti?</strong><br><span style="margin-left: 0;">${escapeHtml(analysis.who_kim)}</span></p>` : ''}
+                ${analysis.why_neden ? `<p style="margin: 0 0 10px 0;"><strong style="color: #1e40af;">Neden oldu?</strong><br><span style="margin-left: 0;">${escapeHtml(analysis.why_neden)}</span></p>` : ''}
+                ${analysis.how_nasil ? `<p style="margin: 0 0 10px 0;"><strong style="color: #1e40af;">Nasıl tespit edildi?</strong><br><span style="margin-left: 0;">${escapeHtml(analysis.how_nasil)}</span></p>` : ''}
+            `;
+        } else if (analysis.analysis_type === '5 Neden') {
+            analysisContent = `
+                ${analysis.why_1 ? `<p style="margin: 0 0 8px 0;"><strong style="color: #1e40af;">1. Neden:</strong> ${escapeHtml(analysis.why_1)}</p>` : ''}
+                ${analysis.why_2 ? `<p style="margin: 0 0 8px 0;"><strong style="color: #1e40af;">2. Neden:</strong> ${escapeHtml(analysis.why_2)}</p>` : ''}
+                ${analysis.why_3 ? `<p style="margin: 0 0 8px 0;"><strong style="color: #1e40af;">3. Neden:</strong> ${escapeHtml(analysis.why_3)}</p>` : ''}
+                ${analysis.why_4 ? `<p style="margin: 0 0 8px 0;"><strong style="color: #1e40af;">4. Neden:</strong> ${escapeHtml(analysis.why_4)}</p>` : ''}
+                ${analysis.why_5 ? `<p style="margin: 0 0 12px 0;"><strong style="color: #1e40af;">5. Neden:</strong> ${escapeHtml(analysis.why_5)}</p>` : ''}
+                ${analysis.root_cause ? `<div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid #3b82f6; background-color: #eff6ff; padding: 12px; border-radius: 4px;"><strong style="color: #1e40af; font-size: 13px;">Kök Neden:</strong><p style="margin-top: 6px; margin-bottom: 0;">${formatDescription(analysis.root_cause)}</p></div>` : ''}
+            `;
+        } else if (analysis.analysis_summary) {
+            analysisContent = formatDescription(analysis.analysis_summary);
+        }
+        return `
+            <div class="analysis-item" style="margin-bottom: 20px; padding: 18px; background-color: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #3b82f6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb;">
+                    <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #1e40af;">${escapeHtml(analysis.analysis_type)} Analizi</h4>
+                    <span style="font-size: 11px; color: #6b7280; background-color: #f3f4f6; padding: 4px 8px; border-radius: 4px;">${formatDate(analysis.analysis_date)}</span>
+                </div>
+                <div style="font-size: 12px; line-height: 1.7; color: #374151;">
+                    ${analysisContent}
+                    ${analysis.analysis_summary && analysis.analysis_type !== '5N1K' && analysis.analysis_type !== '5 Neden' ? `<div style="margin-top: 12px;"><strong style="color: #1e40af;">Analiz Özeti:</strong><div style="margin-top: 8px;">${formatDescription(analysis.analysis_summary)}</div></div>` : ''}
+                    ${analysis.immediate_action ? `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;"><strong style="color: #dc2626; font-size: 13px;">Anlık Aksiyon:</strong><div style="margin-top: 8px;">${formatDescription(analysis.immediate_action)}</div></div>` : ''}
+                    ${analysis.preventive_action ? `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;"><strong style="color: #059669; font-size: 13px;">Önleyici Aksiyon:</strong><div style="margin-top: 8px;">${formatDescription(analysis.preventive_action)}</div></div>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('') : '<div style="padding: 20px; text-align: center; color: #9ca3af; font-style: italic; background-color: #f9fafb; border-radius: 4px;">Henüz analiz kaydı bulunmamaktadır.</div>';
+    
+    // Aksiyonlar HTML'i oluştur
+    const actionsHtml = actions && actions.length > 0 ? actions.map((action, idx) => {
+        const getStatusColor = (status) => {
+            const colors = {
+                'Planlandı': { bg: '#fef3c7', text: '#92400e', border: '#f59e0b' },
+                'Devam Ediyor': { bg: '#dbeafe', text: '#1e40af', border: '#3b82f6' },
+                'Tamamlandı': { bg: '#dcfce7', text: '#166534', border: '#22c55e' },
+                'İptal': { bg: '#fee2e2', text: '#991b1b', border: '#ef4444' },
+                'Ertelendi': { bg: '#f3f4f6', text: '#4b5563', border: '#9ca3af' }
+            };
+            return colors[action.status] || colors['Planlandı'];
+        };
+        const statusColor = getStatusColor(action.status);
+        return `
+            <div class="action-item" style="margin-bottom: 20px; padding: 18px; background-color: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid ${statusColor.border}; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 2px solid #e5e7eb;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #1f2937;">${escapeHtml(action.action_title)}</h4>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; background-color: ${statusColor.bg}; color: ${statusColor.text}; border: 1px solid ${statusColor.border};">
+                                ${escapeHtml(action.action_type)}
+                            </span>
+                            <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; background-color: ${statusColor.bg}; color: ${statusColor.text}; border: 1px solid ${statusColor.border};">
+                                ${escapeHtml(action.status)}
+                            </span>
+                        </div>
+                    </div>
+                    ${action.completion_percentage !== null && action.completion_percentage !== undefined ? `
+                        <div style="text-align: right; background-color: #f3f4f6; padding: 8px 12px; border-radius: 6px;">
+                            <div style="font-size: 10px; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Tamamlanma</div>
+                            <div style="font-size: 18px; font-weight: 700; color: #1e40af;">${action.completion_percentage}%</div>
+                        </div>
+                    ` : ''}
+                </div>
+                <div style="font-size: 12px; line-height: 1.7; color: #374151; margin-bottom: 15px;">
+                    <strong style="color: #1e40af; display: block; margin-bottom: 6px;">Açıklama:</strong>
+                    <div style="padding-left: 8px; border-left: 2px solid #e5e7eb;">
+                        ${formatDescription(action.action_description)}
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 11px; color: #6b7280; padding-top: 15px; border-top: 1px solid #e5e7eb; background-color: #f9fafb; padding: 12px; border-radius: 4px;">
+                    ${action.responsible_person?.full_name ? `<div><strong style="color: #374151;">Sorumlu:</strong> ${escapeHtml(action.responsible_person.full_name)}</div>` : ''}
+                    ${action.responsible_department?.unit_name ? `<div><strong style="color: #374151;">Departman:</strong> ${escapeHtml(action.responsible_department.unit_name)}</div>` : ''}
+                    ${action.planned_start_date ? `<div><strong style="color: #374151;">Planlanan Başlangıç:</strong> ${formatDate(action.planned_start_date)}</div>` : ''}
+                    ${action.planned_end_date ? `<div><strong style="color: #374151;">Planlanan Bitiş:</strong> ${formatDate(action.planned_end_date)}</div>` : ''}
+                    ${action.actual_start_date ? `<div><strong style="color: #374151;">Gerçekleşen Başlangıç:</strong> ${formatDate(action.actual_start_date)}</div>` : ''}
+                    ${action.actual_completion_date ? `<div><strong style="color: #374151;">Gerçekleşen Bitiş:</strong> ${formatDate(action.actual_completion_date)}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('') : '<div style="padding: 20px; text-align: center; color: #9ca3af; font-style: italic; background-color: #f9fafb; border-radius: 4px;">Henüz aksiyon kaydı bulunmamaktadır.</div>';
+    
+    const reportNo = complaint.complaint_number || `CS-${Date.now().toString().slice(-6)}`;
+    const reportDate = formatDate(new Date());
+    
+    // Section numarasını dinamik olarak hesapla
+    let sectionNum = 3;
+    if (complaint.product_name || complaint.product_code || complaint.batch_number) sectionNum++;
+    if (complaint.responsible_department || complaint.responsible_person || complaint.assigned_to) sectionNum++;
+    if (analyses && analyses.length > 0) sectionNum++;
+    if (actions && actions.length > 0) sectionNum++;
+    const analysesSectionNum = (complaint.product_name || complaint.product_code || complaint.batch_number) ? 
+        ((complaint.responsible_department || complaint.responsible_person || complaint.assigned_to) ? 5 : 4) : 
+        ((complaint.responsible_department || complaint.responsible_person || complaint.assigned_to) ? 4 : 3);
+    const actionsSectionNum = analysesSectionNum + (analyses && analyses.length > 0 ? 1 : 0);
+    
+    const htmlContent = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Müşteri Şikayeti Raporu - ${reportNo}</title><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');body{font-family:'Inter',sans-serif;color:#1f2937;margin:0;padding:0;background-color:#f3f4f6}.page{background-color:white;width:210mm;min-height:297mm;margin:20px auto;padding:10mm;box-sizing:border-box;box-shadow:0 0 10px rgba(0,0,0,0.1)}.header{display:grid;grid-template-columns:auto 1fr auto;gap:15px;align-items:center;border-bottom:1px solid #e5e7eb;padding-bottom:8px;margin-bottom:10px;page-break-inside:avoid}.header-logo{height:50px;width:auto}.company-title{text-align:center}.company-title h1{font-size:20px;font-weight:700;margin:0;color:#111827}.company-title p{font-size:12px;margin:0;color:#4b5563}.print-info{text-align:right;font-size:9px;color:#4b5563;line-height:1.4}.section{margin-bottom:20px;page-break-inside:avoid}.section-title{font-size:14px;font-weight:700;color:white;background-color:#1e40af;padding:6px 10px;border-radius:4px;margin-bottom:12px;text-transform:uppercase}.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.info-item{background-color:#f9fafb;border-radius:4px;padding:8px;border:1px solid #e5e7eb}.info-item .label{display:block;font-size:11px;color:#6b7280;margin-bottom:4px;font-weight:600}.info-item .value{font-size:13px;font-weight:600;color:#1f2937}.full-width{grid-column:1/-1}.description-box{background-color:#f9fafb;border-left:4px solid #3b82f6;padding:20px;border-radius:4px;margin-top:8px;min-height:100px;box-shadow:0 1px 3px rgba(0,0,0,0.05)}.description-box p{margin:0 0 12px 0;font-size:12px;line-height:1.7;color:#374151;text-align:justify}.description-box p:last-child{margin-bottom:0}.description-box p strong{color:#1e40af;font-weight:600}.footer{text-align:center;margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af}@media print{*{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;color-adjust:exact!important}body{background-color:white!important;margin:0!important;padding:0!important}.page{margin:0!important;box-shadow:none!important;border:none!important}@page{size:A4 portrait;margin:10mm}}</style></head><body><div class="page"><div class="header"><div class="report-logo"><img src="${mainLogoBase64}" alt="Kademe Logo" class="header-logo"/></div><div class="company-title"><h1>KADEME A.Ş.</h1><p>Kalite Yönetim Sistemi</p></div><div class="print-info">Rapor No: ${reportNo}<br>Tarih: ${reportDate}</div></div><div class="section"><h2 class="section-title">1. ŞİKAYET BİLGİLERİ</h2><div class="info-grid"><div class="info-item"><span class="label">Şikayet Numarası</span><span class="value">${escapeHtml(complaint.complaint_number||'-')}</span></div><div class="info-item"><span class="label">Şikayet Tarihi</span><span class="value">${formatDate(complaint.complaint_date)}</span></div><div class="info-item"><span class="label">Önem Seviyesi</span><span class="value">${getSeverityBadge(complaint.severity)}</span></div><div class="info-item"><span class="label">Durum</span><span class="value">${getStatusBadge(complaint.status)}</span></div><div class="info-item"><span class="label">Kaynak</span><span class="value">${escapeHtml(complaint.complaint_source||'-')}</span></div><div class="info-item"><span class="label">Kategori</span><span class="value">${escapeHtml(complaint.complaint_category||'-')}</span></div><div class="info-item full-width"><span class="label">Başlık</span><span class="value" style="font-size: 14px; font-weight: 700;">${escapeHtml(complaint.title||'-')}</span></div><div class="info-item full-width"><span class="label">Açıklama</span><div class="description-box">${formatDescription(complaint.description||'-')}</div></div></div></div><div class="section"><h2 class="section-title">2. MÜŞTERİ BİLGİLERİ</h2><div class="info-grid"><div class="info-item"><span class="label">Müşteri Adı</span><span class="value">${escapeHtml(complaint.customer?.customer_name||complaint.customer?.name||'-')}</span></div><div class="info-item"><span class="label">Müşteri Kodu</span><span class="value">${escapeHtml(complaint.customer?.customer_code||'-')}</span></div>${complaint.customer?.contact_person?`<div class="info-item"><span class="label">Yetkili Kişi</span><span class="value">${escapeHtml(complaint.customer.contact_person)}</span></div>`:''}${complaint.customer?.contact_email?`<div class="info-item"><span class="label">Email</span><span class="value">${escapeHtml(complaint.customer.contact_email)}</span></div>`:''}${complaint.customer?.contact_phone?`<div class="info-item"><span class="label">Telefon</span><span class="value">${escapeHtml(complaint.customer.contact_phone)}</span></div>`:''}</div></div>${(complaint.product_name||complaint.product_code||complaint.batch_number)?`<div class="section"><h2 class="section-title">3. ÜRÜN BİLGİLERİ</h2><div class="info-grid">${complaint.product_name?`<div class="info-item"><span class="label">Ürün Adı</span><span class="value">${escapeHtml(complaint.product_name)}</span></div>`:''}${complaint.product_code?`<div class="info-item"><span class="label">Ürün Kodu</span><span class="value">${escapeHtml(complaint.product_code)}</span></div>`:''}${complaint.batch_number?`<div class="info-item"><span class="label">Parti/Lot No</span><span class="value">${escapeHtml(complaint.batch_number)}</span></div>`:''}${complaint.quantity_affected?`<div class="info-item"><span class="label">Etkilenen Miktar</span><span class="value">${complaint.quantity_affected}</span></div>`:''}${complaint.production_date?`<div class="info-item"><span class="label">Üretim Tarihi</span><span class="value">${formatDate(complaint.production_date)}</span></div>`:''}</div></div>`:''}${(complaint.responsible_department||complaint.responsible_person||complaint.assigned_to)?`<div class="section"><h2 class="section-title">${(complaint.product_name||complaint.product_code||complaint.batch_number)?'4':'3'}. SORUMLULUK</h2><div class="info-grid">${complaint.responsible_department?.unit_name?`<div class="info-item"><span class="label">Sorumlu Departman</span><span class="value">${escapeHtml(complaint.responsible_department.unit_name)}</span></div>`:''}${complaint.responsible_person?.full_name?`<div class="info-item"><span class="label">Sorumlu Kişi</span><span class="value">${escapeHtml(complaint.responsible_person.full_name)}</span></div>`:''}${complaint.assigned_to?.full_name?`<div class="info-item"><span class="label">Atanan Kişi</span><span class="value">${escapeHtml(complaint.assigned_to.full_name)}</span></div>`:''}</div></div>`:''}${analyses && analyses.length > 0 ? `<div class="section"><h2 class="section-title">${analysesSectionNum}. ANALİZLER</h2>${analysesHtml}</div>` : ''}${actions && actions.length > 0 ? `<div class="section"><h2 class="section-title">${actionsSectionNum}. AKSİYONLAR</h2>${actionsHtml}</div>` : ''}<div class="footer">Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.</div></div></body></html>`;
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    if (window.printWindow && !window.printWindow.closed) window.printWindow.close();
+    const printWindow = window.open(url, '_blank', 'width=800,height=600');
+    if (printWindow) {
+        window.printWindow = printWindow;
+        printWindow.addEventListener('load', () => setTimeout(() => printWindow.print(), 500));
+        printWindow.addEventListener('afterprint', () => { URL.revokeObjectURL(url); if (window.printWindow) window.printWindow = null; });
     }
 };

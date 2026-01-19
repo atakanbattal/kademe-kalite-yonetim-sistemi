@@ -160,15 +160,17 @@ const NCFormGeneral = ({
     record,
 }) => {
     const isEditMode = !!record?.id;
-    const [isSupplierNC, setIsSupplierNC] = useState(formData.supplier_id || false);
+    const [isSupplierNC, setIsSupplierNC] = useState(!!(formData.is_supplier_nc || formData.supplier_id));
     const [suppliers, setSuppliers] = useState([]);
     const [selectedSupplierStatus, setSelectedSupplierStatus] = useState(null);
     const { toInputDateString } = useNCForm();
     const [lightboxUrl, setLightboxUrl] = useState(null);
 
     useEffect(() => {
-        setIsSupplierNC(!!formData.is_supplier_nc);
-    }, [formData.is_supplier_nc]);
+        // Tedarikçi DF kontrolü: hem is_supplier_nc hem de supplier_id ile kontrol et
+        const shouldBeSupplierNC = !!(formData.is_supplier_nc || formData.supplier_id);
+        setIsSupplierNC(shouldBeSupplierNC);
+    }, [formData.is_supplier_nc, formData.supplier_id]);
     
     useEffect(() => {
         if (formData.supplier_id) {
@@ -180,6 +182,20 @@ const NCFormGeneral = ({
             setSelectedSupplierStatus(null);
         }
     }, [formData.supplier_id, suppliers]);
+
+    // Personnel listesi yüklendikten sonra requesting_person'dan requesting_unit'i otomatik set et
+    useEffect(() => {
+        if (personnel && personnel.length > 0 && formData.requesting_person) {
+            const selectedPerson = personnel.find(p => p.full_name === formData.requesting_person);
+            // Eğer requesting_unit yoksa veya boşsa, personelin birimini set et
+            if (selectedPerson && selectedPerson.department && (!formData.requesting_unit || formData.requesting_unit === '')) {
+                setFormData(prev => ({
+                    ...prev,
+                    requesting_unit: selectedPerson.department
+                }));
+            }
+        }
+    }, [personnel, formData.requesting_person, formData.requesting_unit, setFormData]);
 
     useEffect(() => {
         const fetchSuppliers = async () => {
@@ -195,14 +211,37 @@ const NCFormGeneral = ({
 
     const handleSupplierToggle = (checked) => {
         setIsSupplierNC(checked);
-        setFormData(prev => ({
-            ...prev,
-            is_supplier_nc: checked,
-            supplier_id: checked ? prev.supplier_id : null,
-            department: checked ? 'Tedarikçi' : '',
-            responsible_person: checked ? null : prev.responsible_person,
-            responsible_personnel_id: checked ? null : prev.responsible_personnel_id,
-        }));
+        
+        setFormData(prev => {
+            const updates = {
+                is_supplier_nc: checked,
+            };
+            
+            if (checked) {
+                // Toggle açıldığında: supplier_id varsa koru, yoksa null bırak
+                updates.supplier_id = prev.supplier_id || null;
+                updates.department = 'Tedarikçi';
+                updates.responsible_person = null;
+                updates.responsible_personnel_id = null;
+            } else {
+                // Toggle kapatıldığında: düzenleme modunda supplier_id'yi koru, yeni kayıtta temizle
+                if (isEditMode && prev.supplier_id) {
+                    // Düzenleme modunda: supplier_id'yi koru ama is_supplier_nc'yi false yap
+                    updates.supplier_id = prev.supplier_id;
+                } else {
+                    // Yeni kayıt: supplier_id'yi temizle
+                    updates.supplier_id = null;
+                }
+                updates.department = '';
+                // responsible_person ve responsible_personnel_id'yi sadece yeni kayıtta temizle
+                if (!isEditMode) {
+                    updates.responsible_person = null;
+                    updates.responsible_personnel_id = null;
+                }
+            }
+            
+            return { ...prev, ...updates };
+        });
     };
 
     const supplierOptions = suppliers.map(s => ({

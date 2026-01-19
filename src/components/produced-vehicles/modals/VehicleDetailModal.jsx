@@ -339,11 +339,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             }
         }, [isOpen, vehicle?.id, toast]);
 
-        const generateReport = () => {
+        const generateReport = async () => {
             if (!vehicle) return;
             
             try {
-                generateVehicleReport(vehicle, timeline, faults, equipment);
+                await generateVehicleReport(vehicle, timeline, faults, equipment);
                 
                 toast({
                     title: 'Rapor Oluşturuluyor',
