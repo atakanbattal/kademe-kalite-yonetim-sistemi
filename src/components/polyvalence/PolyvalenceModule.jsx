@@ -8,25 +8,25 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-    Users, GraduationCap, TrendingUp, AlertTriangle, 
+import {
+    Users, GraduationCap, TrendingUp, AlertTriangle,
     Search, Plus, Filter, Download, BarChart3,
     Award, Target, BookOpen, Clock
 } from 'lucide-react';
 import { generatePrintableReportHtml } from '@/lib/reportUtils';
 import { normalizeTurkishForSearch } from '@/lib/utils';
-import PolyvalenceMatrix from './polyvalence/PolyvalenceMatrix';
-import PolyvalenceAnalytics from './polyvalence/PolyvalenceAnalytics';
-import SkillManagement from './polyvalence/SkillManagement';
-import TrainingNeedsAnalysis from './polyvalence/TrainingNeedsAnalysis';
-import PersonnelSelectionModal from './polyvalence/PersonnelSelectionModal';
-import TrainingFormModal from './training/TrainingFormModal'; // ✅ Değişti: Gelişmiş training modal
+import PolyvalenceMatrix from './PolyvalenceMatrix';
+import PolyvalenceAnalytics from './PolyvalenceAnalytics';
+import SkillManagement from './SkillManagement';
+import TrainingNeedsAnalysis from './TrainingNeedsAnalysis';
+import PersonnelSelectionModal from './PersonnelSelectionModal';
+import TrainingFormModal from '@/components/training/TrainingFormModal'; // ✅ Değişti: Gelişmiş training modal
 
 const PolyvalenceModule = () => {
     const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('matrix');
-    
+
     // Data states
     const [personnel, setPersonnel] = useState([]);
     const [skills, setSkills] = useState([]);
@@ -34,12 +34,12 @@ const PolyvalenceModule = () => {
     const [personnelSkills, setPersonnelSkills] = useState([]);
     const [certificationAlerts, setCertificationAlerts] = useState([]);
     const [polyvalenceSummary, setPolyvalenceSummary] = useState([]);
-    
+
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDepartment, setSelectedDepartment] = useState('all');
     const [selectedCategory, setSelectedCategory] = useState('all');
-    
+
     // Modal states
     const [isPersonnelModalOpen, setIsPersonnelModalOpen] = useState(false);
     const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
@@ -57,7 +57,7 @@ const PolyvalenceModule = () => {
             skills: filteredSkills, // FILTERED
             skillCategories: skillCategories,
             personnelSkills: filteredPersonnelSkills, // FILTERED
-            certificationAlerts: certificationAlerts.filter(a => 
+            certificationAlerts: certificationAlerts.filter(a =>
                 filteredPersonnel.some(p => p.id === a.personnel_id)
             ), // FILTERED
             summary: stats, // Already filtered
@@ -73,12 +73,12 @@ const PolyvalenceModule = () => {
         // Direct HTML print for polyvalence (no route needed)
         try {
             const htmlContent = await generatePrintableReportHtml(reportData, 'polyvalence_matrix');
-            
+
             const printWindow = window.open('', '_blank');
             if (printWindow) {
                 printWindow.document.write(htmlContent);
                 printWindow.document.close();
-                
+
                 // Wait for content to load then trigger print
                 printWindow.onload = () => {
                     setTimeout(() => {
@@ -172,8 +172,8 @@ const PolyvalenceModule = () => {
     const filteredPersonnel = useMemo(() => {
         return personnel.filter(p => {
             const matchesSearch = p.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 p.department?.toLowerCase().includes(searchTerm.toLowerCase());
-            
+                p.department?.toLowerCase().includes(searchTerm.toLowerCase());
+
             let matchesDept = true;
             if (selectedDepartment !== 'all') {
                 if (!p.department) {
@@ -191,12 +191,12 @@ const PolyvalenceModule = () => {
     // Filtered skills - departman bazlı filtreleme eklendi
     const filteredSkills = useMemo(() => {
         let result = skills;
-        
+
         // Kategori filtresi
         if (selectedCategory !== 'all') {
             result = result.filter(s => s.category_id === selectedCategory);
         }
-        
+
         // Departman filtresi - seçili departman varsa
         if (selectedDepartment !== 'all') {
             result = result.filter(s => {
@@ -206,7 +206,7 @@ const PolyvalenceModule = () => {
                 return normalizedSkillDept === normalizedSelectedDept;
             });
         }
-        
+
         return result;
     }, [skills, selectedCategory, selectedDepartment]);
 
@@ -214,8 +214,8 @@ const PolyvalenceModule = () => {
     const filteredPersonnelSkills = useMemo(() => {
         const filteredPersonnelIds = filteredPersonnel.map(p => p.id);
         const filteredSkillIds = filteredSkills.map(s => s.id);
-        return personnelSkills.filter(ps => 
-            filteredPersonnelIds.includes(ps.personnel_id) && 
+        return personnelSkills.filter(ps =>
+            filteredPersonnelIds.includes(ps.personnel_id) &&
             filteredSkillIds.includes(ps.skill_id)
         );
     }, [personnelSkills, filteredPersonnel, filteredSkills]);
@@ -231,22 +231,22 @@ const PolyvalenceModule = () => {
             return matchesStatus && isInFilteredPersonnel;
         }).length;
         const trainingNeeds = filteredPersonnelSkills.filter(ps => ps.training_required).length;
-        
+
         // ✅ Polivalans skorunu manuel hesapla (her zaman güncel verilerle)
         // View'den gelen veriler cache'lenmiş olabilir, bu yüzden her zaman manuel hesaplama yapıyoruz
         const personnelScores = filteredPersonnel.map(person => {
             const personSkills = filteredPersonnelSkills.filter(ps => ps.personnel_id === person.id);
             const totalSkillsCount = personSkills.length;
-            
+
             if (totalSkillsCount === 0) return 0;
-            
+
             // Seviye 3 ve üzeri yetkin kabul edilir
             // Polivalans skoru: Kişinin sahip olduğu yetkinlikler içinde seviye 3+ olanların oranı
             const proficientCount = personSkills.filter(ps => ps.current_level >= 3).length;
-            
+
             return (proficientCount / totalSkillsCount) * 100;
         });
-        
+
         const avgPolyvalence = personnelScores.length > 0
             ? (personnelScores.reduce((sum, score) => sum + score, 0) / personnelScores.length).toFixed(1)
             : 0;
