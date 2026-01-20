@@ -64,7 +64,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                 .from('supplier_documents')
                 .select('*, suppliers!supplier_documents_supplier_id_fkey(name)')
                 .order('uploaded_at', { ascending: false });
-            
+
             // Eğer tedarikçi seçiliyse filtrele
             if (selectedSupplier) {
                 query = query.eq('supplier_id', selectedSupplier.id);
@@ -100,7 +100,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             setLoading(false);
         }
     };
-    
+
     // Arama terimi değiştiğinde dokümanları filtrele (client-side)
     useEffect(() => {
         if (!loading && documents.length > 0) {
@@ -140,7 +140,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                 const timestamp = Date.now();
                 const randomStr = Math.random().toString(36).substring(2, 9);
                 const filePath = `suppliers/${selectedSupplier.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
-                
+
                 const { error: uploadError } = await supabase.storage
                     .from(BUCKET_NAME)
                     .upload(filePath, file, {
@@ -148,34 +148,21 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                         upsert: false,
                         contentType: file.type || 'application/octet-stream'
                     });
-                
+
                 if (uploadError) throw uploadError;
 
                 const fileExt = file.name.split('.').pop();
                 const tagsArray = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-                
-                // Önce documents tablosuna kayıt oluştur
-                const { data: documentData, error: documentError } = await supabase
-                    .from('documents')
-                    .insert({
-                        title: file.name,
-                        document_type: docType,
-                        document_category: docType,
-                        supplier_id: selectedSupplier.id,
-                        user_id: user?.id,
-                        tags: tagsArray.length > 0 ? tagsArray : null,
-                        status: 'Aktif'
-                    })
-                    .select('id')
-                    .single();
-                
-                if (documentError) throw documentError;
-                if (!documentData?.id) throw new Error('Document kaydı oluşturulamadı');
-                
+
+                // documents tablosuna kayıt oluşturma ADIMINI ATLIYORUZ
+                // Çünkü documents tablosundaki olası temizlik işlemleri cascade silinmeye neden oluyor
+
+                // Doğrudan supplier_documents tablosuna kayıt ekle
+
                 // Sonra supplier_documents tablosuna kayıt ekle
                 const { error: dbError } = await supabase.from('supplier_documents').insert({
                     supplier_id: selectedSupplier.id,
-                    document_id: documentData.id,
+                    // document_id: documentData.id, // ARTIK BAĞIMSIZ - NULL OLABİLİR
                     document_type: docType,
                     document_name: file.name,
                     document_category: docType,
@@ -189,7 +176,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                     related_audit_id: relatedAuditId && relatedAuditId !== 'none' ? relatedAuditId : null,
                     status: 'Aktif'
                 });
-                
+
                 if (dbError) throw dbError;
             }
 
@@ -299,7 +286,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                             Dosya Yükle
                         </Button>
                     </div>
-                    
+
                     <div className="mb-4">
                         <Label>Tedarikçi Seç</Label>
                         <Select value={selectedSupplier?.id || 'all'} onValueChange={(value) => {
@@ -390,7 +377,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                     <div className="flex-shrink-0">
                                         {getFileIcon(doc.file_type)}
                                     </div>
-                                    
+
                                     {/* Doküman Bilgileri */}
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
@@ -404,21 +391,21 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                                 </Badge>
                                             )}
                                         </div>
-                                        
+
                                         {/* Tedarikçi adı (tüm tedarikçiler görüntülenirken) */}
                                         {!selectedSupplier && doc.suppliers && (
                                             <div className="text-xs text-muted-foreground mb-1">
                                                 Tedarikçi: {doc.suppliers.name}
                                             </div>
                                         )}
-                                        
+
                                         {/* Açıklama */}
                                         {doc.document_description && (
                                             <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
                                                 {doc.document_description}
                                             </p>
                                         )}
-                                        
+
                                         {/* Meta Bilgiler */}
                                         <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                                             <div className="flex items-center gap-1">
@@ -429,7 +416,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                                 <div>Boyut: {formatFileSize(doc.file_size)}</div>
                                             )}
                                         </div>
-                                        
+
                                         {/* İlişkili Kayıtlar ve Etiketler */}
                                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                                             {doc.related_nc_id && (
@@ -452,7 +439,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                             ))}
                                         </div>
                                     </div>
-                                    
+
                                     {/* Aksiyon Butonları */}
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                         <Button size="sm" variant="outline" onClick={() => viewDocument(doc)}>
@@ -476,8 +463,8 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                    <AlertDialogAction 
-                                                        onClick={() => deleteDocument(doc)} 
+                                                    <AlertDialogAction
+                                                        onClick={() => deleteDocument(doc)}
                                                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                                     >
                                                         Sil
@@ -504,105 +491,105 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
-                        <div>
-                            <Label>Doküman Tipi <span className="text-red-500">*</span></Label>
-                            <Select value={docType} onValueChange={setDocType}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent className="z-[100]">
-                                    {DOCUMENT_TYPES.map(t => (
-                                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label htmlFor="file">Dosya Seç <span className="text-red-500">*</span></Label>
-                            <Input 
-                                id="file" 
-                                type="file" 
-                                multiple 
-                                onChange={handleFileSelect}
-                                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
-                            />
-                            {selectedFiles.length > 0 && (
-                                <div className="mt-2 space-y-1">
-                                    {selectedFiles.map((file, idx) => (
-                                        <div key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
-                                            <File className="w-4 h-4" />
-                                            {file.name} ({(file.size / 1024).toFixed(1)} KB)
-                                        </div>
-                                    ))}
+                            <div>
+                                <Label>Doküman Tipi <span className="text-red-500">*</span></Label>
+                                <Select value={docType} onValueChange={setDocType}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent className="z-[100]">
+                                        {DOCUMENT_TYPES.map(t => (
+                                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="file">Dosya Seç <span className="text-red-500">*</span></Label>
+                                <Input
+                                    id="file"
+                                    type="file"
+                                    multiple
+                                    onChange={handleFileSelect}
+                                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                                />
+                                {selectedFiles.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                        {selectedFiles.map((file, idx) => (
+                                            <div key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
+                                                <File className="w-4 h-4" />
+                                                {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <Label htmlFor="description">Açıklama</Label>
+                                <Textarea
+                                    id="description"
+                                    value={docDescription}
+                                    onChange={(e) => setDocDescription(e.target.value)}
+                                    rows={3}
+                                    placeholder="Doküman hakkında açıklama..."
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="tags">Etiketler</Label>
+                                <Input
+                                    id="tags"
+                                    value={tags}
+                                    onChange={(e) => setTags(e.target.value)}
+                                    placeholder="virgülle ayırın: örn: kalite, test, rapor"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label>İlgili Uygunsuzluk (NC)</Label>
+                                    <Select value={relatedNcId} onValueChange={setRelatedNcId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seçiniz (opsiyonel)" />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[100]">
+                                            <SelectItem value="none">Yok</SelectItem>
+                                            {selectedSupplier && nonConformities
+                                                ?.filter(nc => nc.supplier_id === selectedSupplier.id)
+                                                .map(nc => (
+                                                    <SelectItem key={nc.id} value={nc.id}>
+                                                        {nc.nc_number || nc.title || `NC-${nc.id?.substring(0, 8)}`}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                            )}
-                        </div>
-                        <div>
-                            <Label htmlFor="description">Açıklama</Label>
-                            <Textarea 
-                                id="description" 
-                                value={docDescription} 
-                                onChange={(e) => setDocDescription(e.target.value)} 
-                                rows={3}
-                                placeholder="Doküman hakkında açıklama..."
-                            />
-                        </div>
-                        <div>
-                            <Label htmlFor="tags">Etiketler</Label>
-                            <Input 
-                                id="tags" 
-                                value={tags} 
-                                onChange={(e) => setTags(e.target.value)}
-                                placeholder="virgülle ayırın: örn: kalite, test, rapor"
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label>İlgili Uygunsuzluk (NC)</Label>
-                                <Select value={relatedNcId} onValueChange={setRelatedNcId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seçiniz (opsiyonel)" />
-                                    </SelectTrigger>
-                                    <SelectContent className="z-[100]">
-                                        <SelectItem value="none">Yok</SelectItem>
-                                        {selectedSupplier && nonConformities
-                                            ?.filter(nc => nc.supplier_id === selectedSupplier.id)
-                                            .map(nc => (
-                                                <SelectItem key={nc.id} value={nc.id}>
-                                                    {nc.nc_number || nc.title || `NC-${nc.id?.substring(0, 8)}`}
-                                                </SelectItem>
-                                            ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label>İlgili Denetim</Label>
-                                <Select value={relatedAuditId} onValueChange={setRelatedAuditId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seçiniz (opsiyonel)" />
-                                    </SelectTrigger>
-                                    <SelectContent className="z-[100]">
-                                        <SelectItem value="none">Yok</SelectItem>
-                                        {selectedSupplier && supplierAuditPlans
-                                            ?.filter(audit => audit.supplier_id === selectedSupplier.id)
-                                            .map(audit => (
-                                                <SelectItem key={audit.id} value={audit.id}>
-                                                    {audit.audit_number || `Denetim ${audit.audit_date ? format(new Date(audit.audit_date), 'dd.MM.yyyy', { locale: tr }) : audit.id?.substring(0, 8)}`}
-                                                </SelectItem>
-                                            ))}
-                                    </SelectContent>
-                                </Select>
+                                <div>
+                                    <Label>İlgili Denetim</Label>
+                                    <Select value={relatedAuditId} onValueChange={setRelatedAuditId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seçiniz (opsiyonel)" />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[100]">
+                                            <SelectItem value="none">Yok</SelectItem>
+                                            {selectedSupplier && supplierAuditPlans
+                                                ?.filter(audit => audit.supplier_id === selectedSupplier.id)
+                                                .map(audit => (
+                                                    <SelectItem key={audit.id} value={audit.id}>
+                                                        {audit.audit_number || `Denetim ${audit.audit_date ? format(new Date(audit.audit_date), 'dd.MM.yyyy', { locale: tr }) : audit.id?.substring(0, 8)}`}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setUploadOpen(false)} disabled={isUploading}>
-                            İptal
-                        </Button>
-                        <Button 
-                            onClick={handleUpload} 
-                            disabled={isUploading || selectedFiles.length === 0 || !selectedSupplier}
-                        >
-                            {isUploading ? 'Yükleniyor...' : `Yükle (${selectedFiles.length} dosya)`}
-                        </Button>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setUploadOpen(false)} disabled={isUploading}>
+                                İptal
+                            </Button>
+                            <Button
+                                onClick={handleUpload}
+                                disabled={isUploading || selectedFiles.length === 0 || !selectedSupplier}
+                            >
+                                {isUploading ? 'Yükleniyor...' : `Yükle (${selectedFiles.length} dosya)`}
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
