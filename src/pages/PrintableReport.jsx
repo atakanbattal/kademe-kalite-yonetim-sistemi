@@ -305,10 +305,7 @@ const PrintableReport = () => {
                         }
                         break;
                     }
-                    case 'incoming_control_plans':
-                    case 'stock_risk_controls': {
-                        break;
-                    }
+
                     case 'inkr_management': {
                         // INKR için karakteristik ve ekipman isimlerini ekle
                         if (recordData?.items && Array.isArray(recordData.items)) {
@@ -330,6 +327,7 @@ const PrintableReport = () => {
                         }
                         break;
                     }
+                    case 'incoming_control_plans':
                     case 'stock_risk_controls': {
                         const tableMap = {
                             'incoming_control_plans': 'incoming_control_plans',
@@ -420,7 +418,7 @@ const PrintableReport = () => {
                                 }
                             }
                         }
-                        
+
                         // INKR için inkr_attachments'ı kontrol et ve çek
                         if (type === 'inkr_management' && recordData) {
                             // Eğer inkr_attachments yoksa veya boşsa, ayrı çek
@@ -589,13 +587,13 @@ const PrintableReport = () => {
             let url = null;
             (async () => {
                 const html = await generatePrintableReportHtml(data, type);
-                
+
                 // Araç modülündeki gibi Blob URL kullan (doğru çalışan yöntem)
                 const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
                 url = URL.createObjectURL(blob);
                 setBlobUrl(url);
             })();
-            
+
             // Cleanup function - URL'i temizle
             return () => {
                 if (url) {
@@ -622,7 +620,7 @@ const PrintableReport = () => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 if (iframeRef.current && iframeRef.current.contentWindow) {
                     iframeRef.current.contentWindow.print();
                 }
@@ -667,19 +665,19 @@ const PrintableReport = () => {
     return (
         <>
             <Helmet>
-                <title>Kademe A.Ş. Kalite Yönetim Sistemi</title>
+                <title>{reportTitle || 'Kademe A.Ş. Kalite Yönetim Sistemi'}</title>
             </Helmet>
             <iframe
                 ref={iframeRef}
                 src={blobUrl || undefined}
-                style={{ 
-                    width: '100vw', 
-                    height: '100vh', 
-                    border: 'none', 
-                    position: 'fixed', 
-                    top: 0, 
-                    left: 0, 
-                    zIndex: 9999, 
+                style={{
+                    width: '100vw',
+                    height: '100vh',
+                    border: 'none',
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    zIndex: 9999,
                     background: 'white',
                     print: 'auto'
                 }}

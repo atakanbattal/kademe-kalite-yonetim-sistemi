@@ -240,6 +240,12 @@ const getReportTitle = (record, type) => {
 		case 'deviation':
 			return `Sapma Talep Raporu-${record.request_no || 'Bilinmiyor'}`;
 		case 'nonconformity':
+			// Tedarikçi kaynaklı ise format: [Tedarikçi Adı]-[NC No]
+			if (record.is_supplier_nc || record.department === 'Tedarikçi' || record.supplier_id) {
+				const supplierName = record.supplier_name || record.supplier?.name || (record.suppliers && record.suppliers.name) || 'Tedarikçi';
+				const ncNumber = record.nc_number || record.mdi_no || 'NC';
+				return `${supplierName}-${ncNumber}`;
+			}
 			return `${record.type} Raporu-${record.nc_number || record.mdi_no || 'Bilinmiyor'}`;
 		case 'kaizen':
 			return `Kaizen Raporu-${record.kaizen_no || 'Bilinmiyor'}`;
@@ -284,8 +290,8 @@ const getReportTitle = (record, type) => {
 		case 'supplier_quality_executive_summary':
 			return 'Tedarikçi Kalite Yönetimi Yönetici Özeti Raporu';
 		case 'document_list':
-			return record.categoryName 
-				? `${record.categoryName} Listesi` 
+			return record.categoryName
+				? `${record.categoryName} Listesi`
 				: 'Doküman Listesi Raporu';
 		default:
 			// Eğer record'da title varsa onu kullan, yoksa genel başlık
@@ -331,9 +337,9 @@ const generateCertificateReportHtml = (record) => {
 	// Logoları base64 olarak al
 	// Önce yerel dosyadan çek (logo.png), yoksa harici URL'den
 	const localKademeLogo = getLogoUrl('logo.png');
-	const kademeLogoUrl = logoCache[localKademeLogo] 
+	const kademeLogoUrl = logoCache[localKademeLogo]
 		? localKademeLogo
-		: (logoCache[getLogoUrl('kademe-logo-cert.png')] 
+		: (logoCache[getLogoUrl('kademe-logo-cert.png')]
 			? getLogoUrl('kademe-logo-cert.png')
 			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png');
 	const albayrakLogoUrl = logoCache[getLogoUrl('albayrak-logo.png')]
@@ -424,9 +430,9 @@ const generateExamPaperHtml = (record) => {
 
 	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl] 
+	const mainLogoUrl = logoCache[localLogoUrl]
 		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')] 
+		: (logoCache[getLogoUrl('kademe-logo.png')]
 			? getLogoUrl('kademe-logo.png')
 			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
@@ -488,9 +494,9 @@ const generateDynamicBalanceReportHtml = (record) => {
 
 	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl] 
+	const mainLogoUrl = logoCache[localLogoUrl]
 		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')] 
+		: (logoCache[getLogoUrl('kademe-logo.png')]
 			? getLogoUrl('kademe-logo.png')
 			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
@@ -874,9 +880,9 @@ const generateWPSReportHtml = (record) => {
 
 	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl] 
+	const mainLogoUrl = logoCache[localLogoUrl]
 		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')] 
+		: (logoCache[getLogoUrl('kademe-logo.png')]
 			? getLogoUrl('kademe-logo.png')
 			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
@@ -1197,9 +1203,9 @@ const generatePolyvalenceMatrixHtml = (record) => {
 
 	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl] 
+	const mainLogoUrl = logoCache[localLogoUrl]
 		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')] 
+		: (logoCache[getLogoUrl('kademe-logo.png')]
 			? getLogoUrl('kademe-logo.png')
 			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
@@ -1632,7 +1638,7 @@ const generateListReportHtml = (record, type) => {
 			if (!validUntilDate) {
 				statusBadge = '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Süresiz</span>';
 			} else {
-				const diffDays = Math.ceil((validUntilDate-now) / (1000 * 60 * 60 * 24));
+				const diffDays = Math.ceil((validUntilDate - now) / (1000 * 60 * 60 * 24));
 				if (diffDays < 0) {
 					statusBadge = `<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Süresi Doldu</span>`;
 				} else if (diffDays <= 30) {
@@ -1779,7 +1785,7 @@ const generateListReportHtml = (record, type) => {
 		title = 'Kalitesizlik Maliyeti Detay Raporu';
 		const formatCurrencyLocal = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 		const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
-		
+
 		// Ana bilgiler kartı
 		const mainInfoHtml = `
 			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
@@ -1797,7 +1803,7 @@ const generateListReportHtml = (record, type) => {
 				</div>
 			</div>
 		`;
-		
+
 		// Genel bilgiler tablosu
 		const generalInfoRows = [];
 		if (record.unit) generalInfoRows.push(`<tr><td style="font-weight: 600; width: 30%;">Birim (Kaynak)</td><td>${record.unit}</td></tr>`);
@@ -1809,7 +1815,7 @@ const generateListReportHtml = (record, type) => {
 		if (record.scrap_weight) generalInfoRows.push(`<tr><td style="font-weight: 600;">Hurda Ağırlığı (kg)</td><td>${record.scrap_weight}</td></tr>`);
 		if (record.responsible_personnel?.full_name) generalInfoRows.push(`<tr><td style="font-weight: 600;">Sorumlu Personel</td><td>${record.responsible_personnel.full_name}</td></tr>`);
 		if (record.status) generalInfoRows.push(`<tr><td style="font-weight: 600;">Durum</td><td>${record.status}</td></tr>`);
-		
+
 		const generalInfoHtml = generalInfoRows.length > 0
 			? `<table class="info-table" style="width: 100%; margin-bottom: 20px;">
 				<tbody>
@@ -1817,7 +1823,7 @@ const generateListReportHtml = (record, type) => {
 				</tbody>
 			</table>`
 			: '';
-		
+
 		// Tedarikçi bilgisi
 		const supplierInfoHtml = record.is_supplier_nc && record.supplier?.name
 			? `<div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
@@ -1825,25 +1831,25 @@ const generateListReportHtml = (record, type) => {
 				<div style="font-size: 16px; color: #78350f; font-weight: 600;">${record.supplier.name}</div>
 			</div>`
 			: '';
-		
+
 		// Yeniden İşlem Maliyeti Detayları
 		let reworkDetailsHtml = '';
 		if (record.cost_type === 'Yeniden İşlem Maliyeti') {
-			const mainReworkCost = record.rework_duration && record.unit 
-				? `${record.unit}: ${record.rework_duration} dk` 
-				: record.rework_duration 
-					? `(Ana: ${record.rework_duration} dk)` 
+			const mainReworkCost = record.rework_duration && record.unit
+				? `${record.unit}: ${record.rework_duration} dk`
+				: record.rework_duration
+					? `(Ana: ${record.rework_duration} dk)`
 					: '';
-			
+
 			const affectedUnitsCosts = record.affected_units && Array.isArray(record.affected_units) && record.affected_units.length > 0
 				? record.affected_units
 					.filter(au => au.unit !== record.unit)
 					.map(au => `${au.unit}: ${au.duration} dk`)
 					.join(', ')
 				: '';
-			
+
 			const reworkDetails = [mainReworkCost, affectedUnitsCosts].filter(Boolean).join(' | ');
-			
+
 			if (reworkDetails) {
 				reworkDetailsHtml = `
 					<div class="section">
@@ -1855,21 +1861,21 @@ const generateListReportHtml = (record, type) => {
 				`;
 			}
 		}
-		
+
 		// Final Hataları Maliyeti Detayları
 		let finalFaultsDetailsHtml = '';
 		if (record.cost_type === 'Final Hataları Maliyeti') {
 			const finalFaultsRows = [];
 			if (record.rework_duration) finalFaultsRows.push(`<tr><td style="font-weight: 600; width: 30%;">Giderilme Süresi</td><td>${record.rework_duration} dakika</td></tr>`);
 			if (record.quality_control_duration) finalFaultsRows.push(`<tr><td style="font-weight: 600;">Kalite Kontrol Süresi</td><td>${record.quality_control_duration} dakika</td></tr>`);
-			
+
 			const affectedUnitsHtml = record.affected_units && Array.isArray(record.affected_units) && record.affected_units.length > 0
 				? record.affected_units
 					.filter(au => au.unit !== record.unit)
 					.map(au => `<span style="display: inline-block; padding: 4px 12px; margin: 4px; border-radius: 4px; background-color: #e5e7eb; font-size: 0.85em;">${au.unit}: ${au.duration} dk</span>`)
 					.join('')
 				: '';
-			
+
 			if (finalFaultsRows.length > 0 || affectedUnitsHtml) {
 				finalFaultsDetailsHtml = `
 					<div class="section">
@@ -1887,7 +1893,7 @@ const generateListReportHtml = (record, type) => {
 				`;
 			}
 		}
-		
+
 		// Açıklama
 		const descriptionHtml = record.description
 			? `<div class="section">
@@ -1897,7 +1903,7 @@ const generateListReportHtml = (record, type) => {
 				</div>
 			</div>`
 			: '';
-		
+
 		// quality_cost_detail için summaryHtml oluştur (header ve meta-box için)
 		summaryHtml = `
 			${mainInfoHtml}
@@ -1910,13 +1916,13 @@ const generateListReportHtml = (record, type) => {
 			${finalFaultsDetailsHtml}
 			${descriptionHtml}
 		`;
-		
+
 		// Header ve meta-box generateListReportHtml'in sonunda oluşturulacak, burada sadece içeriği hazırlıyoruz
 		headers = [];
 		rowsHtml = '';
 	} else if (type === 'quality_cost_executive_summary') {
 		title = 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
-		
+
 		// Veri kontrolü - eğer veri yoksa hata mesajı göster
 		if (!record || typeof record !== 'object') {
 			summaryHtml = '<p style="color: #dc2626; font-weight: 600;">Rapor verisi bulunamadı. Lütfen tekrar deneyin.</p>';
@@ -1926,13 +1932,13 @@ const generateListReportHtml = (record, type) => {
 			const formatCurrencyLocal = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 			const formatPercent = (value) => (value || 0).toFixed(2);
 			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
-			
+
 			const periodInfo = record.periodStart && record.periodEnd
 				? `${record.periodStart} - ${record.periodEnd}`
 				: record.period || 'Tüm Zamanlar';
-		
-		// Genel Özet Kartları - Profesyonel renkler ve 3 sütunlu düzen
-		const summaryCardsHtml = `
+
+			// Genel Özet Kartları - Profesyonel renkler ve 3 sütunlu düzen
+			const summaryCardsHtml = `
 			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
 				<div style="background-color: #1e40af; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6;">
 					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM MALİYET</div>
@@ -1958,9 +1964,9 @@ const generateListReportHtml = (record, type) => {
 				</div>
 			</div>
 		`;
-		
-		// COPQ Kategorileri - Profesyonel renkler
-		const copqCategoriesHtml = `
+
+			// COPQ Kategorileri - Profesyonel renkler
+			const copqCategoriesHtml = `
 			<div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 30px; border: 1px solid #e5e7eb;">
 				<h3 style="font-size: 16px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">COPQ Kategorileri (Cost of Poor Quality)</h3>
 				<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
@@ -1987,10 +1993,10 @@ const generateListReportHtml = (record, type) => {
 				</div>
 			</div>
 		`;
-		
-		// En Çok Hata Türleri Tablosu
-		const topCostTypesHtml = record.topCostTypes && record.topCostTypes.length > 0
-			? `
+
+			// En Çok Hata Türleri Tablosu
+			const topCostTypesHtml = record.topCostTypes && record.topCostTypes.length > 0
+				? `
 				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Hata Türleri (Top 10)</h3>
 				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
 					<thead>
@@ -2017,11 +2023,11 @@ const generateListReportHtml = (record, type) => {
 					</tbody>
 				</table>
 			`
-			: '';
-		
-		// En Çok Maliyetli Birimler/Tedarikçiler Tablosu
-		const topUnitsHtml = record.topUnits && record.topUnits.length > 0
-			? `
+				: '';
+
+			// En Çok Maliyetli Birimler/Tedarikçiler Tablosu
+			const topUnitsHtml = record.topUnits && record.topUnits.length > 0
+				? `
 				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Maliyetli Birimler/Tedarikçiler (Top 10)</h3>
 				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
 					<thead>
@@ -2048,11 +2054,11 @@ const generateListReportHtml = (record, type) => {
 					</tbody>
 				</table>
 			`
-			: '';
-		
-		// En Çok Maliyetli Parçalar Tablosu
-		const topPartsHtml = record.topParts && record.topParts.length > 0
-			? `
+				: '';
+
+			// En Çok Maliyetli Parçalar Tablosu
+			const topPartsHtml = record.topParts && record.topParts.length > 0
+				? `
 				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Maliyetli Parçalar (Top 10)</h3>
 				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
 					<thead>
@@ -2079,11 +2085,11 @@ const generateListReportHtml = (record, type) => {
 					</tbody>
 				</table>
 			`
-			: '';
-		
-		// En Çok Maliyetli Araç Tipleri Tablosu
-		const topVehicleTypesHtml = record.topVehicleTypes && record.topVehicleTypes.length > 0
-			? `
+				: '';
+
+			// En Çok Maliyetli Araç Tipleri Tablosu
+			const topVehicleTypesHtml = record.topVehicleTypes && record.topVehicleTypes.length > 0
+				? `
 				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">En Çok Maliyetli Araç Tipleri (Top 10)</h3>
 				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
 					<thead>
@@ -2108,11 +2114,11 @@ const generateListReportHtml = (record, type) => {
 					</tbody>
 				</table>
 			`
-			: '';
-		
-		// Tedarikçi Bazlı Analiz Tablosu
-		const topSuppliersHtml = record.topSuppliers && record.topSuppliers.length > 0
-			? `
+				: '';
+
+			// Tedarikçi Bazlı Analiz Tablosu
+			const topSuppliersHtml = record.topSuppliers && record.topSuppliers.length > 0
+				? `
 				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Tedarikçi Bazlı Analiz (Top 10)</h3>
 				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
 					<thead>
@@ -2137,11 +2143,11 @@ const generateListReportHtml = (record, type) => {
 					</tbody>
 				</table>
 			`
-			: '';
-		
-		// Aylık Trend Analizi Tablosu
-		const monthlyTrendHtml = record.monthlyData && record.monthlyData.length > 0
-			? `
+				: '';
+
+			// Aylık Trend Analizi Tablosu
+			const monthlyTrendHtml = record.monthlyData && record.monthlyData.length > 0
+				? `
 				<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Aylık Trend Analizi (Son 12 Ay)</h3>
 				<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
 					<thead>
@@ -2164,9 +2170,9 @@ const generateListReportHtml = (record, type) => {
 					</tbody>
 				</table>
 			`
-			: '';
-		
-		summaryHtml = `
+				: '';
+
+			summaryHtml = `
 			<div style="margin-bottom: 25px;">
 				<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
 				<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Dönem:</strong> ${periodInfo}</p>
@@ -2181,14 +2187,14 @@ const generateListReportHtml = (record, type) => {
 			${topSuppliersHtml}
 			${monthlyTrendHtml}
 		`;
-		
+
 			// Bu rapor için tablo gerekmediği için boş bırakıyoruz
 			headers = [];
 			rowsHtml = '';
 		}
 	} else if (type === 'produced_vehicles_executive_summary') {
 		title = 'Üretilen Araçlar Yönetici Özeti Raporu';
-		
+
 		// Veri kontrolü
 		if (!record || typeof record !== 'object') {
 			summaryHtml = '<p style="color: #dc2626; font-weight: 600;">Rapor verisi bulunamadı. Lütfen tekrar deneyin.</p>';
@@ -2198,11 +2204,11 @@ const generateListReportHtml = (record, type) => {
 			const formatNumber = (value) => (value || 0).toLocaleString('tr-TR');
 			const formatPercent = (value) => (value || 0).toFixed(2);
 			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
-			
+
 			const periodInfo = record.periodStart && record.periodEnd
 				? `${record.periodStart} - ${record.periodEnd}`
 				: record.period || 'Tüm Zamanlar';
-			
+
 			// Genel Özet Kartları
 			const summaryCardsHtml = `
 				<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
@@ -2242,7 +2248,7 @@ const generateListReportHtml = (record, type) => {
 					</div>
 				</div>
 			`;
-			
+
 			// Durum Bazlı Analiz
 			const statusAnalysisHtml = record.statusAnalysis && record.statusAnalysis.length > 0
 				? `
@@ -2269,7 +2275,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// En Çok Üretilen Araç Tipleri
 			const topVehicleTypesHtml = record.topVehicleTypes && record.topVehicleTypes.length > 0
 				? `
@@ -2300,7 +2306,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// En Çok Araç Üreten Müşteriler
 			const topCustomersHtml = record.topCustomers && record.topCustomers.length > 0
 				? `
@@ -2329,7 +2335,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// En Çok Hata Olan Araçlar
 			const vehiclesWithFaultsHtml = record.vehiclesWithFaults && record.vehiclesWithFaults.length > 0
 				? `
@@ -2362,7 +2368,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// DMO Durumu Analizi
 			const dmoAnalysisHtml = record.dmoAnalysis && record.dmoAnalysis.length > 0
 				? `
@@ -2389,7 +2395,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// Aylık Trend Analizi
 			const monthlyTrendHtml = record.monthlyData && record.monthlyData.length > 0
 				? `
@@ -2418,7 +2424,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			summaryHtml = `
 				<div style="margin-bottom: 25px;">
 					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
@@ -2433,13 +2439,13 @@ const generateListReportHtml = (record, type) => {
 				${dmoAnalysisHtml}
 				${monthlyTrendHtml}
 			`;
-			
+
 			headers = [];
 			rowsHtml = '';
 		}
 	} else if (type === 'incoming_quality_executive_summary') {
 		title = 'Girdi Kalite Kontrol Yönetici Özeti Raporu';
-		
+
 		// Veri kontrolü - eğer veri yoksa hata mesajı göster
 		if (!record || typeof record !== 'object') {
 			summaryHtml = '<p style="color: #dc2626; font-weight: 600;">Rapor verisi bulunamadı. Lütfen tekrar deneyin.</p>';
@@ -2449,11 +2455,11 @@ const generateListReportHtml = (record, type) => {
 			const formatNumber = (value) => (value || 0).toLocaleString('tr-TR');
 			const formatPercent = (value) => (value || 0).toFixed(2);
 			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
-			
+
 			const periodInfo = record.periodStart && record.periodEnd
 				? `${record.periodStart} - ${record.periodEnd}`
 				: record.period || 'Tüm Zamanlar';
-			
+
 			// Genel Özet Kartları
 			const summaryCardsHtml = `
 				<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
@@ -2491,7 +2497,7 @@ const generateListReportHtml = (record, type) => {
 					</div>
 				</div>
 			`;
-			
+
 			// Karar Bazlı Analiz
 			const decisionsHtml = `
 				<div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 30px; border: 1px solid #e5e7eb;">
@@ -2520,7 +2526,7 @@ const generateListReportHtml = (record, type) => {
 					</div>
 				</div>
 			`;
-			
+
 			// En Çok Ret Veren Tedarikçiler Tablosu
 			const topSuppliersHtml = record.topSuppliers && record.topSuppliers.length > 0
 				? `
@@ -2553,7 +2559,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// En Çok Ret Veren Parçalar Tablosu
 			const topPartsHtml = record.topParts && record.topParts.length > 0
 				? `
@@ -2586,7 +2592,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// Ret Veren Tedarikçiler ve DF Analizi
 			const rejectedSuppliersHtml = record.rejectedSuppliers && record.rejectedSuppliers.length > 0
 				? `
@@ -2615,7 +2621,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// Aylık Trend Analizi Tablosu
 			const monthlyTrendHtml = record.monthlyData && record.monthlyData.length > 0
 				? `
@@ -2646,7 +2652,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			summaryHtml = `
 				<div style="margin-bottom: 25px;">
 					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
@@ -2660,14 +2666,14 @@ const generateListReportHtml = (record, type) => {
 				${rejectedSuppliersHtml}
 				${monthlyTrendHtml}
 			`;
-			
+
 			// Bu rapor için tablo gerekmediği için boş bırakıyoruz
 			headers = [];
 			rowsHtml = '';
 		}
 	} else if (type === 'supplier_quality_executive_summary') {
 		title = 'Tedarikçi Kalite Yönetimi Yönetici Özeti Raporu';
-		
+
 		// Veri kontrolü
 		if (!record || typeof record !== 'object') {
 			summaryHtml = '<p style="color: #dc2626; font-weight: 600;">Rapor verisi bulunamadı. Lütfen tekrar deneyin.</p>';
@@ -2677,7 +2683,7 @@ const generateListReportHtml = (record, type) => {
 			const formatNumber = (value) => (value || 0).toLocaleString('tr-TR');
 			const formatPercent = (value) => (value || 0).toFixed(2);
 			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
-			
+
 			// Genel Özet Kartları
 			const summaryCardsHtml = `
 				<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
@@ -2715,7 +2721,7 @@ const generateListReportHtml = (record, type) => {
 					</div>
 				</div>
 			`;
-			
+
 			// En Çok Uygunsuzluk Olan Tedarikçiler Tablosu
 			const topNCSuppliersHtml = record.topNCSuppliers && record.topNCSuppliers.length > 0
 				? `
@@ -2744,7 +2750,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// En Düşük Skorlu Tedarikçiler Tablosu
 			const topLowScoreSuppliersHtml = record.topLowScoreSuppliers && record.topLowScoreSuppliers.length > 0
 				? `
@@ -2760,9 +2766,9 @@ const generateListReportHtml = (record, type) => {
 						</thead>
 						<tbody>
 							${record.topLowScoreSuppliers.map((item, idx) => {
-								const gradeColor = item.grade === 'A' ? '#059669' : item.grade === 'B' ? '#2563eb' : item.grade === 'C' ? '#f59e0b' : '#dc2626';
-								const gradeLabel = item.grade === 'A' ? 'A - Stratejik İş Ortağı' : item.grade === 'B' ? 'B - Güvenilir Tedarikçi' : item.grade === 'C' ? 'C - İzlemeye Alınacak' : 'D - İş Birliği Sonlandırılacak';
-								return `
+					const gradeColor = item.grade === 'A' ? '#059669' : item.grade === 'B' ? '#2563eb' : item.grade === 'C' ? '#f59e0b' : '#dc2626';
+					const gradeLabel = item.grade === 'A' ? 'A - Stratejik İş Ortağı' : item.grade === 'B' ? 'B - Güvenilir Tedarikçi' : item.grade === 'C' ? 'C - İzlemeye Alınacak' : 'D - İş Birliği Sonlandırılacak';
+					return `
 									<tr style="border-bottom: 1px solid #e5e7eb;">
 										<td style="padding: 12px; text-align: center; font-weight: 600; color: #6b7280;">${idx + 1}</td>
 										<td style="padding: 12px; font-weight: 600; color: #111827;">${item.name}</td>
@@ -2770,12 +2776,12 @@ const generateListReportHtml = (record, type) => {
 										<td style="padding: 12px; text-align: center; color: ${gradeColor}; font-weight: 600;">${gradeLabel}</td>
 									</tr>
 								`;
-							}).join('')}
+				}).join('')}
 						</tbody>
 					</table>
 				`
 				: '';
-			
+
 			// En Yüksek PPM Tedarikçiler Tablosu
 			const supplierPPMHtml = record.supplierPPM && record.supplierPPM.length > 0
 				? `
@@ -2804,7 +2810,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			// DF Açılan Tedarikçiler Tablosu
 			const topDFSuppliersHtml = record.topDFSuppliers && record.topDFSuppliers.length > 0
 				? `
@@ -2831,7 +2837,7 @@ const generateListReportHtml = (record, type) => {
 					</table>
 				`
 				: '';
-			
+
 			summaryHtml = `
 				<div style="margin-bottom: 25px;">
 					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
@@ -2844,7 +2850,7 @@ const generateListReportHtml = (record, type) => {
 				${supplierPPMHtml}
 				${topDFSuppliersHtml}
 			`;
-			
+
 			headers = [];
 			rowsHtml = '';
 		}
@@ -3054,25 +3060,25 @@ const generateListReportHtml = (record, type) => {
 
 	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl] 
+	const mainLogoUrl = logoCache[localLogoUrl]
 		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')] 
+		: (logoCache[getLogoUrl('kademe-logo.png')]
 			? getLogoUrl('kademe-logo.png')
 			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
-	
+
 	// Rapor numarası oluştur
-	const reportNo = type === 'produced_vehicles_executive_summary' 
+	const reportNo = type === 'produced_vehicles_executive_summary'
 		? `ARAC-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
 		: type === 'incoming_quality_executive_summary'
-		? `GIRDI-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
-		: type === 'supplier_quality_executive_summary'
-		? `TEDARIKCI-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
-		: type === 'quality_cost_executive_summary'
-		? `MALIYET-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
-		: type === 'quality_cost_detail'
-		? `MALIYET-DETAY-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
-		: `RAPOR-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`;
+			? `GIRDI-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+			: type === 'supplier_quality_executive_summary'
+				? `TEDARIKCI-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+				: type === 'quality_cost_executive_summary'
+					? `MALIYET-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+					: type === 'quality_cost_detail'
+						? `MALIYET-DETAY-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+						: `RAPOR-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`;
 
 	return `
 		<div class="report-header">
@@ -3221,7 +3227,7 @@ const generateGenericReportHtml = (record, type) => {
 
 		if (ref.includes('/') && ref.length > 40) {
 			const parts = ref.split('/');
-			const lastPart = parts[parts.length-1];
+			const lastPart = parts[parts.length - 1];
 			if (lastPart) return `Sapma No: ${lastPart}`;
 		}
 		return `Sapma Ref: ${ref}`;
@@ -3519,7 +3525,7 @@ const generateGenericReportHtml = (record, type) => {
 						'Ret Nedeni̇',
 						'Ret Nedeni',
 						'Ret Nedenı', // Added variation
-					].sort((a, b) => b.length-a.length);
+					].sort((a, b) => b.length - a.length);
 
 					// Bir sonraki key veya heading pozisyonunu bul
 					const findNextKeyOrHeadingPosition = (str, startPos) => {
@@ -4195,7 +4201,7 @@ const generateGenericReportHtml = (record, type) => {
 				break;
 			}
 			case 'equipment': {
-				const latestCalibration = record.equipment_calibrations?.sort((a, b) => new Date(b.calibration_date)-new Date(a.calibration_date))[0];
+				const latestCalibration = record.equipment_calibrations?.sort((a, b) => new Date(b.calibration_date) - new Date(a.calibration_date))[0];
 				return `
 						<tr><td>Ekipman Adı</td><td>${record.name}</td></tr>
 						<tr><td>Marka/Model</td><td>${record.brand_model || '-'}</td></tr>
@@ -5100,9 +5106,9 @@ const generateGenericReportHtml = (record, type) => {
 
 	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl] 
+	const mainLogoUrl = logoCache[localLogoUrl]
 		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')] 
+		: (logoCache[getLogoUrl('kademe-logo.png')]
 			? getLogoUrl('kademe-logo.png')
 			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
 	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
@@ -5174,13 +5180,13 @@ const generateGenericReportHtml = (record, type) => {
 				const approval = approvals.find(a => a.approval_stage === stage);
 				return approval && approval.approver_name && approval.approver_name.trim() ? approval.approver_name : null;
 			};
-			
+
 			const requestingPerson = record.requesting_person && record.requesting_person.trim() ? record.requesting_person : getApproverName('Üretim Planlama');
 			const argePerson = getApproverName('Ar-Ge');
 			const qualityPerson = getApproverName('Kalite Kontrol');
 			const factoryManager = getApproverName('Fabrika Müdürü');
 			const generalManager = 'Kenan Çelik'; // Her zaman Kenan Çelik
-			
+
 			return `
 					<div class="signature-box">
 						<p class="role">TALEP EDEN</p>
@@ -5233,7 +5239,7 @@ const generateGenericReportHtml = (record, type) => {
 const generatePrintableReportHtml = async (record, type) => {
 	// Logoları önceden yükle (cache'de yoksa) - uygunsuzluk yönetimindeki gibi
 	await preloadLogos();
-	
+
 	// Record'u normalize et (Türkçe karakterler için)
 	const normalizedRecord = normalizeRecord(record);
 
