@@ -43,7 +43,7 @@ const formatCurrency = (value) => {
 const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { toast } = useToast();
     const { profile } = useAuth();
-    const { qualityCosts, personnel, unitCostSettings, materialCostSettings, producedVehicles, loading, refreshData } = useData();
+    const { qualityCosts, personnel, unitCostSettings, materialCostSettings, producedVehicles, loading, refreshData, refreshQualityCosts } = useData();
 
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -580,7 +580,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             <CostFormModal
                 open={isFormModalOpen}
                 setOpen={setFormModalOpen}
-                refreshCosts={refreshData}
+                refreshCosts={refreshQualityCosts}
                 unitCostSettings={unitCostSettings}
                 materialCostSettings={materialCostSettings}
                 personnelList={personnel}

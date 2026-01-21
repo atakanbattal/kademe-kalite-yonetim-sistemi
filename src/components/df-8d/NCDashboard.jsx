@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileText, FolderOpen, CheckCircle, XCircle, FileSpreadsheet, Hourglass, AlertTriangle, BarChart, Percent, CalendarDays, Zap } from 'lucide-react';
+import { FileText, FolderOpen, CheckCircle, XCircle, FileSpreadsheet, Hourglass, AlertTriangle, BarChart, Percent, CalendarDays, Zap, TrendingUp } from 'lucide-react';
 import { differenceInDays, parseISO, format, eachMonthOfInterval, isValid, startOfMonth } from 'date-fns';
 import { getStatusBadge } from '@/lib/statusUtils';
 
@@ -128,11 +128,16 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
 
         counts.overdue = overdueRecords.length;
 
+        // Kapatma oranı hesapla (Kapatılan / (Kapatılan + Açık + Reddedilen) * 100)
+        const totalProcessed = counts.closed + counts.open + counts.rejected;
+        const closureRate = totalProcessed > 0 ? ((counts.closed / totalProcessed) * 100).toFixed(1) : 0;
+
         const kpiCards = [
             { title: "Açık", value: counts.open, icon: FolderOpen, colorClass: "border-blue-500", records: records.filter(r => r.status !== 'Kapatıldı' && r.status !== 'Reddedildi') },
             { title: "Kapalı", value: counts.closed, icon: CheckCircle, colorClass: "border-green-500", records: records.filter(r => r.status === 'Kapatıldı') },
-            { title: "Reddedildi", value: counts.rejected, icon: XCircle, colorClass: "border-red-500", records: records.filter(r => r.status === 'Reddedildi') },
+            { title: "Kapatma Oranı", value: `%${closureRate}`, icon: TrendingUp, colorClass: "border-emerald-500", isPercentage: true, records: records.filter(r => r.status === 'Kapatıldı') },
             { title: "Geciken", value: counts.overdue, icon: AlertTriangle, colorClass: "border-orange-500", records: overdueRecords },
+            { title: "Reddedildi", value: counts.rejected, icon: XCircle, colorClass: "border-red-500", records: records.filter(r => r.status === 'Reddedildi') },
             { title: "DF", value: counts.DF, icon: FileText, colorClass: "border-indigo-500", records: records.filter(r => r.type === 'DF') },
             { title: "8D", value: counts['8D'], icon: FileSpreadsheet, colorClass: "border-purple-500", records: records.filter(r => r.type === '8D') },
             { title: "MDI", value: counts.MDI, icon: Hourglass, colorClass: "border-pink-500", records: records.filter(r => r.type === 'MDI') },
@@ -208,7 +213,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
 
     return (
         <motion.div initial="hidden" animate="visible" variants={containerVariants} className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                 {analytics.kpiCards.map(card => (
                     <motion.div key={card.title}>
                         <Card 

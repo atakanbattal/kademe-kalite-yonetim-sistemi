@@ -26,6 +26,8 @@ import { openPrintableReport } from '@/lib/reportUtils';
             status: 'all',
             type: 'all',
             department: 'all',
+            dateFrom: '',
+            dateTo: '',
         });
         
         const [recordListModal, setRecordListModal] = useState({ isOpen: false, title: '', records: [] });
@@ -51,6 +53,30 @@ import { openPrintableReport } from '@/lib/reportUtils';
         };
 
         const filteredRecords = useMemo(() => {
+            // Tarih filtresi kontrolü
+            const checkDateFilter = (record) => {
+                if (!filters.dateFrom && !filters.dateTo) return true;
+                
+                const recordDate = record.df_opened_at ? parseISO(record.df_opened_at) : 
+                                   record.created_at ? parseISO(record.created_at) : null;
+                
+                if (!recordDate || !isValid(recordDate)) return true;
+                
+                if (filters.dateFrom) {
+                    const fromDate = parseISO(filters.dateFrom);
+                    if (isValid(fromDate) && recordDate < fromDate) return false;
+                }
+                
+                if (filters.dateTo) {
+                    const toDate = parseISO(filters.dateTo);
+                    // Bitiş tarihinin sonuna kadar dahil etmek için gün sonuna ayarla
+                    toDate.setHours(23, 59, 59, 999);
+                    if (isValid(toDate) && recordDate > toDate) return false;
+                }
+                
+                return true;
+            };
+
             // Boş arama terimi için tüm kayıtları göster
             if (!filters.searchTerm || filters.searchTerm.trim() === '') {
                 const filtered = nonConformities.filter(record => {
@@ -78,7 +104,9 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     }
                 }
 
-                return matchesStatus && matchesType && matchesDepartment;
+                const matchesDate = checkDateFilter(record);
+
+                return matchesStatus && matchesType && matchesDepartment && matchesDate;
                 });
 
                 return filtered.sort((a, b) => {
@@ -169,7 +197,9 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     }
                 }
 
-                return matchesSearch && matchesStatus && matchesType && matchesDepartment;
+                const matchesDate = checkDateFilter(record);
+
+                return matchesSearch && matchesStatus && matchesType && matchesDepartment && matchesDate;
             });
 
             return filtered.sort((a, b) => {
