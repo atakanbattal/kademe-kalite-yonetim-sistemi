@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, MoreHorizontal, Edit, Trash2, Eye, Link as LinkIcon, Search, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -60,6 +60,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [costForNC, setCostForNC] = useState(null);
     const [selectedNCType, setSelectedNCType] = useState('DF');
     const [sortConfig, setSortConfig] = useState({ key: 'cost_date', direction: 'desc' });
+    const [displayLimit, setDisplayLimit] = useState(100); // Tabloda gösterilecek kayıt limiti
 
     const hasNCAccess = useMemo(() => {
         return profile?.role === 'admin';
@@ -135,6 +136,22 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
         return costs;
     }, [qualityCosts, dateRange, unitFilter, sourceFilter, searchTerm, sortConfig]);
+
+    // Tabloda gösterilecek kayıtlar (performans için limit)
+    const displayedCosts = useMemo(() => {
+        return filteredCosts.slice(0, displayLimit);
+    }, [filteredCosts, displayLimit]);
+
+    const hasMoreCosts = filteredCosts.length > displayLimit;
+
+    const handleLoadMore = useCallback(() => {
+        setDisplayLimit(prev => prev + 100);
+    }, []);
+
+    // Filtre değiştiğinde limiti sıfırla
+    useEffect(() => {
+        setDisplayLimit(100);
+    }, [dateRange, unitFilter, sourceFilter, searchTerm, sortConfig]);
 
     const handleOpenFormModal = (cost = null) => {
         setSelectedCost(cost);
@@ -828,7 +845,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                             ) : filteredCosts.length === 0 ? (
                                                 <tr><td colSpan="6" className="text-center p-8 text-muted-foreground">Seçili dönem için maliyet kaydı bulunamadı.</td></tr>
                                             ) : (
-                                                filteredCosts.map((cost, index) => (
+                                                displayedCosts.map((cost, index) => (
                                                     <tr
                                                         key={cost.id}
                                                         className="cursor-pointer hover:bg-accent/50 transition-colors"
@@ -920,10 +937,27 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                         </tbody>
                                     </table>
                                 </div>
-                            </ScrollArea>
-                        </div>
-                    </div>
-                </TabsContent>
+                                            </ScrollArea>
+                                            {/* Kayıt sayısı ve Daha fazla yükle butonu */}
+                                            {filteredCosts.length > 0 && (
+                                                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {displayedCosts.length} / {filteredCosts.length} kayıt gösteriliyor
+                                                    </span>
+                                                    {hasMoreCosts && (
+                                                        <Button 
+                                                            variant="outline" 
+                                                            size="sm" 
+                                                            onClick={handleLoadMore}
+                                                        >
+                                                            Daha Fazla Yükle (+100)
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </TabsContent>
                 <TabsContent value="forecast" className="mt-6">
                     <CostForecaster costs={filteredCosts} />
                 </TabsContent>
