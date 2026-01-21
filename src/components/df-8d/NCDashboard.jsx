@@ -135,7 +135,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
         const kpiCards = [
             { title: "Açık", value: counts.open, icon: FolderOpen, colorClass: "border-blue-500", records: records.filter(r => r.status !== 'Kapatıldı' && r.status !== 'Reddedildi') },
             { title: "Kapalı", value: counts.closed, icon: CheckCircle, colorClass: "border-green-500", records: records.filter(r => r.status === 'Kapatıldı') },
-            { title: "Kapatma Oranı", value: `%${closureRate}`, icon: TrendingUp, colorClass: "border-emerald-500", isPercentage: true, records: records.filter(r => r.status === 'Kapatıldı') },
+            { title: "Kapanma", value: `%${closureRate}`, icon: TrendingUp, colorClass: "border-emerald-500", isPercentage: true, records: records.filter(r => r.status === 'Kapatıldı') },
             { title: "Geciken", value: counts.overdue, icon: AlertTriangle, colorClass: "border-orange-500", records: overdueRecords },
             { title: "Reddedildi", value: counts.rejected, icon: XCircle, colorClass: "border-red-500", records: records.filter(r => r.status === 'Reddedildi') },
             { title: "DF", value: counts.DF, icon: FileText, colorClass: "border-indigo-500", records: records.filter(r => r.type === 'DF') },
@@ -217,15 +217,19 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
                 {analytics.kpiCards.map(card => (
                     <motion.div key={card.title}>
                         <Card 
-                          className={`shadow-sm hover:shadow-lg transition-shadow duration-300 cursor-pointer border-l-4 ${card.colorClass}`}
+                          className={`shadow-sm hover:shadow-lg transition-shadow duration-300 cursor-pointer border-l-4 h-full ${card.colorClass}`}
                           onClick={() => handleCardClick(card.title, card.records)}
                         >
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                              {React.createElement(card.icon, { className: "h-5 w-5 text-muted-foreground"})}
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+                              <CardTitle className="text-sm font-medium truncate">{card.title}</CardTitle>
+                              {React.createElement(card.icon, { className: "h-4 w-4 text-muted-foreground flex-shrink-0"})}
                           </CardHeader>
-                          <CardContent>
-                              <div className="text-2xl font-bold">{card.value}</div>
+                          <CardContent className="pt-0">
+                              <div className={`font-bold ${card.isPercentage ? 'text-xl' : 'text-2xl'}`}>
+                                  {card.isPercentage ? (
+                                      <span>{card.value.replace('%', '')}<span className="text-sm text-muted-foreground ml-0.5">%</span></span>
+                                  ) : card.value}
+                              </div>
                           </CardContent>
                         </Card>
                     </motion.div>
