@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
-    import { Button } from '@/components/ui/button';
-    import { Input } from '@/components/ui/input';
-    import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
     import { ScrollArea } from '@/components/ui/scroll-area';
-    import { PlusCircle, Trash2, CheckCircle, Edit } from 'lucide-react';
+    import { PlusCircle, Trash2, CheckCircle, Edit, FlaskConical } from 'lucide-react';
     import { cn } from '@/lib/utils';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -230,7 +231,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 setFaults(prev => [newFaultWithDept, ...prev]);
                 setNewFault({ description: '', department_id: '', category_id: '', quantity: 1 });
                 setFilteredCategories([]);
-                if (onUpdate) onUpdate();
+                if (onUpdate) {
+                    await onUpdate();
+                }
             }
             setLoading(false);
         };
@@ -243,7 +246,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             } else {
                 toast({ title: 'Başarılı', description: 'Hata başarıyla silindi.' });
                 setFaults(prev => prev.filter(f => f.id !== faultId));
-                if (onUpdate) onUpdate();
+                if (onUpdate) {
+                    await onUpdate();
+                }
             }
             setLoading(false);
         };
@@ -264,7 +269,36 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             } else {
                  const updatedFault = { ...data, department_name: data.department?.name || 'Bilinmeyen' };
                 setFaults(prev => prev.map(f => f.id === faultId ? updatedFault : f));
-                if (onUpdate) onUpdate();
+                if (onUpdate) {
+                    await onUpdate();
+                }
+            }
+        };
+
+        const handleToggleArgeApproved = async (faultId, currentStatus) => {
+            const { data, error } = await supabase
+                .from('quality_inspection_faults')
+                .update({ 
+                    arge_approved: !currentStatus,
+                    arge_approved_at: !currentStatus ? new Date().toISOString() : null,
+                    arge_approved_by: !currentStatus ? profile.id : null
+                })
+                .eq('id', faultId)
+                .select(`*, department:production_departments(name)`)
+                .single();
+
+            if (error) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Ar-Ge onay durumu güncellenemedi: ' + error.message });
+            } else {
+                const updatedFault = { ...data, department_name: data.department?.name || 'Bilinmeyen' };
+                setFaults(prev => prev.map(f => f.id === faultId ? updatedFault : f));
+                toast({ 
+                    title: 'Başarılı', 
+                    description: !currentStatus ? 'Ar-Ge onayı verildi.' : 'Ar-Ge onayı kaldırıldı.' 
+                });
+                if (onUpdate) {
+                    await onUpdate();
+                }
             }
         };
 
@@ -308,7 +342,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 setEditingFault(null);
                 setEditFaultData({ description: '', department_id: '', category_id: '', quantity: 1 });
                 setFilteredCategories([]);
-                if (onUpdate) onUpdate();
+                if (onUpdate) {
+                    await onUpdate();
+                }
             }
             setLoading(false);
         };
@@ -355,14 +391,25 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                              <ScrollArea className="h-72 pr-6 border rounded-md">
                                 <div className="space-y-3 p-4">
                                     {faults.map(fault => (
-                                        <div key={fault.id} className={cn("p-3 rounded-md border flex items-center justify-between", fault.is_resolved ? "bg-green-100/50 border-green-200" : "bg-red-100/50 border-red-200")}>
+                                        <div key={fault.id} className={cn("p-3 rounded-md border flex items-center justify-between", fault.is_resolved ? "bg-green-100/50 border-green-200" : "bg-red-100/50 border-red-200", fault.arge_approved && "ring-2 ring-purple-300")}>
                                             <div className="flex-1">
-                                                <p className="font-medium">{fault.description}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-medium">{fault.description}</p>
+                                                    {fault.arge_approved && (
+                                                        <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-300">
+                                                            <FlaskConical className="h-3 w-3 mr-1" />
+                                                            Ar-Ge Onaylı
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                                 <p className="text-sm text-muted-foreground">{fault.department_name} - {fault.quantity} adet</p>
                                                 <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                                     <span>Giriş: {fault.created_at ? new Date(fault.created_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
                                                     {fault.is_resolved && fault.resolved_at && (
                                                         <span className="text-green-700">Çözüm: {new Date(fault.resolved_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                    )}
+                                                    {fault.arge_approved && fault.arge_approved_at && (
+                                                        <span className="text-purple-700">Ar-Ge Onay: {new Date(fault.arge_approved_at).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -374,6 +421,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                                         </Button>
                                                      <Button variant="ghost" size="icon" onClick={() => handleToggleResolved(fault.id, fault.is_resolved)} disabled={loading} className="text-green-600 hover:bg-green-100">
                                                         <CheckCircle className="h-5 w-5" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleToggleArgeApproved(fault.id, fault.arge_approved)} disabled={loading} className={cn("text-purple-600 hover:bg-purple-100", fault.arge_approved && "bg-purple-100")}>
+                                                        <FlaskConical className="h-5 w-5" />
                                                     </Button>
                                                     </>
                                                 )}
@@ -457,6 +507,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                             }
                                         }} 
                                         placeholder="Örn: Boya akıntısı" 
+                                        autoCapitalize="off"
                                     />
                                 </div>
                                 <div className="space-y-2">

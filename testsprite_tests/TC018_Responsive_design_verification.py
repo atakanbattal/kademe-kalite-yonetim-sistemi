@@ -30,7 +30,7 @@ async def run_test():
         page = await context.new_page()
         
         # Navigate to your target URL and wait until the network request is committed
-        await page.goto("http://localhost:3001", wait_until="commit", timeout=10000)
+        await page.goto("http://localhost:3003", wait_until="commit", timeout=10000)
         
         # Wait for the main page to reach DOMContentLoaded state (optional for stability)
         try:
@@ -66,7 +66,7 @@ async def run_test():
         
 
         # -> Resize viewport to tablet size and verify layout adapts correctly without horizontal scroll, and navigation menus and content remain accessible and usable.
-        await page.goto('http://localhost:3001/dashboard', timeout=10000)
+        await page.goto('http://localhost:3003/dashboard', timeout=10000)
         await asyncio.sleep(3)
         
 
@@ -74,7 +74,7 @@ async def run_test():
         
 
         # -> Resize viewport to tablet size and verify layout adapts correctly without horizontal scroll, and navigation menus and content remain accessible and usable.
-        await page.goto('http://localhost:3001/dashboard', timeout=10000)
+        await page.goto('http://localhost:3003/dashboard', timeout=10000)
         await asyncio.sleep(3)
         
 
@@ -82,7 +82,7 @@ async def run_test():
         
 
         # -> Resize viewport to tablet size and verify layout adapts correctly without horizontal scroll, and navigation menus and content remain accessible and usable.
-        await page.goto('http://localhost:3001/dashboard', timeout=10000)
+        await page.goto('http://localhost:3003/dashboard', timeout=10000)
         await asyncio.sleep(3)
         
 
@@ -90,7 +90,7 @@ async def run_test():
         
 
         # -> Resize viewport to tablet size and verify layout adapts correctly without horizontal scroll, and navigation menus and content remain accessible and usable.
-        await page.goto('http://localhost:3001/dashboard', timeout=10000)
+        await page.goto('http://localhost:3003/dashboard', timeout=10000)
         await asyncio.sleep(3)
         
 
@@ -105,7 +105,7 @@ async def run_test():
         
 
         # -> Resize viewport to mobile size and verify layout adapts correctly without horizontal scroll, and navigation menus and content remain accessible and usable.
-        await page.goto('http://localhost:3001/dashboard', timeout=10000)
+        await page.goto('http://localhost:3003/dashboard', timeout=10000)
         await asyncio.sleep(3)
         
 

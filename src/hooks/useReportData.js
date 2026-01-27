@@ -236,6 +236,9 @@ const useReportData = (period) => {
                 if (!ncRecords) return { best: [], worst: [] };
                 const deptStats = {};
                 ncRecords.forEach(nc => {
+                    // Reddedilenleri kapatma oranı hesabına dahil etme
+                    if (nc.status === 'Reddedildi') return;
+                    
                     const dept = nc.requesting_unit || nc.department || 'Belirtilmemiş';
                     if (!deptStats[dept]) {
                         deptStats[dept] = { name: dept, totalNCs: 0, openNCs: 0, closedNCs: 0 };

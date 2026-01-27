@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Button } from '@/components/ui/button';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-    import { PlusCircle, Trash2, Clock, Wrench, PackageCheck, Ship, Play, CheckCircle } from 'lucide-react';
+    import { PlusCircle, Trash2, Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, FlaskConical } from 'lucide-react';
     import { format, parseISO, differenceInMilliseconds } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { formatDuration } from '@/lib/formatDuration.js';
@@ -24,6 +24,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
       waiting_for_shipping_info: { label: 'Sevk Bilgisi Bekleniyor', icon: <Clock className="h-4 w-4 text-orange-500" /> },
       ready_to_ship: { label: 'Sevke Hazır', icon: <PackageCheck className="h-4 w-4 text-purple-500" /> },
       shipped: { label: 'Sevk Edildi', icon: <Ship className="h-4 w-4 text-gray-500" /> },
+      arge_sent: { label: 'Ar-Ge\'ye Gönderildi', icon: <FlaskConical className="h-4 w-4 text-purple-500" /> },
+      arge_returned: { label: 'Ar-Ge\'den Döndü', icon: <FlaskConical className="h-4 w-4 text-blue-500" /> },
     };
 
     const formatToLocalDateTime = (date) => {
@@ -74,7 +76,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="event-notes">Not (Opsiyonel)</Label>
-                    <Input id="event-notes" placeholder="İşlemle ilgili not..." value={notes} onChange={e => setNotes(e.target.value)} />
+                        <Input id="event-notes" placeholder="İşlemle ilgili not..." value={notes} onChange={e => setNotes(e.target.value)} autoCapitalize="off" />
                 </div>
                 <div className="flex justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={onCancel} disabled={isSubmitting}>İptal</Button>
@@ -221,7 +223,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 toast({ title: 'Başarılı', description: 'Yeni işlem eklendi.' });
                 setTimeline(prev => [...prev, insertedData].sort((a, b) => new Date(a.event_timestamp) - new Date(b.event_timestamp)));
                 setIsAdding(false);
-                if(onUpdate) onUpdate();
+                if(onUpdate) {
+                    await onUpdate();
+                }
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: `İşlem eklenemedi: ${error.message}` });
             } finally {
@@ -237,7 +241,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 if (error) throw error;
                 toast({ title: 'Başarılı', description: 'İşlem silindi.' });
                 setTimeline(prev => prev.filter(event => event.id !== eventId));
-                if(onUpdate) onUpdate();
+                if(onUpdate) {
+                    await onUpdate();
+                }
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: `İşlem silinemedi: ${error.message}` });
             } finally {

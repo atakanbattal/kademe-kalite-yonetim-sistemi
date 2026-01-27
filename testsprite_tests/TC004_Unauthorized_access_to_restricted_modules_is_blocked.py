@@ -30,7 +30,7 @@ async def run_test():
         page = await context.new_page()
         
         # Navigate to your target URL and wait until the network request is committed
-        await page.goto("http://localhost:3001", wait_until="commit", timeout=10000)
+        await page.goto("http://localhost:3003", wait_until="commit", timeout=10000)
         
         # Wait for the main page to reach DOMContentLoaded state (optional for stability)
         try:
@@ -94,7 +94,7 @@ async def run_test():
         
 
         # -> Attempt to navigate directly to a restricted module URL that the user should not have access to, to verify access denial or redirection.
-        await page.goto('http://localhost:3001/tedarikci-kalite', timeout=10000)
+        await page.goto('http://localhost:3003/tedarikci-kalite', timeout=10000)
         await asyncio.sleep(3)
         
 

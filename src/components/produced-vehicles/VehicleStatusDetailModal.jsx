@@ -58,6 +58,7 @@ const VehicleStatusDetailModal = ({
       case 'Kontrol Başladı': return 'warning';
       case 'Kontrol Bitti': return 'purple';
       case 'Yeniden İşlemde': return 'destructive';
+      case 'Ar-Ge\'de': return 'info';
       case 'Sevk Hazır': return 'success';
       case 'Sevk Edildi': return 'outline';
       default: return 'outline';

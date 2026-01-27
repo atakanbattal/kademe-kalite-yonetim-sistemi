@@ -14,7 +14,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { formatDuration } from '@/lib/formatDuration.js';
-    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText, Car, Hash, Calendar, User, Building2, Tag, AlertTriangle } from 'lucide-react';
+    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText, Car, Hash, Calendar, User, Building2, Tag, AlertTriangle, FlaskConical } from 'lucide-react';
     import { differenceInDays } from 'date-fns';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { generateVehicleReport } from '@/lib/pdfGenerator';
@@ -28,6 +28,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
       waiting_for_shipping_info: { label: 'Sevk Bilgisi Bekleniyor', icon: <Clock className="h-4 w-4 text-orange-500" /> },
       ready_to_ship: { label: 'Sevke Hazır', icon: <PackageCheck className="h-4 w-4 text-purple-500" /> },
       shipped: { label: 'Sevk Edildi', icon: <Ship className="h-4 w-4 text-gray-500" /> },
+      arge_sent: { label: 'Ar-Ge\'ye Gönderildi', icon: <FlaskConical className="h-4 w-4 text-purple-500" /> },
+      arge_returned: { label: 'Ar-Ge\'den Döndü', icon: <FlaskConical className="h-4 w-4 text-blue-500" /> },
     };
 
     const TimelineTab = ({ vehicle, onUpdate }) => {
@@ -113,6 +115,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         } else if (waitingForShippingStart) {
                             // Bitiş yok ama "Sevk Bilgisi Bekleniyor" durumu var, o ana kadar say
                             totalControlMillis += differenceInMilliseconds(waitingForShippingStart, currentEventTime);
+                        } else {
+                            // Devam eden kontrol - şu anki zamana kadar hesapla
+                            totalControlMillis += differenceInMilliseconds(new Date(), currentEventTime);
                         }
                     } else if (currentEvent.event_type === 'rework_start') {
                         const nextEnd = timeline.slice(i + 1).find(e => {
@@ -129,13 +134,16 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                             totalReworkMillis += differenceInMilliseconds(endTime, currentEventTime);
                         } else if (waitingForShippingStart) {
                             totalReworkMillis += differenceInMilliseconds(waitingForShippingStart, currentEventTime);
+                        } else {
+                            // Devam eden yeniden işlem - şu anki zamana kadar hesapla
+                            totalReworkMillis += differenceInMilliseconds(new Date(), currentEventTime);
                         }
                     }
                 }
             }
             
-            // Kalitede geçen toplam süre sadece kontrol başladı-bitti arasındaki sürelerdir
-            const totalQualityMillis = totalControlMillis;
+            // Kalitede geçen toplam süre kontrol ve yeniden işlem sürelerinin toplamıdır
+            const totalQualityMillis = totalControlMillis + totalReworkMillis;
 
             return {
                 totalControlTime: formatDuration(totalControlMillis),
@@ -152,7 +160,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                 if (error) throw error;
                 toast({ title: 'Başarılı', description: 'İşlem silindi.' });
                 setTimeline(prev => prev.filter(event => event.id !== eventId));
-                if(onUpdate) onUpdate();
+                if(onUpdate) {
+                    await onUpdate();
+                }
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: `İşlem silinemedi: ${error.message}` });
             } finally {

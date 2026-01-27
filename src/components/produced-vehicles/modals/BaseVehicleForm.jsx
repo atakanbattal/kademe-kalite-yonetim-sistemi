@@ -136,15 +136,22 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
                 .insert([cleanedData]);
         }
 
-        const { error } = result;
+        const { error, data } = result;
 
         if (error) {
             toast({ variant: 'destructive', title: 'Hata!', description: `Araç kaydedilemedi: ${error.message}` });
-        } else {
-            toast({ title: 'Başarılı!', description: `Araç başarıyla ${vehicle ? 'güncellendi' : 'eklendi'}.` });
-            onSave();
-            setIsOpen(false);
+            setLoading(false);
+            return;
         }
+
+        toast({ title: 'Başarılı!', description: `Araç başarıyla ${vehicle ? 'güncellendi' : 'eklendi'}.` });
+        
+        // Verileri yenile (async olabilir)
+        if (onSave) {
+            await onSave();
+        }
+        
+        setIsOpen(false);
         setLoading(false);
     };
 
@@ -152,15 +159,15 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="chassis_no" className="text-right">Şasi No</Label>
-                <Input id="chassis_no" name="chassis_no" value={formData.chassis_no} onChange={handleChange} className="col-span-3" />
+                <Input id="chassis_no" name="chassis_no" value={formData.chassis_no} onChange={handleChange} className="col-span-3" autoCapitalize="off" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="serial_no" className="text-right">Seri No</Label>
-                <Input id="serial_no" name="serial_no" value={formData.serial_no} onChange={handleChange} className="col-span-3" />
+                <Input id="serial_no" name="serial_no" value={formData.serial_no} onChange={handleChange} className="col-span-3" autoCapitalize="off" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="customer_name" className="text-right">Müşteri Adı</Label>
-                <Input id="customer_name" name="customer_name" value={formData.customer_name} onChange={handleChange} className="col-span-3" required />
+                <Input id="customer_name" name="customer_name" value={formData.customer_name} onChange={handleChange} className="col-span-3" required autoCapitalize="off" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="vehicle_type" className="text-right">Araç Tipi</Label>
@@ -212,7 +219,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="notes" className="text-right">Notlar</Label>
-                <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="col-span-3" />
+                <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="col-span-3" autoCapitalize="off" />
             </div>
             <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>

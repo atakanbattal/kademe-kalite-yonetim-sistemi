@@ -128,8 +128,8 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
 
         counts.overdue = overdueRecords.length;
 
-        // Kapatma oranı hesapla (Kapatılan / (Kapatılan + Açık + Reddedilen) * 100)
-        const totalProcessed = counts.closed + counts.open + counts.rejected;
+        // Kapatma oranı hesapla (Kapatılan / (Kapatılan + Açık) * 100) - Reddedilenler hesaba katılmaz
+        const totalProcessed = counts.closed + counts.open;
         const closureRate = totalProcessed > 0 ? ((counts.closed / totalProcessed) * 100).toFixed(1) : 0;
 
         const kpiCards = [

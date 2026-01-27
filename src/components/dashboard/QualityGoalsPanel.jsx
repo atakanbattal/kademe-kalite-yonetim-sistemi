@@ -86,9 +86,10 @@ const QualityGoalsPanel = () => {
                     }).reduce((sum, c) => sum + (c.amount || 0), 0);
                     break;
                 case 'NC_CLOSURE_RATE':
+                    // Reddedilenleri hesaba katmadan kapatma oranı hesapla
                     const totalNCs = (nonConformities || []).filter(nc => {
                         const ncDate = new Date(nc.opening_date || nc.created_at);
-                        return ncDate >= firstDayOfYear && ncDate <= today;
+                        return nc.status !== 'Reddedildi' && ncDate >= firstDayOfYear && ncDate <= today;
                     }).length;
                     const closedNCs = (nonConformities || []).filter(nc => {
                         const ncDate = new Date(nc.opening_date || nc.created_at);

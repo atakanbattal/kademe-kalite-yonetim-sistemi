@@ -548,7 +548,7 @@ export const generate8DPDF = (record) => {
     generatePrintableReport(record);
 };
 
-export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, faultsByVehicle) => {
+export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, faultsByVehicle, selectedStatuses = []) => {
     // Logoları önceden yükle (cache'de yoksa) - uygunsuzluk yönetimindeki gibi
     await preloadLogos();
     
@@ -684,6 +684,12 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
         const unresolvedFaultCount = faults.filter(f => !f.is_resolved).length;
         const resolvedFaultCount = faults.filter(f => f.is_resolved).length;
 
+        const dmoStatus = vehicle.dmo_status || '-';
+        const dmoBadgeColor = dmoStatus === 'DMO Geçti' ? { bg: '#dcfce7', text: '#166534', border: '#22c55e' } :
+                              dmoStatus === 'DMO Kaldı' ? { bg: '#fee2e2', text: '#991b1b', border: '#ef4444' } :
+                              dmoStatus === 'DMO Bekliyor' ? { bg: '#fef3c7', text: '#92400e', border: '#f59e0b' } :
+                              { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db' };
+
         return `
             <tr style="page-break-inside: avoid; border-bottom: 1px solid #e5e7eb;">
                 <td style="padding: 12px 8px; text-align: center; font-weight: 600;"><span style="display: none;">${index + 1}</span></td>
@@ -696,6 +702,11 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                 <td style="padding: 12px 8px; overflow: hidden; white-space: nowrap;">
                     <span style="background-color: ${statusBadge.bg}; color: ${statusBadge.text}; padding: 4px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; border: 1px solid ${statusBadge.border}; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
                         ${vehicle.status || '-'}
+                    </span>
+                </td>
+                <td style="padding: 12px 8px; overflow: hidden; white-space: nowrap;">
+                    <span style="background-color: ${dmoBadgeColor.bg}; color: ${dmoBadgeColor.text}; padding: 4px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; border: 1px solid ${dmoBadgeColor.border}; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                        ${dmoStatus}
                     </span>
                 </td>
                 <td style="padding: 12px 8px; text-align: center; white-space: nowrap;">
@@ -994,6 +1005,9 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                     <div class="meta-item"><strong>Sistem:</strong> Kademe Kalite Yönetim Sistemi</div>
                     <div class="meta-item"><strong>Yayın Tarihi:</strong> ${reportDate}</div>
                     <div class="meta-item"><strong>Toplam Araç:</strong> ${vehicles.length}</div>
+                    ${selectedStatuses && selectedStatuses.length > 0 ? `
+                        <div class="meta-item" style="grid-column: 1 / -1;"><strong>Seçilen Durumlar:</strong> ${selectedStatuses.join(', ')}</div>
+                    ` : ''}
                 </div>
 
                 <div class="summary-section">
@@ -1035,12 +1049,13 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                         <thead>
                             <tr>
                                 <th style="width: 3%;">#</th>
-                                <th style="width: 14%;">Şasi/Seri No</th>
-                                <th style="width: 14%;">Araç Tipi</th>
-                                <th style="width: 17%;">Müşteri</th>
-                                <th style="width: 17%;">Durum</th>
-                                <th style="width: 18%; text-align: center;">Hata Durumu</th>
-                                <th style="width: 17%; text-align: center;">Yeniden İşlem</th>
+                                <th style="width: 12%;">Şasi/Seri No</th>
+                                <th style="width: 12%;">Araç Tipi</th>
+                                <th style="width: 15%;">Müşteri</th>
+                                <th style="width: 15%;">Durum</th>
+                                <th style="width: 12%;">DMO Durumu</th>
+                                <th style="width: 16%; text-align: center;">Hata Durumu</th>
+                                <th style="width: 15%; text-align: center;">Yeniden İşlem</th>
                             </tr>
                         </thead>
                         <tbody>

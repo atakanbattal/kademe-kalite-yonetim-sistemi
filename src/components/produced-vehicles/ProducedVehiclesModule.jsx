@@ -122,10 +122,10 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                 toast({ title: 'Başarılı', description: 'Araç kaydı başarıyla silindi.' });
                 // Önce özel refresh fonksiyonunu çağır (daha hızlı)
                 if (refreshProducedVehicles) {
-                    refreshProducedVehicles();
+                    await refreshProducedVehicles();
                 }
                 // Sonra genel refresh'i de çağır (fallback)
-                refreshData();
+                await refreshData();
             }
         };
         
@@ -144,10 +144,10 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                 
                 // Önce özel refresh fonksiyonunu çağır (daha hızlı)
                 if (refreshProducedVehicles) {
-                    refreshProducedVehicles();
+                    await refreshProducedVehicles();
                 }
                 // Sonra genel refresh'i de çağır (fallback)
-                refreshData();
+                await refreshData();
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Hata!', description: `İşlem eklenemedi: ${error.message}` });
             }
@@ -474,7 +474,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 
         return (
             <div className="space-y-6">
-                <AddVehicleModal isOpen={isAddModalOpen} setIsOpen={setAddModalOpen} refreshVehicles={refreshData} />
+                <AddVehicleModal isOpen={isAddModalOpen} setIsOpen={setAddModalOpen} refreshVehicles={refreshProducedVehicles || refreshData} />
                 {selectedVehicle && (
                     <>
                         <EditVehicleModal isOpen={isEditModalOpen} setIsOpen={setEditModalOpen} vehicle={selectedVehicle} refreshVehicles={refreshProducedVehicles || refreshData} />
@@ -556,6 +556,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                                         className="search-input"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
+                                        autoCapitalize="off"
                                     />
                                 </div>
                                 <Button variant="outline" onClick={() => setFilterModalOpen(true)} className="shrink-0">

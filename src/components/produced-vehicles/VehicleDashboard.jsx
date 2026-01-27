@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
     import { motion } from 'framer-motion';
     import { Skeleton } from '@/components/ui/skeleton';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-    import { Clock, CheckCircle, Wrench, Truck, Hourglass, BarChartHorizontal } from 'lucide-react';
+    import { Clock, CheckCircle, Wrench, Truck, Hourglass, BarChartHorizontal, FlaskConical } from 'lucide-react';
     import { parseISO, differenceInMilliseconds } from 'date-fns';
     import { formatDuration } from '@/lib/formatDuration.js';
 
@@ -43,20 +43,22 @@ import React, { useMemo } from 'react';
     const VehicleDashboard = ({ vehicles, loading, onStatusClick }) => {
         const stats = useMemo(() => {
             if (loading || !vehicles) {
-                return {
-                    inQuality: 0,
-                    readyForShipment: 0,
-                    inRework: 0,
-                    shipped: 0,
-                    avgInspectionTime: "0 dk",
-                    avgReworkTime: "0 dk"
-                };
+            return {
+                inQuality: 0,
+                readyForShipment: 0,
+                inRework: 0,
+                inArge: 0,
+                shipped: 0,
+                avgInspectionTime: "0 dk",
+                avgReworkTime: "0 dk"
+            };
             }
 
             const baseStats = {
                 inQuality: vehicles.filter(v => ['Kaliteye Girdi', 'Kontrol Başladı', 'Kontrol Bitti'].includes(v.status)).length,
                 readyForShipment: vehicles.filter(v => v.status === 'Sevk Hazır').length,
                 inRework: vehicles.filter(v => v.status === 'Yeniden İşlemde').length,
+                inArge: vehicles.filter(v => v.status === 'Ar-Ge\'de').length,
                 shipped: vehicles.filter(v => v.status === 'Sevk Edildi').length,
             };
 
@@ -102,7 +104,7 @@ import React, { useMemo } from 'react';
         }, [vehicles, loading]);
 
         return (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                 <StatCard 
                     title="Kalitede Bekleyen" 
                     value={stats.inQuality} 
@@ -126,6 +128,14 @@ import React, { useMemo } from 'react';
                     onClick={() => onStatusClick('Yeniden İşlemde')}
                     loading={loading}
                     colorClass="text-red-500"
+                />
+                <StatCard 
+                    title="Ar-Ge'de" 
+                    value={stats.inArge} 
+                    icon={<FlaskConical />} 
+                    onClick={() => onStatusClick('Ar-Ge\'de')}
+                    loading={loading}
+                    colorClass="text-purple-500"
                 />
                 <StatCard 
                     title="Sevk Edilmiş" 

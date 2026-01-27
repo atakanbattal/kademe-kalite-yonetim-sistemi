@@ -128,11 +128,11 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
             });
             // Önce özel refresh fonksiyonunu çağır (daha hızlı)
             if (refreshProducedVehicles) {
-                refreshProducedVehicles();
+                await refreshProducedVehicles();
             }
             // Sonra genel refresh'i de çağır (fallback)
             if (refreshVehicles) {
-                refreshVehicles();
+                await refreshVehicles();
             }
             setIsOpen(false);
         }
@@ -167,15 +167,15 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="chassis_no">Şasi No</Label>
-                            <Input id="chassis_no" value={formData.chassis_no} onChange={handleInputChange} />
+                            <Input id="chassis_no" value={formData.chassis_no} onChange={handleInputChange} autoCapitalize="off" />
                         </div>
                         <div>
                             <Label htmlFor="serial_no">Seri No</Label>
-                            <Input id="serial_no" value={formData.serial_no} onChange={handleInputChange} />
+                            <Input id="serial_no" value={formData.serial_no} onChange={handleInputChange} autoCapitalize="off" />
                         </div>
                         <div>
                             <Label htmlFor="customer_name">Müşteri Adı</Label>
-                            <Input id="customer_name" value={formData.customer_name} onChange={handleInputChange} required />
+                            <Input id="customer_name" value={formData.customer_name} onChange={handleInputChange} required autoCapitalize="off" />
                         </div>
                         <div>
                             <Label htmlFor="vehicle_type">Araç Tipi</Label>
@@ -222,7 +222,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                     </div>
                     <div>
                         <Label htmlFor="notes">Notlar</Label>
-                        <Textarea id="notes" value={formData.notes} onChange={handleInputChange} rows={4} placeholder="Araç ile ilgili notlarınızı buraya yazabilirsiniz..." />
+                        <Textarea id="notes" value={formData.notes} onChange={handleInputChange} rows={4} placeholder="Araç ile ilgili notlarınızı buraya yazabilirsiniz..." autoCapitalize="off" />
                     </div>
                 </form>
                 <DialogFooter className="flex-shrink-0 border-t pt-4">

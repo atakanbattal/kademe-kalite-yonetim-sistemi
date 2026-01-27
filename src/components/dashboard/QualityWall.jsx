@@ -14,6 +14,9 @@ const QualityWall = () => {
         
         // Her birim için istatistikler - açılan birimlerden veri çek
         nonConformities.forEach(nc => {
+            // Reddedilenleri kapatma oranı hesabına dahil etme
+            if (nc.status === 'Reddedildi') return;
+            
             // Açılan birim: department kolonu (talep eden birim yerine)
             const dept = nc.department || 'Belirtilmemiş';
             if (!deptStats[dept]) {

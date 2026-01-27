@@ -2,7 +2,7 @@ import React from 'react';
     import { motion } from 'framer-motion';
     import { Badge } from '@/components/ui/badge';
     import { Button } from '@/components/ui/button';
-    import { MoreVertical, Edit, Eye, Trash2, Clock, Play, CheckCircle, Truck, AlertTriangle, Wrench, RefreshCw, Timer } from 'lucide-react';
+    import { MoreVertical, Edit, Eye, Trash2, Clock, Play, CheckCircle, Truck, AlertTriangle, Wrench, RefreshCw, Timer, FlaskConical } from 'lucide-react';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -79,6 +79,7 @@ import React from 'react';
                 case 'Sevk Bilgisi Bekleniyor': return { variant: 'warning', icon: <Clock className="w-3 h-3 mr-1.5" />, text: 'Sevk Bilgisi Bekleniyor' };
                 case 'Sevk Hazır': return { variant: 'success', icon: <CheckCircle className="w-3 h-3 mr-1.5" />, text: 'Sevk Hazır' };
                 case 'Sevk Edildi': return { variant: 'secondary', icon: <Truck className="w-3 h-3 mr-1.5" />, text: 'Sevk Edildi' };
+                case 'Ar-Ge\'de': return { variant: 'info', icon: <FlaskConical className="w-3 h-3 mr-1.5" />, text: 'Ar-Ge\'de' };
                 default: return { variant: 'secondary', icon: <Clock className="w-3 h-3 mr-1.5" />, text: status };
             }
         };
@@ -102,6 +103,25 @@ import React from 'react';
 
             // Duruma göre başlangıç zamanını belirle
             switch (vehicle.status) {
+                case 'Ar-Ge\'de':
+                    // Timeline events'ten en son arge_sent'i bul
+                    const argeTimeline = vehicle.vehicle_timeline_events || [];
+                    const latestArgeSent = argeTimeline
+                        .filter(e => e.event_type === 'arge_sent')
+                        .sort((a, b) => new Date(b.event_timestamp) - new Date(a.event_timestamp))[0];
+                    
+                    if (latestArgeSent) {
+                        const argeReturned = argeTimeline
+                            .filter(e => e.event_type === 'arge_returned' && new Date(e.event_timestamp) > new Date(latestArgeSent.event_timestamp))
+                            .sort((a, b) => new Date(a.event_timestamp) - new Date(b.event_timestamp))[0];
+                        
+                        start = latestArgeSent.event_timestamp;
+                        end = argeReturned ? argeReturned.event_timestamp : now;
+                    } else {
+                        start = vehicle.status_entered_at;
+                        end = now;
+                    }
+                    break;
                 case 'Yeniden İşlem':
                 case 'Yeniden İşlemde':
                     // Önce timeline events'ten kontrol et
@@ -200,23 +220,26 @@ import React from 'react';
             const ActionItem = ({ newStatus, label, icon, condition }) => {
                 if (!condition) return null;
                 
-                const item = (
-                    <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, vehicle, newStatus)} disabled={isActionDisabled}>
-                        {icon} {label}
-                    </DropdownMenuItem>
+                return (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <DropdownMenuItem 
+                                    onClick={(e) => handleStatusUpdate(e, vehicle, newStatus)} 
+                                    disabled={isActionDisabled}
+                                    className={isActionDisabled ? 'cursor-not-allowed opacity-50' : ''}
+                                >
+                                    {icon} {label}
+                                </DropdownMenuItem>
+                            </TooltipTrigger>
+                            {isActionDisabled && (
+                                <TooltipContent>
+                                    <p>Bu işlem için yetkiniz yok.</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
                 );
-
-                if (isActionDisabled) {
-                    return (
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild><div className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm opacity-50 outline-none">{icon} {label}</div></TooltipTrigger>
-                                <TooltipContent><p>Bu işlem için yetkiniz yok.</p></TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    );
-                }
-                return item;
             };
 
             return (
@@ -232,8 +255,11 @@ import React from 'react';
                     
                     <ActionItem newStatus="shipped" label="Sevk Et (Kapat)" icon={<Truck className="mr-2 h-4 w-4" />} condition={['Sevk Hazır', 'Sevk Bilgisi Bekleniyor'].includes(status)} />
                     
+                    <ActionItem newStatus="arge_sent" label="Ar-Ge'ye Gönder" icon={<FlaskConical className="mr-2 h-4 w-4 text-purple-500" />} condition={['Kontrol Bitti', 'Yeniden İşlem Bitti'].includes(status)} />
+                    <ActionItem newStatus="arge_returned" label="Ar-Ge'den Döndü" icon={<FlaskConical className="mr-2 h-4 w-4 text-blue-500" />} condition={status === 'Ar-Ge\'de'} />
+                    
                     <DropdownMenuSeparator />
-                    <ActionItem newStatus="quality_entry" label="Tekrar Kaliteye Al" icon={<RefreshCw className="mr-2 h-4 w-4" />} condition={['Yeniden İşlem Bitti', 'Kontrol Bitti', 'Sevk Bilgisi Bekleniyor'].includes(status)} />
+                    <ActionItem newStatus="quality_entry" label="Tekrar Kaliteye Al" icon={<RefreshCw className="mr-2 h-4 w-4" />} condition={['Yeniden İşlem Bitti', 'Kontrol Bitti', 'Sevk Bilgisi Bekleniyor', 'Ar-Ge\'de'].includes(status)} />
                 </>
             );
         };

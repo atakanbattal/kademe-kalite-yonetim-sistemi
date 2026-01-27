@@ -12,10 +12,11 @@ import { format, subDays, subMonths, startOfMonth, endOfMonth, startOfYear, endO
 import { tr } from 'date-fns/locale';
 import { generateVehicleSummaryReport } from '@/lib/pdfGenerator';
 import { imageUrlToBase64, logoCache, preloadLogos, getLogoUrl } from '@/lib/reportUtils';
+import { MultiSelectPopover } from '@/components/ui/multi-select-popover';
 
 const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
     const { toast } = useToast();
-    const [selectedStatus, setSelectedStatus] = useState('all');
+    const [selectedStatuses, setSelectedStatuses] = useState([]);
     const [dateFilterType, setDateFilterType] = useState('all'); // 'all', 'preset', 'custom'
     const [datePreset, setDatePreset] = useState('all');
     const [dateFrom, setDateFrom] = useState(null);
@@ -30,6 +31,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
         { value: 'Kontrol Bitti', label: 'Kontrol Bitti' },
         { value: 'Yeniden İşlemde', label: 'Yeniden İşlemde' },
         { value: 'Yeniden İşlem Bitti', label: 'Yeniden İşlem Bitti' },
+        { value: 'Ar-Ge\'de', label: 'Ar-Ge\'de' },
         { value: 'Sevk Bilgisi Bekleniyor', label: 'Sevk Bilgisi Bekleniyor' },
         { value: 'Sevk Hazır', label: 'Sevk Hazır' },
         { value: 'Sevk Edildi', label: 'Sevk Edildi' },
@@ -68,7 +70,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
 
     useEffect(() => {
         if (isOpen) {
-            setSelectedStatus('all');
+            setSelectedStatuses([]);
             setDateFilterType('all');
             setDatePreset('all');
             setDateFrom(null);
@@ -123,9 +125,9 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                 }
             }
 
-            // Durum filtresi uygula - mevcut status field'ına göre
-            if (selectedStatus && selectedStatus !== 'all') {
-                allVehicles = allVehicles.filter(v => v.status === selectedStatus);
+            // Durum filtresi uygula - birden fazla durum seçilebilir
+            if (selectedStatuses && selectedStatuses.length > 0) {
+                allVehicles = allVehicles.filter(v => selectedStatuses.includes(v.status));
             }
 
             setFilteredVehicles(allVehicles);
@@ -220,8 +222,11 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
                 faultsByVehicle[fault.inspection_id].push(fault);
             });
 
-            // Tek bir özet rapor oluştur
-            await generateVehicleSummaryReport(filteredVehicles, timelineByVehicle, faultsByVehicle);
+            // Tek bir özet rapor oluştur - seçilen durumları da geçir
+            const selectedStatusLabels = selectedStatuses.length > 0 
+                ? selectedStatuses.map(s => statusOptions.find(o => o.value === s)?.label).filter(Boolean)
+                : [];
+            await generateVehicleSummaryReport(filteredVehicles, timelineByVehicle, faultsByVehicle, selectedStatusLabels);
 
             toast({ 
                 title: 'Başarılı', 
@@ -250,20 +255,18 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
 
                 <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <Label>Durum Seçin (Opsiyonel)</Label>
-                        <Select value={selectedStatus || 'all'} onValueChange={(value) => setSelectedStatus(value === 'all' ? '' : value)}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Durum seçin (boş bırakabilirsiniz)..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Tüm Durumlar</SelectItem>
-                                {statusOptions.map(option => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Label>Durum Seçin (Opsiyonel - Birden Fazla Seçebilirsiniz)</Label>
+                        <MultiSelectPopover
+                            options={statusOptions}
+                            value={selectedStatuses}
+                            onChange={setSelectedStatuses}
+                            placeholder="Durum seçin (boş bırakabilirsiniz)..."
+                        />
+                        {selectedStatuses.length > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                {selectedStatuses.length} durum seçildi: {selectedStatuses.map(s => statusOptions.find(o => o.value === s)?.label).filter(Boolean).join(', ')}
+                            </p>
+                        )}
                     </div>
 
                     <div className="space-y-2">
