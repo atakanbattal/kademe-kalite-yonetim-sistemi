@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { FileDown, X } from 'lucide-react';
+import { FileDown, X, File, Image, FileText as FileTextIcon, Download, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
@@ -25,6 +25,7 @@ const InkrDetailModal = ({
     setIsOpen,
     report,
     onDownloadPDF,
+    onViewPdf,
 }) => {
     const { toast } = useToast();
     const { characteristics, equipment } = useData();
@@ -32,6 +33,8 @@ const InkrDetailModal = ({
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
     const [inspectionInfo, setInspectionInfo] = useState(null);
+    const [attachments, setAttachments] = useState([]);
+    const [loadingAttachments, setLoadingAttachments] = useState(false);
 
     const getCharacteristicName = (id) => {
         const char = characteristics?.find(c => c.value === id);
@@ -95,10 +98,93 @@ const InkrDetailModal = ({
             }
         };
 
+        const fetchAttachments = async () => {
+            if (report?.id) {
+                setLoadingAttachments(true);
+                try {
+                    const { data, error } = await supabase
+                        .from('inkr_attachments')
+                        .select('*')
+                        .eq('inkr_report_id', report.id)
+                        .order('uploaded_at', { ascending: false });
+                    
+                    if (!error && data) {
+                        setAttachments(data);
+                    }
+                } catch (err) {
+                    console.error('Ek dosyalar alınamadı:', err);
+                }
+                setLoadingAttachments(false);
+            }
+        };
+
         if (isOpen && report) {
             fetchInspectionInfo();
+            fetchAttachments();
         }
     }, [isOpen, report]);
+
+    const getFileIcon = (fileType) => {
+        if (fileType?.startsWith('image/')) return <Image className="h-5 w-5 text-blue-500" />;
+        if (fileType === 'application/pdf') return <FileTextIcon className="h-5 w-5 text-red-500" />;
+        return <File className="h-5 w-5 text-gray-500" />;
+    };
+
+    const handleViewAttachment = async (attachment) => {
+        try {
+            const { data, error } = await supabase.storage
+                .from('inkr_attachments')
+                .createSignedUrl(attachment.file_path, 3600);
+            
+            if (error) throw error;
+            
+            if (attachment.file_type === 'application/pdf' && onViewPdf) {
+                onViewPdf(attachment.file_path);
+            } else if (attachment.file_type?.startsWith('image/')) {
+                window.open(data.signedUrl, '_blank');
+            } else {
+                window.open(data.signedUrl, '_blank');
+            }
+        } catch (err) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Dosya açılamadı: ' + err.message
+            });
+        }
+    };
+
+    const handleDownloadAttachment = async (attachment) => {
+        try {
+            const { data, error } = await supabase.storage
+                .from('inkr_attachments')
+                .download(attachment.file_path);
+            
+            if (error) throw error;
+            
+            const url = URL.createObjectURL(data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = attachment.file_name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Dosya indirilemedi: ' + err.message
+            });
+        }
+    };
+
+    const formatFileSize = (bytes) => {
+        if (!bytes) return '-';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    };
 
     if (!report) return null;
 
@@ -118,9 +204,12 @@ const InkrDetailModal = ({
                 </DialogHeader>
 
                 <Tabs defaultValue="basic" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="basic">Temel Bilgiler</TabsTrigger>
                         <TabsTrigger value="details">Muayene Sonuçları</TabsTrigger>
+                        <TabsTrigger value="attachments">
+                            Dosyalar {attachments.length > 0 && <Badge variant="secondary" className="ml-1">{attachments.length}</Badge>}
+                        </TabsTrigger>
                         <TabsTrigger value="report">Rapor</TabsTrigger>
                     </TabsList>
 
@@ -320,7 +409,60 @@ const InkrDetailModal = ({
                         )}
                     </TabsContent>
 
-                    {/* TAB 3: RAPOR */}
+                    {/* TAB 3: DOSYALAR */}
+                    <TabsContent value="attachments" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Ek Dosyalar</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {loadingAttachments ? (
+                                    <p className="text-gray-500 text-center py-4">Yükleniyor...</p>
+                                ) : attachments.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {attachments.map((attachment) => (
+                                            <div 
+                                                key={attachment.id} 
+                                                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {getFileIcon(attachment.file_type)}
+                                                    <div>
+                                                        <p className="font-medium text-sm">{attachment.file_name}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {formatFileSize(attachment.file_size)} • {attachment.uploaded_at ? format(new Date(attachment.uploaded_at), 'dd.MM.yyyy HH:mm') : '-'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm"
+                                                        onClick={() => handleViewAttachment(attachment)}
+                                                    >
+                                                        <ExternalLink className="h-4 w-4 mr-1" />
+                                                        Görüntüle
+                                                    </Button>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm"
+                                                        onClick={() => handleDownloadAttachment(attachment)}
+                                                    >
+                                                        <Download className="h-4 w-4 mr-1" />
+                                                        İndir
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-500 text-center py-8">Bu INKR kaydına henüz dosya eklenmemiş.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* TAB 4: RAPOR */}
                     <TabsContent value="report" className="space-y-4">
                         <Card>
                             <CardHeader>

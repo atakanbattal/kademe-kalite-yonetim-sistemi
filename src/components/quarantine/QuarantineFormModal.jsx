@@ -48,43 +48,63 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
         }
     }, [isOpen, toast]);
 
+    // Modal açıldığında ve mode/existingRecord değiştiğinde form verilerini güncelle
     useEffect(() => {
-        if (isOpen) {
-            if (isEditMode && existingRecord) {
-                // Düzenleme modunda mevcut kayıt verilerini yükle
-                setFormData({
-                    lot_no: existingRecord.lot_no || '',
-                    part_code: existingRecord.part_code || '',
-                    part_name: existingRecord.part_name || '',
-                    quantity: existingRecord.quantity || '',
-                    unit: existingRecord.unit || 'Adet',
-                    source_department: existingRecord.source_department || '',
-                    requesting_department: existingRecord.requesting_department || '',
-                    requesting_person_name: existingRecord.requesting_person_name || '',
-                    description: existingRecord.description || '',
-                    quarantine_date: existingRecord.quarantine_date 
-                        ? new Date(existingRecord.quarantine_date).toISOString().slice(0, 10)
-                        : new Date().toISOString().slice(0, 10),
-                    status: existingRecord.status || 'Karantinada'
-                });
-            } else {
-                // Yeni kayıt modunda başlangıç değerleri
-                setFormData({
-        lot_no: '',
-        part_code: '',
-        part_name: '',
-        quantity: '',
-        unit: 'Adet',
-        source_department: '',
-        requesting_department: '',
-        requesting_person_name: '',
-        description: '',
-        quarantine_date: new Date().toISOString().slice(0, 10),
-        status: 'Karantinada'
-                });
-            }
+        if (!isOpen) {
+            // Modal kapalıyken form'u sıfırla
+            setFormData({
+                lot_no: '',
+                part_code: '',
+                part_name: '',
+                quantity: '',
+                unit: 'Adet',
+                source_department: '',
+                requesting_department: '',
+                requesting_person_name: '',
+                description: '',
+                quarantine_date: new Date().toISOString().slice(0, 10),
+                status: 'Karantinada'
+            });
+            return;
         }
-    }, [existingRecord, isEditMode, isOpen]);
+        
+        // Modal açıkken
+        if (mode === 'edit' && existingRecord) {
+            // Düzenleme modunda mevcut kayıt verilerini yükle
+            console.log('📝 Karantina düzenleme modu - Mevcut kayıt:', existingRecord);
+            setFormData({
+                lot_no: existingRecord.lot_no || '',
+                part_code: existingRecord.part_code || '',
+                part_name: existingRecord.part_name || '',
+                quantity: existingRecord.quantity || '',
+                unit: existingRecord.unit || 'Adet',
+                source_department: existingRecord.source_department || '',
+                requesting_department: existingRecord.requesting_department || '',
+                requesting_person_name: existingRecord.requesting_person_name || '',
+                description: existingRecord.description || '',
+                quarantine_date: existingRecord.quarantine_date 
+                    ? new Date(existingRecord.quarantine_date).toISOString().slice(0, 10)
+                    : new Date().toISOString().slice(0, 10),
+                status: existingRecord.status || 'Karantinada'
+            });
+        } else {
+            // Yeni kayıt modunda başlangıç değerleri
+            console.log('📝 Karantina yeni kayıt modu');
+            setFormData({
+                lot_no: '',
+                part_code: '',
+                part_name: '',
+                quantity: '',
+                unit: 'Adet',
+                source_department: '',
+                requesting_department: '',
+                requesting_person_name: '',
+                description: '',
+                quarantine_date: new Date().toISOString().slice(0, 10),
+                status: 'Karantinada'
+            });
+        }
+    }, [isOpen, mode, existingRecord?.id]); // existingRecord.id kullanarak referans sorunlarını önle
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -112,17 +132,28 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
         
         const { non_conformity, non_conformity_id, nc_number, non_conformity_type, ...rest } = formData;
         
+        // Düzenleme modunda quantity değişikliğini kontrol et
+        const newQuantity = parseInt(rest.quantity, 10);
+        console.log('📝 Karantina güncelleme - Form quantity:', rest.quantity, '→ parseInt:', newQuantity);
+        console.log('📝 Karantina güncelleme - Mevcut kayıt:', existingRecord);
+        console.log('📝 Karantina güncelleme - isEditMode:', isEditMode, 'mode:', mode);
+        
         const submissionData = {
           ...rest,
-          quantity: parseInt(rest.quantity, 10),
-          // Yeni kayıt için initial_quantity = quantity (trigger da bunu yapıyor ama açıkça belirtmek daha iyi)
-          initial_quantity: isEditMode ? existingRecord?.initial_quantity : parseInt(rest.quantity, 10),
+          quantity: newQuantity,
+          // Düzenleme modunda initial_quantity'yi koruyalım
+          // Yeni kayıt için initial_quantity = quantity
+          ...(isEditMode ? {} : { initial_quantity: newQuantity }),
         };
 
         // Remove api view only fields before submitting to the actual table
         delete submissionData.id;
         delete submissionData.created_at;
         delete submissionData.updated_at;
+        // initial_quantity düzenleme modunda güncellenmemeli
+        if (isEditMode) {
+            delete submissionData.initial_quantity;
+        }
 
         // Undefined key'leri ve geçersiz kolonları temizle
         const cleanedData = {};
@@ -132,24 +163,36 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
             }
         }
 
+        console.log('📝 Karantina güncelleme - cleanedData:', cleanedData);
+
         let error;
+        let result;
 
         if (isEditMode) {
-            const { error: updateError } = await supabase
+            console.log('📝 Karantina UPDATE çalışıyor, ID:', existingRecord.id);
+            const { data, error: updateError } = await supabase
                 .from('quarantine_records')
                 .update(cleanedData)
-                .eq('id', existingRecord.id);
+                .eq('id', existingRecord.id)
+                .select();
             error = updateError;
+            result = data;
+            console.log('📝 Karantina UPDATE sonucu:', { data, error: updateError });
         } else {
-            const { error: insertError } = await supabase
+            const { data, error: insertError } = await supabase
                 .from('quarantine_records')
-                .insert([cleanedData]);
+                .insert([cleanedData])
+                .select();
             error = insertError;
+            result = data;
+            console.log('📝 Karantina INSERT sonucu:', { data, error: insertError });
         }
 
         if (error) {
+            console.error('❌ Karantina kayıt hatası:', error);
             toast({ variant: 'destructive', title: 'Hata!', description: `Kayıt ${isEditMode ? 'güncellenemedi' : 'oluşturulamadı'}: ${error.message}` });
         } else {
+            console.log('✅ Karantina kaydı başarılı:', result);
             toast({ title: 'Başarılı!', description: `Karantina kaydı başarıyla ${isEditMode ? 'güncellendi' : 'oluşturuldu'}.` });
             refreshData();
             setIsOpen(false);

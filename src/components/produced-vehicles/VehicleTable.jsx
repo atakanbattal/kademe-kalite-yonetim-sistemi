@@ -298,6 +298,15 @@ import React from 'react';
                                             {getSortIcon && getSortIcon('vehicle_type')}
                                         </div>
                                     </th>
+                                    <th 
+                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                        onClick={() => onSort('vehicle_brand')}
+                                    >
+                                        <div className="flex items-center">
+                                            Marka Tipi
+                                            {getSortIcon && getSortIcon('vehicle_brand')}
+                                        </div>
+                                    </th>
                                     <th>Hata Durumu</th>
                                     <th 
                                         className="cursor-pointer hover:bg-secondary/50 select-none"
@@ -326,6 +335,7 @@ import React from 'react';
                             <th>Şasi No</th>
                             <th>Seri No</th>
                             <th>Araç Tipi</th>
+                            <th>Marka Tipi</th>
                             <th>Hata Durumu</th>
                             <th>Müşteri</th>
                             <th>Kalite Durumu</th>
@@ -354,6 +364,7 @@ import React from 'react';
                                     <td className="font-mono text-foreground">{vehicle.chassis_no}</td>
                                     <td className="font-mono text-muted-foreground">{vehicle.serial_no}</td>
                                     <td>{vehicle.vehicle_type}</td>
+                                    <td>{vehicle.vehicle_brand || '-'}</td>
                                     <td><FaultStatusIndicator faults={vehicle.quality_inspection_faults} onClick={(e) => { e.stopPropagation(); onOpenFaults(vehicle); }} /></td>
                                     <td>{vehicle.customer_name || '-'}</td>
                                     <td><Badge variant={statusInfo.variant} className="flex items-center w-fit">{statusInfo.icon}{statusInfo.text}</Badge></td>

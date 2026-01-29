@@ -6,23 +6,44 @@ import React from 'react';
 
     const PIE_COLORS = { 'Kabul': '#22C55E', 'Şartlı Kabul': '#F59E0B', 'Ret': '#EF4444', 'Beklemede': '#6B7280' };
 
-    const IncomingQualityDashboard = ({ inspections, loading, onCardClick }) => {
+    const IncomingQualityDashboard = ({ inspections, loading, onCardClick, inkrReports = [], inkrMissingCount = 0 }) => {
         const stats = React.useMemo(() => {
             if (!inspections) return { totalInspections: 0, rejectionRate: 0, conditionalAcceptance: 0, missingControlPlans: 0, missingInkr: 0, rejectedCount: 0 };
             const totalInspections = inspections.length;
             const rejectedCount = inspections.filter(i => i.decision === 'Ret').length;
             const conditionalAcceptance = inspections.filter(i => i.decision === 'Şartlı Kabul').length;
-            const missingControlPlans = inspections.filter(i => i.control_plan_status === 'Mevcut Değil').length;
-            const missingInkr = inspections.filter(i => i.inkr_status === 'Mevcut Değil').length;
+            
+            // Parça kodunu normalize et (trim ve lowercase)
+            const normalizePartCode = (code) => code ? code.toString().trim().toLowerCase() : '';
+            
+            // Benzersiz parça kodları üzerinden hesapla (her parça kodu bir kez sayılır) - sadece kontrol planı için
+            const uniquePartCodes = new Set();
+            inspections.forEach(i => {
+                if (i.part_code && i.part_code.trim()) {
+                    uniquePartCodes.add(normalizePartCode(i.part_code));
+                }
+            });
+            
+            // Kontrol planı eksik olanlar
+            const controlPlanMissing = new Set();
+            inspections.forEach(i => {
+                if (i.part_code && i.control_plan_status === 'Mevcut Değil') {
+                    controlPlanMissing.add(normalizePartCode(i.part_code));
+                }
+            });
+            const missingControlPlans = controlPlanMissing.size;
+            
+            // INKR eksik sayısı artık Module'dan geliyor (tüm parça kodları üzerinden hesaplanmış)
+            // inkrMissingCount prop'u kullanılıyor
 
             return {
                 totalInspections,
                 rejectedCount,
                 conditionalAcceptance,
                 missingControlPlans,
-                missingInkr
+                missingInkr: inkrMissingCount // Module'dan gelen doğru sayı
             };
-        }, [inspections]);
+        }, [inspections, inkrMissingCount]);
 
         const decisionData = React.useMemo(() => {
             if (!inspections) return [];

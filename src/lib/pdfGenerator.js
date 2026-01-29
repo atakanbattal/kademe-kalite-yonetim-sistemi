@@ -1,6 +1,12 @@
 import { logoCache, imageUrlToBase64, preloadLogos, getLogoUrl } from './reportUtils';
 
-const generatePrintableReport = (record) => {
+const generatePrintableReport = async (record) => {
+    // Logoları önceden yükle (cache'de yoksa)
+    await preloadLogos();
+    
+    // Logo base64 - public klasöründeki logo.png dosyasını kullan
+    const localLogoUrl = getLogoUrl('logo.png');
+    const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
     
     // Metin alanlarını formatla (camelCase kaldırıldı)
@@ -245,21 +251,35 @@ const generatePrintableReport = (record) => {
                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                 }
                 .header {
-                    text-align: center;
+                    display: grid;
+                    grid-template-columns: auto 1fr auto;
+                    gap: 15px;
+                    align-items: center;
                     border-bottom: 2px solid #e5e7eb;
                     padding-bottom: 10px;
                     margin-bottom: 12px;
+                }
+                .header-logo {
+                    height: 50px;
+                    width: auto;
                 }
                 .header h1 {
                     font-size: 22px;
                     font-weight: 700;
                     color: #111827;
                     margin: 0;
+                    text-align: center;
                 }
                 .header p {
                     font-size: 13px;
                     color: #6b7280;
                     margin: 3px 0 0;
+                    text-align: center;
+                }
+                .print-info {
+                    text-align: right;
+                    font-size: 10px;
+                    color: #6b7280;
                 }
                 .report-title-section {
                     display: flex;
@@ -463,8 +483,15 @@ const generatePrintableReport = (record) => {
         <body>
             <div class="page">
                 <div class="header">
-                    <h1>KADEME A.Ş.</h1>
-                    <p>Kalite Yönetim Sistemi</p>
+                    <img src="${mainLogoBase64}" alt="Logo" class="header-logo" crossOrigin="anonymous" onerror="this.style.display='none'" />
+                    <div>
+                        <h1>KADEME A.Ş.</h1>
+                        <p>Kalite Yönetim Sistemi</p>
+                    </div>
+                    <div class="print-info">
+                        <p>${record.nc_number || record.mdi_no || '-'}</p>
+                        <p>${new Date().toLocaleDateString('tr-TR')}</p>
+                    </div>
                 </div>
                 <div class="report-title-section">
                     <div class="report-title">
@@ -540,26 +567,21 @@ const generatePrintableReport = (record) => {
     }
 };
 
-export const generateDFPDF = (record) => {
-    generatePrintableReport(record);
+export const generateDFPDF = async (record) => {
+    await generatePrintableReport(record);
 };
 
-export const generate8DPDF = (record) => {
-    generatePrintableReport(record);
+export const generate8DPDF = async (record) => {
+    await generatePrintableReport(record);
 };
 
 export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, faultsByVehicle, selectedStatuses = []) => {
     // Logoları önceden yükle (cache'de yoksa) - uygunsuzluk yönetimindeki gibi
     await preloadLogos();
     
-    // Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+    // Logo base64 - public klasöründeki logo.png dosyasını kullan
     const localLogoUrl = getLogoUrl('logo.png');
-    const mainLogoUrl = logoCache[localLogoUrl] 
-        ? localLogoUrl
-        : (logoCache[getLogoUrl('kademe-logo.png')] 
-            ? getLogoUrl('kademe-logo.png')
-            : 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-    const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+    const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
     
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
     
@@ -1232,15 +1254,27 @@ export const generateVehicleReport = async (vehicle, timeline, faults, equipment
                 <div class="fault-card" style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; padding: 15px; margin-bottom: ${index < faults.length - 1 ? '12px' : '0'}; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <p style="margin: 0; font-size: 14px; font-weight: 600; color: #991b1b;">${fault.category?.name || 'Kategori Belirtilmemiş'}</p>
-                        <span style="background-color: ${fault.is_resolved ? '#86efac' : '#fde047'}; color: ${fault.is_resolved ? '#15803d' : '#713f12'}; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
-                            ${fault.is_resolved ? 'Çözüldü' : 'Bekliyor'}
-                        </span>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                            ${fault.arge_approved ? `
+                                <span style="background-color: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
+                                    Ar-Ge Onaylı
+                                </span>
+                            ` : ''}
+                            <span style="background-color: ${fault.is_resolved ? '#86efac' : '#fde047'}; color: ${fault.is_resolved ? '#15803d' : '#713f12'}; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
+                                ${fault.is_resolved ? 'Çözüldü' : 'Bekliyor'}
+                            </span>
+                        </div>
                     </div>
                     <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Departman:</strong> ${fault.department?.name || '-'}</p>
                     <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Miktar:</strong> ${fault.quantity || '-'}</p>
                     <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Tarih:</strong> ${formatDate(fault.fault_date)}</p>
                     <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;"><strong>Giriş Tarihi:</strong> ${fault.created_at ? formatDate(fault.created_at) : '-'}</p>
                     ${fault.is_resolved && fault.resolved_at ? `<p style="margin: 0 0 6px 0; font-size: 12px; color: #15803d;"><strong>Çözüm Tarihi:</strong> ${formatDate(fault.resolved_at)}</p>` : ''}
+                    ${fault.arge_approved ? `
+                        <div style="margin-top: 8px; padding: 8px; background-color: #eff6ff; border-radius: 4px; border: 1px solid #bfdbfe; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact;">
+                            <p style="margin: 0; font-size: 12px; color: #1e40af;"><strong>Ar-Ge Onayı:</strong> ${fault.arge_approved_at ? formatDate(fault.arge_approved_at) : '-'}</p>
+                        </div>
+                    ` : ''}
                     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #fecaca;">
                         <p style="margin: 0; font-size: 13px; color: #4b5563;"><strong>Açıklama:</strong></p>
                         <p style="margin: 4px 0 0 0; font-size: 12px; color: #1f2937; white-space: pre-wrap;">${fault.description || '-'}</p>
@@ -1258,14 +1292,9 @@ export const generateVehicleReport = async (vehicle, timeline, faults, equipment
     // Logoları önceden yükle (cache'de yoksa) - uygunsuzluk yönetimindeki gibi
     await preloadLogos();
     
-    // Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+    // Logo base64 - public klasöründeki logo.png dosyasını kullan
     const localLogoUrl = getLogoUrl('logo.png');
-    const mainLogoUrl = logoCache[localLogoUrl] 
-        ? localLogoUrl
-        : (logoCache[getLogoUrl('kademe-logo.png')] 
-            ? getLogoUrl('kademe-logo.png')
-            : 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-    const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+    const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
     
     // Rapor numarası oluştur
     const reportNo = `ARAC-${vehicle.chassis_no || 'N/A'}-${Date.now().toString().slice(-6)}`;
@@ -1557,10 +1586,11 @@ export const generateVehicleReport = async (vehicle, timeline, faults, equipment
                             <span class="value">${qualityTimes.totalReworkTime}</span>
                         </div>
                         <div class="info-item">
-                            <span class="label">Kalitede Geçen Toplam Süre</span>
+                            <span class="label">Kontrol + Yeniden İşlem Toplamı</span>
                             <span class="value" style="color: #1e40af; font-weight: 700;">${qualityTimes.totalQualityTime}</span>
                         </div>
                     </div>
+                    <p style="font-size: 10px; color: #6b7280; margin-top: 8px;">* Kontrol + Yeniden İşlem Toplamı, aktif çalışma sürelerinin toplamını gösterir. Bekleme süreleri dahil değildir.</p>
                 </div>
                 
                 ${equipment && equipment.id ? `
@@ -1638,9 +1668,9 @@ export const generateVehicleReport = async (vehicle, timeline, faults, equipment
 };
 export const generateComplaintReport = async (complaint, analyses = [], actions = []) => {
     await preloadLogos();
+    // Logo base64 - public klasöründeki logo.png dosyasını kullan
     const localLogoUrl = getLogoUrl('logo.png');
-    const mainLogoUrl = logoCache[localLogoUrl] ? localLogoUrl : (logoCache[getLogoUrl('kademe-logo.png')] ? getLogoUrl('kademe-logo.png') : 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-    const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+    const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
     const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
     const escapeHtml = (text) => {
         if (!text || typeof text !== 'string') return text || '-';

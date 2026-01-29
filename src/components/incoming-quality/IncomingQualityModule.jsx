@@ -34,6 +34,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     
     const [inspections, setInspections] = useState([]);
     const [dashboardData, setDashboardData] = useState(null);
+    const [inkrMissingCount, setInkrMissingCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
@@ -227,6 +228,82 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         fetchInspections(currentPage, filters);
         fetchDashboardData(filters);
     }, [currentPage, filters, fetchInspections, fetchDashboardData]);
+
+    // INKR eksik sayısını tüm parça kodları üzerinden hesapla (filtresiz)
+    useEffect(() => {
+        const calculateInkrMissing = async () => {
+            try {
+                // Supabase varsayılan 1000 kayıt limiti var - tüm verileri almak için pagination yapıyoruz
+                let allInspections = [];
+                let page = 0;
+                const PAGE_SIZE = 1000;
+                let hasMore = true;
+
+                while (hasMore) {
+                    const from = page * PAGE_SIZE;
+                    const to = from + PAGE_SIZE - 1;
+
+                    const { data: inspections, error } = await supabase
+                        .from('incoming_inspections_with_supplier')
+                        .select('part_code')
+                        .not('part_code', 'is', null)
+                        .not('part_code', 'eq', '')
+                        .range(from, to);
+
+                    if (error) {
+                        console.error('INKR hesaplama hatası:', error);
+                        return;
+                    }
+
+                    if (inspections && inspections.length > 0) {
+                        allInspections = allInspections.concat(inspections);
+                    }
+
+                    if (!inspections || inspections.length < PAGE_SIZE) {
+                        hasMore = false;
+                    } else {
+                        page++;
+                    }
+                }
+
+                console.log('📥 INKR Hesaplama - Toplam inspection kaydı çekildi:', allInspections.length);
+
+                // Normalize fonksiyonu
+                const normalizePartCode = (code) => code ? code.toString().trim().toLowerCase() : '';
+
+                // Benzersiz parça kodları
+                const uniquePartCodes = new Set();
+                (allInspections || []).forEach(i => {
+                    if (i.part_code) {
+                        const normalized = normalizePartCode(i.part_code);
+                        if (normalized) uniquePartCodes.add(normalized);
+                    }
+                });
+
+                // INKR mevcut parça kodları
+                const inkrPartCodes = new Set(
+                    (inkrReports || [])
+                        .map(r => normalizePartCode(r.part_code))
+                        .filter(pc => pc !== '')
+                );
+
+                // INKR eksik sayısı
+                const missingCount = Array.from(uniquePartCodes).filter(pc => !inkrPartCodes.has(pc)).length;
+                
+                console.log('📊 INKR Eksik Hesaplama (Module):', {
+                    toplamBenzersizParcaKodu: uniquePartCodes.size,
+                    inkrMevcutParcaKodu: inkrPartCodes.size,
+                    inkrEksikSayisi: missingCount
+                });
+
+                setInkrMissingCount(missingCount);
+            } catch (err) {
+                console.error('INKR hesaplama hatası:', err);
+            }
+        };
+
+        calculateInkrMissing();
+    }, [inkrReports]);
 
     const handleSuccess = () => {
         setFormOpen(false);
@@ -678,7 +755,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             <h1 className="text-3xl font-bold text-foreground">Girdi Kalite Kontrol</h1>
 
-            <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} />
+            <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} />
 
             <Tabs defaultValue="inspections" className="w-full">
                 <TabsList className="grid w-full grid-cols-5">

@@ -222,8 +222,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <InfoCard icon={Clock} label="Toplam Kontrol Süresi" value={summaryStats.totalControlTime} variant="info" />
                             <InfoCard icon={Wrench} label="Toplam Yeniden İşlem Süresi" value={summaryStats.totalReworkTime} variant="warning" />
-                            <InfoCard icon={CheckCircle} label="Kalitede Geçen Toplam Süre" value={summaryStats.totalQualityTime} variant="success" />
+                            <InfoCard icon={CheckCircle} label="Kontrol + Yeniden İşlem Toplamı" value={summaryStats.totalQualityTime} variant="success" />
                         </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                            * Kontrol + Yeniden İşlem Toplamı, aktif çalışma sürelerinin toplamını gösterir. Bekleme süreleri dahil değildir.
+                        </p>
                     </CardContent>
                 </Card>
             </div>
@@ -258,8 +261,33 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         throw faultsError;
                     }
                     
-                    console.log('✅ Hatalar yüklendi:', faultsData);
-                    setFaults(faultsData || []);
+                    // ARGE onaylayan personel bilgilerini ayrıca çek
+                    const argeApprovedByIds = faultsData
+                        ?.filter(f => f.arge_approved_by)
+                        .map(f => f.arge_approved_by) || [];
+                    
+                    let personnelMap = {};
+                    if (argeApprovedByIds.length > 0) {
+                        const { data: personnelData } = await supabase
+                            .from('personnel')
+                            .select('id, full_name')
+                            .in('id', argeApprovedByIds);
+                        
+                        if (personnelData) {
+                            personnelData.forEach(p => {
+                                personnelMap[p.id] = { full_name: p.full_name };
+                            });
+                        }
+                    }
+                    
+                    // Hatalara personel bilgisini ekle
+                    const faultsWithPersonnel = faultsData?.map(fault => ({
+                        ...fault,
+                        arge_approved_by_personnel: fault.arge_approved_by ? personnelMap[fault.arge_approved_by] : null
+                    })) || [];
+                    
+                    console.log('✅ Hatalar yüklendi:', faultsWithPersonnel);
+                    setFaults(faultsWithPersonnel);
 
                     // Timeline verilerini al
                     const { data: timelineData, error: timelineError } = await supabase
@@ -277,60 +305,23 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     setTimeline(timelineData || []);
                     
                     // Ekipman bilgilerini çek - araçla ilişkili kontrol planlarından
-                    const { data: controlPlanData } = await supabase
-                        .from('process_control_plans')
-                        .select(`
-                            id,
-                            control_plan_items(
-                                equipment_id,
-                                equipment:equipments(
-                                    id,
-                                    name,
-                                    brand_model,
-                                    measurement_range,
-                                    measurement_uncertainty
-                                )
-                            )
-                        `)
-                        .eq('vehicle_type', vehicle.vehicle_type)
-                        .limit(1);
+                    // Bu sorgu foreign key ilişkisi yoksa hata verebilir, sessizce atla
+                    let controlPlanData = null;
+                    try {
+                        const { data } = await supabase
+                            .from('process_control_plans')
+                            .select('id, vehicle_type')
+                            .eq('vehicle_type', vehicle.vehicle_type)
+                            .limit(1);
+                        controlPlanData = data;
+                    } catch (err) {
+                        console.warn('Kontrol planı ekipman bilgisi alınamadı:', err);
+                    }
                     
-                    // Eğer kontrol planı varsa ve ekipman bilgisi varsa kullan
+                    // Ekipman bilgisi şimdilik devre dışı - kontrol planı ilişkisi yok
+                    // Kontrol planı varsa sadece ID'sini logla
                     if (controlPlanData && controlPlanData.length > 0) {
-                        const planItems = controlPlanData[0].control_plan_items || [];
-                        const equipmentItems = planItems
-                            .filter(item => item.equipment && item.equipment.id)
-                            .map(item => item.equipment);
-                        
-                        if (equipmentItems.length > 0) {
-                            // İlk ekipmanı al
-                            const selectedEquipment = equipmentItems[0];
-                            
-                            // Bu ekipmanın aktif zimmet bilgisini ayrı bir sorgu ile çek
-                            const { data: assignmentData } = await supabase
-                                .from('equipment_assignments')
-                                .select(`
-                                    is_active,
-                                    assigned_personnel_id,
-                                    personnel:personnel(full_name)
-                                `)
-                                .eq('equipment_id', selectedEquipment.id)
-                                .eq('is_active', true)
-                                .limit(1)
-                                .single();
-                            
-                            // Ekipman bilgisini zimmet bilgisiyle birlikte set et
-                            setEquipment({
-                                ...selectedEquipment,
-                                assignment: assignmentData ? {
-                                    personnel_name: assignmentData.personnel?.full_name || '-',
-                                    is_assigned: true
-                                } : {
-                                    personnel_name: null,
-                                    is_assigned: false
-                                }
-                            });
-                        }
+                        console.log('✅ Kontrol planı bulundu:', controlPlanData[0].id);
                     }
                 } catch (error) {
                     console.error('❌ Veri yükleme hatası:', error);

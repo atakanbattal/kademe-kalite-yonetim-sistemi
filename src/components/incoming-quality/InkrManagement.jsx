@@ -1021,29 +1021,67 @@ const InkrManagement = ({ onViewPdf }) => {
         const fetchAllParts = async () => {
             setPartsLoading(true);
             try {
-                const { data: inspections, error: inspectionsError } = await supabase
-                    .from('incoming_inspections_with_supplier')
-                    .select('part_code, part_name')
-                    .not('part_code', 'is', null)
-                    .not('part_code', 'eq', '')
-                    .order('part_code');
+                // Supabase varsayılan 1000 kayıt limiti var - tüm verileri almak için pagination yapıyoruz
+                let allInspections = [];
+                let page = 0;
+                const PAGE_SIZE = 1000;
+                let hasMore = true;
 
-                if (inspectionsError) throw inspectionsError;
+                while (hasMore) {
+                    const from = page * PAGE_SIZE;
+                    const to = from + PAGE_SIZE - 1;
 
+                    const { data: inspections, error: inspectionsError } = await supabase
+                        .from('incoming_inspections_with_supplier')
+                        .select('part_code, part_name')
+                        .not('part_code', 'is', null)
+                        .not('part_code', 'eq', '')
+                        .order('part_code')
+                        .range(from, to);
+
+                    if (inspectionsError) throw inspectionsError;
+
+                    if (inspections && inspections.length > 0) {
+                        allInspections = allInspections.concat(inspections);
+                    }
+
+                    if (!inspections || inspections.length < PAGE_SIZE) {
+                        hasMore = false;
+                    } else {
+                        page++;
+                    }
+                }
+
+                console.log('📥 InkrManagement - Toplam inspection kaydı çekildi:', allInspections.length);
+
+                // Part code'u normalize et (trim ve lowercase) - karşılaştırma için
+                const normalizePartCode = (code) => code ? code.toString().trim().toLowerCase() : '';
+
+                // Benzersiz parça kodlarını normalize ederek topla
                 const uniquePartsMap = new Map();
-                (inspections || []).forEach(inspection => {
-                    if (inspection.part_code && !uniquePartsMap.has(inspection.part_code)) {
-                        uniquePartsMap.set(inspection.part_code, {
-                            part_code: inspection.part_code,
-                            part_name: inspection.part_name || '-',
-                        });
+                (allInspections || []).forEach(inspection => {
+                    if (inspection.part_code) {
+                        const normalizedCode = normalizePartCode(inspection.part_code);
+                        if (normalizedCode && !uniquePartsMap.has(normalizedCode)) {
+                            uniquePartsMap.set(normalizedCode, {
+                                part_code: inspection.part_code.trim(), // Orijinal kodu sakla (sadece trim)
+                                part_name: inspection.part_name || '-',
+                            });
+                        }
+                    }
+                });
+                
+                // INKR map'i normalize edilmiş part_code'larla oluştur
+                const inkrMap = new Map();
+                (inkrReports || []).forEach(r => {
+                    if (r.part_code) {
+                        inkrMap.set(normalizePartCode(r.part_code), r);
                     }
                 });
 
-                const inkrMap = new Map((inkrReports || []).map(r => [r.part_code, r]));
-
                 const partsWithInkrStatus = Array.from(uniquePartsMap.values()).map(part => {
-                    const inkrReport = inkrMap.get(part.part_code);
+                    const normalizedPartCode = normalizePartCode(part.part_code);
+                    const inkrReport = inkrMap.get(normalizedPartCode);
                     return {
                         ...part,
                         hasInkr: !!inkrReport,
@@ -1051,15 +1089,32 @@ const InkrManagement = ({ onViewPdf }) => {
                     };
                 });
 
+                // INKR'da olup inspection'da olmayan parça kodlarını da ekle
+                const existingNormalizedCodes = new Set(
+                    Array.from(uniquePartsMap.values()).map(p => normalizePartCode(p.part_code))
+                );
+                
                 (inkrReports || []).forEach(inkrReport => {
-                    if (inkrReport.part_code && !uniquePartsMap.has(inkrReport.part_code)) {
+                    const normalizedInkrPartCode = normalizePartCode(inkrReport.part_code);
+                    if (inkrReport.part_code && !existingNormalizedCodes.has(normalizedInkrPartCode)) {
                         partsWithInkrStatus.push({
                             part_code: inkrReport.part_code,
                             part_name: inkrReport.part_name || '-',
                             hasInkr: true,
                             inkrReport: inkrReport,
                         });
+                        existingNormalizedCodes.add(normalizedInkrPartCode);
                     }
+                });
+
+                // Debug: INKR durumu özeti
+                const withInkr = partsWithInkrStatus.filter(p => p.hasInkr).length;
+                const withoutInkr = partsWithInkrStatus.filter(p => !p.hasInkr).length;
+                console.log('📋 INKR Yönetimi - Parça Listesi:', {
+                    toplam: partsWithInkrStatus.length,
+                    inkrMevcut: withInkr,
+                    inkrEksik: withoutInkr,
+                    ornekEksikler: partsWithInkrStatus.filter(p => !p.hasInkr).slice(0, 5).map(p => p.part_code)
                 });
 
                 // Tarihe göre sıralama (en yeni en üstte) - allParts için
@@ -1159,6 +1214,7 @@ const InkrManagement = ({ onViewPdf }) => {
                 setIsOpen={setIsDetailModalOpen}
                 report={selectedInkrDetail}
                 onDownloadPDF={handleDownloadDetailPDF}
+                onViewPdf={onViewPdf}
             />
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <div className="flex flex-col sm:flex-row gap-2 flex-1">

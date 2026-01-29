@@ -53,16 +53,9 @@ export const getLogoUrl = (filename) => {
 
 // Tüm logoları önceden yükle ve cache'le
 export const preloadLogos = async () => {
-	// Önce yerel dosyalardan çekmeyi dene, yoksa harici URL'leri kullan
+	// Sadece public klasöründeki logo.png dosyasını kullan
 	const logoUrls = [
 		getLogoUrl('logo.png'), // Ana Kademe logosu (public klasöründen)
-		getLogoUrl('kademe-logo.png'), // Alternatif isim
-		getLogoUrl('kademe-logo-cert.png'), // Kademe logosu (sertifika için)
-		getLogoUrl('albayrak-logo.png'), // Albayrak logosu
-		// Fallback: Harici URL'ler (yerel dosya yoksa)
-		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png',
-		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png',
-		'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png'
 	];
 
 	// Tüm logoları paralel olarak yükle (başarısız olanlar sessizce atlanır)
@@ -334,19 +327,10 @@ const generateCertificateReportHtml = (record) => {
 		? `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimini başarıyla tamamladığı için verilmiştir.`
 		: `adlı katılımcıya, "${record?.trainingTitle || 'Eğitim Adı'}" eğitimine katıldığı için verilmiştir.`;
 
-	// Logoları base64 olarak al
-	// Önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	// Logoları base64 olarak al - public klasöründeki logo.png dosyasını kullan
 	const localKademeLogo = getLogoUrl('logo.png');
-	const kademeLogoUrl = logoCache[localKademeLogo]
-		? localKademeLogo
-		: (logoCache[getLogoUrl('kademe-logo-cert.png')]
-			? getLogoUrl('kademe-logo-cert.png')
-			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/e3b0ec0cdd1c4814b02c9d873c194be1.png');
-	const albayrakLogoUrl = logoCache[getLogoUrl('albayrak-logo.png')]
-		? getLogoUrl('albayrak-logo.png')
-		: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/4cc3358898350beed09f6af71029b7fe.png';
-	const kademeLogoBase64 = logoCache[kademeLogoUrl] || kademeLogoUrl;
-	const albayrakLogoBase64 = logoCache[albayrakLogoUrl] || albayrakLogoUrl;
+	const kademeLogoBase64 = logoCache[localKademeLogo] || localKademeLogo;
+	const albayrakLogoBase64 = kademeLogoBase64; // Aynı logoyu kullan
 
 	return `
 		<div class="certificate-container">
@@ -428,14 +412,9 @@ const generateExamPaperHtml = (record) => {
 		`;
 	}).join('');
 
-	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	// Logo base64 - public klasöründeki logo.png dosyasını kullan
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl]
-		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')]
-			? getLogoUrl('kademe-logo.png')
-			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
 
 	return `
 		<div class="exam-header">
@@ -492,14 +471,9 @@ const generateDynamicBalanceReportHtml = (record) => {
 		return '<span style="background: #6b7280; color: white; padding: 6px 16px; border-radius: 6px; font-size: 13px; display: inline-block;">-</span>';
 	};
 
-	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	// Logo base64 - public klasöründeki logo.png dosyasını kullan
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl]
-		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')]
-			? getLogoUrl('kademe-logo.png')
-			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
 
 	return `
 		<div class="report-header">
@@ -878,14 +852,9 @@ const generateWPSReportHtml = (record) => {
 		return '';
 	};
 
-	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	// Logo base64 - public klasöründeki logo.png dosyasını kullan
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl]
-		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')]
-			? getLogoUrl('kademe-logo.png')
-			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
 
 	return `
 		<div class="report-header">
@@ -1201,14 +1170,9 @@ const generatePolyvalenceMatrixHtml = (record) => {
 		</div>
 	`;
 
-	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	// Logo base64 - public klasöründeki logo.png dosyasını kullan
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl]
-		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')]
-			? getLogoUrl('kademe-logo.png')
-			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
 
 	return `
 		<div class="report-header">
@@ -3058,14 +3022,9 @@ const generateListReportHtml = (record, type) => {
 		rowsHtml = '';
 	}
 
-	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	// Logo base64 - public klasöründeki logo.png dosyasını kullan
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl]
-		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')]
-			? getLogoUrl('kademe-logo.png')
-			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
 
 	// Rapor numarası oluştur
 	const reportNo = type === 'produced_vehicles_executive_summary'
@@ -5104,14 +5063,9 @@ const generateGenericReportHtml = (record, type) => {
 		return html;
 	};
 
-	// Logo base64 - önce yerel dosyadan çek (logo.png), yoksa harici URL'den
+	// Logo base64 - public klasöründeki logo.png dosyasını kullan
 	const localLogoUrl = getLogoUrl('logo.png');
-	const mainLogoUrl = logoCache[localLogoUrl]
-		? localLogoUrl
-		: (logoCache[getLogoUrl('kademe-logo.png')]
-			? getLogoUrl('kademe-logo.png')
-			: 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png');
-	const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
 
 	return `
 		<div class="report-header">
@@ -5250,8 +5204,9 @@ const generatePrintableReportHtml = async (record, type) => {
 		const contentHtml = generateListReportHtml(record, type);
 		// nonconformity_executive için tam HTML formatı (başlık ve imza dahil)
 		const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
-		const mainLogoUrl = 'https://horizons-cdn.hostinger.com/9e8dec00-2b85-4a8b-aa20-e0ad1becf709/74ae5781fdd1b81b90f4a685fee41c72.png';
-		const mainLogoBase64 = logoCache[mainLogoUrl] || mainLogoUrl;
+		// Logo base64 - public klasöründeki logo.png dosyasını kullan
+		const localLogoUrl = getLogoUrl('logo.png');
+		const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
 		reportContentHtml = `
 		<div class="report-header">
 			<div class="report-logo">

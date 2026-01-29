@@ -246,13 +246,14 @@ import React from 'react';
                                 <TableHead>Parça</TableHead>
                                 <TableHead>Miktar</TableHead>
                                 <TableHead>Karar</TableHead>
+                                <TableHead>Uygunsuzluk</TableHead>
                                 <TableHead className="text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan="7" className="text-center py-8">Yükleniyor...</TableCell>
+                                    <TableCell colSpan="8" className="text-center py-8">Yükleniyor...</TableCell>
                                 </TableRow>
                             ) : inspections && inspections.length > 0 ? (
                                 inspections.map(inspection => (
@@ -263,6 +264,15 @@ import React from 'react';
                                         <TableCell>{inspection.part_name || '-'}</TableCell>
                                         <TableCell>{inspection.quantity_received} {inspection.unit}</TableCell>
                                         <TableCell>{getDecisionBadge(inspection.decision)}</TableCell>
+                                        <TableCell>
+                                            {inspection.linked_nc_number ? (
+                                                <Badge variant={inspection.linked_nc_type === 'DF' ? 'default' : 'secondary'} className={inspection.linked_nc_type === 'DF' ? 'bg-blue-600' : 'bg-purple-600'}>
+                                                    {inspection.linked_nc_type}: {inspection.linked_nc_number}
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-muted-foreground text-xs">-</span>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                             <AlertDialog>
                                                 <DropdownMenu>
@@ -309,7 +319,7 @@ import React from 'react';
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan="7" className="text-center py-8">Muayene kaydı bulunamadı</TableCell>
+                                    <TableCell colSpan="8" className="text-center py-8">Muayene kaydı bulunamadı</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

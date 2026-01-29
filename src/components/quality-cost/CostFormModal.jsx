@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Textarea } from '@/components/ui/textarea';
     import { Switch } from '@/components/ui/switch';
     import { COST_TYPES, MEASUREMENT_UNITS } from './constants';
-    import { Zap, Trash2, Plus, Wrench, Briefcase, AlertCircle, Search } from 'lucide-react';
+    import { Zap, Trash2, Plus, Wrench, Briefcase, AlertCircle, Search, CheckCircle } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
     import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
     import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -206,6 +206,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [totalReworkCost, setTotalReworkCost] = useState(0);
         const [affectedUnits, setAffectedUnits] = useState([]);
         const [isSupplierNC, setIsSupplierNC] = useState(false);
+        const [isReflectedToSupplier, setIsReflectedToSupplier] = useState(false);
         const [suppliers, setSuppliers] = useState([]);
         const [selectedSupplierStatus, setSelectedSupplierStatus] = useState(null);
         // createNC kaldırıldı - kalitesizlik maliyeti uygunsuzluktan bağımsızdır
@@ -228,6 +229,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             unit_cost: 0, // Birim başına maliyet
             supplier_id: null,
             is_supplier_nc: false,
+            is_reflected_to_supplier: false,
         }), []);
 
         // Tedarikçileri yükle
@@ -293,6 +295,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             setAffectedUnits(affectedUnitsWithIds);
             setAddLaborToScrap(!!costData.additional_labor_cost && costData.additional_labor_cost > 0);
             setIsSupplierNC(!!costData.is_supplier_nc);
+            setIsReflectedToSupplier(!!costData.is_reflected_to_supplier);
 
             if (isEditMode) {
               setAutoCalculate(true);
@@ -531,6 +534,15 @@ import React, { useState, useEffect, useCallback } from 'react';
             // Tedarikçi değilse tedarikçi bilgilerini temizle
             if (!submissionData.is_supplier_nc) {
                 submissionData.supplier_id = null;
+                submissionData.is_reflected_to_supplier = false;
+            }
+            
+            // Tedarikçiye yansıtma durumunu ekle
+            submissionData.is_reflected_to_supplier = isReflectedToSupplier;
+            
+            // Tedarikçiye yansıtılan hatalarda kaynak birimi "Tedarikçi" olarak ayarla
+            if (isReflectedToSupplier && submissionData.is_supplier_nc) {
+                submissionData.unit = 'Tedarikçi';
             }
             
             // Sorumlu personel boşsa null yap
@@ -655,7 +667,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         </div>
 
                         {isSupplierNC && (
-                            <div className="md:col-span-3 space-y-2">
+                            <div className="md:col-span-3 space-y-3">
                                 <Alert>
                                     <AlertCircle className="h-4 w-4" />
                                     <AlertTitle>Tedarikçi Modu Aktif</AlertTitle>
@@ -675,16 +687,46 @@ import React, { useState, useEffect, useCallback } from 'react';
                                     </Alert>
                                 )}
 
-                                <Label htmlFor="supplier_id">Tedarikçi <span className="text-red-500">*</span></Label>
-                                <SearchableSelectDialog
-                                    options={supplierOptions}
-                                    value={formData.supplier_id}
-                                    onChange={(value) => handleSelectChange('supplier_id', value)}
-                                    triggerPlaceholder="Tedarikçi seçin..."
-                                    dialogTitle="Tedarikçi Seç"
-                                    searchPlaceholder="Tedarikçi ara..."
-                                    notFoundText="Tedarikçi bulunamadı."
-                                />
+                                <div className="space-y-2">
+                                    <Label htmlFor="supplier_id">Yansıtılan Tedarikçi <span className="text-red-500">*</span></Label>
+                                    <SearchableSelectDialog
+                                        options={supplierOptions}
+                                        value={formData.supplier_id}
+                                        onChange={(value) => handleSelectChange('supplier_id', value)}
+                                        triggerPlaceholder="Tedarikçi seçin..."
+                                        dialogTitle="Tedarikçi Seç"
+                                        searchPlaceholder="Tedarikçi ara..."
+                                        notFoundText="Tedarikçi bulunamadı."
+                                    />
+                                </div>
+                                
+                                <div className="flex items-center space-x-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                    <Switch 
+                                        id="is_reflected_to_supplier" 
+                                        checked={isReflectedToSupplier} 
+                                        onCheckedChange={(checked) => {
+                                            setIsReflectedToSupplier(checked);
+                                            // Tedarikçiye yansıtıldığında birimi otomatik olarak "Tedarikçi" yap
+                                            if (checked) {
+                                                setFormData(prev => ({ ...prev, unit: 'Tedarikçi' }));
+                                            }
+                                        }} 
+                                    />
+                                    <Label htmlFor="is_reflected_to_supplier" className="flex items-center gap-2 cursor-pointer font-medium text-green-700 dark:text-green-300">
+                                        <CheckCircle className="w-4 h-4" />
+                                        Tedarikçiye Yansıtıldı
+                                    </Label>
+                                </div>
+                                
+                                {isReflectedToSupplier && (
+                                    <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                        <AlertTitle className="text-green-700 dark:text-green-300">Maliyet Tedarikçiye Yansıtıldı</AlertTitle>
+                                        <AlertDescription className="text-green-600 dark:text-green-400">
+                                            Bu maliyet seçilen tedarikçiden tahsil edilmiş veya talep edilmiştir.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
                             </div>
                         )}
                         
