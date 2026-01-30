@@ -12,15 +12,17 @@ import { Badge } from '@/components/ui/badge';
 import { useDropzone } from 'react-dropzone';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeFileName } from '@/lib/utils';
+import { useData } from '@/contexts/DataContext';
 
 const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, refreshEquipment, refreshDocuments, onOpenNCForm }) => {
     const { toast } = useToast();
+    const { products } = useData();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedNote, setSelectedNote] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [files, setFiles] = useState([]);
     const [formData, setFormData] = useState({
-        equipment_id: null,
+        product_id: null,
         note_type: '',
         title: '',
         description: '',
@@ -33,10 +35,13 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
         priority: 'Normal'
     });
 
-    const equipmentOptions = equipment.map(eq => ({
-        value: eq.id,
-        label: `${eq.equipment_code} - ${eq.equipment_name}`
-    }));
+    // Ürün seçeneklerini DataContext'ten al - sadece "Araç Tipleri" kategorisindeki ürünler
+    const productOptions = (products || [])
+        .filter(p => p.category_code === 'Araç Tipleri' || p.product_categories?.category_name === 'Araç Tipleri')
+        .map(p => ({
+            value: p.id,
+            label: p.product_name
+        }));
 
     const documentOptions = documents
         .filter(doc => doc.document_type === 'Teknik Resim')
@@ -60,12 +65,16 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
 
     const filteredNotes = notes.filter(note => {
         const searchLower = searchTerm.toLowerCase();
+        // Ürün bilgisini bul
+        const product = products?.find(p => p.id === note.product_id);
+        const productName = product?.product_name || '';
+        
         return (
             note.title?.toLowerCase().includes(searchLower) ||
             note.description?.toLowerCase().includes(searchLower) ||
             note.part_code?.toLowerCase().includes(searchLower) ||
             note.part_name?.toLowerCase().includes(searchLower) ||
-            note.process_control_equipment?.equipment_name?.toLowerCase().includes(searchLower)
+            productName.toLowerCase().includes(searchLower)
         );
     });
 
@@ -73,7 +82,7 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
         if (note) {
             setSelectedNote(note);
             setFormData({
-                equipment_id: note.equipment_id,
+                product_id: note.product_id,
                 note_type: note.note_type || '',
                 title: note.title || '',
                 description: note.description || '',
@@ -89,7 +98,7 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
         } else {
             setSelectedNote(null);
             setFormData({
-                equipment_id: null,
+                product_id: null,
                 note_type: '',
                 title: '',
                 description: '',
@@ -109,7 +118,7 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.equipment_id || !formData.title || !formData.description || !formData.note_type) {
+        if (!formData.product_id || !formData.title || !formData.description || !formData.note_type) {
             toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen zorunlu alanları doldurun.' });
             return;
         }
@@ -196,11 +205,15 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
             return;
         }
 
+        // Ürün bilgisini bul
+        const product = products?.find(p => p.id === note.product_id);
+        const productName = product?.product_name || '';
+
         const ncData = {
             title: `Proses Kontrol Notu: ${note.title}`,
-            description: `Araç: ${note.process_control_equipment?.equipment_name || note.equipment_id}\n\n${note.description}`,
+            description: `Ürün: ${productName}\n\n${note.description}`,
             type: 'DF',
-            department: note.process_control_equipment?.responsible_unit || '',
+            department: '',
             part_code: note.part_code,
             part_name: note.part_name,
         };
@@ -230,13 +243,19 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
                         <div className="grid gap-4 py-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <Label>Araç (*)</Label>
-                                    <Combobox
-                                        options={equipmentOptions}
-                                        value={formData.equipment_id}
-                                        onChange={(v) => setFormData({ ...formData, equipment_id: v })}
-                                        placeholder="Araç seçin..."
-                                    />
+                                    <Label>Ürün (*)</Label>
+                                    {productOptions.length === 0 ? (
+                                        <div className="p-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
+                                            Henüz ürün eklenmemiş. Lütfen önce "Ayarlar &gt; Ürün Yönetimi" kısmından ürün ekleyin.
+                                        </div>
+                                    ) : (
+                                        <Combobox
+                                            options={productOptions}
+                                            value={formData.product_id}
+                                            onChange={(v) => setFormData({ ...formData, product_id: v })}
+                                            placeholder="Ürün seçin..."
+                                        />
+                                    )}
                                 </div>
                                 <div>
                                     <Label>Not Tipi (*)</Label>
@@ -395,7 +414,7 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
                 <table className="w-full">
                     <thead className="bg-muted">
                         <tr>
-                            <th className="p-3 text-left">Araç</th>
+                            <th className="p-3 text-left">Ürün</th>
                             <th className="p-3 text-left">Not Tipi</th>
                             <th className="p-3 text-left">Başlık</th>
                             <th className="p-3 text-left">Parça/Resim</th>
@@ -418,10 +437,15 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
                                 </td>
                             </tr>
                         ) : (
-                            filteredNotes.map((note) => (
+                            filteredNotes.map((note) => {
+                                // Ürün bilgisini bul
+                                const product = products?.find(p => p.id === note.product_id);
+                                const productDisplay = product ? product.product_name : '-';
+                                
+                                return (
                                 <tr key={note.id} className="border-t hover:bg-muted/50">
                                     <td className="p-3">
-                                        {note.process_control_equipment?.equipment_name || '-'}
+                                        {productDisplay}
                                     </td>
                                     <td className="p-3">
                                         <Badge variant="outline" className="flex items-center gap-1 w-fit">
@@ -487,7 +511,8 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
                                         </div>
                                     </td>
                                 </tr>
-                            ))
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

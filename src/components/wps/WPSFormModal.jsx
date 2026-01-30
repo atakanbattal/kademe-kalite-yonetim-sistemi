@@ -23,6 +23,8 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
     const [materialOptions, setMaterialOptions] = useState([]);
+    // Mevcut WPS düzenlenirken otomatik önerilerin tamamen devre dışı bırakılması için
+    const [isEditMode, setIsEditMode] = useState(false);
 
     useEffect(() => {
         if (library.materials.length > 0) {
@@ -63,9 +65,11 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
 
     useEffect(() => {
         if (isOpen) {
+            // Mevcut WPS düzenleniyorsa, otomatik önerileri tamamen devre dışı bırak
+            setIsEditMode(!!existingWPS);
             resetForm();
         }
-    }, [isOpen, resetForm]);
+    }, [isOpen, resetForm, existingWPS]);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => {
@@ -153,13 +157,19 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
     }, [formData.base_material_1_id, formData.thickness_1, formData.welding_position, formData.joint_type, formData.joint_detail, formData.joint_angle, formData.root_gap, formData.welding_process_code, formData.filler_diameter, library]);
 
     useEffect(() => {
+        // Mevcut WPS düzenlenirken otomatik önerileri TAMAMEN devre dışı bırak
+        // Sadece yeni WPS oluştururken çalışsın
+        if (isEditMode) {
+            return; // Edit modunda otomatik öneri yapma
+        }
+        
         if (formData.base_material_1_id && formData.thickness_1) {
             const debounce = setTimeout(() => {
                 updateRecommendations();
             }, 300);
             return () => clearTimeout(debounce);
         }
-    }, [formData.base_material_1_id, formData.thickness_1, formData.welding_position, formData.joint_type, formData.joint_detail, formData.joint_angle, formData.root_gap, formData.filler_diameter, updateRecommendations]);
+    }, [formData.base_material_1_id, formData.thickness_1, formData.welding_position, formData.joint_type, formData.joint_detail, formData.joint_angle, formData.root_gap, formData.filler_diameter, updateRecommendations, isEditMode]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -219,9 +229,11 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
 
         let result;
         if (existingWPS?.id) {
+            // Mevcut WPS'i güncelle - existingWPS.id kullan (formData'dan değil)
             const { id, created_at, wps_no, ...updateData } = dbData;
             const cleanedUpdateData = cleanData(updateData);
-            result = await supabase.from('wps_procedures').update(cleanedUpdateData).eq('id', id);
+            console.log('Updating WPS with ID:', existingWPS.id, 'Data:', cleanedUpdateData);
+            result = await supabase.from('wps_procedures').update(cleanedUpdateData).eq('id', existingWPS.id);
         } else {
             const { id, ...insertData } = dbData;
             const cleanedInsertData = cleanData(insertData);

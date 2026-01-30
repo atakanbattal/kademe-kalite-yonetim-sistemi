@@ -88,11 +88,28 @@ import React, { useState, useEffect } from 'react';
 
                 if (historyError) throw historyError;
 
+                // Status belirleme: Kalan miktar varsa Karantinada, yoksa karar tipine göre belirle
+                let newStatus;
+                if (remainingQuantity > 0) {
+                    newStatus = 'Karantinada';
+                } else {
+                    // Karar tipini status'a dönüştür
+                    const statusMap = {
+                        'Serbest Bırak': 'Serbest Bırakıldı',
+                        'Sapma Onayı': 'Sapma Onaylı',
+                        'Yeniden İşlem': 'Yeniden İşlem',
+                        'Hurda': 'Hurda',
+                        'İade': 'İade',
+                        'Onay Bekliyor': 'Onay Bekliyor'
+                    };
+                    newStatus = statusMap[decision] || 'Tamamlandı';
+                }
+
                 const { error: updateError } = await supabase
                     .from('quarantine_records')
                     .update({
                         quantity: remainingQuantity,
-                        status: remainingQuantity > 0 ? 'Karantinada' : 'Tamamlandı',
+                        status: newStatus,
                         decision: decision,
                         decision_date: new Date().toISOString(),
                     })

@@ -98,7 +98,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
         try {
             const { data, error } = await supabase
                 .from('process_control_notes')
-                .select('*, process_control_equipment(equipment_code, equipment_name), process_control_documents(document_name, document_number)')
+                .select('*, process_control_documents(document_name, document_number)')
                 .order('created_at', { ascending: false });
             
             if (error) {

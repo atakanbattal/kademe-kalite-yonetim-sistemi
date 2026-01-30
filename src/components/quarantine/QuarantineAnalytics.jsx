@@ -114,7 +114,7 @@ const QuarantineAnalytics = ({ quarantineRecords }) => {
             .sort((a, b) => b.count - a.count);
     }, [filteredRecords]);
 
-    // Summary Stats
+    // Summary Stats - tüm durumları göster
     const stats = useMemo(() => ({
         total: filteredRecords.length,
         totalQuantity: filteredRecords.reduce((sum, q) => sum + (q.quantity || 0), 0),
@@ -122,6 +122,8 @@ const QuarantineAnalytics = ({ quarantineRecords }) => {
         released: filteredRecords.filter(q => q.status === 'Serbest Bırakıldı').length,
         scrap: filteredRecords.filter(q => q.status === 'Hurda').length,
         rework: filteredRecords.filter(q => q.status === 'Yeniden İşlem').length,
+        returned: filteredRecords.filter(q => q.status === 'İade').length,
+        deviationApproved: filteredRecords.filter(q => q.status === 'Sapma Onaylı').length,
     }), [filteredRecords]);
 
     const handleBarClick = (data) => {
@@ -158,10 +160,9 @@ const QuarantineAnalytics = ({ quarantineRecords }) => {
                         >
                             <option value="all">Tüm Durumlar</option>
                             <option value="Karantinada">Karantinada</option>
-                            <option value="Serbest Bırakıldı">Serbest Bırakıldı</option>
                             <option value="Hurda">Hurda</option>
+                            <option value="Serbest Bırakıldı">Serbest Bırakıldı</option>
                             <option value="Yeniden İşlem">Yeniden İşlem</option>
-                            <option value="Onay Bekliyor">Onay Bekliyor</option>
                             <option value="İade">İade</option>
                             <option value="Sapma Onaylı">Sapma Onaylı</option>
                         </select>
@@ -179,53 +180,69 @@ const QuarantineAnalytics = ({ quarantineRecords }) => {
                 </CardContent>
             </Card>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-blue-600">Toplam Kayıt</CardTitle>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 flex flex-col">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                        <CardTitle className="text-xs font-medium text-blue-600 h-8 flex items-center">Toplam Kayıt</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold text-blue-900">{stats.total}</div>
+                    <CardContent className="pt-0 pb-3 px-3">
+                        <div className="text-2xl font-bold text-blue-900">{stats.total}</div>
                     </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-purple-600">Toplam Adet</CardTitle>
+                <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 flex flex-col">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                        <CardTitle className="text-xs font-medium text-red-600 h-8 flex items-center">Karantinada</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold text-purple-900">{stats.totalQuantity}</div>
+                    <CardContent className="pt-0 pb-3 px-3">
+                        <div className="text-2xl font-bold text-red-900">{stats.inQuarantine}</div>
                     </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-red-600">Karantinada</CardTitle>
+                <Card className="bg-gradient-to-br from-gray-100 to-gray-200 border-gray-300 flex flex-col">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                        <CardTitle className="text-xs font-medium text-gray-700 h-8 flex items-center">Hurda</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold text-red-900">{stats.inQuarantine}</div>
+                    <CardContent className="pt-0 pb-3 px-3">
+                        <div className="text-2xl font-bold text-gray-900">{stats.scrap}</div>
                     </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-green-600">Serbest Bırakıldı</CardTitle>
+                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 flex flex-col">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                        <CardTitle className="text-xs font-medium text-green-600 h-8 flex items-center">Serbest Bırakıldı</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold text-green-900">{stats.released}</div>
+                    <CardContent className="pt-0 pb-3 px-3">
+                        <div className="text-2xl font-bold text-green-900">{stats.released}</div>
                     </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-gray-600">Hurda</CardTitle>
+                <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200 flex flex-col">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                        <CardTitle className="text-xs font-medium text-amber-600 h-8 flex items-center">Yeniden İşlem</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold text-gray-900">{stats.scrap}</div>
+                    <CardContent className="pt-0 pb-3 px-3">
+                        <div className="text-2xl font-bold text-amber-900">{stats.rework}</div>
                     </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-medium text-yellow-600">İşlenecek</CardTitle>
+                <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 flex flex-col">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                        <CardTitle className="text-xs font-medium text-orange-600 h-8 flex items-center">İade</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold text-yellow-900">{stats.rework}</div>
+                    <CardContent className="pt-0 pb-3 px-3">
+                        <div className="text-2xl font-bold text-orange-900">{stats.returned}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 flex flex-col">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                        <CardTitle className="text-xs font-medium text-purple-600 h-8 flex items-center">Sapma Onaylı</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 pb-3 px-3">
+                        <div className="text-2xl font-bold text-purple-900">{stats.deviationApproved}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200 flex flex-col">
+                    <CardHeader className="pb-1 pt-3 px-3">
+                        <CardTitle className="text-xs font-medium text-indigo-600 h-8 flex items-center">Toplam Adet</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 pb-3 px-3">
+                        <div className="text-2xl font-bold text-indigo-900">{stats.totalQuantity}</div>
                     </CardContent>
                 </Card>
             </div>
