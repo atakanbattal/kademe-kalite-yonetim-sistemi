@@ -14,13 +14,25 @@ import React, { useState, useEffect, useMemo } from 'react';
     import SupplierAlternativesModal from '@/components/supplier/SupplierAlternativesModal';
     import SupplierNCFormModal from '@/components/supplier/SupplierNCFormModal';
     import SupplierFormModal from '@/components/supplier/SupplierFormModal';
+    import SupplierGradeModal from '@/components/supplier/SupplierGradeModal';
+    import SupplierDetailModal from '@/components/supplier/SupplierDetailModal';
 
-    const getGradeInfo = (score) => {
-        if (score === null || score === undefined) return { grade: 'N/A', description: 'Puanlanmamış', color: 'bg-gray-500', icon: <Star className="w-4 h-4" /> };
-        if (score >= 90) return { grade: 'A', description: 'Stratejik İş Ortağı', color: 'bg-green-500', icon: <Star className="w-4 h-4" /> };
-        if (score >= 75) return { grade: 'B', description: 'Güvenilir Tedarikçi', color: 'bg-blue-500', icon: <Shield className="w-4 h-4" /> };
-        if (score >= 60) return { grade: 'C', description: 'İzlemeye Alınacak', color: 'bg-yellow-500', icon: <EyeIcon className="w-4 h-4" /> };
-        return { grade: 'D', description: 'İş Birliği Sonlandırılacak', color: 'bg-red-500', icon: <AlertOctagon className="w-4 h-4" /> };
+    const getGradeInfo = (score, manualGrade = null) => {
+        // Manuel sınıf varsa onu öncelikli kullan
+        if (manualGrade) {
+            switch (manualGrade) {
+                case 'A': return { grade: 'A', description: 'Stratejik İş Ortağı (Manuel)', color: 'bg-green-500', icon: <Star className="w-4 h-4" />, isManual: true };
+                case 'B': return { grade: 'B', description: 'Güvenilir Tedarikçi (Manuel)', color: 'bg-blue-500', icon: <Shield className="w-4 h-4" />, isManual: true };
+                case 'C': return { grade: 'C', description: 'İzlemeye Alınacak (Manuel)', color: 'bg-yellow-500', icon: <EyeIcon className="w-4 h-4" />, isManual: true };
+                case 'D': return { grade: 'D', description: 'İş Birliği Sonlandırılacak (Manuel)', color: 'bg-red-500', icon: <AlertOctagon className="w-4 h-4" />, isManual: true };
+            }
+        }
+        // Otomatik değerlendirme
+        if (score === null || score === undefined) return { grade: 'N/A', description: 'Değerlendirilmemiş', color: 'bg-gray-500', icon: <Star className="w-4 h-4" />, isManual: false };
+        if (score >= 90) return { grade: 'A', description: 'Stratejik İş Ortağı', color: 'bg-green-500', icon: <Star className="w-4 h-4" />, isManual: false };
+        if (score >= 75) return { grade: 'B', description: 'Güvenilir Tedarikçi', color: 'bg-blue-500', icon: <Shield className="w-4 h-4" />, isManual: false };
+        if (score >= 60) return { grade: 'C', description: 'İzlemeye Alınacak', color: 'bg-yellow-500', icon: <EyeIcon className="w-4 h-4" />, isManual: false };
+        return { grade: 'D', description: 'İş Birliği Sonlandırılacak', color: 'bg-red-500', icon: <AlertOctagon className="w-4 h-4" />, isManual: false };
     };
 
     const SupplierList = ({ suppliers, allSuppliers, onEdit, refreshSuppliers, onOpenNCForm }) => {
@@ -29,6 +41,8 @@ import React, { useState, useEffect, useMemo } from 'react';
         const [isScoreModalOpen, setScoreModalOpen] = useState(false);
         const [isAlternativesModalOpen, setAlternativesModalOpen] = useState(false);
         const [isNCModalOpen, setNCModalOpen] = useState(false);
+        const [isGradeModalOpen, setGradeModalOpen] = useState(false);
+        const [isDetailModalOpen, setDetailModalOpen] = useState(false);
         const [selectedPlan, setSelectedPlan] = useState(null);
         
         const [selectedSupplier, setSelectedSupplier] = useState(null);
@@ -50,6 +64,12 @@ import React, { useState, useEffect, useMemo } from 'react';
                     break;
                 case 'nc':
                     setNCModalOpen(true);
+                    break;
+                case 'grade':
+                    setGradeModalOpen(true);
+                    break;
+                case 'detail':
+                    setDetailModalOpen(true);
                     break;
                 default:
                     break;
@@ -77,7 +97,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         };
 
         const handleRowClick = (supplier) => {
-            handleAction('alternatives', supplier);
+            handleAction('detail', supplier);
         };
         
         const handleCreateAlternative = (supplier) => {
@@ -88,34 +108,89 @@ import React, { useState, useEffect, useMemo } from 'react';
             onEdit(alternativeData, true); // Pass a flag to indicate it's a new alternative
         };
 
-        // PPM ve OTD verilerini yükle
+        // PPM ve OTD verilerini yükle (hata toleranslı)
         useEffect(() => {
             const loadSupplierMetrics = async () => {
                 const metrics = {};
+                
                 for (const supplier of suppliers) {
+                    let ppmValue = null;
+                    let otdValue = null;
+                    
                     try {
-                        // PPM verisi
-                        const { data: ppmData } = await supabase
-                            .from('supplier_ppm_data')
-                            .select('ppm_value')
-                            .eq('supplier_id', supplier.id)
-                            .eq('year', currentYear)
-                            .is('month', null)
-                            .single();
+                        // PPM verisi - önce tablodan dene, yoksa hesapla
+                        try {
+                            const { data: ppmData, error: ppmError } = await supabase
+                                .from('supplier_ppm_data')
+                                .select('ppm_value')
+                                .eq('supplier_id', supplier.id)
+                                .eq('year', currentYear)
+                                .is('month', null)
+                                .single();
+                            
+                            if (!ppmError && ppmData) {
+                                ppmValue = ppmData.ppm_value;
+                            }
+                        } catch (ppmTableError) {
+                            // Tablo yoksa incoming_inspections'dan hesapla
+                        }
                         
-                        // OTD verisi
-                        const { data: otdData } = await supabase.rpc('calculate_supplier_otd', {
-                            p_supplier_id: supplier.id,
-                            p_year: currentYear,
-                            p_month: null
-                        });
+                        // Eğer PPM bulunamadıysa, incoming_inspections'dan hesapla
+                        if (ppmValue === null) {
+                            try {
+                                const { data: inspections } = await supabase
+                                    .from('incoming_inspections')
+                                    .select('quantity_received, quantity_rejected, quantity_conditional, inspection_date')
+                                    .eq('supplier_id', supplier.id);
+                                
+                                if (inspections && inspections.length > 0) {
+                                    const yearInspections = inspections.filter(i => 
+                                        new Date(i.inspection_date).getFullYear() === currentYear
+                                    );
+                                    
+                                    let totalReceived = 0;
+                                    let totalDefective = 0;
+                                    yearInspections.forEach(i => {
+                                        totalReceived += (i.quantity_received || 0);
+                                        totalDefective += ((i.quantity_rejected || 0) + (i.quantity_conditional || 0));
+                                    });
+                                    
+                                    if (totalReceived > 0) {
+                                        ppmValue = (totalDefective / totalReceived) * 1000000;
+                                    }
+                                }
+                            } catch (inspError) {
+                                // Inspection verisi alınamadı
+                            }
+                        }
+                        
+                        // OTD verisi - teslimat tablosundan hesapla
+                        try {
+                            const { data: deliveries, error: deliveryError } = await supabase
+                                .from('supplier_deliveries')
+                                .select('on_time, delivery_date')
+                                .eq('supplier_id', supplier.id);
+                            
+                            if (!deliveryError && deliveries && deliveries.length > 0) {
+                                const yearDeliveries = deliveries.filter(d => 
+                                    new Date(d.delivery_date).getFullYear() === currentYear
+                                );
+                                
+                                if (yearDeliveries.length > 0) {
+                                    const onTimeCount = yearDeliveries.filter(d => d.on_time).length;
+                                    otdValue = (onTimeCount / yearDeliveries.length) * 100;
+                                }
+                            }
+                        } catch (otdError) {
+                            // OTD verisi alınamadı
+                        }
 
                         metrics[supplier.id] = {
-                            ppm: ppmData?.ppm_value || null,
-                            otd: otdData || null
+                            ppm: ppmValue,
+                            otd: otdValue
                         };
                     } catch (error) {
-                        console.error(`Metrics load error for supplier ${supplier.id}:`, error);
+                        console.warn(`Metrics load error for supplier ${supplier.id}:`, error.message);
                         metrics[supplier.id] = { ppm: null, otd: null };
                     }
                 }
@@ -159,6 +234,23 @@ import React, { useState, useEffect, useMemo } from 'react';
                     refreshData={refreshSuppliers}
                     onOpenNCForm={onOpenNCForm}
                 />
+                <SupplierGradeModal
+                    isOpen={isGradeModalOpen}
+                    setIsOpen={setGradeModalOpen}
+                    supplier={selectedSupplier}
+                    refreshSuppliers={refreshSuppliers}
+                />
+                <SupplierDetailModal
+                    isOpen={isDetailModalOpen}
+                    setIsOpen={setDetailModalOpen}
+                    supplier={selectedSupplier}
+                    allSuppliers={allSuppliers}
+                    onEdit={onEdit}
+                    onSetGrade={(supplier) => {
+                        setSelectedSupplier(supplier);
+                        setGradeModalOpen(true);
+                    }}
+                />
 
                 <div className="overflow-x-auto">
                     <table className="data-table w-full">
@@ -183,7 +275,8 @@ import React, { useState, useEffect, useMemo } from 'react';
                                     .sort((a, b) => new Date(b.actual_date || b.planned_date) - new Date(a.actual_date || a.planned_date));
                                 
                                 const latestAuditScore = completedAudits.length > 0 ? completedAudits[0].score : null;
-                                const gradeInfo = getGradeInfo(latestAuditScore);
+                                // Manuel sınıf varsa onu kullan, yoksa denetimden gelen skora bak
+                                const gradeInfo = getGradeInfo(latestAuditScore, supplier.supplier_grade);
 
                                 const upcomingAudit = (supplier.supplier_audit_plans || [])
                                     .filter(a => a.status === 'Planlandı' && new Date(a.planned_date) >= new Date())
@@ -229,7 +322,12 @@ import React, { useState, useEffect, useMemo } from 'react';
                                                 </div>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p className="flex items-center gap-2">{gradeInfo.icon} {gradeInfo.description}</p>
+                                                <div>
+                                                    <p className="flex items-center gap-2">{gradeInfo.icon} {gradeInfo.description}</p>
+                                                    {gradeInfo.isManual && supplier.grade_reason && (
+                                                        <p className="text-xs text-muted-foreground mt-1">Gerekçe: {supplier.grade_reason}</p>
+                                                    )}
+                                                </div>
                                             </TooltipContent>
                                         </Tooltip>
                                     </td>
@@ -307,6 +405,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={() => onEdit(supplier)}><Edit className="mr-2 h-4 w-4" />Detay / Denetimler</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleAction('grade', supplier)}><Star className="mr-2 h-4 w-4" />Sınıf Belirle</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleAction('audit', supplier)}><FileText className="mr-2 h-4 w-4" />Denetim Planla</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleAction('score', supplier)}><BarChart3 className="mr-2 h-4 w-4" />Puan Görüntüle</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleAction('nc', supplier)}><AlertTriangle className="mr-2 h-4 w-4" />Uygunsuzluk Aç</DropdownMenuItem>

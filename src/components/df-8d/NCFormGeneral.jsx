@@ -184,15 +184,19 @@ const NCFormGeneral = ({
     }, [formData.supplier_id, suppliers]);
 
     // Personnel listesi yüklendikten sonra requesting_person'dan requesting_unit'i otomatik set et
+    // ÖNEMLİ: requesting_unit HER ZAMAN personelin gerçek departmanından alınmalı
     useEffect(() => {
         if (personnel && personnel.length > 0 && formData.requesting_person) {
             const selectedPerson = personnel.find(p => p.full_name === formData.requesting_person);
-            // Eğer requesting_unit yoksa veya boşsa, personelin birimini set et
-            if (selectedPerson && selectedPerson.department && (!formData.requesting_unit || formData.requesting_unit === '')) {
-                setFormData(prev => ({
-                    ...prev,
-                    requesting_unit: selectedPerson.department
-                }));
+            // Personelin gerçek departmanını her zaman kullan (mevcut değer yanlış olsa bile düzelt)
+            if (selectedPerson && selectedPerson.department) {
+                // Eğer requesting_unit personelin departmanından farklıysa düzelt
+                if (formData.requesting_unit !== selectedPerson.department) {
+                    setFormData(prev => ({
+                        ...prev,
+                        requesting_unit: selectedPerson.department
+                    }));
+                }
             }
         }
     }, [personnel, formData.requesting_person, formData.requesting_unit, setFormData]);

@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
+    import { Textarea } from '@/components/ui/textarea';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    import { Badge } from '@/components/ui/badge';
     import SupplierAuditTab from '@/components/supplier/SupplierAuditTab';
     import SupplierPPMDisplay from '@/components/supplier/SupplierPPMDisplay';
     import SupplierOTDDisplay from '@/components/supplier/SupplierOTDDisplay';
@@ -26,7 +28,16 @@ import React, { useState, useEffect } from 'react';
             risk_class: 'Orta',
             status: 'Değerlendirilmemiş',
             alternative_to_supplier_id: null,
+            supplier_grade: null,
+            grade_reason: '',
         };
+        
+        const supplierGradeOptions = [
+            { value: 'A', label: 'A Sınıfı - Stratejik İş Ortağı', color: 'bg-green-500' },
+            { value: 'B', label: 'B Sınıfı - Güvenilir Tedarikçi', color: 'bg-blue-500' },
+            { value: 'C', label: 'C Sınıfı - İzlemeye Alınacak', color: 'bg-yellow-500' },
+            { value: 'D', label: 'D Sınıfı - İş Birliği Sonlandırılacak', color: 'bg-red-500' },
+        ];
 
         useEffect(() => {
             if (isOpen) {
@@ -86,6 +97,15 @@ import React, { useState, useEffect } from 'react';
                 if (dbData[key] !== undefined && key !== 'undefined') {
                     cleanedData[key] = dbData[key];
                 }
+            }
+            
+            // Manuel sınıf değiştirilmişse tarih güncelle
+            if (cleanedData.supplier_grade && cleanedData.supplier_grade !== supplier?.supplier_grade) {
+                cleanedData.grade_updated_at = new Date().toISOString();
+            }
+            // Sınıf kaldırılmışsa tarihi de temizle
+            if (cleanedData.supplier_grade === null) {
+                cleanedData.grade_updated_at = null;
             }
             
             const { data, error } = isEditMode
@@ -165,6 +185,48 @@ import React, { useState, useEffect } from 'react';
                                         </Select>
                                     </div>
                                 )}
+
+                                {/* Manuel Tedarikçi Sınıfı Belirleme Bölümü */}
+                                <div className="md:col-span-2 pt-4 border-t mt-2">
+                                    <h4 className="font-semibold mb-2 text-foreground flex items-center gap-2">
+                                        Manuel Tedarikçi Sınıfı Belirleme
+                                        <span className="text-xs font-normal text-muted-foreground">(Denetim dışı değerlendirme)</span>
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground mb-3">
+                                        Denetim yapmadan doğrudan tedarikçi sınıfını belirleyebilirsiniz. Bu değerlendirme otomatik hesaplamayı geçersiz kılar.
+                                    </p>
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="supplier_grade">Tedarikçi Sınıfı</Label>
+                                            <Select value={formData.supplier_grade || ''} onValueChange={(v) => handleSelectChange('supplier_grade', v === 'none' ? null : v)}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Sınıf seçin (opsiyonel)..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">— Otomatik Değerlendirme —</SelectItem>
+                                                    {supplierGradeOptions.map(opt => (
+                                                        <SelectItem key={opt.value} value={opt.value}>
+                                                            <div className="flex items-center gap-2">
+                                                                <Badge className={`${opt.color} text-white`}>{opt.value}</Badge>
+                                                                <span>{opt.label.split(' - ')[1]}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="grade_reason">Açıklama / Gerekçe</Label>
+                                            <Textarea 
+                                                id="grade_reason" 
+                                                value={formData.grade_reason || ''} 
+                                                onChange={(e) => setFormData(prev => ({ ...prev, grade_reason: e.target.value }))}
+                                                placeholder="Sınıf belirleme gerekçesini yazın..."
+                                                rows={2}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div className="md:col-span-2 pt-4 border-t mt-2">
                                     <h4 className="font-semibold mb-2 text-foreground">İletişim Bilgileri</h4>

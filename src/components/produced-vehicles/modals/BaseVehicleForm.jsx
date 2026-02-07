@@ -8,6 +8,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useData } from '@/contexts/DataContext';
 
+// Müşteri adını CamelCase formatına çeviren fonksiyon
+const toCamelCase = (str) => {
+    if (!str) return '';
+    return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+        .trim();
+};
+
 const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
     const { toast } = useToast();
     const { products, productCategories } = useData();
@@ -87,8 +98,11 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
         setLoading(true);
 
         const { chassis_no, serial_no, customer_name, vehicle_type, vehicle_brand, status, notes, dmo_status, delivery_due_date } = formData;
+        
+        // Müşteri adını CamelCase formatına çevir
+        const formattedCustomerName = toCamelCase(customer_name);
 
-        if (!customer_name || !vehicle_type) {
+        if (!formattedCustomerName || !vehicle_type) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Lütfen Müşteri Adı ve Araç Tipi alanlarını doldurun.' });
             setLoading(false);
             return;
@@ -105,7 +119,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
         const dataToSave = { 
             chassis_no, 
             serial_no, 
-            customer_name, 
+            customer_name: formattedCustomerName, 
             vehicle_type,
             vehicle_brand: needsBrand ? vehicle_brand : null,
             status, 

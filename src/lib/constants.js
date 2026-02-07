@@ -5,7 +5,7 @@ export const DEPARTMENTS = [
     'Depo',
     'Elektrik Montaj',
     'İdari İşler',
-    'Kalite Kontrol',
+    'Kalite Kontrol ve Güvence',
     'Kabin Hattı',
     'Kaynakhane',
     'Kesim',
@@ -13,7 +13,11 @@ export const DEPARTMENTS = [
     'Satın Alma',
     'Satış',
     'SSH',
-    'Üretim Planlama'
+    'Üretim Planlama',
+    'İnsan Kaynakları',
+    'Finans',
+    'Bilgi İşlem',
+    'Lojistik'
 ].sort();
 
 export const SLA_DURATIONS = {

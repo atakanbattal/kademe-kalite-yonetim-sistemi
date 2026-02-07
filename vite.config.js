@@ -259,7 +259,18 @@ export default defineConfig({
 				'@babel/traverse',
 				'@babel/generator',
 				'@babel/types'
-			]
+			],
+			output: {
+				manualChunks: {
+					// Vendor kütüphaneleri ayrı chunk'lara böl
+					'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+					'vendor-ui': ['framer-motion', '@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-tooltip', '@radix-ui/react-popover'],
+					'vendor-charts': ['recharts'],
+					'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+					'vendor-supabase': ['@supabase/supabase-js'],
+					'vendor-utils': ['date-fns', 'uuid', 'clsx', 'tailwind-merge', 'xlsx'],
+				}
+			}
 		}
 	}
 });

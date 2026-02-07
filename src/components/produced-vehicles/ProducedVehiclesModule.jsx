@@ -74,11 +74,12 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
             }
 
             if (searchTerm) {
-                const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
+                const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm.trim());
                 sortedVehicles = sortedVehicles.filter(v => 
-                    normalizeTurkishForSearch(v.chassis_no).includes(normalizedSearchTerm) ||
-                    normalizeTurkishForSearch(v.vehicle_type).includes(normalizedSearchTerm) ||
-                    normalizeTurkishForSearch(v.customer_name).includes(normalizedSearchTerm)
+                    normalizeTurkishForSearch(v.chassis_no || '').includes(normalizedSearchTerm) ||
+                    normalizeTurkishForSearch(v.serial_no || '').includes(normalizedSearchTerm) ||
+                    normalizeTurkishForSearch(v.vehicle_type || '').includes(normalizedSearchTerm) ||
+                    normalizeTurkishForSearch(v.customer_name || '').includes(normalizedSearchTerm)
                 );
             }
 
@@ -552,7 +553,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                                     <input
                                         type="text"
-                                        placeholder="Şasi, Tip veya Müşteri Ara..."
+                                        placeholder="Şasi No, Seri No, Tip veya Müşteri Ara..."
                                         className="search-input"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}

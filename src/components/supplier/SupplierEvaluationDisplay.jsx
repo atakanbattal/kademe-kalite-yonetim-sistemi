@@ -53,19 +53,98 @@ const SupplierEvaluationDisplay = ({ supplierId, supplierName }) => {
     const handleEvaluate = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase.rpc('evaluate_supplier', {
-                p_supplier_id: supplierId,
-                p_year: year
-            });
-
-            if (error) throw error;
-
-            // Notları güncelle
-            if (evaluationNotes.trim()) {
-                await supabase
+            // RPC fonksiyonu yoksa manuel değerlendirme yap
+            let ppmValue = 0;
+            let otdPercentage = 0;
+            let auditScore = 0;
+            
+            // PPM verisi al
+            try {
+                const { data: inspections } = await supabase
+                    .from('incoming_inspections')
+                    .select('quantity_received, quantity_rejected, quantity_conditional, inspection_date')
+                    .eq('supplier_id', supplierId);
+                
+                if (inspections && inspections.length > 0) {
+                    const yearInspections = inspections.filter(i => 
+                        new Date(i.inspection_date).getFullYear() === year
+                    );
+                    
+                    let totalReceived = 0;
+                    let totalDefective = 0;
+                    yearInspections.forEach(i => {
+                        totalReceived += (i.quantity_received || 0);
+                        totalDefective += ((i.quantity_rejected || 0) + (i.quantity_conditional || 0));
+                    });
+                    
+                    ppmValue = totalReceived > 0 ? (totalDefective / totalReceived) * 1000000 : 0;
+                }
+            } catch (ppmError) {
+                console.warn('PPM hesaplanamadı:', ppmError.message);
+            }
+            
+            // Audit verisi al
+            try {
+                const { data: audits } = await supabase
+                    .from('supplier_audits')
+                    .select('score, audit_date')
+                    .eq('supplier_id', supplierId)
+                    .eq('status', 'Tamamlandı');
+                
+                if (audits && audits.length > 0) {
+                    const yearAudits = audits.filter(a => 
+                        new Date(a.audit_date).getFullYear() === year
+                    );
+                    
+                    if (yearAudits.length > 0) {
+                        const totalScore = yearAudits.reduce((sum, a) => sum + (a.score || 0), 0);
+                        auditScore = totalScore / yearAudits.length;
+                    }
+                }
+            } catch (auditError) {
+                console.warn('Audit skoru hesaplanamadı:', auditError.message);
+            }
+            
+            // Genel skor hesapla (PPM: %40, OTD: %30, Audit: %30)
+            // PPM skoru: 0 PPM = 100 puan, 1000+ PPM = 0 puan
+            const ppmScore = Math.max(0, 100 - (ppmValue / 10));
+            // OTD skoru: direkt yüzde
+            const otdScore = otdPercentage;
+            // Genel skor
+            const overallScore = (ppmScore * 0.4) + (otdScore * 0.3) + (auditScore * 0.3);
+            
+            // Sınıf belirle
+            let grade = 'D';
+            if (overallScore >= 90) grade = 'A';
+            else if (overallScore >= 75) grade = 'B';
+            else if (overallScore >= 50) grade = 'C';
+            
+            // Değerlendirme kaydet
+            const evaluationData = {
+                supplier_id: supplierId,
+                evaluation_year: year,
+                evaluation_date: new Date().toISOString(),
+                ppm_value: Math.round(ppmValue * 100) / 100,
+                otd_percentage: Math.round(otdPercentage * 100) / 100,
+                audit_score: Math.round(auditScore * 100) / 100,
+                overall_score: Math.round(overallScore * 100) / 100,
+                grade: grade,
+                notes: evaluationNotes.trim() || null
+            };
+            
+            // supplier_evaluations tablosuna kaydet
+            try {
+                const { error: upsertError } = await supabase
                     .from('supplier_evaluations')
-                    .update({ notes: evaluationNotes })
-                    .eq('id', data);
+                    .upsert(evaluationData, { 
+                        onConflict: 'supplier_id,evaluation_year',
+                        ignoreDuplicates: false 
+                    });
+                
+                if (upsertError) throw upsertError;
+            } catch (tableError) {
+                // Tablo yoksa hata ver
+                throw new Error('Değerlendirme tablosu mevcut değil veya erişim hatası: ' + tableError.message);
             }
 
             toast({

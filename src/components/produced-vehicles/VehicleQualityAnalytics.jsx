@@ -110,7 +110,7 @@ const VehicleQualityAnalytics = () => {
         });
 
         // Calculate KPIs
-        const ftt = (vehiclesClean / totalVehicles) * 100; // First Time Through
+        const ftt = (vehiclesClean / totalVehicles) * 100; // First Time Quality (FTQ)
         const dpu = totalFaults / totalVehicles; // Defects Per Unit
         const defectRate = (vehiclesWithFaults / totalVehicles) * 100;
 
@@ -192,7 +192,7 @@ const VehicleQualityAnalytics = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background border-blue-100 dark:border-blue-900">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-blue-900 dark:text-blue-100">FTT (İlk Seferde Doğru)</CardTitle>
+                        <CardTitle className="text-sm font-medium text-blue-900 dark:text-blue-100">FTQ (İlk Seferde Kalite)</CardTitle>
                         <CheckCircle className="h-4 w-4 text-blue-600" />
                     </CardHeader>
                     <CardContent>
@@ -239,7 +239,7 @@ const VehicleQualityAnalytics = () => {
                 <Card className="col-span-1 lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Kalite Trend Analizi (Haftalık)</CardTitle>
-                        <CardDescription>FTT oranının ve toplam üretimin zaman içindeki değişimi</CardDescription>
+                        <CardDescription>FTQ oranının ve toplam üretimin zaman içindeki değişimi</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="h-[350px] w-full">
@@ -255,7 +255,7 @@ const VehicleQualityAnalytics = () => {
                                         yAxisId="left"
                                         orientation="left"
                                         stroke="#3B82F6"
-                                        label={{ value: 'FTT %', angle: -90, position: 'insideLeft', fill: '#3B82F6' }}
+                                        label={{ value: 'FTQ %', angle: -90, position: 'insideLeft', fill: '#3B82F6' }}
                                     />
                                     <YAxis
                                         yAxisId="right"
@@ -272,7 +272,7 @@ const VehicleQualityAnalytics = () => {
                                         yAxisId="left"
                                         type="monotone"
                                         dataKey="ftt"
-                                        name="FTT %"
+                                        name="FTQ %"
                                         stroke="#3B82F6"
                                         strokeWidth={3}
                                         dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
@@ -327,7 +327,7 @@ const VehicleQualityAnalytics = () => {
                                 <TableRow>
                                     <TableHead>Araç Tipi</TableHead>
                                     <TableHead className="text-center">Üretim</TableHead>
-                                    <TableHead className="text-center">FTT %</TableHead>
+                                    <TableHead className="text-center">FTQ %</TableHead>
                                     <TableHead className="text-center">DPU</TableHead>
                                 </TableRow>
                             </TableHeader>

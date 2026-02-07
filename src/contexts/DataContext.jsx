@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -771,16 +771,124 @@ export const DataProvider = ({ children }) => {
         return rpcMap[autoKpiId] || null;
     };
 
-    const value = {
+    // Modül bazlı refresh fonksiyonları
+    // Her modül sadece kendi verisini yenileyebilir (full refresh yerine)
+    const refreshSuppliers = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: suppData, error } = await supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)');
+            if (!error) {
+                setData(prev => ({ ...prev, suppliers: suppData || [] }));
+                console.log('✅ Suppliers refreshed:', suppData?.length || 0);
+            }
+        } catch (error) {
+            console.error('❌ Suppliers refresh error:', error);
+        }
+    }, [session]);
+
+    const refreshNonConformities = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: ncData, error } = await supabase.from('non_conformities').select('*');
+            if (!error) {
+                setData(prev => ({ ...prev, nonConformities: ncData || [] }));
+                console.log('✅ Non-conformities refreshed:', ncData?.length || 0);
+            }
+        } catch (error) {
+            console.error('❌ Non-conformities refresh error:', error);
+        }
+    }, [session]);
+
+    const refreshDeviations = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: devData, error } = await supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)');
+            if (!error) {
+                setData(prev => ({ ...prev, deviations: devData || [] }));
+                console.log('✅ Deviations refreshed:', devData?.length || 0);
+            }
+        } catch (error) {
+            console.error('❌ Deviations refresh error:', error);
+        }
+    }, [session]);
+
+    const refreshEquipments = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: eqData, error } = await supabase.from('equipments').select('*, equipment_calibrations(*), equipment_assignments(*, personnel(full_name))');
+            if (!error) {
+                setData(prev => ({ ...prev, equipments: eqData || [] }));
+                console.log('✅ Equipments refreshed:', eqData?.length || 0);
+            }
+        } catch (error) {
+            console.error('❌ Equipments refresh error:', error);
+        }
+    }, [session]);
+
+    const refreshIncomingInspections = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: iiData, error } = await supabase.from('incoming_inspections_with_supplier').select('*').limit(500);
+            if (!error) {
+                setData(prev => ({ ...prev, incomingInspections: iiData || [] }));
+                console.log('✅ Incoming inspections refreshed:', iiData?.length || 0);
+            }
+        } catch (error) {
+            console.error('❌ Incoming inspections refresh error:', error);
+        }
+    }, [session]);
+
+    const refreshCustomerComplaints = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: ccData, error } = await supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500);
+            if (!error) {
+                setData(prev => ({ ...prev, customerComplaints: ccData || [] }));
+                console.log('✅ Customer complaints refreshed:', ccData?.length || 0);
+            }
+        } catch (error) {
+            console.error('❌ Customer complaints refresh error:', error);
+        }
+    }, [session]);
+
+    const refreshTasks = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: taskData, error } = await supabase.from('tasks').select('*, owner:owner_id(full_name, email), project:project_id(id, name, color), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)');
+            if (!error) {
+                setData(prev => ({ ...prev, tasks: taskData || [] }));
+                console.log('✅ Tasks refreshed:', taskData?.length || 0);
+            }
+        } catch (error) {
+            console.error('❌ Tasks refresh error:', error);
+        }
+    }, [session]);
+
+    // Context value'yu useMemo ile optimize et - gereksiz re-render'ları önler
+    const value = useMemo(() => ({
         ...data,
         loading,
-        refreshData: () => fetchData(true), // Force refresh
-        refreshProducedVehicles, // Sadece produced vehicles'ı yenile
-        refreshQualityCosts, // Sadece quality costs'ları yenile
-        refreshKpis, // Sadece KPI'ları yenile
-        refreshAutoKpis, // Otomatik KPI'ların değerlerini güncelle
+        refreshData: () => fetchData(true), // Force refresh (tüm data)
+        // Modül bazlı refresh fonksiyonları (daha hızlı, daha az yük)
+        refreshProducedVehicles,
+        refreshQualityCosts,
+        refreshKpis,
+        refreshAutoKpis,
+        refreshSuppliers,
+        refreshNonConformities,
+        refreshDeviations,
+        refreshEquipments,
+        refreshIncomingInspections,
+        refreshCustomerComplaints,
+        refreshTasks,
         logAudit,
-    };
+    }), [
+        data, loading, fetchData,
+        refreshProducedVehicles, refreshQualityCosts, refreshKpis, refreshAutoKpis,
+        refreshSuppliers, refreshNonConformities, refreshDeviations,
+        refreshEquipments, refreshIncomingInspections, refreshCustomerComplaints,
+        refreshTasks, logAudit,
+    ]);
 
     return (
         <DataContext.Provider value={value}>

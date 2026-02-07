@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
@@ -10,39 +10,42 @@ import { useData } from '@/contexts/DataContext';
 import { openPrintableReport as openPrintableReportUtil } from '@/lib/reportUtils';
 import { cn } from '@/lib/utils';
 
-// Components
+// Components (her zaman gerekli - lazy loading yok)
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 import NCViewModal from '@/components/df-8d/NCViewModal';
 import NCFormModal from '@/components/df-8d/NCFormModal';
+import { PageLoader } from '@/components/shared/LoadingSpinner';
 
-// Modules
+// Dashboard direkt yüklenir (ilk görünen sayfa)
 import Dashboard from '@/components/dashboard/Dashboard';
-import KPIModule from '@/components/kpi/KPIModule';
-import QualityCostModule from '@/components/quality-cost/QualityCostModule';
-import QuarantineModule from '@/components/quarantine/QuarantineModule';
-import Df8dManagement from '@/pages/Df8dManagement';
-import InternalAuditModule from '@/components/audit/InternalAuditModule';
-import DocumentModule from '@/components/document/DocumentModule';
-import SupplierQualityModule from '@/components/supplier/QualityModule';
-import DeviationModule from '@/components/deviation/DeviationModule';
-import EquipmentModule from '@/components/equipment/EquipmentModule';
-import ProducedVehiclesModule from '@/components/produced-vehicles/ProducedVehiclesModule';
-import CostSettingsModule from '@/components/cost-settings/SettingsModule';
-import IncomingQualityModule from '@/components/incoming-quality/IncomingQualityModule';
-import KaizenManagement from '@/pages/KaizenManagement';
-import TaskModule from '@/pages/TaskModule';
-import AuditLogModule from '@/components/audit/LogModule';
-import SupplierLiveAudit from '@/pages/SupplierLiveAudit';
-import TrainingModule from '@/components/training/TrainingModule';
-import WPSModule from '@/components/wps/WPSModule';
-import CustomerComplaintsModule from '@/components/customer-complaints/ComplaintsModule';
-import PolyvalenceModule from '@/components/polyvalence/PolyvalenceModule';
-import BenchmarkModule from '@/components/benchmark/BenchmarkModule';
-import ProcessControlModule from '@/components/process-control/ProcessControlModule';
-import DynamicBalanceModule from '@/components/dynamic-balance/DynamicBalanceModule';
+
+// Modules - Lazy Loading (sadece açıldığında yüklenir, performans artışı)
+const KPIModule = lazy(() => import('@/components/kpi/KPIModule'));
+const QualityCostModule = lazy(() => import('@/components/quality-cost/QualityCostModule'));
+const QuarantineModule = lazy(() => import('@/components/quarantine/QuarantineModule'));
+const Df8dManagement = lazy(() => import('@/pages/Df8dManagement'));
+const InternalAuditModule = lazy(() => import('@/components/audit/InternalAuditModule'));
+const DocumentModule = lazy(() => import('@/components/document/DocumentModule'));
+const SupplierQualityModule = lazy(() => import('@/components/supplier/QualityModule'));
+const DeviationModule = lazy(() => import('@/components/deviation/DeviationModule'));
+const EquipmentModule = lazy(() => import('@/components/equipment/EquipmentModule'));
+const ProducedVehiclesModule = lazy(() => import('@/components/produced-vehicles/ProducedVehiclesModule'));
+const CostSettingsModule = lazy(() => import('@/components/cost-settings/SettingsModule'));
+const IncomingQualityModule = lazy(() => import('@/components/incoming-quality/IncomingQualityModule'));
+const KaizenManagement = lazy(() => import('@/pages/KaizenManagement'));
+const TaskModule = lazy(() => import('@/pages/TaskModule'));
+const AuditLogModule = lazy(() => import('@/components/audit/LogModule'));
+const SupplierLiveAudit = lazy(() => import('@/pages/SupplierLiveAudit'));
+const TrainingModule = lazy(() => import('@/components/training/TrainingModule'));
+const WPSModule = lazy(() => import('@/components/wps/WPSModule'));
+const CustomerComplaintsModule = lazy(() => import('@/components/customer-complaints/ComplaintsModule'));
+const PolyvalenceModule = lazy(() => import('@/components/polyvalence/PolyvalenceModule'));
+const BenchmarkModule = lazy(() => import('@/components/benchmark/BenchmarkModule'));
+const ProcessControlModule = lazy(() => import('@/components/process-control/ProcessControlModule'));
+const DynamicBalanceModule = lazy(() => import('@/components/dynamic-balance/DynamicBalanceModule'));
 
 // 8D adımları için varsayılan başlıklar
 const getDefault8DTitle = (stepKey) => {
@@ -417,33 +420,47 @@ const MainLayout = () => {
         if (!PERMITTED_MODULES.includes(module)) {
             return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
         }
-        switch (module) {
-            case 'dashboard': return <Dashboard setActiveModule={setActiveModule} onOpenNCView={handleOpenNCView} />;
-            case 'tasks': return <TaskModule />;
-            case 'kpi': return <KPIModule />;
-            case 'kaizen': return <KaizenManagement />;
-            case 'quality-cost': return <QualityCostModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-            case 'quarantine': return <QuarantineModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-            case 'df-8d': return <Df8dManagement onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onDownloadPDF={handleDownloadPDF} />;
-            case 'internal-audit': return <InternalAuditModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-            case 'document': return <DocumentModule />;
-            case 'supplier-quality': return <SupplierQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onOpenPdfViewer={handleOpenPdfViewer} />;
-            case 'customer-complaints': return <CustomerComplaintsModule />;
-            case 'supplier-audit': return <SupplierLiveAudit onOpenNCForm={handleOpenNCForm} />;
-            case 'deviation': return <DeviationModule />;
-            case 'equipment': return <EquipmentModule />;
-            case 'produced-vehicles': return <ProducedVehiclesModule onOpenNCForm={handleOpenNCForm} />;
-            case 'settings': return <CostSettingsModule />;
-            case 'incoming-quality': return <IncomingQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-            case 'wps': return <WPSModule />;
-            case 'audit-logs': return <AuditLogModule />;
-            case 'training': return <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />;
-            case 'polyvalence': return <PolyvalenceModule />;
-            case 'benchmark': return <BenchmarkModule />;
-            case 'process-control': return <ProcessControlModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
-            case 'dynamic-balance': return <DynamicBalanceModule />;
-            default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
+
+        // Dashboard lazy loading kullanmaz (ilk görünen sayfa)
+        if (module === 'dashboard') {
+            return <Dashboard setActiveModule={setActiveModule} onOpenNCView={handleOpenNCView} />;
         }
+
+        // Diğer modüller Suspense ile lazy yüklenir
+        const getModuleComponent = () => {
+            switch (module) {
+                case 'tasks': return <TaskModule />;
+                case 'kpi': return <KPIModule />;
+                case 'kaizen': return <KaizenManagement />;
+                case 'quality-cost': return <QualityCostModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
+                case 'quarantine': return <QuarantineModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
+                case 'df-8d': return <Df8dManagement onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onDownloadPDF={handleDownloadPDF} />;
+                case 'internal-audit': return <InternalAuditModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
+                case 'document': return <DocumentModule />;
+                case 'supplier-quality': return <SupplierQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onOpenPdfViewer={handleOpenPdfViewer} />;
+                case 'customer-complaints': return <CustomerComplaintsModule />;
+                case 'supplier-audit': return <SupplierLiveAudit onOpenNCForm={handleOpenNCForm} />;
+                case 'deviation': return <DeviationModule />;
+                case 'equipment': return <EquipmentModule />;
+                case 'produced-vehicles': return <ProducedVehiclesModule onOpenNCForm={handleOpenNCForm} />;
+                case 'settings': return <CostSettingsModule />;
+                case 'incoming-quality': return <IncomingQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
+                case 'wps': return <WPSModule />;
+                case 'audit-logs': return <AuditLogModule />;
+                case 'training': return <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />;
+                case 'polyvalence': return <PolyvalenceModule />;
+                case 'benchmark': return <BenchmarkModule />;
+                case 'process-control': return <ProcessControlModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
+                case 'dynamic-balance': return <DynamicBalanceModule />;
+                default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
+            }
+        };
+
+        return (
+            <Suspense fallback={<PageLoader />}>
+                {getModuleComponent()}
+            </Suspense>
+        );
     };
 
     useEffect(() => {

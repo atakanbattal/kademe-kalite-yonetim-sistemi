@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { FileText, FolderOpen, CheckCircle, XCircle, FileSpreadsheet, Hourglass, AlertTriangle, BarChart, Percent, CalendarDays, Zap, TrendingUp } from 'lucide-react';
+import { useData } from '@/contexts/DataContext';
 import { differenceInDays, parseISO, format, eachMonthOfInterval, isValid, startOfMonth } from 'date-fns';
 import { getStatusBadge } from '@/lib/statusUtils';
 
@@ -44,6 +45,16 @@ const DashboardCard = ({ title, icon, children, loading, className = "" }) => (
 );
 
 const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
+    const { productionDepartments } = useData();
+    
+    // Veritabanından gelen departman listesini kullan
+    const allDepartments = useMemo(() => {
+        if (!productionDepartments || productionDepartments.length === 0) {
+            return [];
+        }
+        return productionDepartments.map(d => d.unit_name).filter(Boolean).sort();
+    }, [productionDepartments]);
+    
     const analytics = useMemo(() => {
         if (!records || records.length === 0) {
             return {
@@ -153,15 +164,43 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
         })).sort((a, b) => b.open - a.open);
 
         const totalRequests = records.length;
-        const requesterContribution = Object.entries(requesterContrib).map(([name, data]) => ({
-            unit: name,
-            total: data.total,
-            DF: data.DF,
-            '8D': data['8D'],
-            MDI: data.MDI,
-            contribution: totalRequests > 0 ? ((data.total / totalRequests) * 100).toFixed(1) + '%' : '0%',
-            records: data.records
-        })).sort((a, b) => b.total - a.total);
+        
+        // Veritabanındaki tüm birimleri kullan + kayıtlarda geçen ama listede olmayan birimleri de ekle
+        const allUnitsSet = new Set(allDepartments);
+        Object.keys(requesterContrib).forEach(unit => {
+            if (unit !== 'Belirtilmemiş') {
+                allUnitsSet.add(unit);
+            }
+        });
+        const allUnits = Array.from(allUnitsSet).sort();
+        
+        // Tüm birimleri dahil et (0 katkısı olanlar dahil)
+        const requesterContribution = allUnits.map(dept => {
+            const data = requesterContrib[dept] || { total: 0, DF: 0, '8D': 0, MDI: 0, records: [] };
+            return {
+                unit: dept,
+                total: data.total,
+                DF: data.DF,
+                '8D': data['8D'],
+                MDI: data.MDI,
+                contribution: totalRequests > 0 ? ((data.total / totalRequests) * 100).toFixed(1) + '%' : '0%',
+                records: data.records
+            };
+        }).sort((a, b) => b.total - a.total);
+        
+        // "Belirtilmemiş" kategorisini de ekle (varsa)
+        if (requesterContrib['Belirtilmemiş']) {
+            const data = requesterContrib['Belirtilmemiş'];
+            requesterContribution.push({
+                unit: 'Belirtilmemiş',
+                total: data.total,
+                DF: data.DF,
+                '8D': data['8D'],
+                MDI: data.MDI,
+                contribution: totalRequests > 0 ? ((data.total / totalRequests) * 100).toFixed(1) + '%' : '0%',
+                records: data.records
+            });
+        }
 
         const monthlyTrend = [];
         if (allDates.length > 0) {
@@ -196,7 +235,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
         }
 
         return { kpiCards, deptPerformance, overdueRecords, requesterContribution, monthlyTrend };
-    }, [records]);
+    }, [records, allDepartments]);
 
     if (loading) {
         return <Skeleton className="h-64 w-full" />;

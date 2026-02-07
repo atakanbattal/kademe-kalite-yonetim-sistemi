@@ -25,33 +25,78 @@ const SupplierPPMDisplay = ({ supplierId, supplierName }) => {
     const loadPPMData = async () => {
         setLoading(true);
         try {
-            let query = supabase
-                .from('supplier_ppm_data')
-                .select('*')
-                .eq('supplier_id', supplierId)
-                .eq('year', year);
+            // Önce supplier_ppm_data tablosundan veri almayı dene
+            let ppmTableExists = true;
+            let data = [];
+            
+            try {
+                let query = supabase
+                    .from('supplier_ppm_data')
+                    .select('*')
+                    .eq('supplier_id', supplierId)
+                    .eq('year', year);
 
-            if (period === 'monthly') {
-                query = query.not('month', 'is', null).order('month', { ascending: true });
-            } else {
-                query = query.is('month', null);
+                if (period === 'monthly') {
+                    query = query.not('month', 'is', null).order('month', { ascending: true });
+                } else {
+                    query = query.is('month', null);
+                }
+
+                const result = await query;
+                
+                if (result.error) {
+                    // Tablo yoksa veya başka hata varsa
+                    if (result.error.code === '42P01' || result.error.message.includes('does not exist')) {
+                        ppmTableExists = false;
+                    } else {
+                        console.warn('PPM tablosu sorgu hatası:', result.error.message);
+                    }
+                } else {
+                    data = result.data || [];
+                }
+            } catch (tableError) {
+                console.warn('PPM tablosu erişim hatası:', tableError.message);
+                ppmTableExists = false;
             }
 
-            const { data, error } = await query;
-
-            if (error) throw error;
-
-            // Eğer veri yoksa, hesapla
-            if (!data || data.length === 0) {
-                await calculatePPM();
-                // Tekrar yükle
-                const { data: newData, error: newError } = await query;
-                if (newError) throw newError;
-                setPpmData(newData || []);
-            } else {
-                setPpmData(data);
+            // Eğer tablo yoksa veya veri yoksa, doğrudan incoming_inspections'dan hesapla
+            if (!ppmTableExists || data.length === 0) {
+                // Gelen muayene verilerinden PPM hesapla
+                const { data: inspections, error: inspError } = await supabase
+                    .from('incoming_inspections')
+                    .select('quantity_received, quantity_rejected, quantity_conditional, inspection_date')
+                    .eq('supplier_id', supplierId);
+                
+                if (!inspError && inspections && inspections.length > 0) {
+                    const filteredInspections = inspections.filter(i => {
+                        const inspDate = new Date(i.inspection_date);
+                        return inspDate.getFullYear() === year;
+                    });
+                    
+                    let totalReceived = 0;
+                    let totalDefective = 0;
+                    
+                    filteredInspections.forEach(i => {
+                        totalReceived += (i.quantity_received || 0);
+                        totalDefective += ((i.quantity_rejected || 0) + (i.quantity_conditional || 0));
+                    });
+                    
+                    const ppmValue = totalReceived > 0 ? (totalDefective / totalReceived) * 1000000 : 0;
+                    
+                    // Manuel hesaplanmış veri
+                    data = [{
+                        year: year,
+                        month: null,
+                        ppm_value: Math.round(ppmValue * 100) / 100,
+                        inspected_quantity: totalReceived,
+                        defective_quantity: totalDefective
+                    }];
+                }
             }
+
+            setPpmData(data);
         } catch (error) {
+            console.error('PPM verileri yüklenemedi:', error);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
@@ -64,22 +109,59 @@ const SupplierPPMDisplay = ({ supplierId, supplierName }) => {
 
     const calculatePPM = async () => {
         try {
-            if (period === 'monthly') {
-                // Tüm aylar için hesapla
-                for (let month = 1; month <= 12; month++) {
-                    await supabase.rpc('update_supplier_ppm', {
-                        p_supplier_id: supplierId,
-                        p_year: year,
-                        p_month: month
-                    });
-                }
-            } else {
-                await supabase.rpc('update_supplier_ppm', {
-                    p_supplier_id: supplierId,
-                    p_year: year,
-                    p_month: null
-                });
+            // Gelen malzeme kontrolünden PPM'i manuel hesapla (RPC fonksiyonu yoksa)
+            const { data: inspections, error } = await supabase
+                .from('incoming_inspections')
+                .select('quantity_received, quantity_rejected, quantity_conditional, inspection_date')
+                .eq('supplier_id', supplierId);
+            
+            if (error) {
+                console.warn('PPM hesaplama - inspection verisi alınamadı:', error.message);
+                return;
             }
+            
+            if (!inspections || inspections.length === 0) {
+                console.log('Bu tedarikçi için gelen muayene verisi yok');
+                return;
+            }
+            
+            // Yıla göre filtrele
+            const filteredInspections = inspections.filter(i => {
+                const inspDate = new Date(i.inspection_date);
+                return inspDate.getFullYear() === year;
+            });
+            
+            if (filteredInspections.length === 0) {
+                console.log('Bu yıl için muayene verisi yok');
+                return;
+            }
+            
+            // Toplam hesapla
+            let totalReceived = 0;
+            let totalDefective = 0;
+            
+            filteredInspections.forEach(i => {
+                totalReceived += (i.quantity_received || 0);
+                totalDefective += ((i.quantity_rejected || 0) + (i.quantity_conditional || 0));
+            });
+            
+            const ppmValue = totalReceived > 0 ? (totalDefective / totalReceived) * 1000000 : 0;
+            
+            // supplier_ppm_data tablosuna kaydet (varsa)
+            try {
+                await supabase.from('supplier_ppm_data').upsert({
+                    supplier_id: supplierId,
+                    year: year,
+                    month: null,
+                    ppm_value: Math.round(ppmValue * 100) / 100,
+                    inspected_quantity: totalReceived,
+                    defective_quantity: totalDefective,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'supplier_id,year,month' });
+            } catch (upsertError) {
+                console.warn('PPM verisi kaydedilemedi (tablo mevcut olmayabilir):', upsertError.message);
+            }
+            
         } catch (error) {
             console.error('PPM hesaplama hatası:', error);
         }
