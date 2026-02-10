@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-    import {
-        Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-    } from '@/components/ui/dialog';
+    import { Dialog, DialogContent } from '@/components/ui/dialog';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
     import { Textarea } from '@/components/ui/textarea';
     import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-    import { Calendar as CalendarIcon } from 'lucide-react';
+    import { Calendar as CalendarIcon, GraduationCap } from 'lucide-react';
     import { Calendar } from '@/components/ui/calendar';
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
@@ -17,7 +15,6 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { useData } from '@/contexts/DataContext';
     import { MultiSelect } from '@/components/ui/multi-select';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-    import { ScrollArea } from '@/components/ui/scroll-area';
 
     const TRAINING_CATEGORIES = ['Oryantasyon', 'Teknik', 'İSG', 'Kalite', 'Yönetim', 'Polivalans', 'Diğer'];
     const TRAINING_TYPES = ['İç', 'Dış', 'Online', 'Hibrit'];
@@ -171,12 +168,19 @@ import React, { useState, useEffect, useCallback } from 'react';
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader>
-                        <DialogTitle>{training ? 'Eğitimi Düzenle' : 'Yeni Eğitim Planı Oluştur'}</DialogTitle>
-                        <DialogDescription>Eğitim detaylarını doldurun ve katılımcıları seçin.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit}>
-                        <ScrollArea className="h-[70vh] p-4">
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><GraduationCap className="h-5 w-5 text-white" /></div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight">{training ? 'Eğitimi Düzenle' : 'Yeni Eğitim Planı Oluştur'}</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Eğitim Yönetimi</p>
+                            </div>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{training ? 'Düzenleme' : 'Yeni'}</span>
+                        </div>
+                    </header>
+                    <div className="flex flex-1 min-h-0 overflow-hidden">
+                    <form id="training-form" onSubmit={handleSubmit} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 border-r border-border">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="space-y-2"><Label>Eğitim Adı *</Label><Input name="title" value={formData.title || ''} onChange={handleChange} required /></div>
                                 <div className="space-y-2"><Label>Kategori</Label><Select name="category" value={formData.category || ''} onValueChange={(v) => handleSelectChange('category', v)}><SelectTrigger><SelectValue placeholder="Kategori seçin" /></SelectTrigger><SelectContent>{TRAINING_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
@@ -215,12 +219,28 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 <div className="space-y-2 col-span-full"><Label>Ön Koşullar</Label><Textarea name="prerequisites" value={formData.prerequisites || ''} onChange={handleChange} /></div>
                                 <div className="space-y-2 col-span-full"><Label>Katılımcılar</Label><MultiSelect options={personnelOptions} value={selectedParticipants} onChange={setSelectedParticipants} placeholder="Personel seçin..." /></div>
                             </div>
-                        </ScrollArea>
-                        <DialogFooter className="pt-4 mt-4 border-t">
-                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
-                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
-                        </DialogFooter>
+                        </div>
                     </form>
+                    <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6">
+                        <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
+                        <div className="space-y-3">
+                            <div className="bg-background rounded-xl p-4 shadow-sm border border-border">
+                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Eğitim</p>
+                                <p className="font-bold text-foreground truncate">{formData.title || '-'}</p>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Kategori:</span><span className="font-semibold text-foreground">{formData.category || '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Başlangıç:</span><span className="font-semibold text-foreground">{formData.start_date ? format(formData.start_date, 'dd.MM.yyyy') : '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Katılımcı:</span><span className="font-semibold text-foreground">{selectedParticipants.length} kişi</span></div>
+                            </div>
+                        </div>
+                    </aside>
+                    </div>
+                    <footer className="flex shrink-0 justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
+                        <Button form="training-form" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
+                    </footer>
                 </DialogContent>
             </Dialog>
         );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { DollarSign } from 'lucide-react';
 import { CostViewModal } from './CostViewModal';
 
 const formatCurrency = (value) => {
@@ -21,13 +22,16 @@ export const CostDetailModal = ({ isOpen, setOpen, title, costs }) => {
         <>
             <Dialog open={isOpen} onOpenChange={setOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader className="shrink-0">
-                        <DialogTitle className="text-primary">{title}</DialogTitle>
-                        <DialogDescription>
-                            Bu kategoriye ait maliyet kayıtlarının detayları aşağıda listelenmiştir.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto pr-4 pb-4">
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><DollarSign className="h-5 w-5 text-white" /></div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight">{title}</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Maliyet kayıtları detayı</p>
+                            </div>
+                        </div>
+                    </header>
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto px-6 py-4 pb-6">
                         <div className="dashboard-widget">
                             <div className="overflow-x-auto">
                                 <table className="data-table">

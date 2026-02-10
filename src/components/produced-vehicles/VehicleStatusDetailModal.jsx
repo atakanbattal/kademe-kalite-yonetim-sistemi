@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Wrench, Clock, Eye, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, Edit, Wrench, Clock, Eye, AlertTriangle, List } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeInStatus } from '@/lib/date-fns-utils';
@@ -73,14 +72,17 @@ const VehicleStatusDetailModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            Bu listede seçilen duruma göre filtrelenmiş araçlar görüntülenmektedir.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex-grow overflow-hidden">
-          <ScrollArea className="h-full">
+        <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-2.5 rounded-lg"><List className="h-5 w-5 text-white" /></div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">{title}</h1>
+              <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Seçilen duruma göre filtrelenmiş araçlar</p>
+            </div>
+            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">Liste</span>
+          </div>
+        </header>
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
@@ -150,11 +152,10 @@ const VehicleStatusDetailModal = ({
                     </TableCell>
                   </TableRow>
                 )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+            </TableBody>
+          </Table>
         </div>
-        <DialogFooter className="pt-4">
+        <DialogFooter className="pt-4 shrink-0">
           <Button variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
         </DialogFooter>
       </DialogContent>

@@ -387,27 +387,23 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4">
-            <div className="flex items-center justify-between">
+          <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-2.5 rounded-lg"><AlertTriangle className="h-5 w-5 text-white" /></div>
               <div>
-                <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-                  <AlertTriangle className="h-6 w-6" />
-                  Uygunsuzluk Detayı
-                </DialogTitle>
-                <DialogDescription className="mt-2">
-                  {record.nc_number || record.mdi_no} - {record.title}
-                </DialogDescription>
+                <h1 className="text-lg font-bold tracking-tight">Uygunsuzluk Detayı</h1>
+                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{record.nc_number || record.mdi_no} - {record.title}</p>
               </div>
               <div className="flex items-center gap-2">
-                {getStatusBadge(record)}
+                <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{record.status}</span>
                 {record.is_major && (
-                  <Badge variant="destructive" className="text-sm">MAJOR</Badge>
+                  <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">MAJOR</span>
                 )}
               </div>
             </div>
-          </DialogHeader>
+          </header>
 
-          <div className="flex-1 overflow-y-auto px-6" style={{ maxHeight: 'calc(95vh - 200px)' }}>
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
             <div className="py-4">
               <Tabs defaultValue="general" className="w-full">
                 <TabsList>

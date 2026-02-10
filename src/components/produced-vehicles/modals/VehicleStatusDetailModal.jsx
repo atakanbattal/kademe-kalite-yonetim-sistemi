@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeInStatus } from '@/lib/date-fns-utils';
+import { PackageCheck } from 'lucide-react';
 
 const InfoCard = ({ label, value, loading, loadingClassName = "h-6 w-24" }) => (
     <div className="bg-muted/50 p-4 rounded-lg">
@@ -88,16 +88,17 @@ const VehicleStatusDetailModal = ({ isOpen, setIsOpen, vehicle }) => {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-3">
-                       {isLoading ? <Skeleton className="h-7 w-48" /> : `Araç Durum Detayı: ${vehicle.chassis_no || 'N/A'}`}
-                       {isLoading ? <Skeleton className="h-6 w-20 rounded-full" /> : <Badge>{vehicle.status}</Badge>}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Bu aracın mevcut durumundaki ve genel süreçlerdeki sürelerini görüntüleyin.
-                    </DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="max-h-[60vh] p-1 pr-4">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><PackageCheck className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">{isLoading ? '...' : `Araç Durum Detayı: ${vehicle.chassis_no || 'N/A'}`}</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Mevcut durum ve süreç süreleri</p>
+                        </div>
+                        {!isLoading && vehicle.status && <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{vehicle.status}</span>}
+                    </div>
+                </header>
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                         <InfoCard label="Durumda Geçen Süre" value={timeInStatus} loading={isLoading} />
                         <InfoCard label="Toplam Kalite Süresi" value={totalQualityTime} loading={isLoading} />
@@ -110,8 +111,8 @@ const VehicleStatusDetailModal = ({ isOpen, setIsOpen, vehicle }) => {
                         <p><strong>Toplam Kontrol Süresi:</strong> Aracın kontrolünün başladığı ve bittiği zaman arasındaki toplam süre.</p>
                         <p><strong>Toplam Yeniden İşlem Süresi:</strong> Aracın yeniden işleme alındığı ve bittiği zaman arasındaki toplam süre.</p>
                     </div>
-                </ScrollArea>
-                <DialogFooter>
+                </div>
+                <DialogFooter className="shrink-0">
                     <Button variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
                 </DialogFooter>
             </DialogContent>

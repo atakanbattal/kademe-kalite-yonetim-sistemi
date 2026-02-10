@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+    import { Dialog, DialogContent } from '@/components/ui/dialog';
     import { Button } from '@/components/ui/button';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { Label } from '@/components/ui/label';
@@ -72,13 +72,17 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader>
-                        <DialogTitle className="text-primary text-2xl">Karantina Kaydı Detayı</DialogTitle>
-                        <DialogDescription>
-                            {record.part_name} ({record.part_code}) - Karantina kaydına ait tüm bilgiler.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex-grow overflow-hidden">
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><FileText className="h-5 w-5 text-white" /></div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight">Karantina Kaydı Detayı</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{record.part_name} ({record.part_code})</p>
+                            </div>
+                            <span className="ml-2 px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{record.status}</span>
+                        </div>
+                    </header>
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                         <Tabs defaultValue="details" className="h-full flex flex-col">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="details"><Paperclip className="w-4 h-4 mr-2"/>Detaylar</TabsTrigger>

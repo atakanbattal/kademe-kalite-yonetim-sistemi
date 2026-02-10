@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -185,40 +185,28 @@ const SupplierDetailModal = ({ isOpen, setIsOpen, supplier, onEdit, onSetGrade, 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader className="pb-4 border-b">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-xl ${gradeInfo.color}`}>
-                                <Building2 className="h-8 w-8 text-white" />
-                            </div>
-                            <div>
-                                <DialogTitle className="text-2xl font-bold">{supplier.name}</DialogTitle>
-                                <div className="flex items-center gap-2 mt-1">
-                                    {getStatusBadge(supplier.status)}
-                                    {getRiskBadge(supplier.risk_class)}
-                                    {supplier.product_group && (
-                                        <Badge variant="outline" className="flex items-center gap-1">
-                                            <Package className="h-3 w-3" />
-                                            {supplier.product_group}
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><Building2 className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">{supplier.name}</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{supplier.product_group || 'Tedarikçi'} • {supplier.status}</p>
                         </div>
-                        <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => { setIsOpen(false); onSetGrade?.(supplier); }}>
-                                <Star className="h-4 w-4 mr-1" />
-                                Sınıf Belirle
-                            </Button>
-                            <Button size="sm" onClick={() => { setIsOpen(false); onEdit?.(supplier); }}>
-                                <Edit className="h-4 w-4 mr-1" />
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{supplier.status}</span>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={() => { setIsOpen(false); onSetGrade?.(supplier); }}>
+                            <Star className="h-4 w-4 mr-1" />
+                            Sınıf Belirle
+                        </Button>
+                        <Button size="sm" className="bg-white text-primary hover:bg-blue-50" onClick={() => { setIsOpen(false); onEdit?.(supplier); }}>
+                            <Edit className="h-4 w-4 mr-1" />
                                 Düzenle
                             </Button>
                         </div>
-                    </div>
-                </DialogHeader>
+                </header>
 
-                <div className="flex-1 overflow-y-auto py-4">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <Tabs defaultValue="overview" className="w-full">
                         <TabsList className="grid w-full grid-cols-4 mb-4">
                             <TabsTrigger value="overview">Genel Bakış</TabsTrigger>

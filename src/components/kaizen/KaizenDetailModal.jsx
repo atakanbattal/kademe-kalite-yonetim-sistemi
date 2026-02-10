@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -84,21 +83,17 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <div className="flex items-center justify-between">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><BrainCircuit className="h-5 w-5 text-white" /></div>
                         <div>
-                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-                                <AlertTriangle className="h-6 w-6" />
-                                Kaizen Detayı
-                            </DialogTitle>
-                            <DialogDescription className="mt-2">
-                                {kaizen.kaizen_no} - {kaizen.title}
-                            </DialogDescription>
+                            <h1 className="text-lg font-bold tracking-tight">Kaizen Detayı</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{kaizen.kaizen_no} - {kaizen.title}</p>
                         </div>
-                        <Badge variant={getStatusVariant(kaizen.status)} className="text-sm">{kaizen.status}</Badge>
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{kaizen.status}</span>
                     </div>
-                </DialogHeader>
-                <ScrollArea className="flex-1 pr-4 -mr-4 mt-4">
+                </header>
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
@@ -257,8 +252,8 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
                                 </div>
                             </TabsContent>
                     </Tabs>
-                </ScrollArea>
-                <DialogFooter className="mt-6">
+                </div>
+                <DialogFooter className="mt-6 shrink-0">
                     <Button variant="outline" onClick={handlePrint} disabled={isPrinting}>
                         {isPrinting ? (
                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Yazdırılıyor...</>

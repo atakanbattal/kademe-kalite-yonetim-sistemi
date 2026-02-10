@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -460,34 +460,19 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <div className="flex items-center justify-between">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><AlertTriangle className="h-5 w-5 text-white" /></div>
                         <div>
-                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-                                <AlertTriangle className="h-6 w-6" />
-                                Sapma Detayı
-                            </DialogTitle>
-                            <DialogDescription className="mt-2">
-                                Sapma kaydına ait tüm bilgiler aşağıda listelenmiştir.
-                            </DialogDescription>
+                            <h1 className="text-lg font-bold tracking-tight">Sapma Detayı</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Sapma kaydına ait tüm bilgiler</p>
                         </div>
                         {deviation.status && (
-                            <Badge variant="outline" className={`${
-                                deviation.status === 'Onaylandı' ? 'bg-green-50 text-green-700 border-green-200' :
-                                deviation.status === 'Reddedildi' ? 'bg-red-50 text-red-700 border-red-200' :
-                                deviation.status === 'Onay Bekliyor' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                'bg-blue-50 text-blue-700 border-blue-200'
-                            }`}>
-                                {deviation.status === 'Onaylandı' && <CheckCircle className="h-3 w-3 mr-1" />}
-                                {deviation.status === 'Reddedildi' && <XCircle className="h-3 w-3 mr-1" />}
-                                {deviation.status === 'Onay Bekliyor' && <Hourglass className="h-3 w-3 mr-1" />}
-                                {deviation.status}
-                            </Badge>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{deviation.status}</span>
                         )}
                     </div>
-                </DialogHeader>
-                
-                <ScrollArea className="max-h-[65vh] pr-4 mt-4">
+                </header>
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <div className="space-y-6">
                         {/* Önemli Bilgiler */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -728,9 +713,9 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                             </TabsContent>
                         </Tabs>
                     </div>
-                </ScrollArea>
+                </div>
 
-                <DialogFooter className="mt-6">
+                <DialogFooter className="mt-6 shrink-0">
                     <Button type="button" variant="outline" onClick={handlePrint} disabled={isPrinting}>
                         {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
                         Yazdır / PDF

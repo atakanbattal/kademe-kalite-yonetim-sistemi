@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,7 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Save, Trash2 } from 'lucide-react';
+import { Save, Trash2, TrendingUp } from 'lucide-react';
 
 
 const KPIDetailModal = ({ kpi, open, setOpen, refreshKpis }) => {
@@ -81,11 +81,18 @@ const KPIDetailModal = ({ kpi, open, setOpen, refreshKpis }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader>
-          <DialogTitle className="text-2xl text-foreground">KPI Detayları: {kpi.name}</DialogTitle>
-          <DialogDescription className="text-muted-foreground">{kpi.description}</DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+        <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-2.5 rounded-lg"><TrendingUp className="h-5 w-5 text-white" /></div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">KPI Detayları: {kpi.name}</h1>
+              <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{kpi.description}</p>
+            </div>
+            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">Detay</span>
+          </div>
+        </header>
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
                 <h4 className="font-semibold text-foreground">Mevcut Durum</h4>
                 <div className="flex justify-between items-center p-4 bg-secondary rounded-lg">
@@ -124,7 +131,8 @@ const KPIDetailModal = ({ kpi, open, setOpen, refreshKpis }) => {
                 </ResponsiveContainer>
             </div>
         </div>
-        <DialogFooter className="justify-between sm:justify-between w-full">
+        </div>
+        <DialogFooter className="justify-between sm:justify-between w-full shrink-0">
             <AlertDialog>
                 <AlertDialogTrigger asChild>
                     <Button variant="destructive" disabled={isSubmitting}><Trash2 className="w-4 h-4 mr-2" /> KPI'yı Sil</Button>

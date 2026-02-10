@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -187,17 +186,17 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
         <>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <FileText className="w-5 h-5" />
-                            Doküman Detayları
-                        </DialogTitle>
-                        <DialogDescription>
-                            {document.title} - {document.document_number}
-                        </DialogDescription>
-                    </DialogHeader>
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><FileText className="h-5 w-5 text-white" /></div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight">Doküman Detayları</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{document.title} - {document.document_number}</p>
+                            </div>
+                        </div>
+                    </header>
 
-                    <ScrollArea className="flex-1 pr-4">
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                         <div className="space-y-6">
                             {/* Doküman Genel Bilgileri */}
                             <Card>
@@ -414,7 +413,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
                                 </CardContent>
                             </Card>
                         </div>
-                    </ScrollArea>
+                    </div>
                 </DialogContent>
             </Dialog>
 

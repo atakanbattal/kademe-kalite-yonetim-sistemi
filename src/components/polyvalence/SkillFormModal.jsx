@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -181,14 +181,19 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        {skill ? 'Yetkinlik Düzenle' : 'Yeni Yetkinlik Ekle'}
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-4 py-4">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><Target className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">{skill ? 'Yetkinlik Düzenle' : 'Yeni Yetkinlik Ekle'}</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Polivalans yetkinliği</p>
+                        </div>
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{skill ? 'Düzenle' : 'Yeni'}</span>
+                    </div>
+                </header>
+                <div className="flex flex-1 min-h-0 overflow-hidden">
+                <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden border-r border-border py-4">
+                <div className="p-6 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Yetkinlik Adı <span className="text-red-500">*</span></Label>
@@ -320,16 +325,23 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
                         </div>
                     </div>
                 </div>
-
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose} disabled={loading}>
-                        İptal
-                    </Button>
-                    <Button onClick={handleSave} disabled={loading}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Kaydet
-                    </Button>
-                </DialogFooter>
+                </div>
+                </div>
+                <div className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4">
+                    <div className="p-5 space-y-5">
+                        <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Özet</h2>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span className="text-muted-foreground">Yetkinlik:</span><span className="font-medium">{formData.name || '-'}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Kod:</span><span className="font-medium">{formData.code || '-'}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Kritik:</span><span className="font-medium">{formData.is_critical ? 'Evet' : 'Hayır'}</span></div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <footer className="bg-background px-6 py-4 border-t border-border flex justify-end gap-3 shrink-0">
+                    <Button variant="outline" onClick={onClose} disabled={loading}>İptal</Button>
+                    <Button onClick={handleSave} disabled={loading}><Save className="mr-2 h-4 w-4" /> Kaydet</Button>
+                </footer>
             </DialogContent>
         </Dialog>
     );

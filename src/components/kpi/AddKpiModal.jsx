@@ -2,12 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Zap } from 'lucide-react';
+import { Zap, TrendingUp } from 'lucide-react';
 import { predefinedKpis } from './kpi-definitions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -97,11 +97,19 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
     return (
         <Dialog open={open} onOpenChange={(isOpen) => { if(!isOpen) resetForm(); setOpen(isOpen); }}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <DialogTitle className="text-foreground">Yeni KPI Ekle</DialogTitle>
-                    <DialogDescription className="text-muted-foreground">Yeni bir Key Performance Indicator (KPI) oluşturun.</DialogDescription>
-                </DialogHeader>
-                <Tabs defaultValue="auto" className="w-full">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><TrendingUp className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">Yeni KPI Ekle</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Key Performance Indicator</p>
+                        </div>
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">Yeni</span>
+                    </div>
+                </header>
+                <div className="flex flex-1 min-h-0 overflow-hidden">
+                <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden border-r border-border py-4">
+                <Tabs defaultValue="auto" className="w-full p-6">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="auto">Otomatik Ekle</TabsTrigger>
                         <TabsTrigger value="manual">Manuel Ekle</TabsTrigger>
@@ -127,7 +135,7 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
                         </ScrollArea>
                     </TabsContent>
                     <TabsContent value="manual">
-                        <form onSubmit={handleManualSubmit} className="grid gap-4 py-4">
+                        <form id="add-kpi-form" onSubmit={handleManualSubmit} className="grid gap-4 py-4">
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="name" className="text-right text-foreground">Ad</Label>
                                 <Input id="name" value={name} onChange={e => setName(e.target.value)} className="col-span-3" required />
@@ -160,12 +168,23 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
                                 <Label htmlFor="unit" className="text-right text-foreground">Birim</Label>
                                 <Input id="unit" value={unit} onChange={e => setUnit(e.target.value)} className="col-span-3" placeholder="örn: %, gün, adet" />
                             </div>
-                            <DialogFooter>
-                                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Ekleniyor...' : 'KPI Oluştur'}</Button>
-                            </DialogFooter>
                         </form>
                     </TabsContent>
                 </Tabs>
+                </div>
+                <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                        <p>KPI ekleyerek hedeflerinizi takip edebilirsiniz.</p>
+                        <p>Otomatik mod: Var olan KPIden türetilir.</p>
+                        <p>Manuel mod: Özel KPI tanımlayabilirsiniz.</p>
+                    </div>
+                </aside>
+                </div>
+                <footer className="flex shrink-0 justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+                    <Button variant="outline" onClick={() => setOpen(false)}>İptal</Button>
+                    <Button form="add-kpi-form" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Ekleniyor...' : 'KPI Oluştur'}</Button>
+                </footer>
             </DialogContent>
         </Dialog>
     );

@@ -1,12 +1,11 @@
 import React from 'react';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+    import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
     import { Button } from '@/components/ui/button';
     import { Badge } from '@/components/ui/badge';
-    import { ScrollArea } from '@/components/ui/scroll-area';
     import { Separator } from '@/components/ui/separator';
     import { Checkbox } from '@/components/ui/checkbox';
     import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-    import { Clock, Calendar, User, Flag, Edit, Trash2 } from 'lucide-react';
+    import { Clock, Calendar, User, Flag, Edit, Trash2, ListTodo } from 'lucide-react';
     import { format, formatDistanceToNow } from 'date-fns';
     import { tr } from 'date-fns/locale';
 
@@ -39,13 +38,17 @@ import React from 'react';
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-bold">{task.title}</DialogTitle>
-                        <DialogDescription>
-                            Görev No: {task.task_no}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="h-[60vh] p-1">
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><ListTodo className="h-5 w-5 text-white" /></div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight">{task.title}</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Görev No: {task.task_no}</p>
+                            </div>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{task.status}</span>
+                        </div>
+                    </header>
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                         <div className="space-y-6 p-4">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div className="flex items-center gap-2">
@@ -140,8 +143,8 @@ import React from 'react';
                             )}
 
                         </div>
-                    </ScrollArea>
-                    <DialogFooter className="p-4 border-t sm:justify-between">
+                    </div>
+                    <DialogFooter className="p-4 border-t sm:justify-between shrink-0">
                         <div className="text-xs text-muted-foreground">
                             Son Güncelleme: {formatDistanceToNow(new Date(task.updated_at), { addSuffix: true, locale: tr })}
                         </div>

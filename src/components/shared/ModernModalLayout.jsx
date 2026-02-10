@@ -58,7 +58,7 @@ export const ModernModalLayout = ({
                             <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{subtitle}</p>
                         </div>
                         {badge && (
-                            <span className="ml-2 px-3 py-1 bg-green-400/20 border border-green-400/30 text-green-100 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">
                                 {badge}
                             </span>
                         )}
@@ -74,20 +74,10 @@ export const ModernModalLayout = ({
                     <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
                 )}
 
-                <footer className="bg-background px-6 py-4 border-t border-border flex items-center justify-between shrink-0">
-                    <div className="flex items-center text-muted-foreground">
-                        {footerLeft ?? (
-                            <>
-                                <Clock className="w-3.5 h-3.5 mr-1.5" />
-                                <span className="text-[11px] font-medium">
-                                    {footerDate ? new Date(footerDate).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }) : '-'}
-                                </span>
-                            </>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-3">
+                <footer className="flex shrink-0 justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+                    <div className="flex items-center gap-3 flex-1 justify-end">
                         {footerExtra}
-                        <Button type="button" variant="ghost" onClick={onCancel} className="text-sm font-semibold">
+                        <Button type="button" variant="outline" onClick={onCancel}>
                             {cancelLabel}
                         </Button>
                         <Button type={formId ? 'submit' : 'button'} form={formId} onClick={!formId ? onSubmit : undefined} disabled={isSubmitting} className="text-sm font-bold shadow-lg shadow-primary/20">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { History } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const VehicleHistoryModal = ({ isOpen, setIsOpen, vehicleId }) => {
@@ -44,10 +44,17 @@ const VehicleHistoryModal = ({ isOpen, setIsOpen, vehicleId }) => {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <DialogTitle>Araç Geçmişi: {vehicleInfo?.vehicle_type} - {vehicleInfo?.serial_no}</DialogTitle>
-                </DialogHeader>
-                <ScrollArea className="h-96">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><History className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">Araç Geçmişi: {vehicleInfo?.vehicle_type} - {vehicleInfo?.serial_no}</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Geçmiş kayıtları</p>
+                        </div>
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">Geçmiş</span>
+                    </div>
+                </header>
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     {loading ? <p>Yükleniyor...</p> : (
                         <Table>
                             <TableHeader>
@@ -70,7 +77,7 @@ const VehicleHistoryModal = ({ isOpen, setIsOpen, vehicleId }) => {
                             </TableBody>
                         </Table>
                     )}
-                </ScrollArea>
+                </div>
             </DialogContent>
         </Dialog>
     );

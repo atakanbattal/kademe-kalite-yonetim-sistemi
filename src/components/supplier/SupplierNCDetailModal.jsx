@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -62,27 +61,19 @@ const SupplierNCDetailModal = ({ isOpen, setIsOpen, ncRecord, refreshData }) => 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <div className="flex items-center justify-between">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><AlertTriangle className="h-5 w-5 text-white" /></div>
                         <div>
-                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-                                <AlertTriangle className="h-6 w-6" />
-                                Tedarikçi Uygunsuzluğu Detayı
-                            </DialogTitle>
-                            <DialogDescription className="mt-2">
-                                Uygunsuzluk kaydına ait tüm bilgiler aşağıda listelenmiştir.
-                            </DialogDescription>
+                            <h1 className="text-lg font-bold tracking-tight">Tedarikçi Uygunsuzluğu Detayı</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Uygunsuzluk kaydına ait tüm bilgiler</p>
                         </div>
                         {ncRecord.status && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                {ncRecord.status}
-                            </Badge>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{ncRecord.status}</span>
                         )}
                     </div>
-                </DialogHeader>
-                
-                <ScrollArea className="max-h-[65vh] pr-4 mt-4">
+                </header>
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <div className="space-y-6">
                         {/* Önemli Bilgiler */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -186,9 +177,9 @@ const SupplierNCDetailModal = ({ isOpen, setIsOpen, ncRecord, refreshData }) => 
                             </Card>
                         </div>
                     </div>
-                </ScrollArea>
+                </div>
 
-                <DialogFooter className="mt-6">
+                <DialogFooter className="mt-6 shrink-0">
                     {!isEditMode && (
                         <Button variant="outline" onClick={() => setIsEditMode(true)}>
                             Düzenle

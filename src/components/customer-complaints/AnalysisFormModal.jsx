@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -8,10 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-    DialogFooter, DialogDescription
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
@@ -189,16 +186,19 @@ const AnalysisFormModal = ({ open, setOpen, complaintId, existingAnalysis, onSuc
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <DialogTitle>
-                        {isEditMode ? 'Analiz Düzenle' : 'Yeni Kök Neden Analizi'}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Şikayet için kök neden analizi yapın
-                    </DialogDescription>
-                </DialogHeader>
-
-                <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><Search className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">{isEditMode ? 'Analiz Düzenle' : 'Yeni Kök Neden Analizi'}</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Şikayet Analizi</p>
+                        </div>
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{isEditMode ? 'Düzenleme' : 'Yeni'}</span>
+                    </div>
+                </header>
+                <div className="flex flex-1 min-h-0 overflow-hidden">
+                <form id="analysis-form" onSubmit={handleSubmit} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                    <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-6 py-4 border-r border-border space-y-6">
                     {/* Genel Bilgiler */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -460,21 +460,23 @@ const AnalysisFormModal = ({ open, setOpen, complaintId, existingAnalysis, onSuc
                             </div>
                         </CardContent>
                     </Card>
-
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setOpen(false)}
-                            disabled={isSubmitting}
-                        >
-                            İptal
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
-                        </Button>
-                    </DialogFooter>
+                    </div>
                 </form>
+                <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
+                    <div className="space-y-3">
+                        <div className="bg-background rounded-xl p-4 shadow-sm border border-border">
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Analiz Tipi</p>
+                            <p className="font-bold text-foreground">{analysisType}</p>
+                        </div>
+                        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.analysis_date ? new Date(formData.analysis_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+                    </div>
+                </aside>
+                </div>
+                <footer className="flex shrink-0 justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>İptal</Button>
+                    <Button form="analysis-form" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
+                </footer>
             </DialogContent>
         </Dialog>
     );

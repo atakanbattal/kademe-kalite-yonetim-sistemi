@@ -2,12 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
-    import { Plus, X } from 'lucide-react';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+    import { Plus, X, FileQuestion } from 'lucide-react';
+    import { Dialog, DialogContent } from '@/components/ui/dialog';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-    import { ScrollArea } from '@/components/ui/scroll-area';
     import { Textarea } from '@/components/ui/textarea';
     import { v4 as uuidv4 } from 'uuid';
 
@@ -61,7 +60,8 @@ import React, { useState, useEffect, useCallback } from 'react';
             setQuestions(newQuestions);
         };
 
-        const handleSubmit = async () => {
+        const handleSubmit = async (e) => {
+            if (e && e.preventDefault) e.preventDefault();
             let examId = exam?.id;
             
             // Undefined key'leri ve geçersiz kolonları temizle
@@ -98,11 +98,19 @@ import React, { useState, useEffect, useCallback } from 'react';
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader>
-                        <DialogTitle>{exam ? 'Sınavı Düzenle' : 'Yeni Sınav Oluştur'}</DialogTitle>
-                        <DialogDescription>Sınav detaylarını ve soruları buradan yönetebilirsiniz.</DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="h-[70vh] p-4">
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><FileQuestion className="h-5 w-5 text-white" /></div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight">{exam ? 'Sınavı Düzenle' : 'Yeni Sınav Oluştur'}</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Eğitim Sınavları</p>
+                            </div>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{exam ? 'Düzenleme' : 'Yeni'}</span>
+                        </div>
+                    </header>
+                    <div className="flex flex-1 min-h-0 overflow-hidden">
+                    <form id="exam-form" onSubmit={handleSubmit} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                    <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 border-r border-border">
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg">
                                 <div className="space-y-1">
@@ -160,10 +168,28 @@ import React, { useState, useEffect, useCallback } from 'react';
                                     </div>
                                 ))}
                             </div>
-                             <Button onClick={addQuestion} variant="secondary" className="w-full"><Plus className="mr-2 h-4 w-4" />Soru Ekle</Button>
+                             <Button type="button" onClick={addQuestion} variant="secondary" className="w-full"><Plus className="mr-2 h-4 w-4" />Soru Ekle</Button>
                         </div>
-                    </ScrollArea>
-                    <DialogFooter className="mt-4"><Button onClick={handleSubmit}>Kaydet</Button></DialogFooter>
+                    </div>
+                    </form>
+                    <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6">
+                        <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
+                        <div className="space-y-3">
+                            <div className="bg-background rounded-xl p-4 shadow-sm border border-border">
+                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Sınav</p>
+                                <p className="font-bold text-foreground truncate">{formData.title || '-'}</p>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Geçme Notu:</span><span className="font-semibold text-foreground">{formData.passing_score || 70}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Soru Sayısı:</span><span className="font-semibold text-foreground">{questions.length}</span></div>
+                            </div>
+                        </div>
+                    </aside>
+                    </div>
+                    <footer className="flex shrink-0 justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
+                        <Button form="exam-form" type="submit">Kaydet</Button>
+                    </footer>
                 </DialogContent>
             </Dialog>
         );

@@ -166,32 +166,24 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader className="px-6 pt-6 pb-4 border-b">
-                    <div className="flex items-center justify-between">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><AlertCircle className="h-5 w-5 text-white" /></div>
                         <div>
-                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-                                <AlertCircle className="h-6 w-6" />
-                                Müşteri Şikayeti Detayı
-                            </DialogTitle>
-                            <DialogDescription className="mt-2">
-                                {complaintData?.complaint_number || 'Yükleniyor...'} - {complaintData?.title || ''}
-                            </DialogDescription>
+                            <h1 className="text-lg font-bold tracking-tight">Müşteri Şikayeti Detayı</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{complaintData?.complaint_number || 'Yükleniyor...'} - {complaintData?.title || ''}</p>
                         </div>
                         {complaintData && (
                             <div className="flex items-center gap-2">
-                                <Badge variant={SEVERITY_COLORS[complaintData.severity]}>
-                                    {complaintData.severity}
-                                </Badge>
-                                <Badge variant={STATUS_COLORS[complaintData.status]}>
-                                    {complaintData.status}
-                                </Badge>
+                                <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{complaintData.severity}</span>
+                                <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{complaintData.status}</span>
                             </div>
                         )}
                     </div>
-                </DialogHeader>
+                </header>
 
                 {complaintData && (
-                    <div className="flex gap-2 px-6 py-4 border-b bg-muted/30">
+                    <div className="flex gap-2 px-6 py-4 border-b bg-muted/30 shrink-0">
                         <Button
                             variant="outline"
                             onClick={handleGenerateReport}

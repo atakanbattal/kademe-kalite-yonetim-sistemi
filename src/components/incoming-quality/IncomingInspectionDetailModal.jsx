@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
-    DialogHeader,
-    DialogTitle,
     DialogFooter,
-    DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -645,26 +642,21 @@ const IncomingInspectionDetailModal = ({
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader className="shrink-0">
-                    <div className="flex items-center justify-between">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><Eye className="h-5 w-5 text-white" /></div>
                         <div>
-                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-                                <Eye className="h-6 w-6" />
-                                Girdi Kalite Kontrol Detayı
-                            </DialogTitle>
-                            <DialogDescription className="mt-2">
-                                Muayene kaydına ait tüm bilgiler aşağıda listelenmiştir.
-                            </DialogDescription>
+                            <h1 className="text-lg font-bold tracking-tight">Girdi Kalite Kontrol Detayı</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Muayene kaydına ait tüm bilgiler</p>
                         </div>
-                        {enrichedInspection.decision && (
-                            <div>
-                                {getDecisionBadge(enrichedInspection.decision)}
-                            </div>
-                        )}
                     </div>
-                </DialogHeader>
-                
-                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-4 mt-4 pb-6">
+                    {enrichedInspection.decision && (
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                            {enrichedInspection.decision === 'Kabul' ? '✓ Kabul' : enrichedInspection.decision === 'Şartlı Kabul' ? '⚠ Şartlı Kabul' : enrichedInspection.decision === 'Ret' ? '✕ Ret' : enrichedInspection.decision}
+                        </span>
+                    )}
+                </header>
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <Tabs defaultValue="main" className="w-full pb-4">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="main">Temel Bilgiler</TabsTrigger>

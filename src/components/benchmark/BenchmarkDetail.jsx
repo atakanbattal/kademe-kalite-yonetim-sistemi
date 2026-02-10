@@ -7,17 +7,11 @@ import {
     ExternalLink, Printer
 } from 'lucide-react';
 import BenchmarkDocumentUpload from './BenchmarkDocumentUpload';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { format } from 'date-fns';
@@ -702,58 +696,28 @@ const BenchmarkDetail = ({
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                            <DialogTitle className="text-2xl mb-2">
-                                {benchmark.title}
-                            </DialogTitle>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <Badge className={getStatusColor(benchmark.status)}>
-                                    {benchmark.status}
-                                </Badge>
-                                <Badge variant="outline">
-                                    {benchmark.benchmark_number}
-                                </Badge>
-                                <span className={`text-sm font-medium ${getPriorityColor(benchmark.priority)}`}>
-                                    Öncelik: {benchmark.priority}
-                                </span>
-                            </div>
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><TrendingUp className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">{benchmark.title}</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{benchmark.benchmark_number} • Öncelik: {benchmark.priority}</p>
                         </div>
-                        <div className="flex gap-2">
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handleGenerateReport}
-                            >
-                                <Printer className="h-4 w-4 mr-2" />
-                                Rapor
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => onEdit(benchmark)}
-                            >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Düzenle
-                            </Button>
-                            <Button
-                                size="sm"
-                                onClick={() => {
-                                    if (onCompare) {
-                                        onCompare(benchmark);
-                                        onClose(); // Detail modal'ını kapat
-                                    }
-                                }}
-                            >
-                                <TrendingUp className="h-4 w-4 mr-2" />
-                                Karşılaştır
-                            </Button>
-                        </div>
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{benchmark.status}</span>
                     </div>
-                </DialogHeader>
-
-                <ScrollArea className="h-[calc(90vh-150px)] pr-4">
+                    <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={handleGenerateReport}>
+                            <Printer className="h-4 w-4 mr-2" /> Rapor
+                        </Button>
+                        <Button size="sm" variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={() => onEdit(benchmark)}>
+                            <Edit className="h-4 w-4 mr-2" /> Düzenle
+                        </Button>
+                        <Button size="sm" className="bg-white/20 border border-white/30 text-white hover:bg-white/30" onClick={() => { if (onCompare) { onCompare(benchmark); onClose(); } }}>
+                            <TrendingUp className="h-4 w-4 mr-2" /> Karşılaştır
+                        </Button>
+                    </div>
+                </header>
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <Tabs defaultValue="overview" className="w-full">
                         <TabsList className="grid w-full grid-cols-5">
                             <TabsTrigger value="overview">Genel Bakış</TabsTrigger>
@@ -1438,7 +1402,7 @@ const BenchmarkDetail = ({
                             </div>
                         </TabsContent>
                     </Tabs>
-                </ScrollArea>
+                </div>
             </DialogContent>
         </Dialog>
     );

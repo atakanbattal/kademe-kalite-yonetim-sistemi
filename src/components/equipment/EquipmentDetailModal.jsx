@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus } from 'lucide-react';
+import { Plus, Box } from 'lucide-react';
 import CalibrationHistory from '@/components/equipment/CalibrationHistory';
 import AssignmentHistory from '@/components/equipment/AssignmentHistory';
 import CalibrationModal from '@/components/equipment/CalibrationModal';
@@ -225,16 +224,17 @@ const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh, refresh
         <>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader>
-                        <div className="flex justify-between items-start">
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><Box className="h-5 w-5 text-white" /></div>
                             <div>
-                                <DialogTitle className="text-2xl">{equipment.name}</DialogTitle>
-                                <DialogDescription>Seri No: {equipment.serial_number}</DialogDescription>
+                                <h1 className="text-lg font-bold tracking-tight">{equipment.name}</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Seri No: {equipment.serial_number}</p>
                             </div>
-                            <Badge variant={getStatusVariant(equipment.status)} className="text-sm">{equipment.status}</Badge>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{equipment.status}</span>
                         </div>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[60vh] p-1">
+                    </header>
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
                             <div><p className="text-sm text-muted-foreground">Marka/Model</p><p className="font-semibold">{equipment.brand_model || '-'}</p></div>
                             <div><p className="text-sm text-muted-foreground">Sorumlu Birim</p><p className="font-semibold">{equipment.responsible_unit}</p></div>
@@ -290,8 +290,8 @@ const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh, refresh
                                 />
                             </TabsContent>
                         </Tabs>
-                    </ScrollArea>
-                    <DialogFooter className="p-4 border-t flex justify-between">
+                    </div>
+                    <DialogFooter className="p-4 border-t flex justify-between shrink-0">
                         <div>
                             {equipment.status !== 'Hurdaya Ayrıldı' && (
                                 <Button

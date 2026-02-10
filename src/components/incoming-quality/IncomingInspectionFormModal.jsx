@@ -2,12 +2,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+    import { Dialog, DialogContent } from '@/components/ui/dialog';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Plus, Trash2, AlertCircle, AlertTriangle, FileText, ExternalLink, HelpCircle } from 'lucide-react';
+import { X, Plus, Trash2, AlertCircle, AlertTriangle, FileText, ExternalLink, HelpCircle, ClipboardCheck } from 'lucide-react';
     import { useDropzone } from 'react-dropzone';
     import { sanitizeFileName } from '@/lib/utils';
     import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -1016,16 +1016,25 @@ setShowRiskyStockAlert(false);
         };
 
         const title = isViewMode ? 'Girdi Kontrol Kaydını Görüntüle' : (existingInspection ? 'Girdi Kontrol Kaydını Düzenle' : 'Yeni Girdi Kontrol Kaydı');
+        const badge = isViewMode ? 'Görüntüleme' : (existingInspection ? 'Düzenleme' : 'Yeni');
+        const supplierName = (suppliers || []).find(s => s.id === formData.supplier_id)?.name || '-';
         
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader className="flex-shrink-0">
-                        <DialogTitle>{title}</DialogTitle>
-                        <DialogDescription>Tedarikçiden gelen malzemeler için kontrol sonuçlarını girin.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-4 pb-4">
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><ClipboardCheck className="h-5 w-5 text-white" /></div>
+                            <div>
+                                <h1 className="text-lg font-bold tracking-tight">{title}</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Girdi Kalite Kontrol</p>
+                            </div>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{badge}</span>
+                        </div>
+                    </header>
+                    <div className="flex flex-1 min-h-0 overflow-hidden">
+                    <form id="incoming-inspection-form" onSubmit={handleSubmit} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 border-r border-border">
                             <div className="space-y-6">
                     <div className="space-y-2">
                         {warnings.plan && <Alert variant="warning"><AlertTriangle className="h-4 w-4" /><AlertTitle>Uyarı</AlertTitle><AlertDescription>{warnings.plan}</AlertDescription></Alert>}
@@ -1139,15 +1148,33 @@ setShowRiskyStockAlert(false);
                     <div className="space-y-4"><h3 className="font-semibold text-lg border-b pb-2">Sertifika ve Ekler</h3>{!isViewMode && <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-input hover:border-primary/50'} cursor-pointer`}><input {...getInputProps()} /><p className="text-muted-foreground">Dosyaları buraya sürükleyin veya seçmek için tıklayın.</p></div>}<ul className="space-y-2">{existingAttachments.map(att => <li key={att.id} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded-md"><a href={supabase.storage.from('incoming_control').getPublicUrl(att.file_path).data.publicUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline"><FileText className="h-4 w-4" /><span>{att.file_name}</span><ExternalLink className="h-3 w-3" /></a>{!isViewMode && <Button type="button" variant="ghost" size="icon" onClick={() => removeExistingAttachment(att.id, att.file_path)}><X className="h-4 w-4 text-destructive" /></Button>}</li>)}{newAttachments.map((file, index) => <li key={index} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded-md"><span>{file.name}</span>{!isViewMode && <Button type="button" variant="ghost" size="icon" onClick={() => removeNewAttachment(index)}><X className="h-4 w-4" /></Button>}</li>)}</ul></div>
                             </div>
                         </div>
-                        <DialogFooter className="flex-shrink-0 pt-6 border-t mt-4">
-                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
-                            {!isViewMode && (
-                                <Button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
-                                </Button>
-                            )}
-                        </DialogFooter>
                     </form>
+                    <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6">
+                        <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
+                        <div className="space-y-3">
+                            <div className="bg-background rounded-xl p-4 shadow-sm border border-border">
+                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Parça</p>
+                                <p className="font-bold text-foreground truncate">{formData.part_name || formData.part_code || '-'}</p>
+                                {formData.part_code && <p className="text-xs text-muted-foreground mt-0.5">{formData.part_code}</p>}
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Tedarikçi:</span><span className="font-semibold text-foreground truncate ml-2">{supplierName}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.inspection_date ? format(new Date(formData.inspection_date), 'dd.MM.yyyy') : '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Miktar:</span><span className="font-semibold text-foreground">{formData.quantity_received || 0} {formData.unit || 'Adet'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Karar:</span><span className={`font-bold ${formData.decision === 'Kabul' ? 'text-green-600' : formData.decision === 'Ret' ? 'text-red-600' : formData.decision === 'Şartlı Kabul' ? 'text-amber-600' : 'text-muted-foreground'}`}>{formData.decision}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Ölçüm:</span><span className="font-semibold text-foreground">{results.length} satır</span></div>
+                            </div>
+                        </div>
+                    </aside>
+                    </div>
+                    <footer className="flex shrink-0 justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Kapat</Button>
+                        {!isViewMode && (
+                            <Button form="incoming-inspection-form" type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
+                            </Button>
+                        )}
+                    </footer>
                 </DialogContent>
             </Dialog>
         );

@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
+import { Target } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 
@@ -120,10 +121,19 @@ const ActionFormModal = ({ open, setOpen, complaintId, existingAction, onSuccess
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <DialogTitle>{isEditMode ? 'Aksiyon Düzenle' : 'Yeni Aksiyon'}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><Target className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">{isEditMode ? 'Aksiyon Düzenle' : 'Yeni Aksiyon'}</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Şikayet aksiyonu</p>
+                        </div>
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{isEditMode ? 'Düzenle' : 'Yeni'}</span>
+                    </div>
+                </header>
+                <form id="complaint-action-form" onSubmit={handleSubmit} className="flex flex-1 min-h-0 overflow-hidden">
+                    <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden border-r border-border py-4">
+                    <div className="p-6 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label>Aksiyon Tipi</Label>
@@ -208,11 +218,23 @@ const ActionFormModal = ({ open, setOpen, complaintId, existingAction, onSuccess
                             </>
                         )}
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>İptal</Button>
-                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
-                    </DialogFooter>
+                    </div>
+                    </div>
+                    <div className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4">
+                        <div className="p-5 space-y-5">
+                            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Özet</h2>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Tip:</span><span className="font-medium">{formData.action_type || '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Durum:</span><span className="font-medium">{formData.status || '-'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Tamamlanma:</span><span className="font-medium">%{formData.completion_percentage ?? 0}</span></div>
+                            </div>
+                        </div>
+                    </div>
                 </form>
+                <footer className="bg-background px-6 py-4 border-t border-border flex justify-end gap-3 shrink-0">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>İptal</Button>
+                    <Button type="submit" form="complaint-action-form" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
+                </footer>
             </DialogContent>
         </Dialog>
     );

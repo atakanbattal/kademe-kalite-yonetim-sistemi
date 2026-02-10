@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+    import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
     import { Button } from '@/components/ui/button';
     import { Badge } from '@/components/ui/badge';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -365,29 +365,20 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader className="flex-shrink-0 pb-4 border-b">
-                        <div className="flex items-center justify-between">
+                    <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-2.5 rounded-lg"><Car className="h-5 w-5 text-white" /></div>
                             <div>
-                                <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-                                    <Car className="h-6 w-6" />
-                                    Üretilen Araç Detayı
-                                </DialogTitle>
-                                <DialogDescription className="mt-2">
-                                    Araç kaydına ait tüm bilgiler aşağıda listelenmiştir.
-                                </DialogDescription>
+                                <h1 className="text-lg font-bold tracking-tight">Üretilen Araç Detayı</h1>
+                                <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Araç kaydına ait tüm bilgiler</p>
                             </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={generateReport}
-                            >
-                                <FileText className="w-4 h-4 mr-2" />
-                                Rapor Al
-                            </Button>
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{vehicle.status}</span>
                         </div>
-                    </DialogHeader>
-                    
-                    <div className="flex-1 overflow-y-auto min-h-0 mt-4 pr-2">
+                        <Button variant="outline" size="sm" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={generateReport}>
+                            <FileText className="w-4 h-4 mr-2" /> Rapor Al
+                        </Button>
+                    </header>
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                         <Tabs defaultValue="details" className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="details">Temel Bilgiler</TabsTrigger>
