@@ -7,10 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-    Dialog, DialogContent, DialogHeader, DialogTitle, 
-    DialogFooter, DialogDescription 
-} from '@/components/ui/dialog';
+import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { 
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from '@/components/ui/select';
@@ -241,20 +238,43 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
             label: `${d.deviation_number || d.id.substring(0, 8)} - ${d.title}`
         }));
 
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <AlertCircle className="w-6 h-6" />
-                        {isEditMode ? 'Şikayet Düzenle' : 'Yeni Müşteri Şikayeti'}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Müşteri şikayeti bilgilerini girin ve kaydedin
-                    </DialogDescription>
-                </DialogHeader>
+    const customerName = (customers || []).find(c => c.id === formData.customer_id)?.name || (customers || []).find(c => c.id === formData.customer_id)?.customer_name || '-';
+    const rightPanel = (
+        <div className="p-6 space-y-5">
+            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Şikayet Özeti</h2>
+            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Package className="w-20 h-20" /></div>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Şikayet</p>
+                <p className="text-lg font-bold text-foreground truncate">{formData.title || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{customerName}</p>
+            </div>
+            <div className="space-y-2.5">
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Önem:</span><span className="font-semibold text-foreground">{formData.severity || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Öncelik:</span><span className="font-semibold text-foreground">{formData.priority || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.complaint_date ? new Date(formData.complaint_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+            </div>
+        </div>
+    );
 
-                <form onSubmit={handleSubmit} className="space-y-6 py-4">
+    return (
+        <ModernModalLayout
+            open={open}
+            onOpenChange={setOpen}
+            title={isEditMode ? 'Şikayet Düzenle' : 'Yeni Müşteri Şikayeti'}
+            subtitle="Müşteri Şikayetleri"
+            icon={<AlertCircle className="h-5 w-5 text-white" />}
+            badge={isEditMode ? 'Düzenleme' : 'Yeni'}
+            onCancel={() => setOpen(false)}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            submitLabel="Kaydet"
+            cancelLabel="İptal"
+            formId="complaint-form"
+            footerDate={formData.complaint_date}
+            rightPanel={rightPanel}
+        >
+                <form id="complaint-form" onSubmit={handleSubmit} className="space-y-6 py-4">
                     <Tabs defaultValue="basic" className="w-full">
                         <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="basic">
@@ -610,23 +630,8 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
                             </div>
                         </TabsContent>
                     </Tabs>
-
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setOpen(false)}
-                            disabled={isSubmitting}
-                        >
-                            İptal
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
-                        </Button>
-                    </DialogFooter>
                 </form>
-            </DialogContent>
-        </Dialog>
+        </ModernModalLayout>
     );
 };
 

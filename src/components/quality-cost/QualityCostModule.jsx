@@ -21,7 +21,6 @@ import CostTrendAnalysis from '@/components/quality-cost/CostTrendAnalysis';
 // import { CostDetailModal } from '@/components/quality-cost/CostDetailModal'; // Removed in favor of DrillDown
 import UnitCostDistribution from '@/components/quality-cost/UnitCostDistribution';
 import UnitReportModal from '@/components/quality-cost/UnitReportModal';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useData } from '@/contexts/DataContext';
@@ -53,7 +52,8 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [detailModalContent, setDetailModalContent] = useState({ title: '', costs: [] });
     const [searchTerm, setSearchTerm] = useState('');
     const [unitFilter, setUnitFilter] = useState('all');
-    const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'produced_vehicle', 'manual', vb.
+    const [sourceFilter, setSourceFilter] = useState('all');
+    const [costCategoryFilter, setCostCategoryFilter] = useState('all'); // 'all' | 'internal' | 'external' | 'prevention'
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
     const [isCreateNCModalOpen, setIsCreateNCModalOpen] = useState(false);
@@ -61,6 +61,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [selectedNCType, setSelectedNCType] = useState('DF');
     const [sortConfig, setSortConfig] = useState({ key: 'cost_date', direction: 'desc' });
     const [displayLimit, setDisplayLimit] = useState(100); // Tabloda gösterilecek kayıt limiti
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
     const hasNCAccess = useMemo(() => {
         return profile?.role === 'admin';
@@ -77,12 +78,16 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
 
         if (unitFilter !== 'all') {
-            costs = costs.filter(cost => cost.unit === unitFilter);
+            costs = costs.filter(cost => {
+                if (cost.unit === unitFilter) return true;
+                const allocs = cost.cost_allocations;
+                if (allocs && Array.isArray(allocs)) return allocs.some(a => a.unit === unitFilter);
+                return false;
+            });
         }
 
         if (sourceFilter !== 'all') {
             if (sourceFilter === 'produced_vehicle') {
-                // produced_vehicle, produced_vehicle_final_faults ve produced_vehicle_manual'u birlikte göster
                 costs = costs.filter(cost =>
                     cost.source_type === 'produced_vehicle' ||
                     cost.source_type === 'produced_vehicle_final_faults' ||
@@ -91,6 +96,21 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             } else {
                 costs = costs.filter(cost => cost.source_type === sourceFilter);
             }
+        }
+
+        // COQ Kategori filtresi: İç Hata, Dış Hata, Önleme
+        if (costCategoryFilter !== 'all') {
+            const internalTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'Final Hataları Maliyeti'];
+            const externalTypes = ['Dış Hata Maliyeti'];
+            const preventionTypes = ['Önleme Maliyeti'];
+            costs = costs.filter(cost => {
+                const ct = cost.cost_type || '';
+                const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
+                if (costCategoryFilter === 'internal') return internalTypes.includes(ct) || isSupplierCost;
+                if (costCategoryFilter === 'external') return externalTypes.includes(ct);
+                if (costCategoryFilter === 'prevention') return preventionTypes.includes(ct);
+                return true;
+            });
         }
 
         if (searchTerm) {
@@ -135,7 +155,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         });
 
         return costs;
-    }, [qualityCosts, dateRange, unitFilter, sourceFilter, searchTerm, sortConfig]);
+    }, [qualityCosts, dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]);
 
     // Tabloda gösterilecek kayıtlar (performans için limit)
     const displayedCosts = useMemo(() => {
@@ -151,7 +171,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     // Filtre değiştiğinde limiti sıfırla
     useEffect(() => {
         setDisplayLimit(100);
-    }, [dateRange, unitFilter, sourceFilter, searchTerm, sortConfig]);
+    }, [dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]);
 
     const handleOpenFormModal = (cost = null) => {
         setSelectedCost(cost);
@@ -227,11 +247,13 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     };
 
     const handleDelete = async (costId) => {
+        setDeleteConfirmId(null);
         const { error } = await supabase.from('quality_costs').delete().eq('id', costId);
         if (error) {
             toast({ variant: 'destructive', title: 'Hata!', description: `Maliyet kaydı silinemedi: ${error.message}` });
         } else {
             toast({ title: 'Başarılı!', description: 'Maliyet kaydı başarıyla silindi.' });
+            await refreshQualityCosts?.();
         }
     };
 
@@ -243,7 +265,12 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     // handleCreateNC kaldırıldı - kalitesizlik maliyeti uygunsuzluktan bağımsızdır
 
     const uniqueUnits = useMemo(() => {
-        return [...new Set(qualityCosts.map(cost => cost.unit).filter(Boolean))];
+        const units = new Set();
+        qualityCosts.forEach(cost => {
+            if (cost.unit) units.add(cost.unit);
+            (cost.cost_allocations || []).forEach(a => a.unit && units.add(a.unit));
+        });
+        return [...units];
     }, [qualityCosts]);
 
     const handleOpenReportModal = useCallback(() => {
@@ -356,17 +383,24 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         // En çok maliyetli birimler/tedarikçiler (Top 10)
         const costsByUnit = {};
         filteredCosts.forEach(cost => {
-            let unitKey;
             if (cost.is_supplier_nc && cost.supplier?.name) {
-                unitKey = `Tedarikçi: ${cost.supplier.name}`;
+                const unitKey = `Tedarikçi: ${cost.supplier.name}`;
+                if (!costsByUnit[unitKey]) costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: true };
+                costsByUnit[unitKey].count += 1;
+                costsByUnit[unitKey].totalAmount += cost.amount || 0;
+            } else if (cost.cost_allocations?.length > 0) {
+                cost.cost_allocations.forEach(a => {
+                    const unitKey = a.unit || 'Belirtilmemiş';
+                    if (!costsByUnit[unitKey]) costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: false };
+                    costsByUnit[unitKey].count += 1;
+                    costsByUnit[unitKey].totalAmount += (a.amount ?? (cost.amount || 0) * (parseFloat(a.percentage) / 100)) || 0;
+                });
             } else {
-                unitKey = cost.unit || 'Belirtilmemiş';
+                const unitKey = cost.unit || 'Belirtilmemiş';
+                if (!costsByUnit[unitKey]) costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: false };
+                costsByUnit[unitKey].count += 1;
+                costsByUnit[unitKey].totalAmount += cost.amount || 0;
             }
-            if (!costsByUnit[unitKey]) {
-                costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: cost.is_supplier_nc || false };
-            }
-            costsByUnit[unitKey].count += 1;
-            costsByUnit[unitKey].totalAmount += cost.amount || 0;
         });
         const topUnits = Object.entries(costsByUnit)
             .map(([unit, data]) => ({
@@ -524,30 +558,49 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             }
         };
 
-        // Seçilen birimler için rapor oluştur
+        // Seçilen birimler için rapor oluştur (cost_allocations desteği ile)
         selectedUnits.forEach((unit, index) => {
-            const unitCosts = filteredCosts.filter(cost => cost.unit === unit);
+            const reportItems = [];
+            let totalAmount = 0;
 
-            if (unitCosts.length === 0) {
-                return;
-            }
-
-            const totalAmount = unitCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-
-            // Maliyet türü bazlı gruplama
-            const costsByType = {};
-            unitCosts.forEach(cost => {
-                const costType = cost.cost_type || 'Belirtilmemiş';
-                if (!costsByType[costType]) {
-                    costsByType[costType] = {
-                        count: 0,
-                        totalAmount: 0,
-                        costs: []
-                    };
+            filteredCosts.forEach(cost => {
+                let itemAmount = 0;
+                if (cost.unit === unit) {
+                    itemAmount = cost.amount || 0;
+                } else if (cost.cost_allocations?.length) {
+                    const alloc = cost.cost_allocations.find(a => a.unit === unit);
+                    if (alloc) itemAmount = alloc.amount ?? (cost.amount || 0) * (parseFloat(alloc.percentage) / 100);
                 }
+                if (itemAmount > 0) {
+                    totalAmount += itemAmount;
+                    reportItems.push({
+                        cost_date: formatDate(cost.cost_date),
+                        cost_type: cost.cost_type || '-',
+                        part_name: cost.part_name || '-',
+                        part_code: cost.part_code || '-',
+                        vehicle_type: cost.vehicle_type || '-',
+                        amount: itemAmount,
+                        quantity: cost.quantity || '-',
+                        measurement_unit: cost.measurement_unit || '-',
+                        description: cost.description || '-',
+                        responsible_personnel: cost.responsible_personnel?.full_name || '-',
+                        is_supplier_nc: cost.is_supplier_nc || false,
+                        supplier_name: cost.supplier?.name || '-',
+                        is_allocated: cost.cost_allocations?.length > 0,
+                        cost_allocations: cost.cost_allocations || [],
+                        total_amount: cost.amount,
+                    });
+                }
+            });
+
+            if (reportItems.length === 0) return;
+
+            const costsByType = {};
+            reportItems.forEach(item => {
+                const costType = item.cost_type || 'Belirtilmemiş';
+                if (!costsByType[costType]) costsByType[costType] = { count: 0, totalAmount: 0 };
                 costsByType[costType].count += 1;
-                costsByType[costType].totalAmount += cost.amount || 0;
-                costsByType[costType].costs.push(cost);
+                costsByType[costType].totalAmount += item.amount || 0;
             });
 
             const reportData = {
@@ -557,21 +610,8 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 periodStart: dateRange.startDate ? formatDate(dateRange.startDate) : null,
                 periodEnd: dateRange.endDate ? formatDate(dateRange.endDate) : null,
                 totalAmount: totalAmount,
-                totalCount: unitCosts.length,
-                items: unitCosts.map(cost => ({
-                    cost_date: formatDate(cost.cost_date),
-                    cost_type: cost.cost_type || '-',
-                    part_name: cost.part_name || '-',
-                    part_code: cost.part_code || '-',
-                    vehicle_type: cost.vehicle_type || '-',
-                    amount: cost.amount || 0,
-                    quantity: cost.quantity || '-',
-                    measurement_unit: cost.measurement_unit || '-',
-                    description: cost.description || '-',
-                    responsible_personnel: cost.responsible_personnel?.full_name || '-',
-                    is_supplier_nc: cost.is_supplier_nc || false,
-                    supplier_name: cost.supplier?.name || '-',
-                })),
+                totalCount: reportItems.length,
+                items: reportItems,
                 costsByType: Object.entries(costsByType).map(([type, data]) => ({
                     type,
                     count: data.count,
@@ -602,12 +642,17 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 materialCostSettings={materialCostSettings}
                 personnelList={personnel}
                 existingCost={selectedCost}
+                onCostCreated={(newCost) => {
+                    setSelectedCost(newCost);
+                    setIsViewModalOpen(true);
+                }}
             />
             {selectedCost && (
                 <CostViewModal
                     isOpen={isViewModalOpen}
                     setOpen={setIsViewModalOpen}
                     cost={selectedCost}
+                    onRefresh={refreshQualityCosts}
                 />
             )}
             <CostDrillDownModal
@@ -629,7 +674,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             {/* Uygunsuzluk Oluşturma Modalı */}
             <Dialog open={isCreateNCModalOpen} onOpenChange={setIsCreateNCModalOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
                     <DialogHeader>
                         <DialogTitle>Uygunsuzluk Kaydı Oluştur</DialogTitle>
                         <DialogDescription>
@@ -680,7 +725,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             {/* Rapor Seçim Modalı */}
             <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <FileText className="h-5 w-5 text-primary" />
@@ -730,8 +775,8 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             <div className="flex flex-col gap-3 sm:gap-4">
                 <div className="min-w-0">
-                    <h1 className="text-xl sm:text-2xl font-bold text-foreground">Kalitesizlik Maliyeti Takibi</h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Maliyetlerinizi analiz edin ve trendleri takip edin.</p>
+                    <h1 className="text-xl sm:text-2xl font-bold text-foreground">Kalite Maliyeti Takibi</h1>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">İç/dış hata, önleme ve değerlendirme maliyetlerini analiz edin.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <CostFilters dateRange={dateRange} setDateRange={setDateRange} />
@@ -749,215 +794,161 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             </div>
 
             <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="overview" className="text-xs sm:text-sm">
-                        <span className="hidden sm:inline">Genel Bakış</span>
-                        <span className="sm:hidden">Bakış</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="copq" className="text-xs sm:text-sm">COPQ</TabsTrigger>
-                    <TabsTrigger value="forecast" className="text-xs sm:text-sm">
-                        <span className="hidden sm:inline">AI Tahminleme</span>
-                        <span className="sm:hidden">AI</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="details" className="text-xs sm:text-sm">
-                        <span className="hidden sm:inline">Detaylı Analiz</span>
-                        <span className="sm:hidden">Detay</span>
-                    </TabsTrigger>
+                <TabsList className="inline-flex gap-1 p-1 h-auto">
+                    <TabsTrigger value="overview" className="text-xs">Genel Bakış</TabsTrigger>
+                    <TabsTrigger value="records" className="text-xs">Kayıtlar</TabsTrigger>
+                    <TabsTrigger value="copq" className="text-xs">COPQ</TabsTrigger>
+                    <TabsTrigger value="forecast" className="text-xs">AI Tahmin</TabsTrigger>
+                    <TabsTrigger value="details" className="text-xs">Detaylı Analiz</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="mt-6">
-                    <div className="space-y-6">
-                        <CostAnalytics costs={filteredCosts} loading={loading} onBarClick={handleOpenDrillDownModal} />
-                        <div className="dashboard-widget">
-                            <div className="flex flex-col sm:flex-row justify-between gap-3 mb-4">
-                                <h2 className="widget-title text-sm sm:text-base">Son Maliyet Kayıtları</h2>
-                                <div className="flex flex-col xs:flex-row gap-2">
-                                    <div className="search-box flex-1 xs:flex-none xs:w-[150px] sm:w-[200px]">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                                        <input
-                                            type="text"
-                                            placeholder="Ara..."
-                                            className="search-input w-full"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                    </div>
-                                    <Select value={unitFilter} onValueChange={setUnitFilter}>
-                                        <SelectTrigger className="w-full xs:w-[140px] sm:w-[180px]">
-                                            <SelectValue placeholder="Birim" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tüm Birimler</SelectItem>
-                                            {uniqueUnits.map(unit => (
-                                                <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                    <CostAnalytics costs={filteredCosts} loading={loading} onBarClick={handleOpenDrillDownModal} />
+                </TabsContent>
+                <TabsContent value="records" className="mt-6">
+                    <div className="dashboard-widget">
+                        <div className="flex flex-col gap-4 mb-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="search-box flex-1 min-w-[180px] max-w-[280px]">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                                    <input
+                                        type="text"
+                                        placeholder="Tarih, tür, parça, birim ara..."
+                                        className="search-input w-full text-sm"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
                                 </div>
+                                <Select value={costCategoryFilter} onValueChange={setCostCategoryFilter}>
+                                    <SelectTrigger className="w-[140px] sm:w-[160px]">
+                                        <SelectValue placeholder="Kategori" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tüm Kategoriler</SelectItem>
+                                        <SelectItem value="internal">İç Hata</SelectItem>
+                                        <SelectItem value="external">Dış Hata</SelectItem>
+                                        <SelectItem value="prevention">Önleme</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select value={unitFilter} onValueChange={setUnitFilter}>
+                                    <SelectTrigger className="w-[130px] sm:w-[150px]">
+                                        <SelectValue placeholder="Birim" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tüm Birimler</SelectItem>
+                                        {uniqueUnits.map(unit => (
+                                            <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                                    <SelectTrigger className="w-[130px] sm:w-[150px]">
+                                        <SelectValue placeholder="Kaynak" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tüm Kaynaklar</SelectItem>
+                                        <SelectItem value="manual">Manuel</SelectItem>
+                                        <SelectItem value="produced_vehicle">Üretilen Araç</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button onClick={() => handleOpenFormModal()} size="sm" className="shrink-0">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Yeni Kayıt
+                                </Button>
                             </div>
-                            <ScrollArea className="h-[400px]">
-                                <div className="overflow-x-auto">
-                                    <table className="data-table">
-                                        <thead>
-                                            <tr>
-                                                <th>S.No</th>
-                                                <th
-                                                    className="cursor-pointer hover:bg-secondary/50 select-none"
-                                                    onClick={() => handleSort('cost_date')}
+                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                <span>{filteredCosts.length} kayıt listeleniyor</span>
+                                {filteredCosts.length > 0 && (
+                                    <span>Toplam: {formatCurrency(filteredCosts.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0))}</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="border rounded-lg overflow-auto max-h-[min(60vh,600px)]" style={{ minHeight: 320 }}>
+                            <table className="data-table min-w-full">
+                                    <thead>
+                                        <tr>
+                                            <th className="w-10">#</th>
+                                            <th className="cursor-pointer hover:bg-secondary/50 select-none min-w-[90px]" onClick={() => handleSort('cost_date')}>
+                                                <div className="flex items-center">Tarih{getSortIcon('cost_date')}</div>
+                                            </th>
+                                            <th className="cursor-pointer hover:bg-secondary/50 select-none min-w-[140px]" onClick={() => handleSort('cost_type')}>
+                                                <div className="flex items-center">Tür{getSortIcon('cost_type')}</div>
+                                            </th>
+                                            <th className="cursor-pointer hover:bg-secondary/50 select-none min-w-[100px]" onClick={() => handleSort('unit')}>
+                                                <div className="flex items-center">Birim {getSortIcon('unit')}</div>
+                                            </th>
+                                            <th className="min-w-[80px]">Parça</th>
+                                            <th className="cursor-pointer hover:bg-secondary/50 select-none min-w-[100px]" onClick={() => handleSort('amount')}>
+                                                <div className="flex items-center">Tutar{getSortIcon('amount')}</div>
+                                            </th>
+                                            <th className="w-12 px-2"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {loading ? (
+                                            <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                        ) : filteredCosts.length === 0 ? (
+                                            <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Filtrelere uygun kayıt bulunamadı.</td></tr>
+                                        ) : (
+                                            displayedCosts.map((cost, index) => (
+                                                <tr
+                                                    key={cost.id}
+                                                    className="group cursor-pointer hover:bg-accent/50 transition-colors"
+                                                    onClick={(e) => {
+                                                        if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) return;
+                                                        handleOpenViewModal(cost);
+                                                    }}
                                                 >
-                                                    <div className="flex items-center">
-                                                        Tarih
-                                                        {getSortIcon('cost_date')}
-                                                    </div>
-                                                </th>
-                                                <th
-                                                    className="cursor-pointer hover:bg-secondary/50 select-none"
-                                                    onClick={() => handleSort('cost_type')}
-                                                >
-                                                    <div className="flex items-center">
-                                                        Maliyet Türü
-                                                        {getSortIcon('cost_type')}
-                                                    </div>
-                                                </th>
-                                                <th
-                                                    className="cursor-pointer hover:bg-secondary/50 select-none"
-                                                    onClick={() => handleSort('unit')}
-                                                >
-                                                    <div className="flex items-center">
-                                                        Birim
-                                                        {getSortIcon('unit')}
-                                                    </div>
-                                                </th>
-                                                <th
-                                                    className="cursor-pointer hover:bg-secondary/50 select-none"
-                                                    onClick={() => handleSort('amount')}
-                                                >
-                                                    <div className="flex items-center">
-                                                        Tutar
-                                                        {getSortIcon('amount')}
-                                                    </div>
-                                                </th>
-                                                <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {loading ? (
-                                                <tr><td colSpan="6" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
-                                            ) : filteredCosts.length === 0 ? (
-                                                <tr><td colSpan="6" className="text-center p-8 text-muted-foreground">Seçili dönem için maliyet kaydı bulunamadı.</td></tr>
-                                            ) : (
-                                                displayedCosts.map((cost, index) => (
-                                                    <tr
-                                                        key={cost.id}
-                                                        className="cursor-pointer hover:bg-accent/50 transition-colors"
-                                                        onClick={(e) => {
-                                                            // Dropdown menüye tıklanırsa modal açılmasın
-                                                            if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) {
-                                                                return;
-                                                            }
-                                                            handleOpenViewModal(cost);
-                                                        }}
-                                                        title="Detayları görüntülemek için tıklayın"
-                                                    >
-                                                        <td>{index + 1}</td>
-                                                        <td className="text-foreground">
-                                                            {new Date(cost.cost_date).toLocaleDateString('tr-TR')}
-                                                            {cost.source_type === 'produced_vehicle' && (
-                                                                <Badge variant="secondary" className="ml-2 text-xs">Araç</Badge>
-                                                            )}
-                                                            {cost.source_type === 'produced_vehicle_final_faults' && (
-                                                                <Badge variant="outline" className="ml-2 text-xs bg-orange-50 text-orange-700 border-orange-200">Final</Badge>
-                                                            )}
-                                                            {cost.source_type === 'produced_vehicle_manual' && (
-                                                                <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">Manuel</Badge>
-                                                            )}
-                                                        </td>
-                                                        <td className="text-foreground">{cost.cost_type}</td>
-                                                        <td className="text-foreground">
-                                                            {cost.is_supplier_nc && cost.supplier?.name ? cost.supplier.name : cost.unit}
-                                                        </td>
-                                                        <td className="font-semibold text-foreground">{formatCurrency(cost.amount)}</td>
-                                                        <td onClick={(e) => e.stopPropagation()}>
-                                                            <AlertDialog>
-                                                                <DropdownMenu>
-                                                                    <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                                                            <span className="sr-only">Menüyü aç</span>
-                                                                            <MoreHorizontal className="h-4 w-4 flex-shrink-0 text-foreground" />
-                                                                        </Button>
-                                                                    </DropdownMenuTrigger>
-                                                                    <DropdownMenuContent align="end">
-                                                                        <DropdownMenuItem onClick={() => handleOpenViewModal(cost)}>
-                                                                            <Eye className="mr-2 h-4 w-4" />
-                                                                            <span>Görüntüle</span>
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleOpenFormModal(cost)}>
-                                                                            <Edit className="mr-2 h-4 w-4" />
-                                                                            <span>Düzenle</span>
-                                                                        </DropdownMenuItem>
-                                                                        <TooltipProvider>
-                                                                            <Tooltip>
-                                                                                <TooltipTrigger asChild>
-                                                                                    <DropdownMenuItem
-                                                                                        onClick={() => handleCreateNC(cost)}
-                                                                                        disabled={!hasNCAccess}
-                                                                                    >
-                                                                                        <LinkIcon className="mr-2 h-4 w-4" />
-                                                                                        <span>Uygunsuzluk Oluştur</span>
-                                                                                    </DropdownMenuItem>
-                                                                                </TooltipTrigger>
-                                                                                {!hasNCAccess && <TooltipContent><p>Yetkiniz yok.</p></TooltipContent>}
-                                                                            </Tooltip>
-                                                                        </TooltipProvider>
-                                                                        <DropdownMenuSeparator />
-                                                                        <AlertDialogTrigger asChild>
-                                                                            <DropdownMenuItem className="text-destructive focus:text-destructive">
-                                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                                Kaydı Sil
-                                                                            </DropdownMenuItem>
-                                                                        </AlertDialogTrigger>
-                                                                    </DropdownMenuContent>
-                                                                </DropdownMenu>
-                                                                <AlertDialogContent>
-                                                                    <AlertDialogHeader>
-                                                                        <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                                                        <AlertDialogDescription>
-                                                                            Bu işlem geri alınamaz. Bu maliyet kaydını kalıcı olarak silecektir.
-                                                                        </AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter>
-                                                                        <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={() => handleDelete(cost.id)}>Sil</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            </AlertDialog>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                            </ScrollArea>
-                                            {/* Kayıt sayısı ve Daha fazla yükle butonu */}
-                                            {filteredCosts.length > 0 && (
-                                                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                                                    <span className="text-sm text-muted-foreground">
-                                                        {displayedCosts.length} / {filteredCosts.length} kayıt gösteriliyor
-                                                    </span>
-                                                    {hasMoreCosts && (
-                                                        <Button 
-                                                            variant="outline" 
-                                                            size="sm" 
-                                                            onClick={handleLoadMore}
-                                                        >
-                                                            Daha Fazla Yükle (+100)
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </TabsContent>
+                                                    <td className="text-muted-foreground text-sm">{index + 1}</td>
+                                                    <td className="text-sm">
+                                                        {new Date(cost.cost_date).toLocaleDateString('tr-TR')}
+                                                        {cost.source_type === 'produced_vehicle_final_faults' && <Badge variant="outline" className="ml-1 text-[10px]">Final</Badge>}
+                                                        {cost.source_type === 'produced_vehicle_manual' && <Badge variant="outline" className="ml-1 text-[10px]">Manuel</Badge>}
+                                                    </td>
+                                                    <td className="text-sm">{cost.cost_type}</td>
+                                                    <td className="text-sm">
+                                                        {cost.is_supplier_nc && cost.supplier?.name ? cost.supplier.name : (cost.cost_allocations?.length ? `Dağıtılmış (${cost.cost_allocations.map(a => `${a.unit} %${parseFloat(a.percentage).toFixed(0)}`).join(', ')})` : (cost.unit || '-'))}
+                                                    </td>
+                                                    <td className="text-sm truncate max-w-[120px]" title={cost.part_name || cost.part_code}>{cost.part_code || cost.part_name || '-'}</td>
+                                                    <td className="text-sm font-semibold">{formatCurrency(cost.amount)}</td>
+                                                    <td onClick={(e) => e.stopPropagation()}>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onClick={() => handleOpenViewModal(cost)}><Eye className="mr-2 h-4 w-4" />Görüntüle</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleOpenFormModal(cost)}><Edit className="mr-2 h-4 w-4" />Düzenle</DropdownMenuItem>
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <DropdownMenuItem onClick={() => handleCreateNC(cost)} disabled={!hasNCAccess}><LinkIcon className="mr-2 h-4 w-4" />Uygunsuzluk</DropdownMenuItem>
+                                                                        </TooltipTrigger>
+                                                                        {!hasNCAccess && <TooltipContent><p>Yetkiniz yok.</p></TooltipContent>}
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setDeleteConfirmId(cost.id); }}><Trash2 className="mr-2 h-4 w-4" />Sil</DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                        </div>
+                        {filteredCosts.length > 0 && (
+                            <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm">
+                                <span className="text-muted-foreground">{displayedCosts.length} / {filteredCosts.length} kayıt</span>
+                                {hasMoreCosts && (
+                                    <Button variant="outline" size="sm" onClick={handleLoadMore}>+100 Yükle</Button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </TabsContent>
                 <TabsContent value="forecast" className="mt-6">
                     <CostForecaster costs={filteredCosts} />
                 </TabsContent>
@@ -991,6 +982,19 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     <VehicleCostBreakdown costs={filteredCosts} loading={loading} />
                 </TabsContent>
             </Tabs>
+
+            <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Kaydı silmek istediğinize emin misiniz?</AlertDialogTitle>
+                        <AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}>Sil</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

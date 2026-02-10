@@ -19,6 +19,7 @@ const DynamicBalanceModule = () => {
     const [loading, setLoading] = useState(true);
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
+    const [isViewMode, setIsViewMode] = useState(false);
     const [activeTab, setActiveTab] = useState('list');
 
     // Verileri çek
@@ -62,17 +63,26 @@ const DynamicBalanceModule = () => {
 
     const handleAddNew = useCallback(() => {
         setSelectedRecord(null);
+        setIsViewMode(false);
         setFormModalOpen(true);
     }, []);
 
     const handleEdit = useCallback((record) => {
         setSelectedRecord(record);
+        setIsViewMode(false);
+        setFormModalOpen(true);
+    }, []);
+
+    const handleView = useCallback((record) => {
+        setSelectedRecord(record);
+        setIsViewMode(true);
         setFormModalOpen(true);
     }, []);
 
     const handleFormClose = useCallback(() => {
         setFormModalOpen(false);
         setSelectedRecord(null);
+        setIsViewMode(false);
         fetchData();
     }, [fetchData]);
 
@@ -126,6 +136,7 @@ const DynamicBalanceModule = () => {
                                 records={balanceRecords}
                                 loading={loading}
                                 onEdit={handleEdit}
+                                onView={handleView}
                                 onDelete={fetchData}
                                 onDownloadPDF={handleDownloadPDF}
                             />
@@ -150,6 +161,8 @@ const DynamicBalanceModule = () => {
                     record={selectedRecord}
                     fanProducts={fanProducts}
                     onSuccess={handleFormClose}
+                    isViewMode={isViewMode}
+                    onDownloadPDF={handleDownloadPDF}
                 />
             </div>
         </>

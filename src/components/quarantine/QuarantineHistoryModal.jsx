@@ -101,7 +101,7 @@ const QuarantineHistoryModal = ({ isOpen, setIsOpen, record, refreshData }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle>İşlem Geçmişi: {record.part_name}</DialogTitle>
                     <DialogDescription>Kalan Miktar: {record.quantity} {record.unit}</DialogDescription>

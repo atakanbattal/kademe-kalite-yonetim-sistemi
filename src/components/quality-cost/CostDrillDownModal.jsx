@@ -36,7 +36,7 @@ const CostDrillDownModal = ({ isOpen, onClose, data, allCosts }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <Target className="w-6 h-6 text-primary" />

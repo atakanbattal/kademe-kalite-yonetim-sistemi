@@ -17,7 +17,7 @@ const getStatusVariant = (status) => {
 const RecordListModal = ({ isOpen, setIsOpen, title, records, onRecordClick }) => {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>

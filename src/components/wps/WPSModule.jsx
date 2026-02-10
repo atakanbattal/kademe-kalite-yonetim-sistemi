@@ -113,6 +113,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         onSuccess={handleSuccess}
                         existingWPS={selectedWPS}
                         isViewMode={isViewMode}
+                        onDownloadPDF={handleDownloadPDF}
                         library={{ materials, fillerMaterials, shieldingGases }}
                     />
                 )}

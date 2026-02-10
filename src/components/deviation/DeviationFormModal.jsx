@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, File as FileIcon, X as XIcon, PlusCircle, Trash2, Calendar as CalendarIcon, FileText, Link2 } from 'lucide-react';
+import { UploadCloud, File as FileIcon, X as XIcon, PlusCircle, Trash2, Calendar as CalendarIcon, FileText, Link2, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEPARTMENTS } from '@/lib/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -563,7 +563,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             }
             detailedDescription += `\nKarantinadaki bu parça için sapma onayı talep edilmektedir.`;
         } else if (record._source_type === 'quality_cost') {
-            detailedDescription = `Kalitesizlik Maliyeti Kaydı\n\n`;
+            detailedDescription = `Kalite Maliyeti Kaydı\n\n`;
             detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
             detailedDescription += `Maliyet Türü: ${details.cost_type || 'N/A'}\n`;
             detailedDescription += `Tutar: ₺${details.amount || '0,00'}\n`;
@@ -882,16 +882,51 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         setIsSubmitting(false);
     };
 
+    const rightPanel = (
+        <div className="p-6 space-y-5">
+            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Sapma Özeti</h2>
+            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><FileText className="w-20 h-20" /></div>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Talep No</p>
+                <p className="text-lg font-bold text-foreground">{formData.request_no || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{formData.deviation_type || 'Girdi Kontrolü'}</p>
+            </div>
+            <div className="space-y-3">
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Parça Kodu:</span><span className="font-semibold text-foreground truncate ml-2">{formData.part_code || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Araç Tipi:</span><span className="font-semibold text-foreground truncate ml-2">{formData.vehicle_type || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kaynak:</span><span className="font-semibold text-foreground truncate ml-2">{formData.source || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Talep Eden Birim:</span><span className="font-semibold text-foreground truncate ml-2">{formData.requesting_unit || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Talep Eden:</span><span className="font-semibold text-foreground truncate ml-2">{formData.requesting_person || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.created_at ? format(formData.created_at, 'd MMM yyyy', { locale: tr }) : '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Etkilenen Araç:</span><span className="font-semibold text-foreground">{vehicles.filter(v => v.customer_name || v.chassis_no || v.vehicle_serial_no).length} adet</span></div>
+            </div>
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-start gap-2.5 border border-amber-100 dark:border-amber-800">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+                    Sapma onayı tamamlandıktan sonra ilgili modüllerde takip edilebilir.
+                </p>
+            </div>
+        </div>
+    );
+
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-                <DialogHeader className="flex-shrink-0">
-                    <DialogTitle>{isEditMode ? 'Sapma Kaydını Düzenle' : 'Yeni Sapma Kaydı Oluştur'}</DialogTitle>
-                    <DialogDescription>
-                        Lütfen sapma ile ilgili tüm bilgileri eksiksiz girin.
-                    </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pr-4 grid gap-4 py-4 min-h-0">
+        <ModernModalLayout
+            open={isOpen}
+            onOpenChange={setIsOpen}
+            title={isEditMode ? 'Sapma Kaydını Düzenle' : 'Yeni Sapma Kaydı Oluştur'}
+            subtitle="Sapma Yönetimi"
+            icon={<FileText className="h-5 w-5 text-white" />}
+            badge={isEditMode ? 'Düzenleme' : 'Yeni'}
+            onCancel={() => setIsOpen(false)}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            submitLabel={isEditMode ? 'Güncelle' : 'Kaydet'}
+            cancelLabel="İptal Et"
+            formId="deviation-form"
+            footerDate={formData.created_at}
+            rightPanel={rightPanel}
+        >
+                <form id="deviation-form" onSubmit={handleSubmit} className="p-6 grid gap-4 min-h-0">
                     {/* Oluşturma Modu Seçimi - Sadece yeni kayıt için */}
                     {!isEditMode && (
                         <Tabs value={creationMode} onValueChange={setCreationMode} className="w-full">
@@ -1170,14 +1205,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                         )}
                     </div>
                 </form>
-                <DialogFooter className="flex-shrink-0 border-t pt-4 mt-4">
-                    <Button onClick={() => setIsOpen(false)} variant="outline">İptal</Button>
-                    <Button onClick={handleSubmit} disabled={isSubmitting}>
-                        {isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Güncelle' : 'Kaydet')}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        </ModernModalLayout>
     );
 };
 

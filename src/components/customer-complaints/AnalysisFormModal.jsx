@@ -188,7 +188,7 @@ const AnalysisFormModal = ({ open, setOpen, complaintId, existingAnalysis, onSuc
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle>
                         {isEditMode ? 'Analiz Düzenle' : 'Yeni Kök Neden Analizi'}

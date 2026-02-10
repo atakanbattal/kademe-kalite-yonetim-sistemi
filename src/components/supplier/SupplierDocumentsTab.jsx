@@ -483,7 +483,7 @@ const SupplierDocumentsTab = ({ suppliers, loading: suppliersLoading, refreshDat
             {/* Yükleme Modal */}
             {isUploadOpen && (
                 <Dialog open={isUploadOpen} onOpenChange={setUploadOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                         <DialogHeader>
                             <DialogTitle>Doküman Yükle</DialogTitle>
                             <DialogDescription>

@@ -1422,7 +1422,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         console.log('BenchmarkComparison: Benchmark yok, loading gösteriliyor');
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-[95vw] max-h-[95vh]">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle className="text-2xl">
                             <TrendingUp className="inline-block mr-2 h-6 w-6" />
@@ -1445,7 +1445,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         console.log('BenchmarkComparison: Benchmark ID yok, loading gösteriliyor');
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-[95vw] max-h-[95vh]">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle className="text-2xl">
                             <TrendingUp className="inline-block mr-2 h-6 w-6" />
@@ -1465,7 +1465,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-[95vw] max-h-[95vh]">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <div className="flex items-center justify-between">
                         <DialogTitle className="text-2xl">
@@ -2670,7 +2670,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             {/* Alternatif Detay Modal */}
             {selectedItemDetail && (
                 <Dialog open={!!selectedItemDetail} onOpenChange={() => setSelectedItemDetail(null)}>
-                    <DialogContent className="max-w-4xl max-h-[90vh]">
+                    <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                         <DialogHeader>
                             <DialogTitle className="text-xl">
                                 {selectedItemDetail.item_name}

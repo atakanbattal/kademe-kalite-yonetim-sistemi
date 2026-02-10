@@ -386,7 +386,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         onConfirm={handleRejectConfirm}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden p-0">
+        <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4">
             <div className="flex items-center justify-between">
               <div>

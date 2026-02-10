@@ -183,7 +183,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-3xl">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle>Onay Süreci: {deviation?.request_no}</DialogTitle>
                         <DialogDescription>Lütfen ilgili aşamalar için onay durumunu belirtin.</DialogDescription>

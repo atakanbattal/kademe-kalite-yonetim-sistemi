@@ -271,11 +271,11 @@ const getReportTitle = (record, type) => {
 		case 'supplier_dashboard':
 			return record.title || 'Tedarikçi Kalite Genel Bakış Raporu';
 		case 'quality_cost_list':
-			return record.unit ? `${record.unit} Birimi-Kalitesizlik Maliyetleri Raporu` : 'Kalitesizlik Maliyetleri Raporu';
+			return record.unit ? `${record.unit} Birimi-Kalite Maliyetleri Raporu` : 'Kalite Maliyetleri Raporu';
 		case 'quality_cost_executive_summary':
-			return 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
+			return 'Kalite Maliyeti Yönetici Özeti Raporu';
 		case 'quality_cost_detail':
-			return 'Kalitesizlik Maliyeti Detay Raporu';
+			return 'Kalite Maliyeti Detay Raporu';
 		case 'incoming_quality_executive_summary':
 			return 'Girdi Kalite Kontrol Yönetici Özeti Raporu';
 		case 'produced_vehicles_executive_summary':
@@ -1690,8 +1690,8 @@ const generateListReportHtml = (record, type) => {
 			<p><strong>Tip Dağılımı:</strong> ${typeSummary}</p>
 		`;
 	} else if (type === 'quality_cost_list') {
-		title = record.unit ? `${record.unit} Birimi-Kalitesizlik Maliyetleri Raporu` : 'Kalitesizlik Maliyetleri Raporu';
-		headers = ['Tarih', 'Maliyet Türü', 'Parça Adı', 'Parça Kodu', 'Araç Tipi', 'Miktar', 'Tutar', 'Açıklama', 'Sorumlu'];
+		title = record.unit ? `${record.unit} Birimi-Kalite Maliyetleri Raporu` : 'Kalite Maliyetleri Raporu';
+		headers = ['Tarih', 'Maliyet Türü', 'Parça', 'Araç Tipi', 'Miktar', 'Tutar', 'Açıklama', 'Sorumlu'];
 
 		rowsHtml = record.items.map(item => {
 			const amountFormatted = typeof item.amount === 'number'
@@ -1706,18 +1706,37 @@ const generateListReportHtml = (record, type) => {
 				? `<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: 600; background-color: #fef3c7; color: #92400e;">Tedarikçi: ${item.supplier_name}</span>`
 				: '';
 
+			const descSafe = (item.description || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+			const partInfo = [item.part_code, item.part_name].filter(v => v && v !== '-').join(' - ') || '-';
+
+			// Birim dağılımı satır altı
+			let allocationRowHtml = '';
+			if (item.is_allocated && item.cost_allocations?.length) {
+				const allocCells = item.cost_allocations.map(a => {
+					const amt = a.amount ?? (item.total_amount || 0) * (parseFloat(a.percentage) || 0) / 100;
+					const amtStr = (typeof amt === 'number' ? amt : 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+					return `<span style="display:inline-block; margin:2px 4px; padding:3px 8px; border-radius:4px; background:#eef2ff; border:1px solid #c7d2fe; font-size:0.8em; color:#3730a3;"><strong>${a.unit}</strong> %${parseFloat(a.percentage).toFixed(0)} = ${amtStr}</span>`;
+				}).join('');
+				allocationRowHtml = `
+				<tr style="background-color:#f8fafc; border-top:none;">
+					<td colspan="8" style="padding:4px 12px 8px; border-top:none;">
+						<span style="font-size:0.75em; font-weight:600; color:#6366f1; text-transform:uppercase; letter-spacing:0.5px; margin-right:8px;">Birim Dağılımı:</span>${allocCells}
+					</td>
+				</tr>`;
+			}
+
 			return `
 				<tr>
 					<td style="width: 8%; white-space: nowrap;">${item.cost_date}</td>
-					<td style="width: 15%;"><strong>${item.cost_type}</strong>${supplierBadge ? '<br>' + supplierBadge : ''}</td>
-					<td style="width: 15%;">${item.part_name}</td>
-					<td style="width: 10%; font-size: 0.85em;">${item.part_code}</td>
-					<td style="width: 10%; font-size: 0.85em;">${item.vehicle_type}</td>
-					<td style="width: 8%; text-align: center; white-space: nowrap;">${quantityText}</td>
+					<td style="width: 14%;"><strong>${item.cost_type}</strong>${supplierBadge ? '<br>' + supplierBadge : ''}</td>
+					<td style="width: 14%;">${partInfo}</td>
+					<td style="width: 9%; font-size: 0.85em;">${item.vehicle_type}</td>
+					<td style="width: 7%; text-align: center; white-space: nowrap;">${quantityText}</td>
 					<td style="width: 10%; text-align: right; font-weight: 600; color: #dc2626;">${amountFormatted}</td>
-					<td style="width: 19%; font-size: 0.85em;"><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${item.description}</pre></td>
-					<td style="width: 5%; font-size: 0.85em;">${item.responsible_personnel}</td>
+					<td style="width: 30%; font-size: 0.85em;"><div style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${descSafe}</div></td>
+					<td style="width: 8%; font-size: 0.85em;">${item.responsible_personnel}</td>
 				</tr>
+				${allocationRowHtml}
 			`;
 		}).join('');
 
@@ -1746,7 +1765,7 @@ const generateListReportHtml = (record, type) => {
 		`;
 	} else if (type === 'quality_cost_detail') {
 		// Tek kayıt için detaylı rapor
-		title = 'Kalitesizlik Maliyeti Detay Raporu';
+		title = 'Kalite Maliyeti Detay Raporu';
 		const formatCurrencyLocal = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 		const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
 
@@ -1767,6 +1786,52 @@ const generateListReportHtml = (record, type) => {
 				</div>
 			</div>
 		`;
+
+		// Birim dağılımı bölümü (ayrı profesyonel blok)
+		let allocationSectionHtml = '';
+		if (record.cost_allocations && record.cost_allocations.length > 0) {
+			const totalAmt = record.amount || 0;
+			const allocRowsHtml = record.cost_allocations.map(a => {
+				const pct = parseFloat(a.percentage) || 0;
+				const amt = a.amount ?? totalAmt * pct / 100;
+				const amtStr = (typeof amt === 'number' ? amt : 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+				return `
+					<tr>
+						<td style="font-weight:600; padding:10px 14px;">${a.unit}</td>
+						<td style="text-align:center; padding:10px 14px;">
+							<div style="display:flex; align-items:center; gap:8px; justify-content:center;">
+								<div style="flex:1; max-width:120px; height:8px; background:#e5e7eb; border-radius:4px; overflow:hidden;">
+									<div style="width:${pct}%; height:100%; background:linear-gradient(90deg,#6366f1,#818cf8); border-radius:4px;"></div>
+								</div>
+								<span style="font-weight:700; color:#4338ca;">%${pct.toFixed(1)}</span>
+							</div>
+						</td>
+						<td style="text-align:right; font-weight:700; color:#dc2626; padding:10px 14px;">${amtStr}</td>
+					</tr>`;
+			}).join('');
+			allocationSectionHtml = `
+				<div class="section">
+					<h2 class="section-title blue">MALİYET BİRİM DAĞILIMI</h2>
+					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+						<thead>
+							<tr style="background:linear-gradient(135deg,#4338ca,#6366f1); color:white;">
+								<th style="text-align:left; padding:10px 14px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Birim</th>
+								<th style="text-align:center; padding:10px 14px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Oran</th>
+								<th style="text-align:right; padding:10px 14px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Tutar</th>
+							</tr>
+						</thead>
+						<tbody>
+							${allocRowsHtml}
+							<tr style="background:#f1f5f9; border-top:2px solid #cbd5e1;">
+								<td style="font-weight:700; padding:10px 14px;">TOPLAM</td>
+								<td style="text-align:center; padding:10px 14px; font-weight:700;">%100</td>
+								<td style="text-align:right; font-weight:700; color:#dc2626; padding:10px 14px; font-size:1.1em;">${formatCurrencyLocal(totalAmt)}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			`;
+		}
 
 		// Genel bilgiler tablosu
 		const generalInfoRows = [];
@@ -1858,12 +1923,13 @@ const generateListReportHtml = (record, type) => {
 			}
 		}
 
-		// Açıklama
+		// Açıklama (XSS koruması ile)
+		const descEscaped = record.description ? String(record.description).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') : '';
 		const descriptionHtml = record.description
 			? `<div class="section">
 				<h2 class="section-title blue">${record.cost_type === 'Final Hataları Maliyeti' ? 'HATA AÇIKLAMASI' : 'AÇIKLAMA'}</h2>
 				<div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-top: 10px;">
-					<pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.6; font-size: 13px;">${record.description}</pre>
+					<div style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.6; font-size: 13px;">${descEscaped}</div>
 				</div>
 			</div>`
 			: '';
@@ -1876,6 +1942,7 @@ const generateListReportHtml = (record, type) => {
 				<h2 class="section-title blue">GENEL BİLGİLER</h2>
 				${generalInfoHtml}
 			</div>
+			${allocationSectionHtml}
 			${reworkDetailsHtml}
 			${finalFaultsDetailsHtml}
 			${descriptionHtml}
@@ -1885,7 +1952,7 @@ const generateListReportHtml = (record, type) => {
 		headers = [];
 		rowsHtml = '';
 	} else if (type === 'quality_cost_executive_summary') {
-		title = 'Kalitesizlik Maliyeti Yönetici Özeti Raporu';
+		title = 'Kalite Maliyeti Yönetici Özeti Raporu';
 
 		// Veri kontrolü - eğer veri yoksa hata mesajı göster
 		if (!record || typeof record !== 'object') {
@@ -3524,7 +3591,7 @@ const generateGenericReportHtml = (record, type) => {
 						let remaining = str;
 
 						// Önce ana başlığı kontrol et
-						const mainTitleMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
+						const mainTitleMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|(Kalite|Kalitesizlik) Maliyeti Kaydı)\s*\([^)]+\)/i);
 						if (mainTitleMatch) {
 							tokens.push({ type: 'mainHeading', value: mainTitleMatch[0].trim() });
 							remaining = remaining.substring(mainTitleMatch[0].length).trim();

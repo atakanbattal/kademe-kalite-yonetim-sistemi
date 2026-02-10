@@ -230,7 +230,7 @@ const NotesManagement = ({ equipment, documents, notes, loading, refreshNotes, r
     return (
         <div className="space-y-4">
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle>
                             {selectedNote ? 'Not Düzenle' : 'Yeni Not Ekle'}

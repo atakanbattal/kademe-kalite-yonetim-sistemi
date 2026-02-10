@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MoreVertical, Edit, Trash2, FileText, Search } from 'lucide-react';
+import { MoreVertical, Edit, Trash2, FileText, Search, Eye } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -21,7 +21,7 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { CheckCircle2, XCircle } from 'lucide-react';
 
-const BalanceRecordsList = ({ records, loading, onEdit, onDelete, onDownloadPDF }) => {
+const BalanceRecordsList = ({ records, loading, onEdit, onView, onDelete, onDownloadPDF }) => {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -146,7 +146,11 @@ const BalanceRecordsList = ({ records, loading, onEdit, onDelete, onDownloadPDF 
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.05 }}
-                                    className="hover:bg-secondary/50"
+                                    className="hover:bg-secondary/50 cursor-pointer"
+                                    onClick={(e) => {
+                                        if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) return;
+                                        onView?.(record);
+                                    }}
                                 >
                                     <td className="font-medium">{record.serial_number}</td>
                                     <td>
@@ -198,6 +202,10 @@ const BalanceRecordsList = ({ records, loading, onEdit, onDelete, onDownloadPDF 
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => onView?.(record)}>
+                                                    <Eye className="w-4 h-4 mr-2" />
+                                                    Görüntüle
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => onEdit(record)}>
                                                     <Edit className="w-4 h-4 mr-2" />
                                                     Düzenle

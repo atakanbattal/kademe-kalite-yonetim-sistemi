@@ -165,7 +165,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-6xl max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader className="px-6 pt-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
                         <div>

@@ -209,7 +209,7 @@ const RevisionHistory = ({ ncId, onRevisionCreate }) => {
 
             {/* Revizyon Detay Modal */}
             <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh]">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle>
                             Revizyon Detayı - {selectedRevision?.revision_number}

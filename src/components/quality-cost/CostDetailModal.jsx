@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { CostViewModal } from './CostViewModal';
 
 const formatCurrency = (value) => {
@@ -21,14 +20,14 @@ export const CostDetailModal = ({ isOpen, setOpen, title, costs }) => {
     return (
         <>
             <Dialog open={isOpen} onOpenChange={setOpen}>
-                <DialogContent className="sm:max-w-4xl">
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="shrink-0">
                         <DialogTitle className="text-primary">{title}</DialogTitle>
                         <DialogDescription>
                             Bu kategoriye ait maliyet kayıtlarının detayları aşağıda listelenmiştir.
                         </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="max-h-[60vh] pr-4">
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto pr-4 pb-4">
                         <div className="dashboard-widget">
                             <div className="overflow-x-auto">
                                 <table className="data-table">
@@ -69,8 +68,8 @@ export const CostDetailModal = ({ isOpen, setOpen, title, costs }) => {
                                 </table>
                             </div>
                         </div>
-                    </ScrollArea>
-                    <DialogFooter>
+                    </div>
+                    <DialogFooter className="shrink-0">
                         <DialogClose asChild>
                             <Button type="button" variant="secondary">Kapat</Button>
                         </DialogClose>

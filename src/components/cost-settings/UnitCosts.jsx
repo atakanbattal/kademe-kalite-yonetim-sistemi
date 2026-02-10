@@ -136,7 +136,7 @@ const UnitCosts = () => {
                 <Button variant="outline" size="sm" onClick={() => handleOpenModal(null)}><Plus className="w-4 h-4 mr-2" /> Yeni Birim Ekle</Button>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-                Burada tanımlanan birimler ve maliyetleri, Kalitesizlik Maliyetleri modülünde otomatik hesaplamalar için kullanılır.
+                Burada tanımlanan birimler ve maliyetleri, Kalite Maliyetleri modülünde otomatik hesaplamalar için kullanılır.
             </p>
             <ScrollArea className="h-[60vh]">
                 <div className="space-y-2 pr-4">

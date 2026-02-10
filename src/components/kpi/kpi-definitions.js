@@ -15,8 +15,8 @@ export const predefinedKpis = [
     // Karantina Yönetimi
     { id: 'quarantine_count', name: 'Karantinadaki Ürün Sayısı', description: 'Aktif olarak karantinada bulunan ürünlerin toplam sayısı.', unit: ' adet', target_direction: 'decrease', data_source: 'Karantina Yönetimi', rpc_name: 'get_quarantine_count' },
     
-    // Kalitesizlik Maliyetleri
-    { id: 'non_quality_cost', name: 'Toplam Kalitesizlik Maliyeti', description: 'Belirli bir periyottaki toplam kalitesizlik maliyeti.', unit: ' TL', target_direction: 'decrease', data_source: 'Kalitesizlik Maliyetleri', rpc_name: 'get_total_non_quality_cost' },
+    // Kalite Maliyetleri
+    { id: 'non_quality_cost', name: 'Toplam Kalite Maliyeti', description: 'Belirli bir periyottaki toplam kalite maliyeti (iç/dış hata + önleme).', unit: ' TL', target_direction: 'decrease', data_source: 'Kalite Maliyetleri', rpc_name: 'get_total_non_quality_cost' },
     
     // Doküman Yönetimi
     { id: 'expired_document_count', name: 'Süresi Dolmuş Doküman Sayısı', description: 'Geçerlilik süresi dolmuş dokümanların sayısı.', unit: ' adet', target_direction: 'decrease', data_source: 'Doküman Yönetimi', rpc_name: 'get_expired_document_count' },

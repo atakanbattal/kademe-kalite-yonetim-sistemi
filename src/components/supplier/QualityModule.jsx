@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText, TrendingUp, CheckCircle2, Printer, BarChart3, Building2 } from 'lucide-react';
+import { Plus, BarChart, List, AlertTriangle, CalendarCheck, HelpCircle, FileText, TrendingUp, CheckCircle2, Printer, BarChart3, Building2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -32,6 +32,7 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [isNewAlternative, setIsNewAlternative] = useState(false);
   const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
+  const [runningAutoApprove, setRunningAutoApprove] = useState(false);
   const [filters, setFilters] = useState({
     searchTerm: '',
     status: 'all',
@@ -94,6 +95,42 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
     setIsNewAlternative(false);
     setFormModalOpen(true);
   }, []);
+
+  const handleAutoApproveCheck = useCallback(async () => {
+    setRunningAutoApprove(true);
+    try {
+      const { data, error } = await supabase.rpc('auto_approve_suppliers_without_audit');
+      if (error) throw error;
+      const approved = (data || []).filter(r => r.action === 'APPROVED');
+      const skipped = (data || []).filter(r => r.action?.startsWith('SKIP'));
+      if (approved.length > 0) {
+        toast({
+          title: 'Otomatik Onay Tamamlandı',
+          description: `${approved.length} tedarikçi 6 ay ticaret + hata yok kuralıyla Onaylı yapıldı.`,
+        });
+        refreshData?.();
+      } else if (skipped.length > 0) {
+        toast({
+          title: 'Otomatik Onay Kontrolü',
+          description: 'Kriterleri sağlayan tedarikçi bulunamadı. Denetimli tedarikçilere dokunulmadı.',
+        });
+      } else {
+        toast({
+          title: 'Otomatik Onay Kontrolü',
+          description: 'Tüm tedarikçiler denetimli veya kriterleri sağlamıyor.',
+        });
+      }
+    } catch (err) {
+      console.error('Otomatik onay hatası:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Hata',
+        description: err?.message || 'Otomatik onay kontrolü yapılamadı.',
+      });
+    } finally {
+      setRunningAutoApprove(false);
+    }
+  }, [toast, refreshData]);
 
   const handleOpenReportModal = useCallback(() => {
     if (suppliers.length === 0) {
@@ -342,7 +379,7 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
 
       {/* Rapor Seçim Modalı */}
       <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
@@ -381,6 +418,15 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
           <p className="text-muted-foreground mt-1">Tedarikçi performansınızı değerlendirin, denetleyin ve takip edin.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={handleAutoApproveCheck}
+            variant="outline"
+            disabled={runningAutoApprove || loading}
+            title="Denetim yapılmamış tedarikçiler: 6 ay ticaret + hata yok = Otomatik Onaylı"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${runningAutoApprove ? 'animate-spin' : ''}`} />
+            Otomatik Onay Kontrolü
+          </Button>
           <Button onClick={handleOpenReportModal} variant="outline">
             <FileText className="w-4 h-4 mr-2" /> Rapor Al
           </Button>
@@ -461,6 +507,7 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
                     onEdit={handleEditSupplier} 
                     refreshSuppliers={refreshData}
                     onOpenNCForm={onOpenNCForm}
+                    onOpenNCView={onOpenNCView}
                 />
                 )}
             </motion.div>

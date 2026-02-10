@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDropzone } from 'react-dropzone';
 import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { sanitizeFileName, normalizeToTitleCase } from '@/lib/utils';
+import { Wrench } from 'lucide-react';
 
 const STATUS_OPTIONS = ['Aktif', 'Zimmetli', 'Bakımda', 'Kullanım Dışı', 'Kalibrasyonda'];
 
@@ -292,14 +293,42 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
         }
     };
 
+    const assignedPersonName = personnelList.find(p => String(p.id) === String(assignedPersonnelId))?.full_name || '-';
+    const rightPanel = (
+        <div className="p-6 space-y-5">
+            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Ekipman Özeti</h2>
+            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Wrench className="w-20 h-20" /></div>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Ekipman</p>
+                <p className="text-lg font-bold text-foreground truncate">{formData.name || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{formData.serial_number || '-'}</p>
+            </div>
+            <div className="space-y-2.5">
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Birim:</span><span className="font-semibold text-foreground truncate ml-2">{formData.responsible_unit || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Zimmetli:</span><span className="font-semibold text-foreground truncate ml-2">{assignedPersonName || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Marka/Model:</span><span className="font-semibold text-foreground truncate ml-2">{formData.brand_model || '-'}</span></div>
+            </div>
+        </div>
+    );
+
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle>{isEditMode ? 'Ekipmanı Düzenle' : 'Yeni Ekipman Ekle'}</DialogTitle>
-                    <DialogDescription>Ekipman bilgilerini ve özelliklerini girin.</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-4">
+        <ModernModalLayout
+            open={isOpen}
+            onOpenChange={setIsOpen}
+            title={isEditMode ? 'Ekipmanı Düzenle' : 'Yeni Ekipman Ekle'}
+            subtitle="Ekipman Yönetimi"
+            icon={<Wrench className="h-5 w-5 text-white" />}
+            badge={isEditMode ? 'Düzenleme' : 'Yeni'}
+            onCancel={() => setIsOpen(false)}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            submitLabel={isEditMode ? 'Güncelle' : 'Kaydet'}
+            cancelLabel="İptal"
+            formId="equipment-form"
+            rightPanel={rightPanel}
+        >
+                <form id="equipment-form" onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-4">
                     <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-1"><Label htmlFor="name">Ekipman Adı *</Label><Input id="name" value={formData.name || ''} onChange={handleInputChange} required /></div>
                         <div className="space-y-1"><Label htmlFor="serial_number">Seri Numarası *</Label><Input id="serial_number" value={formData.serial_number || ''} onChange={handleInputChange} required /></div>
@@ -387,14 +416,7 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
                         </>
                     )}
                 </form>
-                <DialogFooter>
-                    <Button type="button" onClick={() => setIsOpen(false)} variant="outline">İptal</Button>
-                    <Button onClick={handleSubmit} disabled={isSubmitting}>
-                        {isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Güncelle' : 'Kaydet')}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        </ModernModalLayout>
     );
 };
 

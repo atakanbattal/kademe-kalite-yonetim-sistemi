@@ -125,7 +125,7 @@ export const DataProvider = ({ children }) => {
 
         // ORTA ÖNCELİKLİ TABLOLAR (İkinci dalga)
         const mediumPromises = {
-            nonConformities: supabase.from('non_conformities').select('*'),
+            nonConformities: supabase.from('non_conformities').select('*, supplier:supplier_id(name)'),
             deviations: supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)'),
             kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
             tasks: supabase.from('tasks').select('*, owner:owner_id(full_name, email), project:project_id(id, name, color), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)'),
@@ -139,7 +139,7 @@ export const DataProvider = ({ children }) => {
                 while (hasMore) {
                     const { data, error } = await supabase
                         .from('quality_costs')
-                        .select('*')
+                        .select('*, supplier:supplier_id(name), responsible_personnel:responsible_personnel_id(full_name)')
                         .order('created_at', { ascending: false })
                         .range(from, from + pageSize - 1);
                     
@@ -590,7 +590,7 @@ export const DataProvider = ({ children }) => {
             while (hasMore) {
                 const { data, error } = await supabase
                     .from('quality_costs')
-                    .select('*')
+                    .select('*, supplier:supplier_id(name), responsible_personnel:responsible_personnel_id(full_name)')
                     .order('created_at', { ascending: false })
                     .range(from, from + pageSize - 1);
                 
@@ -789,7 +789,7 @@ export const DataProvider = ({ children }) => {
     const refreshNonConformities = useCallback(async () => {
         if (!session) return;
         try {
-            const { data: ncData, error } = await supabase.from('non_conformities').select('*');
+            const { data: ncData, error } = await supabase.from('non_conformities').select('*, supplier:supplier_id(name)');
             if (!error) {
                 setData(prev => ({ ...prev, nonConformities: ncData || [] }));
                 console.log('✅ Non-conformities refreshed:', ncData?.length || 0);

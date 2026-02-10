@@ -153,7 +153,7 @@ const CostDrillDownAnalysis = ({ onClose }) => {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-bold">Kalitesizlik Maliyeti Analizi</h1>
+                        <h1 className="text-3xl font-bold">Kalite Maliyeti Analizi</h1>
                         <p className="text-muted-foreground mt-1">
                             Bu ayki toplam maliyet: <span className="font-semibold text-red-600">
                                 {totalMonthlyCost.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}

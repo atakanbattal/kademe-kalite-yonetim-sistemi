@@ -18,7 +18,7 @@ import { normalizeTurkishForSearch } from '@/lib/utils';
 import { openPrintableReport } from '@/lib/reportUtils';
 
     const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
-        const { nonConformities, refreshData, loading } = useData();
+        const { nonConformities, suppliers, refreshData, loading } = useData();
         const { toast } = useToast();
         const [activeTab, setActiveTab] = useState('dashboard');
         const [filters, setFilters] = useState({
@@ -26,6 +26,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
             status: 'all',
             type: 'all',
             department: 'all',
+            supplierId: 'all',
             dateFrom: '',
             dateTo: '',
         });
@@ -104,9 +105,10 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     }
                 }
 
+                const matchesSupplier = filters.supplierId === 'all' || record.supplier_id === filters.supplierId;
                 const matchesDate = checkDateFilter(record);
 
-                return matchesStatus && matchesType && matchesDepartment && matchesDate;
+                return matchesStatus && matchesType && matchesDepartment && matchesSupplier && matchesDate;
                 });
 
                 return filtered.sort((a, b) => {
@@ -151,7 +153,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     record.problem_definition,
                     record.department,
                     record.responsible_person,
-                    record.supplier_name,
+                    record.supplier?.name,
                     record.part_code,
                     record.part_name,
                     record.source,
@@ -197,9 +199,10 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     }
                 }
 
+                const matchesSupplier = filters.supplierId === 'all' || record.supplier_id === filters.supplierId;
                 const matchesDate = checkDateFilter(record);
 
-                return matchesSearch && matchesStatus && matchesType && matchesDepartment && matchesDate;
+                return matchesSearch && matchesStatus && matchesType && matchesDepartment && matchesSupplier && matchesDate;
             });
 
             return filtered.sort((a, b) => {
@@ -481,7 +484,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                                 </div>
                             </div>
                         </div>
-                        <NCFilters filters={filters} setFilters={setFilters} />
+                        <NCFilters filters={filters} setFilters={setFilters} suppliers={suppliers || []} />
                         <TabsContent value="dashboard">
                             <NCDashboard records={filteredRecords} loading={loading} onDashboardInteraction={handleDashboardInteraction} />
                         </TabsContent>

@@ -302,7 +302,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-7xl">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
                     <form onSubmit={handleSubmit}><ScrollArea className="h-[75vh] p-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

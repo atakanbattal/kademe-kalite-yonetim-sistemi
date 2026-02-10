@@ -69,7 +69,7 @@ const ReportGenerationModalEnhanced = ({ isOpen, setIsOpen }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle>Özelleştirilmiş Rapor Oluştur</DialogTitle>
                     <DialogDescription>
@@ -211,7 +211,7 @@ const ReportGenerationModalEnhanced = ({ isOpen, setIsOpen }) => {
                                 {Object.entries({
                                     kpi: 'KPI Verileri',
                                     df: 'DF/8D Analizi',
-                                    cost: 'Kalitesizlik Maliyetleri',
+                                    cost: 'Kalite Maliyetleri',
                                     quarantine: 'Karantina Kayıtları',
                                     supplier: 'Tedarikçi Performansı',
                                     trends: 'Trend Analizleri'

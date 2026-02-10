@@ -36,7 +36,7 @@ const gradeOptions = [
         color: 'bg-yellow-500 hover:bg-yellow-600', 
         icon: Eye,
         criteria: 'Geliştirilmesi gereken alanlar var, yakın takip gerekli',
-        resultStatus: 'Askıya Alınmış',
+        resultStatus: 'Mevcut durum korunur',
         statusColor: 'text-yellow-600'
     },
     { 
@@ -85,14 +85,14 @@ const SupplierGradeModal = ({ isOpen, setIsOpen, supplier, refreshSuppliers }) =
 
         setIsSubmitting(true);
 
-        // Sınıfa göre durumu belirle
+        // Sınıfa göre durumu belirle (C sınıfında mevcut durum korunur - hâlâ tedarik edilen tedarikçiler Askıya Alınmış yapılmaz)
         const getStatusForGrade = (grade) => {
             switch (grade) {
                 case 'A':
                 case 'B':
                     return 'Onaylı'; // A ve B sınıfı tedarikçiler onaylı
                 case 'C':
-                    return 'Askıya Alınmış'; // C sınıfı izlemeye alınacak
+                    return supplier.status; // C sınıfı: mevcut durum korunur, otomatik Askıya Alınmış atanmaz
                 case 'D':
                     return 'Red'; // D sınıfı iş birliği sonlandırılacak
                 default:
@@ -169,7 +169,7 @@ const SupplierGradeModal = ({ isOpen, setIsOpen, supplier, refreshSuppliers }) =
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Award className="h-5 w-5 text-primary" />

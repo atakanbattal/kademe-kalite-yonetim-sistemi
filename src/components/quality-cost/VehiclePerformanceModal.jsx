@@ -228,7 +228,7 @@ import React, { useMemo, useState, useEffect } from 'react';
                     vehicleType={vehicleType}
                 />
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+                    <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                         <DialogHeader>
                             <DialogTitle className="text-2xl flex justify-between items-center">
                                 <span>{vehicleType} - Araç Başına Performans</span>

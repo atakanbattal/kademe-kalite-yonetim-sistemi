@@ -71,7 +71,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-4xl flex flex-col h-[80vh]">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle className="text-primary text-2xl">Karantina Kaydı Detayı</DialogTitle>
                         <DialogDescription>

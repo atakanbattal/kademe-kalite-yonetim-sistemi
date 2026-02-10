@@ -152,7 +152,7 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle>Ekipmanı Hurdaya Ayır</DialogTitle>
                     <DialogDescription>

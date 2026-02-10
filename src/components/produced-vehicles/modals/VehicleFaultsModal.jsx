@@ -379,7 +379,7 @@ import { Badge } from '@/components/ui/badge';
         return (
             <>
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+                    <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader className="flex-shrink-0">
                         <DialogTitle>Hataları Yönet: {vehicle?.chassis_no || vehicle?.serial_no || 'Bilinmeyen'}</DialogTitle>
                         <DialogDescription>Bu araç için tespit edilen hataları ekleyin, düzenleyin veya silin.</DialogDescription>

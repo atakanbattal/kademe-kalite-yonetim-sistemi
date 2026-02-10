@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EightDStepsEnhanced from '@/components/df-8d/EightDStepsEnhanced';
 import { useNCForm } from '@/hooks/useNCForm';
@@ -12,6 +11,7 @@ import IshikawaTemplate from '@/components/df-8d/analysis-templates/IshikawaTemp
 import FiveWhyTemplate from '@/components/df-8d/analysis-templates/FiveWhyTemplate';
 import FTATemplate from '@/components/df-8d/analysis-templates/FTATemplate';
 import { supabase } from '@/lib/customSupabaseClient';
+import { AlertCircle, FileText } from 'lucide-react';
 
 const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initialRecord }) => {
     const { toast } = useToast();
@@ -99,7 +99,7 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
 
                 // --- OTOMASYON: Maliyet Kaydı Oluşturma ---
                 if (finalFormData.status === 'Kapatıldı') {
-                    if (window.confirm('Uygunsuzluk kapatıldı. İlgili Kalitesizlik Maliyeti kaydını oluşturmak ister misiniz?')) {
+                    if (window.confirm('Uygunsuzluk kapatıldı. İlgili Kalite Maliyeti kaydını oluşturmak ister misiniz?')) {
                         try {
                             const costPayload = {
                                 cost_date: new Date().toISOString().slice(0, 10),
@@ -117,7 +117,7 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
                             const { error: costError } = await supabase.from('quality_costs').insert([costPayload]);
                             if (costError) throw costError;
 
-                            toast({ title: 'Bilgi', description: 'Maliyet kaydı taslağı oluşturuldu. Lütfen Kalitesizlik Maliyetleri modülünden detayları giriniz.' });
+                            toast({ title: 'Bilgi', description: 'Maliyet kaydı taslağı oluşturuldu. Lütfen Kalite Maliyetleri modülünden detayları giriniz.' });
                         } catch (error) {
                             console.error('Auto cost creation failed', error);
                             toast({ variant: 'destructive', title: 'Hata', description: 'Otomatik maliyet kaydı oluşturulamadı.' });
@@ -149,15 +149,49 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
         }
     };
 
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle className="text-foreground">{isEditMode ? 'Uygunsuzluk Düzenle' : 'Yeni Uygunsuzluk Oluştur'}</DialogTitle>
-                    <DialogDescription className="text-muted-foreground">{isEditMode ? (formData.nc_number || formData.mdi_no) : `Yeni bir uygunsuzluk kaydı oluşturun.`}</DialogDescription>
-                </DialogHeader>
+    const rightPanel = (
+        <div className="p-6 space-y-5">
+            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Kayıt Özeti</h2>
+            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><FileText className="w-20 h-20" /></div>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">No</p>
+                <p className="text-lg font-bold text-foreground">{formData?.nc_number || formData?.mdi_no || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{formData?.title || '-'}</p>
+            </div>
+            <div className="space-y-2.5">
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tip:</span><span className="font-semibold text-foreground">{formData?.type || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData?.status || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Birim:</span><span className="font-semibold text-foreground truncate ml-2">{formData?.department || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Sorumlu:</span><span className="font-semibold text-foreground truncate ml-2">{formData?.responsible_person || (formData?.is_supplier_nc ? 'Tedarikçi' : '-')}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Açılış:</span><span className="font-semibold text-foreground">{formData?.opening_date ? new Date(formData.opening_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+            </div>
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2.5 border border-blue-100 dark:border-blue-800">
+                <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed text-blue-700 dark:text-blue-300">
+                    Uygunsuzluk kaydı tamamlandıktan sonra 8D süreci ve analiz takibinde listelenecektir.
+                </p>
+            </div>
+        </div>
+    );
 
-                <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
+    return (
+        <ModernModalLayout
+            open={isOpen}
+            onOpenChange={setIsOpen}
+            title={isEditMode ? 'Uygunsuzluk Düzenle' : 'Yeni Uygunsuzluk Oluştur'}
+            subtitle="8D / Uygunsuzluk Yönetimi"
+            icon={<AlertCircle className="h-5 w-5 text-white" />}
+            badge={isEditMode ? 'Düzenleme' : 'Yeni'}
+            onCancel={() => setIsOpen(false)}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            submitLabel={isEditMode ? 'Değişiklikleri Kaydet' : 'Kaydet'}
+            cancelLabel="İptal"
+            formId="nc-form"
+            footerDate={formData?.opening_date}
+            rightPanel={rightPanel}
+        >
+                <form id="nc-form" onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
                     <ScrollArea className="flex-grow pr-6">
                         <Tabs defaultValue="general" className="w-full py-4">
                             <TabsList>
@@ -230,16 +264,8 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
                             </TabsContent>
                         </Tabs>
                     </ScrollArea>
-
-                    <DialogFooter className="pt-4 border-t">
-                        <Button type="button" onClick={() => setIsOpen(false)} variant="outline">İptal</Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Değişiklikleri Kaydet' : 'Kaydet')}
-                        </Button>
-                    </DialogFooter>
                 </form>
-            </DialogContent>
-        </Dialog>
+        </ModernModalLayout>
     );
 };
 

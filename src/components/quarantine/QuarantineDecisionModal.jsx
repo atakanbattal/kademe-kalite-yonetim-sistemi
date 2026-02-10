@@ -129,7 +129,7 @@ import React, { useState, useEffect } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
                     <DialogHeader>
                         <DialogTitle className="text-foreground">Karantina Kararı Ver</DialogTitle>
                         <DialogDescription className="text-muted-foreground">
@@ -170,7 +170,7 @@ import React, { useState, useEffect } from 'react';
 
                         {(decision === 'Hurda' || decision === 'Yeniden İşlem') && (
                             <div className="text-sm p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-md">
-                                Bu karar, Kalitesizlik Maliyeti modülüne otomatik olarak bir kayıt oluşturacaktır.
+                                Bu karar, Kalite Maliyeti modülüne otomatik olarak bir kayıt oluşturacaktır.
                             </div>
                         )}
                     </div>

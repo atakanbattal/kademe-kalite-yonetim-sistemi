@@ -4,7 +4,7 @@ import BaseVehicleForm from '@/components/produced-vehicles/modals/BaseVehicleFo
 
 const AddVehicleModal = ({ isOpen, setIsOpen, refreshVehicles }) => (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
             <DialogHeader className="flex-shrink-0">
                 <DialogTitle>Yeni Araç Ekle</DialogTitle>
                 <DialogDescription>

@@ -134,7 +134,7 @@ const PrintableDashboardReport = () => {
                     <div className="kpi-grid">
                         <KpiCard title="Açık DF/8D" value={df8d.openCount} />
                         <KpiCard title="Ort. Kapatma Süresi" value={`${df8d.avgClosureDays} gün`} />
-                        <KpiCard title="Toplam Kalitesizlik Maliyeti" value={qualityCost.totalCost.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })} />
+                        <KpiCard title="Toplam Kalite Maliyeti" value={qualityCost.totalCost.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })} />
                         <KpiCard title="Tedarikçi Sınıfı (A/B)" value={`${supplier.gradeDistribution.A || 0} / ${supplier.gradeDistribution.B || 0}`} />
                         <KpiCard title="Karantinadaki Kalem" value={quarantine.inQuarantineCount} />
                         <KpiCard title="Geciken Kalibrasyon" value={equipment.overdueCalibrations} />
@@ -198,7 +198,7 @@ const PrintableDashboardReport = () => {
                     </div>
                 </ReportSection>
 
-                <ReportSection title="Kalitesizlik Maliyetleri" className="page-break-before">
+                <ReportSection title="Kalite Maliyetleri" className="page-break-before">
                     <div className="chart-container">
                         <ResponsiveContainer>
                             <LineChart data={qualityCost.monthlyTrend}>

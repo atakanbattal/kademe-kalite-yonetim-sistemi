@@ -254,7 +254,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle className="text-2xl">{vehicle?.chassis_no} - Araç İşlem Geçmişi</DialogTitle>
                         <DialogDescription>Aracın kalite sürecindeki tüm adımlarını yönetin ve görüntüleyin.</DialogDescription>

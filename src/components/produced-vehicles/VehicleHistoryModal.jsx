@@ -58,7 +58,7 @@ const VehicleHistoryModal = ({ isOpen, setIsOpen, vehicle }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
                 <DialogHeader>
                     <DialogTitle>Araç Geçmişi: {vehicle?.serial_no}</DialogTitle>
                     <DialogDescription>Aracın kalite sürecindeki durum değişiklikleri.</DialogDescription>

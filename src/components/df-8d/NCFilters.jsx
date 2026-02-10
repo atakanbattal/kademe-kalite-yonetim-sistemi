@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
-const NCFilters = ({ filters, setFilters }) => {
+const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
     const [departments, setDepartments] = useState([]);
     const [localSearchTerm, setLocalSearchTerm] = useState(filters.searchTerm || '');
 
@@ -106,7 +106,7 @@ const NCFilters = ({ filters, setFilters }) => {
     return (
         <div className="space-y-4 mb-6 p-4 bg-card border rounded-lg">
             {/* İlk Satır: Arama ve Ana Filtreler */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="search-box col-span-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                     <input
@@ -150,6 +150,19 @@ const NCFilters = ({ filters, setFilters }) => {
                         {departments.map(dept => (
                             <SelectItem key={dept} value={dept}>
                                 {dept === 'all' ? 'Tüm Departmanlar' : dept}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={filters.supplierId || 'all'} onValueChange={(value) => handleSelectChange('supplierId', value)}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Tedarikçiye Göre Filtrele" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Tüm Tedarikçiler</SelectItem>
+                        {suppliers.map(s => (
+                            <SelectItem key={s.id} value={s.id}>
+                                {s.name}
                             </SelectItem>
                         ))}
                     </SelectContent>

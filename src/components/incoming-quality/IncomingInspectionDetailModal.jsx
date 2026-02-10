@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { DialogClose } from '@/components/ui/dialog';
 import {
@@ -645,8 +644,8 @@ const IncomingInspectionDetailModal = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogHeader className="shrink-0">
                     <div className="flex items-center justify-between">
                         <div>
                             <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -665,7 +664,7 @@ const IncomingInspectionDetailModal = ({
                     </div>
                 </DialogHeader>
                 
-                <ScrollArea className="max-h-[calc(90vh-250px)] pr-4 mt-4">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-4 mt-4 pb-6">
                     <Tabs defaultValue="main" className="w-full pb-4">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="main">Temel Bilgiler</TabsTrigger>
@@ -1220,9 +1219,9 @@ const IncomingInspectionDetailModal = ({
                         )}
                     </TabsContent>
                 </Tabs>
-                </ScrollArea>
+                </div>
 
-                <DialogFooter className="mt-6">
+                <DialogFooter className="mt-6 shrink-0">
                     <Button
                         onClick={handleGenerateReport}
                         className="gap-2"

@@ -222,11 +222,11 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
                 transition={{ duration: 0.4 }}
             >
                 <StatCard
-                    title="Toplam Kalitesizlik Maliyeti"
+                    title="Toplam Kalite Maliyeti"
                     value={analyticsData.totalCost}
                     icon={Wallet}
                     loading={loading}
-                    onClick={() => onBarClick('Toplam Kalitesizlik Maliyeti', costs)}
+                    onClick={() => onBarClick('Toplam Kalite Maliyeti', costs)}
                 />
                 <StatCard
                     title="İç Hata Maliyetleri"

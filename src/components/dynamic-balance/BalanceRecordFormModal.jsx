@@ -6,16 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { calculateISO1940_1Uper, checkBalanceResult } from '@/lib/utils';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Scale, FileDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSuccess }) => {
+const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSuccess, isViewMode, onDownloadPDF }) => {
     const { toast } = useToast();
     const { user } = useAuth();
-    const isEditMode = !!record;
+    const isEditMode = !!record && !isViewMode;
 
     const [formData, setFormData] = useState({
         serial_number: '',
@@ -229,19 +229,51 @@ const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSucc
 
     if (!isOpen) return null;
 
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-                <DialogHeader className="flex-shrink-0">
-                    <DialogTitle>
-                        {isEditMode ? 'Balans Kaydını Düzenle' : 'Yeni Balans Kaydı'}
-                    </DialogTitle>
-                    <DialogDescription>
-                        ISO 1940-1 standardına göre dinamik balans kaydı oluşturun veya düzenleyin.
-                    </DialogDescription>
-                </DialogHeader>
+    const productName = fanProducts?.find(p => p.id === formData.product_id) ? `${fanProducts.find(p => p.id === formData.product_id).product_code} - ${fanProducts.find(p => p.id === formData.product_id).product_name}` : '-';
+    const rightPanel = (
+        <div className="p-6 space-y-5">
+            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Balans Özeti</h2>
+            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Scale className="w-20 h-20" /></div>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Seri No</p>
+                <p className="text-lg font-bold text-foreground">{formData.serial_number || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{productName}</p>
+            </div>
+            <div className="space-y-2.5">
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Test Tarihi:</span><span className="font-semibold text-foreground">{formData.test_date ? new Date(formData.test_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kalite Sınıfı:</span><span className="font-semibold text-foreground">{formData.balancing_grade || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Ağırlık:</span><span className="font-semibold text-foreground">{formData.fan_weight_kg ? `${formData.fan_weight_kg} kg` : '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Devir:</span><span className="font-semibold text-foreground">{formData.operating_rpm ? `${formData.operating_rpm} RPM` : '-'}</span></div>
+                {calculatedUper !== null && <div className="flex justify-between text-xs"><span className="text-muted-foreground">Uper:</span><span className="font-semibold text-foreground">{calculatedUper.toFixed(3)} gr</span></div>}
+            </div>
+        </div>
+    );
 
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pr-4 space-y-6 py-4 min-h-0">
+    return (
+        <ModernModalLayout
+            open={isOpen}
+            onOpenChange={setIsOpen}
+            title={isViewMode ? 'Balans Kaydını Görüntüle' : (isEditMode ? 'Balans Kaydını Düzenle' : 'Yeni Balans Kaydı')}
+            subtitle="Dinamik Balans / ISO 1940-1"
+            icon={<Scale className="h-5 w-5 text-white" />}
+            badge={isViewMode ? null : (isEditMode ? 'Düzenleme' : 'Yeni')}
+            onCancel={() => setIsOpen(false)}
+            onSubmit={isViewMode ? () => setIsOpen(false) : handleSubmit}
+            isSubmitting={isSubmitting}
+            submitLabel={isViewMode ? 'Kapat' : (isEditMode ? 'Güncelle' : 'Kaydet')}
+            cancelLabel="İptal"
+            formId={isViewMode ? undefined : 'balance-form'}
+            footerDate={formData.test_date}
+            rightPanel={!isViewMode ? rightPanel : undefined}
+            footerExtra={isViewMode && onDownloadPDF && record ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => onDownloadPDF(record)} className="gap-2">
+                    <FileDown className="h-4 w-4" />
+                    PDF İndir
+                </Button>
+            ) : null}
+        >
+                <form id="balance-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto pr-4 space-y-6 py-4 min-h-0">
+                    <fieldset disabled={isViewMode} className="border-0 p-0 m-0 min-w-0">
                     {/* Temel Bilgiler */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Temel Bilgiler</h3>
@@ -576,17 +608,9 @@ const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSucc
                         />
                     </div>
 
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
-                            İptal
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Kaydediliyor...' : isEditMode ? 'Güncelle' : 'Kaydet'}
-                        </Button>
-                    </DialogFooter>
+                    </fieldset>
                 </form>
-            </DialogContent>
-        </Dialog>
+        </ModernModalLayout>
     );
 };
 

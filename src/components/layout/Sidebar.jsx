@@ -19,7 +19,7 @@ const navGroups = [
     label: 'Kalite Yönetimi',
     items: [
       { id: 'df-8d', icon: FileText, label: 'DF ve 8D Yönetimi' },
-      { id: 'quality-cost', icon: DollarSign, label: 'Kalitesizlik Maliyetleri' },
+      { id: 'quality-cost', icon: DollarSign, label: 'Kalite Maliyetleri' },
       { id: 'customer-complaints', icon: AlertCircle, label: 'Müşteri Şikayetleri' },
     ]
   },

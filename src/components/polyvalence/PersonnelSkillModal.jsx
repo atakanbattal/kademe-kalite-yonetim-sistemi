@@ -166,7 +166,7 @@ const PersonnelSkillModal = ({ isOpen, onClose, person, skill, personnelSkill, o
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <User className="h-5 w-5" />

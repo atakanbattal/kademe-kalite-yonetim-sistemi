@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+    import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +15,7 @@ import React, { useState, useEffect } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
-    import { Calendar as CalendarIcon, Plus, Trash2 } from 'lucide-react';
+    import { Calendar as CalendarIcon, Plus, Trash2, CheckSquare } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
     import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -238,31 +238,54 @@ import React, { useState, useEffect } from 'react';
 
         if (!user && isOpen) {
             return (
-                <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Yükleniyor...</DialogTitle>
-                            <DialogDescription>Kullanıcı bilgileri alınıyor, lütfen bekleyin.</DialogDescription>
-                        </DialogHeader>
-                    </DialogContent>
-                </Dialog>
+                <ModernModalLayout open={isOpen} onOpenChange={setIsOpen} title="Yükleniyor..." subtitle="Kullanıcı bilgileri alınıyor" icon={<CheckSquare className="h-5 w-5 text-white" />} onCancel={() => setIsOpen(false)} onSubmit={() => setIsOpen(false)} submitLabel="Kapat" footerLeft={null}>
+                    <div className="p-6 text-muted-foreground text-sm">Lütfen bekleyin.</div>
+                </ModernModalLayout>
             );
         }
 
         const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
         const tagOptions = taskTags.map(t => ({ value: t.id, label: t.name }));
         const projectOptions = (taskProjects || []).map(p => ({ value: p.id, label: p.name, color: p.color }));
+        const ownerName = personnel.find(p => p.id === formData.owner_id)?.full_name || '-';
+        const projectName = (taskProjects || []).find(p => p.id === formData.project_id)?.name || '-';
+        const rightPanel = (
+            <div className="p-6 space-y-5">
+                <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Görev Özeti</h2>
+                <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                    <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><CheckSquare className="w-20 h-20" /></div>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Başlık</p>
+                    <p className="text-lg font-bold text-foreground truncate">{formData.title || '-'}</p>
+                    {formData.task_no && <p className="text-xs text-muted-foreground mt-0.5">{formData.task_no}</p>}
+                </div>
+                <div className="space-y-2.5">
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Öncelik:</span><span className="font-semibold text-foreground">{formData.priority || '-'}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Bitiş:</span><span className="font-semibold text-foreground">{formData.due_date ? format(formData.due_date, 'd MMM yyyy', { locale: tr }) : '-'}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Atayan:</span><span className="font-semibold text-foreground truncate ml-2">{ownerName}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Proje:</span><span className="font-semibold text-foreground truncate ml-2">{projectName}</span></div>
+                </div>
+            </div>
+        );
 
         return (
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-4xl w-[95vw]">
-                    <DialogHeader>
-                        <DialogTitle>{isEditMode ? `Görevi Düzenle: ${formData.task_no || ''}` : 'Yeni Görev Oluştur'}</DialogTitle>
-                        <DialogDescription>
-                            {isEditMode ? 'Görev detaylarını güncelleyin.' : 'Yeni bir görev oluşturun ve atamaları yapın.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit}>
+            <ModernModalLayout
+                open={isOpen}
+                onOpenChange={setIsOpen}
+                title={isEditMode ? `Görevi Düzenle: ${formData.task_no || ''}` : 'Yeni Görev Oluştur'}
+                subtitle="Görev Yönetimi"
+                icon={<CheckSquare className="h-5 w-5 text-white" />}
+                badge={isEditMode ? 'Düzenleme' : 'Yeni'}
+                onCancel={() => setIsOpen(false)}
+                onSubmit={handleSubmit}
+                isSubmitting={saving}
+                submitLabel="Görevi Kaydet"
+                cancelLabel="İptal"
+                formId="task-form"
+                footerDate={formData.due_date}
+                rightPanel={rightPanel}
+            >
+                    <form id="task-form" onSubmit={handleSubmit}>
                         <ScrollArea className="h-[65vh] p-1">
                             <div className="space-y-6 p-4">
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -404,17 +427,8 @@ import React, { useState, useEffect } from 'react';
                                 </div>
                             </div>
                         </ScrollArea>
-                        <DialogFooter className="p-4 border-t">
-                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={saving}>
-                                İptal
-                            </Button>
-                            <Button type="submit" disabled={saving}>
-                                {saving ? 'Kaydediliyor...' : 'Görevi Kaydet'}
-                            </Button>
-                        </DialogFooter>
                     </form>
-                </DialogContent>
-            </Dialog>
+            </ModernModalLayout>
         );
     };
 

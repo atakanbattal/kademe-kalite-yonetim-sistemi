@@ -207,7 +207,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <DollarSign className="h-5 w-5 text-primary" />
-                        COPQ (Kalitesizlik Maliyeti) Hesaplama
+                        COPQ (İç/Dış Hata Maliyeti) Hesaplama
                     </CardTitle>
                     <CardDescription>
                         IATF 16949 mantığına göre kalitesizlik maliyeti analizi
@@ -339,7 +339,7 @@ const COPQCalculator = ({ costs, producedVehicles, loading, dateRange }) => {
                         <div className="flex items-center justify-between mb-3">
                             <div>
                                 <p className="text-sm font-semibold text-muted-foreground">
-                                    Araç Başı Ortalama Kalitesizlik Maliyeti
+                                    Araç Başı Ortalama COPQ
                                 </p>
                                 <p className="text-3xl font-bold text-primary mt-1">
                                     {formatCurrency(copqData.costPerVehicle)}

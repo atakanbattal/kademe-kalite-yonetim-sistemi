@@ -26,11 +26,9 @@ import CriticalNonConformities from '@/components/dashboard/CriticalNonConformit
 import QualityWall from '@/components/dashboard/QualityWall';
 import RootCauseHeatmap from '@/components/dashboard/RootCauseHeatmap';
 import QualityGoalsPanel from '@/components/dashboard/QualityGoalsPanel';
-import BenchmarkAnalysis from '@/components/dashboard/BenchmarkAnalysis';
 import RiskBasedIndicators from '@/components/dashboard/RiskBasedIndicators';
 import AIRootCausePrediction from '@/components/dashboard/AIRootCausePrediction';
 import NotificationCenter from '@/components/dashboard/NotificationCenter';
-import FiveSSafetyOEE from '@/components/dashboard/FiveSSafetyOEE';
 import QualityAdvisor from '@/components/dashboard/QualityAdvisor';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import ErrorBoundary from '@/components/dashboard/ErrorBoundary';
@@ -69,7 +67,7 @@ const StatCard = ({ icon: Icon, title, value, color, onClick, loading }) => (
 const ListWidget = ({ title, items, icon: Icon, onRowClick, emptyText, onSeeAllClick, loading }) => (
     <Card className="dashboard-widget h-full flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-4 p-3 sm:p-6">
-            <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base font-semibold">
+            <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base font-semibold min-w-0">
                 <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
                 <span className="truncate">{title}</span>
             </CardTitle>
@@ -77,7 +75,7 @@ const ListWidget = ({ title, items, icon: Icon, onRowClick, emptyText, onSeeAllC
                 <Button variant="link" size="sm" onClick={onSeeAllClick} className="p-0 h-auto text-xs sm:text-sm shrink-0">Tümünü Gör</Button>
             )}
         </CardHeader>
-        <CardContent className="pt-0 flex-grow p-3 sm:p-6">
+        <CardContent className="pt-0 flex-grow p-3 sm:p-6 min-w-0">
             {loading ? (
                 <div className="space-y-2 sm:space-y-3">
                     {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-9 sm:h-10 w-full" />)}
@@ -92,13 +90,13 @@ const ListWidget = ({ title, items, icon: Icon, onRowClick, emptyText, onSeeAllC
                         <li
                             key={item.id || index}
                             onClick={() => onRowClick(item.module)}
-                            className="grid grid-cols-[1fr,auto] items-center gap-2 sm:gap-4 text-xs sm:text-sm p-2 rounded-md hover:bg-accent active:bg-accent transition-colors cursor-pointer touch-manipulation"
+                            className="flex items-center gap-2 sm:gap-3 p-2 rounded-md hover:bg-accent active:bg-accent transition-colors cursor-pointer touch-manipulation min-w-0"
                         >
-                            <div className="truncate min-w-0">
-                                <p className="font-medium text-foreground truncate">{item.name}</p>
+                            <div className="min-w-0 flex-1 truncate">
+                                <p className="font-medium text-foreground truncate text-xs sm:text-sm">{item.name}</p>
                                 {item.user && <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{item.user}</p>}
                             </div>
-                            {item.date && <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap shrink-0">{new Date(item.date).toLocaleDateString('tr-TR')}</span>}
+                            {item.date && <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap shrink-0 tabular-nums">{format(new Date(item.date), 'dd.MM.yy', { locale: tr })}</span>}
                         </li>
                     ))}
                 </ul>
@@ -297,6 +295,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
                 <Card className="dashboard-widget h-full">
                     <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-4">
                         <CardTitle className="text-sm sm:text-base md:text-lg">Birim Bazlı Uygunsuzluk Dağılımı</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5">İlgili Birim (sorumlu birim) bazında</p>
                     </CardHeader>
                     <CardContent className="p-2 sm:p-6 pt-0">
                         {loading ? <Skeleton className="h-[200px] sm:h-[250px] md:h-[300px] w-full" /> : (
@@ -557,7 +556,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
                     <RootCauseHeatmap onDeptClick={(deptName) => {
                         const normalizedDeptName = normalizeTurkishForSearch(deptName.trim().toLowerCase());
                         const deptNCs = (nonConformities || []).filter(nc => {
-                            const ncDept = nc.requesting_unit || nc.department;
+                            const ncDept = nc.department || nc.responsible_unit;
                             if (!ncDept) return false;
                             const normalizedNcDept = normalizeTurkishForSearch(String(ncDept).trim().toLowerCase());
                             return normalizedNcDept === normalizedDeptName;
@@ -603,13 +602,6 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
                 </ErrorBoundary>
             </motion.div>
 
-            {/* Benchmark Analizi */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Benchmark Analizi">
-                    <BenchmarkAnalysis />
-                </ErrorBoundary>
-            </motion.div>
-
             {/* Risk Bazlı Göstergeler */}
             <motion.div variants={itemVariants}>
                 <ErrorBoundary componentName="Risk Göstergeleri">
@@ -621,13 +613,6 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
             <motion.div variants={itemVariants}>
                 <ErrorBoundary componentName="AI Kök Neden Tahmin">
                     <AIRootCausePrediction />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* 5S - İş Güvenliği - OEE */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="5S - İş Güvenliği - OEE">
-                    <FiveSSafetyOEE />
                 </ErrorBoundary>
             </motion.div>
 

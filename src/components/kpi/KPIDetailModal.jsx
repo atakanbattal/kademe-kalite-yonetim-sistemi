@@ -80,7 +80,7 @@ const KPIDetailModal = ({ kpi, open, setOpen, refreshKpis }) => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
         <DialogHeader>
           <DialogTitle className="text-2xl text-foreground">KPI Detayları: {kpi.name}</DialogTitle>
           <DialogDescription className="text-muted-foreground">{kpi.description}</DialogDescription>

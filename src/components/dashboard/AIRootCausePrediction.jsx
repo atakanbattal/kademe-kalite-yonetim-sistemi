@@ -57,10 +57,10 @@ const AIRootCausePrediction = () => {
             .slice(0, 3)
             .map(([code, count]) => ({ code, count }));
 
-        // En çok DF çıkan birimler
+        // En çok DF çıkan birimler - İlgili Birim (department) kullan, talep eden (requesting_unit) değil
         const deptMap = {};
         recentDFs.forEach(nc => {
-            const dept = nc.requesting_unit || nc.department || 'Belirtilmemiş';
+            const dept = nc.department || nc.responsible_unit || 'Belirtilmemiş';
             deptMap[dept] = (deptMap[dept] || 0) + 1;
         });
 

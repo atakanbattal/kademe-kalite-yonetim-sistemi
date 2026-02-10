@@ -35,7 +35,7 @@ import React, { useState, useEffect, useMemo } from 'react';
         return { grade: 'D', description: 'İş Birliği Sonlandırılacak', color: 'bg-red-500', icon: <AlertOctagon className="w-4 h-4" />, isManual: false };
     };
 
-    const SupplierList = ({ suppliers, allSuppliers, onEdit, refreshSuppliers, onOpenNCForm }) => {
+    const SupplierList = ({ suppliers, allSuppliers, onEdit, refreshSuppliers, onOpenNCForm, onOpenNCView }) => {
         const { toast } = useToast();
         const [isAuditModalOpen, setAuditModalOpen] = useState(false);
         const [isScoreModalOpen, setScoreModalOpen] = useState(false);
@@ -90,7 +90,7 @@ import React, { useState, useEffect, useMemo } from 'react';
             switch (status) {
                 case 'Onaylı': return <Badge className="bg-green-600 hover:bg-green-700 text-white">Onaylı</Badge>;
                 case 'Askıya Alınmış': return <Badge variant="destructive">Askıya Alınmış</Badge>;
-                case 'Red': return <Badge variant="secondary">Reddedildi</Badge>;
+                case 'Red': return <Badge className="bg-red-600 hover:bg-red-700 text-white">Reddedildi</Badge>;
                 case 'Alternatif': return <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Alternatif</Badge>;
                 default: return <Badge variant="outline">{status}</Badge>;
             }
@@ -250,6 +250,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                         setSelectedSupplier(supplier);
                         setGradeModalOpen(true);
                     }}
+                    onOpenNCView={onOpenNCView ? (nc) => { setDetailModalOpen(false); onOpenNCView(nc); } : undefined}
                 />
 
                 <div className="overflow-x-auto">

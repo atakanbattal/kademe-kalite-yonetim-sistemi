@@ -169,7 +169,7 @@ const FanProductFormModal = ({ isOpen, setIsOpen, product, onSuccess }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle>
                         {isEditMode ? 'Ürün Tanımını Düzenle' : 'Yeni Ürün Tanımı'}

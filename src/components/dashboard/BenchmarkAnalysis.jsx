@@ -206,7 +206,7 @@ const BenchmarkAnalysis = () => {
                                             )}
                                             <h4 className="font-semibold">
                                                 {benchmark.metric_type === 'DF_COUNT' ? 'DF Sayısı' :
-                                                 benchmark.metric_type === 'QUALITY_COST' ? 'Kalitesizlik Maliyeti' :
+                                                 benchmark.metric_type === 'QUALITY_COST' ? 'Kalite Maliyeti' :
                                                  'Uygunsuzluk Kapatma Oranı'}
                                             </h4>
                                         </div>

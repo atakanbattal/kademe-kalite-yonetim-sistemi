@@ -143,7 +143,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             let remaining = inputText.trim();
             
             // Ana başlığı bul
-            const mainHeadingMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|Kalitesizlik Maliyeti Kaydı)\s*\([^)]+\)/i);
+            const mainHeadingMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|(Kalite|Kalitesizlik) Maliyeti Kaydı)\s*\([^)]+\)/i);
             if (mainHeadingMatch) {
                 tokens.push({ type: 'main-heading', content: mainHeadingMatch[0] });
                 remaining = remaining.substring(mainHeadingMatch[0].length).trim();
@@ -459,7 +459,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <div className="flex items-center justify-between">
                         <div>
@@ -535,7 +535,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                                                     <Badge variant="outline" className="mb-3">
                                                         {deviation.source_type === 'incoming_inspection' && 'Girdi Kalite Kontrol'}
                                                         {deviation.source_type === 'quarantine' && 'Karantina'}
-                                                        {deviation.source_type === 'quality_cost' && 'Kalitesizlik Maliyeti'}
+                                                        {deviation.source_type === 'quality_cost' && 'Kalite Maliyeti'}
                                                     </Badge>
                                                     {deviation.source_record_details && (
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">

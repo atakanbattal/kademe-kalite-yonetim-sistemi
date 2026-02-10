@@ -141,7 +141,7 @@ const CustomerFormModal = ({ open, setOpen, onSuccess, existingCustomer }) => {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle>
                         {isEditMode ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}
@@ -393,7 +393,7 @@ const CustomerDetailCard = ({ customer, onEdit, onClose }) => {
 
     return (
         <Dialog open={!!customer} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <div className="flex items-center justify-between">
                         <div>

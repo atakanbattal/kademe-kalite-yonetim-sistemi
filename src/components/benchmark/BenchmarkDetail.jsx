@@ -701,7 +701,7 @@ const BenchmarkDetail = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-6xl max-h-[90vh]">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <div className="flex items-start justify-between">
                         <div className="flex-1">

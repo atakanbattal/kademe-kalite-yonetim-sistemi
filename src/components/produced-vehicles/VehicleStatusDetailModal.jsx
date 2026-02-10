@@ -72,7 +72,7 @@ const VehicleStatusDetailModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-6xl w-full h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>

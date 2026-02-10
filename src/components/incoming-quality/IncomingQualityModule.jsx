@@ -850,7 +850,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             {/* Rapor Seçim Modalı */}
             <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <FileText className="h-5 w-5 text-primary" />

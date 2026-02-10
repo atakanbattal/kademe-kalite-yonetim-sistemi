@@ -99,7 +99,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, onUpdate }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle>Hata Kayıtları: {vehicle?.serial_no}</DialogTitle>
                     <DialogDescription>Araç için girilen tüm hata kayıtlarını yönetin.</DialogDescription>

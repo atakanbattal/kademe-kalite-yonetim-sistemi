@@ -97,7 +97,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle>{exam ? 'Sınavı Düzenle' : 'Yeni Sınav Oluştur'}</DialogTitle>
                         <DialogDescription>Sınav detaylarını ve soruları buradan yönetebilirsiniz.</DialogDescription>

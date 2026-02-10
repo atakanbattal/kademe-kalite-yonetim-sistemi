@@ -548,9 +548,9 @@ const PrintableReport = () => {
                             } else if (type === 'produced_vehicles_executive_summary') {
                                 errorMsg = 'Üretilen araçlar rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             } else if (type === 'quality_cost_executive_summary') {
-                                errorMsg = 'Kalitesizlik maliyeti rapor verisi bulunamadı. Lütfen tekrar deneyin.';
+                                errorMsg = 'Kalite maliyeti rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             } else if (type === 'quality_cost_detail') {
-                                errorMsg = 'Kalitesizlik maliyeti detay rapor verisi bulunamadı. Lütfen tekrar deneyin.';
+                                errorMsg = 'Kalite maliyeti detay rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             } else if (type === 'supplier_quality_executive_summary') {
                                 errorMsg = 'Tedarikçi kalite yönetimi rapor verisi bulunamadı. Lütfen tekrar deneyin.';
                             }

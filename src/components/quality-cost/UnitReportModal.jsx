@@ -13,16 +13,25 @@ const formatCurrency = (value) => {
 const UnitReportModal = ({ isOpen, setIsOpen, units, costs, onGenerate }) => {
     const [selectedUnits, setSelectedUnits] = useState([]);
 
-    // Her birim için toplam maliyet hesapla
+    // Her birim için toplam maliyet hesapla (cost_allocations desteği ile)
     const unitStats = useMemo(() => {
         const stats = {};
         units.forEach(unit => {
-            const unitCosts = costs.filter(cost => cost.unit === unit);
-            const totalAmount = unitCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-            stats[unit] = {
-                count: unitCosts.length,
-                totalAmount: totalAmount
-            };
+            let totalAmount = 0;
+            let count = 0;
+            costs.forEach(cost => {
+                if (cost.unit === unit) {
+                    totalAmount += cost.amount || 0;
+                    count += 1;
+                } else if (cost.cost_allocations?.length) {
+                    const alloc = cost.cost_allocations.find(a => a.unit === unit);
+                    if (alloc) {
+                        totalAmount += alloc.amount ?? (cost.amount || 0) * (parseFloat(alloc.percentage) / 100);
+                        count += 1;
+                    }
+                }
+            });
+            stats[unit] = { count, totalAmount };
         });
         return stats;
     }, [units, costs]);
@@ -69,7 +78,7 @@ const UnitReportModal = ({ isOpen, setIsOpen, units, costs, onGenerate }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Building2 className="h-5 w-5 text-primary" />

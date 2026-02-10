@@ -19,7 +19,7 @@ import React from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle className="flex justify-between items-center">
                             <span className="truncate pr-4">{title || 'PDF Görüntüleyici'}</span>

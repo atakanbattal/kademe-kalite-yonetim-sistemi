@@ -364,7 +364,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader className="flex-shrink-0 pb-4 border-b">
                         <div className="flex items-center justify-between">
                             <div>

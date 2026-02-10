@@ -96,7 +96,7 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => { if(!isOpen) resetForm(); setOpen(isOpen); }}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="text-foreground">Yeni KPI Ekle</DialogTitle>
                     <DialogDescription className="text-muted-foreground">Yeni bir Key Performance Indicator (KPI) oluşturun.</DialogDescription>

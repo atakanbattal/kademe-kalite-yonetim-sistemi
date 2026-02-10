@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ModernModalLayout, ModalSectionHeader, ModalField } from '@/components/shared/ModernModalLayout';
+import { PackageX, Package } from 'lucide-react';
 
 const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, mode }) => {
     const { toast } = useToast();
@@ -200,91 +200,120 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
         setIsSubmitting(false);
     };
 
+    const rightPanel = (
+        <div className="p-6 space-y-5">
+            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Kayıt Özeti</h2>
+            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Package className="w-20 h-20" /></div>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Parça</p>
+                <p className="text-lg font-bold text-foreground truncate">{formData.part_name || '-'}</p>
+                {formData.part_code && <p className="text-xs text-muted-foreground mt-0.5">{formData.part_code}</p>}
+            </div>
+            <div className="space-y-3">
+                <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-medium">
+                        <span className="text-muted-foreground">Miktar</span>
+                        <span className="text-foreground font-bold">{formData.quantity || '-'} {formData.unit || 'Adet'}</span>
+                    </div>
+                </div>
+                <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-medium">
+                        <span className="text-muted-foreground">Durum</span>
+                        <span className="font-semibold text-foreground">{formData.status || 'Karantinada'}</span>
+                    </div>
+                </div>
+            </div>
+            <div className="pt-4 border-t border-border space-y-2.5">
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.quarantine_date ? new Date(formData.quarantine_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Lot/Seri:</span><span className="font-semibold text-foreground truncate ml-2">{formData.lot_no || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kaynak Birim:</span><span className="font-semibold text-foreground truncate ml-2">{formData.source_department || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Talep Birimi:</span><span className="font-semibold text-foreground truncate ml-2">{formData.requesting_department || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Talep Eden:</span><span className="font-semibold text-foreground truncate ml-2">{formData.requesting_person_name || '-'}</span></div>
+            </div>
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-start gap-2.5 border border-amber-100 dark:border-amber-800">
+                <PackageX className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+                    Karantina kaydı oluşturulduktan sonra takip listesinde görüntülenebilir.
+                </p>
+            </div>
+        </div>
+    );
+
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-foreground">{isEditMode ? 'Karantina Kaydını Düzenle' : 'Yeni Karantina Kaydı'}</DialogTitle>
-                    <DialogDescription className="text-muted-foreground">
-                        {isEditMode ? 'Mevcut kaydın detaylarını güncelleyin.' : 'Karantinaya alınan ürün için yeni bir kayıt oluşturun.'}
-                    </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                    <div><Label htmlFor="part_name">Parça Adı <span className="text-red-500">*</span></Label><Input id="part_name" value={formData.part_name || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} required /></div>
-                    <div><Label htmlFor="part_code">Parça Kodu</Label><Input id="part_code" value={formData.part_code || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} /></div>
-                    <div><Label htmlFor="lot_no">Lot / Seri No</Label><Input id="lot_no" value={formData.lot_no || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} /></div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <div><Label htmlFor="quantity">Miktar <span className="text-red-500">*</span></Label><Input id="quantity" type="number" value={formData.quantity || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} required /></div>
-                        <div><Label htmlFor="unit">Birim</Label><Input id="unit" value={formData.unit || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} /></div>
-                    </div>
-                    <div><Label htmlFor="quarantine_date">Karantina Tarihi <span className="text-red-500">*</span></Label><Input id="quarantine_date" type="date" value={formData.quarantine_date || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} required /></div>
-                    
+        <ModernModalLayout
+            open={isOpen}
+            onOpenChange={setIsOpen}
+            title={isEditMode ? 'Karantina Kaydını Düzenle' : 'Yeni Karantina Kaydı'}
+            subtitle="Karantina Yönetimi"
+            icon={<PackageX className="h-5 w-5 text-white" />}
+            badge={isEditMode ? 'Düzenleme' : 'Yeni'}
+            onCancel={() => setIsOpen(false)}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            submitLabel={isEditMode ? 'Değişiklikleri Kaydet' : 'Kaydet'}
+            cancelLabel="İptal Et"
+            formId="quarantine-form"
+            footerDate={formData.quarantine_date}
+            rightPanel={rightPanel}
+        >
+            <form id="quarantine-form" onSubmit={handleSubmit} className="p-6">
+                <div className="space-y-6">
                     <div>
-                        <Label>Karantinaya Sebebiyet Veren Birim <span className="text-red-500">*</span></Label>
-                        <Select
-                            value={formData.source_department || ''}
-                            onValueChange={(value) => handleSelectChange('source_department', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Birim seçin..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {departments.map((dept) => (
-                                    <SelectItem key={dept} value={dept}>
-                                        {dept}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <ModalSectionHeader>Ürün Bilgileri</ModalSectionHeader>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <ModalField label="Parça Adı" required>
+                                <Input id="part_name" value={formData.part_name || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} required />
+                            </ModalField>
+                            <ModalField label="Parça Kodu">
+                                <Input id="part_code" value={formData.part_code || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} />
+                            </ModalField>
+                            <ModalField label="Lot / Seri No">
+                                <Input id="lot_no" value={formData.lot_no || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} />
+                            </ModalField>
+                            <div className="grid grid-cols-2 gap-2">
+                                <ModalField label="Miktar" required>
+                                    <Input id="quantity" type="number" value={formData.quantity || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} required />
+                                </ModalField>
+                                <ModalField label="Birim">
+                                    <Input id="unit" value={formData.unit || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} />
+                                </ModalField>
+                            </div>
+                            <ModalField label="Karantina Tarihi" required>
+                                <Input id="quarantine_date" type="date" value={formData.quarantine_date || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} required />
+                            </ModalField>
+                        </div>
                     </div>
-                    
                     <div>
-                        <Label>Talebi Yapan Birim</Label>
-                         <Select
-                            value={formData.requesting_department || ''}
-                            onValueChange={(value) => handleSelectChange('requesting_department', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Birim seçin..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {departments.map((dept) => (
-                                    <SelectItem key={dept} value={dept}>
-                                        {dept}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <ModalSectionHeader>Talep ve Birim Bilgileri</ModalSectionHeader>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <ModalField label="Karantinaya Sebebiyet Veren Birim" required>
+                                <Select value={formData.source_department || ''} onValueChange={(v) => handleSelectChange('source_department', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
+                                    <SelectContent>{departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </ModalField>
+                            <ModalField label="Talebi Yapan Birim">
+                                <Select value={formData.requesting_department || ''} onValueChange={(v) => handleSelectChange('requesting_department', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
+                                    <SelectContent>{departments.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </ModalField>
+                            <ModalField label="Talebi Yapan Kişi">
+                                <Select value={formData.requesting_person_name || ''} onValueChange={(v) => handleSelectChange('requesting_person_name', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Kişi seçin..." /></SelectTrigger>
+                                    <SelectContent>{personnel.map(p => <SelectItem key={p.id} value={p.full_name}>{p.full_name}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </ModalField>
+                            <div className="md:col-span-2">
+                                <ModalField label="Açıklama / Detaylar">
+                                    <Textarea ref={textareaRef} id="description" value={formData.description || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} rows={3} className="resize-none overflow-hidden" />
+                                </ModalField>
+                            </div>
+                        </div>
                     </div>
-
-                    <div>
-                        <Label>Talebi Yapan Kişi</Label>
-                        <Select
-                            value={formData.requesting_person_name || ''}
-                            onValueChange={(value) => handleSelectChange('requesting_person_name', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Kişi seçin..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {personnel.map((person) => (
-                                    <SelectItem key={person.id} value={person.full_name}>
-                                        {person.full_name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="md:col-span-2"><Label htmlFor="description">Açıklama / Detaylar</Label><Textarea ref={textareaRef} id="description" value={formData.description || ''} onChange={e => handleInputChange(e.target.id, e.target.value)} rows={3} className="resize-none overflow-hidden" /></div>
-                
-                    <DialogFooter className="col-span-1 md:col-span-2 mt-4">
-                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
-                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Değişiklikleri Kaydet' : 'Kaydet')}</Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+                </div>
+            </form>
+        </ModernModalLayout>
     );
 };
 

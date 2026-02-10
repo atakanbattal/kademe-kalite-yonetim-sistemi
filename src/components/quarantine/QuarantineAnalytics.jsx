@@ -480,7 +480,7 @@ const QuarantineAnalytics = ({ quarantineRecords }) => {
 
             {/* Detail Modal */}
             <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-                <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle>Kayıt Detayları</DialogTitle>
                         <DialogDescription>

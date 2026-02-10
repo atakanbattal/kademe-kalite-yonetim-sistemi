@@ -1,21 +1,22 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { DollarSign, Calendar, Building2, Car, Package, User, CheckCircle, AlertTriangle, Clock, Users, FileText } from 'lucide-react';
+import { DollarSign, Calendar, Building2, Car, Package, User, AlertTriangle, Clock, Users, FileText, Paperclip } from 'lucide-react';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { openPrintableReport } from '@/lib/reportUtils';
+import QualityCostDocumentsTab from '@/components/quality-cost/QualityCostDocumentsTab';
 
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
     return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 }
 
-export const CostViewModal = ({ isOpen, setOpen, cost }) => {
+export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
     if (!cost) return null;
 
     // Ana süre: rework_duration ve unit alanlarından oluşuyor
@@ -37,29 +38,30 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh]">
-                <DialogHeader>
-                    <div className="flex items-center justify-between">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><DollarSign className="h-5 w-5 text-white" /></div>
                         <div>
-                            <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-                                <DollarSign className="h-6 w-6" />
-                                Maliyet Kaydı Detayı
-                            </DialogTitle>
-                            <DialogDescription className="mt-2">
-                                Maliyet kaydına ait tüm bilgiler aşağıda listelenmiştir.
-                            </DialogDescription>
+                            <h1 className="text-lg font-bold tracking-tight">Maliyet Kaydı Detayı</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Kalite Maliyeti Takibi</p>
                         </div>
-                        {cost.status === 'Aktif' && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Aktif
-                            </Badge>
-                        )}
+                        <span className="ml-2 px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                            {cost.cost_type || 'Detay'}
+                        </span>
                     </div>
-                </DialogHeader>
+                </header>
                 
-                <ScrollArea className="max-h-[65vh] pr-4 mt-4">
-                    <div className="space-y-6">
+                <Tabs defaultValue="info" className="flex-1 overflow-hidden flex flex-col px-6">
+                    <TabsList className="inline-flex gap-1 p-1 h-auto mt-4 shrink-0">
+                        <TabsTrigger value="info" className="text-xs">Bilgiler</TabsTrigger>
+                        <TabsTrigger value="documents" className="text-xs flex items-center gap-1.5">
+                            <Paperclip className="h-3.5 w-3.5" />
+                            Dokümanlar
+                        </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="info" className="mt-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-6 pr-2">
+                    <div className="space-y-6 pr-4">
                         {/* Önemli Bilgiler - Üst Kart */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <InfoCard 
@@ -111,7 +113,20 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                                 Genel Bilgiler
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <InfoCard icon={Building2} label="Birim (Kaynak)" value={cost.unit} />
+                                {cost.cost_allocations && cost.cost_allocations.length > 0 ? (
+                                    <div className="md:col-span-2">
+                                        <p className="text-sm font-medium text-muted-foreground mb-2">Maliyet Dağılımı</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {cost.cost_allocations.map((a, i) => (
+                                                <Badge key={i} variant="secondary" className="py-2 px-3 text-sm">
+                                                    {a.unit}: %{parseFloat(a.percentage).toFixed(1)} = {formatCurrency(a.amount)}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <InfoCard icon={Building2} label="Birim (Kaynak)" value={cost.unit} />
+                                )}
                                 {cost.vehicle_type && <InfoCard icon={Car} label="Araç Türü" value={cost.vehicle_type} />}
                                 {cost.part_code && <InfoCard icon={Package} label="Parça Kodu" value={cost.part_code} />}
                                 {cost.part_name && <InfoCard icon={Package} label="Parça Adı" value={cost.part_name} />}
@@ -286,28 +301,24 @@ export const CostViewModal = ({ isOpen, setOpen, cost }) => {
                             )}
                         </div>
                     </div>
-                </ScrollArea>
+                    </TabsContent>
+                    <TabsContent value="documents" className="mt-4 flex-1 overflow-y-auto pb-4">
+                        <QualityCostDocumentsTab qualityCostId={cost.id} onRefresh={onRefresh} />
+                    </TabsContent>
+                </Tabs>
 
-                <DialogFooter className="mt-6">
-                    <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="lg"
-                        onClick={() => {
-                            const reportData = {
-                                id: cost.id,
-                                ...cost
-                            };
-                            openPrintableReport(reportData, 'quality_cost_detail', true);
-                        }}
-                    >
-                        <FileText className="w-4 h-4 mr-2" />
-                        PDF Rapor Al
-                    </Button>
-                    <DialogClose asChild>
-                        <Button type="button" variant="secondary" size="lg">Kapat</Button>
-                    </DialogClose>
-                </DialogFooter>
+                <footer className="bg-background px-6 py-4 border-t border-border flex items-center justify-between shrink-0">
+                    <div className="flex items-center text-muted-foreground">
+                        <span className="text-[11px] font-medium">{new Date(cost.cost_date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button type="button" variant="outline" size="sm" onClick={() => openPrintableReport({ id: cost.id, ...cost }, 'quality_cost_detail', true)}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            PDF Rapor Al
+                        </Button>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(false)}>Kapat</Button>
+                    </div>
+                </footer>
             </DialogContent>
         </Dialog>
     );

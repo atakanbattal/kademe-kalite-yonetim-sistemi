@@ -19,42 +19,38 @@ const UnitCostDistribution = ({ costs }) => {
         const unitMap = {};
         let totalCost = 0;
 
-        costs.forEach(cost => {
-            const unit = cost.unit || 'Belirtilmemiş';
-            if (!unitMap[unit]) {
-                unitMap[unit] = {
-                    unit,
-                    totalCost: 0,
-                    count: 0,
-                    internalCost: 0,
-                    externalCost: 0,
-                    appraisalCost: 0,
-                    preventionCost: 0
-                };
+        const addToUnit = (unit, amount, costType, isSupplierCost) => {
+            const u = unit || 'Belirtilmemiş';
+            if (!unitMap[u]) {
+                unitMap[u] = { unit: u, totalCost: 0, count: 0, internalCost: 0, externalCost: 0, appraisalCost: 0, preventionCost: 0 };
             }
+            unitMap[u].totalCost += amount;
+            unitMap[u].count += 1;
+            if (['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti', 'Geri Çağırma Maliyeti', 'Müşteri Kaybı Maliyeti', 'Müşteri Reklaması'].some(t => costType.includes(t))) {
+                unitMap[u].externalCost += amount;
+            } else if (['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'Tedarikçi Hata Maliyeti'].some(t => costType.includes(t)) || isSupplierCost) {
+                unitMap[u].internalCost += amount;
+            } else if (['Girdi Kalite Kontrol Maliyeti', 'Üretim Kalite Kontrol Maliyeti', 'Test ve Ölçüm Maliyeti', 'Kalite Kontrol Maliyeti'].some(t => costType.includes(t))) {
+                unitMap[u].appraisalCost += amount;
+            } else if (['Eğitim Maliyeti', 'Kalite Planlama Maliyeti', 'Tedarikçi Değerlendirme Maliyeti', 'İyileştirme Projeleri Maliyeti', 'Kalite Sistem Maliyeti'].some(t => costType.includes(t))) {
+                unitMap[u].preventionCost += amount;
+            }
+        };
 
-            unitMap[unit].totalCost += cost.amount || 0;
-            unitMap[unit].count += 1;
-            totalCost += cost.amount || 0;
-
+        costs.forEach(cost => {
+            const amount = cost.amount || 0;
+            totalCost += amount;
             const costType = cost.cost_type || '';
             const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
-            
-            // External Failure - SADECE müşteride tespit edilen hatalar
-            if (['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti', 'Geri Çağırma Maliyeti', 'Müşteri Kaybı Maliyeti', 'Müşteri Reklaması'].some(t => costType.includes(t))) {
-                unitMap[unit].externalCost += cost.amount || 0;
-            }
-            // Internal Failure - Fabrika içinde tespit edilen hatalar (tedarikçi kaynaklı dahil)
-            else if (['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'Tedarikçi Hata Maliyeti'].some(t => costType.includes(t)) || isSupplierCost) {
-                unitMap[unit].internalCost += cost.amount || 0;
-            }
-            // Appraisal
-            else if (['Girdi Kalite Kontrol Maliyeti', 'Üretim Kalite Kontrol Maliyeti', 'Test ve Ölçüm Maliyeti', 'Kalite Kontrol Maliyeti'].some(t => costType.includes(t))) {
-                unitMap[unit].appraisalCost += cost.amount || 0;
-            }
-            // Prevention
-            else if (['Eğitim Maliyeti', 'Kalite Planlama Maliyeti', 'Tedarikçi Değerlendirme Maliyeti', 'İyileştirme Projeleri Maliyeti', 'Kalite Sistem Maliyeti'].some(t => costType.includes(t))) {
-                unitMap[unit].preventionCost += cost.amount || 0;
+            const allocs = cost.cost_allocations;
+
+            if (allocs && Array.isArray(allocs) && allocs.length > 0) {
+                allocs.forEach(alloc => {
+                    const allocAmount = alloc.amount ?? (amount * (alloc.percentage || 0) / 100);
+                    addToUnit(alloc.unit, allocAmount, costType, isSupplierCost);
+                });
+            } else {
+                addToUnit(cost.unit, amount, costType, isSupplierCost);
             }
         });
 
@@ -121,7 +117,7 @@ const UnitCostDistribution = ({ costs }) => {
                     Birim Bazında Maliyet Dağılımı
                 </CardTitle>
                 <CardDescription>
-                    Kalitesizlik maliyetlerinin birimlere göre dağılımı ve analizi
+                    Kalite maliyetlerinin birimlere göre dağılımı ve analizi
                 </CardDescription>
             </CardHeader>
             <CardContent>

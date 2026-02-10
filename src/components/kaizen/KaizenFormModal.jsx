@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+    import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { v4 as uuidv4 } from 'uuid';
     import { useDropzone } from 'react-dropzone';
-    import { UploadCloud, File as FileIcon, Trash2, BrainCircuit, Fish, HelpCircle, Sigma, Calendar as CalendarIcon } from 'lucide-react';
+    import { UploadCloud, File as FileIcon, Trash2, BrainCircuit, Fish, HelpCircle, Sigma, Calendar as CalendarIcon, Lightbulb } from 'lucide-react';
     import { sanitizeFileName } from '@/lib/utils';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
     import KaizenA3Template from './KaizenA3Template';
@@ -391,15 +391,46 @@ import React, { useState, useEffect, useCallback } from 'react';
         const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
         const unitOptions = units.map(u => ({ value: u.id, label: u.unit_name }));
         const supplierOptions = suppliers.map(s => ({ value: s.id, label: s.name }));
+        const responsibleName = personnel.find(p => p.id === formData.responsible_person_id)?.full_name || '-';
+        const rightPanel = (
+            <div className="p-6 space-y-5">
+                <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Kaizen Özeti</h2>
+                <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                    <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Lightbulb className="w-20 h-20" /></div>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Kaizen</p>
+                    <p className="text-lg font-bold text-foreground truncate">{formData.title || '-'}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{formData.kaizen_type || '-'}</p>
+                </div>
+                <div className="space-y-2.5">
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Öncelik:</span><span className="font-semibold text-foreground">{formData.priority || '-'}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Sorumlu:</span><span className="font-semibold text-foreground truncate ml-2">{responsibleName}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Skor:</span><span className="font-semibold text-foreground">{formData.kaizen_score?.toFixed(1) || '-'}</span></div>
+                    {(formData.total_monthly_gain > 0 || formData.total_yearly_gain > 0) && (
+                        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Yıllık Kazanç:</span><span className="font-semibold text-foreground">₺{(formData.total_yearly_gain || 0).toLocaleString('tr-TR')}</span></div>
+                    )}
+                </div>
+            </div>
+        );
 
         return (
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-6xl">
-                    <DialogHeader>
-                        <DialogTitle>{isEditMode ? 'Kaizen Düzenle' : 'Yeni Kaizen Ekle'}</DialogTitle>
-                        <DialogDescription>Sürekli iyileştirme önerinizi analiz metodolojileri ile birlikte girin.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit}>
+            <ModernModalLayout
+                open={isOpen}
+                onOpenChange={setIsOpen}
+                title={isEditMode ? 'Kaizen Düzenle' : 'Yeni Kaizen Ekle'}
+                subtitle="Kaizen Yönetimi"
+                icon={<Lightbulb className="h-5 w-5 text-white" />}
+                badge={isEditMode ? 'Düzenleme' : 'Yeni'}
+                onCancel={() => setIsOpen(false)}
+                onSubmit={handleSubmit}
+                isSubmitting={isSubmitting}
+                submitLabel="Kaydet"
+                cancelLabel="İptal"
+                formId="kaizen-form"
+                footerDate={formData.start_date || formData.end_date}
+                rightPanel={rightPanel}
+            >
+                <form id="kaizen-form" onSubmit={handleSubmit}>
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <TabsList className="grid w-full grid-cols-7">
                                 <TabsTrigger value="general">Genel Bilgiler</TabsTrigger>
@@ -609,13 +640,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                               </div>
                             </ScrollArea>
                         </Tabs>
-                        <DialogFooter className="p-4 border-t">
-                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
-                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
-                        </DialogFooter>
                     </form>
-                </DialogContent>
-            </Dialog>
+        </ModernModalLayout>
         );
     };
 

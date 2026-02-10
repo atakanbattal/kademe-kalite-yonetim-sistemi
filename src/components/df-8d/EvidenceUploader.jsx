@@ -446,7 +446,7 @@ const EvidenceUploader = ({ stepKey, ncId, evidenceFiles = [], onEvidenceChange 
 
             {/* Önizleme Modal */}
             <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle>Dosya Önizleme</DialogTitle>
                     </DialogHeader>

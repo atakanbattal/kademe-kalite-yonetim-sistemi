@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const SupplierDetailModal = ({ isOpen, setIsOpen, supplier, onEdit, onSetGrade, allSuppliers }) => {
+const SupplierDetailModal = ({ isOpen, setIsOpen, supplier, onEdit, onSetGrade, allSuppliers, onOpenNCView }) => {
     const [loading, setLoading] = useState(false);
     const [audits, setAudits] = useState([]);
     const [nonConformities, setNCs] = useState([]);
@@ -60,13 +60,13 @@ const SupplierDetailModal = ({ isOpen, setIsOpen, supplier, onEdit, onSetGrade, 
                 .limit(5);
             setAudits(auditData || []);
 
-            // Uygunsuzlukları yükle
+            // Uygunsuzlukları yükle - non_conformities'dan (gerçek DF/8D kayıtları)
             const { data: ncData } = await supabase
-                .from('supplier_non_conformities')
+                .from('non_conformities')
                 .select('*')
                 .eq('supplier_id', supplier.id)
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(10);
             setNCs(ncData || []);
 
             // Sertifikaları yükle
@@ -184,7 +184,7 @@ const SupplierDetailModal = ({ isOpen, setIsOpen, supplier, onEdit, onSetGrade, 
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader className="pb-4 border-b">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
@@ -587,7 +587,8 @@ const SupplierDetailModal = ({ isOpen, setIsOpen, supplier, onEdit, onSetGrade, 
                                                     initial={{ opacity: 0, x: -20 }}
                                                     animate={{ opacity: 1, x: 0 }}
                                                     transition={{ delay: index * 0.1 }}
-                                                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                                                    onClick={() => onOpenNCView && onOpenNCView(nc)}
+                                                    className={`flex items-center justify-between p-3 bg-muted/50 rounded-lg ${onOpenNCView ? 'cursor-pointer hover:bg-muted transition-colors' : ''}`}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         {nc.status === 'Açık' ? (
@@ -596,9 +597,9 @@ const SupplierDetailModal = ({ isOpen, setIsOpen, supplier, onEdit, onSetGrade, 
                                                             <CheckCircle className="h-5 w-5 text-green-500" />
                                                         )}
                                                         <div>
-                                                            <p className="font-medium">{nc.nc_number || nc.description?.substring(0, 50) || 'Uygunsuzluk'}</p>
+                                                            <p className="font-medium">{nc.nc_number || nc.mdi_no || nc.title?.substring(0, 50) || 'Uygunsuzluk'}</p>
                                                             <p className="text-xs text-muted-foreground">
-                                                                {new Date(nc.created_at).toLocaleDateString('tr-TR')}
+                                                                {nc.title ? nc.title.substring(0, 60) + (nc.title.length > 60 ? '...' : '') : ''} • {new Date(nc.opening_date || nc.created_at).toLocaleDateString('tr-TR')}
                                                             </p>
                                                         </div>
                                                     </div>

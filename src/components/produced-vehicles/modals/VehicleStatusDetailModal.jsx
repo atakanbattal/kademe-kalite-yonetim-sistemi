@@ -87,7 +87,7 @@ const VehicleStatusDetailModal = ({ isOpen, setIsOpen, vehicle }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-3">
                        {isLoading ? <Skeleton className="h-7 w-48" /> : `Araç Durum Detayı: ${vehicle.chassis_no || 'N/A'}`}

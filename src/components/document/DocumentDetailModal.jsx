@@ -186,7 +186,7 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
     return (
         <>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-4xl lg:max-w-6xl h-[90vh] flex flex-col">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <FileText className="w-5 h-5" />

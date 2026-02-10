@@ -142,7 +142,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     return (
         <>
             <Dialog open={isOpen && !showConfirmDialog} onOpenChange={handleClose}>
-                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col" onEscapeKeyDown={(e) => {
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" onEscapeKeyDown={(e) => {
                     const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
                     if (hasChanged) {
                         e.preventDefault();

@@ -570,7 +570,7 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                         <div className="text-center py-8 text-muted-foreground">Yükleniyor...</div>
                     ) : filteredQualityCosts.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
-                            Kalitesizlik maliyeti kaydı bulunamadı.
+                            Kalite maliyeti kaydı bulunamadı.
                         </div>
                     ) : (
                         filteredQualityCosts.map(record => (

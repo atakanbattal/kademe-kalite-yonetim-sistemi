@@ -242,7 +242,7 @@ const VehicleReportModal = ({ isOpen, setIsOpen, vehicles, filters }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <FileText className="w-5 h-5" />

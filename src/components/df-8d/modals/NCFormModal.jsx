@@ -45,7 +45,7 @@ const NCFormModal = ({ isOpen, setIsOpen, record, onSave, onSaveSuccess }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="text-foreground">{isEditMode ? 'Uygunsuzluk Kaydını Düzenle' : 'Yeni Uygunsuzluk Kaydı'}</DialogTitle>
                     <DialogDescription className="text-muted-foreground">

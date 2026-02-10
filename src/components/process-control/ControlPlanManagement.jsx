@@ -651,7 +651,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
     return (
         <div className="space-y-4">
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                <DialogContent className={step === 1 ? "max-w-md" : "max-w-[90vw]"}>
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
                     {step === 1 && !selectedPlan ? (
                         <>
                             <DialogHeader>

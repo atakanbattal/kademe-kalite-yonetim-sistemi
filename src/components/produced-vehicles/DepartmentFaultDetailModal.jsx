@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 const DepartmentFaultDetailModal = ({ isOpen, setIsOpen, departmentName, faults }) => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-4xl">
+      <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
         <DialogHeader>
           <DialogTitle>{departmentName} Departmanı Hata Detayları</DialogTitle>
           <DialogDescription>

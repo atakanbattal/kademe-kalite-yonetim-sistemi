@@ -67,7 +67,7 @@ const moduleTitles = {
     tasks: 'Görev Yönetimi',
     kpi: 'KPI Modülü',
     kaizen: 'İyileştirme (Kaizen) Modülü',
-    'quality-cost': 'Kalitesizlik Maliyetleri',
+    'quality-cost': 'Kalite Maliyetleri',
     quarantine: 'Karantina Yönetimi',
     'df-8d': 'DF ve 8D Yönetimi',
     'internal-audit': 'İç Tetkik Yönetimi',

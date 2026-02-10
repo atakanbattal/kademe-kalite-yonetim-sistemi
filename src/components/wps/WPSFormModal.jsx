@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lightbulb, Save, X, Plus, Trash2 } from 'lucide-react';
+import { Lightbulb, Save, X, Plus, Trash2, Wrench, FileDown } from 'lucide-react';
 import { generateWPSRecommendation } from '@/lib/wpsEngine';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -17,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 const initialPassPlan = { pass: 1, technique: '', torch_angle: '', min_current_a: '', max_current_a: '', min_voltage_v: '', max_voltage_v: '', current_polarity: 'DC+', travel_speed: '', heat_input: '' };
 
-const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, library }) => {
+const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, onDownloadPDF, library }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const [formData, setFormData] = useState({});
@@ -249,6 +248,36 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
         setLoading(false);
     };
 
+    const material1Name = library.materials.find(m => m.id === formData.base_material_1_id)?.name || '-';
+    const material2Name = library.materials.find(m => m.id === formData.base_material_2_id)?.name || '-';
+    const rightPanel = (
+        <div className="px-5 space-y-5">
+            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">WPS Özeti</h2>
+            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Wrench className="w-20 h-20" /></div>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">WPS No</p>
+                <p className="text-lg font-bold text-foreground">{formData.wps_no || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate" title={material1Name}>{material1Name}</p>
+            </div>
+            <div className="space-y-2.5">
+                <div className="flex justify-between text-xs gap-2"><span className="text-muted-foreground shrink-0">Malzeme 1:</span><span className="font-semibold text-foreground truncate text-right" title={material1Name}>{material1Name}</span></div>
+                <div className="flex justify-between text-xs gap-2"><span className="text-muted-foreground shrink-0">Malzeme 2:</span><span className="font-semibold text-foreground truncate text-right" title={material2Name}>{material2Name || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kaynak Tipi:</span><span className="font-semibold text-foreground">{formData.weld_type || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Birleşim:</span><span className="font-semibold text-foreground">{formData.joint_type || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Pozisyon:</span><span className="font-semibold text-foreground">{formData.welding_position || '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kalınlık 1:</span><span className="font-semibold text-foreground">{formData.thickness_1 ? `${formData.thickness_1} mm` : '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kalınlık 2:</span><span className="font-semibold text-foreground">{formData.thickness_2 ? `${formData.thickness_2} mm` : '-'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.wps_date ? new Date(formData.wps_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+            </div>
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2.5 border border-blue-100 dark:border-blue-800">
+                <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed text-blue-700 dark:text-blue-300">
+                    Malzeme ve kalınlık seçerek otomatik öneriler alabilirsiniz.
+                </p>
+            </div>
+        </div>
+    );
+
     const renderField = (label, field, component, className = "") => (
         <div className={`grid grid-cols-1 sm:grid-cols-3 items-start sm:items-center gap-2 sm:gap-4 ${className}`}>
             <Label htmlFor={field} className="text-left sm:text-right pt-2 sm:pt-0">{label}</Label>
@@ -269,16 +298,29 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
     const isTigProcess = formData.welding_process_code === '141';
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>{isViewMode ? 'WPS Görüntüle' : (existingWPS ? 'WPS Düzenle' : 'Yeni WPS Oluştur')}</DialogTitle>
-                    <DialogDescription>
-                        {isViewMode ? `WPS No: ${formData.wps_no}` : 'Malzeme ve kalınlık seçerek otomatik öneriler alın.'}
-                    </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
-                    <ScrollArea className="flex-grow pr-6">
+        <ModernModalLayout
+            open={isOpen}
+            onOpenChange={setIsOpen}
+            title={isViewMode ? 'WPS Görüntüle' : (existingWPS ? 'WPS Düzenle' : 'Yeni WPS Oluştur')}
+            subtitle="Kaynak Prosedürü"
+            icon={<Wrench className="h-5 w-5 text-white" />}
+            badge={isViewMode ? null : (existingWPS ? 'Düzenleme' : 'Yeni')}
+            onCancel={() => setIsOpen(false)}
+            onSubmit={isViewMode ? () => setIsOpen(false) : handleSubmit}
+            isSubmitting={loading}
+            submitLabel={isViewMode ? 'Kapat' : 'Kaydet'}
+            cancelLabel="İptal"
+            formId={isViewMode ? undefined : 'wps-form'}
+            footerDate={formData.wps_date}
+            rightPanel={!isViewMode ? rightPanel : undefined}
+            footerExtra={isViewMode && onDownloadPDF && existingWPS ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => onDownloadPDF(existingWPS)} className="gap-2">
+                    <FileDown className="h-4 w-4" />
+                    PDF İndir
+                </Button>
+            ) : null}
+        >
+                <form id="wps-form" onSubmit={handleSubmit} className="px-6">
                         <div className="py-4 space-y-6">
                             <div className="p-4 border rounded-lg bg-slate-50/50">
                                 <h3 className="text-lg font-medium text-primary mb-4">Temel Bilgiler</h3>
@@ -491,18 +533,8 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, l
                                 </div>
                             )}
                         </div>
-                    </ScrollArea>
-                    {!isViewMode && (
-                        <DialogFooter className="mt-auto pt-4 border-t">
-                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
-                            <Button type="submit" disabled={loading}>
-                                <Save className="mr-2 h-4 w-4" /> {loading ? 'Kaydediliyor...' : 'Kaydet'}
-                            </Button>
-                        </DialogFooter>
-                    )}
                 </form>
-            </DialogContent>
-        </Dialog>
+        </ModernModalLayout>
     );
 };
 

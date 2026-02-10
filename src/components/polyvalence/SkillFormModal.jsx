@@ -180,7 +180,7 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Target className="h-5 w-5" />

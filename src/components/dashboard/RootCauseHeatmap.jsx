@@ -20,8 +20,8 @@ const RootCauseHeatmap = ({ onDeptClick }) => {
         const rootCauseMap = {};
 
         nonConformities.forEach(nc => {
-            // Sorumlu birimi kullan (responsible_unit), yoksa department
-            const dept = nc.responsible_unit || nc.department || 'Belirtilmemiş';
+            // İlgili Birim (department) = sorumlu birim. Talep eden (requesting_unit) değil.
+            const dept = nc.department || nc.responsible_unit || 'Belirtilmemiş';
             
             // Kalite birimlerini birim bazlı analizden hariç tut
             const isQualityDept = qualityDepartments.some(q => dept.toLowerCase().includes(q));

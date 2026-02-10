@@ -12,7 +12,7 @@ SELECT
     CASE 
         WHEN supplier_grade = 'A' THEN 'Onaylı'
         WHEN supplier_grade = 'B' THEN 'Onaylı'
-        WHEN supplier_grade = 'C' THEN 'Askıya Alınmış'
+        WHEN supplier_grade = 'C' THEN 'Mevcut durum korunur'
         WHEN supplier_grade = 'D' THEN 'Red'
         ELSE status
     END as olmasi_gereken_durum
@@ -25,10 +25,8 @@ UPDATE public.suppliers
 SET status = 'Red', updated_at = NOW()
 WHERE supplier_grade = 'D' AND status != 'Red';
 
--- 3. C sınıfı tedarikçilerin durumunu "Askıya Alınmış" yap
-UPDATE public.suppliers
-SET status = 'Askıya Alınmış', updated_at = NOW()
-WHERE supplier_grade = 'C' AND status != 'Askıya Alınmış';
+-- 3. C sınıfı: Mevcut durum korunur (Askıya Alınmış yapılmaz - hâlâ tedarik edilen tedarikçiler)
+--    NOT: C sınıfı için otomatik Askıya Alınmış ataması kaldırıldı
 
 -- 4. A ve B sınıfı tedarikçilerin durumunu "Onaylı" yap
 UPDATE public.suppliers

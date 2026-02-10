@@ -94,7 +94,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 });
                 
                 // Detaylı başlık oluştur
-                generatedTitle = `Kalitesizlik Maliyeti: ${initialRecord.cost_type}${initialRecord.part_name ? ` - ${initialRecord.part_name}` : ''}${initialRecord.vehicle_type ? ` - ${initialRecord.vehicle_type}` : ''}`;
+                generatedTitle = `Kalite Maliyeti: ${initialRecord.cost_type}${initialRecord.part_name ? ` - ${initialRecord.part_name}` : ''}${initialRecord.vehicle_type ? ` - ${initialRecord.vehicle_type}` : ''}`;
                 
                 // Tüm bilgileri içeren şeffaf açıklama oluştur
                 let descParts = [];
@@ -148,7 +148,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 sourceData = { 
                     source_cost_id: initialRecord.id, 
                     department: initialRecord.unit || '', 
-                    requesting_unit: 'Kalitesizlik Maliyetleri',
+                    requesting_unit: 'Kalite Maliyetleri',
                     requesting_person: profile?.full_name || '',
                     part_name: initialRecord.part_name || '', 
                     part_code: initialRecord.part_code || '', 
