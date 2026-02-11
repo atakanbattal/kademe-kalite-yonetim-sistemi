@@ -1785,22 +1785,22 @@ const generateListReportHtml = (record, type) => {
 		const sharedCostsTotal = sharedCostItems.reduce((s, sc) => s + (parseFloat(sc.amount) || 0), 0);
 		const indirectCostsTotal = indirectCostItems.reduce((s, ic) => s + (parseFloat(ic.amount) || 0), 0);
 
-		// Ana bilgiler kartı
+		// Ana bilgiler kartı - profesyonel şerit stili (renkli sol kenar)
 		const mainInfoHtml = `
 			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
-				<div style="background-color: #1e40af; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6;">
-					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM TUTAR</div>
-					<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.amount)}</div>
-					${hasLineItems ? `<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">${lineItems.length} kalem${sharedCostItems.length > 0 ? ` + ${sharedCostItems.length} ortak` : ''}${indirectCostItems.length > 0 ? ` + ${indirectCostItems.length} dolaylı` : ''}</div>` : ''}
+				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #2563eb;">
+					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">Toplam Tutar</div>
+					<div style="font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #1f2937;">${formatCurrencyLocal(record.amount)}</div>
+					${hasLineItems ? `<div style="font-size: 11px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">${lineItems.length} kalem${sharedCostItems.length > 0 ? ` + ${sharedCostItems.length} ortak` : ''}${indirectCostItems.length > 0 ? ` + ${indirectCostItems.length} dolaylı` : ''}</div>` : ''}
 				</div>
-				<div style="background-color: #dc2626; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
-					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">MALİYET TÜRÜ</div>
-					<div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">${record.cost_type || '-'}</div>
+				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #dc2626;">
+					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">Maliyet Türü</div>
+					<div style="font-size: 16px; font-weight: 700; margin-bottom: 6px; color: #1f2937;">${record.cost_type || '-'}</div>
 				</div>
-				<div style="background-color: #2563eb; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #60a5fa;">
-					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TARİH</div>
-					<div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">${formatDateLocal(record.cost_date)}</div>
-					${record.invoice_number ? `<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">Fatura: ${record.invoice_number}</div>` : ''}
+				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #059669;">
+					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">Tarih</div>
+					<div style="font-size: 16px; font-weight: 700; margin-bottom: 6px; color: #1f2937;">${formatDateLocal(record.cost_date)}</div>
+					${record.invoice_number ? `<div style="font-size: 11px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">Fatura: ${record.invoice_number}</div>` : ''}
 				</div>
 			</div>
 		`;
@@ -1828,24 +1828,24 @@ const generateListReportHtml = (record, type) => {
 
 			lineItemsSectionHtml = `
 				<div class="section">
-					<h2 class="section-title blue">MALİYET KALEMLERİ (FATURA DETAYI)</h2>
+					<h2 class="section-title section-title-strip blue">MALİYET KALEMLERİ (FATURA DETAYI)</h2>
 					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
 						<thead>
-							<tr style="background:linear-gradient(135deg,#1e40af,#3b82f6); color:white;">
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; width:30px;">#</th>
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Parça Kodu</th>
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Parça Adı</th>
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Alt Tür</th>
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Sorumlu</th>
-								<th style="text-align:center; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Miktar</th>
-								<th style="text-align:right; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Tutar</th>
+							<tr style="background:#f8fafc; border-bottom:2px solid #2563eb;">
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; width:30px; color:#1f2937;">#</th>
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Parça Kodu</th>
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Parça Adı</th>
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Alt Tür</th>
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Sorumlu</th>
+								<th style="text-align:center; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Miktar</th>
+								<th style="text-align:right; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Tutar</th>
 							</tr>
 						</thead>
 						<tbody>
 							${lineItemRowsHtml}
-							<tr style="background:#f1f5f9; border-top:2px solid #cbd5e1;">
-								<td colspan="6" style="font-weight:700; padding:10px 14px;">KALEMLER TOPLAMI</td>
-								<td style="text-align:right; font-weight:700; color:#dc2626; padding:10px 14px; font-size:1.1em;">${formatCurrencyLocal(lineItemsTotal)}</td>
+							<tr style="background:#f8fafc; border-top:2px solid #e5e7eb;">
+								<td colspan="6" style="font-weight:700; padding:12px 14px; font-size:12px;">KALEMLER TOPLAMI</td>
+								<td style="text-align:right; font-weight:700; color:#dc2626; padding:12px 14px; font-size:14px;">${formatCurrencyLocal(lineItemsTotal)}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -1907,14 +1907,14 @@ const generateListReportHtml = (record, type) => {
 
 			sharedCostsSectionHtml = `
 				<div class="section">
-					<h2 class="section-title" style="color:#d97706; border-left-color:#f59e0b;">ORTAK MALİYETLER (NAKLİYE / KONAKLAMA / YOL)</h2>
-					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #fde68a; border-radius:8px; overflow:hidden;">
+					<h2 class="section-title section-title-strip amber">ORTAK MALİYETLER (NAKLİYE / KONAKLAMA / YOL)</h2>
+					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
 						<thead>
-							<tr style="background:linear-gradient(135deg,#d97706,#f59e0b); color:white;">
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Kategori</th>
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Açıklama</th>
-								<th style="text-align:center; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Ölçü</th>
-								<th style="text-align:right; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Tutar</th>
+							<tr style="background:#fffbeb; border-bottom:2px solid #d97706;">
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Kategori</th>
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Açıklama</th>
+								<th style="text-align:center; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Ölçü</th>
+								<th style="text-align:right; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Tutar</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -1945,13 +1945,13 @@ const generateListReportHtml = (record, type) => {
 
 			indirectCostsSectionHtml = `
 				<div class="section">
-					<h2 class="section-title" style="color:#7c3aed; border-left-color:#8b5cf6;">DOLAYLI MALİYETLER</h2>
-					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #ddd6fe; border-radius:8px; overflow:hidden;">
+					<h2 class="section-title section-title-strip" style="border-left-color:#7c3aed;">DOLAYLI MALİYETLER</h2>
+					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
 						<thead>
-							<tr style="background:linear-gradient(135deg,#7c3aed,#8b5cf6); color:white;">
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Kategori</th>
-								<th style="text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Açıklama</th>
-								<th style="text-align:right; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Tutar</th>
+							<tr style="background:#f5f3ff; border-bottom:2px solid #7c3aed;">
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Kategori</th>
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Açıklama</th>
+								<th style="text-align:right; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Tutar</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -1991,18 +1991,18 @@ const generateListReportHtml = (record, type) => {
 			}).join('');
 			allocationSectionHtml = `
 				<div class="section">
-					<h2 class="section-title blue">MALİYET BİRİM DAĞILIMI</h2>
+					<h2 class="section-title section-title-strip blue">MALİYET BİRİM DAĞILIMI</h2>
 					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
 						<thead>
-							<tr style="background:linear-gradient(135deg,#4338ca,#6366f1); color:white;">
-								<th style="text-align:left; padding:10px 14px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Birim / Tedarikçi</th>
-								<th style="text-align:center; padding:10px 14px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Oran</th>
-								<th style="text-align:right; padding:10px 14px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Tutar</th>
+							<tr style="background:#f8fafc; border-bottom:2px solid #4338ca;">
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Birim / Tedarikçi</th>
+								<th style="text-align:center; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Oran</th>
+								<th style="text-align:right; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#1f2937;">Tutar</th>
 							</tr>
 						</thead>
 						<tbody>
 							${allocRowsHtml}
-							<tr style="background:#f1f5f9; border-top:2px solid #cbd5e1;">
+							<tr style="background:#f8fafc; border-top:2px solid #e5e7eb;">
 								<td style="font-weight:700; padding:10px 14px;">TOPLAM</td>
 								<td style="text-align:center; padding:10px 14px; font-weight:700;">%100</td>
 								<td style="text-align:right; font-weight:700; color:#dc2626; padding:10px 14px; font-size:1.1em;">${formatCurrencyLocal(totalAmt)}</td>
@@ -2064,7 +2064,7 @@ const generateListReportHtml = (record, type) => {
 			if (reworkDetails) {
 				reworkDetailsHtml = `
 					<div class="section">
-						<h2 class="section-title blue">İŞLEM SÜRELERİ</h2>
+						<h2 class="section-title section-title-strip blue">İŞLEM SÜRELERİ</h2>
 						<div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin-top: 10px;">
 							<p style="margin: 0; font-size: 14px;">${reworkDetails}</p>
 						</div>
@@ -2090,7 +2090,7 @@ const generateListReportHtml = (record, type) => {
 			if (finalFaultsRows.length > 0 || affectedUnitsHtml) {
 				finalFaultsDetailsHtml = `
 					<div class="section">
-						<h2 class="section-title blue">SÜRE DETAYLARI</h2>
+						<h2 class="section-title section-title-strip blue">SÜRE DETAYLARI</h2>
 						${finalFaultsRows.length > 0 ? `<table class="info-table" style="width: 100%; margin-top: 10px; margin-bottom: 15px;">
 							<tbody>
 								${finalFaultsRows.join('')}
@@ -2118,13 +2118,13 @@ const generateListReportHtml = (record, type) => {
 			}).join('');
 			documentsHtml = `
 				<div class="section">
-					<h2 class="section-title blue">EKLER / DOKÜMANLAR</h2>
+					<h2 class="section-title section-title-strip blue">EKLER / DOKÜMANLAR</h2>
 					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
 						<thead>
-							<tr style="background:#f1f5f9;">
-								<th style="text-align:left; padding:8px 14px; font-size:11px; text-transform:uppercase;">Doküman</th>
-								<th style="text-align:left; padding:8px 14px; font-size:11px; text-transform:uppercase;">Tür</th>
-								<th style="text-align:left; padding:8px 14px; font-size:11px; text-transform:uppercase;">Boyut</th>
+							<tr style="background:#f8fafc; border-bottom:2px solid #2563eb;">
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; color:#1f2937;">Doküman</th>
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; color:#1f2937;">Tür</th>
+								<th style="text-align:left; padding:12px 14px; font-size:12px; font-weight:600; text-transform:uppercase; color:#1f2937;">Boyut</th>
 							</tr>
 						</thead>
 						<tbody>${docRowsHtml}</tbody>
@@ -2136,7 +2136,7 @@ const generateListReportHtml = (record, type) => {
 		const descEscaped = record.description ? String(record.description).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') : '';
 		const descriptionHtml = record.description
 			? `<div class="section">
-				<h2 class="section-title blue">${record.cost_type === 'Final Hataları Maliyeti' ? 'HATA AÇIKLAMASI' : 'AÇIKLAMA'}</h2>
+				<h2 class="section-title section-title-strip blue">${record.cost_type === 'Final Hataları Maliyeti' ? 'HATA AÇIKLAMASI' : 'AÇIKLAMA'}</h2>
 				<div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-top: 10px;">
 					<div style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.6; font-size: 13px;">${descEscaped}</div>
 				</div>
@@ -2148,7 +2148,7 @@ const generateListReportHtml = (record, type) => {
 			${mainInfoHtml}
 			${supplierInfoHtml}
 			<div class="section">
-				<h2 class="section-title blue">GENEL BİLGİLER</h2>
+				<h2 class="section-title section-title-strip blue">GENEL BİLGİLER</h2>
 				${generalInfoHtml}
 			</div>
 			${lineItemsSectionHtml}
@@ -2181,30 +2181,30 @@ const generateListReportHtml = (record, type) => {
 				? `${record.periodStart} - ${record.periodEnd}`
 				: record.period || 'Tüm Zamanlar';
 
-			// Genel Özet Kartları - Profesyonel renkler ve 3 sütunlu düzen
+			// Genel Özet Kartları - Profesyonel şerit stili (renkli sol kenar)
 			const summaryCardsHtml = `
 			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
-				<div style="background-color: #1e40af; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6;">
-					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">TOPLAM MALİYET</div>
-					<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.totalCost)}</div>
-					<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">${record.totalCount} kayıt</div>
+				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #2563eb;">
+					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">Toplam Maliyet</div>
+					<div style="font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #1f2937;">${formatCurrencyLocal(record.totalCost)}</div>
+					<div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">${record.totalCount} kayıt</div>
 				</div>
-				<div style="background-color: #dc2626; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
-					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">İÇ HATA</div>
-					<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.internalCost)}</div>
-					<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent(record.internalPercentage)}</div>
+				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #dc2626;">
+					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">İç Hata</div>
+					<div style="font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #1f2937;">${formatCurrencyLocal(record.internalCost)}</div>
+					<div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">%${formatPercent(record.internalPercentage)}</div>
 				</div>
-				<div style="background-color: #2563eb; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #60a5fa;">
-					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">DIŞ HATA</div>
-					<div style="font-size: 26px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.externalCost)}</div>
-					<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">%${formatPercent(record.externalPercentage)}</div>
+				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #2563eb;">
+					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">Dış Hata</div>
+					<div style="font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #1f2937;">${formatCurrencyLocal(record.externalCost)}</div>
+					<div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">%${formatPercent(record.externalPercentage)}</div>
 				</div>
 			</div>
 			<div style="display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 30px;">
-				<div style="background-color: #374151; border-radius: 8px; padding: 24px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #6b7280;">
-					<div style="font-size: 11px; opacity: 0.9; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">COPQ TOPLAM (Cost of Poor Quality)</div>
-					<div style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">${formatCurrencyLocal(record.internalCost + record.externalCost + record.appraisalCost + record.preventionCost)}</div>
-					<div style="font-size: 10px; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px;">İç Hata + Dış Hata + Değerlendirme + Önleme</div>
+				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #374151;">
+					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">COPQ Toplam (Cost of Poor Quality)</div>
+					<div style="font-size: 24px; font-weight: 700; margin-bottom: 6px; color: #1f2937;">${formatCurrencyLocal(record.internalCost + record.externalCost + record.appraisalCost + record.preventionCost)}</div>
+					<div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">İç Hata + Dış Hata + Değerlendirme + Önleme</div>
 				</div>
 			</div>
 		`;
@@ -3329,18 +3329,19 @@ const generateListReportHtml = (record, type) => {
 				<p>Kalite Yönetim Sistemi</p>
 			</div>
 			<div class="print-info">
-				<div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Rapor No: ${reportNo}</div>
-				<div style="font-size: 11px; color: #374151; font-weight: 600;">${formatDateTime(new Date())}</div>
+				<div class="report-no">Rapor No</div>
+				<div class="report-id">${reportNo}</div>
+				<div class="report-date">${formatDateTime(new Date())}</div>
 			</div>
 		</div>
 
-		<div class="meta-box" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center; padding: 15px;">
-			<div class="meta-item" style="flex: 1; min-width: 200px; word-wrap: break-word; word-break: break-word;"><strong>Belge Türü:</strong> ${title}</div>
-			<div class="meta-item" style="flex: 1; min-width: 200px;"><strong>Rapor No:</strong> ${reportNo}</div>
+		<div class="meta-box meta-box-header">
+			<div class="meta-item"><strong>Belge Türü:</strong> ${title}</div>
+			<div class="meta-item"><strong>Rapor No:</strong> ${reportNo}</div>
 		</div>
 
 		<div class="section">
-			<h2 class="section-title blue" style="word-wrap: break-word; word-break: break-word; line-height: 1.4; white-space: normal;">${title}</h2>
+			<h2 class="section-title section-title-strip blue" style="word-wrap: break-word; word-break: break-word; line-height: 1.4; white-space: normal;">${title}</h2>
 			<div class="list-summary">${summaryHtml}</div>
 			${headers.length > 0 ? `
 			<table class="info-table results-table">
@@ -3357,7 +3358,7 @@ const generateListReportHtml = (record, type) => {
 		</div>
 
 		 <div class="section signature-section">
-			<h2 class="section-title dark">İMZA VE ONAY</h2>
+			<h2 class="section-title section-title-strip dark">İMZA VE ONAY</h2>
 			<div class="signature-area">
 				<div class="signature-box">
 					<p class="role">HAZIRLAYAN</p>
@@ -5777,7 +5778,7 @@ h3 {
 	font-size: 16px !important;
 }
 .report-header p {
-	font-size: 9px !important;
+	font-size: 12px !important;
 }
 .meta-box {
 	padding: 8px 10px !important;
@@ -5785,7 +5786,7 @@ h3 {
 	page-break-after: avoid !important;
 }
 .meta-item {
-	font-size: 8px !important;
+	font-size: 11px !important;
 }
 .section {
 	page-break-before: avoid !important;
@@ -5815,7 +5816,7 @@ h3 {
 	border-radius: 5px !important;
 }
 .list-summary > div > div[style*="display: grid"] > div > div:first-child {
-	font-size: 8px !important;
+	font-size: 10px !important;
 	margin-bottom: 4px !important;
 }
 .list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
@@ -5823,12 +5824,12 @@ h3 {
 	margin-bottom: 3px !important;
 }
 .list-summary > div > div[style*="display: grid"] > div > div:last-child {
-	font-size: 8px !important;
+	font-size: 10px !important;
 	padding-top: 3px !important;
 	margin-top: 3px !important;
 }
 table {
-	font-size: 8px !important;
+	font-size: 10px !important;
 }
 table th, table td {
 	padding: 5px 4px !important;
@@ -5858,7 +5859,7 @@ h3 {
 		color-adjust: exact !important;
 	}
 	body {
-		font-size: 8px !important;
+		font-size: 10px !important;
 	}
 	.page-container {
 		margin: 0 !important;
@@ -5878,7 +5879,7 @@ h3 {
 		font-size: 14px !important;
 	}
 	.report-header p {
-		font-size: 8px !important;
+		font-size: 11px !important;
 	}
 	.meta-box {
 		padding: 6px 8px !important;
@@ -5887,7 +5888,7 @@ h3 {
 		page-break-after: avoid !important;
 	}
 	.meta-item {
-		font-size: 7px !important;
+		font-size: 10px !important;
 	}
 	.section {
 		page-break-before: avoid !important;
@@ -5906,7 +5907,7 @@ h3 {
 		margin-bottom: 6px !important;
 	}
 	.list-summary > div:first-child > p {
-		font-size: 9px !important;
+		font-size: 11px !important;
 		margin-bottom: 2px !important;
 	}
 	.list-summary > div > div[style*="display: grid"] {
@@ -5917,20 +5918,20 @@ h3 {
 		padding: 8px !important;
 	}
 	.list-summary > div > div[style*="display: grid"] > div > div:first-child {
-		font-size: 7px !important;
+		font-size: 9px !important;
 		margin-bottom: 3px !important;
 	}
 	.list-summary > div > div[style*="display: grid"] > div > div:nth-child(2) {
-		font-size: 14px !important;
+		font-size: 16px !important;
 		margin-bottom: 2px !important;
 	}
 	.list-summary > div > div[style*="display: grid"] > div > div:last-child {
-		font-size: 7px !important;
+		font-size: 9px !important;
 		padding-top: 2px !important;
 		margin-top: 2px !important;
 	}
 	table {
-		font-size: 7px !important;
+		font-size: 9px !important;
 		page-break-inside: auto !important;
 	}
 	table thead {
@@ -6254,7 +6255,7 @@ h3 {
 	margin: 0;
 	padding: 0;
 	background-color: #f3f4f6;
-	font-size: 10px;
+	font-size: 11px;
 	-webkit-print-color-adjust: exact;
 	print-color-adjust: exact;
 }
@@ -6279,62 +6280,112 @@ h3 {
 }
 
 		/* ============================================
-		   BAŞLIK BÖLÜMÜ-Sayfa başında bütün kalmalı
+		   BAŞLIK BÖLÜMÜ - Profesyonel kurumsal header
 		   ============================================ */
 		.report-header {
 	display: grid;
 	grid-template-columns: auto 1fr auto;
-	gap: 20px;
+	gap: 24px;
 	align-items: center;
-	border-bottom: 1px solid #e5e7eb;
-	padding-bottom: 10px;
-	margin-bottom: 15px;
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	border-top: 4px solid #1e40af;
+	border-radius: 6px;
+	padding: 20px 24px;
+	margin-bottom: 20px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 	page-break-inside: avoid;
 	page-break-after: avoid;
 }
 		
-		.report-logo img { height: 50px; }
+		.report-logo {
+	display: flex;
+	align-items: center;
+	padding: 4px 0;
+}
+		.report-logo img {
+	height: 52px;
+	object-fit: contain;
+}
 		
-		.company-title { text-align: center; }
+		.company-title {
+	text-align: center;
+	padding: 0 16px;
+}
 		.company-title h1 {
-	font-size: 20px;
+	font-size: 22px;
 	font-weight: 700;
-	margin: 0;
-	color: #111827;
+	margin: 0 0 4px 0;
+	color: #1e293b;
+	letter-spacing: 0.5px;
 }
 		.company-title p {
-	font-size: 12px;
+	font-size: 13px;
 	margin: 0;
-	color: #4b5563;
+	color: #64748b;
+	font-weight: 500;
+	letter-spacing: 0.3px;
 }
 		
 		.print-info {
 	text-align: right;
-	font-size: 9px;
-	color: #4b5563;
-	line-height: 1.4;
+	font-size: 13px;
+	color: #334155;
+	font-weight: 600;
+	line-height: 1.6;
 	white-space: nowrap;
+}
+		.print-info .report-no {
+	font-size: 10px;
+	font-weight: 600;
+	color: #64748b;
+	margin-bottom: 4px;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+}
+		.print-info .report-id {
+	font-size: 12px;
+	font-weight: 700;
+	color: #1e293b;
+	word-break: break-all;
+}
+		.print-info .report-date {
+	font-size: 13px;
+	font-weight: 600;
+	color: #64748b;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid #e2e8f0;
 }
 
 		/* ============================================
-		   META KUTUSU-Başlık ile birlikte kalmalı
+		   META KUTUSU - Başlık ile birlikte kalmalı
 		   ============================================ */
 		.meta-box {
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
 	gap: 10px 12px;
-	background-color: #f9fafb;
+	background-color: #f8fafc;
 	padding: 12px;
 	border-radius: 6px;
 	margin-bottom: 12px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid #e2e8f0;
+	border-left: 4px solid #64748b;
 	page-break-inside: avoid;
-	page-break-after: auto; /* Meta'dan sonra bölünebilir */
+	page-break-after: auto;
 	box-sizing: border-box;
 	width: 100%;
 }
+		.meta-box.meta-box-header {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px 24px;
+	padding: 14px 18px;
+	background-color: #f8fafc;
+	border-left-color: #1e40af;
+}
 		.meta-item {
-	font-size: 10px;
+	font-size: 12px;
 	color: #374151;
 	padding: 0;
 	word-wrap: break-word;
@@ -6348,34 +6399,58 @@ h3 {
 }
 
 		/* ============================================
-		   SEKSİYONLAR-Başlık ve içerik birlikte
+		   SEKSİYONLAR – Başlık ile birlikte, uygun yerden bölün
 		   ============================================ */
 		.section {
 	margin-bottom: 12px;
-	page-break-inside: auto; /* Section içi bölünebilir */
+	page-break-inside: auto;
+	page-break-after: auto;
+	page-break-before: avoid; /* Az yer kaldıysa yeni sayfada başla */
 }
 		
 		.section-title {
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 700;
-	color: white;
-	padding: 6px 10px;
+	padding: 8px 12px;
 	border-radius: 4px;
-	margin-bottom: 8px;
+	margin-bottom: 10px;
 	text-transform: uppercase;
-	page-break-after: avoid; /* Başlık içerikten ayrılmasın */
+	letter-spacing: 0.5px;
+	page-break-after: avoid;
 	page-break-inside: avoid;
+	break-after: avoid;
+	break-inside: avoid;
 }
-		.section-title.blue { background-color: #2563eb; }
-		.section-title.red { background-color: #dc2626; }
-		.section-title.green { background-color: #16a34a; }
-		.section-title.gray { background-color: #6b7280; }
-		.section-title.dark { background-color: #374151; }
+		/* Profesyonel şerit stili - solid blok yerine sol kenar çizgisi */
+		.section-title-strip {
+	background-color: #f8fafc !important;
+	border-left: 5px solid #2563eb;
+	color: #1f2937 !important;
+}
+		.section-title-strip.blue { border-left-color: #2563eb; }
+		.section-title-strip.red { border-left-color: #dc2626; }
+		.section-title-strip.green { border-left-color: #16a34a; }
+		.section-title-strip.gray { border-left-color: #6b7280; }
+		.section-title-strip.dark { border-left-color: #374151; }
+		.section-title-strip.amber { border-left-color: #d97706; }
+		.section-title-strip[style*="border-left-color:#7c3aed"] { border-left: 5px solid #7c3aed !important; }
+		/* Eski solid stili - geriye dönük uyumluluk için */
+		.section-title.blue:not(.section-title-strip) { background-color: #2563eb; color: white; }
+		.section-title.red:not(.section-title-strip) { background-color: #dc2626; color: white; }
+		.section-title.green:not(.section-title-strip) { background-color: #16a34a; color: white; }
+		.section-title.gray:not(.section-title-strip) { background-color: #6b7280; color: white; }
+		.section-title.dark:not(.section-title-strip) { background-color: #374151; color: white; }
 		
 		.list-summary {
 	margin-bottom: 10px;
-	font-size: 11px;
+	font-size: 12px;
+	page-break-inside: auto;
+}
+		/* Özet kartları tek parça kalsın */
+		.list-summary [style*="display: grid"] > div,
+		.section [style*="display: grid"] > div {
 	page-break-inside: avoid;
+	break-inside: avoid;
 }
 
 		/* ============================================
@@ -6389,21 +6464,25 @@ h3 {
 	border-radius: 6px;
 	overflow: hidden;
 }
+		.info-table thead {
+	display: table-header-group;
+	}
 		.info-table td {
 	border: 1px solid #e5e7eb;
-	padding: 8px 10px;
-	font-size: 10px;
+	padding: 10px 12px;
+	font-size: 11px;
 	vertical-align: top;
 	line-height: 1.5;
 }
 		.info-table tr {
 	page-break-inside: avoid;
+	break-inside: avoid;
 	page-break-after: auto;
 }
-		.info-table tr: nth-child(even) td { background-color: #f9fafb; }
-		.info-table tr: nth-child(odd) td { background-color: #ffffff; }
+		.info-table tr:nth-child(even) td { background-color: #f9fafb; }
+		.info-table tr:nth-child(odd) td { background-color: #ffffff; }
 		.info-table tr:hover td { background-color: #f0f9ff; }
-		.info-table tr td: first-child {
+		.info-table tr td:first-child {
 	font-weight: 600;
 	width: 25%;
 	background-color: #f3f4f6;
@@ -6436,7 +6515,7 @@ h3 {
 	page-break-inside: avoid;
 }
 		.item-box p { margin: 2px 0; }
-		.item-box: last-child { margin-bottom: 0; }
+		.item-box:last-child { margin-bottom: 0; }
 		
 		.pass-table {
 	width: 100%;
@@ -6453,6 +6532,7 @@ h3 {
 	padding: 8px;
 }
 		.pass-table thead {
+	display: table-header-group;
 	background-color: #3b82f6;
 	color: white;
 	font-weight: 600;
@@ -6461,10 +6541,10 @@ h3 {
 		.pass-table thead th {
 	padding: 10px 8px;
 }
-		.pass-table tbody tr: nth-child(even) {
+		.pass-table tbody tr:nth-child(even) {
 	background-color: #f9fafb;
 }
-		.pass-table tbody tr: nth-child(odd) {
+		.pass-table tbody tr:nth-child(odd) {
 	background-color: #ffffff;
 }
 		.pass-table tbody tr:hover {
@@ -6475,7 +6555,7 @@ h3 {
 	page-break-after: auto;
 }
 
-		/* SONUÇ TABLOLARI-Uzun tablolar için özel ayar */
+		/* SONUÇ TABLOLARI – Satırlar arasında bölün, başlık her sayfada */
 		.results-table {
 	width: 100%;
 	border-collapse: collapse;
@@ -6483,18 +6563,20 @@ h3 {
 }
 		.results-table th, .results-table td {
 	border: 1px solid #e5e7eb;
-	padding: 6px 8px;
-	font-size: 10px;
+	padding: 8px 10px;
+	font-size: 11px;
 	vertical-align: top;
 	text-align: left;
 }
 		.results-table thead {
+	display: table-header-group;
 	background-color: #f9fafb;
 	font-weight: 600;
 	page-break-after: avoid;
 }
 		.results-table tbody tr {
 	page-break-inside: avoid;
+	break-inside: avoid;
 	page-break-after: auto;
 }
 		.results-table pre {
@@ -6772,10 +6854,12 @@ a: after,
    YAZDIR MOD-OPTİMİZE SAYFA DÜZENİ
    ============================================ */
 @media print {
-	/* Sayfa ayarları-dengeli margin */
+	/* Sayfa ayarları – dengeli margin ve akıllı bölünme */
 	@page {
 		size: A4 portrait;
-		margin: 10mm; /* Tüm kenarlarda eşit boşluk */
+		margin: 10mm;
+		orphans: 3;  /* Sayfa sonunda en az 3 satır */
+		widows: 3;   /* Sayfa başında en az 3 satır */
 	}
 
 	/* Print için renkleri koru */
