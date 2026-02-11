@@ -47,6 +47,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedCost, setSelectedCost] = useState(null);
+    const [selectedLineItem, setSelectedLineItem] = useState(null);
     const [dateRange, setDateRange] = useState({ key: 'all', startDate: null, endDate: null, label: 'Tüm Zamanlar' });
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
     const [detailModalContent, setDetailModalContent] = useState({ title: '', costs: [] });
@@ -98,9 +99,9 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             }
         }
 
-        // COQ Kategori filtresi: İç Hata, Dış Hata, Önleme
+        // COQ Kategori filtresi: İç Hata, Dış Hata, Önleme, Değerlendirme
         if (costCategoryFilter !== 'all') {
-            const internalTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'Final Hataları Maliyeti'];
+            const internalTypes = ['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'Final Hataları Maliyeti', 'İç Hata Maliyeti'];
             const externalTypes = ['Dış Hata Maliyeti'];
             const preventionTypes = ['Önleme Maliyeti'];
             costs = costs.filter(cost => {
@@ -109,6 +110,9 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 if (costCategoryFilter === 'internal') return internalTypes.includes(ct) || isSupplierCost;
                 if (costCategoryFilter === 'external') return externalTypes.includes(ct);
                 if (costCategoryFilter === 'prevention') return preventionTypes.includes(ct);
+                if (costCategoryFilter === 'supplier') return isSupplierCost;
+                if (costCategoryFilter === 'indirect') return (cost.indirect_costs && Array.isArray(cost.indirect_costs) && cost.indirect_costs.length > 0);
+                if (costCategoryFilter === 'invoice') return (cost.cost_line_items && Array.isArray(cost.cost_line_items) && cost.cost_line_items.length > 0);
                 return true;
             });
         }
@@ -157,12 +161,22 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         return costs;
     }, [qualityCosts, dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]);
 
-    // Tabloda gösterilecek kayıtlar (performans için limit)
-    const displayedCosts = useMemo(() => {
-        return filteredCosts.slice(0, displayLimit);
-    }, [filteredCosts, displayLimit]);
+    // Kalem bazlı genişletme: her birim/tedarikçi ayrı satır
+    const expandedRows = useMemo(() => {
+        return filteredCosts.flatMap(cost => {
+            const items = cost.cost_line_items && Array.isArray(cost.cost_line_items) && cost.cost_line_items.length > 0;
+            if (items) {
+                return cost.cost_line_items.map((li, idx) => ({ cost, lineItem: li, lineIndex: idx }));
+            }
+            return [{ cost, lineItem: null, lineIndex: 0 }];
+        });
+    }, [filteredCosts]);
 
-    const hasMoreCosts = filteredCosts.length > displayLimit;
+    const displayedCosts = useMemo(() => {
+        return expandedRows.slice(0, displayLimit);
+    }, [expandedRows, displayLimit]);
+
+    const hasMoreCosts = expandedRows.length > displayLimit;
 
     const handleLoadMore = useCallback(() => {
         setDisplayLimit(prev => prev + 100);
@@ -178,8 +192,9 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         setFormModalOpen(true);
     };
 
-    const handleOpenViewModal = (cost) => {
+    const handleOpenViewModal = (cost, lineItem = null) => {
         setSelectedCost(cost);
+        setSelectedLineItem(lineItem);
         setIsViewModalOpen(true);
     };
 
@@ -269,8 +284,12 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         qualityCosts.forEach(cost => {
             if (cost.unit) units.add(cost.unit);
             (cost.cost_allocations || []).forEach(a => a.unit && units.add(a.unit));
+            (cost.cost_line_items || []).forEach(li => {
+                if (li.responsible_unit) units.add(li.responsible_unit);
+                if (li.responsible_type === 'supplier') units.add('Tedarikçi');
+            });
         });
-        return [...units];
+        return [...units].sort();
     }, [qualityCosts]);
 
     const handleOpenReportModal = useCallback(() => {
@@ -310,7 +329,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         const internalCostTypes = [
             'Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti',
             'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti',
-            'İç Hata Maliyetleri', 'Hurda', 'Yeniden İşlem', 'İç Hata',
+            'İç Hata Maliyeti', 'İç Hata Maliyetleri', 'Hurda', 'Yeniden İşlem', 'İç Hata',
             'Tedarikçi Hata Maliyeti' // Girdi kontrolünde tespit edilen tedarikçi hataları
         ];
         // DIŞ HATA: SADECE müşteride tespit edilen hatalar
@@ -558,38 +577,76 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             }
         };
 
-        // Seçilen birimler için rapor oluştur (cost_allocations desteği ile)
+        // Seçilen birimler için rapor oluştur (cost_allocations + cost_line_items desteği)
         selectedUnits.forEach((unit, index) => {
             const reportItems = [];
             let totalAmount = 0;
 
             filteredCosts.forEach(cost => {
-                let itemAmount = 0;
-                if (cost.unit === unit) {
-                    itemAmount = cost.amount || 0;
-                } else if (cost.cost_allocations?.length) {
-                    const alloc = cost.cost_allocations.find(a => a.unit === unit);
-                    if (alloc) itemAmount = alloc.amount ?? (cost.amount || 0) * (parseFloat(alloc.percentage) / 100);
-                }
-                if (itemAmount > 0) {
-                    totalAmount += itemAmount;
-                    reportItems.push({
-                        cost_date: formatDate(cost.cost_date),
-                        cost_type: cost.cost_type || '-',
-                        part_name: cost.part_name || '-',
-                        part_code: cost.part_code || '-',
-                        vehicle_type: cost.vehicle_type || '-',
-                        amount: itemAmount,
-                        quantity: cost.quantity || '-',
-                        measurement_unit: cost.measurement_unit || '-',
-                        description: cost.description || '-',
-                        responsible_personnel: cost.responsible_personnel?.full_name || '-',
-                        is_supplier_nc: cost.is_supplier_nc || false,
-                        supplier_name: cost.supplier?.name || '-',
-                        is_allocated: cost.cost_allocations?.length > 0,
-                        cost_allocations: cost.cost_allocations || [],
-                        total_amount: cost.amount,
+                const lineItems = cost.cost_line_items && Array.isArray(cost.cost_line_items) ? cost.cost_line_items : [];
+                const hasLineItems = lineItems.length > 0;
+
+                const costMatchesUnit = cost.unit === unit
+                    || (cost.cost_allocations?.length && cost.cost_allocations.some(a => a.unit === unit))
+                    || (hasLineItems && lineItems.some(li => li.responsible_unit === unit || (li.responsible_type === 'supplier' && unit === 'Tedarikçi')));
+                if (!costMatchesUnit) return;
+
+                if (hasLineItems) {
+                    // Kalem varsa: her kalemi ayrı satır (birim/tedarikçi eşleşenleri)
+                    lineItems.forEach(li => {
+                        const matchesUnit = li.responsible_unit === unit || (li.responsible_type === 'supplier' && unit === 'Tedarikçi');
+                        if (!matchesUnit) return;
+                        const itemAmount = parseFloat(li.amount) || 0;
+                        if (itemAmount <= 0) return;
+                        totalAmount += itemAmount;
+                        reportItems.push({
+                            cost_date: formatDate(cost.cost_date),
+                            cost_type: cost.cost_type || '-',
+                            part_name: li.part_name || cost.part_name || '-',
+                            part_code: li.part_code || cost.part_code || '-',
+                            vehicle_type: cost.vehicle_type || '-',
+                            amount: itemAmount,
+                            quantity: li.quantity || cost.quantity || '-',
+                            measurement_unit: li.measurement_unit || cost.measurement_unit || '-',
+                            description: li.description || cost.description || '-',
+                            unit: li.responsible_type === 'supplier' ? '' : (li.responsible_unit || '-'),
+                            customer_name: cost.customer_name || '',
+                            is_supplier_nc: li.responsible_type === 'supplier',
+                            supplier_name: li.responsible_supplier_name || cost.supplier?.name || '-',
+                            is_allocated: false,
+                            cost_allocations: [],
+                            total_amount: cost.amount,
+                        });
                     });
+                } else {
+                    let itemAmount = 0;
+                    if (cost.unit === unit) {
+                        itemAmount = cost.amount || 0;
+                    } else if (cost.cost_allocations?.length) {
+                        const alloc = cost.cost_allocations.find(a => a.unit === unit);
+                        if (alloc) itemAmount = alloc.amount ?? (cost.amount || 0) * (parseFloat(alloc.percentage) / 100);
+                    }
+                    if (itemAmount > 0) {
+                        totalAmount += itemAmount;
+                        reportItems.push({
+                            cost_date: formatDate(cost.cost_date),
+                            cost_type: cost.cost_type || '-',
+                            part_name: cost.part_name || '-',
+                            part_code: cost.part_code || '-',
+                            vehicle_type: cost.vehicle_type || '-',
+                            amount: itemAmount,
+                            quantity: cost.quantity || '-',
+                            measurement_unit: cost.measurement_unit || '-',
+                            description: cost.description || '-',
+                            unit: cost.unit || '-',
+                            customer_name: cost.customer_name || '',
+                            is_supplier_nc: cost.is_supplier_nc || false,
+                            supplier_name: cost.supplier?.name || '-',
+                            is_allocated: cost.cost_allocations?.length > 0,
+                            cost_allocations: cost.cost_allocations || [],
+                            total_amount: cost.amount,
+                        });
+                    }
                 }
             });
 
@@ -644,6 +701,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 existingCost={selectedCost}
                 onCostCreated={(newCost) => {
                     setSelectedCost(newCost);
+                    setSelectedLineItem(null);
                     setIsViewModalOpen(true);
                 }}
             />
@@ -652,6 +710,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     isOpen={isViewModalOpen}
                     setOpen={setIsViewModalOpen}
                     cost={selectedCost}
+                    selectedLineItem={selectedLineItem}
                     onRefresh={refreshQualityCosts}
                 />
             )}
@@ -827,6 +886,9 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                         <SelectItem value="internal">İç Hata</SelectItem>
                                         <SelectItem value="external">Dış Hata</SelectItem>
                                         <SelectItem value="prevention">Önleme</SelectItem>
+                                        <SelectItem value="supplier">Tedarikçi Kaynaklı</SelectItem>
+                                        <SelectItem value="indirect">Dolaylı Maliyetler</SelectItem>
+                                        <SelectItem value="invoice">Faturalı Kayıtlar</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <Select value={unitFilter} onValueChange={setUnitFilter}>
@@ -874,7 +936,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                 <div className="flex items-center">Tür{getSortIcon('cost_type')}</div>
                                             </th>
                                             <th className="cursor-pointer hover:bg-secondary/50 select-none min-w-[100px]" onClick={() => handleSort('unit')}>
-                                                <div className="flex items-center">Birim {getSortIcon('unit')}</div>
+                                                <div className="flex items-center">Birim / Müşteri {getSortIcon('unit')}</div>
                                             </th>
                                             <th className="min-w-[80px]">Parça</th>
                                             <th className="cursor-pointer hover:bg-secondary/50 select-none min-w-[100px]" onClick={() => handleSort('amount')}>
@@ -889,13 +951,33 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                         ) : filteredCosts.length === 0 ? (
                                             <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Filtrelere uygun kayıt bulunamadı.</td></tr>
                                         ) : (
-                                            displayedCosts.map((cost, index) => (
+                                            displayedCosts.map((row, index) => {
+                                                const { cost, lineItem } = row;
+                                                const partDisplay = lineItem
+                                                    ? (lineItem.part_code || lineItem.part_name || '-')
+                                                    : (cost.part_code || cost.part_name || '-');
+                                                const lineUnitOrSupplier = lineItem?.responsible_type === 'supplier'
+                                                    ? (lineItem.responsible_supplier_name || cost.supplier?.name)
+                                                    : lineItem?.responsible_unit;
+                                                const unitDisplay = cost.cost_type === 'Dış Hata Maliyeti' && cost.customer_name
+                                                    ? <span className="text-xs"><span className="text-blue-600 font-medium">Müşteri: {cost.customer_name}</span>{lineUnitOrSupplier && <><br /><span className="text-amber-600 font-medium">{lineUnitOrSupplier}</span></>}</span>
+                                                    : lineItem?.responsible_type === 'supplier'
+                                                        ? <span className="text-amber-600 font-medium" title="Tedarikçi">{(lineItem.responsible_supplier_name || cost.supplier?.name) || '-'}</span>
+                                                        : lineItem?.responsible_unit
+                                                            ? lineItem.responsible_unit
+                                                            : cost.is_supplier_nc && cost.supplier?.name
+                                                                ? cost.supplier.name
+                                                                : (cost.cost_allocations?.length
+                                                                    ? `Dağıtılmış (${cost.cost_allocations.map(a => `${a.unit} %${parseFloat(a.percentage).toFixed(0)}`).join(', ')})`
+                                                                    : (cost.unit || '-'));
+                                                const amountDisplay = lineItem ? (parseFloat(lineItem.amount) || 0) : (cost.amount || 0);
+                                                return (
                                                 <tr
-                                                    key={cost.id}
+                                                    key={`${cost.id}-${row.lineIndex}`}
                                                     className="group cursor-pointer hover:bg-accent/50 transition-colors"
                                                     onClick={(e) => {
                                                         if (e.target.closest('[role="menuitem"]') || e.target.closest('button')) return;
-                                                        handleOpenViewModal(cost);
+                                                        handleOpenViewModal(cost, lineItem);
                                                     }}
                                                 >
                                                     <td className="text-muted-foreground text-sm">{index + 1}</td>
@@ -905,11 +987,11 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                         {cost.source_type === 'produced_vehicle_manual' && <Badge variant="outline" className="ml-1 text-[10px]">Manuel</Badge>}
                                                     </td>
                                                     <td className="text-sm">{cost.cost_type}</td>
-                                                    <td className="text-sm">
-                                                        {cost.is_supplier_nc && cost.supplier?.name ? cost.supplier.name : (cost.cost_allocations?.length ? `Dağıtılmış (${cost.cost_allocations.map(a => `${a.unit} %${parseFloat(a.percentage).toFixed(0)}`).join(', ')})` : (cost.unit || '-'))}
+                                                    <td className="text-sm">{unitDisplay}</td>
+                                                    <td className="text-sm truncate max-w-[120px]" title={partDisplay}>
+                                                        {partDisplay}
                                                     </td>
-                                                    <td className="text-sm truncate max-w-[120px]" title={cost.part_name || cost.part_code}>{cost.part_code || cost.part_name || '-'}</td>
-                                                    <td className="text-sm font-semibold">{formatCurrency(cost.amount)}</td>
+                                                    <td className="text-sm font-semibold">{formatCurrency(amountDisplay)}</td>
                                                     <td onClick={(e) => e.stopPropagation()}>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -918,7 +1000,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem onClick={() => handleOpenViewModal(cost)}><Eye className="mr-2 h-4 w-4" />Görüntüle</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleOpenViewModal(cost, lineItem)}><Eye className="mr-2 h-4 w-4" />Görüntüle</DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleOpenFormModal(cost)}><Edit className="mr-2 h-4 w-4" />Düzenle</DropdownMenuItem>
                                                                 <TooltipProvider>
                                                                     <Tooltip>
@@ -934,14 +1016,15 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                         </DropdownMenu>
                                                     </td>
                                                 </tr>
-                                            ))
+                                            );
+                                            })
                                         )}
                                     </tbody>
                                 </table>
                         </div>
                         {filteredCosts.length > 0 && (
                             <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm">
-                                <span className="text-muted-foreground">{displayedCosts.length} / {filteredCosts.length} kayıt</span>
+                                <span className="text-muted-foreground">{displayedCosts.length} / {expandedRows.length} kayıt</span>
                                 {hasMoreCosts && (
                                     <Button variant="outline" size="sm" onClick={handleLoadMore}>+100 Yükle</Button>
                                 )}

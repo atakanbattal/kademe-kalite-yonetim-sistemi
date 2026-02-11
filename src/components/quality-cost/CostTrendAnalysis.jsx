@@ -60,7 +60,7 @@ const CostTrendAnalysis = ({ costs, period = '6months' }) => {
                     monthMap[monthKey].externalCost += cost.amount || 0;
                 }
                 // Internal Failure - Fabrika içinde tespit edilen hatalar (tedarikçi kaynaklı dahil)
-                else if (['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'Tedarikçi Hata Maliyeti'].some(t => costType.includes(t)) || isSupplierCost) {
+                else if (['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'İç Hata Maliyeti', 'Tedarikçi Hata Maliyeti'].some(t => costType.includes(t)) || isSupplierCost) {
                     monthMap[monthKey].internalCost += cost.amount || 0;
                 }
                 // Appraisal

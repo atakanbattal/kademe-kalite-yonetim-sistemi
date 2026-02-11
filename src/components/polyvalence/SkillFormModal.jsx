@@ -326,7 +326,6 @@ const SkillFormModal = ({ isOpen, onClose, skill, skillCategories, onRefresh, de
                     </div>
                 </div>
                 </div>
-                </div>
                 <div className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4">
                     <div className="p-5 space-y-5">
                         <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Özet</h2>

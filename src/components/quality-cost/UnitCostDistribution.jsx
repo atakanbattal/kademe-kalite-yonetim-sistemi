@@ -28,7 +28,7 @@ const UnitCostDistribution = ({ costs }) => {
             unitMap[u].count += 1;
             if (['Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti', 'Dış Hata Maliyeti', 'Geri Çağırma Maliyeti', 'Müşteri Kaybı Maliyeti', 'Müşteri Reklaması'].some(t => costType.includes(t))) {
                 unitMap[u].externalCost += amount;
-            } else if (['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'Tedarikçi Hata Maliyeti'].some(t => costType.includes(t)) || isSupplierCost) {
+            } else if (['Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti', 'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti', 'İç Hata Maliyeti', 'Tedarikçi Hata Maliyeti'].some(t => costType.includes(t)) || isSupplierCost) {
                 unitMap[u].internalCost += amount;
             } else if (['Girdi Kalite Kontrol Maliyeti', 'Üretim Kalite Kontrol Maliyeti', 'Test ve Ölçüm Maliyeti', 'Kalite Kontrol Maliyeti'].some(t => costType.includes(t))) {
                 unitMap[u].appraisalCost += amount;
@@ -39,18 +39,32 @@ const UnitCostDistribution = ({ costs }) => {
 
         costs.forEach(cost => {
             const amount = cost.amount || 0;
-            totalCost += amount;
             const costType = cost.cost_type || '';
             const isSupplierCost = cost.is_supplier_nc && cost.supplier_id;
-            const allocs = cost.cost_allocations;
+            const lineItems = cost.cost_line_items && Array.isArray(cost.cost_line_items) ? cost.cost_line_items : [];
+            const hasLineItems = lineItems.length > 0;
 
-            if (allocs && Array.isArray(allocs) && allocs.length > 0) {
-                allocs.forEach(alloc => {
-                    const allocAmount = alloc.amount ?? (amount * (alloc.percentage || 0) / 100);
-                    addToUnit(alloc.unit, allocAmount, costType, isSupplierCost);
+            if (hasLineItems) {
+                lineItems.forEach(li => {
+                    const itemAmount = parseFloat(li.amount) || 0;
+                    if (itemAmount <= 0) return;
+                    totalCost += itemAmount;
+                    const unitKey = li.responsible_type === 'supplier'
+                        ? `Tedarikçi: ${li.responsible_supplier_name || cost.supplier?.name || 'Bilinmeyen'}`
+                        : (li.responsible_unit || 'Belirtilmemiş');
+                    addToUnit(unitKey, itemAmount, costType, li.responsible_type === 'supplier');
                 });
             } else {
-                addToUnit(cost.unit, amount, costType, isSupplierCost);
+                totalCost += amount;
+                const allocs = cost.cost_allocations;
+                if (allocs && Array.isArray(allocs) && allocs.length > 0) {
+                    allocs.forEach(alloc => {
+                        const allocAmount = alloc.amount ?? (amount * (alloc.percentage || 0) / 100);
+                        addToUnit(alloc.unit, allocAmount, costType, isSupplierCost);
+                    });
+                } else {
+                    addToUnit(cost.unit, amount, costType, isSupplierCost);
+                }
             }
         });
 

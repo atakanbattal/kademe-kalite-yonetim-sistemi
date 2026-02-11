@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,18 +6,53 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { DollarSign, Calendar, Building2, Car, Package, User, AlertTriangle, Clock, Users, FileText, Paperclip } from 'lucide-react';
+import { DollarSign, Calendar, Building2, Car, Package, User, AlertTriangle, Clock, Users, FileText, Paperclip, Truck, TrendingDown, LayoutGrid, ZoomIn } from 'lucide-react';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { openPrintableReport } from '@/lib/reportUtils';
 import QualityCostDocumentsTab from '@/components/quality-cost/QualityCostDocumentsTab';
+import { supabase } from '@/lib/customSupabaseClient';
 
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
     return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 }
 
-export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
+export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefresh }) => {
+    const [documents, setDocuments] = useState([]);
+    const [showFullView, setShowFullView] = useState(false);
+
+    // Modal/cost değiştiğinde toggle'ı sıfırla
+    useEffect(() => {
+        if (!isOpen) setShowFullView(false);
+    }, [isOpen, cost?.id, selectedLineItem]);
+
+    // Dokümanları yükle (PDF rapor için)
+    useEffect(() => {
+        if (!cost?.id || !isOpen) return;
+        const fetchDocs = async () => {
+            const { data } = await supabase
+                .from('quality_cost_documents')
+                .select('*')
+                .eq('quality_cost_id', cost.id);
+            if (data) {
+                const docsWithUrls = await Promise.all(data.map(async (doc) => {
+                    const { data: urlData } = supabase.storage.from('quality_costs').getPublicUrl(doc.file_path);
+                    return { ...doc, url: urlData?.publicUrl || '#' };
+                }));
+                setDocuments(docsWithUrls);
+            }
+        };
+        fetchDocs();
+    }, [cost?.id, isOpen]);
+
     if (!cost) return null;
+
+    const lineItems = cost.cost_line_items && Array.isArray(cost.cost_line_items) ? cost.cost_line_items : [];
+    const sharedCostItems = cost.shared_costs && Array.isArray(cost.shared_costs) ? cost.shared_costs : [];
+    const indirectCostItems = cost.indirect_costs && Array.isArray(cost.indirect_costs) ? cost.indirect_costs : [];
+    const hasLineItems = lineItems.length > 0;
+    const isUnitView = !!selectedLineItem && !showFullView;
+    const totalAmount = parseFloat(cost.amount) || 0;
 
     // Ana süre: rework_duration ve unit alanlarından oluşuyor
     const mainReworkCost = cost.rework_duration && cost.unit 
@@ -49,7 +84,28 @@ export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
                         <span className="ml-2 px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">
                             {cost.cost_type || 'Detay'}
                         </span>
+                        {isUnitView && selectedLineItem && (
+                            <span className="ml-2 px-3 py-1 bg-amber-500/80 text-white text-[10px] font-bold rounded-full">
+                                {selectedLineItem.responsible_type === 'supplier'
+                                    ? (selectedLineItem.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi')
+                                    : (selectedLineItem.responsible_unit || 'Birim')}
+                            </span>
+                        )}
                     </div>
+                    {selectedLineItem && hasLineItems && (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="shrink-0 h-8 text-white bg-white/20 hover:bg-white/30 border border-white/30"
+                            onClick={() => setShowFullView(prev => !prev)}
+                        >
+                            {isUnitView ? (
+                                <><LayoutGrid className="h-4 w-4 mr-2" />Tümünü Göster</>
+                            ) : (
+                                <><ZoomIn className="h-4 w-4 mr-2" />Birime Dön</>
+                            )}
+                        </Button>
+                    )}
                 </header>
                 
                 <Tabs defaultValue="info" className="flex-1 overflow-hidden flex flex-col px-6">
@@ -66,8 +122,8 @@ export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <InfoCard 
                                 icon={DollarSign} 
-                                label="Toplam Tutar" 
-                                value={formatCurrency(cost.amount)} 
+                                label={isUnitView ? "Birim Tutarı" : "Toplam Tutar"} 
+                                value={formatCurrency(isUnitView ? (parseFloat(selectedLineItem?.amount) || 0) : cost.amount)} 
                                 variant="primary"
                             />
                             <InfoCard 
@@ -87,8 +143,31 @@ export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
                             />
                         </div>
 
-                        {/* Tedarikçi Bilgisi */}
-                        {cost.is_supplier_nc && (
+                        {/* Birim Dağılımı Özeti - toplu görünümde ve kalem varsa */}
+                        {!isUnitView && hasLineItems && totalAmount > 0 && (
+                            <Card className="bg-muted/30 border-primary/20">
+                                <CardContent className="p-4">
+                                    <p className="text-sm font-medium text-muted-foreground mb-3">Birim Dağılımı</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {lineItems.map((li, idx) => {
+                                            const amt = parseFloat(li.amount) || 0;
+                                            const pct = ((amt / totalAmount) * 100).toFixed(1);
+                                            const unitLabel = li.responsible_type === 'supplier'
+                                                ? (li.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi')
+                                                : (li.responsible_unit || '-');
+                                            return (
+                                                <Badge key={idx} variant="secondary" className="py-2 px-3 text-sm">
+                                                    {unitLabel}: {formatCurrency(amt)} (%{pct})
+                                                </Badge>
+                                            );
+                                        })}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Tedarikçi Bilgisi - sadece tüm kayıt görünümünde veya lineItem tedarikçi ise */}
+                        {!isUnitView && cost.is_supplier_nc && (
                             <Card className="bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900">
                                 <CardContent className="p-4">
                                     <div className="flex items-center gap-3">
@@ -106,36 +185,52 @@ export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
 
                         <Separator />
 
-                        {/* Genel Bilgiler */}
+                        {/* Genel Bilgiler - birim görünümünde sadece o birime ait veriler */}
                         <div>
                             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                 <Package className="h-5 w-5 text-primary" />
-                                Genel Bilgiler
+                                {isUnitView ? 'Birim Bilgileri' : 'Genel Bilgiler'}
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {cost.cost_allocations && cost.cost_allocations.length > 0 ? (
-                                    <div className="md:col-span-2">
-                                        <p className="text-sm font-medium text-muted-foreground mb-2">Maliyet Dağılımı</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {cost.cost_allocations.map((a, i) => (
-                                                <Badge key={i} variant="secondary" className="py-2 px-3 text-sm">
-                                                    {a.unit}: %{parseFloat(a.percentage).toFixed(1)} = {formatCurrency(a.amount)}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
+                                {isUnitView ? (
+                                    <>
+                                        <InfoCard icon={Building2} label="Birim (Kaynak)" value={selectedLineItem.responsible_type === 'supplier' ? (selectedLineItem.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi') : (selectedLineItem.responsible_unit || '-')} />
+                                        {cost.vehicle_type && <InfoCard icon={Car} label="Araç Türü" value={cost.vehicle_type} />}
+                                        {(selectedLineItem.part_code || selectedLineItem.part_name) && (
+                                            <InfoCard icon={Package} label="Parça" value={[selectedLineItem.part_code, selectedLineItem.part_name].filter(Boolean).join(' - ')} />
+                                        )}
+                                        {cost.customer_name && cost.cost_type === 'Dış Hata Maliyeti' && (
+                                            <InfoCard icon={User} label="Müşteri Adı" value={cost.customer_name} />
+                                        )}
+                                        {selectedLineItem.quantity && <InfoCard icon={Package} label="Miktar" value={`${selectedLineItem.quantity} ${selectedLineItem.measurement_unit || ''}`.trim()} />}
+                                    </>
                                 ) : (
-                                    <InfoCard icon={Building2} label="Birim (Kaynak)" value={cost.unit} />
+                                    <>
+                                        {cost.cost_allocations && cost.cost_allocations.length > 0 ? (
+                                            <div className="md:col-span-2">
+                                                <p className="text-sm font-medium text-muted-foreground mb-2">Maliyet Dağılımı</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {cost.cost_allocations.map((a, i) => (
+                                                        <Badge key={i} variant="secondary" className="py-2 px-3 text-sm">
+                                                            {a.unit}: %{parseFloat(a.percentage).toFixed(1)} = {formatCurrency(a.amount)}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : !hasLineItems && cost.unit ? (
+                                            <InfoCard icon={Building2} label="Birim (Kaynak)" value={cost.unit} />
+                                        ) : null}
+                                        {cost.vehicle_type && <InfoCard icon={Car} label="Araç Türü" value={cost.vehicle_type} />}
+                                        {!hasLineItems && cost.part_code && <InfoCard icon={Package} label="Parça Kodu" value={cost.part_code} />}
+                                        {!hasLineItems && cost.part_name && <InfoCard icon={Package} label="Parça Adı" value={cost.part_name} />}
+                                        {cost.customer_name && cost.cost_type === 'Dış Hata Maliyeti' && (
+                                            <InfoCard icon={User} label="Müşteri Adı" value={cost.customer_name} />
+                                        )}
+                                        {!hasLineItems && cost.quantity && <InfoCard icon={Package} label="Miktar" value={cost.quantity} />}
+                                        {!hasLineItems && cost.measurement_unit && <InfoCard icon={Package} label="Ölçü Birimi" value={cost.measurement_unit} />}
+                                        {cost.scrap_weight && <InfoCard icon={Package} label="Hurda Ağırlığı (kg)" value={cost.scrap_weight} />}
+                                    </>
                                 )}
-                                {cost.vehicle_type && <InfoCard icon={Car} label="Araç Türü" value={cost.vehicle_type} />}
-                                {cost.part_code && <InfoCard icon={Package} label="Parça Kodu" value={cost.part_code} />}
-                                {cost.part_name && <InfoCard icon={Package} label="Parça Adı" value={cost.part_name} />}
-                                {cost.responsible_personnel?.full_name && (
-                                    <InfoCard icon={User} label="Sorumlu Personel" value={cost.responsible_personnel.full_name} />
-                                )}
-                                {cost.quantity && <InfoCard icon={Package} label="Miktar" value={cost.quantity} />}
-                                {cost.measurement_unit && <InfoCard icon={Package} label="Ölçü Birimi" value={cost.measurement_unit} />}
-                                {cost.scrap_weight && <InfoCard icon={Package} label="Hurda Ağırlığı (kg)" value={cost.scrap_weight} />}
                             </div>
                         </div>
 
@@ -214,18 +309,117 @@ export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
                             </>
                         )}
 
+                        {/* Maliyet Kalemleri - birim görünümünde sadece seçili kalem */}
+                        {(hasLineItems || isUnitView) && (
+                            <>
+                                <Separator />
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <Package className="h-5 w-5 text-primary" />
+                                        {isUnitView ? 'Maliyet Kalemi' : `Maliyet Kalemleri (${lineItems.length} kalem)`}
+                                        {cost.invoice_number && <Badge variant="outline" className="ml-2">Fatura: {cost.invoice_number}</Badge>}
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {(isUnitView ? [selectedLineItem] : lineItems).filter(Boolean).map((li, idx) => {
+                                            const itemAmount = parseFloat(li.amount) || 0;
+                                            const pct = totalAmount > 0 ? ((itemAmount / totalAmount) * 100).toFixed(1) : '0';
+                                            return (
+                                            <Card key={idx} className="border-l-4 border-l-primary">
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant="secondary" className="text-xs">#{idx + 1}</Badge>
+                                                            <span className="font-semibold text-sm">{li.part_code || '-'} {li.part_name ? `- ${li.part_name}` : ''}</span>
+                                                            {!isUnitView && totalAmount > 0 && (
+                                                                <Badge variant="outline" className="text-[10px]">%{pct}</Badge>
+                                                            )}
+                                                        </div>
+                                                        <span className="font-bold text-primary">{formatCurrency(itemAmount)}</span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                                        {li.cost_subtype && <Badge variant="outline">{li.cost_subtype}</Badge>}
+                                                        {li.responsible_type === 'supplier' ? (
+                                                            <Badge variant="default" className="bg-amber-500">{li.responsible_supplier_name || li.responsible_unit || cost.supplier?.name || '-'}</Badge>
+                                                        ) : (
+                                                            li.responsible_unit && <Badge variant="secondary">{li.responsible_unit}</Badge>
+                                                        )}
+                                                        {li.quantity && <span>Miktar: {li.quantity} {li.measurement_unit || ''}</span>}
+                                                    </div>
+                                                    {li.description && <p className="text-xs text-muted-foreground mt-2 italic">{li.description}</p>}
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                        })}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Ortak Maliyetler - birim görünümünde gösterme (ortak maliyetler tüm kalemlere ait) */}
+                        {!isUnitView && sharedCostItems.length > 0 && (
+                            <>
+                                <Separator />
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <Truck className="h-5 w-5 text-amber-600" />
+                                        Ortak Maliyetler (Nakliye / Konaklama)
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {sharedCostItems.map((sc, idx) => (
+                                            <Card key={idx} className="border-l-4 border-l-amber-500">
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-semibold text-sm">{sc.category || '-'}</span>
+                                                        <span className="font-bold text-amber-600">{formatCurrency(parseFloat(sc.amount) || 0)}</span>
+                                                    </div>
+                                                    {sc.description && <p className="text-xs text-muted-foreground mt-1">{sc.description}</p>}
+                                                    {sc.measurement_unit && <span className="text-xs text-muted-foreground">{sc.measurement_value} {sc.measurement_unit}</span>}
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Dolaylı Maliyetler - birim görünümünde gösterme */}
+                        {!isUnitView && indirectCostItems.length > 0 && (
+                            <>
+                                <Separator />
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <TrendingDown className="h-5 w-5 text-purple-600" />
+                                        Dolaylı Maliyetler
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {indirectCostItems.map((ic, idx) => (
+                                            <Card key={idx} className="border-l-4 border-l-purple-500">
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-semibold text-sm">{ic.category || '-'}</span>
+                                                        <span className="font-bold text-purple-600">{formatCurrency(parseFloat(ic.amount) || 0)}</span>
+                                                    </div>
+                                                    {ic.description && <p className="text-xs text-muted-foreground mt-1">{ic.description}</p>}
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
                         <Separator />
 
-                        {/* Açıklama */}
+                        {/* Açıklama - birim görünümünde sadece o kaleme ait açıklama */}
                         <div>
                             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                 <AlertTriangle className="h-5 w-5 text-primary" />
                                 {cost.cost_type === 'Final Hataları Maliyeti' ? 'Hata Açıklaması' : 'Açıklama'}
                             </h3>
-                            {cost.description ? (
+                            {(isUnitView ? (selectedLineItem?.description || cost.description) : cost.description) ? (
                                 <Card>
                                     <CardContent className="p-6">
-                                        {cost.cost_type === 'Final Hataları Maliyeti' ? (
+                                        {!isUnitView && cost.cost_type === 'Final Hataları Maliyeti' ? (
                                             <div className="space-y-4">
                                                 {cost.description.split('\n').map((line, idx) => {
                                                     // Boş satırları atla
@@ -288,7 +482,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
                                                 }).filter(Boolean)}
                                             </div>
                                         ) : (
-                                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{cost.description}</p>
+                                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{isUnitView ? (selectedLineItem?.description || cost.description) : cost.description}</p>
                                         )}
                                     </CardContent>
                                 </Card>
@@ -312,7 +506,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost, onRefresh }) => {
                         <span className="text-[11px] font-medium">{new Date(cost.cost_date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Button type="button" variant="outline" size="sm" onClick={() => openPrintableReport({ id: cost.id, ...cost }, 'quality_cost_detail', true)}>
+                        <Button type="button" variant="outline" size="sm" onClick={() => openPrintableReport({ id: cost.id, ...cost, _documents: documents }, 'quality_cost_detail', true)}>
                             <FileText className="w-4 h-4 mr-2" />
                             PDF Rapor Al
                         </Button>

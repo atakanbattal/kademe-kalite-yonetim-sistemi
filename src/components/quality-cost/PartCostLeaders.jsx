@@ -17,24 +17,42 @@ const PartCostLeaders = ({ costs, onPartClick }) => {
         const partMap = {};
         
         costs.forEach(cost => {
-            const partCode = cost.part_code || 'Bilinmeyen';
-            if (!partMap[partCode]) {
-                partMap[partCode] = {
-                    partCode,
-                    partName: cost.part_name || '-',
-                    totalCost: 0,
-                    count: 0,
-                    costTypes: {},
-                    costs: []
-                };
+            const lineItems = cost.cost_line_items && Array.isArray(cost.cost_line_items) ? cost.cost_line_items : [];
+            const hasLineItems = lineItems.length > 0;
+
+            if (hasLineItems) {
+                lineItems.forEach(li => {
+                    const itemAmount = parseFloat(li.amount) || 0;
+                    if (itemAmount <= 0) return;
+                    const partCode = li.part_code || cost.part_code || 'Bilinmeyen';
+                    const partName = li.part_name || cost.part_name || '-';
+                    if (!partMap[partCode]) {
+                        partMap[partCode] = { partCode, partName, totalCost: 0, count: 0, costTypes: {}, costs: [] };
+                    }
+                    partMap[partCode].totalCost += itemAmount;
+                    partMap[partCode].count += 1;
+                    partMap[partCode].costs.push(cost);
+                    const costType = cost.cost_type || 'Diğer';
+                    partMap[partCode].costTypes[costType] = (partMap[partCode].costTypes[costType] || 0) + itemAmount;
+                });
+            } else {
+                const partCode = cost.part_code || 'Bilinmeyen';
+                if (!partMap[partCode]) {
+                    partMap[partCode] = {
+                        partCode,
+                        partName: cost.part_name || '-',
+                        totalCost: 0,
+                        count: 0,
+                        costTypes: {},
+                        costs: []
+                    };
+                }
+                partMap[partCode].totalCost += cost.amount || 0;
+                partMap[partCode].count += 1;
+                partMap[partCode].costs.push(cost);
+                const costType = cost.cost_type || 'Diğer';
+                partMap[partCode].costTypes[costType] = (partMap[partCode].costTypes[costType] || 0) + (cost.amount || 0);
             }
-            
-            partMap[partCode].totalCost += cost.amount || 0;
-            partMap[partCode].count += 1;
-            partMap[partCode].costs.push(cost);
-            
-            const costType = cost.cost_type || 'Diğer';
-            partMap[partCode].costTypes[costType] = (partMap[partCode].costTypes[costType] || 0) + (cost.amount || 0);
         });
 
         return Object.values(partMap)
