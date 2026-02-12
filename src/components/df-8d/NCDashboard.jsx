@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { FileText, FolderOpen, CheckCircle, XCircle, FileSpreadsheet, Hourglass, AlertTriangle, BarChart, Percent, CalendarDays, Zap, TrendingUp } from 'lucide-react';
@@ -28,7 +27,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const DashboardCard = ({ title, icon, children, loading, className = "" }) => (
-    <Card className={`shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col ${className}`}>
+    <Card className={`shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col min-w-0 ${className}`}>
         <CardHeader>
             <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
                 {icon && React.createElement(icon, { className: "w-5 h-5 text-muted-foreground"})}
@@ -251,7 +250,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
     const now = new Date();
 
     return (
-        <motion.div initial="hidden" animate="visible" variants={containerVariants} className="space-y-6">
+        <motion.div initial="hidden" animate="visible" variants={containerVariants} className="space-y-6 min-w-0">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                 {analytics.kpiCards.map(card => (
                     <motion.div key={card.title}>
@@ -275,61 +274,76 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
                  <DashboardCard title="Departman Bazlı Performans" icon={BarChart} loading={loading}>
-                    <ScrollArea className="h-80 w-full">
-                        <Table>
+                    <div className="h-80 w-full overflow-auto min-w-0">
+                        <Table className="min-w-0 w-full table-fixed">
+                            <colgroup>
+                                <col style={{ width: '32%' }} />
+                                <col style={{ width: '17%' }} />
+                                <col style={{ width: '17%' }} />
+                                <col style={{ width: '17%' }} />
+                                <col style={{ width: '17%' }} />
+                            </colgroup>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Birim</TableHead>
-                                    <TableHead className="text-center">Açık</TableHead>
-                                    <TableHead className="text-center">Kapalı</TableHead>
-                                    <TableHead className="text-center">Geciken</TableHead>
-                                    <TableHead className="text-right">Ort. Kapatma (Gün)</TableHead>
+                                    <TableHead className="px-2 py-1.5 text-xs">Birim</TableHead>
+                                    <TableHead className="text-center px-2 py-1.5 text-xs">Açık</TableHead>
+                                    <TableHead className="text-center px-2 py-1.5 text-xs">Kapalı</TableHead>
+                                    <TableHead className="text-center px-2 py-1.5 text-xs">Geciken</TableHead>
+                                    <TableHead className="text-right px-2 py-1.5 text-xs">Ort. Kapa. (Gün)</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {analytics.deptPerformance.map(dept => (
                                     <TableRow key={dept.unit} className="cursor-pointer hover:bg-muted/50" onClick={() => onDashboardInteraction(`${dept.unit} Kayıtları`, dept.records)}>
-                                        <TableCell className="font-medium">{dept.unit}</TableCell>
-                                        <TableCell className="text-center">{dept.open}</TableCell>
-                                        <TableCell className="text-center">{dept.closed}</TableCell>
-                                        <TableCell className="text-center font-bold text-destructive">{dept.overdue}</TableCell>
-                                        <TableCell className="text-right">{dept.avgClosureTime}</TableCell>
+                                        <TableCell className="font-medium px-2 py-1.5 text-xs truncate max-w-0" title={dept.unit}>{dept.unit}</TableCell>
+                                        <TableCell className="text-center px-2 py-1.5 text-xs">{dept.open}</TableCell>
+                                        <TableCell className="text-center px-2 py-1.5 text-xs">{dept.closed}</TableCell>
+                                        <TableCell className="text-center font-bold text-destructive px-2 py-1.5 text-xs">{dept.overdue}</TableCell>
+                                        <TableCell className="text-right px-2 py-1.5 text-xs">{dept.avgClosureTime}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
-                    </ScrollArea>
+                    </div>
                 </DashboardCard>
 
                 <DashboardCard title="Talep Eden Birim Katkısı" icon={Percent} loading={loading}>
-                    <ScrollArea className="h-80 w-full">
-                        <Table>
+                    <div className="h-80 w-full overflow-auto min-w-0">
+                        <Table className="min-w-0 w-full table-fixed">
+                            <colgroup>
+                                <col style={{ width: '32%' }} />
+                                <col style={{ width: '12%' }} />
+                                <col style={{ width: '12%' }} />
+                                <col style={{ width: '12%' }} />
+                                <col style={{ width: '12%' }} />
+                                <col style={{ width: '20%' }} />
+                            </colgroup>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Birim</TableHead>
-                                    <TableHead className="text-center">Toplam</TableHead>
-                                    <TableHead className="text-center">DF</TableHead>
-                                    <TableHead className="text-center">8D</TableHead>
-                                    <TableHead className="text-center">MDI</TableHead>
-                                    <TableHead className="text-right">Katkı %</TableHead>
+                                    <TableHead className="px-2 py-1.5 text-xs">Birim</TableHead>
+                                    <TableHead className="text-center px-2 py-1.5 text-xs">Toplam</TableHead>
+                                    <TableHead className="text-center px-2 py-1.5 text-xs">DF</TableHead>
+                                    <TableHead className="text-center px-2 py-1.5 text-xs">8D</TableHead>
+                                    <TableHead className="text-center px-2 py-1.5 text-xs">MDI</TableHead>
+                                    <TableHead className="text-right px-2 py-1.5 text-xs">Katkı %</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {analytics.requesterContribution.map(req => (
                                     <TableRow key={req.unit} className="cursor-pointer hover:bg-muted/50" onClick={() => onDashboardInteraction(`${req.unit} Talepleri`, req.records)}>
-                                        <TableCell className="font-medium">{req.unit}</TableCell>
-                                        <TableCell className="text-center">{req.total}</TableCell>
-                                        <TableCell className="text-center">{req.DF}</TableCell>
-                                        <TableCell className="text-center">{req['8D']}</TableCell>
-                                        <TableCell className="text-center">{req.MDI}</TableCell>
-                                        <TableCell className="text-right font-semibold">{req.contribution}</TableCell>
+                                        <TableCell className="font-medium px-2 py-1.5 text-xs truncate max-w-0" title={req.unit}>{req.unit}</TableCell>
+                                        <TableCell className="text-center px-2 py-1.5 text-xs">{req.total}</TableCell>
+                                        <TableCell className="text-center px-2 py-1.5 text-xs">{req.DF}</TableCell>
+                                        <TableCell className="text-center px-2 py-1.5 text-xs">{req['8D']}</TableCell>
+                                        <TableCell className="text-center px-2 py-1.5 text-xs">{req.MDI}</TableCell>
+                                        <TableCell className="text-right font-semibold px-2 py-1.5 text-xs">{req.contribution}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
-                    </ScrollArea>
+                    </div>
                 </DashboardCard>
                 
                  <DashboardCard title="Aylık Trend (Açılış/Kapanış)" icon={Zap} loading={loading} className="lg:col-span-2">
@@ -348,16 +362,24 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
                 
                 <DashboardCard title="Termin Süresi Geciken Uygunsuzluklar" icon={CalendarDays} loading={loading} className="lg:col-span-2">
                     {analytics.overdueRecords.length > 0 ? (
-                        <ScrollArea className="h-80 w-full">
-                            <Table>
+                        <div className="h-80 w-full overflow-auto min-w-0">
+                            <Table className="min-w-0 w-full table-fixed">
+                                <colgroup>
+                                    <col style={{ width: '14%' }} />
+                                    <col style={{ width: '28%' }} />
+                                    <col style={{ width: '18%' }} />
+                                    <col style={{ width: '18%' }} />
+                                    <col style={{ width: '14%' }} />
+                                    <col style={{ width: '14%' }} />
+                                </colgroup>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>No/Tip</TableHead>
-                                        <TableHead>Konu</TableHead>
-                                        <TableHead>Birim</TableHead>
-                                        <TableHead>Termin</TableHead>
-                                        <TableHead>Durum</TableHead>
-                                        <TableHead className="text-right">Gecikme (Gün)</TableHead>
+                                        <TableHead className="px-2 py-1.5 text-xs">No/Tip</TableHead>
+                                        <TableHead className="px-2 py-1.5 text-xs">Konu</TableHead>
+                                        <TableHead className="px-2 py-1.5 text-xs">Birim</TableHead>
+                                        <TableHead className="px-2 py-1.5 text-xs">Termin</TableHead>
+                                        <TableHead className="px-2 py-1.5 text-xs">Durum</TableHead>
+                                        <TableHead className="text-right px-2 py-1.5 text-xs">Gecikme (Gün)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -365,18 +387,18 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
                                         const dueAt = rec.due_at ? parseISO(rec.due_at) : null;
                                         return (
                                             <TableRow key={rec.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleCardClick("Geciken", [rec])}>
-                                                <TableCell><Badge variant="secondary">{rec.nc_number || rec.mdi_no}</Badge></TableCell>
-                                                <TableCell className="font-medium max-w-xs truncate">{rec.title}</TableCell>
-                                                <TableCell>{rec.department}</TableCell>
-                                                <TableCell>{dueAt && isValid(dueAt) ? format(dueAt, 'dd.MM.yyyy') : '-'}</TableCell>
-                                                <TableCell>{getStatusBadge(rec)}</TableCell>
-                                                <TableCell className="text-right font-bold text-destructive">{dueAt && isValid(dueAt) ? differenceInDays(now, dueAt) : '-'}</TableCell>
+                                                <TableCell className="px-2 py-1.5 text-xs"><Badge variant="secondary" className="text-xs">{rec.nc_number || rec.mdi_no}</Badge></TableCell>
+                                                <TableCell className="font-medium px-2 py-1.5 text-xs truncate max-w-0" title={rec.title}>{rec.title}</TableCell>
+                                                <TableCell className="px-2 py-1.5 text-xs truncate max-w-0" title={rec.department}>{rec.department}</TableCell>
+                                                <TableCell className="px-2 py-1.5 text-xs">{dueAt && isValid(dueAt) ? format(dueAt, 'dd.MM.yyyy') : '-'}</TableCell>
+                                                <TableCell className="px-2 py-1.5 text-xs">{getStatusBadge(rec)}</TableCell>
+                                                <TableCell className="text-right font-bold text-destructive px-2 py-1.5 text-xs">{dueAt && isValid(dueAt) ? differenceInDays(now, dueAt) : '-'}</TableCell>
                                             </TableRow>
                                         );
                                     })}
                                 </TableBody>
                             </Table>
-                        </ScrollArea>
+                        </div>
                     ) : <div className="text-green-600 font-semibold flex items-center justify-center h-full gap-2"><CheckCircle/>Geciken kayıt bulunmuyor.</div>}
                 </DashboardCard>
             </div>

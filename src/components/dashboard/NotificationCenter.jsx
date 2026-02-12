@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Bell, CheckCircle2, AlertTriangle, XCircle, Info, RefreshCw, X, Trash2 } from 'lucide-react';
+import { Bell, CheckCircle2, AlertTriangle, XCircle, Info, RefreshCw, X, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,6 +17,7 @@ const NotificationCenter = () => {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [checkingSmartNotifications, setCheckingSmartNotifications] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     useEffect(() => {
         // Sadece atakan.battal@kademe.com.tr hesabı görebilsin
@@ -309,63 +310,76 @@ const NotificationCenter = () => {
         );
     }
 
+    const displayNotifications = isExpanded ? notifications : notifications.slice(0, 2);
+    const hasMore = notifications.length > 2 && !isExpanded;
+
     return (
         <Card>
-            <CardHeader>
+            <CardHeader className="py-3 px-4">
                 <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                        <Bell className="h-5 w-5" />
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Bell className="h-4 w-4" />
                         Bildirim Merkezi
                         {unreadCount > 0 && (
-                            <Badge variant="destructive">{unreadCount}</Badge>
+                            <Badge variant="destructive" className="text-xs">{unreadCount}</Badge>
                         )}
                     </CardTitle>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                             <Button 
                                 variant="outline" 
                                 size="sm" 
+                                className="h-8 text-xs"
                                 onClick={handleCheckSmartNotifications}
                                 disabled={checkingSmartNotifications}
                                 title="Sistem geneli akıllı uyarıları kontrol et"
                             >
-                                <RefreshCw className={`h-4 w-4 mr-1 ${checkingSmartNotifications ? 'animate-spin' : ''}`} />
-                                Kontrol Et
+                                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${checkingSmartNotifications ? 'animate-spin' : ''}`} />
+                                Kontrol
                             </Button>
                     {unreadCount > 0 && (
-                        <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
-                            Tümünü Okundu İşaretle
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleMarkAllAsRead}>
+                            Okundu İşaretle
                         </Button>
                     )}
                             {notifications.filter(n => n.is_read).length > 0 && (
                                 <Button 
                                     variant="ghost" 
                                     size="sm" 
+                                    className="h-8 w-8 p-0"
                                     onClick={handleDeleteAllRead}
                                     title="Okunmuş bildirimleri sil"
                                 >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                            )}
+                            {notifications.length > 2 && (
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 text-xs"
+                                    onClick={() => setIsExpanded(!isExpanded)}
+                                >
+                                    {isExpanded ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
+                                    {isExpanded ? 'Daralt' : `${notifications.length - 2} bildirim daha`}
                                 </Button>
                             )}
                         </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        Sistem geneli uyarılar, yaklaşan terminler ve gecikmeler hakkında bildirimler
-                    </p>
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0 px-4 pb-4">
                 {notifications.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                        <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                        <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>Bildirim bulunmuyor.</p>
                     </div>
                 ) : (
-                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                        {notifications.map((notification) => (
+                    <div className={`space-y-2 overflow-y-auto pr-2 ${isExpanded ? 'max-h-[400px]' : 'max-h-[180px]'}`}>
+                        {displayNotifications.map((notification) => (
                             <div
                                 key={notification.id}
-                                className={`group relative p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
+                                className={`group relative p-3 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
                                     notification.is_read
                                         ? 'bg-muted/30 border-muted'
                                         : 'bg-primary/5 border-primary/30 shadow-sm'
@@ -402,7 +416,7 @@ const NotificationCenter = () => {
                                                 </Badge>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-muted-foreground mb-2 leading-relaxed line-clamp-2">
+                                        <p className="text-xs text-muted-foreground mb-1 leading-relaxed line-clamp-2">
                                             {notification.message}
                                         </p>
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">

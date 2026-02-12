@@ -38,8 +38,8 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
     const statusOptions = ['Kaliteye Girdi', 'Kontrol Başladı', 'Kontrol Bitti', 'Yeniden İşlemde', 'Sevk Hazır', 'Sevk Edildi'];
     const dmoStatusOptions = ['DMO Bekliyor', 'DMO Geçti', 'DMO Kaldı'];
     
-    // Marka seçenekleri
-    const brandOptions = ['FORD', 'OTOKAR', 'ISUZU', 'MERCEDES', 'MITSUBISHI', 'IVECO'];
+    // Marka seçenekleri (Şasi Yok: üst yapı olarak satılan ürünler için)
+    const brandOptions = ['Şasi Yok', 'FORD', 'OTOKAR', 'ISUZU', 'MERCEDES', 'MITSUBISHI', 'IVECO'];
     
     // Marka gerektiren araç tipleri
     const brandRequiredVehicleTypes = ['Çay Toplama Makinesi', 'HSCK (Hidrolik Sıkıştırmalı Çöp Kamyonu)', 'İSTAÇ', 'KDM 35', 'KDM 70', 'KDM 80'];

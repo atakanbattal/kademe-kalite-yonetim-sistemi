@@ -237,7 +237,7 @@ export const DataProvider = ({ children }) => {
                         .from('audit_log_entries')
                         .select('*')
                         .order('created_at', { ascending: false })
-                        .limit(200);
+                        .limit(500);
                     if (error) {
                         // 403 hatası RLS politikası sorunu olabilir, sessizce geç
                         if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {

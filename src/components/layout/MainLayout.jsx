@@ -97,13 +97,19 @@ const MainLayout = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
+    const effectivePermissions = useMemo(() => {
+        if (!user) return {};
+        if (user?.email === 'atakan.battal@kademe.com.tr') return Object.fromEntries(ALL_MODULES.map(m => [m, 'full']));
+        return profile?.permissions || user?.user_metadata?.permissions || {};
+    }, [profile, user]);
+
     const PERMITTED_MODULES = useMemo(() => {
         if (user?.email === 'atakan.battal@kademe.com.tr') return ALL_MODULES;
-        if (profile?.permissions) {
-            return ALL_MODULES.filter(module => profile.permissions[module] && profile.permissions[module] !== 'none');
+        if (Object.keys(effectivePermissions).length > 0) {
+            return ALL_MODULES.filter(module => effectivePermissions[module] && effectivePermissions[module] !== 'none');
         }
         return ['dashboard'];
-    }, [profile, user]);
+    }, [effectivePermissions, user]);
 
     const DEFAULT_MODULE = PERMITTED_MODULES.includes('dashboard') ? 'dashboard' : PERMITTED_MODULES[0] || 'dashboard';
 
@@ -127,22 +133,25 @@ const MainLayout = () => {
             setActiveModule(path);
         } else if (path !== '' && !path.startsWith('print')) {
             navigate(`/${DEFAULT_MODULE}`, { replace: true });
-            // Only show warning if module exists but user has no permission at all (not 'read' or 'full')
-            if (moduleTitles[path] && (!profile?.permissions?.[path] || profile?.permissions?.[path] === 'none')) {
+            // Yetkisiz toast: sadece profile yüklendiyse ve kesin yetkisizse göster (loading sırasında gösterme)
+            const perm = effectivePermissions[path];
+            if (profile !== null && moduleTitles[path] && (perm === undefined || perm === 'none')) {
                 toast({ variant: 'destructive', title: 'Yetkisiz Erişim', description: `"${moduleTitles[path] || path}" modülüne erişim izniniz yok.` });
             }
         } else if (location.pathname === '/') {
             navigate(`/${DEFAULT_MODULE}`, { replace: true });
         }
-    }, [location.pathname, DEFAULT_MODULE, navigate, PERMITTED_MODULES, toast, profile?.permissions]);
+    }, [location.pathname, DEFAULT_MODULE, navigate, PERMITTED_MODULES, toast, profile, effectivePermissions]);
 
     const handleModuleChange = (module) => {
         if (PERMITTED_MODULES.includes(module)) {
             setActiveModule(module);
             navigate(`/${module}`);
-        } else if (!profile?.permissions?.[module] || profile?.permissions?.[module] === 'none') {
-            // Only show warning if module is completely denied (not 'read' or 'full')
-            toast({ variant: 'destructive', title: 'Yetkisiz Erişim', description: 'Bu modüle erişim izniniz yok.' });
+        } else if (profile !== null) {
+            const perm = effectivePermissions[module];
+            if (perm === undefined || perm === 'none') {
+                toast({ variant: 'destructive', title: 'Yetkisiz Erişim', description: 'Bu modüle erişim izniniz yok.' });
+            }
         }
     };
 
@@ -423,7 +432,7 @@ const MainLayout = () => {
 
         // Dashboard lazy loading kullanmaz (ilk görünen sayfa)
         if (module === 'dashboard') {
-            return <Dashboard setActiveModule={setActiveModule} onOpenNCView={handleOpenNCView} />;
+            return <Dashboard setActiveModule={handleModuleChange} onOpenNCView={handleOpenNCView} />;
         }
 
         // Diğer modüller Suspense ile lazy yüklenir

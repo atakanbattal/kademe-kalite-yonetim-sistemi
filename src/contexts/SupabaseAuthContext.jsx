@@ -54,8 +54,14 @@
 
             if (error) {
               console.error('Error fetching profile:', error);
+              // Profil yüklenemezse user_metadata'dan permissions kullan (auth sync)
+              const merged = { id: user.id, full_name: user.user_metadata?.full_name, permissions: user.user_metadata?.permissions || {} };
+              setProfile(merged);
             } else {
-              setProfile(data);
+              // profiles.permissions boşsa auth.users.raw_user_meta_data'dan fallback
+              const authPerms = user.user_metadata?.permissions;
+              const perms = (data.permissions && Object.keys(data.permissions).length > 0) ? data.permissions : (authPerms || {});
+              setProfile({ ...data, permissions: perms });
             }
           };
           fetchProfile();

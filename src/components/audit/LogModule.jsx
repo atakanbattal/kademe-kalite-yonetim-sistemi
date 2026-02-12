@@ -24,11 +24,6 @@ import React, { useMemo, useState } from 'react';
       const filteredLogs = useMemo(() => {
         let logs = auditLogs;
         
-        // Debug: İlk 3 kaydın table_name'ini logla
-        if (logs.length > 0) {
-          console.log('🔍 İlk 3 Audit Log:', logs.slice(0, 3).map(l => ({ id: l.id, action: l.action, table_name: l.table_name })));
-        }
-        
         // Tablo filtresi
         if (tableFilter !== 'all') {
           logs = logs.filter(log => log.table_name === tableFilter);
@@ -48,7 +43,7 @@ import React, { useMemo, useState } from 'react';
         return logs;
       }, [auditLogs, searchTerm, tableFilter]);
 
-      // Kayıt ID'sini bul
+      // Kayıt ID'sini bul (DB trigger: INSERT/UPDATE new/old, DELETE: details = kayıt)
       const getRecordId = (log) => {
         try {
           const details = log.details;
@@ -78,7 +73,7 @@ import React, { useMemo, useState } from 'react';
           const recordId = getRecordId(log);
           const info = { id: recordId };
           
-          // Hem yeni hem eski kayıt bilgilerini çıkar (silme işlemlerinde old kullanılır)
+          // Hem yeni hem eski kayıt bilgilerini çıkar (silme: details doğrudan OLD kayıt)
           const dataSource = details.new || details.old || details;
           const isDelete = log.action.startsWith('SİLME');
           
@@ -167,11 +162,16 @@ import React, { useMemo, useState } from 'react';
             if (oldData.status) info.oldStatus = oldData.status;
           }
           
-          // Değişen alanlar
+          // Değişen alanlar (DB: object, frontend: array)
           if (details.changed_fields) {
             info.changedFields = Array.isArray(details.changed_fields) 
               ? details.changed_fields 
               : Object.keys(details.changed_fields || {});
+          }
+          
+          // Güncelleme için: frontend bazen details.changes kullanır
+          if (details.changes && typeof details.changes === 'object') {
+            info.changedFields = [...(info.changedFields || []), ...Object.keys(details.changes)];
           }
           
           return info;
@@ -313,6 +313,19 @@ import React, { useMemo, useState } from 'react';
             ? `${tableName} kaydı ${actionType} - ${parts[0]}`
             : `${tableName} kaydı ${actionType}`;
         }
+        // Kalite Kontrolleri / Üretilen Araçlar
+        else if (tableNameLower === 'quality_inspections' || tableNameLower === 'produced_vehicles') {
+          const parts = [];
+          if (recordInfo.chassisNo) parts.push(`Şasi: ${recordInfo.chassisNo}`);
+          if (recordInfo.serialNo) parts.push(`Seri: ${recordInfo.serialNo}`);
+          if (recordInfo.vehicleSerialNo) parts.push(`Seri: ${recordInfo.vehicleSerialNo}`);
+          if (recordInfo.vehicleType) parts.push(`Tip: ${recordInfo.vehicleType}`);
+          if (recordInfo.customerName) parts.push(`Müşteri: ${recordInfo.customerName}`);
+          extraInfo = parts.length > 0 ? parts.join(' | ') : '';
+          mainMessage = extraInfo 
+            ? `${tableName} kaydı ${actionType} - ${parts[0]}`
+            : `${tableName} kaydı ${actionType}`;
+        }
         // Ekipmanlar
         else if (tableNameLower.includes('equipment')) {
           const parts = [];
@@ -412,6 +425,8 @@ import React, { useMemo, useState } from 'react';
           'task_comments': 'Görev Yorumları',
           'task_checklists': 'Görev Kontrol Listeleri',
           'task_tags': 'Görev Etiketleri',
+          'task_attachments': 'Görev Ekleri',
+          'task_tag_relations': 'Görev Etiketleri',
           'non_conformities': 'Uygunsuzluklar',
           'deviations': 'Sapmalar',
           'deviation_approvals': 'Sapma Onayları',
@@ -419,6 +434,7 @@ import React, { useMemo, useState } from 'react';
           'deviation_vehicles': 'Sapma Araçları',
           'audits': 'Tetkikler',
           'audit_findings': 'Tetkik Bulguları',
+          'audit_results': 'Tetkik Sonuçları',
           'quarantine_records': 'Karantina Kayıtları',
           'quality_costs': 'Kalite Maliyetleri',
           'equipments': 'Ekipmanlar',
@@ -432,6 +448,7 @@ import React, { useMemo, useState } from 'react';
           'supplier_audit_plans': 'Tedarikçi Denetim Planları',
           'supplier_audit_attendees': 'Tedarikçi Denetim Katılımcıları',
           'supplier_audit_questions': 'Tedarikçi Denetim Soruları',
+          'supplier_documents': 'Tedarikçi Dokümanları',
           'incoming_inspections': 'Girdi Muayeneleri',
           'incoming_control_plans': 'Kontrol Planları',
           'incoming_inspection_results': 'Muayene Sonuçları',
@@ -443,11 +460,13 @@ import React, { useMemo, useState } from 'react';
           'kaizen_entries': 'Kaizen Kayıtları',
           'documents': 'Dokümanlar',
           'document_revisions': 'Doküman Revizyonları',
+          'document_folders': 'Doküman Klasörleri',
           'personnel': 'Personel',
           'kpis': 'KPI Kayıtları',
           'produced_vehicles': 'Üretilen Araçlar',
           'quality_inspections': 'Kalite Kontrolleri',
           'quality_inspection_faults': 'Kalite Hataları',
+          'quality_inspection_history': 'Kalite Kontrol Geçmişi',
           'fault_categories': 'Hata Kategorileri',
           'customer_complaints': 'Müşteri Şikayetleri',
           'complaint_analyses': 'Şikayet Analizleri',
@@ -469,6 +488,7 @@ import React, { useMemo, useState } from 'react';
           'personnel_skills': 'Personel Yetkinlikleri',
           'skill_training_records': 'Eğitim Kayıtları',
           'skill_certification_records': 'Sertifika Kayıtları',
+          'skill_assessments': 'Yetkinlik Değerlendirmeleri',
           'trainings': 'Eğitimler',
           'training_participants': 'Eğitim Katılımcıları',
           'wps_procedures': 'WPS Prosedürleri',
@@ -477,6 +497,12 @@ import React, { useMemo, useState } from 'react';
           'characteristics': 'Karakteristikler',
           'measurement_equipment': 'Ölçüm Ekipmanları',
           'tolerance_standards': 'Tolerans Standartları',
+          'process_control_plans': 'Proses Kontrol Planları',
+          'process_control_documents': 'Proses Kontrol Dokümanları',
+          'process_parameter_records': 'Proses Parametre Kayıtları',
+          'production_departments': 'Üretim Departmanları',
+          'supplier_development_plans': 'Tedarikçi Geliştirme Planları',
+          'supplier_development_assessments': 'Tedarikçi Değerlendirmeleri',
         };
         return tableMap[tableName] || tableName;
       };
@@ -492,7 +518,7 @@ import React, { useMemo, useState } from 'react';
               <CardTitle>Sistem Denetim Kayıtları</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Sistemde gerçekleştirilen tüm kritik işlemler (Ekleme, Güncelleme, Silme) aşağıda listelenmiştir. 
-                <span className="font-semibold text-foreground"> Son 200 kayıt</span> gösterilmektedir.
+                <span className="font-semibold text-foreground"> Son 500 kayıt</span> gösterilmektedir.
               </p>
                <div className="flex flex-col sm:flex-row gap-4 pt-4">
                   <div className="search-box flex-1">
@@ -532,6 +558,11 @@ import React, { useMemo, useState } from 'react';
                       <SelectItem value="customer_complaints">Müşteri Şikayetleri</SelectItem>
                       <SelectItem value="produced_vehicles">Üretilen Araçlar</SelectItem>
                       <SelectItem value="quality_inspections">Kalite Kontrolleri</SelectItem>
+                      <SelectItem value="produced_vehicles">Üretilen Araçlar</SelectItem>
+                      <SelectItem value="task_assignees">Görev Atamaları</SelectItem>
+                      <SelectItem value="task_comments">Görev Yorumları</SelectItem>
+                      <SelectItem value="deviation_approvals">Sapma Onayları</SelectItem>
+                      <SelectItem value="equipment_calibrations">Kalibrasyon Kayıtları</SelectItem>
                       <SelectItem value="benchmarks">Benchmark Yönetimi</SelectItem>
                       <SelectItem value="skills">Polivalans Yönetimi</SelectItem>
                       <SelectItem value="trainings">Eğitim Yönetimi</SelectItem>

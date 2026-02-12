@@ -11,11 +11,17 @@
           return { canRead: true, canWrite: true, canDelete: true, hasFullAccess: true };
         }
 
-        const modulePermission = profile?.permissions?.[moduleName];
+        // Hem profile hem user_metadata kullan (sync tutarsızlığına karşı)
+        const perms = profile?.permissions || user?.user_metadata?.permissions || {};
+        const modulePermission = perms[moduleName];
+
+        // Profile yüklenmediyse (null) fazla kısıtlama yapma - yetkisiz atma
+        if (profile === null && !user?.user_metadata?.permissions?.[moduleName]) {
+          return { canRead: true, canWrite: true, canDelete: true, hasFullAccess: true };
+        }
 
         const hasFullAccess = modulePermission === 'full';
         const canRead = modulePermission === 'full' || modulePermission === 'read';
-        // Only users with 'full' permission can write (create/update records)
         const canWrite = modulePermission === 'full';
 
         return {

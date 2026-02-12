@@ -1333,7 +1333,7 @@ const BUCKET_NAME = 'quality_costs';
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-[10px] font-medium text-muted-foreground uppercase">Açıklama</label>
-                                                        <Input value={item.description || ''} onChange={(e) => updateLineItem(item.id, 'description', e.target.value)} placeholder="Kalem açıklaması..." className="h-8 text-sm" />
+                                                        <Input autoFormat={false} value={item.description || ''} onChange={(e) => updateLineItem(item.id, 'description', e.target.value)} placeholder="Kalem açıklaması..." className="h-8 text-sm" />
                                                     </div>
                                                 </div>
                                             ))}
@@ -1384,7 +1384,7 @@ const BUCKET_NAME = 'quality_costs';
                                                         </div>
                                                         <div className="space-y-1">
                                                             <label className="text-[10px] font-medium text-muted-foreground uppercase">Açıklama</label>
-                                                            <Input value={sc.description || ''} onChange={(e) => updateSharedCost(sc.id, 'description', e.target.value)} placeholder="Açıklama..." className="h-8 text-sm" />
+                                                            <Input autoFormat={false} value={sc.description || ''} onChange={(e) => updateSharedCost(sc.id, 'description', e.target.value)} placeholder="Açıklama..." className="h-8 text-sm" />
                                                         </div>
                                                     </div>
                                                     <button type="button" onClick={() => removeSharedCost(sc.id)} className="text-muted-foreground hover:text-destructive transition-colors mt-5"><Trash2 className="w-4 h-4" /></button>
@@ -1441,7 +1441,7 @@ const BUCKET_NAME = 'quality_costs';
                                                         </div>
                                                         <div className="space-y-1">
                                                             <label className="text-[10px] font-medium text-muted-foreground uppercase">Açıklama</label>
-                                                            <Input value={ic.description || ''} onChange={(e) => updateIndirectCost(ic.id, 'description', e.target.value)} placeholder="Detaylı açıklama..." className="h-8 text-sm" />
+                                                            <Input autoFormat={false} value={ic.description || ''} onChange={(e) => updateIndirectCost(ic.id, 'description', e.target.value)} placeholder="Detaylı açıklama..." className="h-8 text-sm" />
                                                         </div>
                                                     </div>
                                                     <button type="button" onClick={() => removeIndirectCost(ic.id)} className="text-muted-foreground hover:text-destructive transition-colors mt-5"><Trash2 className="w-4 h-4" /></button>

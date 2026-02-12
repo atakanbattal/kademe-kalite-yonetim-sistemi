@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import {
-    AlertTriangle, FileText, Beaker, CheckSquare, BarChart, List, ShieldCheck, CalendarClock, TrendingUp, BookCheck, ClipboardCheck, WalletCards, FileDown
+    AlertTriangle, FileText, Beaker, CheckSquare, BarChart, List, ShieldCheck, CalendarClock, TrendingUp, BookCheck, ClipboardCheck, WalletCards, FileDown, ScrollText, Plus, Edit, Trash2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -105,12 +105,14 @@ const ListWidget = ({ title, items, icon: Icon, onRowClick, emptyText, onSeeAllC
     </Card>
 );
 
+const TABLE_LABELS = { tasks: 'Görev', non_conformities: 'Uygunsuzluk', deviations: 'Sapma', audit_findings: 'Tetkik Bulgusu', quarantine_records: 'Karantina', quality_costs: 'Kalite Maliyeti', equipments: 'Ekipman', equipment_calibrations: 'Kalibrasyon', suppliers: 'Tedarikçi', supplier_non_conformities: 'Ted. Uygunsuzluk', supplier_audit_plans: 'Ted. Denetim', incoming_inspections: 'Girdi Muayene', documents: 'Doküman', personnel: 'Personel', kpis: 'KPI', customer_complaints: 'Müşteri Şikayeti', quality_inspections: 'Kalite Kontrol', kaizen_entries: 'Kaizen' };
+
 const Dashboard = ({ setActiveModule, onOpenNCView }) => {
     const { toast } = useToast();
     const dashboardData = useDashboardData();
     const { kpiData, nonconformityData, costData, pendingApprovals, upcomingCalibrations, expiringDocs, completedAudits, loading, error } = dashboardData;
     const refreshDashboard = dashboardData.refreshDashboard || (() => { });
-    const { nonConformities, equipments, documents, qualityCosts, refreshData } = useData();
+    const { nonConformities, equipments, documents, qualityCosts, auditLogs, refreshData } = useData();
 
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
     const [detailModalContent, setDetailModalContent] = useState({ title: '', records: [], renderItem: () => null });
@@ -254,10 +256,82 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
                 </Button>
             </div>
 
-            {/* Bildirim Merkezi - Üstte Görünür */}
+            {/* Bildirim Merkezi - Kompakt */}
             <motion.div variants={itemVariants}>
                 <ErrorBoundary componentName="Bildirim Merkezi">
                     <NotificationCenter />
+                </ErrorBoundary>
+            </motion.div>
+
+            {/* Son İşlemler - Personel faaliyetleri */}
+            <motion.div variants={itemVariants}>
+                <ErrorBoundary componentName="Son İşlemler">
+                    <Card className="dashboard-widget h-full flex flex-col">
+                        <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <ScrollText className="w-4 h-4 text-primary" />
+                                Son İşlemler
+                            </CardTitle>
+                            <Button variant="link" size="sm" onClick={() => setActiveModule?.('audit-logs')} className="p-0 h-auto text-xs">
+                                Tümünü Gör
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="pt-0 flex-grow p-4 min-w-0">
+                            {loading ? (
+                                <div className="space-y-2">
+                                    {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
+                                </div>
+                            ) : !auditLogs || auditLogs.length === 0 ? (
+                                <p className="text-xs text-muted-foreground text-center py-4">İşlem kaydı bulunmuyor.</p>
+                            ) : (
+                                <ul className="space-y-1">
+                                    {auditLogs.slice(0, 8).map((log) => {
+                                        const isAdd = log.action?.startsWith('EKLEME');
+                                        const isDel = log.action?.startsWith('SİLME');
+                                        const tableLabel = TABLE_LABELS[log.table_name] || log.table_name;
+                                        const shortAction = isAdd ? 'Eklendi' : isDel ? 'Silindi' : 'Güncellendi';
+                                        let desc = '';
+                                        try {
+                                            const d = log.details;
+                                            if (d?.new?.title) desc = d.new.title;
+                                            else if (d?.new?.name) desc = d.new.name;
+                                            else if (d?.new?.nc_number) desc = `NC: ${d.new.nc_number}`;
+                                            else if (d?.new?.mdi_no) desc = `MDI: ${d.new.mdi_no}`;
+                                            else if (d?.new?.request_no) desc = `Talep: ${d.new.request_no}`;
+                                            else if (d?.old?.title) desc = d.old.title;
+                                            else if (d?.old?.name) desc = d.old.name;
+                                            else if (typeof d === 'object' && d?.title) desc = d.title;
+                                            else if (typeof d === 'object' && d?.name) desc = d.name;
+                                        } catch (_) {}
+                                        const display = desc ? (desc.length > 40 ? desc.slice(0, 40) + '…' : desc) : '—';
+                                        return (
+                                            <li
+                                                key={log.id}
+                                                onClick={() => setActiveModule?.('audit-logs')}
+                                                className="flex items-center gap-2 p-2 rounded-md hover:bg-accent cursor-pointer text-xs min-w-0"
+                                            >
+                                                <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${
+                                                    isAdd ? 'bg-green-100 text-green-700 dark:bg-green-900/30' :
+                                                    isDel ? 'bg-red-100 text-red-700 dark:bg-red-900/30' :
+                                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30'
+                                                }`}>
+                                                    {isAdd ? <Plus className="w-3 h-3" /> : isDel ? <Trash2 className="w-3 h-3" /> : <Edit className="w-3 h-3" />}
+                                                </span>
+                                                <div className="min-w-0 flex-1 truncate">
+                                                    <span className="font-medium"> {log.user_full_name || 'Sistem'}</span>
+                                                    <span className="text-muted-foreground"> {shortAction} · </span>
+                                                    <span className="text-muted-foreground truncate">{tableLabel}: {display}</span>
+                                                </div>
+                                                <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 tabular-nums">
+                                                    {format(new Date(log.created_at), 'dd.MM HH:mm', { locale: tr })}
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
                 </ErrorBoundary>
             </motion.div>
 

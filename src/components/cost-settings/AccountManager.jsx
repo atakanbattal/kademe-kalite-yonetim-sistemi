@@ -131,7 +131,7 @@ const AccountManager = () => {
         } else {
             setUsers(data);
             const permissions = data.reduce((acc, user) => {
-                acc[user.id] = user.raw_user_meta_data?.permissions || {};
+                acc[user.id] = user.permissions || user.raw_user_meta_data?.permissions || {};
                 return acc;
             }, {});
             setUserPermissions(permissions);
@@ -171,6 +171,14 @@ const AccountManager = () => {
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: `İzinler güncellenemedi: ${error.message}` });
         } else {
+            // manage-user auth'u günceller; profiles tablosunu da güncelle (uygulama oradan okuyor)
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ permissions: permissionsToSave, updated_at: new Date().toISOString() })
+                .eq('id', userId);
+            if (profileError) {
+                console.warn('Profiles güncellenemedi (auth güncel):', profileError.message);
+            }
             toast({ title: 'Başarılı', description: `${user.full_name || user.email} için izinler kaydedildi.` });
             logAudit('İzin Güncelleme', { userId, newPermissions: permissionsToSave }, 'profiles');
             fetchUsers();
