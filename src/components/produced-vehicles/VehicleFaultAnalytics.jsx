@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-    import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, CartesianGrid, LineChart, Line } from 'recharts';
+    import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, CartesianGrid, LineChart, Line, ComposedChart } from 'recharts';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { useData } from '@/contexts/DataContext';
-    import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Skeleton } from '@/components/ui/skeleton';
-    import { AlertCircle, Car, Settings, Percent, GitCommitVertical, Calendar, Clock, Wrench } from 'lucide-react';
+    import { Badge } from '@/components/ui/badge';
+    import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+    import { AlertCircle, Car, Percent, GitCommitVertical, Clock } from 'lucide-react';
     import DepartmentFaultDetailModal from './DepartmentFaultDetailModal';
     import { format, parseISO, startOfMonth, eachMonthOfInterval, isValid, getYear, getMonth, differenceInMilliseconds } from 'date-fns';
     import { tr } from 'date-fns/locale';
@@ -218,6 +220,79 @@ const DurationTooltip = ({ active, payload, label }) => {
 
             return { faults: periodFaults, vehicles: periodVehicles, timelineEvents: periodTimelineEvents };
         }, [period, faults, vehicles, timelineEvents]);
+
+        // Marka, Müşteri, Marka-Kategori analizi (producedVehicles'dan, dönem filtresiyle)
+        const brandCustomerData = useMemo(() => {
+            if (!producedVehicles || producedVehicles.length === 0) return { brands: [], customers: [], brandCategory: [] };
+
+            let filteredVehicles = producedVehicles;
+            if (period !== 'all') {
+                const [year, month] = period.split('-').map(Number);
+                const startDate = new Date(year, month - 1, 1);
+                const endDate = new Date(year, month, 1);
+                filteredVehicles = producedVehicles.filter(v => {
+                    const d = v.created_at ? parseISO(v.created_at) : null;
+                    return d && isValid(d) && d >= startDate && d < endDate;
+                });
+            }
+
+            const faultsByBrand = {};
+            const faultsByCustomer = {};
+            const brandCategoryCross = {};
+
+            filteredVehicles.forEach(vehicle => {
+                const faults = vehicle.quality_inspection_faults || [];
+                const faultCount = faults.length;
+                const brand = vehicle.vehicle_brand || '-';
+                const customer = vehicle.customer_name || '-';
+
+                if (!faultsByBrand[brand]) faultsByBrand[brand] = { total: 0, clean: 0, defects: 0 };
+                faultsByBrand[brand].total++;
+                if (faultCount === 0) faultsByBrand[brand].clean++;
+                faultsByBrand[brand].defects += faultCount;
+
+                if (!faultsByCustomer[customer]) faultsByCustomer[customer] = { total: 0, clean: 0, defects: 0 };
+                faultsByCustomer[customer].total++;
+                if (faultCount === 0) faultsByCustomer[customer].clean++;
+                faultsByCustomer[customer].defects += faultCount;
+
+                if (!brandCategoryCross[brand]) brandCategoryCross[brand] = {};
+                faults.forEach(f => {
+                    let cat = (f.category?.name || f.fault_category?.name || f.fault_category?.label || 'Diğer');
+                    brandCategoryCross[brand][cat] = (brandCategoryCross[brand][cat] || 0) + (f.quantity || 1);
+                });
+            });
+
+            const brandTableData = Object.entries(faultsByBrand).map(([name, data]) => ({
+                name,
+                total: data.total,
+                ftt: ((data.clean / data.total) * 100).toFixed(1),
+                dpu: (data.defects / data.total).toFixed(2),
+                defectCount: data.defects,
+                defectRate: (((data.total - data.clean) / data.total) * 100).toFixed(1),
+            })).sort((a, b) => b.total - a.total);
+
+            const customerTableData = Object.entries(faultsByCustomer).map(([name, data]) => ({
+                name,
+                total: data.total,
+                ftt: ((data.clean / data.total) * 100).toFixed(1),
+                dpu: (data.defects / data.total).toFixed(2),
+                defectCount: data.defects,
+                defectRate: (((data.total - data.clean) / data.total) * 100).toFixed(1),
+            })).sort((a, b) => b.total - a.total).slice(0, 15);
+
+            const brandCategoryTableData = Object.entries(brandCategoryCross).map(([brand, cats]) => {
+                const topCategories = Object.entries(cats)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([cat, count]) => `${cat} (${count})`)
+                    .join(', ');
+                const totalBrandFaults = Object.values(cats).reduce((s, c) => s + c, 0);
+                return { brand, topCategories, totalFaults: totalBrandFaults };
+            }).sort((a, b) => b.totalFaults - a.totalFaults);
+
+            return { brands: brandTableData, customers: customerTableData, brandCategory: brandCategoryTableData };
+        }, [producedVehicles, period]);
 
         const analyticsData = useMemo(() => {
             const { faults: currentFaults, vehicles: currentVehicles, timelineEvents: currentTimelineEvents } = filteredData;
@@ -568,6 +643,128 @@ const DurationTooltip = ({ active, payload, label }) => {
                     {renderHorizontalChart(analyticsData.byDepartmentTotalFaults, 'Birimlere Göre Toplam Hata Dağılımı (Top 10)', 'count', 'department')}
                     {renderHorizontalChart(analyticsData.byVehicleType, 'Araç Tipine Göre Hata Dağılımı (Top 10)', 'count', 'vehicleType')}
                     {renderHorizontalChart(analyticsData.byFaultCategory, 'Hata Kategorisi Dağılımı (Adet - Top 10)', 'count', 'category')}
+                </div>
+
+                {/* Marka Bazlı Hata Analizi - Grafikte sadece Üretim Adedi ve Hata Adedi, Hata Oranı % çizgisi yok */}
+                <Card className="col-span-1 lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Marka Bazlı Hata Analizi</CardTitle>
+                        <CardDescription>Markalara göre üretim adedi ve hata adedi karşılaştırması</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-6">
+                            <div className="h-[300px] w-full">
+                                {loading ? <Skeleton className="h-[300px] w-full" /> : brandCustomerData.brands.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={brandCustomerData.brands} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                            <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" height={60} stroke="hsl(var(--muted-foreground))" />
+                                            <YAxis label={{ value: 'Adet', angle: -90, position: 'insideLeft', fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Legend />
+                                            <Bar dataKey="total" name="Üretim Adedi" fill="#94A3B8" radius={[4, 4, 0, 0]} barSize={28} />
+                                            <Bar dataKey="defectCount" name="Hata Adedi" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={28} />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                ) : <div className="h-[300px] flex items-center justify-center text-muted-foreground">Bu dönem için veri bulunmuyor.</div>}
+                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Marka</TableHead>
+                                        <TableHead className="text-center">Üretim</TableHead>
+                                        <TableHead className="text-center">Hata Adedi</TableHead>
+                                        <TableHead className="text-center">Hata Oranı %</TableHead>
+                                        <TableHead className="text-center">FTQ %</TableHead>
+                                        <TableHead className="text-center">DPU</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {brandCustomerData.brands.map((brand) => (
+                                        <TableRow key={brand.name}>
+                                            <TableCell className="font-medium">{brand.name}</TableCell>
+                                            <TableCell className="text-center">{brand.total}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant={brand.defectCount > 0 ? 'destructive' : 'secondary'}>{brand.defectCount}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-center">%{brand.defectRate}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant={parseFloat(brand.ftt) >= 90 ? 'success' : parseFloat(brand.ftt) >= 75 ? 'warning' : 'destructive'}>%{brand.ftt}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-center text-muted-foreground">{brand.dpu}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Müşteri Bazlı Hata Analizi ve Marka Bazlı Hata Kategorisi Dağılımı - Alt alta tam genişlik */}
+                <div className="space-y-6 col-span-1 lg:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Müşteri Bazlı Hata Analizi</CardTitle>
+                            <CardDescription>Müşterilere göre kalite metrikleri</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {brandCustomerData.customers.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Müşteri</TableHead>
+                                            <TableHead className="text-center">Üretim</TableHead>
+                                            <TableHead className="text-center">Hata Adedi</TableHead>
+                                            <TableHead className="text-center">Hata Oranı %</TableHead>
+                                            <TableHead className="text-center">FTQ %</TableHead>
+                                            <TableHead className="text-center">DPU</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {brandCustomerData.customers.map((c) => (
+                                            <TableRow key={c.name}>
+                                                <TableCell className="font-medium">{c.name}</TableCell>
+                                                <TableCell className="text-center">{c.total}</TableCell>
+                                                <TableCell className="text-center"><Badge variant={c.defectCount > 0 ? 'destructive' : 'secondary'}>{c.defectCount}</Badge></TableCell>
+                                                <TableCell className="text-center">%{c.defectRate}</TableCell>
+                                                <TableCell className="text-center"><Badge variant={parseFloat(c.ftt) >= 90 ? 'success' : parseFloat(c.ftt) >= 75 ? 'warning' : 'destructive'}>%{c.ftt}</Badge></TableCell>
+                                                <TableCell className="text-center text-muted-foreground">{c.dpu}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : <div className="py-8 text-center text-muted-foreground">Bu dönem için veri bulunmuyor.</div>}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Marka Bazlı Hata Kategorisi Dağılımı</CardTitle>
+                            <CardDescription>Her marka için en sık görülen hata kategorileri</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {brandCustomerData.brandCategory.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Marka</TableHead>
+                                            <TableHead>En Çok Hata Yapan Kategoriler</TableHead>
+                                            <TableHead className="text-right">Toplam Hata</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {brandCustomerData.brandCategory.map((row) => (
+                                            <TableRow key={row.brand}>
+                                                <TableCell className="font-medium">{row.brand}</TableCell>
+                                                <TableCell className="text-muted-foreground">{row.topCategories || '-'}</TableCell>
+                                                <TableCell className="text-right font-medium">{row.totalFaults}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : <div className="py-8 text-center text-muted-foreground">Bu dönem için veri bulunmuyor.</div>}
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         );

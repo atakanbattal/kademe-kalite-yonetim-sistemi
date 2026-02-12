@@ -86,7 +86,7 @@ const VehicleQualityAnalytics = () => {
             });
 
             // Trend Data (Group by Week)
-            const date = new Date(vehicle.created_at || v.production_date);
+            const date = new Date(vehicle.created_at || vehicle.production_date);
             // Format: YYYY-WN (Year-WeekNumber) for accumulation
             const weekStart = startOfWeek(date, { weekStartsOn: 1 });
             const weekKey = format(weekStart, 'yyyy-MM-dd'); // Use date string for sorting
@@ -107,7 +107,8 @@ const VehicleQualityAnalytics = () => {
             faultsByModel[model].total++;
             if (faultCount === 0) faultsByModel[model].clean++;
             faultsByModel[model].defects += faultCount;
-        });
+
+            });
 
         // Calculate KPIs
         const ftt = (vehiclesClean / totalVehicles) * 100; // First Time Quality (FTQ)
@@ -165,27 +166,20 @@ const VehicleQualityAnalytics = () => {
     const { kpi, pareto, trend, models } = analyticsData;
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header & Filter */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Kalite Performans Paneli</h2>
-                    <p className="text-muted-foreground">Üretim kalitesi, hata analizleri ve performans metrikleri.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <Select value={timeRange} onValueChange={setTimeRange}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Zaman Aralığı" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tüm Zamanlar</SelectItem>
-                            <SelectItem value="year">Son 1 Yıl</SelectItem>
-                            <SelectItem value="quarter">Son 3 Ay</SelectItem>
-                            <SelectItem value="month">Son 1 Ay</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
+        <div className="space-y-6">
+            <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <Select value={timeRange} onValueChange={setTimeRange}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Zaman Aralığı" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Tüm Zamanlar</SelectItem>
+                        <SelectItem value="year">Son 1 Yıl</SelectItem>
+                        <SelectItem value="quarter">Son 3 Ay</SelectItem>
+                        <SelectItem value="month">Son 1 Ay</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* KPI Cards */}
@@ -348,6 +342,7 @@ const VehicleQualityAnalytics = () => {
                         </Table>
                     </CardContent>
                 </Card>
+
             </div>
         </div>
     );
