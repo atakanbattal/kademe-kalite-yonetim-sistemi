@@ -14,7 +14,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { formatDuration } from '@/lib/formatDuration.js';
-    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText, Car, Hash, Calendar, User, Building2, Tag, AlertTriangle, FlaskConical } from 'lucide-react';
+    import { Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, Trash2, FileText, Car, Hash, Calendar, User, Building2, Tag, AlertTriangle, FlaskConical, Star } from 'lucide-react';
     import { differenceInDays } from 'date-fns';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { generateVehicleReport } from '@/lib/pdfGenerator';
@@ -373,6 +373,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Araç kaydına ait tüm bilgiler</p>
                             </div>
                             <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{vehicle.status}</span>
+                            {vehicle.is_sale_priority && (
+                                <span className="px-3 py-1 bg-amber-600 border border-amber-500 text-white text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                                    <Star className="h-3 w-3 fill-current" /> Satış Önceliği
+                                </span>
+                            )}
                         </div>
                         <Button variant="outline" size="sm" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={generateReport}>
                             <FileText className="w-4 h-4 mr-2" /> Rapor Al
@@ -422,6 +427,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <InfoCard icon={User} label="Müşteri" value={vehicle.customer_name} />
+                                        {vehicle.is_sale_priority && (
+                                            <InfoCard 
+                                                icon={Star} 
+                                                label="Satış Önceliği" 
+                                                value="Satış tarafından öncelikli bildirildi"
+                                                variant="warning"
+                                            />
+                                        )}
                                         <InfoCard 
                                             icon={CheckCircle} 
                                             label="Durum" 

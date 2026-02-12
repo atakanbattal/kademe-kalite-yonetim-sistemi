@@ -198,8 +198,9 @@ body {
 
 /* Updated table styles for light theme - Mobile Responsive */
 .data-table {
-  @apply w-full border-collapse min-w-[600px];
+  @apply w-full border-collapse;
 }
+
 
 /* DF/8D table specific - override w-full */
 .data-table-wide {
@@ -231,6 +232,7 @@ body {
 .data-table tr:hover {
   @apply bg-secondary;
 }
+
 
 /* Responsive table wrapper */
 .table-responsive {

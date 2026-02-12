@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useData } from '@/contexts/DataContext';
 
 const DMO_STATUS_OPTIONS = ['DMO Bekliyor', 'DMO Geçti', 'DMO Kaldı'];
@@ -26,6 +27,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
         notes: '',
         dmo_status: '',
         delivery_due_date: '',
+        is_sale_priority: false,
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [initialFormData, setInitialFormData] = useState({});
@@ -47,7 +49,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     useEffect(() => {
         if (vehicle && isOpen) {
             const initialData = {
-                chassis_no: vehicle.chassis_no || '',
+                chassis_no: vehicle.vehicle_brand === 'Şasi Yok' ? 'Şasi Yok' : (vehicle.chassis_no || ''),
                 serial_no: vehicle.serial_no || '',
                 customer_name: vehicle.customer_name || '',
                 vehicle_type: vehicle.vehicle_type || '',
@@ -55,6 +57,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                 notes: vehicle.notes || '',
                 dmo_status: vehicle.dmo_status || '',
                 delivery_due_date: vehicle.delivery_due_date ? vehicle.delivery_due_date.split('T')[0] : '',
+                is_sale_priority: vehicle.is_sale_priority || false,
             };
             setFormData(initialData);
             setInitialFormData(initialData);
@@ -67,7 +70,14 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     };
 
     const handleSelectChange = (id, value) => {
-        setFormData(prev => ({ ...prev, [id]: value === 'none' ? '' : value }));
+        const nextValue = value === 'none' ? '' : value;
+        setFormData(prev => {
+            const updated = { ...prev, [id]: nextValue };
+            if (id === 'vehicle_brand' && nextValue === 'Şasi Yok') {
+                updated.chassis_no = 'Şasi Yok';
+            }
+            return updated;
+        });
     };
 
     const handleClose = (open) => {
@@ -103,7 +113,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
         const { error } = await supabase
             .from('quality_inspections')
             .update({
-                chassis_no: formData.chassis_no,
+                chassis_no: formData.vehicle_brand === 'Şasi Yok' ? 'Şasi Yok' : formData.chassis_no,
                 serial_no: formData.serial_no,
                 customer_name: formData.customer_name,
                 vehicle_type: formData.vehicle_type,
@@ -111,6 +121,7 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                 notes: formData.notes,
                 dmo_status: formData.dmo_status,
                 delivery_due_date: formData.delivery_due_date || null,
+                is_sale_priority: !!formData.is_sale_priority,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', vehicle.id);
@@ -167,7 +178,13 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="chassis_no">Şasi No</Label>
-                            <Input id="chassis_no" value={formData.chassis_no} onChange={handleInputChange} autoCapitalize="off" />
+                            <Input 
+                                id="chassis_no" 
+                                value={formData.vehicle_brand === 'Şasi Yok' ? 'Şasi Yok' : formData.chassis_no} 
+                                onChange={handleInputChange} 
+                                autoCapitalize="off" 
+                                readOnly={formData.vehicle_brand === 'Şasi Yok'}
+                            />
                         </div>
                         <div>
                             <Label htmlFor="serial_no">Seri No</Label>
@@ -223,6 +240,16 @@ const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
                     <div>
                         <Label htmlFor="notes">Notlar</Label>
                         <Textarea id="notes" value={formData.notes} onChange={handleInputChange} rows={4} placeholder="Araç ile ilgili notlarınızı buraya yazabilirsiniz..." autoCapitalize="off" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="is_sale_priority"
+                            checked={formData.is_sale_priority}
+                            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_sale_priority: !!checked }))}
+                        />
+                        <Label htmlFor="is_sale_priority" className="text-sm font-normal cursor-pointer">
+                            Satış önceliği (Satış tarafından öncelikli olarak bildirildi)
+                        </Label>
                     </div>
                 </form>
                 <DialogFooter className="flex-shrink-0 border-t pt-4">

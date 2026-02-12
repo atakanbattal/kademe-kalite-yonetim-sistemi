@@ -125,6 +125,7 @@ export const DataProvider = ({ children }) => {
 
         // ORTA ÖNCELİKLİ TABLOLAR (İkinci dalga)
         const mediumPromises = {
+            producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').limit(500),
             nonConformities: supabase.from('non_conformities').select('*, supplier:supplier_id(name)'),
             deviations: supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)'),
             kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
@@ -167,7 +168,6 @@ export const DataProvider = ({ children }) => {
         // AĞIR TABLOLAR (Üçüncü dalga - limit ile)
         const heavyPromises = {
             suppliers: supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)'),
-            producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').limit(500),
             equipments: supabase.from('equipments').select('*, equipment_calibrations(*), equipment_assignments(*, personnel(full_name))'),
             // Documents sorgusu - önce documents çek, sonra document_revisions ayrı çekilecek
             documents: (async () => {

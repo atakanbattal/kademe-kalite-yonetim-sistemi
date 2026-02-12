@@ -10,12 +10,14 @@ const VehicleFilterModal = ({ isOpen, setIsOpen, applyFilters, currentFilters, v
     const [statusFilters, setStatusFilters] = useState(currentFilters.status || []);
     const [vehicleTypeFilters, setVehicleTypeFilters] = useState(currentFilters.vehicle_type || []);
     const [dateRange, setDateRange] = useState(currentFilters.dateRange);
+    const [priorityOnly, setPriorityOnly] = useState(currentFilters.priorityOnly || false);
 
     useEffect(() => {
         if (isOpen) {
             setStatusFilters(currentFilters.status || []);
             setVehicleTypeFilters(currentFilters.vehicle_type || []);
             setDateRange(currentFilters.dateRange);
+            setPriorityOnly(currentFilters.priorityOnly || false);
         }
     }, [isOpen, currentFilters]);
 
@@ -39,6 +41,7 @@ const VehicleFilterModal = ({ isOpen, setIsOpen, applyFilters, currentFilters, v
             status: statusFilters,
             vehicle_type: vehicleTypeFilters,
             dateRange: dateRange,
+            priorityOnly: priorityOnly,
         });
         setIsOpen(false);
     };
@@ -47,10 +50,12 @@ const VehicleFilterModal = ({ isOpen, setIsOpen, applyFilters, currentFilters, v
         setStatusFilters([]);
         setVehicleTypeFilters([]);
         setDateRange(null);
+        setPriorityOnly(false);
         applyFilters({
             status: [],
             vehicle_type: [],
             dateRange: null,
+            priorityOnly: false,
         });
         setIsOpen(false);
     };
@@ -107,6 +112,16 @@ const VehicleFilterModal = ({ isOpen, setIsOpen, applyFilters, currentFilters, v
                             date={dateRange}
                             onDateChange={setDateRange}
                         />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="priority-only"
+                            checked={priorityOnly}
+                            onCheckedChange={(checked) => setPriorityOnly(!!checked)}
+                        />
+                        <label htmlFor="priority-only" className="text-sm font-medium leading-none cursor-pointer">
+                            Sadece satış öncelikli araçlar
+                        </label>
                     </div>
                 </div>
                 <DialogFooter>

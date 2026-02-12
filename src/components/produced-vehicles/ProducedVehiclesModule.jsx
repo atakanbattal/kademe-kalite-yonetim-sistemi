@@ -41,7 +41,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
         const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
         const [isVehicleReportModalOpen, setIsVehicleReportModalOpen] = useState(false);
         const [statusDetail, setStatusDetail] = useState(null);
-        const [filters, setFilters] = useState({ status: [], vehicle_type: [], dateRange: null });
+        const [filters, setFilters] = useState({ status: [], vehicle_type: [], dateRange: null, priorityOnly: false });
         const [sortConfig, setSortConfig] = useState({ key: 'updated_at', direction: 'desc' });
 
         const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -71,6 +71,9 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                     const createdAt = new Date(v.created_at);
                     return createdAt >= filters.dateRange.from && createdAt <= filters.dateRange.to;
                 });
+            }
+            if (filters.priorityOnly) {
+                sortedVehicles = sortedVehicles.filter(v => v.is_sale_priority);
             }
 
             if (searchTerm) {
@@ -509,7 +512,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                     </div>
                 </div>
 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0">
                     <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-end">
                         <TabsList className="w-full sm:w-auto overflow-x-auto">
                             <TabsTrigger value="operations" className="flex-1 sm:flex-none">

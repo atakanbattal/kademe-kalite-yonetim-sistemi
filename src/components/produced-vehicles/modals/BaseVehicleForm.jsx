@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useData } from '@/contexts/DataContext';
 
 // Müşteri adını CamelCase formatına çeviren fonksiyon
@@ -32,6 +33,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
         notes: '',
         dmo_status: '',
         delivery_due_date: '',
+        is_sale_priority: false,
     });
     const [loading, setLoading] = useState(false);
 
@@ -59,7 +61,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
     useEffect(() => {
         if (vehicle) {
             setFormData({
-                chassis_no: vehicle.chassis_no || '',
+                chassis_no: vehicle.vehicle_brand === 'Şasi Yok' ? 'Şasi Yok' : (vehicle.chassis_no || ''),
                 serial_no: vehicle.serial_no || '',
                 customer_name: vehicle.customer_name || '',
                 vehicle_type: vehicle.vehicle_type || '',
@@ -68,6 +70,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
                 notes: vehicle.notes || '',
                 dmo_status: vehicle.dmo_status || '',
                 delivery_due_date: vehicle.delivery_due_date ? vehicle.delivery_due_date.split('T')[0] : '',
+                is_sale_priority: vehicle.is_sale_priority || false,
             });
         } else {
             setFormData({
@@ -80,6 +83,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
                 notes: '',
                 dmo_status: '',
                 delivery_due_date: '',
+                is_sale_priority: false,
             });
         }
     }, [vehicle]);
@@ -90,14 +94,21 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
     };
     
     const handleSelectChange = (name, value) => {
-        setFormData(prev => ({ ...prev, [name]: value === 'none' ? '' : value }));
+        const nextValue = value === 'none' ? '' : value;
+        setFormData(prev => {
+            const updated = { ...prev, [name]: nextValue };
+            if (name === 'vehicle_brand' && nextValue === 'Şasi Yok') {
+                updated.chassis_no = 'Şasi Yok';
+            }
+            return updated;
+        });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
-        const { chassis_no, serial_no, customer_name, vehicle_type, vehicle_brand, status, notes, dmo_status, delivery_due_date } = formData;
+        const { chassis_no, serial_no, customer_name, vehicle_type, vehicle_brand, status, notes, dmo_status, delivery_due_date, is_sale_priority } = formData;
         
         // Müşteri adını CamelCase formatına çevir
         const formattedCustomerName = toCamelCase(customer_name);
@@ -117,7 +128,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
 
         // Undefined key'leri ve geçersiz kolonları temizle
         const dataToSave = { 
-            chassis_no, 
+            chassis_no: vehicle_brand === 'Şasi Yok' ? 'Şasi Yok' : chassis_no, 
             serial_no, 
             customer_name: formattedCustomerName, 
             vehicle_type,
@@ -126,6 +137,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
             notes, 
             dmo_status,
             delivery_due_date: delivery_due_date || null,
+            is_sale_priority: !!is_sale_priority,
             updated_at: new Date().toISOString() 
         };
         
@@ -173,7 +185,15 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="chassis_no" className="text-right">Şasi No</Label>
-                <Input id="chassis_no" name="chassis_no" value={formData.chassis_no} onChange={handleChange} className="col-span-3" autoCapitalize="off" />
+                <Input 
+                    id="chassis_no" 
+                    name="chassis_no" 
+                    value={formData.vehicle_brand === 'Şasi Yok' ? 'Şasi Yok' : formData.chassis_no} 
+                    onChange={handleChange} 
+                    className="col-span-3" 
+                    autoCapitalize="off" 
+                    readOnly={formData.vehicle_brand === 'Şasi Yok'}
+                />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="serial_no" className="text-right">Seri No</Label>
@@ -234,6 +254,18 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="notes" className="text-right">Notlar</Label>
                 <Textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} className="col-span-3" autoCapitalize="off" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <div className="col-span-3 col-start-2 flex items-center gap-2">
+                    <Checkbox
+                        id="is_sale_priority"
+                        checked={formData.is_sale_priority}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_sale_priority: !!checked }))}
+                    />
+                    <Label htmlFor="is_sale_priority" className="text-sm font-normal cursor-pointer">
+                        Satış önceliği (Satış tarafından öncelikli olarak bildirildi)
+                    </Label>
+                </div>
             </div>
             <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>

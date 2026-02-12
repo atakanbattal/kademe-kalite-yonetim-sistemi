@@ -524,7 +524,7 @@ const MainLayout = () => {
                         )}
                     </AnimatePresence>
 
-                    <div className="flex flex-1 flex-col min-w-0 w-full">
+                    <div className="flex flex-1 flex-col min-w-0 overflow-hidden basis-0">
                         <header className="mobile-sticky-header flex h-14 items-center gap-3 px-3 sm:px-4 md:px-6 lg:h-16 bg-card border-b border-border">
                             <Button
                                 size="icon"
@@ -545,7 +545,7 @@ const MainLayout = () => {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex-1 p-3 sm:p-4 md:p-6 safe-bottom overflow-x-hidden"
+                            className="flex-1 p-3 sm:p-4 md:p-6 safe-bottom overflow-x-hidden min-w-0"
                         >
                             <Routes>
                                 {PERMITTED_MODULES.map(mod => <Route key={mod} path={mod} element={renderModule(mod)} />)}

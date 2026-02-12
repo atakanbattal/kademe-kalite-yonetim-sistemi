@@ -206,7 +206,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="title">Görev Başlığı</Label>
-                            <Input id="title" name="title" value={formData.title} onChange={handleInputChange} required />
+                            <Input id="title" name="title" value={formData.title} onChange={handleInputChange} required autoFormat={false} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="assignees">Atanan Personeller</Label>
@@ -280,7 +280,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                             {formData.checklist.map((item, index) => (
                                 <div key={item.id} className="flex items-center gap-2">
                                     <Checkbox checked={item.is_completed} onCheckedChange={(checked) => handleChecklistChange(index, 'is_completed', checked)} />
-                                    <Input value={item.item_text} onChange={(e) => handleChecklistChange(index, 'item_text', e.target.value)} className={item.is_completed ? 'line-through' : ''} />
+                                    <Input autoFormat={false} value={item.item_text} onChange={(e) => handleChecklistChange(index, 'item_text', e.target.value)} className={item.is_completed ? 'line-through' : ''} />
                                     <Button type="button" variant="ghost" size="icon" onClick={() => removeChecklistItem(index)}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>

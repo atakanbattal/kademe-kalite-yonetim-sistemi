@@ -6,7 +6,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Trash2, FolderKanban } from 'lucide-react';
+import { Trash2, FolderKanban, Check, Palette } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const PROJECT_COLORS = [
+    '#6366f1', // Indigo
+    '#8b5cf6', // Violet
+    '#a855f7', // Purple
+    '#d946ef', // Fuchsia
+    '#ec4899', // Pink
+    '#f43f5e', // Rose
+    '#ef4444', // Red
+    '#f97316', // Orange
+    '#f59e0b', // Amber
+    '#eab308', // Yellow
+    '#84cc16', // Lime
+    '#22c55e', // Green
+    '#10b981', // Emerald
+    '#14b8a6', // Teal
+    '#06b6d4', // Cyan
+    '#0ea5e9', // Sky
+    '#3b82f6', // Blue
+    '#6b7280', // Gray
+];
 
 const ProjectModal = ({ isOpen, setIsOpen, project, onSaveSuccess }) => {
     const { toast } = useToast();
@@ -15,7 +37,8 @@ const ProjectModal = ({ isOpen, setIsOpen, project, onSaveSuccess }) => {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        is_active: true
+        color: '#6366f1',
+        status: 'Aktif'
     });
 
     useEffect(() => {
@@ -24,94 +47,59 @@ const ProjectModal = ({ isOpen, setIsOpen, project, onSaveSuccess }) => {
                 setFormData({
                     name: project.name || '',
                     description: project.description || '',
-                    is_active: project.is_active !== undefined ? project.is_active : true
+                    color: project.color || '#6366f1',
+                    status: project.status || 'Aktif'
                 });
             } else {
                 setFormData({
                     name: '',
                     description: '',
-                    is_active: true
+                    color: PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)],
+                    status: 'Aktif'
                 });
             }
         }
     }, [isOpen, isEditMode, project]);
 
-    const handleInputChange = (e) => {
-        const { id, value } = e.target;
-        setFormData(prev => ({ ...prev, [id]: value }));
-    };
-
-    const handleCheckboxChange = (checked) => {
-        setFormData(prev => ({ ...prev, is_active: checked }));
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        if (!formData.name || formData.name.trim() === '') {
-            toast({
-                variant: 'destructive',
-                title: 'Eksik Bilgi',
-                description: 'Proje adı zorunludur.'
-            });
+        if (!formData.name?.trim()) {
+            toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Proje adı zorunludur.' });
             return;
         }
 
         setSaving(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            
             if (isEditMode) {
                 const { error } = await supabase
                     .from('task_projects')
                     .update({
                         name: formData.name.trim(),
                         description: formData.description?.trim() || null,
-                        is_active: formData.is_active,
+                        color: formData.color,
+                        status: formData.status,
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', project.id);
-
-                if (error) {
-                    throw error;
-                }
-
-                toast({
-                    title: 'Başarılı!',
-                    description: 'Proje güncellendi.'
-                });
+                if (error) throw error;
+                toast({ title: 'Proje güncellendi' });
             } else {
                 const { error } = await supabase
                     .from('task_projects')
                     .insert([{
                         name: formData.name.trim(),
                         description: formData.description?.trim() || null,
-                        is_active: formData.is_active,
-                        created_by: user?.id || null
-                    }])
-                    .select()
-                    .single();
-
-                if (error) {
-                    throw error;
-                }
-
-                toast({
-                    title: 'Başarılı!',
-                    description: 'Proje oluşturuldu.'
-                });
+                        color: formData.color,
+                        status: formData.status
+                    }]);
+                if (error) throw error;
+                toast({ title: 'Proje oluşturuldu' });
             }
 
             setIsOpen(false);
-            if (onSaveSuccess) {
-                onSaveSuccess();
-            }
+            if (onSaveSuccess) onSaveSuccess();
         } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Hata!',
-                description: `Proje kaydedilemedi: ${error.message}`
-            });
+            toast({ variant: 'destructive', title: 'Hata!', description: `Proje kaydedilemedi: ${error.message}` });
         } finally {
             setSaving(false);
         }
@@ -119,37 +107,20 @@ const ProjectModal = ({ isOpen, setIsOpen, project, onSaveSuccess }) => {
 
     const handleDelete = async () => {
         if (!isEditMode || !project) return;
-
-        if (!confirm('Bu projeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
-            return;
-        }
+        if (!confirm('Bu projeyi silmek istediğinizden emin misiniz?')) return;
 
         setSaving(true);
         try {
-            const { error } = await supabase
-                .from('task_projects')
-                .delete()
-                .eq('id', project.id);
-
-            if (error) {
-                throw error;
-            }
-
-            toast({
-                title: 'Başarılı!',
-                description: 'Proje silindi.'
-            });
-
+            // Önce bu projedeki görevlerin project_id'sini null yap
+            await supabase.from('tasks').update({ project_id: null }).eq('project_id', project.id);
+            
+            const { error } = await supabase.from('task_projects').delete().eq('id', project.id);
+            if (error) throw error;
+            toast({ title: 'Proje silindi' });
             setIsOpen(false);
-            if (onSaveSuccess) {
-                onSaveSuccess();
-            }
+            if (onSaveSuccess) onSaveSuccess();
         } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Hata!',
-                description: `Proje silinemedi: ${error.message}`
-            });
+            toast({ variant: 'destructive', title: 'Hata!', description: `Proje silinemedi: ${error.message}` });
         } finally {
             setSaving(false);
         }
@@ -157,20 +128,29 @@ const ProjectModal = ({ isOpen, setIsOpen, project, onSaveSuccess }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-white/20 p-2.5 rounded-lg"><FolderKanban className="h-5 w-5 text-white" /></div>
-                        <div>
-                            <h1 className="text-lg font-bold tracking-tight">{isEditMode ? 'Projeyi Düzenle' : 'Yeni Proje Oluştur'}</h1>
-                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">Görev Yönetimi</p>
-                        </div>
-                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{isEditMode ? 'Düzenleme' : 'Yeni'}</span>
+            <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
+                {/* Header */}
+                <div 
+                    className="px-6 py-5 flex items-center gap-3 transition-colors duration-300"
+                    style={{ backgroundColor: formData.color + '15' }}
+                >
+                    <div 
+                        className="p-2 rounded-lg transition-colors duration-300"
+                        style={{ backgroundColor: formData.color + '30' }}
+                    >
+                        <FolderKanban className="h-5 w-5" style={{ color: formData.color }} />
                     </div>
-                </header>
-                <div className="flex flex-1 min-h-0 overflow-hidden">
-                <form id="project-form" onSubmit={handleSubmit} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-                    <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-6 py-4 border-r border-border space-y-4">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground">
+                            {isEditMode ? 'Projeyi Düzenle' : 'Yeni Proje'}
+                        </h2>
+                        <p className="text-xs text-muted-foreground">Görevlerinizi proje altında organize edin</p>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+                    {/* Name */}
                     <div className="space-y-2">
                         <Label htmlFor="name">
                             Proje Adı <span className="text-red-500">*</span>
@@ -178,61 +158,100 @@ const ProjectModal = ({ isOpen, setIsOpen, project, onSaveSuccess }) => {
                         <Input
                             id="name"
                             value={formData.name}
-                            onChange={handleInputChange}
+                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="Proje adını girin..."
                             required
+                            autoFocus
+                            autoFormat={false}
                         />
                     </div>
 
+                    {/* Description */}
                     <div className="space-y-2">
                         <Label htmlFor="description">Açıklama</Label>
                         <Textarea
                             id="description"
                             value={formData.description}
-                            onChange={handleInputChange}
-                            placeholder="Proje açıklamasını girin..."
-                            rows={4}
+                            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Kısa açıklama (opsiyonel)..."
+                            rows={3}
                         />
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                        <input
-                            type="checkbox"
-                            id="is_active"
-                            checked={formData.is_active}
-                            onChange={(e) => handleCheckboxChange(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300"
-                        />
-                        <Label htmlFor="is_active" className="cursor-pointer">
-                            Aktif
+                    {/* Color Picker */}
+                    <div className="space-y-2">
+                        <Label className="flex items-center gap-1.5">
+                            <Palette className="h-3.5 w-3.5" />
+                            Proje Rengi
                         </Label>
+                        <div className="flex flex-wrap gap-2">
+                            {PROJECT_COLORS.map(color => (
+                                <button
+                                    key={color}
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({ ...prev, color }))}
+                                    className={cn(
+                                        'h-7 w-7 rounded-full transition-all duration-150 flex items-center justify-center',
+                                        formData.color === color 
+                                            ? 'ring-2 ring-offset-2 ring-offset-background scale-110' 
+                                            : 'hover:scale-110'
+                                    )}
+                                    style={{ 
+                                        backgroundColor: color,
+                                        ringColor: color
+                                    }}
+                                >
+                                    {formData.color === color && (
+                                        <Check className="h-3.5 w-3.5 text-white" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
+
+                    {/* Status (only in edit mode) */}
+                    {isEditMode && (
+                        <div className="space-y-2">
+                            <Label>Durum</Label>
+                            <div className="flex gap-2">
+                                {['Aktif', 'Tamamlandı', 'Arşivlendi'].map(status => (
+                                    <button
+                                        key={status}
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, status }))}
+                                        className={cn(
+                                            'px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
+                                            formData.status === status
+                                                ? 'bg-primary text-primary-foreground border-primary'
+                                                : 'bg-muted text-muted-foreground border-border hover:bg-accent'
+                                        )}
+                                    >
+                                        {status}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex justify-between pt-3 border-t border-border">
+                        <div>
+                            {isEditMode && (
+                                <Button type="button" variant="ghost" size="sm" onClick={handleDelete} disabled={saving} className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
+                                    <Trash2 className="h-3.5 w-3.5" /> Sil
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setIsOpen(false)} disabled={saving}>
+                                İptal
+                            </Button>
+                            <Button type="submit" size="sm" disabled={saving} className="gap-1.5">
+                                {saving ? 'Kaydediliyor...' : isEditMode ? 'Güncelle' : 'Oluştur'}
+                            </Button>
+                        </div>
                     </div>
                 </form>
-                <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6">
-                    <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
-                    <div className="space-y-3">
-                        <div className="bg-background rounded-xl p-4 shadow-sm border border-border">
-                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Proje</p>
-                            <p className="font-bold text-foreground truncate">{formData.name || '-'}</p>
-                        </div>
-                        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.is_active ? 'Aktif' : 'Pasif'}</span></div>
-                    </div>
-                </aside>
-                </div>
-                <footer className="flex shrink-0 justify-between gap-2 px-6 py-4 border-t border-border bg-muted/20">
-                    <div>
-                        {isEditMode && (
-                            <Button type="button" variant="destructive" onClick={handleDelete} disabled={saving}>
-                                <Trash2 className="h-4 w-4 mr-2" /> Sil
-                            </Button>
-                        )}
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={saving}>İptal</Button>
-                        <Button form="project-form" type="submit" disabled={saving}>{saving ? 'Kaydediliyor...' : (isEditMode ? 'Güncelle' : 'Oluştur')}</Button>
-                    </div>
-                </footer>
             </DialogContent>
         </Dialog>
     );

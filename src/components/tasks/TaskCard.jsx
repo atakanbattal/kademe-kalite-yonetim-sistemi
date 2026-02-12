@@ -3,37 +3,22 @@ import { useDrag } from 'react-dnd';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { MoreHorizontal, Calendar, User, AlertCircle, Sparkles, Flag, AlertTriangle } from 'lucide-react';
-import { format, isPast, parseISO } from 'date-fns';
-import { tr } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-
-const ItemTypes = {
-    TASK: 'task',
-};
+import { Calendar, AlertTriangle, Flag, AlertCircle, Sparkles, CheckSquare } from 'lucide-react';
+import { isPast, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const monthNames = {
-    '01': 'Ocak',
-    '02': 'Şubat',
-    '03': 'Mart',
-    '04': 'Nisan',
-    '05': 'Mayıs',
-    '06': 'Haziran',
-    '07': 'Temmuz',
-    '08': 'Ağustos',
-    '09': 'Eylül',
-    '10': 'Ekim',
-    '11': 'Kasım',
-    '12': 'Aralık',
+    '01': 'Oca', '02': 'Şub', '03': 'Mar', '04': 'Nis',
+    '05': 'May', '06': 'Haz', '07': 'Tem', '08': 'Ağu',
+    '09': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara',
 };
 
-const formatFullDate = (dateString) => {
+const formatShortDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
+    const day = date.getDate();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const fullMonth = monthNames[month] || month;
-    return `${day} ${fullMonth}`;
+    return `${day} ${monthNames[month]}`;
 };
 
 const isOverdue = (dateString) => {
@@ -43,127 +28,135 @@ const isOverdue = (dateString) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         return isPast(date) && date.toDateString() !== today.toDateString();
-    } catch {
-        return false;
-    }
+    } catch { return false; }
 };
 
-const priorityIcons = {
-    'Düşük': <Sparkles className="h-4 w-4 text-gray-500" />,
-    'Orta': <Sparkles className="h-4 w-4 text-blue-500" />,
-    'Yüksek': <AlertCircle className="h-4 w-4 text-yellow-500" />,
-    'Kritik': <Flag className="h-4 w-4 text-red-500" />,
+const PRIORITY_CONFIG = {
+    'Düşük': { icon: Sparkles, color: 'text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800' },
+    'Orta': { icon: Sparkles, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/30' },
+    'Yüksek': { icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/30' },
+    'Kritik': { icon: Flag, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/30' },
 };
 
 const TaskCard = ({ task, onEditTask, onViewTask }) => {
     const [{ isDragging }, drag] = useDrag(() => ({
-        type: ItemTypes.TASK,
+        type: 'task',
         item: { id: task.id, status: task.status },
-        collect: (monitor) => ({
-            isDragging: !!monitor.isDragging(),
-        }),
+        collect: (monitor) => ({ isDragging: !!monitor.isDragging() }),
     }));
 
-    const handleActionClick = (e, action) => {
-        e.stopPropagation();
-        action(task);
-    };
-
-    const assignee = task.assignees && task.assignees.length > 0 ? task.assignees[0].personnel : null;
-    // Tamamlanan veya iptal edilen görevlerde overdue gösterme
-    const overdue = (task.status === 'Tamamlandı' || task.status === 'İptal') ? false : isOverdue(task.due_date);
-    const formattedDate = formatFullDate(task.due_date);
+    const overdue = (task.status === 'Tamamlandı') ? false : isOverdue(task.due_date);
     const project = task.project || null;
+    const assignees = task.assignees || [];
+    const priorityConf = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG['Düşük'];
+    const PriorityIcon = priorityConf.icon;
+
+    // Checklist progress
+    const checklistTotal = task.checklist?.length || 0;
+    const checklistDone = task.checklist?.filter(c => c.is_completed).length || 0;
 
     return (
         <Card
             ref={drag}
             onClick={() => onViewTask(task)}
-            className={`mb-4 bg-card/80 backdrop-blur-sm hover:shadow-lg transition-shadow duration-200 group cursor-pointer ${isDragging ? 'opacity-50' : 'opacity-100'} ${overdue ? 'border-l-4 border-l-red-500' : ''}`}
-        >
-            {/* Proje Etiketi - Kartın En Üstünde */}
-            {project && (
-                <div className="px-4 pt-3 pb-2 border-b border-border/50">
-                    <span 
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-white shadow-sm"
-                        style={{ backgroundColor: project.color || '#6366f1' }}
-                    >
-                        {project.name}
-                    </span>
-                </div>
+            className={cn(
+                'bg-card hover:shadow-md transition-all duration-150 cursor-pointer border group',
+                isDragging ? 'opacity-40 scale-95' : 'opacity-100',
+                overdue ? 'border-l-[3px] border-l-red-400' : 'hover:border-primary/30'
             )}
-            
-            <div className={`p-4 space-y-3 ${project ? '' : 'pt-4'}`}>
-                {/* Başlık ve Menu */}
-                <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                        <span className="text-sm font-semibold text-muted-foreground break-all">{task.task_no}</span>
-                        <p className="font-semibold text-card-foreground line-clamp-2">{task.title}</p>
+        >
+            <div className="p-3 space-y-2">
+                {/* Top Row: Project badge + Priority */}
+                <div className="flex items-center justify-between gap-2">
+                    {project ? (
+                        <span 
+                            className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold text-white truncate max-w-[140px]"
+                            style={{ backgroundColor: project.color || '#6366f1' }}
+                        >
+                            {project.name}
+                        </span>
+                    ) : (
+                        <span className="text-[10px] text-muted-foreground/50 font-mono">{task.task_no}</span>
+                    )}
+                    <div className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded-md', priorityConf.bg)}>
+                        <PriorityIcon className={cn('h-3 w-3', priorityConf.color)} />
+                        <span className={cn('text-[10px] font-medium', priorityConf.color)}>{task.priority}</span>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={(e) => handleActionClick(e, onEditTask)}>
-                        <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-                    </Button>
                 </div>
 
-                {/* Gecikmiş Görev Uyarısı */}
+                {/* Title */}
+                <p className="text-sm font-semibold text-card-foreground line-clamp-2 leading-snug">{task.title}</p>
+
+                {/* Overdue warning */}
                 {overdue && (
-                    <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950 px-2 py-1.5 rounded border border-red-200 dark:border-red-800">
-                        <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
-                        <span className="text-xs font-medium text-red-700 dark:text-red-300">Termin geçti!</span>
+                    <div className="flex items-center gap-1.5 text-red-500 bg-red-50 dark:bg-red-950/50 px-2 py-1 rounded-md">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        <span className="text-[10px] font-semibold">Gecikmiş!</span>
                     </div>
                 )}
 
-                {/* Meta Bilgiler */}
-                <div className="flex items-center justify-between text-sm text-muted-foreground flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger className="flex items-center gap-1">
-                                    {priorityIcons[task.priority] || priorityIcons['Düşük']}
-                                    <span className="text-xs">{task.priority}</span>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Öncelik</p></TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                {/* Checklist progress */}
+                {checklistTotal > 0 && (
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <CheckSquare className="h-3 w-3" />
+                        <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                            <div 
+                                className="h-full bg-primary/60 rounded-full transition-all" 
+                                style={{ width: `${(checklistDone / checklistTotal) * 100}%` }} 
+                            />
+                        </div>
+                        <span className="text-[10px] tabular-nums">{checklistDone}/{checklistTotal}</span>
+                    </div>
+                )}
 
-                        {task.due_date && (
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger className={`flex items-center gap-1 ${overdue ? 'text-red-600 dark:text-red-400 font-semibold' : ''}`}>
-                                        <Calendar className={`h-4 w-4 ${overdue ? 'text-red-600 dark:text-red-400' : ''}`} />
-                                        <span className={`text-xs ${overdue ? 'text-red-600 dark:text-red-400' : ''}`}>{formattedDate}</span>
+                {/* Bottom: Date + Assignees */}
+                <div className="flex items-center justify-between pt-1">
+                    {task.due_date ? (
+                        <span className={cn(
+                            'flex items-center gap-1 text-[11px]',
+                            overdue ? 'text-red-500 font-semibold' : 'text-muted-foreground'
+                        )}>
+                            <Calendar className="h-3 w-3" />
+                            {formatShortDate(task.due_date)}
+                        </span>
+                    ) : (
+                        <span />
+                    )}
+
+                    {/* Assignee avatars */}
+                    <div className="flex items-center -space-x-1.5">
+                        <TooltipProvider>
+                            {assignees.slice(0, 3).map(a => (
+                                <Tooltip key={a.personnel?.id}>
+                                    <TooltipTrigger asChild>
+                                        <Avatar className="h-5 w-5 ring-2 ring-card">
+                                            <AvatarImage src={a.personnel?.avatar_url} />
+                                            <AvatarFallback className="text-[8px] bg-primary/10 text-primary font-bold">
+                                                {a.personnel?.full_name?.charAt(0) || '?'}
+                                            </AvatarFallback>
+                                        </Avatar>
                                     </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{overdue ? 'Termin Geçti!' : 'Bitiş Tarihi'}</p>
+                                    <TooltipContent side="bottom"><p className="text-xs">{a.personnel?.full_name}</p></TooltipContent>
+                                </Tooltip>
+                            ))}
+                            {assignees.length > 3 && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="h-5 w-5 rounded-full bg-muted ring-2 ring-card flex items-center justify-center">
+                                            <span className="text-[8px] font-bold text-muted-foreground">+{assignees.length - 3}</span>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                        <div className="space-y-0.5">
+                                            {assignees.slice(3).map(a => (
+                                                <p key={a.personnel?.id} className="text-xs">{a.personnel?.full_name}</p>
+                                            ))}
+                                        </div>
                                     </TooltipContent>
                                 </Tooltip>
-                            </TooltipProvider>
-                        )}
+                            )}
+                        </TooltipProvider>
                     </div>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger className="flex items-center gap-1">
-                                {assignee ? (
-                                    <>
-                                        <Avatar className="h-5 w-5">
-                                            <AvatarImage src={assignee.avatar_url} />
-                                            <AvatarFallback className="text-xs">{assignee.full_name?.charAt(0) || '?'}</AvatarFallback>
-                                        </Avatar>
-                                        <span className="hidden sm:inline text-xs">{assignee.full_name.split(' ')[0]}</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <User className="h-4 w-4" />
-                                        <span className="text-xs">Atanmamış</span>
-                                    </>
-                                )}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>{assignee ? assignee.full_name : 'Atanmamış'}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
                 </div>
             </div>
         </Card>

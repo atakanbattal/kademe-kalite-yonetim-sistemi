@@ -2,7 +2,7 @@ import React from 'react';
     import { motion } from 'framer-motion';
     import { Badge } from '@/components/ui/badge';
     import { Button } from '@/components/ui/button';
-    import { MoreVertical, Edit, Eye, Trash2, Clock, Play, CheckCircle, Truck, AlertTriangle, Wrench, RefreshCw, Timer, FlaskConical } from 'lucide-react';
+    import { MoreVertical, Edit, Eye, Trash2, Clock, Play, CheckCircle, Truck, AlertTriangle, Wrench, RefreshCw, Timer, FlaskConical, Star } from 'lucide-react';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ import React from 'react';
     import { tr } from 'date-fns/locale';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { formatDuration } from '@/lib/formatDuration.js';
+import { cn } from '@/lib/utils';
 
     const FaultStatusIndicator = ({ faults, onClick }) => {
         if (!faults) return <Badge variant="secondary">0</Badge>;
@@ -290,7 +291,7 @@ import React from 'react';
                                         </div>
                                     </th>
                                     <th 
-                                        className="cursor-pointer hover:bg-secondary/50 select-none"
+                                        className="cursor-pointer hover:bg-secondary/50 select-none w-full"
                                         onClick={() => onSort('vehicle_type')}
                                     >
                                         <div className="flex items-center">
@@ -334,7 +335,7 @@ import React from 'react';
                                 <>
                             <th>Şasi No</th>
                             <th>Seri No</th>
-                            <th>Araç Tipi</th>
+                            <th className="w-full">Araç Tipi</th>
                             <th>Marka Tipi</th>
                             <th>Hata Durumu</th>
                             <th>Müşteri</th>
@@ -344,7 +345,7 @@ import React from 'react';
                             <th>Termin / Kalan</th>
                                 </>
                             )}
-                            <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
+                            <th className="text-center">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -358,10 +359,27 @@ import React from 'react';
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.3, delay: index * 0.05 }}
-                                    className="cursor-pointer"
+                                    className={cn(
+                                        "cursor-pointer",
+                                        vehicle.is_sale_priority && "bg-amber-200 dark:bg-amber-900/70 border-l-4 border-l-amber-600"
+                                    )}
                                     onClick={() => onView(vehicle)}
                                 >
-                                    <td className="font-mono text-foreground">{vehicle.chassis_no}</td>
+                                    <td className="font-mono text-foreground">
+                                        <div className="flex items-center gap-1.5">
+                                            {vehicle.is_sale_priority && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Star className="h-4 w-4 fill-amber-600 text-amber-600 shrink-0" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>Satış önceliği</p></TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                            {vehicle.chassis_no}
+                                        </div>
+                                    </td>
                                     <td className="font-mono text-muted-foreground">{vehicle.serial_no}</td>
                                     <td>{vehicle.vehicle_type}</td>
                                     <td>{vehicle.vehicle_brand || '-'}</td>
@@ -403,7 +421,7 @@ import React from 'react';
                                             <span className="text-muted-foreground">-</span>
                                         )}
                                     </td>
-                                    <td onClick={(e) => e.stopPropagation()}>
+                                    <td onClick={(e) => e.stopPropagation()} className="text-center">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">

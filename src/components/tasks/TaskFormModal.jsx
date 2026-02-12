@@ -19,7 +19,7 @@ import React, { useState, useEffect } from 'react';
     import { v4 as uuidv4 } from 'uuid';
     import { ScrollArea } from '@/components/ui/scroll-area';
 
-    const TaskFormModal = ({ isOpen, setIsOpen, task, onSaveSuccess }) => {
+    const TaskFormModal = ({ isOpen, setIsOpen, task, onSaveSuccess, defaultProjectId = null }) => {
         const { personnel, taskTags, taskProjects } = useData();
         const { user } = useAuth();
         const { toast } = useToast();
@@ -59,7 +59,7 @@ import React, { useState, useEffect } from 'react';
                 priority: 'Orta',
                 due_date: null,
                 owner_id: ownerPersonnelId,
-                project_id: null, // Proje ID'si
+                project_id: defaultProjectId || null, // Aktif proje otomatik seçilir
                 assignees: [],
                 tags: [],
                 checklist: [],
@@ -291,7 +291,7 @@ import React, { useState, useEffect } from 'react';
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div className="space-y-2">
                                                         <Label htmlFor="title">Görev Başlığı <span className="text-red-500">*</span></Label>
-                                                        <Input id="title" name="title" value={formData.title || ''} onChange={handleInputChange} required />
+                                                        <Input id="title" name="title" value={formData.title || ''} onChange={handleInputChange} required autoFormat={false} />
                                                     </div>
                                                     <div className="space-y-2">
                                                         <Label htmlFor="project_id">Proje / Konu</Label>
@@ -414,7 +414,7 @@ import React, { useState, useEffect } from 'react';
                                         {(formData.checklist || []).map((item, index) => (
                                             <div key={item.id} className="flex items-center gap-2">
                                                 <Checkbox checked={item.is_completed} onCheckedChange={(checked) => handleChecklistChange(index, 'is_completed', checked)} />
-                                                <Input value={item.item_text} onChange={(e) => handleChecklistChange(index, 'item_text', e.target.value)} className={item.is_completed ? 'line-through' : ''} />
+                                                <Input autoFormat={false} value={item.item_text} onChange={(e) => handleChecklistChange(index, 'item_text', e.target.value)} className={item.is_completed ? 'line-through' : ''} />
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeChecklistItem(index)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>

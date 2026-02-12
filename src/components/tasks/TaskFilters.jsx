@@ -22,6 +22,7 @@ import React from 'react';
         return (
             <div className="flex flex-col md:flex-row gap-2 w-full">
                 <Input
+                    autoFormat={false}
                     placeholder="Görev ara..."
                     value={filters.searchTerm}
                     onChange={handleSearchChange}
