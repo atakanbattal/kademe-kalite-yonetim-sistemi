@@ -176,14 +176,22 @@ const generatePrintableReport = async (record) => {
         return `<span style="background-color: ${bgColor}; color: ${textColor}; padding: 4px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600;">${status}</span>`;
     };
 
-    const attachmentsHtml = record.attachments && record.attachments.length > 0 ? `
+    let attachmentsHtml = '';
+    if (record.attachments && record.attachments.length > 0) {
+        const imageSrcs = await Promise.all(record.attachments.map(async (path) => {
+            const url = `https://rqnvoatirfczpklaamhf.supabase.co/storage/v1/object/public/documents/${path}`;
+            const base64 = await imageUrlToBase64(url);
+            return base64 || url;
+        }));
+        attachmentsHtml = `
         <div class="section">
             <h2 class="section-title">Ekli Görseller</h2>
             <div class="image-grid">
-                ${record.attachments.map(path => `<img src="https://rqnvoatirfczpklaamhf.supabase.co/storage/v1/object/public/documents/${path}" class="attachment-image" alt="Ek" crossOrigin="anonymous"/>`).join('')}
+                ${imageSrcs.map(src => `<img src="${src}" class="attachment-image" alt="Ek" crossOrigin="anonymous"/>`).join('')}
             </div>
         </div>
-    ` : '';
+    `;
+    }
     
     const eightDStepsHtml = record.type === '8D' && record.eight_d_steps ? Object.entries(record.eight_d_steps).map(([key, step]) => `
         <div class="step-section">
@@ -697,7 +705,7 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
         unresolvedFaults += faults.filter(f => !f.is_resolved).length;
     });
 
-    // Araç listesi HTML
+    // Araç listesi HTML - landscape optimized kompakt layout
     const vehiclesHtml = vehicles.map((vehicle, index) => {
         const timeline = timelineByVehicle[vehicle.id] || [];
         const faults = faultsByVehicle[vehicle.id] || [];
@@ -705,64 +713,50 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
         const statusBadge = getStatusBadgeColor(vehicle.status);
         const unresolvedFaultCount = faults.filter(f => !f.is_resolved).length;
         const resolvedFaultCount = faults.filter(f => f.is_resolved).length;
+        const totalFaultCount = unresolvedFaultCount + resolvedFaultCount;
 
         const dmoStatus = vehicle.dmo_status || '-';
+        // DMO durumunu kısalt
+        const dmoShort = dmoStatus === 'DMO Geçti' ? 'Geçti' :
+                         dmoStatus === 'DMO Kaldı' ? 'Kaldı' :
+                         dmoStatus === 'DMO Bekliyor' ? 'Bekliyor' : '-';
         const dmoBadgeColor = dmoStatus === 'DMO Geçti' ? { bg: '#dcfce7', text: '#166534', border: '#22c55e' } :
                               dmoStatus === 'DMO Kaldı' ? { bg: '#fee2e2', text: '#991b1b', border: '#ef4444' } :
                               dmoStatus === 'DMO Bekliyor' ? { bg: '#fef3c7', text: '#92400e', border: '#f59e0b' } :
                               { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db' };
 
+        // Hata durumu kompakt badge
+        const faultBadgeHtml = totalFaultCount > 0 ? `
+            <div style="display: flex; gap: 3px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                <span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; white-space: nowrap; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${unresolvedFaultCount}B</span>
+                <span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; white-space: nowrap; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${resolvedFaultCount}Ç</span>
+                <span style="font-size: 8px; color: #6b7280;">(${totalFaultCount})</span>
+            </div>
+        ` : `<span style="font-size: 9px; color: #9ca3af;">-</span>`;
+
         return `
             <tr style="page-break-inside: avoid; border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 12px 8px; text-align: center; font-weight: 600;"><span style="display: none;">${index + 1}</span></td>
-                <td style="padding: 12px 8px;">
-                    <div style="font-weight: 600; color: #111827;">${vehicle.chassis_no || '-'}</div>
-                    <div style="font-size: 11px; color: #6b7280;">${vehicle.serial_no || '-'}</div>
+                <td style="padding: 6px 4px; text-align: center; font-weight: 600; font-size: 10px;"><span style="display: none;">${index + 1}</span></td>
+                <td style="padding: 6px 5px;">
+                    <div style="font-weight: 600; color: #111827; font-size: 10px; line-height: 1.3;">${vehicle.chassis_no || '-'}</div>
+                    <div style="font-size: 9px; color: #6b7280;">${vehicle.serial_no || '-'}</div>
                 </td>
-                <td style="padding: 12px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${vehicle.vehicle_type || '-'}</td>
-                <td style="padding: 12px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${vehicle.customer_name || '-'}</td>
-                <td style="padding: 12px 8px; overflow: hidden; white-space: nowrap;">
-                    <span style="background-color: ${statusBadge.bg}; color: ${statusBadge.text}; padding: 4px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; border: 1px solid ${statusBadge.border}; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                <td style="padding: 6px 5px; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${vehicle.vehicle_type || '-'}</td>
+                <td style="padding: 6px 5px; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${vehicle.customer_name || '-'}</td>
+                <td style="padding: 6px 5px; white-space: nowrap;">
+                    <span style="background-color: ${statusBadge.bg}; color: ${statusBadge.text}; padding: 2px 6px; border-radius: 9999px; font-size: 9px; font-weight: 600; border: 1px solid ${statusBadge.border}; display: inline-block; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
                         ${vehicle.status || '-'}
                     </span>
                 </td>
-                <td style="padding: 12px 8px; overflow: hidden; white-space: nowrap;">
-                    <span style="background-color: ${dmoBadgeColor.bg}; color: ${dmoBadgeColor.text}; padding: 4px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; border: 1px solid ${dmoBadgeColor.border}; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
-                        ${dmoStatus}
+                <td style="padding: 6px 5px; text-align: center; white-space: nowrap;">
+                    <span style="background-color: ${dmoBadgeColor.bg}; color: ${dmoBadgeColor.text}; padding: 2px 6px; border-radius: 9999px; font-size: 9px; font-weight: 600; border: 1px solid ${dmoBadgeColor.border}; display: inline-block; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                        ${dmoShort}
                     </span>
                 </td>
-                <td style="padding: 12px 8px; text-align: center; white-space: nowrap;">
-                    <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                        ${unresolvedFaultCount > 0 ? `
-                            <div style="display: inline-flex; align-items: center; gap: 4px; background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; border: 1px solid #ef4444; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
-                                <span style="display: inline-block; width: 6px; height: 6px; background-color: #ef4444; border-radius: 50%; print-color-adjust: exact; -webkit-print-color-adjust: exact;"></span>
-                                Bekleyen: ${unresolvedFaultCount}
-                            </div>
-                        ` : `
-                            <div style="display: inline-flex; align-items: center; gap: 4px; background-color: #f3f4f6; color: #6b7280; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; border: 1px solid #d1d5db; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
-                                <span style="display: inline-block; width: 6px; height: 6px; background-color: #9ca3af; border-radius: 50%; print-color-adjust: exact; -webkit-print-color-adjust: exact;"></span>
-                                Bekleyen: 0
-                            </div>
-                        `}
-                        ${resolvedFaultCount > 0 ? `
-                            <div style="display: inline-flex; align-items: center; gap: 4px; background-color: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; border: 1px solid #22c55e; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
-                                <span style="display: inline-block; width: 6px; height: 6px; background-color: #22c55e; border-radius: 50%; print-color-adjust: exact; -webkit-print-color-adjust: exact;"></span>
-                                Çözülen: ${resolvedFaultCount}
-                            </div>
-                        ` : `
-                            <div style="display: inline-flex; align-items: center; gap: 4px; background-color: #f3f4f6; color: #6b7280; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; border: 1px solid #d1d5db; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
-                                <span style="display: inline-block; width: 6px; height: 6px; background-color: #9ca3af; border-radius: 50%; print-color-adjust: exact; -webkit-print-color-adjust: exact;"></span>
-                                Çözülen: 0
-                            </div>
-                        `}
-                        ${(unresolvedFaultCount + resolvedFaultCount) > 0 ? `
-                            <div style="margin-top: 2px; font-size: 9px; color: #6b7280; font-weight: 500;">
-                                Toplam: ${unresolvedFaultCount + resolvedFaultCount}
-                            </div>
-                        ` : ''}
-                    </div>
+                <td style="padding: 6px 5px; text-align: center; white-space: nowrap;">
+                    ${faultBadgeHtml}
                 </td>
-                <td style="padding: 12px 8px; text-align: center; font-size: 11px; white-space: nowrap;">${times.totalReworkTime}</td>
+                <td style="padding: 6px 5px; text-align: center; font-size: 10px; white-space: nowrap;">${times.totalReworkTime}</td>
             </tr>
         `;
     }).join('');
@@ -780,117 +774,121 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
                 
+                @page {
+                    size: A4 landscape;
+                    margin: 6mm;
+                }
                 body {
                     font-family: 'Inter', sans-serif;
                     color: #1f2937;
                     margin: 0;
                     padding: 0;
-                    background-color: #f3f4f6;
+                    background-color: white;
                 }
                 .page {
                     background-color: white;
-                    width: 210mm;
-                    min-height: 297mm;
-                    margin: 20px auto;
-                    padding: 10mm;
+                    width: 297mm;
+                    min-height: 210mm;
+                    margin: 0 auto;
+                    padding: 6mm;
                     box-sizing: border-box;
-                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    box-shadow: none;
                 }
                 .header {
                     display: grid;
                     grid-template-columns: auto 1fr auto;
-                    gap: 15px;
+                    gap: 12px;
                     align-items: center;
                     border-bottom: 1px solid #e5e7eb;
-                    padding-bottom: 8px;
-                    margin-bottom: 10px;
+                    padding-bottom: 5px;
+                    margin-bottom: 6px;
                     page-break-inside: avoid;
                     page-break-after: avoid;
                 }
                 .header-logo {
-                    height: 50px;
+                    height: 38px;
                     width: auto;
                 }
                 .company-title {
                     text-align: center;
                 }
                 .company-title h1 {
-                    font-size: 20px;
+                    font-size: 16px;
                     font-weight: 700;
                     margin: 0;
                     color: #111827;
                 }
                 .company-title p {
-                    font-size: 12px;
+                    font-size: 10px;
                     margin: 0;
                     color: #4b5563;
                 }
                 .print-info {
                     text-align: right;
-                    font-size: 9px;
+                    font-size: 8px;
                     color: #4b5563;
-                    line-height: 1.4;
+                    line-height: 1.3;
                     white-space: nowrap;
                 }
                 .meta-box {
                     display: grid;
-                    grid-template-columns: 1fr 1fr 1fr;
-                    gap: 10px 12px;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 4px 10px;
                     background-color: #f9fafb;
-                    padding: 12px;
-                    border-radius: 6px;
-                    margin-bottom: 12px;
+                    padding: 8px 10px;
+                    border-radius: 4px;
+                    margin-bottom: 8px;
                     border: 1px solid #e5e7eb;
                     page-break-inside: avoid;
                 }
                 .meta-item {
-                    font-size: 10px;
+                    font-size: 9px;
                     color: #374151;
                     padding: 0;
                     word-wrap: break-word;
                     overflow-wrap: break-word;
-                    line-height: 1.6;
+                    line-height: 1.5;
                 }
                 .meta-item strong {
                     color: #1f2937;
                     font-weight: 600;
-                    margin-right: 6px;
+                    margin-right: 4px;
                 }
                 .summary-section {
                     display: grid;
                     grid-template-columns: repeat(3, 1fr);
-                    gap: 12px;
-                    margin-bottom: 15px;
+                    gap: 8px;
+                    margin-bottom: 10px;
                 }
                 .summary-card {
                     background-color: #f9fafb;
                     border-radius: 6px;
-                    padding: 12px;
+                    padding: 8px 10px;
                     border: 1px solid #e5e7eb;
                     text-align: center;
                 }
                 .summary-card h3 {
-                    font-size: 12px;
+                    font-size: 10px;
                     color: #6b7280;
-                    margin: 0 0 8px 0;
+                    margin: 0 0 4px 0;
                     font-weight: 600;
                 }
                 .summary-card .value {
-                    font-size: 24px;
+                    font-size: 20px;
                     font-weight: 700;
                     color: #111827;
                 }
                 .section {
-                    margin-bottom: 15px;
+                    margin-bottom: 10px;
                     page-break-inside: avoid;
                 }
                 .section-title {
-                    font-size: 14px;
+                    font-size: 11px;
                     font-weight: 700;
                     color: white;
-                    padding: 6px 10px;
+                    padding: 4px 8px;
                     border-radius: 4px;
-                    margin-bottom: 10px;
+                    margin-bottom: 6px;
                     text-transform: uppercase;
                     page-break-after: avoid;
                 }
@@ -906,7 +904,7 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                 table {
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 12px;
+                    font-size: 10px;
                     table-layout: fixed;
                     counter-reset: row-number 0;
                 }
@@ -923,34 +921,37 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                 tbody tr td:first-child::before {
                     content: counter(row-number);
                     font-weight: 600;
+                    font-size: 9px;
                     display: inline-block;
                 }
                 thead {
-                    background-color: #f9fafb;
+                    background-color: #f0f4ff;
                     print-color-adjust: exact;
                     -webkit-print-color-adjust: exact;
                 }
                 th {
-                    padding: 12px 8px;
+                    padding: 6px 5px;
                     text-align: left;
-                    font-weight: 600;
-                    color: #374151;
-                    border-bottom: 2px solid #e5e7eb;
-                    font-size: 11px;
+                    font-weight: 700;
+                    color: #1e3a5f;
+                    border-bottom: 2px solid #1e40af;
+                    font-size: 9px;
                     text-transform: uppercase;
+                    letter-spacing: 0.3px;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
-                    background-color: #f9fafb;
+                    background-color: #f0f4ff;
                     print-color-adjust: exact;
                     -webkit-print-color-adjust: exact;
                 }
                 td {
-                    padding: 12px 8px;
+                    padding: 6px 5px;
                     border-bottom: 1px solid #e5e7eb;
                     overflow: hidden;
                     word-wrap: break-word;
                     vertical-align: middle;
+                    font-size: 10px;
                 }
                 td:first-child {
                     text-align: center;
@@ -958,12 +959,18 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                 td:first-child::before {
                     display: block;
                 }
+                tbody tr:nth-child(even) {
+                    background-color: #fafbfc;
+                }
+                tbody tr:hover {
+                    background-color: #f0f4ff;
+                }
                 .footer {
                     text-align: center;
-                    margin-top: 15px;
-                    padding-top: 10px;
+                    margin-top: 8px;
+                    padding-top: 6px;
                     border-top: 1px solid #e5e7eb;
-                    font-size: 11px;
+                    font-size: 8px;
                     color: #9ca3af;
                 }
                 @media print {
@@ -976,6 +983,7 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                         background-color: white !important; 
                         margin: 0 !important; 
                         padding: 0 !important;
+                        width: 297mm !important;
                         print-color-adjust: exact !important;
                         -webkit-print-color-adjust: exact !important;
                     }
@@ -983,24 +991,34 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                         margin: 0 !important; 
                         box-shadow: none !important; 
                         border: none !important;
+                        width: 100% !important;
+                        padding: 4mm !important;
                         print-color-adjust: exact !important;
                         -webkit-print-color-adjust: exact !important;
                     }
                     table {
+                        page-break-inside: auto !important;
                         print-color-adjust: exact !important;
                         -webkit-print-color-adjust: exact !important;
                     }
                     thead {
+                        display: table-header-group !important;
                         print-color-adjust: exact !important;
                         -webkit-print-color-adjust: exact !important;
+                    }
+                    tbody tr {
+                        page-break-inside: avoid !important;
                     }
                     th, td {
                         print-color-adjust: exact !important;
                         -webkit-print-color-adjust: exact !important;
                     }
+                    .section {
+                        page-break-inside: auto !important;
+                    }
                     @page {
-                        size: A4 portrait;
-                        margin: 10mm;
+                        size: A4 landscape;
+                        margin: 6mm;
                     }
                 }
             </style>
@@ -1023,8 +1041,6 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                 <div class="meta-box">
                     <div class="meta-item"><strong>Belge Türü:</strong> Araç İşlemleri Özet Raporu</div>
                     <div class="meta-item"><strong>No:</strong> ${reportNo}</div>
-                    <div class="meta-item"><strong>Revizyon:</strong> 0</div>
-                    <div class="meta-item"><strong>Sistem:</strong> Kademe Kalite Yönetim Sistemi</div>
                     <div class="meta-item"><strong>Yayın Tarihi:</strong> ${reportDate}</div>
                     <div class="meta-item"><strong>Toplam Araç:</strong> ${vehicles.length}</div>
                     ${selectedStatuses && selectedStatuses.length > 0 ? `
@@ -1040,44 +1056,44 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
                     <div class="summary-card">
                         <h3>Toplam Hata</h3>
                         <div class="value">${totalFaults}</div>
-                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">
+                        <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">
                             Çözülen: ${resolvedFaults} | Bekleyen: ${unresolvedFaults}
                         </div>
                     </div>
                     <div class="summary-card">
                         <h3>Rapor Tarihi</h3>
-                        <div class="value" style="font-size: 16px;">${formatDate(new Date())}</div>
+                        <div class="value" style="font-size: 15px;">${formatDate(new Date())}</div>
                     </div>
                 </div>
 
                 <div class="section">
                     <h2 class="section-title blue">1. DURUM DAĞILIMI</h2>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                         ${Object.entries(statusStats).map(([status, count]) => {
                             const badge = getStatusBadgeColor(status);
                             return `
-                                <div style="background-color: ${badge.bg}; border: 1px solid ${badge.border}; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
-                                    <span style="color: ${badge.text}; font-weight: 600; font-size: 13px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${status}</span>
-                                    <span style="color: ${badge.text}; font-weight: 700; font-size: 18px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${count}</span>
+                                <div style="background-color: ${badge.bg}; border: 1px solid ${badge.border}; border-radius: 6px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 8px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">
+                                    <span style="color: ${badge.text}; font-weight: 600; font-size: 11px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${status}</span>
+                                    <span style="color: ${badge.text}; font-weight: 700; font-size: 15px; print-color-adjust: exact; -webkit-print-color-adjust: exact;">${count}</span>
                                 </div>
                             `;
                         }).join('')}
                     </div>
                 </div>
 
-                <div class="section">
+                <div class="section" style="page-break-inside: auto;">
                     <h2 class="section-title blue">2. ARAÇ LİSTESİ</h2>
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 3%;">#</th>
-                                <th style="width: 12%;">Şasi/Seri No</th>
-                                <th style="width: 12%;">Araç Tipi</th>
-                                <th style="width: 15%;">Müşteri</th>
-                                <th style="width: 15%;">Durum</th>
-                                <th style="width: 12%;">DMO Durumu</th>
-                                <th style="width: 16%; text-align: center;">Hata Durumu</th>
-                                <th style="width: 15%; text-align: center;">Yeniden İşlem</th>
+                                <th style="width: 3%; text-align: center;">#</th>
+                                <th style="width: 16%;">Şasi/Seri No</th>
+                                <th style="width: 16%;">Araç Tipi</th>
+                                <th style="width: 16%;">Müşteri</th>
+                                <th style="width: 14%;">Durum</th>
+                                <th style="width: 7%; text-align: center;">DMO</th>
+                                <th style="width: 15%; text-align: center;">Hatalar</th>
+                                <th style="width: 13%; text-align: center;">Y. İşlem Süresi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1103,7 +1119,7 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
         window.printWindow.close();
     }
     
-    const printWindow = window.open(url, '_blank', 'width=800,height=600');
+    const printWindow = window.open(url, '_blank', 'width=1200,height=800');
     if (printWindow) {
         window.printWindow = printWindow; // Referansı sakla
         printWindow.addEventListener('load', () => {

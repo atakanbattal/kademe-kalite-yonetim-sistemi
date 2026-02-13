@@ -110,6 +110,26 @@ export const DataProvider = ({ children }) => {
 
         // KRİTİK TABLOLAR (Hemen yükle)
         const criticalPromises = {
+            auditLogs: (async () => {
+                try {
+                    const { data, error } = await supabase
+                        .from('audit_log_entries')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+                        .limit(500);
+                    if (error) {
+                        if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {
+                            console.warn('⚠️ Audit logs çekilemedi (RLS):', error.message);
+                            return { data: [], error: null };
+                        }
+                        throw error;
+                    }
+                    return { data: data || [], error: null };
+                } catch (error) {
+                    console.warn('⚠️ Audit logs fetch failed:', error);
+                    return { data: [], error: null };
+                }
+            })(),
             personnel: supabase.from('personnel').select('id, full_name, email, avatar_url, department, unit_id, is_active').order('full_name'),
             unitCostSettings: supabase.from('cost_settings').select('*'),
             productionDepartments: supabase.from('production_departments').select('*'),
@@ -231,27 +251,6 @@ export const DataProvider = ({ children }) => {
             incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*').limit(500),
             incomingControlPlans: supabase.from('incoming_control_plans').select('part_code, is_current'),
             questions: supabase.from('supplier_audit_questions').select('*'),
-            auditLogs: (async () => {
-                try {
-                    const { data, error } = await supabase
-                        .from('audit_log_entries')
-                        .select('*')
-                        .order('created_at', { ascending: false })
-                        .limit(500);
-                    if (error) {
-                        // 403 hatası RLS politikası sorunu olabilir, sessizce geç
-                        if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {
-                            console.warn('⚠️ Audit logs çekilemedi (RLS politikası):', error.message);
-                            return { data: [], error: null };
-                        }
-                        throw error;
-                    }
-                    return { data: data || [], error: null };
-                } catch (error) {
-                    console.warn('⚠️ Audit logs fetch failed:', error);
-                    return { data: [], error: null };
-                }
-            })(),
             stockRiskControls: supabase.from('stock_risk_controls').select(`
                     *,
                     supplier:suppliers!stock_risk_controls_supplier_id_fkey(id, name),

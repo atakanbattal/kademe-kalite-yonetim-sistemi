@@ -139,6 +139,7 @@ const Login = () => {
               <Label htmlFor="email">Kullanıcı Adı / E-posta</Label>
               <Input
                 id="email"
+                data-testid="login-email"
                 type="text"
                 placeholder="ornek@kademe.com"
                 value={email}
@@ -151,6 +152,7 @@ const Login = () => {
               <Label htmlFor="password">Şifre</Label>
               <Input
                 id="password"
+                data-testid="login-password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
@@ -159,7 +161,7 @@ const Login = () => {
                 className="mt-1"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" data-testid="login-submit" className="w-full" disabled={loading}>
               {loading ? 'Giriş Yapılıyor...' : <> <LogIn className="w-4 h-4 mr-2" /> Giriş Yap</>}
             </Button>
           </form>

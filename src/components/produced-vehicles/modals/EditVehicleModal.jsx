@@ -13,7 +13,7 @@ import { useData } from '@/contexts/DataContext';
 
 const DMO_STATUS_OPTIONS = ['DMO Bekliyor', 'DMO Geçti', 'DMO Kaldı'];
 const BRAND_OPTIONS = ['Şasi Yok', 'FORD', 'OTOKAR', 'ISUZU', 'MERCEDES', 'MITSUBISHI', 'IVECO'];
-const BRAND_REQUIRED_VEHICLE_TYPES = ['Çay Toplama Makinesi', 'HSCK (Hidrolik Sıkıştırmalı Çöp Kamyonu)', 'İSTAÇ', 'KDM 35', 'KDM 70', 'KDM 80'];
+const BRAND_REQUIRED_VEHICLE_TYPES = ['Çay Toplama Makinesi', 'HSCK (Hidrolik Sıkıştırmalı Çöp Kamyonu)', 'İSTAÇ', 'KDM 35', 'KDM 45', 'KDM 70', 'KDM 80', '4,5m3', '4.5m3', '4,5 m3', '4.5 m3', '4,5 m³', '4.5 m³'];
 
 const EditVehicleModal = ({ isOpen, setIsOpen, vehicle, refreshVehicles }) => {
     const { toast } = useToast();

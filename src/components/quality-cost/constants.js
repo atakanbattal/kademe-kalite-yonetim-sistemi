@@ -34,12 +34,13 @@ export const COST_SUBTYPES = [
     "Diğer"
 ];
 
-// Ortak maliyet kategorileri (nakliye, konaklama vb.)
+// Ortak maliyet kategorileri (nakliye, konaklama, işçilik vb.)
 export const SHARED_COST_CATEGORIES = [
     "Nakliye",
     "Konaklama", 
     "Yol / Ulaşım",
     "Seyahat",
+    "İşçilik",
     "Gümrük",
     "Sigorta",
     "Depolama",

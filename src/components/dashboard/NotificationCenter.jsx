@@ -85,14 +85,13 @@ const NotificationCenter = () => {
                     throw error;
                 }
             } else {
-                // Duplicate kontrolü - aynı title ve message'a sahip bildirimleri filtrele
+                // Duplicate kontrolü - aynı title+message tekrarlarını filtrele (en son olanı tut)
                 const uniqueNotifications = [];
                 const seen = new Set();
-                
                 (data || []).forEach(notif => {
-                    const key = `${notif.title}-${notif.message}-${notif.created_at}`;
-                    if (!seen.has(key)) {
-                        seen.add(key);
+                    const key = `${notif.title || ''}|${notif.message || ''}`.trim();
+                    if (!key || !seen.has(key)) {
+                        if (key) seen.add(key);
                         uniqueNotifications.push(notif);
                     }
                 });

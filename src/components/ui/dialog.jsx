@@ -31,7 +31,7 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
       ref={ref}
       className={cn(
         // Mobil için tam ekran benzeri görünüm, desktop için normal modal
-        "fixed z-50 grid w-[calc(100%-1rem)] max-w-lg gap-3 sm:gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200",
+        "fixed z-50 grid w-[calc(100%-1rem)] max-w-2xl sm:max-w-4xl gap-3 sm:gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200",
         // Pozisyonlama
         "left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]",
         // Mobil için daha küçük margin ve rounded

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDrag } from 'react-dnd';
+import { useDraggable } from '@dnd-kit/core';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -38,12 +38,11 @@ const PRIORITY_CONFIG = {
     'Kritik': { icon: Flag, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/30' },
 };
 
-const TaskCard = ({ task, onEditTask, onViewTask }) => {
-    const [{ isDragging }, drag] = useDrag(() => ({
-        type: 'task',
-        item: { id: task.id, status: task.status },
-        collect: (monitor) => ({ isDragging: !!monitor.isDragging() }),
-    }));
+const TaskCard = React.memo(({ task, onEditTask, onViewTask }) => {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+        id: `task-${task.id}`,
+        data: { taskId: task.id, status: task.status },
+    });
 
     const overdue = (task.status === 'Tamamlandı') ? false : isOverdue(task.due_date);
     const project = task.project || null;
@@ -57,11 +56,13 @@ const TaskCard = ({ task, onEditTask, onViewTask }) => {
 
     return (
         <Card
-            ref={drag}
+            ref={setNodeRef}
+            {...attributes}
+            {...listeners}
             onClick={() => onViewTask(task)}
             className={cn(
-                'bg-card hover:shadow-md transition-all duration-150 cursor-pointer border group',
-                isDragging ? 'opacity-40 scale-95' : 'opacity-100',
+                'bg-card hover:shadow-md transition-all duration-150 cursor-grab active:cursor-grabbing border group',
+                isDragging ? 'opacity-40 scale-95 shadow-lg ring-2 ring-primary/30' : 'opacity-100',
                 overdue ? 'border-l-[3px] border-l-red-400' : 'hover:border-primary/30'
             )}
         >
@@ -161,6 +162,8 @@ const TaskCard = ({ task, onEditTask, onViewTask }) => {
             </div>
         </Card>
     );
-};
+});
+
+TaskCard.displayName = 'TaskCard';
 
 export default TaskCard;

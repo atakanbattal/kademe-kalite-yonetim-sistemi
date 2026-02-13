@@ -126,14 +126,13 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             });
         }
 
-        // Sıralama
+        // Sıralama - tutarlı sıra için ikincil anahtar (created_at, id) kullan
         costs.sort((a, b) => {
             let aVal, bVal;
-
             switch (sortConfig.key) {
                 case 'cost_date':
-                    aVal = new Date(a.cost_date);
-                    bVal = new Date(b.cost_date);
+                    aVal = new Date(a.cost_date || 0).getTime();
+                    bVal = new Date(b.cost_date || 0).getTime();
                     break;
                 case 'amount':
                     aVal = parseFloat(a.amount) || 0;
@@ -151,11 +150,14 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     aVal = a[sortConfig.key];
                     bVal = b[sortConfig.key];
             }
-
-            if (aVal === bVal) return 0;
-
-            const comparison = aVal < bVal ? -1 : 1;
-            return sortConfig.direction === 'asc' ? comparison : -comparison;
+            if (aVal !== bVal) {
+                const comparison = aVal < bVal ? -1 : 1;
+                return sortConfig.direction === 'asc' ? comparison : -comparison;
+            }
+            // Eşit değerlerde ikincil sıralama: created_at desc (yeniden eskiye)
+            const aCreated = new Date(a.created_at || 0).getTime();
+            const bCreated = new Date(b.created_at || 0).getTime();
+            return bCreated - aCreated;
         });
 
         return costs;
@@ -399,10 +401,24 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             .sort((a, b) => b.totalAmount - a.totalAmount)
             .slice(0, 10);
 
-        // En çok maliyetli birimler/tedarikçiler (Top 10)
+        // Tüm birimler/tedarikçiler - payı olan herkes (line items dahil)
         const costsByUnit = {};
         filteredCosts.forEach(cost => {
-            if (cost.is_supplier_nc && cost.supplier?.name) {
+            const lineItems = cost.cost_line_items && Array.isArray(cost.cost_line_items) ? cost.cost_line_items : [];
+            const hasLineItems = lineItems.length > 0;
+
+            if (hasLineItems) {
+                lineItems.forEach(li => {
+                    const itemAmt = parseFloat(li.amount) || 0;
+                    if (itemAmt <= 0) return;
+                    const unitKey = li.responsible_type === 'supplier'
+                        ? `Tedarikçi: ${li.responsible_supplier_name || cost.supplier?.name || 'Belirtilmemiş'}`
+                        : (li.responsible_unit || 'Belirtilmemiş');
+                    if (!costsByUnit[unitKey]) costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: li.responsible_type === 'supplier' };
+                    costsByUnit[unitKey].count += 1;
+                    costsByUnit[unitKey].totalAmount += itemAmt;
+                });
+            } else if (cost.is_supplier_nc && cost.supplier?.name) {
                 const unitKey = `Tedarikçi: ${cost.supplier.name}`;
                 if (!costsByUnit[unitKey]) costsByUnit[unitKey] = { count: 0, totalAmount: 0, isSupplier: true };
                 costsByUnit[unitKey].count += 1;
@@ -421,7 +437,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 costsByUnit[unitKey].totalAmount += cost.amount || 0;
             }
         });
-        const topUnits = Object.entries(costsByUnit)
+        const allUnitsSorted = Object.entries(costsByUnit)
             .map(([unit, data]) => ({
                 unit,
                 count: data.count,
@@ -429,8 +445,8 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 percentage: totalCost > 0 ? (data.totalAmount / totalCost) * 100 : 0,
                 isSupplier: data.isSupplier
             }))
-            .sort((a, b) => b.totalAmount - a.totalAmount)
-            .slice(0, 10);
+            .sort((a, b) => b.totalAmount - a.totalAmount);
+        const topUnits = allUnitsSorted.slice(0, 10);
 
         // En çok maliyetli parçalar (Top 10)
         const costsByPart = {};
@@ -532,6 +548,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             preventionPercentage: totalCost > 0 ? (preventionCost / totalCost) * 100 : 0,
             topCostTypes,
             topUnits,
+            allUnits: allUnitsSorted,
             topParts,
             topVehicleTypes,
             topSuppliers,

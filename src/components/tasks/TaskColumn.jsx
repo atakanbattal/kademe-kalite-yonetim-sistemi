@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDrop } from 'react-dnd';
+import { useDroppable } from '@dnd-kit/core';
 import TaskCard from './TaskCard';
 import { cn } from '@/lib/utils';
 
@@ -30,24 +30,19 @@ const COLOR_MAP = {
     },
 };
 
-const TaskColumn = ({ status, title, colorScheme = 'slate', tasks, onDrop, onEditTask, onViewTask }) => {
-    const [{ isOver, canDrop }, drop] = useDrop(() => ({
-        accept: 'task',
-        drop: (item) => onDrop(item.id, status),
-        collect: (monitor) => ({
-            isOver: !!monitor.isOver(),
-            canDrop: !!monitor.canDrop(),
-        }),
-    }));
+const TaskColumn = React.memo(({ status, title, colorScheme = 'slate', tasks, onEditTask, onViewTask }) => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: status,
+    });
 
     const colors = COLOR_MAP[colorScheme] || COLOR_MAP.slate;
 
     return (
         <div
-            ref={drop}
+            ref={setNodeRef}
             className={cn(
                 'flex flex-col rounded-xl overflow-hidden transition-all duration-200',
-                isOver && canDrop ? 'ring-2 ring-primary ring-offset-2 scale-[1.01]' : '',
+                isOver ? 'ring-2 ring-primary ring-offset-2 scale-[1.01]' : '',
             )}
         >
             {/* Header */}
@@ -83,6 +78,8 @@ const TaskColumn = ({ status, title, colorScheme = 'slate', tasks, onDrop, onEdi
             </div>
         </div>
     );
-};
+});
+
+TaskColumn.displayName = 'TaskColumn';
 
 export default TaskColumn;

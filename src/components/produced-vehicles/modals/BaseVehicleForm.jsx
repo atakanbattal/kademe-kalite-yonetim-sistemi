@@ -44,7 +44,7 @@ const BaseVehicleForm = ({ vehicle, onSave, setIsOpen }) => {
     const brandOptions = ['Şasi Yok', 'FORD', 'OTOKAR', 'ISUZU', 'MERCEDES', 'MITSUBISHI', 'IVECO'];
     
     // Marka gerektiren araç tipleri
-    const brandRequiredVehicleTypes = ['Çay Toplama Makinesi', 'HSCK (Hidrolik Sıkıştırmalı Çöp Kamyonu)', 'İSTAÇ', 'KDM 35', 'KDM 70', 'KDM 80'];
+    const brandRequiredVehicleTypes = ['Çay Toplama Makinesi', 'HSCK (Hidrolik Sıkıştırmalı Çöp Kamyonu)', 'İSTAÇ', 'KDM 35', 'KDM 45', 'KDM 70', 'KDM 80', '4,5m3', '4.5m3', '4,5 m3', '4.5 m3', '4,5 m³', '4.5 m³'];
     
     // Araç tiplerini products tablosundan çek
     const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');

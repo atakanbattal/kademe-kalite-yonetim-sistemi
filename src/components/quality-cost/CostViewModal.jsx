@@ -36,8 +36,9 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                 .eq('quality_cost_id', cost.id);
             if (data) {
                 const docsWithUrls = await Promise.all(data.map(async (doc) => {
-                    const { data: urlData } = supabase.storage.from('quality_costs').getPublicUrl(doc.file_path);
-                    return { ...doc, url: urlData?.publicUrl || '#' };
+                    // quality_costs bucket private - createSignedUrl kullan (getPublicUrl 404 verir)
+                    const { data: urlData, error } = await supabase.storage.from('quality_costs').createSignedUrl(doc.file_path, 3600);
+                    return { ...doc, url: (!error && urlData?.signedUrl) ? urlData.signedUrl : '#' };
                 }));
                 setDocuments(docsWithUrls);
             }

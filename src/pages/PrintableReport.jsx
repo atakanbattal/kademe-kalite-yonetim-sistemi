@@ -43,9 +43,38 @@ const PrintableReport = () => {
                         });
 
                         // Liste tipleri için localStorage'dan veri okunduysa direkt kullan
-                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'quality_cost_executive_summary' || type === 'quality_cost_detail' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
+                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'quality_cost_executive_summary' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
                             // Liste tipleri için ek işlem gerekmez, veri zaten hazır
                             console.log(`✅ Liste tipi (${type}) verisi localStorage'dan okundu`);
+                        }
+                        // quality_cost_detail: _documents eksikse quality_cost_documents'tan çek (kanıt dokümanlar link için)
+                        else if (type === 'quality_cost_detail' && recordData?.id) {
+                            const hasDocs = recordData._documents && Array.isArray(recordData._documents) && recordData._documents.length > 0;
+                            if (!hasDocs) {
+                                try {
+                                    const { data: docsData } = await supabase
+                                        .from('quality_cost_documents')
+                                        .select('*')
+                                        .eq('quality_cost_id', recordData.id);
+                                    if (docsData && docsData.length > 0) {
+                                        const docsWithUrls = await Promise.all(docsData.map(async (doc) => {
+                                            // quality_costs bucket private - createSignedUrl kullan (getPublicUrl 404 verir)
+                                            const { data: urlData, error } = await supabase.storage.from('quality_costs').createSignedUrl(doc.file_path, 3600);
+                                            return {
+                                                document_name: doc.document_name,
+                                                document_type: doc.document_type,
+                                                file_path: doc.file_path,
+                                                file_size: doc.file_size,
+                                                url: (!error && urlData?.signedUrl) ? urlData.signedUrl : '#'
+                                            };
+                                        }));
+                                        recordData._documents = docsWithUrls;
+                                        console.log('✅ Kalite maliyeti kanıt dokümanları veritabanından yüklendi:', docsWithUrls.length);
+                                    }
+                                } catch (docsErr) {
+                                    console.warn('Kanıt dokümanları yüklenemedi:', docsErr);
+                                }
+                            }
                         }
                         // WPS için ilişkili verileri kontrol et ve eksikse çek
                         else if (type === 'wps' && recordData && id) {

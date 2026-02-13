@@ -53,6 +53,9 @@ const TaskModule = () => {
     const [editingProject, setEditingProject] = useState(null);
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
+    // Optimistik güncelleme - sürükle bırak anında UI güncellemesi için
+    const [optimisticUpdates, setOptimisticUpdates] = useState({});
+
     // Navigation state
     const [activeView, setActiveView] = useState('all'); // 'all', 'my', 'overdue', 'unassigned' or project ID
     const [searchTerm, setSearchTerm] = useState('');
@@ -72,14 +75,24 @@ const TaskModule = () => {
         return taskProjects.find(p => p.id === activeView) || null;
     }, [activeView, taskProjects]);
 
-    // Compute project stats
+    // Optimistik güncellemeleri uygula (sürükle bırak performansı)
+    const tasksWithOptimistic = useMemo(() => {
+        if (!tasks || Object.keys(optimisticUpdates).length === 0) return tasks;
+        return tasks.map(t => {
+            const upd = optimisticUpdates[t.id];
+            return upd ? { ...t, ...upd } : t;
+        });
+    }, [tasks, optimisticUpdates]);
+
+    // Compute project stats (optimistik veri ile)
     const projectStats = useMemo(() => {
-        if (!tasks?.length) return {};
+        const src = tasksWithOptimistic ?? tasks;
+        if (!src?.length) return {};
         const stats = {};
         
         // Compute stats for each project
         (taskProjects || []).forEach(project => {
-            const projectTasks = tasks.filter(t => t.project_id === project.id);
+            const projectTasks = src.filter(t => t.project_id === project.id);
             const completed = projectTasks.filter(t => t.status === 'Tamamlandı').length;
             const total = projectTasks.length;
             const overdue = projectTasks.filter(t => {
@@ -92,30 +105,31 @@ const TaskModule = () => {
             stats[project.id] = { total, completed, overdue, progress: total > 0 ? Math.round((completed / total) * 100) : 0 };
         });
         return stats;
-    }, [tasks, taskProjects]);
+    }, [tasksWithOptimistic, tasks, taskProjects]);
 
-    // Quick view counts
+    // Quick view counts (optimistik veri ile)
     const quickViewCounts = useMemo(() => {
-        if (!tasks?.length) return { all: 0, my: 0, overdue: 0, unassigned: 0 };
+        const src = tasksWithOptimistic ?? tasks;
+        if (!src?.length) return { all: 0, my: 0, overdue: 0, unassigned: 0 };
         const today = new Date(); today.setHours(0,0,0,0);
         return {
-            all: tasks.length,
-            my: tasks.filter(t => t.assignees?.some(a => a.personnel?.id === currentPersonnelId)).length,
-            overdue: tasks.filter(t => {
+            all: src.length,
+            my: src.filter(t => t.assignees?.some(a => a.personnel?.id === currentPersonnelId)).length,
+            overdue: src.filter(t => {
                 if (t.status === 'Tamamlandı') return false;
                 if (!t.due_date) return false;
                 return new Date(t.due_date) < today;
             }).length,
-            unassigned: tasks.filter(t => !t.project_id).length,
+            unassigned: src.filter(t => !t.project_id).length,
         };
-    }, [tasks, currentPersonnelId]);
+    }, [tasksWithOptimistic, tasks, currentPersonnelId]);
 
     // Filter tasks based on active view + search + filters
     const filteredTasks = useMemo(() => {
-        if (loading || !tasks) return [];
+        if (loading || !tasksWithOptimistic) return [];
         const today = new Date(); today.setHours(0,0,0,0);
 
-        return tasks.filter(task => {
+        return tasksWithOptimistic.filter(task => {
             // View filter
             let viewMatch = true;
             if (activeView === 'my') {
@@ -144,7 +158,7 @@ const TaskModule = () => {
 
             return viewMatch && searchMatch && assigneeMatch && priorityMatch;
         });
-    }, [tasks, activeView, searchTerm, filterAssignees, filterPriorities, currentPersonnelId, loading]);
+    }, [tasksWithOptimistic, activeView, searchTerm, filterAssignees, filterPriorities, currentPersonnelId, loading]);
 
     // Status counts for current view
     const statusCounts = useMemo(() => {
@@ -153,16 +167,21 @@ const TaskModule = () => {
         return counts;
     }, [filteredTasks]);
 
-    // Handlers
+    // Handlers - optimistik güncelleme ile anında UI tepkisi
     const handleUpdateStatus = async (taskId, newStatus) => {
         const updateData = { status: newStatus };
         if (newStatus === 'Tamamlandı') updateData.completed_at = new Date().toISOString();
         else updateData.completed_at = null;
-        
+
+        // Anında UI güncellemesi (sürükle bırak performansı)
+        setOptimisticUpdates(prev => ({ ...prev, [taskId]: { status: newStatus, completed_at: updateData.completed_at } }));
+
         const { error } = await supabase.from('tasks').update(updateData).eq('id', taskId);
         if (error) {
+            setOptimisticUpdates(prev => { const n = { ...prev }; delete n[taskId]; return n; });
             toast({ variant: 'destructive', title: 'Hata!', description: `Durum güncellenemedi: ${error.message}` });
         } else {
+            setOptimisticUpdates(prev => { const n = { ...prev }; delete n[taskId]; return n; });
             refreshData();
         }
     };

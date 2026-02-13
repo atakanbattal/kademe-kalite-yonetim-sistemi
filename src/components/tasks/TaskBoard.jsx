@@ -1,6 +1,5 @@
 import React from 'react';
-import { DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import TaskColumn from './TaskColumn';
 
 const DEFAULT_STATUS_COLUMNS = [
@@ -13,6 +12,28 @@ const DEFAULT_STATUS_COLUMNS = [
 const TaskBoard = ({ tasks, onEditTask, onViewTask, onUpdateStatus }) => {
     const statusColumns = DEFAULT_STATUS_COLUMNS;
 
+    // Hareket sonrası sürüklemeyi başlat - yanlışlıkla tıklamaları önler, performansı artırır
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+    );
+
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+        if (!over) return;
+        const taskId = active.data?.current?.taskId;
+        const status = active.data?.current?.status;
+        // over.id: kolon (Bekliyor, Devam Ediyor...) veya başka kart (task-xxx)
+        let newStatus = over.id;
+        if (typeof newStatus === 'string' && newStatus.startsWith('task-')) {
+            const targetTask = tasks.find(t => `task-${t.id}` === newStatus);
+            newStatus = targetTask?.status ?? status;
+        }
+        if (taskId && newStatus && newStatus !== status) {
+            onUpdateStatus(taskId, newStatus);
+        }
+    };
+
     const getGridColsClass = () => {
         const count = statusColumns.length;
         if (count <= 2) return 'md:grid-cols-2';
@@ -21,7 +42,7 @@ const TaskBoard = ({ tasks, onEditTask, onViewTask, onUpdateStatus }) => {
     };
 
     return (
-        <DndProvider backend={HTML5Backend}>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <div className={`grid grid-cols-1 ${getGridColsClass()} gap-4 h-full`}>
                 {statusColumns.map(column => (
                     <TaskColumn
@@ -30,13 +51,12 @@ const TaskBoard = ({ tasks, onEditTask, onViewTask, onUpdateStatus }) => {
                         title={column.title}
                         colorScheme={column.color}
                         tasks={tasks.filter(task => task.status === column.id)}
-                        onDrop={onUpdateStatus}
                         onEditTask={onEditTask}
                         onViewTask={onViewTask}
                     />
                 ))}
             </div>
-        </DndProvider>
+        </DndContext>
     );
 };
 

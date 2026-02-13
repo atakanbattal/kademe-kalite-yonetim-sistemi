@@ -1785,8 +1785,57 @@ const generateListReportHtml = (record, type) => {
 		const sharedCostsTotal = sharedCostItems.reduce((s, sc) => s + (parseFloat(sc.amount) || 0), 0);
 		const indirectCostsTotal = indirectCostItems.reduce((s, ic) => s + (parseFloat(ic.amount) || 0), 0);
 
+		// Birim bazlı toplamlar - payı olan TÜM birimler (cost_allocations + line items)
+		const unitTotalsMap = {};
+		if (hasLineItems && lineItemsTotal > 0) {
+			lineItems.forEach(li => {
+				const liAmt = parseFloat(li.amount) || 0;
+				const pct = (liAmt / lineItemsTotal) * 100;
+				const sharedShare = sharedCostsTotal * (pct / 100);
+				const totalForItem = liAmt + sharedShare;
+				const unitKey = li.responsible_type === 'supplier'
+					? `Tedarikçi: ${li.responsible_supplier_name || record.supplier?.name || 'Belirtilmemiş'}`
+					: (li.responsible_unit || 'Belirtilmemiş');
+				unitTotalsMap[unitKey] = (unitTotalsMap[unitKey] || 0) + totalForItem;
+			});
+		} else if (record.cost_allocations && record.cost_allocations.length > 0) {
+			const totalAmt = record.amount || 0;
+			record.cost_allocations.forEach(a => {
+				const amt = a.amount ?? totalAmt * (parseFloat(a.percentage) || 0) / 100;
+				const unitKey = a.unit || 'Belirtilmemiş';
+				unitTotalsMap[unitKey] = (unitTotalsMap[unitKey] || 0) + amt;
+			});
+		} else if (record.unit) {
+			unitTotalsMap[record.unit] = record.amount || 0;
+		}
+		const unitTotalsList = Object.entries(unitTotalsMap)
+			.map(([unit, amt]) => ({ unit, amount: amt }))
+			.sort((a, b) => b.amount - a.amount);
+		const grandTotal = hasLineItems
+			? (lineItemsTotal + sharedCostsTotal + indirectCostsTotal)
+			: (record.amount || 0);
+		const unitSummaryHtml = unitTotalsList.length > 0 ? `
+			<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px;">
+				<h3 style="font-size: 14px; font-weight: 700; color: #1e40af; margin-bottom: 12px; border-bottom: 2px solid #3b82f6; padding-bottom: 6px;">Birim Bazlı Toplam Maliyetler (Payı Olan Tüm Birimler)</h3>
+				<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+					${unitTotalsList.map(u => `<span style="background: white; padding: 8px 14px; border-radius: 6px; border-left: 4px solid #2563eb; font-size: 13px;"><strong>${u.unit}:</strong> ${formatCurrencyLocal(u.amount)}</span>`).join('')}
+				</div>
+				<div style="padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px;">
+					${hasLineItems ? `<span><strong>Kalem Toplamı:</strong> ${formatCurrencyLocal(lineItemsTotal)}</span>` : ''}
+					${sharedCostItems.length > 0 ? `<span><strong>Ortak Pay Toplamı:</strong> ${formatCurrencyLocal(sharedCostsTotal)}</span>` : ''}
+					<span><strong>Maliyet Toplamı:</strong> ${formatCurrencyLocal(grandTotal)}</span>
+				</div>
+			</div>
+		` : (record.unit ? `
+			<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+				<div><strong>Birim:</strong> ${record.unit}</div>
+				<div style="font-size: 1.3em; font-weight: 700;">${formatCurrencyLocal(record.amount)}</div>
+			</div>
+		` : '');
+
 		// Ana bilgiler kartı - profesyonel şerit stili (renkli sol kenar)
 		const mainInfoHtml = `
+			${unitSummaryHtml}
 			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
 				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #2563eb;">
 					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">Toplam Tutar</div>
@@ -1873,10 +1922,13 @@ const generateListReportHtml = (record, type) => {
 					const liAmt = parseFloat(li.amount) || 0;
 					const pct = lineItemsTotal > 0 ? (liAmt / lineItemsTotal) * 100 : 0;
 					const sharedShare = sharedCostsTotal * (pct / 100);
+					const itemLabel = li.part_code || li.part_name || '-';
+					const subtypeLabel = li.cost_subtype || '-';
 					return `
 						<tr>
-							<td style="padding:8px 14px;">${li.part_code || li.part_name || '-'}</td>
-							<td style="padding:8px 14px;">${li.responsible_unit || '-'}</td>
+							<td style="padding:8px 14px;">${itemLabel}</td>
+							<td style="padding:8px 14px; font-weight:600; color:#92400e;">${subtypeLabel}</td>
+							<td style="padding:8px 14px;">${li.responsible_unit || li.responsible_supplier_name || '-'}</td>
 							<td style="padding:8px 14px; text-align:center;">
 								<div style="display:flex; align-items:center; gap:6px; justify-content:center;">
 									<div style="flex:1; max-width:80px; height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden;">
@@ -1895,6 +1947,7 @@ const generateListReportHtml = (record, type) => {
 						<table style="width:100%; border-collapse:collapse; font-size:0.9em;">
 							<thead><tr style="border-bottom:1px solid #fde68a; color:#92400e;">
 								<th style="text-align:left; padding:6px 14px; font-size:10px; text-transform:uppercase;">Kalem</th>
+								<th style="text-align:left; padding:6px 14px; font-size:10px; text-transform:uppercase;">Tür</th>
 								<th style="text-align:left; padding:6px 14px; font-size:10px; text-transform:uppercase;">Sorumlu</th>
 								<th style="text-align:center; padding:6px 14px; font-size:10px; text-transform:uppercase;">Pay</th>
 								<th style="text-align:right; padding:6px 14px; font-size:10px; text-transform:uppercase;">Ortak Pay</th>
@@ -1925,6 +1978,11 @@ const generateListReportHtml = (record, type) => {
 							</tr>
 						</tbody>
 					</table>
+					${hasLineItems ? `
+					<div style="margin-top:12px; padding:12px; background:#f0fdf4; border:1px solid #86efac; border-radius:6px; font-size:0.9em;">
+						<strong>Özet:</strong> Kalem Toplamı: ${formatCurrencyLocal(lineItemsTotal)} | Ortak Pay Toplamı: ${formatCurrencyLocal(sharedCostsTotal)} | Toplam: ${formatCurrencyLocal(lineItemsTotal + sharedCostsTotal)}
+					</div>
+					` : ''}
 					${distributionHtml}
 				</div>
 			`;
@@ -2105,20 +2163,21 @@ const generateListReportHtml = (record, type) => {
 			}
 		}
 
-		// Doküman linkleri
+		// Kanıt dokümanları (linkler ile)
 		let documentsHtml = '';
 		if (record._documents && Array.isArray(record._documents) && record._documents.length > 0) {
 			const docRowsHtml = record._documents.map(doc => {
 				const docUrl = doc.url || '#';
+				const docName = doc.document_name || doc.file_path || '-';
 				return `<tr>
-					<td style="padding:8px 14px;"><a href="${docUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb; text-decoration:underline; font-weight:600;">${doc.document_name || doc.file_path || '-'}</a></td>
+					<td style="padding:8px 14px;"><a href="${docUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb; text-decoration:underline; font-weight:600;">${docName}</a></td>
 					<td style="padding:8px 14px;">${doc.document_type || '-'}</td>
 					<td style="padding:8px 14px; font-size:0.85em; color:#64748b;">${doc.file_size ? (doc.file_size / 1024).toFixed(1) + ' KB' : '-'}</td>
 				</tr>`;
 			}).join('');
 			documentsHtml = `
 				<div class="section">
-					<h2 class="section-title section-title-strip blue">EKLER / DOKÜMANLAR</h2>
+					<h2 class="section-title section-title-strip blue">KANIT DOKÜMANLAR</h2>
 					<table style="width:100%; border-collapse:collapse; margin-top:10px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
 						<thead>
 							<tr style="background:#f8fafc; border-bottom:2px solid #2563eb;">
@@ -2181,8 +2240,21 @@ const generateListReportHtml = (record, type) => {
 				? `${record.periodStart} - ${record.periodEnd}`
 				: record.period || 'Tüm Zamanlar';
 
+			// Birim bazlı toplamlar - payı olan TÜM birimler (allUnits varsa)
+			const unitsForDisplay = (record.allUnits && record.allUnits.length > 0) ? record.allUnits : (record.topUnits || []);
+			const unitTotalsHtml = unitsForDisplay.length > 0 ? `
+			<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px;">
+				<h3 style="font-size: 14px; font-weight: 700; color: #1e40af; margin-bottom: 12px; border-bottom: 2px solid #3b82f6; padding-bottom: 6px;">Birim Bazlı Toplam Maliyetler (Payı Olan Tüm Birimler)</h3>
+				<div style="display: flex; flex-wrap: wrap; gap: 12px;">
+					${unitsForDisplay.map(u => `<span style="background: white; padding: 8px 14px; border-radius: 6px; border-left: 4px solid #2563eb; font-size: 13px;"><strong>${u.unit}:</strong> ${formatCurrencyLocal(u.totalAmount)}</span>`).join('')}
+				</div>
+				<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-weight: 700; color: #dc2626;">Genel Toplam: ${formatCurrencyLocal(record.totalCost)}</div>
+			</div>
+			` : '';
+
 			// Genel Özet Kartları - Profesyonel şerit stili (renkli sol kenar)
 			const summaryCardsHtml = `
+			${unitTotalsHtml}
 			<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
 				<div style="background-color: #ffffff; border-radius: 8px; padding: 20px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; border-left: 5px solid #2563eb;">
 					<div style="font-size: 10px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280;">Toplam Maliyet</div>
@@ -3370,7 +3442,7 @@ const generateListReportHtml = (record, type) => {
 	`;
 };
 
-const generateGenericReportHtml = (record, type) => {
+const generateGenericReportHtml = async (record, type) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
 	const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
 	const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
@@ -4811,7 +4883,7 @@ const generateGenericReportHtml = (record, type) => {
 		}
 	};
 
-	const getAdditionalSections = () => {
+	const getAdditionalSections = async () => {
 		let html = '';
 
 		// Problem Tanımı (nonconformity için-eğer getGeneralInfo'dan gelmediyse)
@@ -5321,24 +5393,23 @@ const generateGenericReportHtml = (record, type) => {
 
 		if (attachments.length > 0) {
 			html += `<div class="section" ><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
-			attachments.forEach(attachment => {
-				// Deviation ve INKR attachments için file_path alanını kullan
+			for (const attachment of attachments) {
 				let pathToUse = attachment;
 				if ((type === 'deviation' || type === 'inkr_management') && typeof attachment === 'object' && attachment !== null) {
 					pathToUse = attachment.file_path || attachment.path || attachment;
 				}
-
 				const url = getAttachmentUrl(pathToUse, bucket);
 				const fileName = (type === 'deviation' || type === 'inkr_management') && typeof attachment === 'object' && attachment !== null
 					? (attachment.file_name || attachment.name || (typeof pathToUse === 'string' ? pathToUse.split('/').pop() : ''))
 					: (typeof attachment === 'string' ? attachment : attachment.name || attachment.path || '').split('/').pop();
 				const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeof pathToUse === 'string' ? pathToUse : (pathToUse.path || pathToUse.file_path || ''));
 				if (isImage) {
-					html += `<div class="image-container"><img src="${url}" class="attachment-image" alt="Ek" crossOrigin="anonymous"/></div>`;
+					const base64 = await imageUrlToBase64(url);
+					html += `<div class="image-container"><img src="${base64 || url}" class="attachment-image" alt="Ek" crossOrigin="anonymous"/></div>`;
 				} else {
 					html += `<div class="attachment-file"><a href="${url}" target="_blank">${fileName}</a></div>`;
 				}
-			});
+			}
 			html += `</div></div> `;
 		}
 		return html;
@@ -5403,7 +5474,7 @@ const generateGenericReportHtml = (record, type) => {
 		})()
 		}
 		
-		${getAdditionalSections()}
+		${await getAdditionalSections()}
 
 <div class="section signature-section">
 	<h2 class="section-title dark">İMZA VE ONAY</h2>
@@ -6236,7 +6307,7 @@ h3 {
 			}
 `;
 	} else {
-		reportContentHtml = generateGenericReportHtml(normalizedRecord, type);
+		reportContentHtml = await generateGenericReportHtml(normalizedRecord, type);
 	}
 
 	const formNumber = getFormNumber(normalizedRecord.report_type || type);
