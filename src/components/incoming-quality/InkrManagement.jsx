@@ -280,7 +280,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
             setFiles([]);
             setExistingAttachments([]);
             setDeletedAttachmentIds([]);
-            
+
             if (existingReport && existingReport.id) {
                 // Mevcut raporu düzenleme modu
                 setFormData({
@@ -304,14 +304,14 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                     measured_value: item.measured_value || ''
                 }));
                 setItems(loadedItems);
-                
+
                 // Mevcut attachment'ları yükle
                 const { data: attachments, error: attachmentsError } = await supabase
                     .from('inkr_attachments')
                     .select('*')
                     .eq('inkr_report_id', existingReport.id)
                     .order('uploaded_at', { ascending: false });
-                
+
                 if (!attachmentsError && attachments) {
                     setExistingAttachments(attachments);
                 }
@@ -516,7 +516,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
         setFiles(prev => [...prev, ...acceptedFiles]);
     }, []);
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         accept: {
             'image/*': ['.jpeg', '.png', '.jpg', '.gif'],
@@ -540,7 +540,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
     // Dosya uzantısına göre MIME type belirleme fonksiyonu
     const getMimeTypeFromFileName = (fileName) => {
         if (!fileName) return 'application/octet-stream';
-        
+
         const extension = fileName.split('.').pop()?.toLowerCase();
         const mimeTypes = {
             'pdf': 'application/pdf',
@@ -554,7 +554,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
             'gif': 'image/gif',
             'webp': 'image/webp',
         };
-        
+
         return mimeTypes[extension] || 'application/octet-stream';
     };
 
@@ -670,7 +670,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                     }
 
                     const fileArrayBuffer = await file.arrayBuffer();
-                    const uploadResult = await supabase.storage.from('inkr_attachments').upload(filePath, fileArrayBuffer, { 
+                    const uploadResult = await supabase.storage.from('inkr_attachments').upload(filePath, fileArrayBuffer, {
                         contentType: contentType,
                         upsert: false
                     });
@@ -703,7 +703,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
             const { data, error: fetchError } = await supabase
                 .from('inkr_reports')
                 .select('*, supplier:supplier_id(name)');
-            
+
             if (!fetchError && data) {
                 // report_date'e göre sırala (en yeni en üstte)
                 data.sort((a, b) => {
@@ -740,14 +740,24 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-[95vw] w-full max-h-[95vh] flex flex-col">
-                <DialogHeader className="flex-shrink-0">
+            <DialogContent className="sm:max-w-[95vw] w-[98vw] sm:w-[95vw] max-h-[95vh] flex flex-col p-0">
+                {/* Gradient Header */}
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0 rounded-t-lg">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg"><Plus className="h-5 w-5 text-white" /></div>
+                        <div>
+                            <h1 className="text-lg font-bold tracking-tight">{isEditMode ? 'INKR Raporu Düzenle' : 'Yeni INKR Raporu Oluştur'}</h1>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">İlk numune kontrol raporu bilgilerini girin</p>
+                        </div>
+                    </div>
+                </header>
+                <DialogHeader className="sr-only">
                     <DialogTitle>{isEditMode ? 'INKR Raporu Düzenle' : 'Yeni INKR Raporu Oluştur'}</DialogTitle>
                     <DialogDescription>İlk numune kontrol raporu bilgilerini girin ve ölçümleri kaydedin.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                    <div className="flex-1 min-h-0 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 180px)' }}>
-                        <div className="p-4 space-y-6">
+                    <div className="flex-1 min-h-0 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 200px)' }}>
+                        <div className="p-6 space-y-6">
                             <div className="space-y-6">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div><Label>Parça Kodu</Label><Input value={formData.part_code || ''} onChange={(e) => setFormData(f => ({ ...f, part_code: e.target.value }))} required disabled={isEditMode || !!(existingReport && existingReport.part_code && !existingReport.id)} /></div>
@@ -768,9 +778,9 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                     <div><Label>Durum</Label><Select value={formData.status || ''} onValueChange={(v) => setFormData(f => ({ ...f, status: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Beklemede">Beklemede</SelectItem><SelectItem value="Onaylandı">Onaylandı</SelectItem><SelectItem value="Reddedildi">Reddedildi</SelectItem></SelectContent></Select></div>
                                     <div className="col-span-2">
                                         <Label>Kritik Bilgiler / Notlar</Label>
-                                        <Textarea 
-                                            value={formData.notes || ''} 
-                                            onChange={(e) => setFormData(f => ({ ...f, notes: e.target.value }))} 
+                                        <Textarea
+                                            value={formData.notes || ''}
+                                            onChange={(e) => setFormData(f => ({ ...f, notes: e.target.value }))}
                                             placeholder="Örn: Parça, ISO 2081 standardına uygun olarak komple elektrolitik galvaniz ile kaplanacaktır. Kaplama kalınlığı 8 µm ±2 µm olacaktır..."
                                             rows={4}
                                             className="resize-none"
@@ -838,7 +848,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                         <UploadCloud className="w-10 h-10 mx-auto text-muted-foreground" />
                                         <p className="mt-2 text-sm text-muted-foreground">Dosyaları buraya sürükleyin ya da seçmek için tıklayın.</p>
                                     </div>
-                                    
+
                                     {/* Mevcut attachment'lar (sadece düzenleme modunda) */}
                                     {isEditMode && existingAttachments.length > 0 && (
                                         <div className="mt-4 space-y-2">
@@ -856,7 +866,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                                             ))}
                                         </div>
                                     )}
-                                    
+
                                     {/* Yeni eklenen dosyalar */}
                                     {files.length > 0 && (
                                         <div className="mt-4 space-y-2">
@@ -878,7 +888,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
                             </div>
                         </div>
                     </div>
-                    <DialogFooter className="mt-4 border-t pt-4 flex-shrink-0">
+                    <DialogFooter className="border-t px-6 py-4 flex-shrink-0 bg-muted/30">
                         <DialogClose asChild><Button type="button" variant="outline">İptal</Button></DialogClose>
                         <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
                     </DialogFooter>
@@ -921,7 +931,7 @@ const InkrManagement = ({ onViewPdf }) => {
             const { data, error: fetchError } = await supabase
                 .from('inkr_reports')
                 .select('*, supplier:supplier_id(name)');
-            
+
             if (!fetchError && data) {
                 // report_date'e göre sırala (en yeni en üstte)
                 data.sort((a, b) => {
@@ -977,7 +987,7 @@ const InkrManagement = ({ onViewPdf }) => {
                     .select('*, supplier:supplier_id(name)');
 
                 if (error) throw error;
-                
+
                 // report_date'e göre sırala (en yeni en üstte)
                 // report_date NULL olanlar için updated_at veya created_at kullan
                 if (data) {
@@ -1003,7 +1013,7 @@ const InkrManagement = ({ onViewPdf }) => {
                         }
                     });
                 }
-                
+
                 setInkrReports(data || []);
             } catch (error) {
                 console.error('INKR raporları alınamadı:', error);
@@ -1070,7 +1080,7 @@ const InkrManagement = ({ onViewPdf }) => {
                         }
                     }
                 });
-                
+
                 // INKR map'i normalize edilmiş part_code'larla oluştur
                 const inkrMap = new Map();
                 (inkrReports || []).forEach(r => {
@@ -1093,7 +1103,7 @@ const InkrManagement = ({ onViewPdf }) => {
                 const existingNormalizedCodes = new Set(
                     Array.from(uniquePartsMap.values()).map(p => normalizePartCode(p.part_code))
                 );
-                
+
                 (inkrReports || []).forEach(inkrReport => {
                     const normalizedInkrPartCode = normalizePartCode(inkrReport.part_code);
                     if (inkrReport.part_code && !existingNormalizedCodes.has(normalizedInkrPartCode)) {

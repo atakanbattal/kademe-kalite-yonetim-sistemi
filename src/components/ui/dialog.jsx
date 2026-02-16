@@ -30,13 +30,17 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        // Mobil için tam ekran benzeri görünüm, desktop için normal modal
-        "fixed z-50 grid w-[calc(100%-1rem)] max-w-2xl sm:max-w-4xl gap-3 sm:gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200",
+        // Temel modal stilleri
+        "fixed z-50 grid gap-3 sm:gap-4 border bg-background shadow-lg duration-200",
+        // Genişlik - varsayılan max-w-lg, bileşen seviyesinde override edilebilir (tailwind-merge sayesinde)
+        "w-[calc(100%-1rem)] sm:w-auto sm:max-w-lg",
+        // Padding
+        "p-4 sm:p-6",
         // Pozisyonlama
         "left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]",
-        // Mobil için daha küçük margin ve rounded
-        "rounded-lg sm:rounded-lg",
-        // Maksimum yükseklik - mobil için güvenli alan dahil
+        // Rounded
+        "rounded-lg",
+        // Maksimum yükseklik
         "max-h-[calc(100vh-2rem)] sm:max-h-[90vh]",
         // Overflow
         "overflow-hidden",
@@ -47,7 +51,7 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground p-1 touch-manipulation">
+      <DialogPrimitive.Close className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground p-1 touch-manipulation z-10">
         <X className="h-4 w-4 sm:h-5 sm:w-5" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
