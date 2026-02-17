@@ -590,148 +590,205 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
         e.preventDefault();
         setIsSubmitting(true);
 
-        const reportData = {
-            ...formData,
-            items: items.filter(item => item.characteristic_id && item.equipment_id)
-        };
-        if (reportData.supplier_id === '' || reportData.supplier_id === 'none') reportData.supplier_id = null;
+        try {
+            const filteredItems = items.filter(item => item.characteristic_id && item.equipment_id);
 
-        // INKR numarası oluştur - parça numarası ile ilişkili: INKR-parça_kodu
-        if (!reportData.inkr_number || !reportData.inkr_number.startsWith('INKR-')) {
-            if (reportData.part_code) {
-                // Parça kodundan INKR numarası oluştur: INKR-parça_kodu
-                // Özel karakterleri temizle ve sadece alfanumerik karakterleri kullan
-                const cleanPartCode = reportData.part_code.replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-                reportData.inkr_number = `INKR-${cleanPartCode}`;
+            const reportData = {
+                part_code: formData.part_code,
+                part_name: formData.part_name,
+                supplier_id: formData.supplier_id,
+                report_date: formData.report_date,
+                status: formData.status,
+                notes: formData.notes || '',
+                items: filteredItems,
+            };
+
+            if (!reportData.part_code || !reportData.part_name || !reportData.report_date || !reportData.status) {
+                toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Parça kodu, parça adı, rapor tarihi ve durum alanları zorunludur.' });
+                setIsSubmitting(false);
+                return;
+            }
+
+            if (reportData.supplier_id === '' || reportData.supplier_id === 'none') reportData.supplier_id = null;
+
+            // INKR numarası oluştur - parça numarası ile ilişkili: INKR-parça_kodu
+            if (!formData.inkr_number || !formData.inkr_number.startsWith('INKR-')) {
+                if (reportData.part_code) {
+                    const cleanPartCode = reportData.part_code.replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+                    reportData.inkr_number = `INKR-${cleanPartCode}`;
+                } else {
+                    const currentYear = new Date().getFullYear();
+                    const { data: lastReport } = await supabase
+                        .from('inkr_reports')
+                        .select('inkr_number')
+                        .like('inkr_number', `INKR-${currentYear}-%`)
+                        .not('inkr_number', 'like', `INKR-${currentYear}-%-%`)
+                        .order('inkr_number', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    let sequence = 1;
+                    if (lastReport?.inkr_number) {
+                        const match = lastReport.inkr_number.match(new RegExp(`INKR-${currentYear}-(\\d+)`));
+                        if (match && match[1]) {
+                            sequence = parseInt(match[1], 10) + 1;
+                        }
+                    }
+                    reportData.inkr_number = `INKR-${currentYear}-${String(sequence).padStart(4, '0')}`;
+                }
             } else {
-                // Parça kodu yoksa yıl bazlı sıralı numara kullan
-                const currentYear = new Date().getFullYear();
-                const { data: lastReport } = await supabase
+                reportData.inkr_number = formData.inkr_number;
+            }
+
+            // Düzenleme modunda mevcut id'yi kullanarak güncelleme yap
+            let savedReport;
+            if (isEditMode && existingReport?.id) {
+                const { data: updatedReport, error: updateError } = await supabase
                     .from('inkr_reports')
-                    .select('inkr_number')
-                    .like('inkr_number', `INKR-${currentYear}-%`)
-                    .not('inkr_number', 'like', `INKR-${currentYear}-%-%`) // Parça kodlu olanları hariç tut
-                    .order('inkr_number', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
+                    .update(reportData)
+                    .eq('id', existingReport.id)
+                    .select()
+                    .single();
 
-                let sequence = 1;
-                if (lastReport?.inkr_number) {
-                    const match = lastReport.inkr_number.match(new RegExp(`INKR-${currentYear}-(\\d+)`));
-                    if (match && match[1]) {
-                        sequence = parseInt(match[1], 10) + 1;
+                if (updateError) {
+                    console.error('INKR güncelleme hatası:', updateError);
+                    toast({ variant: 'destructive', title: 'Hata!', description: `INKR Raporu güncellenemedi: ${updateError.message}` });
+                    return;
+                }
+                savedReport = updatedReport;
+            } else {
+                const { data: insertedReport, error: insertError } = await supabase
+                    .from('inkr_reports')
+                    .upsert(reportData, { onConflict: 'part_code' })
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    console.error('INKR kaydetme hatası:', insertError);
+                    toast({ variant: 'destructive', title: 'Hata!', description: `INKR Raporu kaydedilemedi: ${insertError.message}` });
+                    return;
+                }
+                savedReport = insertedReport;
+            }
+
+            if (!savedReport) {
+                console.error('INKR kaydedildi ancak yanıt alınamadı');
+                toast({ variant: 'destructive', title: 'Hata!', description: 'INKR Raporu kaydedildi ancak yanıt alınamadı. Sayfayı yenileyiniz.' });
+                return;
+            }
+
+            // Silinen attachment'ları sil
+            if (deletedAttachmentIds.length > 0) {
+                for (const attachmentId of deletedAttachmentIds) {
+                    try {
+                        const { data: attData } = await supabase
+                            .from('inkr_attachments')
+                            .select('file_path')
+                            .eq('id', attachmentId)
+                            .maybeSingle();
+
+                        if (attData?.file_path) {
+                            await supabase.storage.from('inkr_attachments').remove([attData.file_path]);
+                        }
+                        await supabase.from('inkr_attachments').delete().eq('id', attachmentId);
+                    } catch (attErr) {
+                        console.error(`Attachment silme hatası (${attachmentId}):`, attErr);
                     }
                 }
-                reportData.inkr_number = `INKR-${currentYear}-${String(sequence).padStart(4, '0')}`;
             }
-        }
 
-        delete reportData.id;
-        delete reportData.created_at;
-        delete reportData.updated_at;
-        delete reportData.supplier;
+            // Yeni dosyaları yükle
+            if (files.length > 0 && savedReport) {
+                for (const file of files) {
+                    try {
+                        const sanitizedFileName = sanitizeFileName(file.name);
+                        const contentType = getMimeTypeFromFileName(file.name);
+                        const timestamp = Date.now();
+                        const randomStr = Math.random().toString(36).substring(2, 9);
+                        const filePath = `${savedReport.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
 
-        const { data: savedReport, error } = await supabase.from('inkr_reports').upsert(reportData, { onConflict: 'part_code' }).select().single();
+                        const maxSize = 50 * 1024 * 1024;
+                        if (file.size > maxSize) {
+                            toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} çok büyük (max 50MB)` });
+                            continue;
+                        }
 
-        if (error) {
-            toast({ variant: 'destructive', title: 'Hata!', description: `INKR Raporu kaydedilemedi: ${error.message}` });
+                        const fileArrayBuffer = await file.arrayBuffer();
+                        const uploadResult = await supabase.storage.from('inkr_attachments').upload(filePath, fileArrayBuffer, {
+                            contentType: contentType,
+                            upsert: false
+                        });
+
+                        if (uploadResult.error) {
+                            toast({ variant: 'destructive', title: 'Dosya Yükleme Hatası', description: `${file.name} yüklenemedi: ${uploadResult.error.message}` });
+                            continue;
+                        }
+
+                        await supabase.from('inkr_attachments').insert({
+                            inkr_report_id: savedReport.id,
+                            file_path: uploadResult.data.path,
+                            file_name: file.name,
+                            file_type: contentType,
+                            file_size: file.size
+                        });
+                    } catch (fileError) {
+                        console.error(`Dosya yükleme hatası (${file.name}):`, fileError);
+                        toast({ variant: 'destructive', title: 'Hata', description: `${file.name} yüklenemedi` });
+                    }
+                }
+            }
+
+            toast({ title: 'Başarılı!', description: `INKR Raporu başarıyla kaydedildi.` });
+            if (refreshReports) refreshReports();
+            if (onReportSaved) {
+                const { data, error: fetchError } = await supabase
+                    .from('inkr_reports')
+                    .select('*, supplier:supplier_id(name)')
+                    .order('report_date', { ascending: false })
+                    .order('updated_at', { ascending: false });
+
+                if (!fetchError && data) {
+                    // Yeni kaydedilen rapor fetch'te olmayabilir (Supabase 1000 limit) - mutlaka ekle
+                    const hasSaved = data.some(r => r.id === savedReport.id);
+                    if (!hasSaved) {
+                        const reportWithSupplier = { ...savedReport };
+                        if (savedReport.supplier_id) {
+                            const { data: supData } = await supabase.from('suppliers').select('name').eq('id', savedReport.supplier_id).maybeSingle();
+                            if (supData) reportWithSupplier.supplier = { name: supData.name };
+                        }
+                        data.unshift(reportWithSupplier);
+                    }
+                    data.sort((a, b) => {
+                        const getDateValue = (report) => {
+                            const dateStr = report.report_date || report.updated_at || report.created_at;
+                            if (!dateStr) return null;
+                            const date = new Date(dateStr);
+                            return isNaN(date.getTime()) ? null : date.getTime();
+                        };
+
+                        const dateA = getDateValue(a);
+                        const dateB = getDateValue(b);
+
+                        if (dateA && dateB) {
+                            return dateB - dateA;
+                        } else if (dateA && !dateB) {
+                            return -1;
+                        } else if (!dateA && dateB) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    });
+                    onReportSaved(data);
+                }
+            }
+            setIsOpen(false);
+        } catch (err) {
+            console.error('INKR kaydetme genel hatası:', err);
+            toast({ variant: 'destructive', title: 'Beklenmeyen Hata!', description: `INKR Raporu kaydedilemedi: ${err?.message || 'Bilinmeyen hata'}` });
+        } finally {
             setIsSubmitting(false);
-            return;
         }
-
-        // Silinen attachment'ları sil
-        if (deletedAttachmentIds.length > 0) {
-            for (const attachmentId of deletedAttachmentIds) {
-                const attachment = existingAttachments.find(att => att.id === attachmentId);
-                if (attachment) {
-                    // Storage'dan sil
-                    await supabase.storage.from('inkr_attachments').remove([attachment.file_path]);
-                    // Veritabanından sil
-                    await supabase.from('inkr_attachments').delete().eq('id', attachmentId);
-                }
-            }
-        }
-
-        // Yeni dosyaları yükle
-        if (files.length > 0 && savedReport) {
-            for (const file of files) {
-                try {
-                    const sanitizedFileName = sanitizeFileName(file.name);
-                    const contentType = getMimeTypeFromFileName(file.name);
-                    const timestamp = Date.now();
-                    const randomStr = Math.random().toString(36).substring(2, 9);
-                    const filePath = `${savedReport.id}/${timestamp}-${randomStr}-${sanitizedFileName}`;
-
-                    // Dosya boyutunu kontrol et (max 50MB)
-                    const maxSize = 50 * 1024 * 1024;
-                    if (file.size > maxSize) {
-                        toast({ variant: 'destructive', title: 'Dosya Hatası', description: `${file.name} çok büyük (max 50MB)` });
-                        continue;
-                    }
-
-                    const fileArrayBuffer = await file.arrayBuffer();
-                    const uploadResult = await supabase.storage.from('inkr_attachments').upload(filePath, fileArrayBuffer, {
-                        contentType: contentType,
-                        upsert: false
-                    });
-
-                    if (uploadResult.error) {
-                        toast({ variant: 'destructive', title: 'Dosya Yükleme Hatası', description: `${file.name} yüklenemedi: ${uploadResult.error.message}` });
-                        continue;
-                    }
-
-                    // Veritabanına kaydet
-                    await supabase.from('inkr_attachments').insert({
-                        inkr_report_id: savedReport.id,
-                        file_path: uploadResult.data.path,
-                        file_name: file.name,
-                        file_type: contentType,
-                        file_size: file.size
-                    });
-                } catch (fileError) {
-                    console.error(`Dosya yükleme hatası (${file.name}):`, fileError);
-                    toast({ variant: 'destructive', title: 'Hata', description: `${file.name} yüklenemedi` });
-                }
-            }
-        }
-
-        toast({ title: 'Başarılı!', description: `INKR Raporu başarıyla kaydedildi.` });
-        if (refreshReports) refreshReports();
-        if (onReportSaved) {
-            // Tüm INKR raporlarını report_date'e göre sırala (en yeni en üstte)
-            // report_date NULL olanlar için updated_at veya created_at kullan
-            const { data, error: fetchError } = await supabase
-                .from('inkr_reports')
-                .select('*, supplier:supplier_id(name)');
-
-            if (!fetchError && data) {
-                // report_date'e göre sırala (en yeni en üstte)
-                data.sort((a, b) => {
-                    const getDateValue = (report) => {
-                        const dateStr = report.report_date || report.updated_at || report.created_at;
-                        if (!dateStr) return null;
-                        const date = new Date(dateStr);
-                        return isNaN(date.getTime()) ? null : date.getTime();
-                    };
-
-                    const dateA = getDateValue(a);
-                    const dateB = getDateValue(b);
-
-                    if (dateA && dateB) {
-                        return dateB - dateA; // En yeni tarih en üstte
-                    } else if (dateA && !dateB) {
-                        return -1;
-                    } else if (!dateA && dateB) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
-                });
-                onReportSaved(data);
-            }
-        }
-        setIsOpen(false);
-        setIsSubmitting(false);
     };
 
     const handleSelectChange = (id, value) => {
@@ -982,39 +1039,60 @@ const InkrManagement = ({ onViewPdf }) => {
         const fetchInkrReports = async () => {
             setInkrReportsLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('inkr_reports')
-                    .select('*, supplier:supplier_id(name)');
+                // Supabase varsayılan 1000 limit - tüm raporları almak için pagination
+                let allReports = [];
+                let page = 0;
+                const PAGE_SIZE = 1000;
+                let hasMore = true;
 
-                if (error) throw error;
+                while (hasMore) {
+                    const from = page * PAGE_SIZE;
+                    const to = from + PAGE_SIZE - 1;
 
-                // report_date'e göre sırala (en yeni en üstte)
-                // report_date NULL olanlar için updated_at veya created_at kullan
-                if (data) {
-                    data.sort((a, b) => {
-                        const getDateValue = (report) => {
-                            const dateStr = report.report_date || report.updated_at || report.created_at;
-                            if (!dateStr) return null;
-                            const date = new Date(dateStr);
-                            return isNaN(date.getTime()) ? null : date.getTime();
-                        };
+                    const { data, error } = await supabase
+                        .from('inkr_reports')
+                        .select('*, supplier:supplier_id(name)')
+                        .order('report_date', { ascending: false })
+                        .order('updated_at', { ascending: false })
+                        .range(from, to);
 
-                        const dateA = getDateValue(a);
-                        const dateB = getDateValue(b);
+                    if (error) throw error;
 
-                        if (dateA && dateB) {
-                            return dateB - dateA; // En yeni tarih en üstte
-                        } else if (dateA && !dateB) {
-                            return -1;
-                        } else if (!dateA && dateB) {
-                            return 1;
-                        } else {
-                            return 0;
-                        }
-                    });
+                    if (data && data.length > 0) {
+                        allReports = allReports.concat(data);
+                    }
+
+                    if (!data || data.length < PAGE_SIZE) {
+                        hasMore = false;
+                    } else {
+                        page++;
+                    }
                 }
 
-                setInkrReports(data || []);
+                // report_date'e göre sırala (en yeni en üstte)
+                allReports.sort((a, b) => {
+                    const getDateValue = (report) => {
+                        const dateStr = report.report_date || report.updated_at || report.created_at;
+                        if (!dateStr) return null;
+                        const date = new Date(dateStr);
+                        return isNaN(date.getTime()) ? null : date.getTime();
+                    };
+
+                    const dateA = getDateValue(a);
+                    const dateB = getDateValue(b);
+
+                    if (dateA && dateB) {
+                        return dateB - dateA;
+                    } else if (dateA && !dateB) {
+                        return -1;
+                    } else if (!dateA && dateB) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                });
+
+                setInkrReports(allReports);
             } catch (error) {
                 console.error('INKR raporları alınamadı:', error);
                 toast({ variant: 'destructive', title: 'Hata', description: `INKR raporları alınamadı: ${error.message}` });

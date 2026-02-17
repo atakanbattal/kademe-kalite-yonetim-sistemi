@@ -545,7 +545,12 @@ export const DataProvider = ({ children }) => {
                     console.log('✅ Connected to critical tables realtime channel');
                 }
                 if (status === 'CHANNEL_ERROR') {
-                    console.error('❌ Realtime channel error:', err);
+                    // Ağ kesintisi veya geçici bağlantı kaybı - kullanıcıyı rahatsız etmeden sessizce logla
+                    if (err?.message?.includes('network') || err?.message?.includes('WebSocket') || !err) {
+                        console.debug('Realtime bağlantısı geçici olarak kesildi (otomatik yeniden bağlanacak)');
+                    } else {
+                        console.warn('Realtime channel uyarısı:', err?.message || err);
+                    }
                 }
             });
 

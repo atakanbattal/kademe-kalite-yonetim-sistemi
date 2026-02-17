@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Plus, FileText, List, BarChart3 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';

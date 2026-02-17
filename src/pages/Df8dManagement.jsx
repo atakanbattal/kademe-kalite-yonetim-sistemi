@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
     import { useData } from '@/contexts/DataContext';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
-    import { Helmet } from 'react-helmet';
+    import { Helmet } from 'react-helmet-async';
     import { motion } from 'framer-motion';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import { LayoutDashboard, List, Plus, FileText } from 'lucide-react';

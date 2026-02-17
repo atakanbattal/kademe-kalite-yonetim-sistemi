@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-    import { Helmet } from 'react-helmet';
+    import { Helmet } from 'react-helmet-async';
     import { Button } from '@/components/ui/button';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';

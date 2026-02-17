@@ -30,7 +30,7 @@ import RiskBasedIndicators from '@/components/dashboard/RiskBasedIndicators';
 import AIRootCausePrediction from '@/components/dashboard/AIRootCausePrediction';
 import NotificationCenter from '@/components/dashboard/NotificationCenter';
 import QualityAdvisor from '@/components/dashboard/QualityAdvisor';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ErrorBoundary from '@/components/dashboard/ErrorBoundary';
 
 const CHART_COLORS = ['#3B82F6', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#60A5FA'];
@@ -221,18 +221,21 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
             {/* Drill-Down Analiz Modalleri */}
             <Dialog open={drillDownType === 'df'} onOpenChange={(open) => !open && setDrillDownType(null)}>
                 <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="sr-only"><DialogTitle>DF Analiz Detayı</DialogTitle></DialogHeader>
                     <DFDrillDownAnalysis onClose={() => setDrillDownType(null)} />
                 </DialogContent>
             </Dialog>
 
             <Dialog open={drillDownType === 'quarantine'} onOpenChange={(open) => !open && setDrillDownType(null)}>
                 <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="sr-only"><DialogTitle>Karantina Analiz Detayı</DialogTitle></DialogHeader>
                     <QuarantineDrillDownAnalysis onClose={() => setDrillDownType(null)} />
                 </DialogContent>
             </Dialog>
 
             <Dialog open={drillDownType === 'cost'} onOpenChange={(open) => !open && setDrillDownType(null)}>
                 <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="sr-only"><DialogTitle>Maliyet Analiz Detayı</DialogTitle></DialogHeader>
                     <CostDrillDownAnalysis onClose={() => setDrillDownType(null)} />
                 </DialogContent>
             </Dialog>
