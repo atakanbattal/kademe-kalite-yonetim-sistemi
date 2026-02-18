@@ -40,6 +40,7 @@ export const DataProvider = ({ children }) => {
         taskTags: [],
         taskProjects: [], // Görev projeleri
         incomingControlPlans: [],
+        processControlPlans: [],
         characteristics: [],
         equipment: [],
         standards: [],
@@ -55,6 +56,7 @@ export const DataProvider = ({ children }) => {
         complaintDocuments: [],
         products: [],
         productCategories: [],
+        trainings: [],
     });
 
     // İlk yükleme flag'i - sonsuz döngüyü önlemek için
@@ -250,6 +252,14 @@ export const DataProvider = ({ children }) => {
             quarantineRecords: supabase.from('quarantine_records_api').select('*').order('quarantine_date', { ascending: false }).limit(500),
             incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*').limit(500),
             incomingControlPlans: supabase.from('incoming_control_plans').select('part_code, is_current'),
+            processControlPlans: (async () => {
+                try {
+                    const { data, error } = await supabase.from('process_control_plans').select('id').eq('is_active', true);
+                    return error ? { data: [], error } : { data: data || [], error: null };
+                } catch (e) {
+                    return { data: [], error: null };
+                }
+            })(),
             questions: supabase.from('supplier_audit_questions').select('*'),
             stockRiskControls: supabase.from('stock_risk_controls').select(`
                     *,
@@ -262,7 +272,8 @@ export const DataProvider = ({ children }) => {
             customerComplaints: supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500),
             complaintAnalyses: supabase.from('complaint_analyses').select('*'),
             complaintActions: supabase.from('complaint_actions').select('*, responsible_person:responsible_person_id(full_name), responsible_department:responsible_department_id(unit_name)'),
-            complaintDocuments: supabase.from('complaint_documents').select('*')
+            complaintDocuments: supabase.from('complaint_documents').select('*'),
+            trainings: supabase.from('trainings').select('id, title, start_date, end_date, status, created_at, instructor, duration_hours, training_participants(count)').order('start_date', { ascending: false }).limit(500),
         };
 
         try {
@@ -829,6 +840,20 @@ export const DataProvider = ({ children }) => {
         }
     }, [session]);
 
+    const refreshEquipment = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: meData, error } = await supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true });
+            if (!error) {
+                const mapped = (meData || []).map(e => ({ value: e.id, label: e.name }));
+                setData(prev => ({ ...prev, equipment: mapped }));
+                console.log('✅ Measurement equipment refreshed:', mapped.length);
+            }
+        } catch (error) {
+            console.error('❌ Measurement equipment refresh error:', error);
+        }
+    }, [session]);
+
     const refreshIncomingInspections = useCallback(async () => {
         if (!session) return;
         try {
@@ -882,6 +907,7 @@ export const DataProvider = ({ children }) => {
         refreshNonConformities,
         refreshDeviations,
         refreshEquipments,
+        refreshEquipment,
         refreshIncomingInspections,
         refreshCustomerComplaints,
         refreshTasks,
@@ -890,7 +916,7 @@ export const DataProvider = ({ children }) => {
         data, loading, fetchData,
         refreshProducedVehicles, refreshQualityCosts, refreshKpis, refreshAutoKpis,
         refreshSuppliers, refreshNonConformities, refreshDeviations,
-        refreshEquipments, refreshIncomingInspections, refreshCustomerComplaints,
+        refreshEquipments, refreshEquipment, refreshIncomingInspections, refreshCustomerComplaints,
         refreshTasks, logAudit,
     ]);
 

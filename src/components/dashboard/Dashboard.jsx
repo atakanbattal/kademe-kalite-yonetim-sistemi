@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import {
-    AlertTriangle, FileText, Beaker, CheckSquare, BarChart, List, ShieldCheck, CalendarClock, TrendingUp, BookCheck, ClipboardCheck, WalletCards, FileDown, ScrollText, Plus, Edit, Trash2
+    AlertTriangle, FileText, Beaker, CheckSquare, BarChart, List, ShieldCheck, CalendarClock, TrendingUp, BookCheck, ClipboardCheck, WalletCards, FileDown, ScrollText, Plus, Edit, Trash2, GraduationCap
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -185,6 +185,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
         if (title.includes('8D')) return FileText;
         if (title.includes('Karantina')) return Beaker;
         if (title.includes('Maliyet')) return WalletCards;
+        if (title.includes('Eğitim')) return GraduationCap;
         return BarChart;
     }
 
@@ -360,7 +361,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
                             icon={getIconForKpi(item.title)}
                             title={item.title}
                             value={item.value}
-                            color={item.title.includes('Maliyet') ? 'text-red-500' : 'text-primary'}
+                            color={item.title.includes('Maliyet') ? 'text-red-500' : item.title.includes('Eğitim') ? 'text-teal-600' : 'text-primary'}
                             loading={loading}
                             onClick={() => handleCardClick(item.module, item.title)}
                         />

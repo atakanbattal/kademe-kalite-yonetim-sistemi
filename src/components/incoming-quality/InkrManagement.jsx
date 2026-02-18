@@ -20,7 +20,8 @@ import { useDropzone } from 'react-dropzone';
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
     "Fonksiyonel Test", "Manuel Kontrol", "Pürüzlülük Ölçüm Cihazı",
-    "Sertlik Test Cihazı", "Vida Diş Ölçer (Pitch Gauge)", "Gözle Kontrol"
+    "Yüzey Pürüzlülük Ölçüm Cihazı", "Sertlik Test Cihazı", "Sertlik Ölçüm Cihazı",
+    "Vida Diş Ölçer (Pitch Gauge)", "Gözle Kontrol"
 ];
 
 const ISO_2768_1_TOLERANCES = {

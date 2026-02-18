@@ -1,262 +1,191 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { FileDown, Loader2, CalendarIcon, FileText, FileSpreadsheet } from 'lucide-react';
-import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
+import { FileDown, Loader2, FileText, LayoutDashboard, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const REPORT_TYPES = [
+    {
+        id: 'a3',
+        label: 'A3 Kalite Panosu Raporu',
+        description: 'Tüm modülleri kapsayan, kalite panolarına asılmak üzere tasarlanmış yatay A3 format rapor. KPI kartları, pie chart ve bar chartları ile tüm veriler tek sayfada.',
+        icon: LayoutDashboard,
+        badge: 'ÖNERİLEN',
+        badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+        url: (period) => `/print/a3-quality-board?period=${period}`,
+        color: 'border-emerald-500 bg-emerald-50',
+        iconColor: 'text-emerald-600',
+    },
+    {
+        id: 'executive',
+        label: 'Yönetici Özet Raporu (A4)',
+        description: 'Üst yönetim için hazırlanmış, detaylı tablolar ve analizler içeren A4 dikey format rapor.',
+        icon: FileText,
+        badge: null,
+        url: (period) => `/print/dashboard-report?period=${period}`,
+        color: 'border-slate-300 bg-slate-50',
+        iconColor: 'text-slate-500',
+    },
+];
+
+const PERIODS = [
+    { value: 'last1month', label: 'Son 1 Ay' },
+    { value: 'last3months', label: 'Son 3 Ay' },
+    { value: 'last6months', label: 'Son 6 Ay' },
+    { value: 'thisYear', label: 'Bu Yıl' },
+    { value: 'last12months', label: 'Son 12 Ay' },
+];
+
 const ReportGenerationModalEnhanced = ({ isOpen, setIsOpen }) => {
-    const [reportType, setReportType] = useState('executive'); // 'executive', 'detailed'
-    const [format, setFormat] = useState('pdf'); // 'pdf', 'xls'
-    const [period, setPeriod] = useState('custom'); // 'last3months', 'last6months', 'last12months', 'thisYear', 'custom'
-    const [dateFrom, setDateFrom] = useState(null);
-    const [dateTo, setDateTo] = useState(null);
-    const [selectedModules, setSelectedModules] = useState({
-        kpi: true,
-        df: true,
-        cost: true,
-        quarantine: true,
-        supplier: true,
-        trends: true
-    });
+    const [selectedType, setSelectedType] = useState('a3');
+    const [period, setPeriod] = useState('last3months');
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const handleModuleToggle = (module) => {
-        setSelectedModules(prev => ({
-            ...prev,
-            [module]: !prev[module]
-        }));
-    };
+    const handleGenerate = () => {
+        const report = REPORT_TYPES.find(r => r.id === selectedType);
+        if (!report) return;
 
-    const handleGenerateReport = () => {
         setIsGenerating(true);
-        
-        // Parametreleri hazırla
-        const params = new URLSearchParams();
-        params.append('type', reportType);
-        params.append('format', format);
-        params.append('period', period);
-        
-        if (period === 'custom' && dateFrom && dateTo) {
-            params.append('from', format(dateFrom, 'yyyy-MM-dd'));
-            params.append('to', format(dateTo, 'yyyy-MM-dd'));
-        }
-        
-        // Seçili modülleri ekle
-        Object.entries(selectedModules).forEach(([module, selected]) => {
-            if (selected) {
-                params.append('modules', module);
-            }
-        });
+        const url = report.url(period);
+        window.open(url, '_blank');
 
-        // Rapor URL'i
-        const reportUrl = `/print/dashboard-report?${params.toString()}`;
-        window.open(reportUrl, '_blank');
-        
         setTimeout(() => {
             setIsGenerating(false);
             setIsOpen(false);
-        }, 1000);
+        }, 800);
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Özelleştirilmiş Rapor Oluştur</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                        <FileDown className="w-5 h-5 text-primary" />
+                        Kalite Panosu Raporu Al
+                    </DialogTitle>
                     <DialogDescription>
-                        Dinamik filtreleme, tarih aralığı ve rapor şablonu seçimi ile profesyonel raporlar oluşturun.
+                        Kalite panolarınıza asacağınız rapor türünü ve dönemini seçin.
                     </DialogDescription>
                 </DialogHeader>
 
-                <Tabs defaultValue="settings" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="settings">Rapor Ayarları</TabsTrigger>
-                        <TabsTrigger value="modules">Modül Seçimi</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="settings" className="space-y-4">
-                        {/* Rapor Tipi */}
-                        <div>
-                            <Label>Rapor Tipi</Label>
-                            <Select value={reportType} onValueChange={setReportType}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="executive">
-                                        <div className="flex items-center gap-2">
-                                            <FileText className="h-4 w-4" />
-                                            Üst Yönetim Raporu (Özet)
+                <div className="space-y-4 py-2">
+                    {/* Rapor Türü Seçimi */}
+                    <div className="space-y-2">
+                        <Label className="text-sm font-semibold">Rapor Türü</Label>
+                        <div className="space-y-2">
+                            {REPORT_TYPES.map((report) => {
+                                const Icon = report.icon;
+                                const isSelected = selectedType === report.id;
+                                return (
+                                    <button
+                                        key={report.id}
+                                        onClick={() => setSelectedType(report.id)}
+                                        className={cn(
+                                            'w-full text-left p-3 rounded-lg border-2 transition-all duration-200',
+                                            isSelected
+                                                ? 'border-primary bg-primary/5 shadow-sm'
+                                                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className={cn(
+                                                'mt-0.5 p-1.5 rounded-md',
+                                                isSelected ? 'bg-primary/10' : 'bg-slate-100'
+                                            )}>
+                                                <Icon className={cn('w-4 h-4', isSelected ? 'text-primary' : report.iconColor)} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="font-medium text-sm">{report.label}</span>
+                                                    {report.badge && (
+                                                        <span className={cn(
+                                                            'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border',
+                                                            report.badgeColor
+                                                        )}>
+                                                            <Star className="w-2.5 h-2.5 mr-0.5" />
+                                                            {report.badge}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                                                    {report.description}
+                                                </p>
+                                            </div>
+                                            <div className={cn(
+                                                'w-4 h-4 rounded-full border-2 shrink-0 mt-0.5 flex items-center justify-center',
+                                                isSelected ? 'border-primary bg-primary' : 'border-slate-300'
+                                            )}>
+                                                {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                            </div>
                                         </div>
-                                    </SelectItem>
-                                    <SelectItem value="detailed">
-                                        <div className="flex items-center gap-2">
-                                            <FileText className="h-4 w-4" />
-                                            Detay Rapor
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                                    </button>
+                                );
+                            })}
                         </div>
+                    </div>
 
-                        {/* Format */}
-                        <div>
-                            <Label>Rapor Formatı</Label>
-                            <Select value={format} onValueChange={setFormat}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="pdf">
-                                        <div className="flex items-center gap-2">
-                                            <FileText className="h-4 w-4" />
-                                            PDF
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="xls">
-                                        <div className="flex items-center gap-2">
-                                            <FileSpreadsheet className="h-4 w-4" />
-                                            Excel (XLS)
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Tarih Aralığı */}
-                        <div>
-                            <Label>Tarih Aralığı</Label>
-                            <Select value={period} onValueChange={setPeriod}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="last3months">Son 3 Ay</SelectItem>
-                                    <SelectItem value="last6months">Son 6 Ay</SelectItem>
-                                    <SelectItem value="last12months">Son 12 Ay</SelectItem>
-                                    <SelectItem value="thisYear">Bu Yıl</SelectItem>
-                                    <SelectItem value="custom">Özel Tarih Aralığı</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Özel Tarih Seçimi */}
-                        {period === 'custom' && (
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label>Başlangıç Tarihi</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "w-full justify-start text-left font-normal",
-                                                    !dateFrom && "text-muted-foreground"
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {dateFrom ? format(dateFrom, 'dd MMM yyyy', { locale: tr }) : 'Tarih seçin'}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar
-                                                selected={dateFrom}
-                                                onSelect={setDateFrom}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div>
-                                    <Label>Bitiş Tarihi</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "w-full justify-start text-left font-normal",
-                                                    !dateTo && "text-muted-foreground"
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {dateTo ? format(dateTo, 'dd MMM yyyy', { locale: tr }) : 'Tarih seçin'}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar
-                                                selected={dateTo}
-                                                onSelect={setDateTo}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="modules" className="space-y-4">
-                        <div>
-                            <Label>Rapora Dahil Edilecek Modüller</Label>
-                            <div className="grid grid-cols-2 gap-3 mt-2">
-                                {Object.entries({
-                                    kpi: 'KPI Verileri',
-                                    df: 'DF/8D Analizi',
-                                    cost: 'Kalite Maliyetleri',
-                                    quarantine: 'Karantina Kayıtları',
-                                    supplier: 'Tedarikçi Performansı',
-                                    trends: 'Trend Analizleri'
-                                }).map(([key, label]) => (
-                                    <div key={key} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={key}
-                                            checked={selectedModules[key]}
-                                            onCheckedChange={() => handleModuleToggle(key)}
-                                        />
-                                        <label
-                                            htmlFor={key}
-                                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                                        >
-                                            {label}
-                                        </label>
-                                    </div>
+                    {/* Dönem Seçimi */}
+                    <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold">Rapor Dönemi</Label>
+                        <Select value={period} onValueChange={setPeriod}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {PERIODS.map(p => (
+                                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                                 ))}
-                            </div>
-                        </div>
-                    </TabsContent>
-                </Tabs>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            Seçilen dönem için tüm modül verileri raporlanır.
+                        </p>
+                    </div>
 
-                <DialogFooter>
+                    {/* A3 Bilgi Kutusu */}
+                    {selectedType === 'a3' && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-800 space-y-1">
+                            <div className="font-semibold flex items-center gap-1">
+                                <LayoutDashboard className="w-3.5 h-3.5" />
+                                A3 Yatay Rapor İçeriği
+                            </div>
+                            <ul className="list-disc list-inside space-y-0.5 text-emerald-700 pl-1">
+                                <li>10 adet KPI kartı (DF/8D, Maliyet, Karantina, Araç Kalite...)</li>
+                                <li>Birim bazlı uygunsuzluk dağılımı (bar chart)</li>
+                                <li>Kalite maliyeti dağılımı ve aylık trend (pie + line chart)</li>
+                                <li>Girdi kalite kontrol özeti ve tedarikçi performansı</li>
+                                <li>Üretilen araç hata kategorileri ve aylık trend</li>
+                                <li>Müşteri şikayetleri ve kalite duvarı tablosu</li>
+                                <li>Geciken kayıtlar, karantina, kalibrasyon uyarıları</li>
+                            </ul>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isGenerating}>
                         İptal
                     </Button>
-                    <Button onClick={handleGenerateReport} disabled={isGenerating || (period === 'custom' && (!dateFrom || !dateTo))}>
+                    <Button onClick={handleGenerate} disabled={isGenerating} className="gap-2">
                         {isGenerating ? (
                             <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Oluşturuluyor...
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Açılıyor...
                             </>
                         ) : (
                             <>
-                                <FileDown className="mr-2 h-4 w-4" />
+                                <FileDown className="w-4 h-4" />
                                 Rapor Oluştur
                             </>
                         )}
                     </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );
 };
 
 export default ReportGenerationModalEnhanced;
-

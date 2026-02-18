@@ -10,6 +10,7 @@ const useDashboardData = () => {
         audits,
         documents,
         equipments,
+        trainings,
         loading,
         refreshData
     } = useData();
@@ -37,11 +38,17 @@ const useDashboardData = () => {
                 .filter(c => new Date(c.cost_date) >= firstDayOfMonth)
                 .reduce((sum, item) => sum + (item.amount || 0), 0);
 
+            const trainingList = trainings || [];
+            const plannedTrainings = trainingList.filter(t => t.status !== 'Tamamlandı').length;
+            const completedTrainings = trainingList.filter(t => t.status === 'Tamamlandı').length;
+
             const kpiData = [
                 { title: 'Açık DF Sayısı', value: (nonConformities || []).filter(d => d.type === 'DF' && d.status !== 'Kapatıldı').length, module: 'df-8d' },
                 { title: 'Açık 8D Sayısı', value: (nonConformities || []).filter(d => d.type === '8D' && d.status !== 'Kapatıldı').length, module: 'df-8d' },
                 { title: 'Karantinadaki Ürünler', value: (quarantineRecords || []).filter(q => q.status === 'Karantinada').length, module: 'quarantine' },
                 { title: 'Bu Ayki Maliyet', value: `${totalMonthlyCost.toLocaleString('tr-TR')} ₺`, module: 'quality-cost' },
+                { title: 'Planlanan Eğitim', value: plannedTrainings, module: 'training' },
+                { title: 'Tamamlanan Eğitim', value: completedTrainings, module: 'training' },
             ];
 
             // İlgili Birim (department) = talep edilen / sorumlu birim. Talep eden (requesting_unit) DEĞİL.
@@ -135,13 +142,13 @@ const useDashboardData = () => {
             setError("Dashboard verileri işlenirken bir hata oluştu.");
         }
 
-    }, [nonConformities, qualityCosts, quarantineRecords, deviations, audits, documents, equipments]);
+    }, [nonConformities, qualityCosts, quarantineRecords, deviations, audits, documents, equipments, trainings]);
 
     useEffect(() => {
         if(!loading) {
             processData();
         }
-    }, [loading, nonConformities, qualityCosts, quarantineRecords, deviations, audits, documents, equipments, processData]);
+    }, [loading, nonConformities, qualityCosts, quarantineRecords, deviations, audits, documents, equipments, trainings, processData]);
 
     const refreshDashboard = useCallback(() => {
         refreshData();

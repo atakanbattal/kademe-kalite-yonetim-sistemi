@@ -30,7 +30,11 @@ const DASHBOARD_FETCH_LIMIT = 1000;
 
 const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { toast } = useToast();
-    const { suppliers, incomingControlPlans, inkrReports, refreshData: globalRefresh, characteristics, equipment } = useData();
+    const { suppliers, incomingControlPlans, inkrReports, refreshData: globalRefresh, refreshEquipment, characteristics, equipment } = useData();
+
+    useEffect(() => {
+        refreshEquipment?.();
+    }, [refreshEquipment]);
     
     const [inspections, setInspections] = useState([]);
     const [dashboardData, setDashboardData] = useState(null);
