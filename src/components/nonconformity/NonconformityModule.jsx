@@ -25,6 +25,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import NonconformityFormModal from './NonconformityFormModal';
+import NonconformityDetailModal from './NonconformityDetailModal';
 import NonconformitySettings from './NonconformitySettings';
 
 const severityColors = {
@@ -53,6 +54,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'detection_date', direction: 'desc' });
 
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailRecord, setDetailRecord] = useState(null);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -491,7 +494,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.02 }}
-                        className="border-b last:border-0 hover:bg-muted/30 transition-colors"
+                        className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => { setDetailRecord(record); setIsDetailOpen(true); }}
                       >
                         <td className="px-3 py-2.5 font-mono text-xs font-semibold">{record.record_number || '-'}</td>
                         <td className="px-3 py-2.5">
@@ -523,7 +527,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                             {record.status}
                           </Badge>
                         </td>
-                        <td className="px-3 py-2.5">
+                        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                           {suggestion && !['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(record.status) && (
                             <div className="flex flex-col items-start gap-1">
                               <Button
@@ -545,7 +549,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-2.5 text-right">
+                        <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -553,6 +557,9 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => { setDetailRecord(record); setIsDetailOpen(true); }}>
+                                <Eye className="h-4 w-4 mr-2" /> Görüntüle
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedRecord(record); setIsFormOpen(true); }}>
                                 <Edit className="h-4 w-4 mr-2" /> Düzenle
                               </DropdownMenuItem>
@@ -866,6 +873,13 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
         setIsOpen={setIsFormOpen}
         record={selectedRecord}
         onSaveSuccess={handleSaveSuccess}
+      />
+
+      {/* Detail Modal */}
+      <NonconformityDetailModal
+        isOpen={isDetailOpen}
+        setIsOpen={setIsDetailOpen}
+        record={detailRecord}
       />
 
       {/* Silme Onayı */}

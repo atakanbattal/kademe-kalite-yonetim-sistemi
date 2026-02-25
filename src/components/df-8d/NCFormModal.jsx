@@ -11,7 +11,9 @@ import IshikawaTemplate from '@/components/df-8d/analysis-templates/IshikawaTemp
 import FiveWhyTemplate from '@/components/df-8d/analysis-templates/FiveWhyTemplate';
 import FTATemplate from '@/components/df-8d/analysis-templates/FTATemplate';
 import { supabase } from '@/lib/customSupabaseClient';
-import { AlertCircle, FileText } from 'lucide-react';
+import { AlertCircle, FileText, Hash, User, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initialRecord }) => {
     const { toast } = useToast();
@@ -124,25 +126,115 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
     };
 
     const rightPanel = (
-        <div className="p-6 space-y-5">
-            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Kayıt Özeti</h2>
-            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><FileText className="w-20 h-20" /></div>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">No</p>
-                <p className="text-lg font-bold text-foreground">{formData?.nc_number || formData?.mdi_no || '-'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">{formData?.title || '-'}</p>
+        <div className="p-5 space-y-4">
+            {/* Kayıt No Kartı */}
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><FileText className="w-20 h-20" /></div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Hash className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] font-medium text-primary uppercase tracking-widest">DF/8D No</p>
+                </div>
+                <p className="text-xl font-bold text-foreground font-mono tracking-wide">{formData?.nc_number || formData?.mdi_no || '-'}</p>
             </div>
-            <div className="space-y-2.5">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tip:</span><span className="font-semibold text-foreground">{formData?.type || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData?.status || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Birim:</span><span className="font-semibold text-foreground truncate ml-2">{formData?.department || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Sorumlu:</span><span className="font-semibold text-foreground truncate ml-2">{formData?.responsible_person || (formData?.is_supplier_nc ? 'Tedarikçi' : '-')}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Açılış:</span><span className="font-semibold text-foreground">{formData?.opening_date ? new Date(formData.opening_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+
+            {/* Durum & Tip Badge */}
+            <div className="flex items-center gap-2 flex-wrap">
+                {formData?.type && (
+                    <Badge variant="outline" className={`text-[10px] ${formData.type === '8D' ? 'border-red-300 text-red-700 bg-red-50' : 'border-blue-300 text-blue-700 bg-blue-50'}`}>
+                        {formData.type}
+                    </Badge>
+                )}
+                <Badge variant="outline" className="text-[10px]">{formData?.status || 'Açık'}</Badge>
+                {formData?.priority && (
+                    <Badge className={`text-[10px] ${
+                        formData.priority === 'Kritik' ? 'bg-red-100 text-red-800' :
+                        formData.priority === 'Yüksek' ? 'bg-orange-100 text-orange-800' :
+                        formData.priority === 'Orta' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                    }`}>{formData.priority}</Badge>
+                )}
             </div>
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2.5 border border-blue-100 dark:border-blue-800">
-                <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] leading-relaxed text-blue-700 dark:text-blue-300">
-                    Uygunsuzluk kaydı tamamlandıktan sonra 8D süreci ve analiz takibinde listelenecektir.
+
+            <Separator className="my-1" />
+
+            {/* Genel Bilgiler */}
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <FileText className="w-3 h-3" /> Genel Bilgiler
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Başlık', value: formData?.title },
+                        { label: 'Parça Kodu', value: formData?.part_code, highlight: 'text-primary font-mono' },
+                        { label: 'Parça Adı', value: formData?.part_name },
+                        { label: 'Araç Tipi', value: formData?.vehicle_type },
+                    ].map(({ label, value, highlight }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className={`text-xs font-semibold truncate ${highlight || 'text-foreground'}`}>
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <Separator className="my-1" />
+
+            {/* Personel & Birim */}
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <User className="w-3 h-3" /> Personel & Birim
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Sorumlu Birim', value: formData?.department },
+                        { label: 'Sorumlu Kişi', value: formData?.responsible_person || (formData?.is_supplier_nc ? 'Tedarikçi' : null) },
+                        { label: 'Talep Eden Birim', value: formData?.requesting_unit },
+                        { label: 'Talep Eden Kişi', value: formData?.requesting_person },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <Separator className="my-1" />
+
+            {/* Tarih */}
+            <div className="flex items-start gap-2.5">
+                <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Açılış Tarihi</p>
+                    <p className="text-xs font-semibold text-foreground">
+                        {formData?.opening_date ? new Date(formData.opening_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                    </p>
+                </div>
+            </div>
+
+            {/* Açıklama Önizleme */}
+            {formData?.description && (
+                <>
+                    <Separator className="my-1" />
+                    <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                            <FileText className="w-3 h-3" /> Açıklama
+                        </p>
+                        <p className="text-[11px] text-foreground leading-relaxed line-clamp-4 bg-muted/30 rounded-lg p-2.5 border">
+                            {formData.description}
+                        </p>
+                    </div>
+                </>
+            )}
+
+            {/* Bilgi Notu */}
+            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2 border border-blue-100 dark:border-blue-800">
+                <AlertCircle className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                <p className="text-[10px] leading-relaxed text-blue-700 dark:text-blue-300">
+                    Kayıt tamamlandıktan sonra 8D süreci ve analiz takibinde listelenecektir.
                 </p>
             </div>
         </div>

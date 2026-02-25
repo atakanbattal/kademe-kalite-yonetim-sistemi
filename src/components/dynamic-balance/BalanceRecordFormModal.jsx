@@ -9,7 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { calculateISO1940_1Uper, checkBalanceResult } from '@/lib/utils';
-import { CheckCircle2, XCircle, Scale, FileDown } from 'lucide-react';
+import { CheckCircle2, XCircle, Scale, FileDown, Hash } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSuccess, isViewMode, onDownloadPDF }) => {
@@ -230,22 +232,62 @@ const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSucc
     if (!isOpen) return null;
 
     const productName = fanProducts?.find(p => p.id === formData.product_id) ? `${fanProducts.find(p => p.id === formData.product_id).product_code} - ${fanProducts.find(p => p.id === formData.product_id).product_name}` : '-';
+    const overallResult = leftPlanePass !== null && rightPlanePass !== null
+        ? (leftPlanePass && rightPlanePass ? 'PASS' : 'FAIL')
+        : null;
     const rightPanel = (
-        <div className="p-6 space-y-5">
-            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Balans Özeti</h2>
-            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Scale className="w-20 h-20" /></div>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Seri No</p>
-                <p className="text-lg font-bold text-foreground">{formData.serial_number || '-'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">{productName}</p>
+        <div className="p-5 space-y-4">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><Scale className="w-20 h-20" /></div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Hash className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Seri No</p>
+                </div>
+                <p className="text-xl font-bold text-foreground font-mono tracking-wide">{formData.serial_number || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-1 truncate">{productName}</p>
             </div>
-            <div className="space-y-2.5">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Test Tarihi:</span><span className="font-semibold text-foreground">{formData.test_date ? new Date(formData.test_date).toLocaleDateString('tr-TR') : '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kalite Sınıfı:</span><span className="font-semibold text-foreground">{formData.balancing_grade || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Ağırlık:</span><span className="font-semibold text-foreground">{formData.fan_weight_kg ? `${formData.fan_weight_kg} kg` : '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Devir:</span><span className="font-semibold text-foreground">{formData.operating_rpm ? `${formData.operating_rpm} RPM` : '-'}</span></div>
-                {calculatedUper !== null && <div className="flex justify-between text-xs"><span className="text-muted-foreground">Uper:</span><span className="font-semibold text-foreground">{calculatedUper.toFixed(3)} gr</span></div>}
+            {overallResult && (
+                <Badge variant={overallResult === 'PASS' ? 'success' : 'destructive'} className="text-[10px]">
+                    {overallResult === 'PASS' ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                    {overallResult}
+                </Badge>
+            )}
+            <Separator className="my-1" />
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Scale className="w-3 h-3" /> Test Bilgileri
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Test Tarihi</p><p className="text-xs font-semibold text-foreground">{formData.test_date ? new Date(formData.test_date).toLocaleDateString('tr-TR') : '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Kalite Sınıfı</p><p className="text-xs font-semibold text-foreground">{formData.balancing_grade || '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Ağırlık</p><p className="text-xs font-semibold text-foreground">{formData.fan_weight_kg ? `${formData.fan_weight_kg} kg` : '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Devir</p><p className="text-xs font-semibold text-foreground">{formData.operating_rpm ? `${formData.operating_rpm} RPM` : '-'}</p></div>
+                </div>
             </div>
+            <Separator className="my-1" />
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Ölçüm Sonuçları
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    {calculatedUper !== null && <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Uper Limit</p><p className="text-xs font-semibold text-foreground">{calculatedUper.toFixed(3)} gr</p></div>}
+                    {overallResult && <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Sonuç</p><p className={`text-xs font-semibold ${overallResult === 'PASS' ? 'text-green-600' : 'text-red-600'}`}>{overallResult}</p></div>}
+                </div>
+            </div>
+            <Separator className="my-1" />
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Teknisyen</p>
+                <p className="text-xs font-semibold text-foreground">{formData.test_operator || '-'}</p>
+            </div>
+            {formData.notes && (
+                <>
+                    <Separator className="my-1" />
+                    <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Notlar</p>
+                        <p className="text-[11px] text-foreground leading-relaxed line-clamp-4 bg-muted/30 rounded-lg p-2.5 border">{formData.notes}</p>
+                    </div>
+                </>
+            )}
         </div>
     );
 

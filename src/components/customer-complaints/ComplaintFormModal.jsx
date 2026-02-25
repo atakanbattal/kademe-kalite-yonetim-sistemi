@@ -13,7 +13,9 @@ import {
 } from '@/components/ui/select';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Package, Users, Calendar } from 'lucide-react';
+import { AlertCircle, Package, Users, Calendar, Hash } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 const COMPLAINT_SOURCES = [
     'Email', 'Telefon', 'Portal', 'Saha Ziyareti', 'Toplantı', 'Diğer'
@@ -239,21 +241,113 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
         }));
 
     const customerName = (customers || []).find(c => c.id === formData.customer_id)?.name || (customers || []).find(c => c.id === formData.customer_id)?.customer_name || '-';
+    const responsiblePersonName = formData.responsible_person || personnelOptions.find(p => p.value === formData.responsible_personnel_id)?.label;
+    const responsibleDepartmentName = formData.responsible_department || departmentOptions.find(d => d.value === formData.responsible_department_id)?.label;
+
     const rightPanel = (
-        <div className="p-6 space-y-5">
-            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Şikayet Özeti</h2>
-            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Package className="w-20 h-20" /></div>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Şikayet</p>
-                <p className="text-lg font-bold text-foreground truncate">{formData.title || '-'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">{customerName}</p>
+        <div className="p-5 space-y-4">
+            {/* Şikayet Kartı */}
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><Package className="w-20 h-20" /></div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Hash className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Müşteri Şikayeti</p>
+                </div>
+                <p className="text-sm font-bold text-foreground leading-tight line-clamp-2">{formData.title || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-1 truncate">{customerName}</p>
             </div>
-            <div className="space-y-2.5">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Önem:</span><span className="font-semibold text-foreground">{formData.severity || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Öncelik:</span><span className="font-semibold text-foreground">{formData.priority || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.complaint_date ? new Date(formData.complaint_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+
+            {/* Durum Badges */}
+            <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px]">{formData.status || 'Açık'}</Badge>
+                {formData.severity && (
+                    <Badge className={`text-[10px] ${
+                        formData.severity === 'Kritik' ? 'bg-red-100 text-red-800' :
+                        formData.severity === 'Yüksek' ? 'bg-orange-100 text-orange-800' :
+                        formData.severity === 'Orta' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                    }`}>{formData.severity}</Badge>
+                )}
+                {formData.priority && (
+                    <Badge variant="outline" className={`text-[10px] ${
+                        formData.priority === 'Acil' ? 'border-red-300 text-red-700' : ''
+                    }`}>{formData.priority}</Badge>
+                )}
             </div>
+
+            <Separator className="my-1" />
+
+            {/* Ürün Bilgileri */}
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Package className="w-3 h-3" /> Ürün Bilgileri
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Parça Kodu', value: formData.product_code, highlight: 'text-primary font-mono' },
+                        { label: 'Parça Adı', value: formData.product_name },
+                        { label: 'Araç Tipi', value: formData.vehicle_type },
+                        { label: 'Adet', value: formData.quantity_affected },
+                    ].map(({ label, value, highlight }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className={`text-xs font-semibold truncate ${highlight || 'text-foreground'}`}>
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <Separator className="my-1" />
+
+            {/* Şikayet Detayları */}
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> Şikayet Detayları
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Şikayet Kaynağı', value: formData.complaint_source },
+                        { label: 'Şikayet Tipi', value: formData.complaint_type },
+                        { label: 'Kategori', value: formData.complaint_category },
+                        { label: 'Sorumlu Kişi', value: responsiblePersonName },
+                        { label: 'Sorumlu Birim', value: responsibleDepartmentName },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <Separator className="my-1" />
+
+            {/* Tarih */}
+            <div className="flex items-start gap-2.5">
+                <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Şikayet Tarihi</p>
+                    <p className="text-xs font-semibold text-foreground">
+                        {formData.complaint_date ? new Date(formData.complaint_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                    </p>
+                </div>
+            </div>
+
+            {/* Açıklama Önizleme */}
+            {formData.description && (
+                <>
+                    <Separator className="my-1" />
+                    <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Açıklama</p>
+                        <p className="text-[11px] text-foreground leading-relaxed line-clamp-4 bg-muted/30 rounded-lg p-2.5 border">
+                            {formData.description}
+                        </p>
+                    </div>
+                </>
+            )}
         </div>
     );
 

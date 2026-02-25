@@ -13,7 +13,8 @@ import React, { useState, useEffect } from 'react';
     import SupplierPPMDisplay from '@/components/supplier/SupplierPPMDisplay';
     import SupplierOTDDisplay from '@/components/supplier/SupplierOTDDisplay';
     import SupplierEvaluationDisplay from '@/components/supplier/SupplierEvaluationDisplay';
-    import { Building2, CheckCircle, Shield } from 'lucide-react';
+    import { Building2, CheckCircle, Shield, Hash, Phone, Mail, User } from 'lucide-react';
+    import { Separator } from '@/components/ui/separator';
 
     const SupplierFormModal = ({ isOpen, setIsOpen, supplier, refreshSuppliers, allSuppliers, isNewAlternative = false }) => {
         const { toast } = useToast();
@@ -127,41 +128,94 @@ import React, { useState, useEffect } from 'react';
             : '-';
 
         const rightPanel = (
-            <div className="p-6 space-y-5 w-80 shrink-0 bg-muted/30 border-l border-border overflow-y-auto">
-                <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Tedarikçi Özeti</h2>
-                <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                    <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Building2 className="w-20 h-20" /></div>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Firma</p>
-                    <p className="text-lg font-bold text-foreground truncate">{formData.name || '-'}</p>
-                    {formData.product_group && <p className="text-xs text-muted-foreground mt-0.5">{formData.product_group}</p>}
+            <div className="p-5 space-y-4 w-80 shrink-0 bg-muted/30 border-l border-border overflow-y-auto">
+                {/* Firma Kartı */}
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                    <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><Building2 className="w-20 h-20" /></div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Building2 className="w-4 h-4 text-primary" />
+                        <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Tedarikçi</p>
+                    </div>
+                    <p className="text-sm font-bold text-foreground leading-tight line-clamp-2">{formData.name || '-'}</p>
+                    {formData.product_group && <p className="text-xs text-muted-foreground mt-1">{formData.product_group}</p>}
                 </div>
-                <div className="space-y-3">
-                    <div className="flex justify-between text-xs font-medium">
-                        <span className="text-muted-foreground">Statü</span>
-                        <span className="font-semibold text-foreground">{formData.status || '-'}</span>
-                    </div>
-                    <div className="flex justify-between text-xs font-medium">
-                        <span className="text-muted-foreground">Risk Sınıfı</span>
-                        <span className="font-semibold text-foreground">{formData.risk_class || '-'}</span>
-                    </div>
+
+                {/* Durum Badges */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px]">{formData.status || '-'}</Badge>
+                    {formData.risk_class && (
+                        <Badge className={`text-[10px] ${
+                            formData.risk_class === 'Yüksek' ? 'bg-red-100 text-red-800' :
+                            formData.risk_class === 'Orta' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                        }`}>{formData.risk_class}</Badge>
+                    )}
                     {formData.supplier_grade && (
-                        <div className="flex justify-between text-xs font-medium">
-                            <span className="text-muted-foreground">Sınıf</span>
-                            <Badge className={`${supplierGradeOptions.find(o => o.value === formData.supplier_grade)?.color || 'bg-gray-500'} text-white text-[10px]`}>{formData.supplier_grade}</Badge>
+                        <Badge className={`${supplierGradeOptions.find(o => o.value === formData.supplier_grade)?.color || 'bg-gray-500'} text-white text-[10px]`}>
+                            {formData.supplier_grade} Sınıfı
+                        </Badge>
+                    )}
+                </div>
+
+                <Separator className="my-1" />
+
+                {/* Firma Bilgileri */}
+                <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <Building2 className="w-3 h-3" /> Firma Bilgileri
+                    </p>
+                    <div className="space-y-1.5 pl-1">
+                        {[
+                            { label: 'Ürün Grubu', value: formData.product_group },
+                            { label: 'Adres', value: formData.address },
+                            { label: 'Ülke', value: formData.country },
+                        ].map(({ label, value }) => (
+                            <div key={label} className="py-1">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                                <p className="text-xs font-semibold truncate text-foreground">
+                                    {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <Separator className="my-1" />
+
+                {/* İletişim */}
+                <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <User className="w-3 h-3" /> İletişim Bilgileri
+                    </p>
+                    <div className="space-y-1.5 pl-1">
+                        {[
+                            { label: 'İlgili Kişi', value: formData.contact_info?.name },
+                            { label: 'E-posta', value: formData.contact_info?.email },
+                            { label: 'Telefon', value: formData.contact_info?.phone },
+                        ].map(({ label, value }) => (
+                            <div key={label} className="py-1">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                                <p className="text-xs font-semibold truncate text-foreground">
+                                    {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {formData.status === 'Alternatif' && (
+                    <>
+                        <Separator className="my-1" />
+                        <div className="py-1 pl-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Ana Tedarikçi</p>
+                            <p className="text-xs font-semibold truncate text-foreground">{selectedAlternativeName}</p>
                         </div>
-                    )}
-                </div>
-                <div className="pt-4 border-t border-border space-y-2.5">
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">İlgili Kişi:</span><span className="font-semibold text-foreground truncate ml-2">{formData.contact_info?.name || '-'}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">E-posta:</span><span className="font-semibold text-foreground truncate ml-2">{formData.contact_info?.email || '-'}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Telefon:</span><span className="font-semibold text-foreground truncate ml-2">{formData.contact_info?.phone || '-'}</span></div>
-                    {formData.status === 'Alternatif' && (
-                        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Ana Tedarikçi:</span><span className="font-semibold text-foreground truncate ml-2">{selectedAlternativeName}</span></div>
-                    )}
-                </div>
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2.5 border border-blue-100 dark:border-blue-800">
-                    <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                    <p className="text-[11px] leading-relaxed text-blue-700 dark:text-blue-300">
+                    </>
+                )}
+
+                {/* Bilgi Notu */}
+                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2 border border-blue-100 dark:border-blue-800">
+                    <Shield className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                    <p className="text-[10px] leading-relaxed text-blue-700 dark:text-blue-300">
                         Tedarikçi kaydedildikten sonra denetim ve performans takibinde listelenecektir.
                     </p>
                 </div>

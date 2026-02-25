@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
@@ -10,7 +12,10 @@ import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useData } from '@/contexts/DataContext';
-import { AlertCircle, ClipboardList } from 'lucide-react';
+import {
+  AlertCircle, ClipboardList, Hash, Package, Shield, MapPin,
+  User, Building2, Calendar, Car, Layers, FileText, Wrench, MessageSquare
+} from 'lucide-react';
 import { format } from 'date-fns';
 
 const CATEGORIES = [
@@ -57,8 +62,29 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [personnel, setPersonnel] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [previewRecordNumber, setPreviewRecordNumber] = useState(null);
 
   const isEditMode = !!record?.id;
+
+  const fetchNextRecordNumber = useCallback(async () => {
+    const yearPrefix = new Date().getFullYear().toString().slice(-2);
+    const prefix = `UYG-${yearPrefix}-`;
+    const { data: maxRec } = await supabase
+      .from('nonconformity_records')
+      .select('record_number')
+      .like('record_number', `${prefix}%`)
+      .order('record_number', { ascending: false })
+      .limit(1)
+      .single();
+
+    let nextNum = 1;
+    if (maxRec?.record_number) {
+      const parts = maxRec.record_number.split('-');
+      const lastNum = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastNum)) nextNum = lastNum + 1;
+    }
+    setPreviewRecordNumber(`${prefix}${String(nextNum).padStart(4, '0')}`);
+  }, []);
 
   const vehicleTypes = useMemo(() => {
     const vehicleCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
@@ -78,11 +104,13 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
             ? format(new Date(record.detection_date), 'yyyy-MM-dd')
             : format(new Date(), 'yyyy-MM-dd'),
         });
+        setPreviewRecordNumber(record.record_number || null);
       } else {
         setFormData(defaultFormData);
+        fetchNextRecordNumber();
       }
     }
-  }, [isOpen, record]);
+  }, [isOpen, record, fetchNextRecordNumber]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -168,8 +196,23 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
           .single();
         result = { data, error };
       } else {
-        const { data: recNum } = await supabase.rpc('generate_nonconformity_number');
-        dbData.record_number = recNum;
+        const yearPrefix = new Date().getFullYear().toString().slice(-2);
+        const prefix = `UYG-${yearPrefix}-`;
+        const { data: maxRec } = await supabase
+          .from('nonconformity_records')
+          .select('record_number')
+          .like('record_number', `${prefix}%`)
+          .order('record_number', { ascending: false })
+          .limit(1)
+          .single();
+
+        let nextNum = 1;
+        if (maxRec?.record_number) {
+          const parts = maxRec.record_number.split('-');
+          const lastNum = parseInt(parts[parts.length - 1], 10);
+          if (!isNaN(lastNum)) nextNum = lastNum + 1;
+        }
+        dbData.record_number = `${prefix}${String(nextNum).padStart(4, '0')}`;
         dbData.created_by = user?.id || null;
 
         const { data, error } = await supabase
@@ -194,64 +237,159 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
     }
   };
 
-  const rightPanel = (
-    <div className="p-6 space-y-5">
-      <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Kayıt Özeti</h2>
+  const severityColor = formData?.severity === 'Kritik' ? 'text-red-600' :
+    formData?.severity === 'Yüksek' ? 'text-orange-600' :
+    formData?.severity === 'Orta' ? 'text-yellow-600' : 'text-green-600';
 
-      <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-        <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none">
+  const severityBg = formData?.severity === 'Kritik' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+    formData?.severity === 'Yüksek' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
+    formData?.severity === 'Orta' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+
+  const displayRecordNumber = isEditMode ? formData?.record_number : previewRecordNumber;
+
+  const SummaryRow = ({ icon: Icon, label, value, highlight, className = '' }) => (
+    <div className={`flex items-start gap-2.5 py-1.5 ${className}`}>
+      {Icon && <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />}
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className={`text-xs font-semibold truncate ${highlight || 'text-foreground'}`}>
+          {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+        </p>
+      </div>
+    </div>
+  );
+
+  const rightPanel = (
+    <div className="p-5 space-y-4">
+      {/* Kayıt No Kartı */}
+      <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+        <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none">
           <ClipboardList className="w-20 h-20" />
         </div>
-        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Kayıt No</p>
-        <p className="text-lg font-bold text-foreground">{formData?.record_number || 'Otomatik'}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 truncate">{formData?.part_code || 'Parça kodu girilmedi'}</p>
+        <div className="flex items-center gap-2 mb-2">
+          <Hash className="w-4 h-4 text-primary" />
+          <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Uygunsuzluk No</p>
+        </div>
+        <p className="text-xl font-bold text-foreground font-mono tracking-wide">
+          {displayRecordNumber || '...'}
+        </p>
+        {!isEditMode && (
+          <p className="text-[10px] text-muted-foreground mt-1">Kayıt oluşturulduğunda atanacak</p>
+        )}
       </div>
 
-      <div className="space-y-2.5">
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Ciddiyet:</span>
-          <span className={`font-semibold ${
-            formData?.severity === 'Kritik' ? 'text-red-600' :
-            formData?.severity === 'Yüksek' ? 'text-orange-600' :
-            formData?.severity === 'Orta' ? 'text-yellow-600' : 'text-green-600'
-          }`}>{formData?.severity || '-'}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Kategori:</span>
-          <span className="font-semibold text-foreground truncate ml-2">{formData?.category || '-'}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Sorumlu Birim:</span>
-          <span className="font-semibold text-foreground truncate ml-2">{formData?.department || '-'}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Tespit Alanı:</span>
-          <span className="font-semibold text-foreground truncate ml-2">{formData?.detection_area || '-'}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Raporlayan:</span>
-          <span className="font-semibold text-foreground truncate ml-2">{formData?.detected_by || '-'}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Sorumlu Kişi:</span>
-          <span className="font-semibold text-foreground truncate ml-2">{formData?.responsible_person || '-'}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Adet:</span>
-          <span className="font-semibold text-foreground">{formData?.quantity || 1}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Tespit Tarihi:</span>
-          <span className="font-semibold text-foreground">
-            {formData?.detection_date ? new Date(formData.detection_date).toLocaleDateString('tr-TR') : '-'}
-          </span>
+      {/* Durum Badge */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge className={`text-[10px] ${severityBg}`}>
+          <Shield className="w-3 h-3 mr-1" />
+          {formData?.severity || 'Orta'}
+        </Badge>
+        <Badge variant="outline" className="text-[10px]">
+          {isEditMode ? formData?.status || 'Açık' : 'Açık'}
+        </Badge>
+      </div>
+
+      <Separator className="my-1" />
+
+      {/* Parça & Ürün */}
+      <div>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+          <Package className="w-3 h-3" /> Parça Bilgileri
+        </p>
+        <div className="space-y-0.5 pl-1">
+          <SummaryRow icon={null} label="Parça Kodu" value={formData?.part_code} highlight="text-primary font-mono" />
+          <SummaryRow icon={null} label="Parça Adı" value={formData?.part_name} />
+          <SummaryRow icon={null} label="Araç Tipi" value={formData?.vehicle_type} />
+          <SummaryRow icon={null} label="Hatalı Adet" value={formData?.quantity} highlight={parseInt(formData?.quantity) > 10 ? 'text-red-600' : undefined} />
         </div>
       </div>
 
-      <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-start gap-2.5 border border-amber-100 dark:border-amber-800">
-        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-        <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
-          Aynı parça kodunda belirlenen eşik değeri aşıldığında otomatik olarak DF veya 8D önerisi yapılacaktır.
+      <Separator className="my-1" />
+
+      {/* Hata Detayları */}
+      <div>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+          <AlertCircle className="w-3 h-3" /> Hata Detayları
+        </p>
+        <div className="space-y-0.5 pl-1">
+          <SummaryRow icon={null} label="Kategori" value={formData?.category} />
+          <SummaryRow icon={null} label="Ciddiyet" value={formData?.severity} highlight={severityColor} />
+          <SummaryRow icon={null} label="Tespit Alanı" value={formData?.detection_area} />
+        </div>
+      </div>
+
+      <Separator className="my-1" />
+
+      {/* Personel */}
+      <div>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+          <User className="w-3 h-3" /> Personel & Birim
+        </p>
+        <div className="space-y-0.5 pl-1">
+          <SummaryRow icon={null} label="Sorumlu Birim" value={formData?.department} />
+          <SummaryRow icon={null} label="Raporlayan" value={formData?.detected_by} />
+          <SummaryRow icon={null} label="Sorumlu Kişi" value={formData?.responsible_person} />
+        </div>
+      </div>
+
+      <Separator className="my-1" />
+
+      {/* Tarih */}
+      <div className="flex items-start gap-2.5">
+        <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+        <div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tespit Tarihi</p>
+          <p className="text-xs font-semibold text-foreground">
+            {formData?.detection_date ? new Date(formData.detection_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+          </p>
+        </div>
+      </div>
+
+      {/* Açıklama Önizleme */}
+      {formData?.description && (
+        <>
+          <Separator className="my-1" />
+          <div>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+              <FileText className="w-3 h-3" /> Açıklama
+            </p>
+            <p className="text-[11px] text-foreground leading-relaxed line-clamp-4 bg-muted/30 rounded-lg p-2.5 border">
+              {formData.description}
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* Acil Aksiyon Önizleme */}
+      {formData?.action_taken && (
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+            <Wrench className="w-3 h-3" /> Acil Aksiyon
+          </p>
+          <p className="text-[11px] text-foreground leading-relaxed line-clamp-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg p-2.5 border border-amber-200 dark:border-amber-800">
+            {formData.action_taken}
+          </p>
+        </div>
+      )}
+
+      {/* Notlar Önizleme */}
+      {formData?.notes && (
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+            <MessageSquare className="w-3 h-3" /> Notlar
+          </p>
+          <p className="text-[11px] text-foreground leading-relaxed line-clamp-2 bg-muted/30 rounded-lg p-2.5 border">
+            {formData.notes}
+          </p>
+        </div>
+      )}
+
+      {/* Bilgi Notu */}
+      <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-start gap-2 border border-amber-100 dark:border-amber-800">
+        <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+        <p className="text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
+          Aynı parça kodunda eşik aşıldığında otomatik DF/8D önerisi yapılır.
         </p>
       </div>
     </div>

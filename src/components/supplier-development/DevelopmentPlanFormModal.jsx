@@ -8,7 +8,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useData } from '@/contexts/DataContext';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { ModernModalLayout, ModalSectionHeader, ModalField } from '@/components/shared/ModernModalLayout';
-import { FolderKanban, Target } from 'lucide-react';
+import { FolderKanban, Target, Hash } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 const PLAN_TYPES = [
     { value: 'Kalite İyileştirme', label: 'Kalite İyileştirme' },
@@ -132,50 +134,55 @@ const DevelopmentPlanFormModal = ({ open, setOpen, existingPlan, onSuccess }) =>
     const selectedSupplierName = suppliers?.find(s => s.id === formData.supplier_id)?.name || '-';
     const selectedPersonName = personnel?.find(p => p.id === formData.responsible_person_id)?.full_name || '-';
     const selectedDeptName = unitCostSettings?.find(u => u.id === formData.responsible_department_id)?.unit_name || '-';
+    const priorityColors = { Kritik: 'bg-red-100 text-red-800', Yüksek: 'bg-amber-100 text-amber-800', Orta: 'bg-blue-100 text-blue-800', Düşük: 'bg-slate-100 text-slate-700' };
 
     const rightPanel = (
-        <div className="p-6 space-y-5">
-            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Plan Özeti</h2>
-            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><FolderKanban className="w-20 h-20" /></div>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Plan Adı</p>
-                <p className="text-lg font-bold text-foreground">{formData.plan_name || '-'}</p>
+        <div className="p-5 space-y-4">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><FolderKanban className="w-20 h-20" /></div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Hash className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Plan Adı</p>
+                </div>
+                <p className="text-xl font-bold text-foreground font-mono tracking-wide">{formData.plan_name || '-'}</p>
             </div>
-            <div className="space-y-3">
-                <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium">
-                        <span className="text-muted-foreground">Plan Tipi</span>
-                        <span className="text-foreground">{formData.plan_type}</span>
-                    </div>
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full" style={{ width: '100%' }} />
-                    </div>
-                </div>
-                <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium">
-                        <span className="text-muted-foreground">Öncelik</span>
-                        <span className="text-foreground">{formData.priority}</span>
-                    </div>
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-500 rounded-full" style={{ width: formData.priority === 'Kritik' ? '100%' : formData.priority === 'Yüksek' ? '75%' : formData.priority === 'Orta' ? '50%' : '25%' }} />
-                    </div>
-                </div>
-                <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium">
-                        <span className="text-muted-foreground">Durum</span>
-                        <span className="font-semibold text-foreground">{formData.current_status}</span>
-                    </div>
+            <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px]">{formData.plan_type || '-'}</Badge>
+                <Badge className={`text-[10px] ${priorityColors[formData.priority] || 'bg-slate-100 text-slate-700'}`}>{formData.priority || '-'}</Badge>
+                <Badge variant="outline" className="text-[10px]">{formData.current_status || '-'}</Badge>
+            </div>
+            <Separator className="my-1" />
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <FolderKanban className="w-3 h-3" /> Tedarikçi & Sorumluluk
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tedarikçi</p><p className="text-xs font-semibold text-foreground truncate">{selectedSupplierName}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Sorumlu Kişi</p><p className="text-xs font-semibold text-foreground truncate">{selectedPersonName}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Departman</p><p className="text-xs font-semibold text-foreground truncate">{selectedDeptName}</p></div>
                 </div>
             </div>
-            <div className="pt-4 border-t border-border space-y-2.5">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tedarikçi:</span><span className="font-semibold text-foreground truncate ml-2">{selectedSupplierName}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Başlangıç:</span><span className="font-semibold text-foreground">{formData.start_date ? new Date(formData.start_date).toLocaleDateString('tr-TR') : '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Hedef Tamamlanma:</span><span className="font-semibold text-foreground">{formData.target_completion_date ? new Date(formData.target_completion_date).toLocaleDateString('tr-TR') : '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Sorumlu:</span><span className="font-semibold text-foreground truncate ml-2">{selectedPersonName}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Departman:</span><span className="font-semibold text-foreground truncate ml-2">{selectedDeptName}</span></div>
+            <Separator className="my-1" />
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Target className="w-3 h-3" /> Tarihler
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Başlangıç</p><p className="text-xs font-semibold text-foreground">{formData.start_date ? new Date(formData.start_date).toLocaleDateString('tr-TR') : '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Hedef Tamamlanma</p><p className="text-xs font-semibold text-foreground">{formData.target_completion_date ? new Date(formData.target_completion_date).toLocaleDateString('tr-TR') : '-'}</p></div>
+                </div>
             </div>
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2.5 border border-blue-100 dark:border-blue-800">
-                <Target className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            {formData.objectives && (
+                <>
+                    <Separator className="my-1" />
+                    <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Hedefler</p>
+                        <p className="text-[11px] text-foreground leading-relaxed line-clamp-4 bg-muted/30 rounded-lg p-2.5 border">{formData.objectives}</p>
+                    </div>
+                </>
+            )}
+            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2 border border-blue-100 dark:border-blue-800">
+                <Target className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
                 <p className="text-[11px] leading-relaxed text-blue-700 dark:text-blue-300">
                     Geliştirme planı kaydedildikten sonra tedarikçi geliştirme takibinde listelenecektir.
                 </p>

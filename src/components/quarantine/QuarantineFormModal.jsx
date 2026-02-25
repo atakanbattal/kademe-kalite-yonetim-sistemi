@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ModernModalLayout, ModalSectionHeader, ModalField } from '@/components/shared/ModernModalLayout';
-import { PackageX, Package } from 'lucide-react';
+import { PackageX, Package, CalendarDays } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, mode }) => {
     const { toast } = useToast();
@@ -201,38 +203,100 @@ const QuarantineFormModal = ({ isOpen, setIsOpen, existingRecord, refreshData, m
     };
 
     const rightPanel = (
-        <div className="p-6 space-y-5">
-            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Kayıt Özeti</h2>
-            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Package className="w-20 h-20" /></div>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Parça</p>
-                <p className="text-lg font-bold text-foreground truncate">{formData.part_name || '-'}</p>
-                {formData.part_code && <p className="text-xs text-muted-foreground mt-0.5">{formData.part_code}</p>}
-            </div>
-            <div className="space-y-3">
-                <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium">
-                        <span className="text-muted-foreground">Miktar</span>
-                        <span className="text-foreground font-bold">{formData.quantity || '-'} {formData.unit || 'Adet'}</span>
-                    </div>
+        <div className="p-5 space-y-4">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><PackageX className="w-20 h-20" /></div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Package className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Karantina</p>
                 </div>
-                <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium">
-                        <span className="text-muted-foreground">Durum</span>
-                        <span className="font-semibold text-foreground">{formData.status || 'Karantinada'}</span>
-                    </div>
+                <p className="text-sm font-bold text-foreground leading-tight line-clamp-2">{formData.part_name || '-'}</p>
+                {formData.part_code && <p className="text-xs text-muted-foreground mt-1 font-mono">{formData.part_code}</p>}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px]">{formData.status || 'Karantinada'}</Badge>
+                {formData.quantity && (
+                    <Badge className="text-[10px] bg-amber-100 text-amber-800">{formData.quantity} {formData.unit || 'Adet'}</Badge>
+                )}
+            </div>
+
+            <Separator className="my-1" />
+
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Ürün Bilgileri</p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Lot / Seri No', value: formData.lot_no },
+                        { label: 'Araç Tipi', value: formData.vehicle_type },
+                        { label: 'Tedarikçi', value: formData.supplier_name },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
                 </div>
             </div>
-            <div className="pt-4 border-t border-border space-y-2.5">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.quarantine_date ? new Date(formData.quarantine_date).toLocaleDateString('tr-TR') : '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Lot/Seri:</span><span className="font-semibold text-foreground truncate ml-2">{formData.lot_no || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kaynak Birim:</span><span className="font-semibold text-foreground truncate ml-2">{formData.source_department || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Talep Birimi:</span><span className="font-semibold text-foreground truncate ml-2">{formData.requesting_department || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Talep Eden:</span><span className="font-semibold text-foreground truncate ml-2">{formData.requesting_person_name || '-'}</span></div>
+
+            <Separator className="my-1" />
+
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Sorumluluk</p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Kaynak Birim', value: formData.source_department },
+                        { label: 'Talep Birimi', value: formData.requesting_department },
+                        { label: 'Talep Eden', value: formData.requesting_person_name },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
             </div>
-            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-start gap-2.5 border border-amber-100 dark:border-amber-800">
-                <PackageX className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+
+            <Separator className="my-1" />
+
+            <div className="flex items-start gap-2.5">
+                <CalendarDays className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Karantina Tarihi</p>
+                    <p className="text-xs font-semibold text-foreground">
+                        {formData.quarantine_date ? new Date(formData.quarantine_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                    </p>
+                </div>
+            </div>
+
+            {formData.reason && (
+                <>
+                    <Separator className="my-1" />
+                    <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Karantina Sebebi</p>
+                        <p className="text-[11px] text-foreground leading-relaxed line-clamp-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg p-2.5 border border-amber-200 dark:border-amber-800">
+                            {formData.reason}
+                        </p>
+                    </div>
+                </>
+            )}
+
+            {formData.description && (
+                <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Açıklama</p>
+                    <p className="text-[11px] text-foreground leading-relaxed line-clamp-3 bg-muted/30 rounded-lg p-2.5 border">
+                        {formData.description}
+                    </p>
+                </div>
+            )}
+
+            <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-start gap-2 border border-amber-100 dark:border-amber-800">
+                <PackageX className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
                     Karantina kaydı oluşturulduktan sonra takip listesinde görüntülenebilir.
                 </p>
             </div>

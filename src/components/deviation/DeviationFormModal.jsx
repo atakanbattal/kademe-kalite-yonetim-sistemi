@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, File as FileIcon, X as XIcon, PlusCircle, Trash2, Calendar as CalendarIcon, FileText, Link2, AlertTriangle } from 'lucide-react';
+import { UploadCloud, File as FileIcon, X as XIcon, PlusCircle, Trash2, Calendar as CalendarIcon, FileText, Link2, AlertTriangle, Hash, User, Package } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEPARTMENTS } from '@/lib/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,6 +17,8 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { cn, sanitizeFileName } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import SourceRecordSelector from './SourceRecordSelector';
 import { useData } from '@/contexts/DataContext';
 
@@ -883,26 +885,95 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     };
 
     const rightPanel = (
-        <div className="p-6 space-y-5">
-            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Sapma Özeti</h2>
-            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><FileText className="w-20 h-20" /></div>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Talep No</p>
-                <p className="text-lg font-bold text-foreground">{formData.request_no || '-'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{formData.deviation_type || 'Girdi Kontrolü'}</p>
+        <div className="p-5 space-y-4">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><FileText className="w-20 h-20" /></div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Hash className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Sapma Talebi</p>
+                </div>
+                <p className="text-xl font-bold text-foreground font-mono tracking-wide">{formData.request_no || '-'}</p>
+                {formData.deviation_type && <p className="text-xs text-muted-foreground mt-1">{formData.deviation_type}</p>}
             </div>
-            <div className="space-y-3">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Parça Kodu:</span><span className="font-semibold text-foreground truncate ml-2">{formData.part_code || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Araç Tipi:</span><span className="font-semibold text-foreground truncate ml-2">{formData.vehicle_type || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kaynak:</span><span className="font-semibold text-foreground truncate ml-2">{formData.source || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Talep Eden Birim:</span><span className="font-semibold text-foreground truncate ml-2">{formData.requesting_unit || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Talep Eden:</span><span className="font-semibold text-foreground truncate ml-2">{formData.requesting_person || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.created_at ? format(formData.created_at, 'd MMM yyyy', { locale: tr }) : '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Etkilenen Araç:</span><span className="font-semibold text-foreground">{vehicles.filter(v => v.customer_name || v.chassis_no || v.vehicle_serial_no).length} adet</span></div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px]">{formData.status || 'Onay Bekliyor'}</Badge>
+                {formData.deviation_type && (
+                    <Badge className="text-[10px] bg-blue-100 text-blue-800">{formData.deviation_type}</Badge>
+                )}
             </div>
-            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-start gap-2.5 border border-amber-100 dark:border-amber-800">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+
+            <Separator className="my-1" />
+
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Package className="w-3 h-3" /> Ürün Bilgileri
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Parça Kodu', value: formData.part_code, highlight: 'text-primary font-mono' },
+                        { label: 'Araç Tipi', value: formData.vehicle_type },
+                        { label: 'Kaynak', value: formData.source },
+                    ].map(({ label, value, highlight }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className={`text-xs font-semibold truncate ${highlight || 'text-foreground'}`}>
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <Separator className="my-1" />
+
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <User className="w-3 h-3" /> Talep Bilgileri
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Talep Eden Birim', value: formData.requesting_unit },
+                        { label: 'Talep Eden Kişi', value: formData.requesting_person },
+                        { label: 'Etkilenen Araç', value: vehicles.filter(v => v.customer_name || v.chassis_no || v.vehicle_serial_no).length ? `${vehicles.filter(v => v.customer_name || v.chassis_no || v.vehicle_serial_no).length} adet` : null },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <Separator className="my-1" />
+
+            <div className="flex items-start gap-2.5">
+                <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Oluşturma Tarihi</p>
+                    <p className="text-xs font-semibold text-foreground">
+                        {formData.created_at ? format(formData.created_at, 'd MMMM yyyy', { locale: tr }) : '-'}
+                    </p>
+                </div>
+            </div>
+
+            {formData.description && (
+                <>
+                    <Separator className="my-1" />
+                    <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Açıklama</p>
+                        <p className="text-[11px] text-foreground leading-relaxed line-clamp-4 bg-muted/30 rounded-lg p-2.5 border">
+                            {formData.description}
+                        </p>
+                    </div>
+                </>
+            )}
+
+            <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-start gap-2 border border-amber-100 dark:border-amber-800">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[10px] leading-relaxed text-amber-700 dark:text-amber-300">
                     Sapma onayı tamamlandıktan sonra ilgili modüllerde takip edilebilir.
                 </p>
             </div>

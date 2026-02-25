@@ -8,7 +8,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lightbulb, Save, X, Plus, Trash2, Wrench, FileDown } from 'lucide-react';
+import { Lightbulb, Save, X, Plus, Trash2, Wrench, FileDown, Hash } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { generateWPSRecommendation } from '@/lib/wpsEngine';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -251,26 +253,46 @@ const WPSFormModal = ({ isOpen, setIsOpen, onSuccess, existingWPS, isViewMode, o
     const material1Name = library.materials.find(m => m.id === formData.base_material_1_id)?.name || '-';
     const material2Name = library.materials.find(m => m.id === formData.base_material_2_id)?.name || '-';
     const rightPanel = (
-        <div className="px-5 space-y-5">
-            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">WPS Özeti</h2>
-            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Wrench className="w-20 h-20" /></div>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">WPS No</p>
-                <p className="text-lg font-bold text-foreground">{formData.wps_no || '-'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate" title={material1Name}>{material1Name}</p>
+        <div className="p-5 space-y-4">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><Wrench className="w-20 h-20" /></div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Hash className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] font-medium text-primary uppercase tracking-widest">WPS No</p>
+                </div>
+                <p className="text-xl font-bold text-foreground font-mono tracking-wide">{formData.wps_no || '-'}</p>
             </div>
-            <div className="space-y-2.5">
-                <div className="flex justify-between text-xs gap-2"><span className="text-muted-foreground shrink-0">Malzeme 1:</span><span className="font-semibold text-foreground truncate text-right" title={material1Name}>{material1Name}</span></div>
-                <div className="flex justify-between text-xs gap-2"><span className="text-muted-foreground shrink-0">Malzeme 2:</span><span className="font-semibold text-foreground truncate text-right" title={material2Name}>{material2Name || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kaynak Tipi:</span><span className="font-semibold text-foreground">{formData.weld_type || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Birleşim:</span><span className="font-semibold text-foreground">{formData.joint_type || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Pozisyon:</span><span className="font-semibold text-foreground">{formData.welding_position || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kalınlık 1:</span><span className="font-semibold text-foreground">{formData.thickness_1 ? `${formData.thickness_1} mm` : '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Kalınlık 2:</span><span className="font-semibold text-foreground">{formData.thickness_2 ? `${formData.thickness_2} mm` : '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tarih:</span><span className="font-semibold text-foreground">{formData.wps_date ? new Date(formData.wps_date).toLocaleDateString('tr-TR') : '-'}</span></div>
+            <Separator className="my-1" />
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Wrench className="w-3 h-3" /> Malzeme Bilgileri
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Malzeme 1</p><p className="text-xs font-semibold text-foreground truncate" title={material1Name}>{material1Name}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Malzeme 2</p><p className="text-xs font-semibold text-foreground truncate" title={material2Name}>{material2Name || '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Kalınlık 1</p><p className="text-xs font-semibold text-foreground">{formData.thickness_1 ? `${formData.thickness_1} mm` : '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Kalınlık 2</p><p className="text-xs font-semibold text-foreground">{formData.thickness_2 ? `${formData.thickness_2} mm` : '-'}</p></div>
+                </div>
             </div>
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2.5 border border-blue-100 dark:border-blue-800">
-                <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <Separator className="my-1" />
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <Lightbulb className="w-3 h-3" /> Kaynak Detayları
+                </p>
+                <div className="space-y-1.5 pl-1">
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Kaynak Tipi</p><p className="text-xs font-semibold text-foreground">{formData.weld_type || '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Birleşim</p><p className="text-xs font-semibold text-foreground">{formData.joint_type || '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Pozisyon</p><p className="text-xs font-semibold text-foreground">{formData.welding_position || '-'}</p></div>
+                    <div className="py-1"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Proses Kodu</p><p className="text-xs font-semibold text-foreground">{formData.welding_process_code || '-'}</p></div>
+                </div>
+            </div>
+            <Separator className="my-1" />
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tarih</p>
+                <p className="text-xs font-semibold text-foreground">{formData.wps_date ? new Date(formData.wps_date).toLocaleDateString('tr-TR') : '-'}</p>
+            </div>
+            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2 border border-blue-100 dark:border-blue-800">
+                <Lightbulb className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
                 <p className="text-[11px] leading-relaxed text-blue-700 dark:text-blue-300">
                     Malzeme ve kalınlık seçerek otomatik öneriler alabilirsiniz.
                 </p>

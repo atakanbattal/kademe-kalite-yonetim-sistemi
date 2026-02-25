@@ -9,6 +9,7 @@ import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDropzone } from 'react-dropzone';
 import { v4 as uuidv4 } from 'uuid';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { sanitizeFileName, normalizeToTitleCase } from '@/lib/utils';
 import { Wrench } from 'lucide-react';
@@ -295,19 +296,80 @@ const EquipmentFormModal = ({ isOpen, setIsOpen, refreshData, existingEquipment 
 
     const assignedPersonName = personnelList.find(p => String(p.id) === String(assignedPersonnelId))?.full_name || '-';
     const rightPanel = (
-        <div className="p-6 space-y-5">
-            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Ekipman Özeti</h2>
-            <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Wrench className="w-20 h-20" /></div>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Ekipman</p>
-                <p className="text-lg font-bold text-foreground truncate">{formData.name || '-'}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{formData.serial_number || '-'}</p>
+        <div className="p-5 space-y-4">
+            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><Wrench className="w-20 h-20" /></div>
+                <div className="flex items-center gap-2 mb-2">
+                    <Wrench className="w-4 h-4 text-primary" />
+                    <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Ekipman</p>
+                </div>
+                <p className="text-sm font-bold text-foreground leading-tight line-clamp-2">{formData.name || '-'}</p>
+                {formData.serial_number && <p className="text-xs text-muted-foreground mt-1 font-mono">{formData.serial_number}</p>}
             </div>
-            <div className="space-y-2.5">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Birim:</span><span className="font-semibold text-foreground truncate ml-2">{formData.responsible_unit || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Zimmetli:</span><span className="font-semibold text-foreground truncate ml-2">{assignedPersonName || '-'}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Marka/Model:</span><span className="font-semibold text-foreground truncate ml-2">{formData.brand_model || '-'}</span></div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px]">{formData.status || '-'}</Badge>
+            </div>
+
+            <Separator className="my-1" />
+
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Ekipman Bilgileri</p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Marka/Model', value: formData.brand_model },
+                        { label: 'Ölçüm Aralığı', value: formData.measurement_range },
+                        { label: 'Ölçüm Belirsizliği', value: formData.measurement_uncertainty ? `±${formData.measurement_uncertainty}` : null },
+                        { label: 'Kullanım Yeri', value: formData.location },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <Separator className="my-1" />
+
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Sorumluluk</p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Sorumlu Birim', value: formData.responsible_unit },
+                        { label: 'Zimmetli Personel', value: assignedPersonName },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">
+                                {value && value !== '-' ? value : <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <Separator className="my-1" />
+
+            <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Kalibrasyon</p>
+                <div className="space-y-1.5 pl-1">
+                    {[
+                        { label: 'Kalibrasyon Periyodu', value: formData.calibration_frequency_months ? `${formData.calibration_frequency_months} ay` : null },
+                        { label: 'Son Kalibrasyon', value: formData.last_calibration_date ? new Date(formData.last_calibration_date).toLocaleDateString('tr-TR') : null },
+                        { label: 'Sonraki Kalibrasyon', value: formData.next_calibration_date ? new Date(formData.next_calibration_date).toLocaleDateString('tr-TR') : null },
+                        { label: 'Sertifika No', value: formData.calibration_certificate_no },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">
+                                {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                            </p>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );

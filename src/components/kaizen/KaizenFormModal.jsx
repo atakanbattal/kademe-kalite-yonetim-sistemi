@@ -12,7 +12,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { v4 as uuidv4 } from 'uuid';
     import { useDropzone } from 'react-dropzone';
-    import { UploadCloud, File as FileIcon, Trash2, BrainCircuit, Fish, HelpCircle, Sigma, Calendar as CalendarIcon, Lightbulb } from 'lucide-react';
+    import { UploadCloud, File as FileIcon, Trash2, BrainCircuit, Fish, HelpCircle, Sigma, Calendar as CalendarIcon, Lightbulb, Users, TrendingUp } from 'lucide-react';
     import { sanitizeFileName } from '@/lib/utils';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
     import KaizenA3Template from './KaizenA3Template';
@@ -20,6 +20,8 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Calendar } from '@/components/ui/calendar';
     import { format } from 'date-fns';
     import { MultiSelectPopover } from '@/components/ui/multi-select-popover';
+    import { Badge } from '@/components/ui/badge';
+    import { Separator } from '@/components/ui/separator';
 
     const KAIZEN_STATUSES = ['Taslak', 'İncelemede', 'Onaylandı', 'Uygulamada', 'Standartlaştırıldı', 'Kapandı', 'Reddedildi', 'Askıda'];
     const KAIZEN_PRIORITIES = ['Düşük', 'Orta', 'Yüksek'];
@@ -393,23 +395,115 @@ import React, { useState, useEffect, useCallback } from 'react';
         const supplierOptions = suppliers.map(s => ({ value: s.id, label: s.name }));
         const responsibleName = personnel.find(p => p.id === formData.responsible_person_id)?.full_name || '-';
         const rightPanel = (
-            <div className="p-6 space-y-5">
-                <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Kaizen Özeti</h2>
-                <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                    <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><Lightbulb className="w-20 h-20" /></div>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Kaizen</p>
-                    <p className="text-lg font-bold text-foreground truncate">{formData.title || '-'}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{formData.kaizen_type || '-'}</p>
+            <div className="p-5 space-y-4">
+                {/* Kaizen Kartı */}
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                    <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><Lightbulb className="w-20 h-20" /></div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Lightbulb className="w-4 h-4 text-primary" />
+                        <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Kaizen</p>
+                    </div>
+                    <p className="text-sm font-bold text-foreground leading-tight line-clamp-2">{formData.title || '-'}</p>
+                    {formData.kaizen_type && <p className="text-xs text-muted-foreground mt-1">{formData.kaizen_type}</p>}
                 </div>
-                <div className="space-y-2.5">
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Öncelik:</span><span className="font-semibold text-foreground">{formData.priority || '-'}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Sorumlu:</span><span className="font-semibold text-foreground truncate ml-2">{responsibleName}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Skor:</span><span className="font-semibold text-foreground">{formData.kaizen_score?.toFixed(1) || '-'}</span></div>
-                    {(formData.total_monthly_gain > 0 || formData.total_yearly_gain > 0) && (
-                        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Yıllık Kazanç:</span><span className="font-semibold text-foreground">₺{(formData.total_yearly_gain || 0).toLocaleString('tr-TR')}</span></div>
+
+                {/* Durum & Öncelik Badge */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px]">{formData.status || 'Taslak'}</Badge>
+                    {formData.priority && (
+                        <Badge className={`text-[10px] ${
+                            formData.priority === 'Kritik' ? 'bg-red-100 text-red-800' :
+                            formData.priority === 'Yüksek' ? 'bg-orange-100 text-orange-800' :
+                            formData.priority === 'Orta' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                        }`}>{formData.priority}</Badge>
+                    )}
+                    {formData.kaizen_score > 0 && (
+                        <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50">
+                            Skor: {formData.kaizen_score?.toFixed(1)}
+                        </Badge>
                     )}
                 </div>
+
+                <Separator className="my-1" />
+
+                {/* Kişiler */}
+                <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <Users className="w-3 h-3" /> Kişiler
+                    </p>
+                    <div className="space-y-1.5 pl-1">
+                        {[
+                            { label: 'Sorumlu Kişi', value: responsibleName },
+                            { label: 'Öneri Sahibi', value: personnel.find(p => p.id === formData.proposer_id)?.full_name },
+                            { label: 'Ekip Üye Sayısı', value: formData.team_members?.length ? `${formData.team_members.length} kişi` : null },
+                        ].map(({ label, value }) => (
+                            <div key={label} className="py-1">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                                <p className="text-xs font-semibold truncate text-foreground">
+                                    {value || <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <Separator className="my-1" />
+
+                {/* Tarihler */}
+                <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <CalendarIcon className="w-3 h-3" /> Tarihler
+                    </p>
+                    <div className="space-y-1.5 pl-1">
+                        <div className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Başlangıç</p>
+                            <p className="text-xs font-semibold text-foreground">{formData.start_date ? new Date(formData.start_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}</p>
+                        </div>
+                        <div className="py-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Bitiş</p>
+                            <p className="text-xs font-semibold text-foreground">{formData.end_date ? new Date(formData.end_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Finansal Kazanç */}
+                {(formData.total_monthly_gain > 0 || formData.total_yearly_gain > 0) && (
+                    <>
+                        <Separator className="my-1" />
+                        <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                <TrendingUp className="w-3 h-3" /> Kazanç
+                            </p>
+                            <div className="space-y-1.5 pl-1">
+                                {formData.total_monthly_gain > 0 && (
+                                    <div className="py-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Aylık Kazanç</p>
+                                        <p className="text-xs font-semibold text-green-600">₺{formData.total_monthly_gain.toLocaleString('tr-TR')}</p>
+                                    </div>
+                                )}
+                                {formData.total_yearly_gain > 0 && (
+                                    <div className="py-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Yıllık Kazanç</p>
+                                        <p className="text-xs font-semibold text-green-600">₺{formData.total_yearly_gain.toLocaleString('tr-TR')}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Açıklama Önizleme */}
+                {formData.description && (
+                    <>
+                        <Separator className="my-1" />
+                        <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Açıklama</p>
+                            <p className="text-[11px] text-foreground leading-relaxed line-clamp-4 bg-muted/30 rounded-lg p-2.5 border">
+                                {formData.description}
+                            </p>
+                        </div>
+                    </>
+                )}
             </div>
         );
 

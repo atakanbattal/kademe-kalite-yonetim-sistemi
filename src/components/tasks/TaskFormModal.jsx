@@ -15,9 +15,11 @@ import React, { useState, useEffect } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
-    import { Calendar as CalendarIcon, Plus, Trash2, CheckSquare } from 'lucide-react';
+    import { Calendar as CalendarIcon, Plus, Trash2, CheckSquare, Hash, User } from 'lucide-react';
     import { v4 as uuidv4 } from 'uuid';
     import { ScrollArea } from '@/components/ui/scroll-area';
+    import { Badge } from '@/components/ui/badge';
+    import { Separator } from '@/components/ui/separator';
 
     const TaskFormModal = ({ isOpen, setIsOpen, task, onSaveSuccess, defaultProjectId = null }) => {
         const { personnel, taskTags, taskProjects } = useData();
@@ -250,21 +252,77 @@ import React, { useState, useEffect } from 'react';
         const ownerName = personnel.find(p => p.id === formData.owner_id)?.full_name || '-';
         const projectName = (taskProjects || []).find(p => p.id === formData.project_id)?.name || '-';
         const rightPanel = (
-            <div className="p-6 space-y-5">
-                <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Görev Özeti</h2>
-                <div className="bg-background rounded-xl p-5 shadow-sm border border-border relative overflow-hidden">
-                    <div className="absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none"><CheckSquare className="w-20 h-20" /></div>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Başlık</p>
-                    <p className="text-lg font-bold text-foreground truncate">{formData.title || '-'}</p>
-                    {formData.task_no && <p className="text-xs text-muted-foreground mt-0.5">{formData.task_no}</p>}
+            <div className="p-5 space-y-4">
+                {/* Görev Kartı */}
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 relative overflow-hidden">
+                    <div className="absolute -right-3 -bottom-3 opacity-[0.06] pointer-events-none"><CheckSquare className="w-20 h-20" /></div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Hash className="w-4 h-4 text-primary" />
+                        <p className="text-[10px] font-medium text-primary uppercase tracking-widest">Görev</p>
+                    </div>
+                    <p className="text-sm font-bold text-foreground leading-tight line-clamp-2">{formData.title || '-'}</p>
+                    {formData.task_no && <p className="text-xs text-muted-foreground mt-1 font-mono">{formData.task_no}</p>}
                 </div>
-                <div className="space-y-2.5">
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Öncelik:</span><span className="font-semibold text-foreground">{formData.priority || '-'}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Bitiş:</span><span className="font-semibold text-foreground">{formData.due_date ? format(formData.due_date, 'd MMM yyyy', { locale: tr }) : '-'}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Atayan:</span><span className="font-semibold text-foreground truncate ml-2">{ownerName}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Proje:</span><span className="font-semibold text-foreground truncate ml-2">{projectName}</span></div>
+
+                {/* Durum & Öncelik Badge */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px]">{formData.status || 'Beklemede'}</Badge>
+                    {formData.priority && (
+                        <Badge className={`text-[10px] ${
+                            formData.priority === 'Kritik' ? 'bg-red-100 text-red-800' :
+                            formData.priority === 'Yüksek' ? 'bg-orange-100 text-orange-800' :
+                            formData.priority === 'Orta' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                        }`}>{formData.priority}</Badge>
+                    )}
                 </div>
+
+                <Separator className="my-1" />
+
+                {/* Kişiler */}
+                <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <User className="w-3 h-3" /> Kişiler & Proje
+                    </p>
+                    <div className="space-y-1.5 pl-1">
+                        {[
+                            { label: 'Görevi Atayan', value: ownerName },
+                            { label: 'Proje / Konu', value: projectName },
+                        ].map(({ label, value }) => (
+                            <div key={label} className="py-1">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                                <p className="text-xs font-semibold truncate text-foreground">
+                                    {value && value !== '-' ? value : <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <Separator className="my-1" />
+
+                {/* Tarih */}
+                <div className="flex items-start gap-2.5">
+                    <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Bitiş Tarihi</p>
+                        <p className="text-xs font-semibold text-foreground">
+                            {formData.due_date ? format(formData.due_date, 'd MMMM yyyy', { locale: tr }) : <span className="text-muted-foreground/50 font-normal italic">Girilmedi</span>}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Açıklama Önizleme */}
+                {formData.description && (
+                    <>
+                        <Separator className="my-1" />
+                        <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Açıklama</p>
+                            <p className="text-[11px] text-foreground leading-relaxed line-clamp-4 bg-muted/30 rounded-lg p-2.5 border">
+                                {formData.description}
+                            </p>
+                        </div>
+                    </>
+                )}
             </div>
         );
 
