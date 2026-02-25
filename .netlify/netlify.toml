@@ -1,19 +1,15 @@
+functionsDirectory = "/Users/atakanbattal/Desktop/Uygulamalar/Kademe QMS/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
 redirectsOrigin = "config"
 plugins = []
-functionsDirectory = "/Users/atakanbattal/Desktop/Cursor Uygulamalar/Kademe QMS/netlify/functions"
-functionsDirectoryOrigin = "config-v1"
 headers = []
 
-[functions]
-
-[functions."*"]
-
 [build]
-publish = "/Users/atakanbattal/Desktop/Cursor Uygulamalar/Kademe QMS/dist"
+publish = "/Users/atakanbattal/Desktop/Uygulamalar/Kademe QMS/dist"
 publishOrigin = "config"
 commandOrigin = "config"
 command = "npm run build"
-functions = "/Users/atakanbattal/Desktop/Cursor Uygulamalar/Kademe QMS/netlify/functions"
+functions = "/Users/atakanbattal/Desktop/Uygulamalar/Kademe QMS/netlify/functions"
 
 [build.environment]
 VITE_SUPABASE_URL = "https://rqnvoatirfczpklaamhf.supabase.co"
@@ -30,6 +26,10 @@ VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 [build.processing.js]
 
 [build.services]
+
+[functions]
+
+[functions."*"]
 
 [[redirects]]
 from = "/*"

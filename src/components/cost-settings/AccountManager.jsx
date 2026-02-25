@@ -56,6 +56,27 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 const SUPER_ADMIN_EMAIL = 'atakan.battal@kademe.com.tr';
 
+async function invokeManageUser(body) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('Oturum bulunamadı');
+
+  const res = await fetch('/api/manage-user', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error || `HTTP ${res.status}`);
+  }
+  return json;
+}
+
 const ALL_MODULES = [
   'dashboard', 'kpi', 'nonconformity', 'df-8d', 'quality-cost', 'customer-complaints',
   'incoming-quality', 'process-control', 'produced-vehicles', 'dynamic-balance',
@@ -259,15 +280,15 @@ const ChangePasswordModal = ({ open, setOpen, user, onSuccess }) => {
     }
     setIsSubmitting(true);
 
-    const { error } = await supabase.functions.invoke('manage-user', {
-      body: { action: 'update_password', userId: user.id, payload: { newPassword } },
-    });
+    let error = null;
+    try {
+      await invokeManageUser({ action: 'update_password', userId: user.id, payload: { newPassword } });
+    } catch (e) {
+      error = e;
+    }
 
     if (error) {
-      const msg = error.message?.includes('FunctionsRelay') || error.message?.includes('fetch')
-        ? 'manage-user Edge Function erişilemedi. Deploy edin: npm run supabase:deploy-functions'
-        : error.message;
-      toast({ variant: 'destructive', title: 'Hata', description: msg });
+      toast({ variant: 'destructive', title: 'Hata', description: error.message });
     } else {
       toast({ title: 'Başarılı', description: 'Şifre güncellendi.' });
       setOpen(false);
@@ -357,19 +378,19 @@ const AccountManager = () => {
 
   const savePermissions = async (userId, permissionsToSave) => {
     const user = users.find((u) => u.id === userId);
-    const { error } = await supabase.functions.invoke('manage-user', {
-      body: {
+    let error = null;
+    try {
+      await invokeManageUser({
         action: 'update_permissions',
         userId,
         payload: { permissions: permissionsToSave, user_metadata: user?.raw_user_meta_data },
-      },
-    });
+      });
+    } catch (e) {
+      error = e;
+    }
 
     if (error) {
-      const msg = error.message?.includes('FunctionsRelay') || error.message?.includes('fetch')
-        ? 'manage-user Edge Function erişilemedi. Deploy edin: npm run supabase:deploy-functions'
-        : error.message;
-      toast({ variant: 'destructive', title: 'Hata', description: msg });
+      toast({ variant: 'destructive', title: 'Hata', description: error.message });
     } else {
       setUserPermissions((prev) => ({ ...prev, [userId]: permissionsToSave }));
       toast({ title: 'Başarılı', description: 'Yetkiler kaydedildi.' });
@@ -385,15 +406,15 @@ const AccountManager = () => {
       return false;
     }
 
-    const { error } = await supabase.functions.invoke('manage-user', {
-      body: { action: 'delete_user', userId, payload: { email: user?.email } },
-    });
+    let error = null;
+    try {
+      await invokeManageUser({ action: 'delete_user', userId, payload: { email: user?.email } });
+    } catch (e) {
+      error = e;
+    }
 
     if (error) {
-      const msg = error.message?.includes('FunctionsRelay') || error.message?.includes('fetch')
-        ? 'manage-user Edge Function erişilemedi. Deploy edin: npm run supabase:deploy-functions'
-        : error.message;
-      toast({ variant: 'destructive', title: 'Hata', description: msg });
+      toast({ variant: 'destructive', title: 'Hata', description: error.message });
       return false;
     }
     toast({ title: 'Başarılı', description: 'Hesap silindi.' });
