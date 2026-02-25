@@ -2,6 +2,8 @@
 -- AccountManager bu RPC ile kullanıcıları listeler
 -- Sadece settings:full veya super admin yetkisi olanlar çağırabilir
 
+DROP FUNCTION IF EXISTS public.get_all_users_with_profiles();
+
 CREATE OR REPLACE FUNCTION public.get_all_users_with_profiles()
 RETURNS TABLE (
   id uuid,

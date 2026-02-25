@@ -155,6 +155,20 @@ serve(async (req: Request) => {
         );
       }
 
+      // profiles tablosunu da güncelle (yetkiler buradan okunuyor - usePermissions bu tabloyu kullanır)
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update({ permissions })
+        .eq('id', userId);
+
+      if (profileError) {
+        console.error('profiles güncelleme hatası:', profileError.message);
+        return new Response(
+          JSON.stringify({ error: `Profiles güncellenemedi: ${profileError.message}. Supabase profiles tablosunda 'permissions' jsonb kolonu olduğundan emin olun.` }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+
       return new Response(
         JSON.stringify({ success: true, data }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }

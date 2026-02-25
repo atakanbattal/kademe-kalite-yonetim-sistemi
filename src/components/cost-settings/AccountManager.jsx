@@ -205,13 +205,13 @@ const EditPermissionsModal = ({ open, setOpen, user, permissions, onSave }) => {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {ALL_MODULES.map((module) => (
-              <div key={module} className="space-y-1.5 p-3 rounded-lg border bg-muted/30">
+              <div key={module} className="space-y-1.5 p-3 rounded-lg border bg-muted/30" data-testid={`perm-module-${module}`}>
                 <Label className="text-xs font-medium">{moduleLabels[module]}</Label>
                 <Select
                   value={localPerms[module] || 'none'}
                   onValueChange={(v) => setLocalPerms((p) => ({ ...p, [module]: v }))}
                 >
-                  <SelectTrigger className="h-8">
+                  <SelectTrigger className="h-8" data-testid={`perm-select-${module}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -227,7 +227,7 @@ const EditPermissionsModal = ({ open, setOpen, user, permissions, onSave }) => {
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>İptal</Button>
-          <Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</Button>
+          <Button onClick={handleSave} disabled={isSaving} data-testid="perm-save-btn">{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -371,17 +371,10 @@ const AccountManager = () => {
         : error.message;
       toast({ variant: 'destructive', title: 'Hata', description: msg });
     } else {
-      const { error: rpcError } = await supabase.rpc('update_profile_permissions', {
-        target_user_id: userId,
-        new_permissions: permissionsToSave,
-      });
-      if (rpcError) {
-        toast({ variant: 'destructive', title: 'Uyarı', description: 'Yetkiler auth\'da güncellendi ancak profiles senkronizasyonu başarısız: ' + rpcError.message });
-      }
       setUserPermissions((prev) => ({ ...prev, [userId]: permissionsToSave }));
       toast({ title: 'Başarılı', description: 'Yetkiler kaydedildi.' });
       logAudit('İzin Güncelleme', { userId, newPermissions: permissionsToSave }, 'profiles');
-      fetchUsers();
+      await fetchUsers();
     }
   };
 
@@ -564,7 +557,7 @@ const AccountManager = () => {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`user-actions-${user.email}`}>
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>

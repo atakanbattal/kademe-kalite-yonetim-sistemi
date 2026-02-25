@@ -15,6 +15,7 @@
     "supabase:stop": "supabase stop",
     "db:backup": "node scripts/backup-database.js",
     "db:migrate": "node scripts/migrate-from-supabase.js",
+    "db:fix": "node scripts/run-supabase-sql.js scripts/fix-account-management.sql",
     "deploy:netlify": "netlify deploy --prod",
     "deploy:build": "npm run build && npm run preview"
   },
@@ -81,6 +82,7 @@
     "eslint-config-react-app": "^7.0.1",
     "pdfjs-dist": "^3.11.174",
     "pg": "^8.16.3",
+    "playwright": "^1.58.2",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.3",
     "terser": "^5.39.0",
