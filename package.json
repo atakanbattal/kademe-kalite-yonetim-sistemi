@@ -15,7 +15,7 @@
     "supabase:stop": "supabase stop",
     "db:backup": "node scripts/backup-database.js",
     "db:migrate": "node scripts/migrate-from-supabase.js",
-    "deploy:vercel": "vercel",
+    "deploy:netlify": "netlify deploy --prod",
     "deploy:build": "npm run build && npm run preview"
   },
   "dependencies": {

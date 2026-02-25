@@ -61,8 +61,8 @@ jobs:
     - name: Run tests
       run: npm test --if-present
 
-  # Deploy to Vercel (if on main branch and build succeeds)
-  deploy-vercel:
+  # Deploy to Netlify (if on main branch and build succeeds)
+  deploy-netlify:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -77,13 +77,17 @@ jobs:
         name: dist
         path: dist/
     
-    - name: Deploy to Vercel
-      uses: amondnet/vercel-action@v20
+    - name: Deploy to Netlify
+      uses: nwtgck/actions-netlify@v2.0
       with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        publish-dir: './dist'
+        production-branch: main
+        production-deploy: true
         github-token: ${{ secrets.GITHUB_TOKEN }}
+        deploy-message: "Deploy from GitHub Actions"
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
 
   # Deploy Supabase Edge Functions (if token is set)
   deploy-supabase:
@@ -139,7 +143,7 @@ jobs:
 
   # Notify Slack (optional)
   notify:
-    needs: [ build, deploy-vercel ]
+    needs: [ build, deploy-netlify ]
     runs-on: ubuntu-latest
     if: always()
     

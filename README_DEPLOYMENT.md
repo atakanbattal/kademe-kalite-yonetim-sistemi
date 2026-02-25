@@ -71,19 +71,19 @@ npm run db:migrate
 
 ## 🚀 Deployment Options
 
-### Option 1: Vercel (Recommended) ⭐
+### Option 1: Netlify (Recommended) ⭐
 
 **Avantajlar:**
 - ✅ Otomatik HTTPS & CDN
-- ✅ Serverless Functions
 - ✅ Environment variables UI
 - ✅ Preview deployments
 - ✅ Git integration
+- ✅ Ücretsiz SSL
 
 **Kurulum:**
 
-1. **Vercel Hesabı Oluştur**
-   - https://vercel.com/signup
+1. **Netlify Hesabı Oluştur**
+   - https://app.netlify.com/signup
 
 2. **GitHub'a Push Et**
    ```bash
@@ -94,73 +94,44 @@ npm run db:migrate
    git push -u origin main
    ```
 
-3. **Vercel Dashboard'da Import Et**
-   - https://vercel.com/new
+3. **Netlify Dashboard'da Import Et**
+   - https://app.netlify.com → Add new site → Import from GitHub
    - GitHub repo seç
    - Import et
 
-4. **Environment Variables Ekle**
-   - Dashboard → Settings → Environment Variables
+4. **Build Settings**
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+   - Node version: `18.x`
+
+5. **Environment Variables Ekle**
+   - Site settings → Environment variables
    ```
    VITE_SUPABASE_URL=https://rqnvoatirfczpklaamhf.supabase.co
    VITE_SUPABASE_ANON_KEY=<your-key>
    VITE_APP_URL=https://kademekalite.online
    ```
 
-5. **Custom Domain Ekle**
-   - Settings → Domains
+6. **Custom Domain Ekle**
+   - Domain management → Add custom domain
    - `kademekalite.online` ekle
    - DNS kayıtlarını güncelle
 
-**Vercel CLI ile Deploy:**
+**Netlify CLI ile Deploy:**
 ```bash
 # CLI kur
-npm i -g vercel
+npm i -g netlify-cli
 
 # Deploy et
-vercel --prod
+netlify deploy --prod
 
 # Logs görmek için
-vercel logs
+netlify logs
 ```
 
 ---
 
-### Option 2: Netlify
-
-**Kurulum:**
-
-1. **Site Bağla**
-   - https://app.netlify.com/start
-   - GitHub repo seç
-   - Authorize Netlify
-
-2. **Build Settings**
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-   - Node version: `18.x`
-
-3. **Environment Variables**
-   - Site settings → Build & Deploy → Environment
-   - Aşağıdaki değerleri ekle:
-   ```
-   VITE_SUPABASE_URL
-   VITE_SUPABASE_ANON_KEY
-   VITE_APP_URL
-   ```
-
-4. **Deploy Trigger**
-   - Sistem otomatik deploy eder her push'ta
-
-**Netlify CLI ile:**
-```bash
-npm install -g netlify-cli
-netlify deploy --prod
-```
-
----
-
-### Option 3: Docker & Self-Hosted
+### Option 2: Docker & Self-Hosted
 
 **Gereklilik:**
 - Docker installed
@@ -234,7 +205,7 @@ Repository'ye GitHub Actions workflow otomatik olarak kurulmuştur.
 **Gerekli Secrets (GitHub Settings → Secrets):**
 
 ```
-# Vercel
+# Netlify
 VERCEL_TOKEN
 VERCEL_ORG_ID
 VERCEL_PROJECT_ID
@@ -252,7 +223,7 @@ SLACK_WEBHOOK
 2. ✅ Dependencies install
 3. ✅ Lint & format check
 4. ✅ Build & test
-5. ✅ Deploy to Vercel/Docker
+5. ✅ Deploy to Netlify/Docker
 6. ✅ Slack notification
 
 ---
@@ -291,9 +262,9 @@ Sentry.init({
 
 ### Logs
 
-**Vercel:**
+**Netlify:**
 ```bash
-vercel logs
+netlify logs
 ```
 
 **Netlify:**
@@ -327,9 +298,9 @@ docker logs kademe-kalite -f
 
 ### DNS Setup (kademekalite.online)
 
-**For Vercel:**
+**For Netlify:**
 ```
-CNAME: cname.vercel-dns.com
+CNAME: cname.netlify-dns.com
 ```
 
 **For Netlify:**
@@ -344,7 +315,7 @@ A record: 1.2.3.4 (your server IP)
 
 ### SSL Certificate
 
-- ✅ Vercel: Otomatik
+- ✅ Netlify: Otomatik
 - ✅ Netlify: Otomatik
 - 🔧 Self-hosted: Let's Encrypt
   ```bash
@@ -408,7 +379,7 @@ npm run dev -- --port 3001
 ## 📞 Support & Resources
 
 - **Supabase Docs:** https://supabase.com/docs
-- **Vercel Docs:** https://vercel.com/docs
+- **Netlify Docs:** https://netlify.com/docs
 - **React Docs:** https://react.dev
 - **Vite Docs:** https://vitejs.dev
 
@@ -423,7 +394,7 @@ npm run dev -- --port 3001
 - [ ] No console errors
 - [ ] All environment variables documented
 
-### Vercel Deployment
+### Netlify Deployment
 - [ ] GitHub repo connected
 - [ ] Environment variables added
 - [ ] Build settings correct
@@ -456,7 +427,7 @@ npm run dev -- --port 3001
    ```
 
 2. **Deployment Platform Seç**
-   - Vercel → Hızlı & kolay
+   - Netlify → Hızlı & kolay
    - Netlify → Kullanıcı dostu
    - Docker → Tam kontrol
 

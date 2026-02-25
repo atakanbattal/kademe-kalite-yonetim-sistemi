@@ -95,7 +95,7 @@ npm run preview
 npm run db:backup
 # → backups/migration_TIMESTAMP.json
 
-# ✅ Bitti! Vercel otomatik deploy etti
+# ✅ Bitti! Netlify otomatik deploy etti
 ```
 
 ---
@@ -127,14 +127,14 @@ npm run db:backup
 git push origin main
 
 # → GitHub Actions trigger
-# → Vercel auto-deploy
+# → Netlify auto-deploy
 # → ~30 saniye → LIVE ✅
 ```
 
 ### Manual (Gerekirse)
 ```bash
-npm i -g vercel
-vercel --prod
+npm i -g netlify
+netlify --prod
 ```
 
 ---
@@ -157,7 +157,7 @@ vercel --prod
 🖥️  Local Dev: http://localhost:3000
 🌐 Production: https://kademekalite.online
 📊 Supabase: https://app.supabase.com/project/rqnvoatirfczpklaamhf
-💻 Vercel: https://vercel.com/dashboard
+💻 Netlify: https://netlify.com/dashboard
 📝 GitHub: https://github.com/YOUR-USERNAME/kademe-kalite
 ```
 
@@ -195,7 +195,7 @@ npm install            # Update packages
 - [ ] Commit & Push
 - [ ] Build test (`npm run build`)
 - [ ] Backup al (`npm run db:backup`)
-- [ ] Vercel deployment kontrol et
+- [ ] Netlify deployment kontrol et
 
 **Tüm bunlar ~5 dakika alır!** ⚡
 

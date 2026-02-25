@@ -7,7 +7,7 @@ import {
     PieChart, Pie, Cell, Legend, CartesianGrid,
     ComposedChart, Area, Line,
 } from 'recharts';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import useA3ReportData from '@/hooks/useA3ReportData';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -80,7 +80,7 @@ const SectionTitle = ({ children, color = C.navy }) => (
 );
 
 const Panel = ({ title, color = C.navy, children, style = {} }) => (
-    <div style={{ border: `1.5px solid ${color}40`, borderRadius: 5, overflow: 'hidden', background: 'white', ...style }}>
+    <div className="report-panel" style={{ border: `1.5px solid ${color}40`, borderRadius: 5, overflow: 'hidden', background: 'white', ...style }}>
         <SectionTitle color={color}>{title}</SectionTitle>
         <div style={{ padding: '10px 12px' }}>{children}</div>
     </div>
@@ -94,7 +94,7 @@ const StatRow = ({ label, value, color, bold }) => (
 );
 
 const MiniTable = ({ headers, rows, emptyMsg = 'Veri yok', fontSize = 10 }) => (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize }}>
+    <table className="report-mini-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize }}>
         <thead>
             <tr>
                 {headers.map((h, i) => (
@@ -156,7 +156,7 @@ const A3QualityBoardReport = () => {
     );
 
     const { kpis, ncByDept, ncByType, ncMonthly, costByType, costByUnit, costMonthly, qualityActivities,
-            incoming, suppliers, vehicles, complaints, kaizen, deviations,
+            incoming, suppliers, vehicles, complaints, kaizen, deviations, nonconformityModule,
             qualityWall, openNC, openNCTotal, openNCGeciken, activeQuarantine, overdueCalibrations, personnelByDept } = data;
 
     // Tüm SAYFA CSS
@@ -173,6 +173,8 @@ const A3QualityBoardReport = () => {
             body{background:white!important;}
             .wrap{padding:8mm;margin:0;max-width:100%;}
             @page{size:A3 landscape;margin:7mm;}
+            .report-panel,.wrap .report-panel{page-break-inside:avoid;break-inside:avoid;}
+            .report-mini-table tr{page-break-inside:avoid;break-inside:avoid;}
         }
     `;
 
@@ -574,6 +576,62 @@ const A3QualityBoardReport = () => {
                         )}
                     </Panel>
                 </Row>
+
+                {/* Uygunsuzluk Modülü Özeti */}
+                {nonconformityModule && (
+                <Row cols="1fr 1fr" gap={12} mb={14}>
+                    <Panel title="Uygunsuzluk Modülü Özeti" color={C.teal}>
+                        <StatRow label="Toplam Kayıt" value={nonconformityModule.total ?? 0} color={C.teal} bold/>
+                        <StatRow label="Açık Kayıt" value={nonconformityModule.open ?? 0} color={nonconformityModule.open > 0 ? C.red : C.green}/>
+                        {nonconformityModule.byStatus && nonconformityModule.byStatus.length > 0 && (
+                            <>
+                                <div style={{fontSize:11,fontWeight:700,color:C.teal,margin:'10px 0 6px'}}>Durum Dağılımı</div>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                                    {nonconformityModule.byStatus.map((s,i)=>(
+                                        <div key={i} style={{background:'#f0fdfa',padding:'4px 10px',borderRadius:6,borderLeft:`3px solid ${CHART_COLORS[i%CHART_COLORS.length]}`}}>
+                                            <span style={{fontSize:10,fontWeight:600}}>{trunc(safeText(s.name),14)}</span>
+                                            <span style={{fontSize:10,color:C.slate,marginLeft:4}}>{s.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                        {nonconformityModule.bySeverity && nonconformityModule.bySeverity.length > 0 && (
+                            <>
+                                <div style={{fontSize:11,fontWeight:700,color:C.teal,margin:'10px 0 6px'}}>Önem Derecesi</div>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                                    {nonconformityModule.bySeverity.map((s,i)=>(
+                                        <div key={i} style={{background:'#f8fafc',padding:'4px 10px',borderRadius:6}}>
+                                            <span style={{fontSize:10,fontWeight:600}}>{trunc(safeText(s.name),12)}</span>
+                                            <span style={{fontSize:10,color:C.slate,marginLeft:4}}>{s.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </Panel>
+                    <Panel title="Uygunsuzluk Modülü — Son Kayıtlar" color={C.teal}>
+                        {(!nonconformityModule.recentRecords || nonconformityModule.recentRecords.length === 0)
+                            ? <div style={{textAlign:'center',color:C.slate,padding:30,fontSize:11}}>Bu dönemde uygunsuzluk kaydı yok.</div>
+                            : <MiniTable
+                                headers={['Tarih','Parça','Açıklama','Kategori','Alan','Önem','Durum','Sorumlu']}
+                                rows={nonconformityModule.recentRecords.map(r=>[
+                                    r.tarih ? format(parseISO(r.tarih),'dd.MM.yy',{locale:tr}) : '—',
+                                    trunc(safeText(r.parca),12),
+                                    trunc(safeText(r.aciklama),18),
+                                    trunc(safeText(r.kategori),10),
+                                    trunc(safeText(r.alan),10),
+                                    trunc(safeText(r.onem),8),
+                                    trunc(safeText(r.durum),10),
+                                    trunc(safeText(r.sorumlu),12),
+                                ])}
+                                emptyMsg="Kayıt yok"
+                                fontSize={9}
+                              />
+                        }
+                    </Panel>
+                </Row>
+                )}
 
                 {/* SATIR D: Üretilen Araçlarda Hata Kategorileri — geniş alan */}
                 <Row cols="1fr" gap={12} mb={14}>

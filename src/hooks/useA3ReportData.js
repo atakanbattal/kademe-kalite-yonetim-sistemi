@@ -45,6 +45,7 @@ const useA3ReportData = (period = 'last3months') => {
         try {
             const raw = {
                 nonConformities: ctx.nonConformities || [],
+                nonconformityRecords: ctx.nonconformityRecords || [],
                 qualityCosts: ctx.qualityCosts || [],
                 quarantineRecords: ctx.quarantineRecords || [],
                 incomingInspections: ctx.incomingInspections || [],
@@ -67,6 +68,33 @@ const useA3ReportData = (period = 'last3months') => {
             const ncData = raw.nonConformities.filter(n =>
                 inDateRange(n.created_at, startDate, endDate)
             );
+            const ncRecordsData = (raw.nonconformityRecords || []).filter(r =>
+                inDateRange(r.detection_date || r.created_at, startDate, endDate)
+            );
+            const ncRecordsByStatus = {};
+            ncRecordsData.forEach(r => {
+                const st = r.status || 'Açık';
+                ncRecordsByStatus[st] = (ncRecordsByStatus[st] || 0) + 1;
+            });
+            const ncRecordsBySeverity = {};
+            ncRecordsData.forEach(r => {
+                const sev = r.severity || 'Belirtilmemiş';
+                ncRecordsBySeverity[sev] = (ncRecordsBySeverity[sev] || 0) + 1;
+            });
+            const ncRecordsOpen = ncRecordsData.filter(r => r.status !== 'Kapatıldı').length;
+            const ncRecordsRecent = ncRecordsData
+                .sort((a, b) => new Date(b.detection_date || b.created_at || 0) - new Date(a.detection_date || a.created_at || 0))
+                .slice(0, 15)
+                .map(r => ({
+                    tarih: r.detection_date || r.created_at,
+                    parca: r.part_code || r.part_name || '—',
+                    aciklama: (r.description || '').slice(0, 40),
+                    kategori: r.category || '—',
+                    alan: r.detection_area || '—',
+                    onem: r.severity || '—',
+                    durum: r.status || '—',
+                    sorumlu: r.responsible_person || r.department || '—',
+                }));
             const costData = raw.qualityCosts.filter(c =>
                 inDateRange(c.cost_date || c.created_at, startDate, endDate)
             );
@@ -480,6 +508,13 @@ const useA3ReportData = (period = 'last3months') => {
                 },
                 kaizen: { byStatus: kaizenByStatusArr, byDept: kaizenByDeptArr },
                 deviations: { byStatus: deviationByStatusArr, byUnit: deviationByUnitArr },
+                nonconformityModule: {
+                    total: ncRecordsData.length,
+                    open: ncRecordsOpen,
+                    byStatus: Object.entries(ncRecordsByStatus).map(([name, value]) => ({ name, value })),
+                    bySeverity: Object.entries(ncRecordsBySeverity).map(([name, value]) => ({ name, value })),
+                    recentRecords: ncRecordsRecent,
+                },
                 qualityWall: qualityWallArr,
                 overdueNC: overdueNC.slice(0, 8),
                 openNC,
@@ -515,7 +550,7 @@ const useA3ReportData = (period = 'last3months') => {
             setLoading(false);
         }
     }, [
-        ctx.loading, ctx.nonConformities, ctx.qualityCosts, ctx.quarantineRecords, ctx.incomingInspections,
+        ctx.loading, ctx.nonConformities, ctx.nonconformityRecords, ctx.qualityCosts, ctx.quarantineRecords, ctx.incomingInspections,
         ctx.producedVehicles, ctx.customerComplaints, ctx.kaizenEntries, ctx.deviations, ctx.equipments,
         ctx.audits, ctx.auditFindings, ctx.personnel, ctx.tasks, ctx.suppliers, ctx.supplierNonConformities,
         ctx.incomingControlPlans, ctx.processControlPlans, ctx.trainings,

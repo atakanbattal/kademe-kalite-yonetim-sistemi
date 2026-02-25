@@ -36,23 +36,23 @@ git push -u origin main
 
 ---
 
-### Adım 3: Vercel'de Deploy Et (10 min) ⭐ RECOMMENDED
+### Adım 3: Netlify'da Deploy Et (10 min) ⭐ RECOMMENDED
 
-**A. Quick Deploy (Vercel CLI):**
+**A. Quick Deploy (Netlify CLI):**
 ```bash
-npm i -g vercel
-vercel --prod
+npm i -g netlify-cli
+netlify deploy --prod
 ```
 
 **B. Manual Deploy:**
-1. `https://vercel.com/new` açıl
+1. `https://app.netlify.com` açıl → Add new site → Import from GitHub
 2. GitHub repo'yu seç
 3. Import et
 4. Environment Variables ekle:
    ```
    VITE_SUPABASE_URL=https://rqnvoatirfczpklaamhf.supabase.co
    VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbnZvYXRpcmZjenBrbGFhbWhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4MTQ4MTIsImV4cCI6MjA3MjM5MDgxMn0.eyUXdL9A8JD32bx3NcHRa-rvyDByP4RJfqD69qRolhM
-   VITE_APP_URL=https://your-vercel-url.vercel.app
+   VITE_APP_URL=https://your-site.netlify.app
    ```
 5. Deploy!
 
@@ -60,12 +60,9 @@ vercel --prod
 
 ### Adım 4: Custom Domain Bağla (5 min)
 
-1. Vercel Dashboard → Settings → Domains
+1. Netlify Dashboard → Domain management → Add custom domain
 2. `kademekalite.online` ekle
-3. DNS kayıtlarını güncelle:
-   ```
-   CNAME: cname.vercel-dns.com
-   ```
+3. DNS kayıtlarını güncelle (Netlify'ın verdiği CNAME veya A record)
 4. 5-10 dakika bekle
 
 ---
@@ -95,7 +92,7 @@ git commit -m "Feature: Description"
 git push origin main
 ```
 
-✅ Vercel otomatik deploy eder!
+✅ Netlify otomatik deploy eder!
 
 ---
 
@@ -103,7 +100,7 @@ git push origin main
 
 - [ ] GitHub repo oluşturuldu
 - [ ] `.env.local` `.gitignore`'da
-- [ ] Vercel connected
+- [ ] Netlify connected
 - [ ] Environment variables set
 - [ ] Domain connected
 - [ ] HTTPS active
@@ -119,14 +116,14 @@ git push origin main
 | Port 3000 in use | `npm run dev -- --port 3001` |
 | Build error | `npm cache clean --force && npm install` |
 | Env vars not loading | Dev server'ı restart et |
-| Vercel deploys old code | `vercel --prod --force` |
+| Netlify deploys old code | `netlify deploy --prod --build` |
 
 ---
 
 ## 📞 Resources
 
 - Supabase: https://supabase.com/docs
-- Vercel: https://vercel.com/docs
+- Netlify: https://docs.netlify.com
 - React: https://react.dev
 
 ---

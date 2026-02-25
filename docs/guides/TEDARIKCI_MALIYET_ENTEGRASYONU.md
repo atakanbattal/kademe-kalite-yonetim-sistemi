@@ -186,7 +186,7 @@ Bu özelliği production ortamına almak için:
 
 3. **Deploy**:
    ```bash
-   # Netlify, Vercel veya kendi deployment süreciniz
+   # Netlify veya kendi deployment süreciniz
    git add .
    git commit -m "feat: Tedarikçi kaynaklı maliyet entegrasyonu eklendi"
    git push origin main

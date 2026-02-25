@@ -158,64 +158,38 @@ psql -U postgres < backup.sql
 
 ## 🚀 Deployment Seçenekleri
 
-### Seçenek 1: Vercel (En Hızlı) ✅
+### Seçenek 1: Netlify (En Hızlı) ✅
 
 **Avantajlar:**
 - Otomatik HTTPS
-- Serverless Functions
 - Environment variables kolay yönetimi
 - GitHub integration
+- Ücretsiz SSL
 
 **Kurulum:**
 ```bash
-# 1. Vercel CLI kur
-npm i -g vercel
+# 1. Netlify CLI kur (opsiyonel)
+npm i -g netlify-cli
 
 # 2. GitHub repo'ya push et
 git remote add origin <github-repo>
 git push -u origin main
 
-# 3. Vercel Dashboard'da import et
-# https://vercel.com/import
+# 3. Netlify Dashboard'da import et
+# https://app.netlify.com → Add new site → Import from GitHub
 
-# 4. Environment variables ekle
-# Dashboard → Settings → Environment Variables
-# Aşağıdaki değerleri ekle:
+# 4. Build settings:
+# Build command: npm run build
+# Publish directory: dist
+
+# 5. Environment variables ekle
+# Site settings → Environment variables
 VITE_SUPABASE_URL=https://rqnvoatirfczpklaamhf.supabase.co
 VITE_SUPABASE_ANON_KEY=<key>
 VITE_APP_URL=https://kademekalite.online
 ```
 
-**Kurulum dosyası (`vercel.json`):**
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "env": {
-    "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key"
-  }
-}
-```
-
-### Seçenek 2: Netlify
-
-```bash
-# 1. Netlify sitesine gir
-# https://app.netlify.com
-
-# 2. GitHub repo'yu bağla
-# Deploy → Connect to Git
-
-# 3. Build settings:
-# Build command: npm run build
-# Publish directory: dist
-
-# 4. Environment variables ekle
-# Site settings → Build & Deploy → Environment
-```
-
-### Seçenek 3: Docker (Self-Hosted)
+### Seçenek 2: Docker (Self-Hosted)
 
 **`Dockerfile` oluştur:**
 ```dockerfile
@@ -322,8 +296,8 @@ Sentry.init({
 ### 3. Log Monitoring
 
 ```bash
-# Vercel logs
-vercel logs
+# Netlify logs
+netlify logs
 
 # Netlify logs
 netlify functions:log
@@ -339,7 +313,7 @@ netlify functions:log
 - [ ] Local development test edilmiş
 - [ ] Production build başarılı (`npm run build`)
 - [ ] GitHub repo'ya push yapılmış
-- [ ] Deployment platform seçilmiş (Vercel/Netlify/Docker)
+- [ ] Deployment platform seçilmiş (Netlify/Docker)
 - [ ] Domain DNS ayarlanmış (kademekalite.online)
 - [ ] SSL sertifikası aktif
 - [ ] Supabase RLS policies konfigüre edilmiş

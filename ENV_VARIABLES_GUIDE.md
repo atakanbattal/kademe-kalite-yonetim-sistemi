@@ -31,7 +31,7 @@ https://rqnvoatirfczpklaamhf.supabase.co
 VITE_SUPABASE_URL=https://rqnvoatirfczpklaamhf.supabase.co
 ```
 
-✅ **Bunu Vercel'de kullanacaksın!**
+✅ **Bunu Netlify'de kullanacaksın!**
 
 ---
 
@@ -60,7 +60,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 - **service_role** key'i ASLA kullanma (private!)
 - **anon** key'i kullan (public)
 
-✅ **Bunu Vercel'de kullanacaksın!**
+✅ **Bunu Netlify'de kullanacaksın!**
 
 ---
 
@@ -68,29 +68,29 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 ### Bu En Kolay Kısmı!
 
-Vercel deploy ettikten sonra otomatik oluşacak. Şu anda tahmin etmen gerek:
+Netlify deploy ettikten sonra otomatik oluşacak. Şu anda tahmin etmen gerek:
 
 **Örnek:**
 ```
-https://your-app-name.vercel.app
+https://your-app-name.netlify.app
 ```
 
 ### Gerçek Değer:
-1. Vercel'de deploy et
+1. Netlify'de deploy et
 2. Tamamlandıktan sonra URL göreceksin, örn:
    ```
-   https://kademe-kalite-yonetim-sistemi.vercel.app
+   https://kademe-kalite-yonetim-sistemi.netlify.app
    ```
 3. Bunu VITE_APP_URL olarak set et
 
 **Şimdilik şunu yazabilirsin:**
 ```
-VITE_APP_URL=https://your-app-name.vercel.app
+VITE_APP_URL=https://your-app-name.netlify.app
 ```
 
 (Sonra deploy URL'sini aldıktan sonra güncelleyebilirsin)
 
-✅ **Vercel'de otomatik güncellenebilir!**
+✅ **Netlify'de otomatik güncellenebilir!**
 
 ---
 
@@ -126,15 +126,15 @@ Supabase Dashboard
 |----------|-------|---------|
 | **VITE_SUPABASE_URL** | `https://rqnvoatirfczpklaamhf.supabase.co` | Supabase → Project Settings → API → Project URL |
 | **VITE_SUPABASE_ANON_KEY** | `eyJhbGciO...` (uzun string) | Supabase → Project Settings → API → API Keys → anon |
-| **VITE_APP_URL** | `https://your-app.vercel.app` | Vercel deploy URL'i |
+| **VITE_APP_URL** | `https://your-app.netlify.app` | Netlify deploy URL'i |
 
 ---
 
-## 🚀 Vercel'de Nasıl Ekleyeceğin
+## 🚀 Netlify'de Nasıl Ekleyeceğin
 
 ### Adım Adım:
 
-1. **https://vercel.com/new** → GitHub repo'yu seç
+1. **https://netlify.com/new** → GitHub repo'yu seç
 2. **"Environment Variables"** bölümünü bul (sayfanın aşağısında)
 3. **"Add Environment Variable"** butonuna tıkla
 
@@ -155,7 +155,7 @@ Value alanına yapıştır: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ### Üçüncü Variable (VITE_APP_URL):
 ```
 Name alanına yazı:    VITE_APP_URL
-Value alanına yazı:   https://your-app-name.vercel.app
+Value alanına yazı:   https://your-app-name.netlify.app
 ```
 → **Add** butonuna tıkla
 
@@ -182,10 +182,10 @@ Value alanına yazı:   https://your-app-name.vercel.app
 4. Copy simgesine tıkla
 5. Çok uzun bir string (başında `eyJ...` gibi)
 
-### Vercel'de Kontrol:
+### Netlify'de Kontrol:
 
 **Deploy ettikten sonra:**
-1. Vercel Dashboard → Project → Deployments
+1. Netlify Dashboard → Project → Deployments
 2. En son deployment'ı tıkla
 3. URL göreceksin üstte
 4. Bu URL'i VITE_APP_URL olarak set edebilirsin (opsiyonel)
@@ -216,14 +216,14 @@ VITE_SUPABASE_URL = https://...
 ```
 VITE_SUPABASE_URL=https://rqnvoatirfczpklaamhf.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-VITE_APP_URL=https://your-app-name.vercel.app
+VITE_APP_URL=https://your-app-name.netlify.app
 ```
 
 ---
 
 ## 🎯 Özet
 
-**3 tane değişken var, bunları ekleyeceksin Vercel'de:**
+**3 tane değişken var, bunları ekleyeceksin Netlify'de:**
 
 1. ✅ **VITE_SUPABASE_URL**
    - Supabase'den kopyala
@@ -234,8 +234,8 @@ VITE_APP_URL=https://your-app-name.vercel.app
    - `eyJhbGciO...` (uzun string)
 
 3. ✅ **VITE_APP_URL**
-   - Vercel'de deploy URL'i
-   - `https://your-app-name.vercel.app`
+   - Netlify'de deploy URL'i
+   - `https://your-app-name.netlify.app`
 
 **Bittikten sonra:**
 - Deploy et
@@ -251,8 +251,8 @@ VITE_APP_URL=https://your-app-name.vercel.app
 - Project Settings → API
 - İlk 2 değişkeni gör ve kopyala!
 
-**Vercel'i aç:**
-- https://vercel.com/new
+**Netlify'i aç:**
+- https://netlify.com/new
 - Repo'yu seç
 - Environment Variables bölümüne ekle!
 

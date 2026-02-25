@@ -18,7 +18,7 @@
        ┌──────┴──────┐          ┌───────┴────────┐
        │              │          │                │
    LOCAL DEV      PRODUCTION  STAGING        BACKUP
-   (Port 3000)    (Vercel)     (Branch)       (JSON)
+   (Port 3000)    (Netlify)    (Branch)       (JSON)
 ```
 
 ---
@@ -136,7 +136,7 @@ $$;
 
 ---
 
-## 🔄 Deployment Workflow (Supabase + Vercel)
+## 🔄 Deployment Workflow (Supabase + Netlify)
 
 ### Pre-Deployment Checklist
 
@@ -149,7 +149,7 @@ npm run preview
 # → Dashboard'da RLS policies kontrol et
 # → Storage bucket'ları configure et
 
-# 3. Environment variables set et (Vercel'de)
+# 3. Environment variables set et (Netlify'da)
 # → Supabase URL & Keys
 
 # 4. Backup al
@@ -165,21 +165,21 @@ git commit -m "Deploy: Açıklama"
 git push origin main
 ```
 
-#### **2. Vercel Otomatik Deploy**
-- GitHub Push → GitHub Actions trigger → Vercel deploy
+#### **2. Netlify Otomatik Deploy**
+- GitHub Push → Netlify (veya GitHub Actions) → Deploy
 - ~30 saniye içinde live
 
-#### **3. Vercel Environment Variables**
+#### **3. Netlify Environment Variables**
 ```
 VITE_SUPABASE_URL=https://rqnvoatirfczpklaamhf.supabase.co
 VITE_SUPABASE_ANON_KEY=<from Supabase>
-VITE_APP_URL=https://production-url.vercel.app
+VITE_APP_URL=https://production-url.netlify.app
 ```
 
 #### **4. Doğrula**
 ```bash
 # Production'ı test et
-curl https://production-url.vercel.app
+curl https://production-url.netlify.app
 
 # Supabase Logs'ta API calls kontrol et
 # Dashboard → Monitoring → API Requests
@@ -325,7 +325,7 @@ git push origin main
 ### Akşam
 ```bash
 # Production durumunu kontrol et
-# → Vercel deployment status
+# → Netlify deployment status
 # → Supabase Logs
 
 # Backup al (opsiyonel)
@@ -365,8 +365,8 @@ SELECT * FROM pg_policies WHERE tablename = 'table_name';
 
 ### "Production'da çalışmıyor ama local'de ok"
 ```bash
-# 1. Env vars kontrol et (Vercel Dashboard)
-# 2. Build log'ları kontrol et (Vercel Deployments)
+# 1. Env vars kontrol et (Netlify Dashboard)
+# 2. Build log'ları kontrol et (Netlify Deploys)
 # 3. Supabase Logs kontrol et
 # 4. CORS settings kontrol et
 ```
@@ -388,7 +388,7 @@ GitHub Actions
         ↓
     ✅ Build Success
         ↓
-    Vercel Deploy
+    Netlify Deploy
         ↓
     Supabase API calls
         ↓
@@ -398,11 +398,11 @@ GitHub Actions
 ### Manual Deployment (Gerekirse)
 
 ```bash
-# Vercel CLI ile immediate deploy
-npm i -g vercel
-vercel --prod
+# Netlify CLI ile immediate deploy
+npm i -g netlify-cli
+netlify deploy --prod
 
-# Vercel Dashboard'dan manual trigger
+# Netlify Dashboard'dan manual trigger
 # → Deployments → Redeploy
 ```
 
@@ -434,7 +434,7 @@ vercel --prod
 
 ✅ Supabase tamamen canlı ve merkezi veri kaynağı
 ✅ Local'de geliştir, Supabase'de kontrol et
-✅ Git push → Vercel auto-deploy → Supabase sync
+✅ Git push → Netlify auto-deploy → Supabase sync
 ✅ Dashboard'dan gerçek zamanlı monitoring
 ✅ Güvenli, scalable, production-ready sistem
 

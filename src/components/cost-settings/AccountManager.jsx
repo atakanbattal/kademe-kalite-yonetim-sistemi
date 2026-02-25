@@ -264,7 +264,10 @@ const ChangePasswordModal = ({ open, setOpen, user, onSuccess }) => {
     });
 
     if (error) {
-      toast({ variant: 'destructive', title: 'Hata', description: error.message });
+      const msg = error.message?.includes('FunctionsRelay') || error.message?.includes('fetch')
+        ? 'manage-user Edge Function erişilemedi. Deploy edin: npm run supabase:deploy-functions'
+        : error.message;
+      toast({ variant: 'destructive', title: 'Hata', description: msg });
     } else {
       toast({ title: 'Başarılı', description: 'Şifre güncellendi.' });
       setOpen(false);
@@ -321,7 +324,10 @@ const AccountManager = () => {
     setLoading(true);
     const { data, error } = await supabase.rpc('get_all_users_with_profiles');
     if (error) {
-      toast({ variant: 'destructive', title: 'Hata', description: 'Kullanıcılar yüklenemedi.' });
+      const msg = error.code === '42883' || error.message?.includes('function')
+        ? 'get_all_users_with_profiles RPC bulunamadı. Supabase migration çalıştırın: supabase db push'
+        : error.message || 'Kullanıcılar yüklenemedi.';
+      toast({ variant: 'destructive', title: 'Hata', description: msg });
     } else {
       setUsers(data || []);
       const perms = (data || []).reduce((acc, u) => {
@@ -360,9 +366,18 @@ const AccountManager = () => {
     });
 
     if (error) {
-      toast({ variant: 'destructive', title: 'Hata', description: error.message });
+      const msg = error.message?.includes('FunctionsRelay') || error.message?.includes('fetch')
+        ? 'manage-user Edge Function erişilemedi. Deploy edin: npm run supabase:deploy-functions'
+        : error.message;
+      toast({ variant: 'destructive', title: 'Hata', description: msg });
     } else {
-      await supabase.from('profiles').update({ permissions: permissionsToSave, updated_at: new Date().toISOString() }).eq('id', userId);
+      const { error: rpcError } = await supabase.rpc('update_profile_permissions', {
+        target_user_id: userId,
+        new_permissions: permissionsToSave,
+      });
+      if (rpcError) {
+        toast({ variant: 'destructive', title: 'Uyarı', description: 'Yetkiler auth\'da güncellendi ancak profiles senkronizasyonu başarısız: ' + rpcError.message });
+      }
       setUserPermissions((prev) => ({ ...prev, [userId]: permissionsToSave }));
       toast({ title: 'Başarılı', description: 'Yetkiler kaydedildi.' });
       logAudit('İzin Güncelleme', { userId, newPermissions: permissionsToSave }, 'profiles');
@@ -382,7 +397,10 @@ const AccountManager = () => {
     });
 
     if (error) {
-      toast({ variant: 'destructive', title: 'Hata', description: error.message });
+      const msg = error.message?.includes('FunctionsRelay') || error.message?.includes('fetch')
+        ? 'manage-user Edge Function erişilemedi. Deploy edin: npm run supabase:deploy-functions'
+        : error.message;
+      toast({ variant: 'destructive', title: 'Hata', description: msg });
       return false;
     }
     toast({ title: 'Başarılı', description: 'Hesap silindi.' });

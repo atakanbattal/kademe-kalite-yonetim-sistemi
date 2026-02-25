@@ -258,7 +258,7 @@ Tüm kalite süreçlerini dijitalleştirerek veri odaklı karar alma, şeffaf ra
 ## 11. Entegrasyonlar
 
 - **Supabase:** Auth, Database, Storage, Realtime
-- **Vercel:** Opsiyonel deployment
+- **Netlify:** Opsiyonel deployment
 - **Harici sistemler:** Şu an doğrudan entegrasyon yok; ileride ERP/MES/PLM API’leri planlanabilir
 
 ---

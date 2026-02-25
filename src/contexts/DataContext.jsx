@@ -26,6 +26,7 @@ export const DataProvider = ({ children }) => {
         producedVehicles: [],
         productionDepartments: [],
         nonConformities: [],
+        nonconformityRecords: [],
         suppliers: [],
         supplierNonConformities: [],
         audits: [],
@@ -153,6 +154,7 @@ export const DataProvider = ({ children }) => {
         const mediumPromises = {
             producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').limit(500),
             nonConformities: supabase.from('non_conformities').select('*, supplier:supplier_id(name)'),
+            nonconformityRecords: supabase.from('nonconformity_records').select('*').order('detection_date', { ascending: false }).limit(500),
             deviations: supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)'),
             kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
             tasks: supabase.from('tasks').select('*, owner:owner_id(full_name, email), project:project_id(id, name, color), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)'),
