@@ -16,6 +16,7 @@
     "db:backup": "node scripts/backup-database.js",
     "db:migrate": "node scripts/migrate-from-supabase.js",
     "db:fix": "node scripts/run-supabase-sql.js scripts/fix-account-management.sql",
+    "db:fix-rpc": "node scripts/run-fix-account-management.js",
     "deploy:netlify": "netlify deploy --prod",
     "deploy:build": "npm run build && npm run preview"
   },
