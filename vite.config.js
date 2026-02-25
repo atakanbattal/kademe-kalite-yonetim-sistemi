@@ -245,6 +245,13 @@ export default defineConfig({
 		allowedHosts: true,
 		port: 3003,
 		host: '::',
+		proxy: {
+			'/api': {
+				target: 'http://localhost:9999',
+				changeOrigin: true,
+				rewrite: (p) => p.replace(/^\/api/, '/.netlify/functions'),
+			},
+		},
 	},
 	resolve: {
 		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],

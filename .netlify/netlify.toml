@@ -27,6 +27,12 @@ VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 
 [build.services]
 
+[dev]
+command = "npm run dev"
+targetPort = 3003.0
+port = 8888.0
+autoLaunch = false
+
 [functions]
 
 [functions."*"]
