@@ -649,12 +649,12 @@ const AccountManager = () => {
           </div>
           <div className="flex items-center gap-2">
             <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none shrink-0" />
               <Input
                 placeholder="İsim veya e-posta ara..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="!pl-10"
               />
             </div>
             <Button onClick={() => setNewUserOpen(true)}>
