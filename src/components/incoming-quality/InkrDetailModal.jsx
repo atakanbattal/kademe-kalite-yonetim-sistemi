@@ -231,7 +231,7 @@ const InkrDetailModal = ({
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Tedarikçi</Label>
-                                        <p className="font-medium">{report.supplier_name || '-'}</p>
+                                        <p className="font-medium">{report.supplier?.name || report.supplier_name || '-'}</p>
                                     </div>
                                     <div>
                                         <Label className="text-gray-600">Rapor Tarihi</Label>

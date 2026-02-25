@@ -234,72 +234,75 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     }, [currentPage, filters, fetchInspections, fetchDashboardData]);
 
     // INKR eksik sayısını tüm parça kodları üzerinden hesapla (filtresiz)
+    // ÖNEMLİ: DataContext'teki inkrReports Supabase 1000 kayıt limiti nedeniyle eksik olabilir.
+    // InkrManagement ile aynı mantıkta, pagination ile TÜM verileri doğrudan çekiyoruz.
     useEffect(() => {
         const calculateInkrMissing = async () => {
             try {
-                // Supabase varsayılan 1000 kayıt limiti var - tüm verileri almak için pagination yapıyoruz
+                const PAGE_SIZE = 1000;
+                const normalizePartCode = (code) => code ? code.toString().trim().toLowerCase() : '';
+
+                // 1. Tüm inspection kayıtlarından benzersiz parça kodlarını al (pagination)
                 let allInspections = [];
                 let page = 0;
-                const PAGE_SIZE = 1000;
                 let hasMore = true;
-
                 while (hasMore) {
                     const from = page * PAGE_SIZE;
                     const to = from + PAGE_SIZE - 1;
-
                     const { data: inspections, error } = await supabase
                         .from('incoming_inspections_with_supplier')
                         .select('part_code')
                         .not('part_code', 'is', null)
                         .not('part_code', 'eq', '')
+                        .order('id', { ascending: true })
                         .range(from, to);
 
                     if (error) {
                         console.error('INKR hesaplama hatası:', error);
                         return;
                     }
-
-                    if (inspections && inspections.length > 0) {
-                        allInspections = allInspections.concat(inspections);
-                    }
-
-                    if (!inspections || inspections.length < PAGE_SIZE) {
-                        hasMore = false;
-                    } else {
-                        page++;
-                    }
+                    if (inspections?.length) allInspections = allInspections.concat(inspections);
+                    if (!inspections || inspections.length < PAGE_SIZE) hasMore = false;
+                    else page++;
                 }
 
-                console.log('📥 INKR Hesaplama - Toplam inspection kaydı çekildi:', allInspections.length);
-
-                // Normalize fonksiyonu
-                const normalizePartCode = (code) => code ? code.toString().trim().toLowerCase() : '';
-
-                // Benzersiz parça kodları
                 const uniquePartCodes = new Set();
                 (allInspections || []).forEach(i => {
                     if (i.part_code) {
-                        const normalized = normalizePartCode(i.part_code);
-                        if (normalized) uniquePartCodes.add(normalized);
+                        const n = normalizePartCode(i.part_code);
+                        if (n) uniquePartCodes.add(n);
                     }
                 });
 
-                // INKR mevcut parça kodları
+                // 2. Tüm INKR raporlarından parça kodlarını al (pagination - DataContext limiti yok)
+                let allInkrReports = [];
+                page = 0;
+                hasMore = true;
+                while (hasMore) {
+                    const from = page * PAGE_SIZE;
+                    const to = from + PAGE_SIZE - 1;
+                    const { data: reports, error } = await supabase
+                        .from('inkr_reports')
+                        .select('part_code')
+                        .order('id', { ascending: true })
+                        .range(from, to);
+
+                    if (error) {
+                        console.error('INKR hesaplama hatası:', error);
+                        return;
+                    }
+                    if (reports?.length) allInkrReports = allInkrReports.concat(reports);
+                    if (!reports || reports.length < PAGE_SIZE) hasMore = false;
+                    else page++;
+                }
+
                 const inkrPartCodes = new Set(
-                    (inkrReports || [])
+                    (allInkrReports || [])
                         .map(r => normalizePartCode(r.part_code))
                         .filter(pc => pc !== '')
                 );
 
-                // INKR eksik sayısı
                 const missingCount = Array.from(uniquePartCodes).filter(pc => !inkrPartCodes.has(pc)).length;
-                
-                console.log('📊 INKR Eksik Hesaplama (Module):', {
-                    toplamBenzersizParcaKodu: uniquePartCodes.size,
-                    inkrMevcutParcaKodu: inkrPartCodes.size,
-                    inkrEksikSayisi: missingCount
-                });
-
                 setInkrMissingCount(missingCount);
             } catch (err) {
                 console.error('INKR hesaplama hatası:', err);
@@ -307,7 +310,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         };
 
         calculateInkrMissing();
-    }, [inkrReports]);
+    }, [inkrReports]); // inkrReports sadece yenileme tetikleyicisi; hesaplama pagination ile yapılıyor
 
     const handleSuccess = () => {
         setFormOpen(false);

@@ -16,7 +16,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { DialogClose } from '@/components/ui/dialog';
 import AnalysisTab from './AnalysisTab';
@@ -183,10 +182,11 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                 </header>
 
                 {complaintData && (
-                    <div className="flex gap-2 px-6 py-4 border-b bg-muted/30 shrink-0">
+                    <div className="flex flex-wrap gap-2 px-6 py-4 border-b bg-muted/30 shrink-0">
                         <Button
-                            variant="outline"
+                            variant="default"
                             onClick={handleGenerateReport}
+                            className="bg-primary"
                         >
                             <Download className="w-4 h-4 mr-2" />
                             Rapor Al
@@ -250,9 +250,9 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                         </div>
                     </div>
                 ) : (
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
-                            <div className="px-6 pt-4">
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden min-h-0">
+                            <div className="px-6 pt-4 shrink-0 relative z-10 bg-background">
                                 <TabsList className="grid w-full grid-cols-5">
                                     <TabsTrigger value="overview">
                                         <FileText className="w-4 h-4 mr-2" />
@@ -277,15 +277,35 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                 </TabsList>
                             </div>
                             
-                            <ScrollArea className="flex-1 px-6">
+                            <div className="flex-1 min-h-0 overflow-y-auto px-6">
 
                             {/* Genel Bakış */}
                             <TabsContent value="overview" className="space-y-6 mt-6 pb-6">
+                                {/* Özet - Öne Çıkan Bilgiler */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg border">
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase">Şikayet No</p>
+                                        <p className="font-semibold">{complaintData?.complaint_number || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase">Tarih</p>
+                                        <p className="font-semibold">{complaintData?.complaint_date ? new Date(complaintData.complaint_date).toLocaleDateString('tr-TR') : '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase">Açık Süre</p>
+                                        <p className="font-semibold text-amber-600">{getDaysOpen(complaintData?.complaint_date, complaintData?.actual_close_date)} gün</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase">Müşteri</p>
+                                        <p className="font-semibold truncate" title={complaintData?.customer?.customer_name || complaintData?.customer?.name}>{complaintData?.customer?.customer_name || complaintData?.customer?.name || '-'}</p>
+                                    </div>
+                                </div>
+
                                 {/* Önemli Bilgiler */}
                                 <div>
-                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                        <AlertCircle className="h-5 w-5 text-primary" />
-                                        Önemli Bilgiler
+                                    <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4 text-primary" />
+                                        Detaylı Bilgiler
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <InfoCard
@@ -596,12 +616,15 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                 </div>
 
                                 {/* Açıklama */}
-                                <Card>
+                                <Card className="border-primary/20">
                                     <CardHeader>
-                                        <CardTitle className="text-lg">Şikayet Açıklaması</CardTitle>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <FileText className="h-5 w-5" />
+                                            Şikayet Açıklaması
+                                        </CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                        <div className="whitespace-pre-wrap text-base leading-relaxed">
                                             {complaintData.description || '-'}
                                         </div>
                                     </CardContent>
@@ -674,7 +697,7 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                                     onRefresh={handleRefresh}
                                 />
                             </TabsContent>
-                            </ScrollArea>
+                            </div>
                         </Tabs>
                     </div>
                 )}

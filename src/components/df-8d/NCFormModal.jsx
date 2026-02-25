@@ -97,34 +97,8 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
                     });
                 }
 
-                // --- OTOMASYON: Maliyet Kaydı Oluşturma ---
-                if (finalFormData.status === 'Kapatıldı') {
-                    if (window.confirm('Uygunsuzluk kapatıldı. İlgili Kalite Maliyeti kaydını oluşturmak ister misiniz?')) {
-                        try {
-                            const costPayload = {
-                                cost_date: new Date().toISOString().slice(0, 10),
-                                cost_type: finalFormData.is_supplier_nc ? 'Tedarikçi Hata Maliyeti' : 'İç Hata',
-                                unit: finalFormData.department || finalFormData.requesting_unit || 'Genel',
-                                amount: 0,
-                                description: `OTOMATİK - ${data.nc_number || data.mdi_no || 'NC'}: ${data.title}`,
-                                source_type: 'nc_automation',
-                                is_supplier_nc: !!finalFormData.is_supplier_nc,
-                                supplier_id: finalFormData.supplier_id || null,
-                                status: 'Aktif',
-                                vehicle_type: 'Diğer', // Varsayılan
-                            };
-
-                            const { error: costError } = await supabase.from('quality_costs').insert([costPayload]);
-                            if (costError) throw costError;
-
-                            toast({ title: 'Bilgi', description: 'Maliyet kaydı taslağı oluşturuldu. Lütfen Kalite Maliyetleri modülünden detayları giriniz.' });
-                        } catch (error) {
-                            console.error('Auto cost creation failed', error);
-                            toast({ variant: 'destructive', title: 'Hata', description: 'Otomatik maliyet kaydı oluşturulamadı.' });
-                        }
-                    }
-                }
-                // --- OTOMASYON SONU ---
+                // Kalite maliyeti kaydı artık otomatik oluşturulmuyor.
+                // Kullanıcı Kalite Maliyetleri modülünden manuel olarak oluşturabilir.
 
                 if (onSaveSuccess) onSaveSuccess(data);
                 if (!isEditMode) clearDraft();
