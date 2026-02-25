@@ -36,7 +36,7 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
         "w-[calc(100%-1rem)] sm:w-auto sm:max-w-lg",
         // Padding
         "p-4 sm:p-6",
-        // Pozisyonlama
+        // Pozisyonlama - merkez (fullscreen için className ile override)
         "left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]",
         // Rounded
         "rounded-lg",

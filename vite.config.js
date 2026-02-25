@@ -247,9 +247,9 @@ export default defineConfig({
 		host: '::',
 		proxy: {
 			'/api': {
-				target: 'http://localhost:9999',
+				target: 'https://kademekalite.online',
 				changeOrigin: true,
-				rewrite: (p) => p.replace(/^\/api/, '/.netlify/functions'),
+				secure: true,
 			},
 		},
 	},

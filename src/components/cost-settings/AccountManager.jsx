@@ -48,6 +48,33 @@ import {
   Eye,
   ShieldOff,
   UserPlus,
+  LayoutDashboard,
+  BarChart3,
+  AlertTriangle,
+  FileWarning,
+  DollarSign,
+  MessageSquare,
+  PackageCheck,
+  Gauge,
+  Car,
+  Activity,
+  Factory,
+  ClipboardCheck,
+  SearchCheck,
+  FileText,
+  BookOpen,
+  Wrench,
+  FileCog,
+  Lightbulb,
+  GraduationCap,
+  Users,
+  TrendingUp,
+  ShieldAlert,
+  ListTodo,
+  Settings,
+  Lock,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -191,6 +218,59 @@ const NewUserModal = ({ open, setOpen, onUserAdded }) => {
   );
 };
 
+const MODULE_ICONS = {
+  dashboard: LayoutDashboard, kpi: BarChart3, nonconformity: AlertTriangle,
+  'df-8d': FileWarning, 'quality-cost': DollarSign, 'customer-complaints': MessageSquare,
+  'incoming-quality': PackageCheck, 'process-control': Gauge, 'produced-vehicles': Car,
+  'dynamic-balance': Activity, 'supplier-quality': Factory, 'supplier-audit': ClipboardCheck,
+  'internal-audit': SearchCheck, deviation: FileText, 'audit-logs': BookOpen,
+  equipment: Wrench, document: FileCog, wps: FileText, kaizen: Lightbulb,
+  training: GraduationCap, polyvalence: Users, benchmark: TrendingUp,
+  quarantine: ShieldAlert, tasks: ListTodo, settings: Settings,
+};
+
+const MODULE_GROUPS = [
+  { title: 'Genel', modules: ['dashboard', 'kpi', 'tasks', 'settings'] },
+  { title: 'Kalite Yönetimi', modules: ['nonconformity', 'df-8d', 'customer-complaints', 'deviation', 'quarantine'] },
+  { title: 'Üretim & Kontrol', modules: ['incoming-quality', 'process-control', 'produced-vehicles', 'dynamic-balance'] },
+  { title: 'Tedarikçi', modules: ['supplier-quality', 'supplier-audit'] },
+  { title: 'Denetim & Kayıtlar', modules: ['internal-audit', 'audit-logs'] },
+  { title: 'Doküman & Ekipman', modules: ['equipment', 'document', 'wps'] },
+  { title: 'İyileştirme & Eğitim', modules: ['kaizen', 'training', 'polyvalence', 'benchmark'] },
+  { title: 'Maliyet', modules: ['quality-cost'] },
+];
+
+const PermissionToggle = ({ value, onChange, testId }) => {
+  const options = [
+    { key: 'none', label: 'Yok', icon: XCircle, color: 'text-gray-400', activeBg: 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300' },
+    { key: 'read', label: 'Okuma', icon: Eye, color: 'text-blue-500', activeBg: 'bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300' },
+    { key: 'full', label: 'Tam', icon: CheckCircle2, color: 'text-green-500', activeBg: 'bg-green-50 dark:bg-green-950 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300' },
+  ];
+  return (
+    <div className="flex flex-nowrap gap-1 shrink-0" data-testid={testId}>
+      {options.map((opt) => {
+        const Icon = opt.icon;
+        const isActive = (value || 'none') === opt.key;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => onChange(opt.key)}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all duration-150 whitespace-nowrap shrink-0 ${
+              isActive
+                ? opt.activeBg + ' shadow-sm'
+                : 'bg-transparent border-transparent text-muted-foreground hover:bg-muted/50'
+            }`}
+          >
+            <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? opt.color : 'text-muted-foreground/60'}`} />
+            <span>{opt.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 const EditPermissionsModal = ({ open, setOpen, user, permissions, onSave }) => {
   const [localPerms, setLocalPerms] = useState(permissions || {});
   const [isSaving, setIsSaving] = useState(false);
@@ -210,53 +290,123 @@ const EditPermissionsModal = ({ open, setOpen, user, permissions, onSave }) => {
     setLocalPerms(PERMISSION_TEMPLATES[key].permissions);
   };
 
+  const permStats = useMemo(() => {
+    let full = 0, read = 0, none = 0;
+    ALL_MODULES.forEach((m) => {
+      const v = localPerms[m] || 'none';
+      if (v === 'full') full++;
+      else if (v === 'read') read++;
+      else none++;
+    });
+    return { full, read, none };
+  }, [localPerms]);
+
   if (!user) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Pencil className="w-5 h-5" /> Yetki Düzenle — {user.full_name || user.email}
-          </DialogTitle>
-          <DialogDescription>Modül bazında erişim yetkilerini ayarlayın.</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(PERMISSION_TEMPLATES).map(([key, t]) => (
-              <Button key={key} variant="outline" size="sm" onClick={() => applyTemplate(key)}>
-                {t.label} Uygula
-              </Button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {ALL_MODULES.map((module) => (
-              <div key={module} className="space-y-1.5 p-3 rounded-lg border bg-muted/30" data-testid={`perm-module-${module}`}>
-                <Label className="text-xs font-medium">{moduleLabels[module]}</Label>
-                <Select
-                  value={localPerms[module] || 'none'}
-                  onValueChange={(v) => setLocalPerms((p) => ({ ...p, [module]: v }))}
-                >
-                  <SelectTrigger className="h-8" data-testid={`perm-select-${module}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none"><ShieldOff className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> Erişim Yok</SelectItem>
-                    <SelectItem value="read"><Eye className="w-3.5 h-3.5 mr-2 text-blue-500" /> Sadece Okuma</SelectItem>
-                    <SelectItem value="full"><Shield className="w-3.5 h-3.5 mr-2 text-green-500" /> Tam Erişim</SelectItem>
-                  </SelectContent>
-                </Select>
+      <DialogContent className="!inset-0 !translate-x-0 !translate-y-0 !w-full !h-full !max-w-none !max-h-none rounded-none flex flex-col p-0 gap-0 overflow-hidden">
+        <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-slate-900 dark:to-blue-950/30">
+          <DialogHeader className="space-y-3 pr-10">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <DialogTitle className="flex items-center gap-3 text-lg">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900 flex-shrink-0">
+                  <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="min-w-0">
+                  <div>Yetki Düzenle</div>
+                  <div className="text-sm font-normal text-muted-foreground truncate">{user.full_name || user.email}</div>
+                </div>
+              </DialogTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 shrink-0">
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> {permStats.full} Tam
+                </Badge>
+                <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800 shrink-0">
+                  <Eye className="w-3 h-3 mr-1" /> {permStats.read} Okuma
+                </Badge>
+                <Badge variant="outline" className="bg-gray-50 dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700 shrink-0">
+                  <ShieldOff className="w-3 h-3 mr-1" /> {permStats.none} Yok
+                </Badge>
               </div>
-            ))}
-          </div>
+            </div>
+            <DialogDescription className="sr-only">Modül bazında erişim yetkilerini ayarlayın.</DialogDescription>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground shrink-0">Hızlı şablon:</span>
+              {Object.entries(PERMISSION_TEMPLATES).map(([key, t]) => (
+                <Button key={key} variant="outline" size="sm" className="h-8 text-xs shrink-0" onClick={() => applyTemplate(key)}>
+                  {key === 'admin' && <Shield className="w-3 h-3 mr-1 text-green-500 shrink-0" />}
+                  {key === 'viewer' && <Eye className="w-3 h-3 mr-1 text-blue-500 shrink-0" />}
+                  {key === 'operator' && <Wrench className="w-3 h-3 mr-1 text-orange-500 shrink-0" />}
+                  {t.label}
+                </Button>
+              ))}
+            </div>
+          </DialogHeader>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>İptal</Button>
-          <Button onClick={handleSave} disabled={isSaving} data-testid="perm-save-btn">{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</Button>
-        </DialogFooter>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-5">
+          {MODULE_GROUPS.map((group) => (
+            <div key={group.title}>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <span>{group.title}</span>
+                <div className="h-px flex-1 bg-border" />
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {group.modules.map((module) => {
+                  const Icon = MODULE_ICONS[module] || Shield;
+                  const val = localPerms[module] || 'none';
+                  return (
+                    <div
+                      key={module}
+                      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg border transition-colors ${
+                        val === 'full' ? 'border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20' :
+                        val === 'read' ? 'border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20' :
+                        'border-border bg-muted/20'
+                      }`}
+                      data-testid={`perm-module-${module}`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+                        <Icon className={`w-4 h-4 flex-shrink-0 ${
+                          val === 'full' ? 'text-green-500' :
+                          val === 'read' ? 'text-blue-500' :
+                          'text-muted-foreground/50'
+                        }`} />
+                        <span className="text-sm font-medium truncate">{moduleLabels[module]}</span>
+                      </div>
+                      <PermissionToggle
+                        value={val}
+                        onChange={(v) => setLocalPerms((p) => ({ ...p, [module]: v }))}
+                        testId={`perm-select-${module}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex-shrink-0 px-6 py-4 border-t bg-muted/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-xs text-muted-foreground order-2 sm:order-1">Toplam {ALL_MODULES.length} modül</p>
+          <div className="flex items-center gap-2 order-1 sm:order-2 shrink-0">
+            <Button variant="outline" onClick={() => setOpen(false)} className="min-w-[80px]">İptal</Button>
+            <Button onClick={handleSave} disabled={isSaving} data-testid="perm-save-btn" className="min-w-[140px]">
+              {isSaving ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                  Kaydediliyor...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <Lock className="w-4 h-4 shrink-0" />
+                  Yetkileri Kaydet
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
