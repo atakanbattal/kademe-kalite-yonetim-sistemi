@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host :: --port 3003",
     "supabase:login": "supabase login",
+    "supabase:deploy-functions": "supabase functions deploy manage-user --project-ref rqnvoatirfczpklaamhf",
     "supabase:pull": "supabase db pull",
     "supabase:push": "supabase db push",
     "supabase:start": "supabase start",

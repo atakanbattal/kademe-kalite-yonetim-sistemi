@@ -110,7 +110,16 @@ export const DataProvider = ({ children }) => {
 
         console.time('🚀 Total Data Fetch Time');
 
-        // KRİTİK TABLOLAR (Hemen yükle)
+        // DALGA 0: Minimal veri - arayüz hemen açılsın (~1-2 sn)
+        const instantPromises = {
+            personnel: supabase.from('personnel').select('id, full_name, email, avatar_url, department, unit_id, is_active').order('full_name'),
+            productionDepartments: supabase.from('production_departments').select('*'),
+            taskTags: supabase.from('task_tags').select('*'),
+            taskProjects: supabase.from('task_projects').select('*').order('name'),
+            unitCostSettings: supabase.from('cost_settings').select('*'),
+        };
+
+        // KRİTİK TABLOLAR (İkinci dalga)
         const criticalPromises = {
             auditLogs: (async () => {
                 try {
@@ -132,11 +141,6 @@ export const DataProvider = ({ children }) => {
                     return { data: [], error: null };
                 }
             })(),
-            personnel: supabase.from('personnel').select('id, full_name, email, avatar_url, department, unit_id, is_active').order('full_name'),
-            unitCostSettings: supabase.from('cost_settings').select('*'),
-            productionDepartments: supabase.from('production_departments').select('*'),
-            taskTags: supabase.from('task_tags').select('*'),
-            taskProjects: supabase.from('task_projects').select('*').order('name'), // Görev projeleri
             characteristics: supabase.from('characteristics').select('id, name, type, sampling_rate'),
             equipment: supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true }),
             standards: supabase.from('audit_standards').select('id, code, name'),
@@ -279,7 +283,20 @@ export const DataProvider = ({ children }) => {
         try {
             const newState = {};
 
-            // DALGA 1: Kritik veriler (hızlı)
+            // DALGA 0: Minimal veri - arayüz hemen açılsın
+            console.time('⚡ Instant data fetch');
+            const instantResults = await Promise.allSettled(Object.values(instantPromises));
+            const instantKeys = Object.keys(instantPromises);
+            instantResults.forEach((result, index) => {
+                const key = instantKeys[index];
+                const val = result.status === 'fulfilled' ? result.value : null;
+                newState[key] = (val && !val.error && val.data) ? val.data : [];
+            });
+            setData(prev => ({ ...prev, ...newState }));
+            setLoading(false); // Arayüz hemen göster
+            console.timeEnd('⚡ Instant data fetch');
+
+            // DALGA 1: Kritik veriler
             console.time('⚡ Critical data fetch');
             const criticalResults = await Promise.allSettled(Object.values(criticalPromises));
             const criticalKeys = Object.keys(criticalPromises);

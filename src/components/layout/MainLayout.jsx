@@ -46,6 +46,7 @@ const PolyvalenceModule = lazy(() => import('@/components/polyvalence/Polyvalenc
 const BenchmarkModule = lazy(() => import('@/components/benchmark/BenchmarkModule'));
 const ProcessControlModule = lazy(() => import('@/components/process-control/ProcessControlModule'));
 const DynamicBalanceModule = lazy(() => import('@/components/dynamic-balance/DynamicBalanceModule'));
+const NonconformityModule = lazy(() => import('@/components/nonconformity/NonconformityModule'));
 
 // 8D adımları için varsayılan başlıklar
 const getDefault8DTitle = (stepKey) => {
@@ -87,6 +88,7 @@ const moduleTitles = {
     'benchmark': 'Benchmark Yönetimi',
     'process-control': 'Proses Kontrol Yönetimi',
     'dynamic-balance': 'Dinamik Balans Kalite Kontrol',
+    'nonconformity': 'Uygunsuzluk Yönetimi',
 };
 
 const ALL_MODULES = Object.keys(moduleTitles);
@@ -461,6 +463,7 @@ const MainLayout = () => {
                 case 'benchmark': return <BenchmarkModule />;
                 case 'process-control': return <ProcessControlModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
                 case 'dynamic-balance': return <DynamicBalanceModule />;
+                case 'nonconformity': return <NonconformityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
                 default: return <Navigate to={`/${DEFAULT_MODULE}`} replace />;
             }
         };

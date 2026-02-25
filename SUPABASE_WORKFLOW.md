@@ -102,6 +102,34 @@ CREATE POLICY "Users can read own data"
 - Supabase Dashboard → Storage → Create Bucket
 - Dosya yönetimi (Belgeler, Resimler, vb.)
 
+#### ✅ Edge Functions (manage-user)
+```bash
+# Supabase CLI ile Edge Function deploy
+supabase login
+supabase link --project-ref rqnvoatirfczpklaamhf
+supabase functions deploy manage-user
+```
+
+### Kullanıcı Silme Öncesi Storage Temizliği (Tek Seferlik)
+
+Kullanıcı silme işleminin çalışması için `delete_user_storage_objects` fonksiyonu gerekir. Supabase Dashboard > SQL Editor'da çalıştırın:
+
+```sql
+CREATE OR REPLACE FUNCTION public.delete_user_storage_objects(target_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, storage
+AS $$
+BEGIN
+  DELETE FROM storage.objects WHERE owner = target_user_id;
+END;
+$$;
+```
+
+- **manage-user**: Kullanıcı silme ve izin güncelleme (delete_user, update_permissions)
+- `SUPABASE_SERVICE_ROLE_KEY` Supabase Dashboard'da otomatik tanımlıdır
+
 #### ✅ Monitoring
 - Supabase Dashboard → Monitoring
 - Database size, API calls, Auth sessions

@@ -18,12 +18,21 @@ const Login = () => {
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/';
+  const isSignedOut = new URLSearchParams(location.search).get('signedout') === '1';
 
   useEffect(() => {
     if (session) {
+      // Giriş başarılı - yönlendir (signedout=1 olsa bile, kullanıcı yeni giriş yaptı)
+      if (isSignedOut && window.history.replaceState) {
+        window.history.replaceState({}, '', '/login');
+      }
+      setLoading(false);
       navigate(from, { replace: true });
+    } else if (isSignedOut && window.history.replaceState) {
+      // Çıkış sonrası geldik, session yok - URL'yi temizle, otomatik yönlendirme yapma
+      window.history.replaceState({}, '', '/login');
     }
-  }, [session, navigate, from]);
+  }, [session, navigate, from, isSignedOut]);
 
     const handleLogin = async (e) => {
     e.preventDefault();
@@ -81,13 +90,12 @@ const Login = () => {
       }
       
       if (data?.session) {
-        // Başarılı giriş
         toast({
           title: "Giriş Başarılı!",
           description: "Kalite Yönetim Sistemine hoş geldiniz.",
           duration: 3000,
         });
-        // Session state'i auth context'te güncellenecek ve useEffect tetiklenecek
+        setLoading(false); // useEffect yönlendirene kadar butonu serbest bırak
       } else {
         // Session yoksa hata göster
         setLoading(false);

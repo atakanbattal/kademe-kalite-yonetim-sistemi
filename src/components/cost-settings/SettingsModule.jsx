@@ -10,8 +10,9 @@ import ProductManager from '@/components/cost-settings/ProductManager';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const CostSettingsModule = () => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const isSuperAdmin = user?.email === 'atakan.battal@kademe.com.tr';
+    const hasAccountAccess = isSuperAdmin || (profile?.permissions?.['settings'] === 'full');
 
     return (
         <div className="space-y-4 sm:space-y-6 md:space-y-8">
@@ -20,10 +21,10 @@ const CostSettingsModule = () => {
                 <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Sistem genelindeki maliyetleri, personeli ve hesapları yönetin.</p>
             </div>
 
-            <Tabs defaultValue="personnel" className="w-full">
+            <Tabs defaultValue={hasAccountAccess ? "accounts" : "personnel"} className="w-full">
                 {/* Mobil için yatay scroll ile tabs */}
                 <div className="w-full overflow-x-auto pb-2 -mx-1 px-1">
-                    <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full gap-1" style={{ gridTemplateColumns: `repeat(${isSuperAdmin ? 6 : 5}, minmax(0, 1fr))` }}>
+                    <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full gap-1" style={{ gridTemplateColumns: `repeat(${hasAccountAccess ? 6 : 5}, minmax(0, 1fr))` }}>
                         <TabsTrigger value="personnel" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
                             <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
                             <span className="hidden xs:inline">Personel</span>
@@ -49,7 +50,7 @@ const CostSettingsModule = () => {
                             <span className="hidden xs:inline">Malzeme</span>
                             <span className="xs:hidden">🏭</span>
                         </TabsTrigger>
-                        {isSuperAdmin && (
+                        {hasAccountAccess && (
                             <TabsTrigger value="accounts" className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3">
                                 <KeyRound className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0"/>
                                 <span className="hidden xs:inline">Hesap</span>
@@ -73,7 +74,7 @@ const CostSettingsModule = () => {
                 <TabsContent value="materials" className="mt-6">
                     <MaterialCosts />
                 </TabsContent>
-                {isSuperAdmin && (
+                {hasAccountAccess && (
                     <TabsContent value="accounts" className="mt-6">
                         <AccountManager />
                     </TabsContent>

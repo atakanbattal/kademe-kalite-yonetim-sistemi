@@ -85,6 +85,28 @@ jobs:
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
+  # Deploy Supabase Edge Functions (if token is set)
+  deploy-supabase:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+    - name: Deploy Edge Functions
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      run: |
+        if [ -n "$SUPABASE_ACCESS_TOKEN" ]; then
+          npx supabase link --project-ref rqnvoatirfczpklaamhf
+          npx supabase functions deploy manage-user
+        else
+          echo "SUPABASE_ACCESS_TOKEN not set, skipping Edge Function deploy"
+        fi
+
   # Deploy to Docker Hub (if on main branch)
   deploy-docker:
     needs: build
