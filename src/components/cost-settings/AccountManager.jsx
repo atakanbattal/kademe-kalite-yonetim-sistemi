@@ -386,14 +386,17 @@ const AccountManager = () => {
   const savePermissions = async (userId, permissionsToSave) => {
     const user = users.find((u) => u.id === userId);
     let error = null;
+    let result = null;
     try {
-      await invokeManageUser({
+      result = await invokeManageUser({
         action: 'update_permissions',
         userId,
         payload: { permissions: permissionsToSave, user_metadata: user?.raw_user_meta_data },
       });
+      console.log('savePermissions result:', result);
     } catch (e) {
       error = e;
+      console.error('savePermissions error:', e);
     }
 
     if (error) {

@@ -86,31 +86,47 @@ export default async (req: Request, context: Context) => {
 
       const { permissions, user_metadata } = payload;
 
-      const { error: metaErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      const { data: metaData, error: metaErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
         user_metadata: { ...user_metadata, permissions },
       });
 
       if (metaErr) {
+        console.error("updateUserById error:", metaErr);
         return new Response(
           JSON.stringify({ error: `user_metadata güncellenemedi: ${metaErr.message}` }),
           { status: 400, headers: { "Content-Type": "application/json" } }
         );
       }
 
-      const { error: profileErr } = await supabaseAdmin
+      const { data: profileData, error: profileErr } = await supabaseAdmin
         .from("profiles")
         .update({ permissions })
-        .eq("id", userId);
+        .eq("id", userId)
+        .select("id, permissions");
 
       if (profileErr) {
+        console.error("profiles update error:", profileErr);
         return new Response(
           JSON.stringify({ error: `profiles güncellenemedi: ${profileErr.message}` }),
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
 
+      console.log("update_permissions OK:", {
+        userId,
+        metaUpdated: !!metaData?.user,
+        profileRows: profileData?.length ?? 0,
+        savedPermissions: permissions,
+      });
+
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({
+          success: true,
+          debug: {
+            metaUpdated: !!metaData?.user,
+            profileRows: profileData?.length ?? 0,
+          },
+        }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
