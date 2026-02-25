@@ -59,9 +59,9 @@ const SUPER_ADMIN_EMAIL = 'atakan.battal@kademe.com.tr';
 async function invokeManageUser(body) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-  if (!token) throw new Error('Oturum bulunamadı');
+  if (!token) throw new Error('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
 
-  const res = await fetch('/api/manage-user', {
+  const res = await fetch('/.netlify/functions/manage-user', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -70,7 +70,14 @@ async function invokeManageUser(body) {
     body: JSON.stringify(body),
   });
 
-  const json = await res.json();
+  const text = await res.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`Sunucu beklenmedik yanıt döndü (HTTP ${res.status})`);
+  }
+
   if (!res.ok) {
     throw new Error(json.error || `HTTP ${res.status}`);
   }
