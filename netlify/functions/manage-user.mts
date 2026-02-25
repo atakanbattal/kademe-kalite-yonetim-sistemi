@@ -191,4 +191,6 @@ export default async (req: Request, context: Context) => {
   }
 };
 
-export const config: Config = {};
+export const config: Config = {
+  path: "/api/manage-user",
+};

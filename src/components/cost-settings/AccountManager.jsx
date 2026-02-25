@@ -61,7 +61,7 @@ async function invokeManageUser(body) {
   const token = session?.access_token;
   if (!token) throw new Error('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
 
-  const res = await fetch('/.netlify/functions/manage-user', {
+  const res = await fetch('/api/manage-user', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
