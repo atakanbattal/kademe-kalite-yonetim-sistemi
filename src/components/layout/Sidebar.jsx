@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw } from 'lucide-react';
+import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -31,6 +31,7 @@ const navGroups = [
       { id: 'process-control', icon: Wrench, label: 'Proses Kontrol Yönetimi' },
       { id: 'produced-vehicles', icon: Truck, label: 'Üretilen Araçlar' },
       { id: 'dynamic-balance', icon: RotateCcw, label: 'Dinamik Balans Kontrol' },
+      { id: 'fixture', icon: Ruler, label: 'Fikstür Takip' },
     ]
   },
   {
@@ -90,7 +91,7 @@ const Sidebar = ({
     user,
     signOut
   } = useAuth();
-  
+
   const handleSignOut = async () => {
     await signOut();
   };
@@ -114,10 +115,10 @@ const Sidebar = ({
               <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Kalite Yönetim Sistemi</p>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="lg:hidden h-9 w-9 shrink-0" 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden h-9 w-9 shrink-0"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-5 w-5" />
@@ -134,14 +135,14 @@ const Sidebar = ({
           </div>
         )}
       </div>
-      
+
       {/* Navigation - Scrollable */}
       <ScrollArea className="flex-1">
         <nav className="p-2 space-y-1">
           {navGroups.map((group, groupIndex) => {
             // Grubun içinde izinli modüller var mı kontrol et
             const hasPermittedItems = group.items.some(item => permittedModules.includes(item.id));
-            
+
             if (!hasPermittedItems) return null;
 
             return (
@@ -159,11 +160,10 @@ const Sidebar = ({
                       <motion.button
                         key={item.id}
                         onClick={() => handleItemClick(item.id)}
-                        className={`w-full flex items-center p-2.5 sm:p-3 rounded-lg text-xs sm:text-sm font-medium transition-colors touch-manipulation ${
-                          activeModule === item.id
+                        className={`w-full flex items-center p-2.5 sm:p-3 rounded-lg text-xs sm:text-sm font-medium transition-colors touch-manipulation ${activeModule === item.id
                             ? 'bg-primary text-primary-foreground'
                             : 'hover:bg-accent hover:text-accent-foreground active:bg-accent'
-                        }`}
+                          }`}
                         whileTap={{ scale: 0.98 }}
                       >
                         <item.icon className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
@@ -176,7 +176,7 @@ const Sidebar = ({
           })}
         </nav>
       </ScrollArea>
-      
+
       {/* User Info - Mobil için güvenli alan */}
       <div className="p-3 sm:p-4 border-t border-border shrink-0" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)' }}>
         <div className="flex items-center gap-2 mb-2">
