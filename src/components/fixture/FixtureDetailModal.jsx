@@ -1,9 +1,10 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Ruler, CheckCircle2, XCircle, AlertTriangle, RotateCcw, Calendar, User, Building2, Clock } from 'lucide-react';
+import { Ruler, CheckCircle2, XCircle, AlertTriangle, RotateCcw, Calendar, User, Building2, Clock, Image as ImageIcon } from 'lucide-react';
+import { supabase } from '@/lib/customSupabaseClient';
 
 // ─── Durum renk konfig ───────────────────────────────────────────────────────
 const statusConfig = {
@@ -215,6 +216,9 @@ const FixtureDetailModal = ({ open, onOpenChange, fixture }) => {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-4xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogHeader className="sr-only">
+                    <DialogTitle>Fikstür Detayı</DialogTitle>
+                </DialogHeader>
 
                 {/* ── GRADIENT HEADER ── */}
                 <header className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-5 flex items-start justify-between shrink-0">
@@ -301,6 +305,34 @@ const FixtureDetailModal = ({ open, onOpenChange, fixture }) => {
                         <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm mb-4">
                             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Notlar · </span>
                             {fixture.notes}
+                        </div>
+                    )}
+
+                    {Array.isArray(fixture.image_paths) && fixture.image_paths.length > 0 && (
+                        <div className="mb-4">
+                            <SectionTitle>
+                                <span className="inline-flex items-center gap-2">
+                                    <ImageIcon className="h-3.5 w-3.5" />
+                                    Fikstür Görselleri
+                                </span>
+                            </SectionTitle>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {fixture.image_paths.map((path) => (
+                                    <a
+                                        key={path}
+                                        href={supabase.storage.from('incoming_control').getPublicUrl(path).data.publicUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group overflow-hidden rounded-xl border border-border bg-muted/10"
+                                    >
+                                        <img
+                                            src={supabase.storage.from('incoming_control').getPublicUrl(path).data.publicUrl}
+                                            alt={`${fixture.fixture_no} görseli`}
+                                            className="h-32 w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                        />
+                                    </a>
+                                ))}
+                            </div>
                         </div>
                     )}
 

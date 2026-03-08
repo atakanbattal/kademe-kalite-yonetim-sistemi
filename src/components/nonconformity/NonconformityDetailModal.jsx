@@ -1,15 +1,17 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { ViewModalLayout } from '@/components/shared/ViewModalLayout';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { openPrintableReport } from '@/lib/reportUtils';
 import {
   ClipboardList, Hash, Calendar, Package, User, Building2,
   MapPin, AlertTriangle, Layers, Car, FileText, MessageSquare,
-  Shield, Activity, Wrench
+  Shield, Activity, Wrench, Printer
 } from 'lucide-react';
 
 const severityConfig = {
@@ -77,6 +79,13 @@ const NonconformityDetailModal = ({ isOpen, setIsOpen, record }) => {
       maxWidth="sm:max-w-5xl"
     >
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => openPrintableReport(record, 'nonconformity_record', true)}>
+            <Printer className="h-4 w-4 mr-2" />
+            Yazdir / PDF
+          </Button>
+        </div>
+
         {/* Kayıt Bilgileri */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <InfoCard

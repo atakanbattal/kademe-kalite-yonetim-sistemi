@@ -5,8 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import FileUploader from '@/components/shared/FileUploader';
 
 const defaultForm = {
     fixture_no: '',
@@ -20,11 +22,31 @@ const defaultForm = {
 };
 
 
-const FixtureFormModal = ({ open, onOpenChange, fixture, onSave }) => {
+const FixtureFormModal = ({ open, onOpenChange, fixture, onSave, supportsImageUpload = true }) => {
     const [form, setForm] = useState(defaultForm);
     const [saving, setSaving] = useState(false);
     const [units, setUnits] = useState([]);
+    const [existingImagePaths, setExistingImagePaths] = useState([]);
     const isEdit = !!fixture;
+    const {
+        files,
+        uploading,
+        uploadProgress,
+        errors,
+        isDragActive,
+        getRootProps,
+        getInputProps,
+        removeFile,
+        clearFiles,
+        uploadFiles,
+        deleteFile,
+    } = useFileUpload({
+        bucket: 'incoming_control',
+        folder: 'fixture-images',
+        maxFiles: 8,
+        maxSize: 10 * 1024 * 1024,
+        acceptedTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+    });
 
     // Ayarlar'daki birimleri çek
     useEffect(() => {
@@ -50,9 +72,12 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave }) => {
                 activation_date: fixture.activation_date || '',
                 notes: fixture.notes || '',
             });
+            setExistingImagePaths(fixture.image_paths || []);
         } else {
             setForm(defaultForm);
+            setExistingImagePaths([]);
         }
+        clearFiles();
     }, [fixture, open]);
 
     const handleChange = (key, value) => {
@@ -62,8 +87,35 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
+        let uploadedImagePaths = [];
+        const removedImagePaths = supportsImageUpload
+            ? (fixture?.image_paths || []).filter(path => !existingImagePaths.includes(path))
+            : [];
+
         try {
-            await onSave(form, isEdit ? fixture.id : null);
+            if (supportsImageUpload && files.length > 0) {
+                const fixtureFolder = (form.fixture_no || 'taslak').replace(/[^a-zA-Z0-9-_]/g, '-');
+                const uploadResult = await uploadFiles(`fixture-images/${fixtureFolder}`);
+                uploadedImagePaths = uploadResult.paths || [];
+
+                if (uploadResult.errors?.length > 0) {
+                    throw new Error(uploadResult.errors[0]?.error || 'Fikstür görselleri yüklenemedi.');
+                }
+            }
+
+            await onSave({
+                ...form,
+                ...(supportsImageUpload ? { image_paths: [...existingImagePaths, ...uploadedImagePaths] } : {}),
+            }, isEdit ? fixture.id : null);
+
+            if (removedImagePaths.length > 0) {
+                await Promise.all(removedImagePaths.map(path => deleteFile(path)));
+            }
+            clearFiles();
+        } catch (error) {
+            if (uploadedImagePaths.length > 0) {
+                await Promise.all(uploadedImagePaths.map(path => deleteFile(path)));
+            }
         } finally {
             setSaving(false);
         }
@@ -88,6 +140,7 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave }) => {
                                 value={form.fixture_no}
                                 onChange={e => handleChange('fixture_no', e.target.value)}
                                 placeholder="FX-001"
+                                autoFormat={false}
                                 required
                                 disabled={isEdit}
                             />
@@ -100,6 +153,7 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave }) => {
                                 value={form.part_code}
                                 onChange={e => handleChange('part_code', e.target.value)}
                                 placeholder="PRC-2024-001"
+                                autoFormat={false}
                                 required
                             />
                         </div>
@@ -111,6 +165,7 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave }) => {
                                 value={form.part_name}
                                 onChange={e => handleChange('part_name', e.target.value)}
                                 placeholder="Parça açıklaması"
+                                autoFormat={false}
                             />
                         </div>
                         {/* Kritiklik Sınıfı */}
@@ -158,6 +213,65 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave }) => {
                         </div>
                     </div>
 
+                    <div className="space-y-3">
+                        <div className="space-y-1.5">
+                            <Label>Fikstür Görselleri</Label>
+                            {!supportsImageUpload && (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                    <div className="flex items-start gap-2">
+                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                                        <span>
+                                            Fikstür görselleri için gerekli `image_paths` kolonu veritabanında henüz yok. Migration uygulandığında bu alan aktif olacaktır.
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            <FileUploader
+                                getRootProps={getRootProps}
+                                getInputProps={getInputProps}
+                                isDragActive={isDragActive}
+                                files={files}
+                                onRemoveFile={removeFile}
+                                uploading={uploading}
+                                uploadProgress={uploadProgress}
+                                errors={errors}
+                                disabled={saving || !supportsImageUpload}
+                                label={supportsImageUpload ? 'Görselleri sürükleyin veya seçmek için tıklayın' : 'Görsel yükleme migration sonrası aktif olacak'}
+                                hint="PNG, JPG, WEBP - Maks. 10 MB"
+                                compact
+                            />
+                        </div>
+
+                        {existingImagePaths.length > 0 && (
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Kayıtlı Görseller</Label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {existingImagePaths.map((path) => {
+                                        const imageUrl = supabase.storage.from('incoming_control').getPublicUrl(path).data.publicUrl;
+                                        return (
+                                            <div key={path} className="relative rounded-lg overflow-hidden border bg-muted/20">
+                                                <img
+                                                    src={imageUrl}
+                                                    alt="Fikstür görseli"
+                                                    className="h-28 w-full object-cover"
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute top-2 right-2 h-7 w-7"
+                                                    onClick={() => setExistingImagePaths(prev => prev.filter(item => item !== path))}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Kritiklik Nedeni */}
                     <div className="space-y-1.5">
                         <Label htmlFor="criticality_reason">Kritiklik Sınıfı Belirleme Nedeni (AR-GE/ÜR-GE)</Label>
@@ -183,11 +297,11 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave }) => {
                     </div>
 
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving || uploading}>
                             İptal
                         </Button>
-                        <Button type="submit" disabled={saving}>
-                            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Kaydediliyor</> : isEdit ? 'Güncelle' : 'Ekle'}
+                        <Button type="submit" disabled={saving || uploading}>
+                            {saving || uploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Kaydediliyor</> : isEdit ? 'Güncelle' : 'Ekle'}
                         </Button>
                     </DialogFooter>
                 </form>

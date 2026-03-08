@@ -9,7 +9,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Card, CardContent } from '@/components/ui/card';
     import { Separator } from '@/components/ui/separator';
     import { InfoCard } from '@/components/ui/InfoCard';
-    import { format, parseISO, differenceInMilliseconds, startOfDay } from 'date-fns';
+    import { format, parseISO, startOfDay } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
@@ -18,6 +18,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { differenceInDays } from 'date-fns';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { generateVehicleReport } from '@/lib/pdfGenerator';
+    import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
 
     const eventTypes = {
       quality_entry: { label: 'Kaliteye Giriş', icon: <Play className="h-4 w-4 text-blue-500" /> },
@@ -78,72 +79,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         }, [vehicle, fetchTimeline]);
 
         const summaryStats = useMemo(() => {
-            let totalControlMillis = 0;
-            let totalReworkMillis = 0;
-            let waitingForShippingStart = null;
-
-            if (timeline.length > 0) {
-                // "Sevk Bilgisi Bekleniyor" durumunun başlangıcını bul
-                const waitingEvent = timeline.find(e => e.event_type === 'waiting_for_shipping_info');
-                if (waitingEvent) {
-                    waitingForShippingStart = parseISO(waitingEvent.event_timestamp);
-                }
-
-                for (let i = 0; i < timeline.length; i++) {
-                    const currentEvent = timeline[i];
-                    const currentEventTime = parseISO(currentEvent.event_timestamp);
-                    
-                    // "Sevk Bilgisi Bekleniyor" durumundan sonraki süreleri sayma
-                    if (waitingForShippingStart && currentEventTime >= waitingForShippingStart) {
-                        continue;
-                    }
-
-                    if (currentEvent.event_type === 'control_start') {
-                        const nextEnd = timeline.slice(i + 1).find(e => {
-                            const endTime = parseISO(e.event_timestamp);
-                            // Eğer bitiş "Sevk Bilgisi Bekleniyor" durumundan sonraysa, o ana kadar say
-                            if (waitingForShippingStart && endTime >= waitingForShippingStart) {
-                                return false;
-                            }
-                            return e.event_type === 'control_end';
-                        });
-                        if (nextEnd) {
-                            const endTime = waitingForShippingStart && parseISO(nextEnd.event_timestamp) > waitingForShippingStart 
-                                ? waitingForShippingStart 
-                                : parseISO(nextEnd.event_timestamp);
-                            totalControlMillis += differenceInMilliseconds(endTime, currentEventTime);
-                        } else if (waitingForShippingStart) {
-                            // Bitiş yok ama "Sevk Bilgisi Bekleniyor" durumu var, o ana kadar say
-                            totalControlMillis += differenceInMilliseconds(waitingForShippingStart, currentEventTime);
-                        } else {
-                            // Devam eden kontrol - şu anki zamana kadar hesapla
-                            totalControlMillis += differenceInMilliseconds(new Date(), currentEventTime);
-                        }
-                    } else if (currentEvent.event_type === 'rework_start') {
-                        const nextEnd = timeline.slice(i + 1).find(e => {
-                            const endTime = parseISO(e.event_timestamp);
-                            if (waitingForShippingStart && endTime >= waitingForShippingStart) {
-                                return false;
-                            }
-                            return e.event_type === 'rework_end';
-                        });
-                        if (nextEnd) {
-                            const endTime = waitingForShippingStart && parseISO(nextEnd.event_timestamp) > waitingForShippingStart 
-                                ? waitingForShippingStart 
-                                : parseISO(nextEnd.event_timestamp);
-                            totalReworkMillis += differenceInMilliseconds(endTime, currentEventTime);
-                        } else if (waitingForShippingStart) {
-                            totalReworkMillis += differenceInMilliseconds(waitingForShippingStart, currentEventTime);
-                        } else {
-                            // Devam eden yeniden işlem - şu anki zamana kadar hesapla
-                            totalReworkMillis += differenceInMilliseconds(new Date(), currentEventTime);
-                        }
-                    }
-                }
-            }
-            
-            // Kalitede geçen toplam süre kontrol ve yeniden işlem sürelerinin toplamıdır
-            const totalQualityMillis = totalControlMillis + totalReworkMillis;
+            const {
+                totalControlMillis,
+                totalReworkMillis,
+                totalQualityMillis,
+            } = calculateVehicleTimelineStats(timeline, new Date());
 
             return {
                 totalControlTime: formatDuration(totalControlMillis),

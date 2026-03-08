@@ -3,10 +3,10 @@ import React, { useMemo } from 'react';
     import { Skeleton } from '@/components/ui/skeleton';
     import { Card, CardContent } from '@/components/ui/card';
     import { Clock, CheckCircle, Wrench, Truck, Hourglass, BarChartHorizontal, FlaskConical, PackageCheck, ClipboardCheck } from 'lucide-react';
-    import { parseISO, differenceInMilliseconds } from 'date-fns';
     import { formatDuration } from '@/lib/formatDuration.js';
     import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
     import { Badge } from '@/components/ui/badge';
+    import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
 
     // Durum konfigürasyonları
     const STATUS_CONFIG = [
@@ -270,31 +270,14 @@ import React, { useMemo } from 'react';
             let inspectionCount = 0;
             let totalReworkMillis = 0;
             let reworkCount = 0;
+            const timelineNow = new Date();
 
             vehicles.forEach(vehicle => {
-                const timeline = vehicle.vehicle_timeline_events || [];
-                for (let i = 0; i < timeline.length; i++) {
-                    const currentEvent = timeline[i];
-                    
-                    if (currentEvent.event_type === 'control_start') {
-                        const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'control_end');
-                        if (nextEnd) {
-                            totalInspectionMillis += differenceInMilliseconds(parseISO(nextEnd.event_timestamp), parseISO(currentEvent.event_timestamp));
-                            inspectionCount++;
-                        }
-                    } else if (currentEvent.event_type === 'rework_start') {
-                        const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'rework_end');
-                        // Eğer rework_end yoksa, şu anki zamana kadar hesapla (dinamik)
-                        if (nextEnd) {
-                            totalReworkMillis += differenceInMilliseconds(parseISO(nextEnd.event_timestamp), parseISO(currentEvent.event_timestamp));
-                            reworkCount++;
-                        } else {
-                            // Devam eden yeniden işlem - şu anki zamana kadar hesapla
-                            totalReworkMillis += differenceInMilliseconds(new Date(), parseISO(currentEvent.event_timestamp));
-                            reworkCount++;
-                        }
-                    }
-                }
+                const timelineStats = calculateVehicleTimelineStats(vehicle.vehicle_timeline_events, timelineNow);
+                totalInspectionMillis += timelineStats.totalControlMillis;
+                inspectionCount += timelineStats.controlCycleCount;
+                totalReworkMillis += timelineStats.totalReworkMillis;
+                reworkCount += timelineStats.reworkCycleCount;
             });
 
             const avgInspectionTime = inspectionCount > 0 ? formatDuration(totalInspectionMillis / inspectionCount) : "0 dk";

@@ -75,6 +75,7 @@ import {
   Lock,
   CheckCircle2,
   XCircle,
+  Ruler,
 } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -114,6 +115,7 @@ async function invokeManageUser(body) {
 const ALL_MODULES = [
   'dashboard', 'kpi', 'nonconformity', 'df-8d', 'quality-cost', 'customer-complaints',
   'incoming-quality', 'process-control', 'produced-vehicles', 'dynamic-balance',
+  'fixture',
   'supplier-quality', 'supplier-audit', 'internal-audit', 'deviation', 'audit-logs',
   'equipment', 'document', 'wps', 'kaizen', 'training', 'polyvalence', 'benchmark',
   'quarantine', 'tasks', 'settings',
@@ -124,6 +126,7 @@ const moduleLabels = {
   'quality-cost': 'Kalite Maliyetleri', 'customer-complaints': 'Müşteri Şikayetleri',
   'incoming-quality': 'Girdi Kalite', 'process-control': 'Proses Kontrol',
   'produced-vehicles': 'Üretilen Araçlar', 'dynamic-balance': 'Dinamik Balans',
+  fixture: 'Fikstür Takibi',
   'supplier-quality': 'Tedarikçi Kalite', 'supplier-audit': 'Tedarikçi Denetimi',
   'internal-audit': 'İç Tetkik', deviation: 'Sapma', 'audit-logs': 'Denetim Kayıtları',
   equipment: 'Ekipman', document: 'Doküman', wps: 'WPS', kaizen: 'Kaizen',
@@ -139,7 +142,7 @@ const PERMISSION_TEMPLATES = {
     permissions: {
       dashboard: 'read', kpi: 'read', nonconformity: 'full', 'df-8d': 'full', 'quality-cost': 'read',
       'customer-complaints': 'full', 'incoming-quality': 'full', 'process-control': 'read',
-      'produced-vehicles': 'full', 'dynamic-balance': 'full', 'supplier-quality': 'read',
+      'produced-vehicles': 'full', 'dynamic-balance': 'full', fixture: 'full', 'supplier-quality': 'read',
       'supplier-audit': 'read', 'internal-audit': 'read', deviation: 'full', 'audit-logs': 'none',
       equipment: 'read', document: 'read', wps: 'read', kaizen: 'full', training: 'read',
       polyvalence: 'read', benchmark: 'read', quarantine: 'full', tasks: 'full', settings: 'none',
@@ -222,7 +225,7 @@ const MODULE_ICONS = {
   dashboard: LayoutDashboard, kpi: BarChart3, nonconformity: AlertTriangle,
   'df-8d': FileWarning, 'quality-cost': DollarSign, 'customer-complaints': MessageSquare,
   'incoming-quality': PackageCheck, 'process-control': Gauge, 'produced-vehicles': Car,
-  'dynamic-balance': Activity, 'supplier-quality': Factory, 'supplier-audit': ClipboardCheck,
+  'dynamic-balance': Activity, fixture: Ruler, 'supplier-quality': Factory, 'supplier-audit': ClipboardCheck,
   'internal-audit': SearchCheck, deviation: FileText, 'audit-logs': BookOpen,
   equipment: Wrench, document: FileCog, wps: FileText, kaizen: Lightbulb,
   training: GraduationCap, polyvalence: Users, benchmark: TrendingUp,
@@ -232,7 +235,7 @@ const MODULE_ICONS = {
 const MODULE_GROUPS = [
   { title: 'Genel', modules: ['dashboard', 'kpi', 'tasks', 'settings'] },
   { title: 'Kalite Yönetimi', modules: ['nonconformity', 'df-8d', 'customer-complaints', 'deviation', 'quarantine'] },
-  { title: 'Üretim & Kontrol', modules: ['incoming-quality', 'process-control', 'produced-vehicles', 'dynamic-balance'] },
+  { title: 'Üretim & Kontrol', modules: ['incoming-quality', 'process-control', 'produced-vehicles', 'dynamic-balance', 'fixture'] },
   { title: 'Tedarikçi', modules: ['supplier-quality', 'supplier-audit'] },
   { title: 'Denetim & Kayıtlar', modules: ['internal-audit', 'audit-logs'] },
   { title: 'Doküman & Ekipman', modules: ['equipment', 'document', 'wps'] },

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { subMonths, startOfYear, endOfYear, format, differenceInDays, parseISO, isValid, addDays, startOfMonth } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { isNCOverdue } from '@/lib/statusUtils';
 
 const useReportData = (period) => {
     const [data, setData] = useState(null);
@@ -93,7 +94,7 @@ const useReportData = (period) => {
                     return acc;
                 }, {});
 
-                const overdueRecords = records.filter(r => r.status !== 'Kapatıldı' && r.due_at && isValid(parseISO(r.due_at)) && new Date() > parseISO(r.due_at))
+                const overdueRecords = records.filter(record => isNCOverdue(record))
                     .map(r => ({ ...r, delay_days: differenceInDays(new Date(), parseISO(r.due_at)) }));
 
                 return {

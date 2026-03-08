@@ -16,6 +16,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { parseISO, isAfter, format, differenceInDays, isValid } from 'date-fns';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
 
     const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
         const { nonConformities, suppliers, refreshData, loading } = useData();
@@ -84,8 +85,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     let matchesStatus = true;
                     if (filters.status !== 'all') {
                         if (filters.status === 'Gecikmiş') {
-                            const isOverdue = record.status !== 'Kapatıldı' && record.status !== 'Reddedildi' && record.due_at && isAfter(new Date(), parseISO(record.due_at));
-                            matchesStatus = isOverdue;
+                            matchesStatus = isNCOverdue(record);
                         } else {
                             matchesStatus = record.status === filters.status;
                         }
@@ -178,8 +178,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 let matchesStatus = true;
                 if (filters.status !== 'all') {
                     if (filters.status === 'Gecikmiş') {
-                        const isOverdue = record.status !== 'Kapatıldı' && record.status !== 'Reddedildi' && record.due_at && isAfter(new Date(), parseISO(record.due_at));
-                        matchesStatus = isOverdue;
+                        matchesStatus = isNCOverdue(record);
                     } else {
                         matchesStatus = record.status === filters.status;
                     }
@@ -295,7 +294,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     opening_date: formatDate(record.df_opened_at || record.opening_date || record.created_at),
                     closing_date: record.closed_at ? formatDate(record.closed_at) : '-',
                     due_date: record.status === 'Reddedildi' ? '-' : formatDate(record.due_at),
-                    status: record.status || '-',
+                    status: getNCDisplayStatus(record),
                     responsible_person: record.responsible_person || '-',
                     requesting_person: record.requesting_person || '-',
                     requesting_unit: record.requesting_unit || '-',
@@ -335,14 +334,14 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 const isClosed = rec.status === 'Kapatıldı';
                 const isRejected = rec.status === 'Reddedildi';
                 const isOpen = !isClosed && !isRejected;
+                const displayStatus = getNCDisplayStatus(rec, now);
 
                 if (isOpen) counts.open++;
                 if (isClosed) counts.closed++;
                 if (isRejected) counts.rejected++;
                 if (rec.type in counts) counts[rec.type]++;
 
-                const dueAt = rec.due_at ? parseISO(rec.due_at) : null;
-                const isOverdue = isOpen && dueAt && isValid(dueAt) && now > dueAt;
+                const isOverdue = isNCOverdue(rec, now);
                 if (isOverdue) counts.overdue++;
 
                 const responsibleDept = rec.department || 'Belirtilmemiş';
@@ -375,7 +374,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     requesterContrib[requesterUnit][rec.type]++;
                 }
 
-                statusCounts[rec.status] = (statusCounts[rec.status] || 0) + 1;
+                statusCounts[displayStatus] = (statusCounts[displayStatus] || 0) + 1;
                 typeCounts[rec.type] = (typeCounts[rec.type] || 0) + 1;
             });
 
@@ -396,10 +395,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                 contribution: filteredRecords.length > 0 ? ((data.total / filteredRecords.length) * 100).toFixed(1) : '0'
             })).sort((a, b) => b.total - a.total);
 
-            const overdueRecords = filteredRecords.filter(r => {
-                const dueAt = r.due_at ? parseISO(r.due_at) : null;
-                return r.status !== 'Kapatıldı' && r.status !== 'Reddedildi' && dueAt && isValid(dueAt) && now > dueAt;
-            }).slice(0, 20); // İlk 20 geciken kayıt
+            const overdueRecords = filteredRecords.filter(record => isNCOverdue(record, now)).slice(0, 20);
 
             const reportData = {
                 id: `nc-executive-${Date.now()}`,
@@ -425,7 +421,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     department: record.department || '-',
                     due_date: formatDate(record.due_at),
                     days_overdue: record.due_at ? differenceInDays(now, parseISO(record.due_at)) : 0,
-                    status: record.status || '-'
+                    status: getNCDisplayStatus(record, now)
                 })),
                 allRecords: filteredRecords.map(record => ({
                     nc_number: record.nc_number || record.mdi_no || '-',
@@ -435,7 +431,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
                     opening_date: formatDate(record.df_opened_at || record.opening_date || record.created_at),
                     closing_date: record.closed_at ? formatDate(record.closed_at) : '-',
                     due_date: record.status === 'Reddedildi' ? '-' : formatDate(record.due_at),
-                    status: record.status || '-',
+                    status: getNCDisplayStatus(record, now),
                     responsible_person: record.responsible_person || '-',
                     requesting_person: record.requesting_person || '-',
                     requesting_unit: record.requesting_unit || '-',

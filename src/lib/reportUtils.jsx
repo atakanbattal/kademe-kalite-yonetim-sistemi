@@ -203,7 +203,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			console.error("Error storing report data:", error);
 
 			// Fallback: Liste tipleri için hata, diğerleri için database fetch
-			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list'].includes(type);
+			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list'].includes(type);
 			if (isListTypeFallback) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
 				return;
@@ -232,6 +232,8 @@ const getReportTitle = (record, type) => {
 			return `Girdi Kontrol Raporu-${record.record_no || 'Bilinmiyor'}`;
 		case 'deviation':
 			return `Sapma Talep Raporu-${record.request_no || 'Bilinmiyor'}`;
+		case 'deviation_list':
+			return record.title || 'Sapma Yönetimi Liste Raporu';
 		case 'nonconformity':
 			// Tedarikçi kaynaklı ise format: [Tedarikçi Adı]-[NC No]
 			if (record.is_supplier_nc || record.department === 'Tedarikçi' || record.supplier_id) {
@@ -240,6 +242,10 @@ const getReportTitle = (record, type) => {
 				return `${supplierName}-${ncNumber}`;
 			}
 			return `${record.type} Raporu-${record.nc_number || record.mdi_no || 'Bilinmiyor'}`;
+		case 'nonconformity_record':
+			return `Uygunsuzluk Yönetimi Raporu-${record.record_number || 'Bilinmiyor'}`;
+		case 'nonconformity_record_list':
+			return record.title || 'Uygunsuzluk Yönetimi Liste Raporu';
 		case 'kaizen':
 			return `Kaizen Raporu-${record.kaizen_no || 'Bilinmiyor'}`;
 		case 'quarantine':
@@ -298,6 +304,7 @@ const getFormNumber = (type) => {
 		kaizen: 'FR-KAL-022',
 		incoming_inspection: 'FR-KAL-023',
 		deviation: 'FR-KAL-024',
+		deviation_list: 'FR-KAL-024-A',
 		quarantine: 'FR-KAL-025',
 		quarantine_list: 'FR-KAL-025-A',
 		supplier_audit: 'FR-KAL-026',
@@ -309,6 +316,8 @@ const getFormNumber = (type) => {
 		exam_paper: 'FR-EGT-002',
 		polyvalence_matrix: 'FR-EGT-003',
 		dynamic_balance: 'FR-KAL-031',
+		nonconformity_record: 'FR-KAL-032',
+		nonconformity_record_list: 'FR-KAL-032-A',
 	};
 	return formNumbers[type] || 'FR-GEN-000';
 };
@@ -1626,6 +1635,138 @@ const generateListReportHtml = (record, type) => {
 		summaryHtml = `
 			<p><strong>Toplam Doküman Sayısı:</strong> ${totalCount}</p>
 			<p><strong>Kategori:</strong> ${record.categoryName || '-'}</p>
+		`;
+	} else if (type === 'deviation_list') {
+		title = record.title || 'Sapma Yönetimi Liste Raporu';
+		headers = ['Talep No', 'Durum', 'Talep Eden', 'Birim', 'Kaynak', 'Ürün / Parça', 'Talep Tarihi', 'Geçerlilik', 'Açıklama'];
+		rowsHtml = (record.items || []).map(item => {
+			const statusBadge = item.status === 'Onaylandı'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Onaylandı</span>'
+				: item.status === 'Reddedildi'
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
+					: item.status === 'Onay Bekliyor'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">Onay Bekliyor</span>'
+						: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1d4ed8;">Açık</span>';
+
+			return `
+				<tr>
+					<td style="white-space: nowrap; font-weight: 600;">${item.request_no || '-'}</td>
+					<td>${statusBadge}</td>
+					<td>${item.requesting_person || '-'}</td>
+					<td>${item.requesting_unit || '-'}</td>
+					<td>${item.source || '-'}</td>
+					<td>${item.product_part || '-'}</td>
+					<td style="white-space: nowrap;">${item.created_at || '-'}</td>
+					<td style="white-space: nowrap;">${item.valid_until || '-'}</td>
+					<td style="font-size: 0.85em;">${item.description || '-'}</td>
+				</tr>
+			`;
+		}).join('');
+
+		const statusCounts = record.statusCounts || {};
+		const statusSummary = Object.entries(statusCounts)
+			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
+			.join('');
+		const sourceCounts = record.sourceCounts || {};
+		const sourceSummary = Object.entries(sourceCounts)
+			.map(([source, count]) => `<span style="margin-right: 15px;"><strong>${source}:</strong> ${count}</span>`)
+			.join('');
+
+		summaryHtml = `
+			<p><strong>Toplam Sapma Talebi:</strong> ${totalCount}</p>
+			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
+			${sourceSummary ? `<p><strong>Kaynak Dağılımı:</strong> ${sourceSummary}</p>` : ''}
+		`;
+	} else if (type === 'nonconformity_record_list') {
+		title = record.title || 'Uygunsuzluk Yönetimi Liste Raporu';
+		headers = ['Kayıt No', 'Parça Kodu', 'Parça Adı', 'Kategori', 'Ciddiyet', 'Adet', 'Tespit Tarihi', 'Durum', 'Sorumlu'];
+		const escapeHtml = (value) => String(value ?? '-')
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+		rowsHtml = (record.items || []).map(item => {
+			const severityBadge = item.severity === 'Kritik'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Kritik</span>'
+				: item.severity === 'Yüksek'
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #ffedd5; color: #c2410c;">Yüksek</span>'
+					: item.severity === 'Orta'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">Orta</span>'
+						: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dcfce7; color: #166534;">Düşük</span>';
+
+			const statusBadge = item.status === 'Kapatıldı'
+				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">Kapatıldı</span>'
+				: item.status === 'DF Açıldı'
+					? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1d4ed8;">DF Açıldı</span>'
+					: item.status === '8D Açıldı'
+						? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #ede9fe; color: #6d28d9;">8D Açıldı</span>'
+						: item.status === '8D Önerildi'
+							? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #f3e8ff; color: #7e22ce;">8D Önerildi</span>'
+							: item.status === 'DF Önerildi'
+								? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e0f2fe; color: #0369a1;">DF Önerildi</span>'
+								: '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1d4ed8;">Açık</span>';
+
+			return `
+				<tr>
+					<td style="white-space: nowrap; font-weight: 600;">${item.record_number || '-'}</td>
+					<td>${item.part_code || '-'}</td>
+					<td>${item.part_name || '-'}</td>
+					<td>${item.category || '-'}</td>
+					<td>${severityBadge}</td>
+					<td style="text-align: center;">${item.quantity || 0}</td>
+					<td style="white-space: nowrap;">${item.detection_date || '-'}</td>
+					<td>${statusBadge}</td>
+					<td>${item.responsible_person || '-'}</td>
+				</tr>
+			`;
+		}).join('');
+
+		const statusCounts = record.statusCounts || {};
+		const statusSummary = Object.entries(statusCounts)
+			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${status}:</strong> ${count}</span>`)
+			.join('');
+		const severityCounts = record.severityCounts || {};
+		const severitySummary = Object.entries(severityCounts)
+			.map(([severity, count]) => `<span style="margin-right: 15px;"><strong>${severity}:</strong> ${count}</span>`)
+			.join('');
+		const personnelPerformanceRows = (record.personnelPerformance || []).map(person => `
+			<tr>
+				<td>${escapeHtml(person.name)}</td>
+				<td style="text-align: center;">${person.total || 0}</td>
+				<td style="text-align: center;">${person.closed || 0}</td>
+				<td style="text-align: center;">${person.open || 0}</td>
+				<td style="text-align: center;">${person.critical || 0}</td>
+				<td style="text-align: center;">${person.quantity || 0}</td>
+				<td style="text-align: center;">%${person.closeRate || 0}</td>
+			</tr>
+		`).join('');
+
+		summaryHtml = `
+			<p><strong>Toplam Uygunsuzluk Kaydı:</strong> ${totalCount}</p>
+			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
+			${severitySummary ? `<p><strong>Ciddiyet Dağılımı:</strong> ${severitySummary}</p>` : ''}
+			${personnelPerformanceRows ? `
+				<div style="margin-top: 16px;">
+					<p><strong>Personel Performansı (Sorumlu Kişi Bazında):</strong></p>
+					<table class="info-table" style="margin-top: 8px;">
+						<thead>
+							<tr>
+								<th>Personel</th>
+								<th>Toplam</th>
+								<th>Kapatılan</th>
+								<th>Açık</th>
+								<th>Kritik</th>
+								<th>Toplam Adet</th>
+								<th>Kapanış Oranı</th>
+							</tr>
+						</thead>
+						<tbody>
+							${personnelPerformanceRows}
+						</tbody>
+					</table>
+				</div>
+			` : ''}
 		`;
 	} else if (type === 'nonconformity_list') {
 		title = 'Uygunsuzluk (DF/8D) Listesi Raporu';
@@ -3442,13 +3583,147 @@ const generateListReportHtml = (record, type) => {
 	`;
 };
 
+const generateManagedNonconformityDetailHtml = (record) => {
+	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
+	const escapeHtml = (text) => {
+		if (!text && text !== 0) return '-';
+		return String(text)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;')
+			.replace(/\n/g, '<br>');
+	};
+
+	const severityStyles = {
+		'Düşük': 'background-color: #dcfce7; color: #166534;',
+		'Orta': 'background-color: #fef3c7; color: #92400e;',
+		'Yüksek': 'background-color: #ffedd5; color: #c2410c;',
+		'Kritik': 'background-color: #fee2e2; color: #991b1b;',
+	};
+
+	const statusStyles = {
+		'Açık': 'background-color: #dbeafe; color: #1d4ed8;',
+		'DF Önerildi': 'background-color: #e0f2fe; color: #0369a1;',
+		'8D Önerildi': 'background-color: #f3e8ff; color: #7e22ce;',
+		'DF Açıldı': 'background-color: #dbeafe; color: #1d4ed8;',
+		'8D Açıldı': 'background-color: #ede9fe; color: #6d28d9;',
+		'Kapatıldı': 'background-color: #e5e7eb; color: #374151;',
+	};
+
+	const row = (label, value) => `
+		<tr>
+			<td style="width: 30%; font-weight: 600; background-color: #f8fafc;">${label}</td>
+			<td style="width: 70%;">${value || '-'}</td>
+		</tr>
+	`;
+
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
+
+	return `
+		<div class="report-header">
+			<div class="report-logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
+			</div>
+			<div class="company-title">
+				<h1>KADEME A.Ş.</h1>
+				<p>Kalite Yönetim Sistemi</p>
+			</div>
+			<div class="print-info">
+				Rapor Tarihi: ${formatDateTime(new Date())}
+			</div>
+		</div>
+
+		<div class="meta-box">
+			<div class="meta-item"><strong>Belge Türü:</strong> Uygunsuzluk Yönetimi Detay Raporu</div>
+			<div class="meta-item"><strong>Kayıt No:</strong> ${record.record_number || '-'}</div>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">KAYIT ÖZETİ</h2>
+			<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;">
+				<span style="padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; ${severityStyles[record.severity] || 'background-color: #e5e7eb; color: #374151;'}">
+					${record.severity || '-'}
+				</span>
+				<span style="padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; ${statusStyles[record.status] || 'background-color: #e5e7eb; color: #374151;'}">
+					${record.status || '-'}
+				</span>
+			</div>
+			<table class="info-table">
+				<tbody>
+					${row('Tespit Tarihi', formatDate(record.detection_date))}
+					${row('Oluşturulma Tarihi', formatDateTime(record.created_at))}
+					${row('Kategori', escapeHtml(record.category))}
+					${row('Tespit Alanı', escapeHtml(record.detection_area))}
+					${row('Hatalı Adet', escapeHtml(record.quantity))}
+					${row('İlişkili DF/8D', record.source_nc_id || '-')}
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">PARÇA VE ÜRÜN BİLGİLERİ</h2>
+			<table class="info-table">
+				<tbody>
+					${row('Parça Kodu', escapeHtml(record.part_code))}
+					${row('Parça Adı', escapeHtml(record.part_name))}
+					${row('Araç Tipi', escapeHtml(record.vehicle_type))}
+					${row('Sorumlu Birim', escapeHtml(record.department))}
+					${row('Sorumlu Kişi', escapeHtml(record.responsible_person))}
+					${row('Tespit Eden', escapeHtml(record.detected_by))}
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">UYGUNSUZLUK DETAYI</h2>
+			<div class="problem-description" style="margin-bottom: 12px;">
+				<strong style="display: block; margin-bottom: 6px;">Açıklama</strong>
+				${escapeHtml(record.description)}
+			</div>
+			${record.action_taken ? `
+				<div class="problem-description" style="margin-bottom: 12px;">
+					<strong style="display: block; margin-bottom: 6px;">Alınan Acil Aksiyon</strong>
+					${escapeHtml(record.action_taken)}
+				</div>
+			` : ''}
+			${record.notes ? `
+				<div class="problem-description">
+					<strong style="display: block; margin-bottom: 6px;">Ek Notlar</strong>
+					${escapeHtml(record.notes)}
+				</div>
+			` : ''}
+		</div>
+
+		<div class="section signature-section">
+			<h2 class="section-title dark">İMZA VE ONAY</h2>
+			<div class="signature-area">
+				<div class="signature-box">
+					<p class="role">HAZIRLAYAN</p>
+					<div class="signature-line"></div>
+				</div>
+				<div class="signature-box">
+					<p class="role">KONTROL EDEN</p>
+					<div class="signature-line"></div>
+				</div>
+				<div class="signature-box">
+					<p class="role">ONAYLAYAN</p>
+					<div class="signature-line"></div>
+				</div>
+			</div>
+		</div>
+	`;
+};
+
 const generateGenericReportHtml = async (record, type) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
 	const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
 	const formatCurrency = (value) => (value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 	const formatArray = (arr) => Array.isArray(arr) && arr.length > 0 ? arr.join(', ') : '-';
 
-	const getAttachmentUrl = (path, bucket) => {
+	const getAttachmentUrl = async (path, bucket) => {
 		if (typeof path === 'object' && path !== null) {
 			// Önce file_path'i kontrol et (deviation_attachments için)
 			if (path.file_path) {
@@ -3470,8 +3745,25 @@ const generateGenericReportHtml = async (record, type) => {
 		if (path.startsWith('/')) {
 			path = path.substring(1);
 		}
-		// Supabase public storage URL (CDN)
-		return `https://rqnvoatirfczpklaamhf.supabase.co/storage/v1/object/public/${bucket}/${path}`;
+
+		try {
+			const { data, error } = await supabase.storage
+				.from(bucket)
+				.createSignedUrl(path, 60 * 60 * 24 * 30);
+
+			if (!error && data?.signedUrl) {
+				return data.signedUrl;
+			}
+
+			if (error) {
+				console.warn(`Signed URL oluşturulamadı (${bucket}/${path}):`, error.message);
+			}
+		} catch (error) {
+			console.warn(`Signed URL oluşturma hatası (${bucket}/${path}):`, error);
+		}
+
+		const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+		return data?.publicUrl || '';
 	};
 
 	const getDocumentNumber = () => {
@@ -5398,16 +5690,17 @@ const generateGenericReportHtml = async (record, type) => {
 				if ((type === 'deviation' || type === 'inkr_management') && typeof attachment === 'object' && attachment !== null) {
 					pathToUse = attachment.file_path || attachment.path || attachment;
 				}
-				const url = getAttachmentUrl(pathToUse, bucket);
+				const url = await getAttachmentUrl(pathToUse, bucket);
 				const fileName = (type === 'deviation' || type === 'inkr_management') && typeof attachment === 'object' && attachment !== null
 					? (attachment.file_name || attachment.name || (typeof pathToUse === 'string' ? pathToUse.split('/').pop() : ''))
 					: (typeof attachment === 'string' ? attachment : attachment.name || attachment.path || '').split('/').pop();
 				const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeof pathToUse === 'string' ? pathToUse : (pathToUse.path || pathToUse.file_path || ''));
+				if (!url) continue;
 				if (isImage) {
 					const base64 = await imageUrlToBase64(url);
-					html += `<div class="image-container"><img src="${base64 || url}" class="attachment-image" alt="Ek" crossOrigin="anonymous"/></div>`;
+					html += `<div class="image-container"><a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${base64 || url}" class="attachment-image" alt="Ek" crossOrigin="anonymous"/></a></div>`;
 				} else {
-					html += `<div class="attachment-file"><a href="${url}" target="_blank">${fileName}</a></div>`;
+					html += `<div class="attachment-file"><a href="${url}" target="_blank" rel="noopener noreferrer">${fileName}</a></div>`;
 				}
 			}
 			html += `</div></div> `;
@@ -5590,8 +5883,10 @@ const generatePrintableReportHtml = async (record, type) => {
 	</div>
 </div>
 `;
-	} else if (type === 'document_list' || type === 'equipment_list') {
+	} else if (type === 'document_list' || type === 'equipment_list' || type === 'deviation_list' || type === 'nonconformity_record_list') {
 		reportContentHtml = generateListReportHtml(record, type);
+	} else if (type === 'nonconformity_record') {
+		reportContentHtml = generateManagedNonconformityDetailHtml(normalizedRecord);
 	} else if (type === 'supplier_list' || type === 'supplier_dashboard') {
 		reportContentHtml = generateListReportHtml(record, type);
 	} else if (type === 'quality_cost_executive_summary' || type === 'quality_cost_list' || type === 'quality_cost_detail' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {

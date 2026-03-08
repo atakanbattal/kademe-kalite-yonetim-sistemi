@@ -31,6 +31,7 @@ import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import { openPrintableReport } from '@/lib/reportUtils';
 
 const IncomingInspectionDetailModal = ({
     isOpen,
@@ -59,7 +60,9 @@ const IncomingInspectionDetailModal = ({
     const [checkingRiskyStock, setCheckingRiskyStock] = useState(false);
     const [isCreatingNC, setIsCreatingNC] = useState(false);
     const [linkedNonConformities, setLinkedNonConformities] = useState([]);
+    const [linkedDeviations, setLinkedDeviations] = useState([]);
     const [loadingNCs, setLoadingNCs] = useState(false);
+    const [loadingDeviations, setLoadingDeviations] = useState(false);
     const [hasStockRiskControl, setHasStockRiskControl] = useState(false);
     const [stockRiskControlInfo, setStockRiskControlInfo] = useState(null);
 
@@ -253,6 +256,39 @@ const IncomingInspectionDetailModal = ({
         };
 
         fetchLinkedNonConformities();
+    }, [isOpen, enrichedInspection?.id]);
+
+    useEffect(() => {
+        const fetchLinkedDeviations = async () => {
+            if (!isOpen || !enrichedInspection?.id) {
+                setLinkedDeviations([]);
+                return;
+            }
+
+            setLoadingDeviations(true);
+            try {
+                const { data, error } = await supabase
+                    .from('deviations')
+                    .select('id, request_no, status, created_at, description, requesting_unit, source_type, source_record_id')
+                    .eq('source_type', 'incoming_inspection')
+                    .eq('source_record_id', enrichedInspection.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Sapmalar yüklenirken hata:', error);
+                    setLinkedDeviations([]);
+                } else {
+                    setLinkedDeviations(data || []);
+                }
+            } catch (err) {
+                console.error('Sapma fetch hatası:', err);
+                setLinkedDeviations([]);
+            } finally {
+                setLoadingDeviations(false);
+            }
+        };
+
+        fetchLinkedDeviations();
     }, [isOpen, enrichedInspection?.id]);
 
     const getDecisionBadge = (decision) => {
@@ -1212,6 +1248,54 @@ const IncomingInspectionDetailModal = ({
                                 </CardContent>
                             </Card>
                         )}
+
+                        <Card className="border-blue-200 bg-blue-50/60">
+                            <CardHeader>
+                                <CardTitle className="text-base text-blue-800">
+                                    İlişkili Sapmalar
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {loadingDeviations ? (
+                                    <div className="text-sm text-muted-foreground text-center py-2">
+                                        Sapmalar yükleniyor...
+                                    </div>
+                                ) : linkedDeviations.length > 0 ? (
+                                    linkedDeviations.map((deviation) => (
+                                        <div
+                                            key={deviation.id}
+                                            className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-white p-3"
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <Badge className="bg-blue-600">{deviation.request_no || 'Sapma'}</Badge>
+                                                    <Badge variant="outline">{deviation.status || '-'}</Badge>
+                                                </div>
+                                                <div className="text-xs text-muted-foreground mt-1 truncate">
+                                                    {deviation.description || deviation.requesting_unit || 'Açıklama girilmemiş'}
+                                                </div>
+                                                {deviation.created_at && (
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                        Oluşturulma: {format(new Date(deviation.created_at), 'dd.MM.yyyy HH:mm', { locale: tr })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => openPrintableReport(deviation, 'deviation', true)}
+                                            >
+                                                <Eye className="h-4 w-4 mr-1" />
+                                                Raporu Aç
+                                            </Button>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-sm text-muted-foreground">
+                                        Bu muayene kaydı için ilişkilendirilmiş sapma bulunmuyor.
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                 </Tabs>
                 </div>

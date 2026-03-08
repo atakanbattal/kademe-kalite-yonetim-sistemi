@@ -27,6 +27,7 @@ import {
 import NonconformityFormModal from './NonconformityFormModal';
 import NonconformityDetailModal from './NonconformityDetailModal';
 import NonconformitySettings from './NonconformitySettings';
+import { openPrintableReport } from '@/lib/reportUtils';
 
 const severityColors = {
   'Düşük': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -205,6 +206,87 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     }
     setDeleteTarget(null);
   };
+
+  const handleGenerateReport = useCallback(() => {
+    if (filteredRecords.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Hata',
+        description: 'Rapor oluşturmak için en az bir uygunsuzluk kaydı olmalıdır.',
+      });
+      return;
+    }
+
+    const statusCounts = filteredRecords.reduce((acc, item) => {
+      const key = item.status || 'Belirsiz';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const severityCounts = filteredRecords.reduce((acc, item) => {
+      const key = item.severity || 'Belirsiz';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const personnelPerformance = Object.values(filteredRecords.reduce((acc, item) => {
+      const name = item.responsible_person || item.detected_by || 'Atanmamış';
+
+      if (!acc[name]) {
+        acc[name] = {
+          name,
+          total: 0,
+          closed: 0,
+          open: 0,
+          critical: 0,
+          quantity: 0,
+        };
+      }
+
+      acc[name].total += 1;
+      acc[name].quantity += Number(item.quantity) || 0;
+
+      if (item.status === 'Kapatıldı') {
+        acc[name].closed += 1;
+      } else {
+        acc[name].open += 1;
+      }
+
+      if (item.severity === 'Kritik') {
+        acc[name].critical += 1;
+      }
+
+      return acc;
+    }, {})).map((person) => ({
+      ...person,
+      closeRate: person.total > 0 ? Math.round((person.closed / person.total) * 100) : 0,
+    })).sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      if (b.closed !== a.closed) return b.closed - a.closed;
+      return a.name.localeCompare(b.name, 'tr');
+    });
+
+    const reportData = {
+      id: `nonconformity-record-list-${Date.now()}`,
+      title: 'Uygunsuzluk Yönetimi Liste Raporu',
+      statusCounts,
+      severityCounts,
+      personnelPerformance,
+      items: filteredRecords.map((item) => ({
+        record_number: item.record_number || '-',
+        part_code: item.part_code || '-',
+        part_name: item.part_name || '-',
+        category: item.category || '-',
+        severity: item.severity || '-',
+        quantity: item.quantity || 0,
+        detection_date: item.detection_date ? new Date(item.detection_date).toLocaleDateString('tr-TR') : '-',
+        status: item.status || '-',
+        responsible_person: item.responsible_person || '-',
+      })),
+    };
+
+    openPrintableReport(reportData, 'nonconformity_record_list', true);
+  }, [filteredRecords, toast]);
 
   const handleConvertToDF8D = async () => {
     const { record, type } = convertDialog;
@@ -401,9 +483,14 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
               <Settings2 className="w-4 h-4" /> Ayarlar
             </TabsTrigger>
           </TabsList>
-          <Button onClick={() => { setSelectedRecord(null); setIsFormOpen(true); }} className="bg-amber-600 hover:bg-amber-700">
-            <Plus className="w-4 h-4 mr-2" /> Yeni Uygunsuzluk
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleGenerateReport}>
+              <FileText className="w-4 h-4 mr-2" /> Rapor Al
+            </Button>
+            <Button onClick={() => { setSelectedRecord(null); setIsFormOpen(true); }} className="bg-amber-600 hover:bg-amber-700">
+              <Plus className="w-4 h-4 mr-2" /> Yeni Uygunsuzluk
+            </Button>
+          </div>
         </div>
 
         {/* KAYITLAR */}
@@ -559,6 +646,9 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => { setDetailRecord(record); setIsDetailOpen(true); }}>
                                 <Eye className="h-4 w-4 mr-2" /> Görüntüle
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openPrintableReport(record, 'nonconformity_record', true)}>
+                                <FileText className="h-4 w-4 mr-2" /> Rapor Al
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedRecord(record); setIsFormOpen(true); }}>
                                 <Edit className="h-4 w-4 mr-2" /> Düzenle

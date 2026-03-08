@@ -23,6 +23,11 @@ const calcNextVerificationDate = (fromDate, periodMonths) => {
     return d.toISOString().split('T')[0];
 };
 
+const isMissingFixtureImageColumnError = (error) =>
+    error?.code === 'PGRST204' &&
+    typeof error?.message === 'string' &&
+    error.message.includes('image_paths');
+
 // =====================================================
 // ANA MODÜL
 // =====================================================
@@ -32,6 +37,7 @@ const FixtureModule = () => {
     // Veri
     const [allFixtures, setAllFixtures] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [supportsFixtureImages, setSupportsFixtureImages] = useState(true);
 
     // Filtreler & Arama
     const [searchTerm, setSearchTerm] = useState('');
@@ -76,6 +82,26 @@ const FixtureModule = () => {
     useEffect(() => {
         fetchFixtures();
     }, [fetchFixtures]);
+
+    useEffect(() => {
+        const checkFixtureImageSupport = async () => {
+            const { error } = await supabase
+                .from('fixtures')
+                .select('image_paths')
+                .limit(1);
+
+            if (isMissingFixtureImageColumnError(error)) {
+                setSupportsFixtureImages(false);
+                return;
+            }
+
+            if (!error) {
+                setSupportsFixtureImages(true);
+            }
+        };
+
+        checkFixtureImageSupport();
+    }, []);
 
     // =====================================================
     // FİLTRELEME & SIRALAMA
@@ -147,6 +173,10 @@ const FixtureModule = () => {
             sample_count_required: sampleCount,
         };
 
+        if (supportsFixtureImages) {
+            payload.image_paths = Array.isArray(formData.image_paths) && formData.image_paths.length > 0 ? formData.image_paths : [];
+        }
+
         try {
             let error;
             if (fixtureId) {
@@ -167,6 +197,16 @@ const FixtureModule = () => {
             setFormModal({ open: false, fixture: null });
             fetchFixtures();
         } catch (err) {
+            if (isMissingFixtureImageColumnError(err)) {
+                setSupportsFixtureImages(false);
+                toast({
+                    title: 'Görsel alanı hazır değil',
+                    description: '`image_paths` migrationı veritabanına uygulanmadığı için fikstür görselleri henüz kaydedilemiyor.',
+                    variant: 'destructive',
+                });
+                throw err;
+            }
+
             toast({ title: 'Hata', description: err.message || 'Kayıt başarısız.', variant: 'destructive' });
             throw err;
         }
@@ -398,6 +438,7 @@ const FixtureModule = () => {
                 onOpenChange={(open) => setFormModal(p => ({ ...p, open }))}
                 fixture={formModal.fixture}
                 onSave={handleSaveFixture}
+                supportsImageUpload={supportsFixtureImages}
             />
             <FixtureDetailModal
                 open={detailModal.open}

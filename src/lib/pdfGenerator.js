@@ -1,4 +1,5 @@
 import { logoCache, imageUrlToBase64, preloadLogos, getLogoUrl } from './reportUtils';
+import { calculateVehicleTimelineStats } from './vehicleTimelineUtils';
 
 const generatePrintableReport = async (record) => {
     // Logoları önceden yükle (cache'de yoksa)
@@ -617,70 +618,12 @@ export const generateVehicleSummaryReport = async (vehicles, timelineByVehicle, 
 
     // Her araç için süreleri hesapla
     const calculateVehicleTimes = (vehicleId, timeline) => {
-        let totalControlMillis = 0;
-        let totalReworkMillis = 0;
-        let waitingForShippingStart = null;
-
-        if (timeline && timeline.length > 0) {
-            const waitingEvent = timeline.find(e => e.event_type === 'waiting_for_shipping_info');
-            if (waitingEvent) {
-                waitingForShippingStart = new Date(waitingEvent.event_timestamp);
-            }
-
-            for (let i = 0; i < timeline.length; i++) {
-                const currentEvent = timeline[i];
-                const currentEventTime = new Date(currentEvent.event_timestamp);
-                
-                if (waitingForShippingStart && currentEventTime >= waitingForShippingStart) {
-                    continue;
-                }
-
-                if (currentEvent.event_type === 'control_start') {
-                    const nextEnd = timeline.slice(i + 1).find(e => {
-                        const endTime = new Date(e.event_timestamp);
-                        if (waitingForShippingStart && endTime >= waitingForShippingStart) {
-                            return false;
-                        }
-                        return e.event_type === 'control_end';
-                    });
-                    if (nextEnd) {
-                        const endTime = waitingForShippingStart && new Date(nextEnd.event_timestamp) > waitingForShippingStart 
-                            ? waitingForShippingStart 
-                            : new Date(nextEnd.event_timestamp);
-                        totalControlMillis += (endTime - currentEventTime);
-                    } else if (waitingForShippingStart) {
-                        totalControlMillis += (waitingForShippingStart - currentEventTime);
-                    } else {
-                        // Devam eden kontrol - şu anki zamana kadar hesapla
-                        totalControlMillis += (new Date() - currentEventTime);
-                    }
-                } else if (currentEvent.event_type === 'rework_start') {
-                    const nextEnd = timeline.slice(i + 1).find(e => {
-                        const endTime = new Date(e.event_timestamp);
-                        if (waitingForShippingStart && endTime >= waitingForShippingStart) {
-                            return false;
-                        }
-                        return e.event_type === 'rework_end';
-                    });
-                    if (nextEnd) {
-                        const endTime = waitingForShippingStart && new Date(nextEnd.event_timestamp) > waitingForShippingStart 
-                            ? waitingForShippingStart 
-                            : new Date(nextEnd.event_timestamp);
-                        totalReworkMillis += (endTime - currentEventTime);
-                    } else if (waitingForShippingStart) {
-                        totalReworkMillis += (waitingForShippingStart - currentEventTime);
-                    } else {
-                        // Devam eden yeniden işlem - şu anki zamana kadar hesapla
-                        totalReworkMillis += (new Date() - currentEventTime);
-                    }
-                }
-            }
-        }
+        const { totalControlMillis, totalReworkMillis, totalQualityMillis } = calculateVehicleTimelineStats(timeline, new Date());
         
         return {
             totalControlTime: formatDuration(totalControlMillis),
             totalReworkTime: formatDuration(totalReworkMillis),
-            totalQualityTime: formatDuration(totalControlMillis + totalReworkMillis)
+            totalQualityTime: formatDuration(totalQualityMillis)
         };
     };
 
@@ -1166,70 +1109,11 @@ export const generateVehicleReport = async (vehicle, timeline, faults, equipment
     
     // Kalite sürelerini hesapla
     const calculateQualityTimes = () => {
-        let totalControlMillis = 0;
-        let totalReworkMillis = 0;
-        let waitingForShippingStart = null;
-        
-        if (timeline && timeline.length > 0) {
-            // "Sevk Bilgisi Bekleniyor" durumunun başlangıcını bul
-            const waitingEvent = timeline.find(e => e.event_type === 'waiting_for_shipping_info');
-            if (waitingEvent) {
-                waitingForShippingStart = new Date(waitingEvent.event_timestamp);
-            }
-
-            for (let i = 0; i < timeline.length; i++) {
-                const currentEvent = timeline[i];
-                const currentEventTime = new Date(currentEvent.event_timestamp);
-                
-                // "Sevk Bilgisi Bekleniyor" durumundan sonraki süreleri sayma
-                if (waitingForShippingStart && currentEventTime >= waitingForShippingStart) {
-                    continue;
-                }
-
-                if (currentEvent.event_type === 'control_start') {
-                    const nextEnd = timeline.slice(i + 1).find(e => {
-                        const endTime = new Date(e.event_timestamp);
-                        if (waitingForShippingStart && endTime >= waitingForShippingStart) {
-                            return false;
-                        }
-                        return e.event_type === 'control_end';
-                    });
-                    if (nextEnd) {
-                        const endTime = waitingForShippingStart && new Date(nextEnd.event_timestamp) > waitingForShippingStart 
-                            ? waitingForShippingStart 
-                            : new Date(nextEnd.event_timestamp);
-                        totalControlMillis += (endTime - currentEventTime);
-                    } else if (waitingForShippingStart) {
-                        totalControlMillis += (waitingForShippingStart - currentEventTime);
-                    } else {
-                        // Devam eden kontrol - şu anki zamana kadar hesapla
-                        totalControlMillis += (new Date() - currentEventTime);
-                    }
-                } else if (currentEvent.event_type === 'rework_start') {
-                    const nextEnd = timeline.slice(i + 1).find(e => {
-                        const endTime = new Date(e.event_timestamp);
-                        if (waitingForShippingStart && endTime >= waitingForShippingStart) {
-                            return false;
-                        }
-                        return e.event_type === 'rework_end';
-                    });
-                    if (nextEnd) {
-                        const endTime = waitingForShippingStart && new Date(nextEnd.event_timestamp) > waitingForShippingStart 
-                            ? waitingForShippingStart 
-                            : new Date(nextEnd.event_timestamp);
-                        totalReworkMillis += (endTime - currentEventTime);
-                    } else if (waitingForShippingStart) {
-                        totalReworkMillis += (waitingForShippingStart - currentEventTime);
-                    } else {
-                        // Devam eden yeniden işlem - şu anki zamana kadar hesapla
-                        totalReworkMillis += (new Date() - currentEventTime);
-                    }
-                }
-            }
-        }
-        
-        // Kalitede geçen toplam süre kontrol ve yeniden işlem sürelerinin toplamıdır
-        const totalQualityMillis = totalControlMillis + totalReworkMillis;
+        const {
+            totalControlMillis,
+            totalReworkMillis,
+            totalQualityMillis,
+        } = calculateVehicleTimelineStats(timeline, new Date());
         
         return {
             totalControlTime: formatDuration(totalControlMillis),

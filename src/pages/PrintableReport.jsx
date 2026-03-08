@@ -378,6 +378,7 @@ const PrintableReport = () => {
                     case 'deviation':
                     case 'quarantine':
                     case 'nonconformity':
+                    case 'nonconformity_record':
                     case 'equipment':
                     case 'dynamic_balance': {
                         // Check if data is already provided via URL params
@@ -394,6 +395,7 @@ const PrintableReport = () => {
                             deviation: 'deviations',
                             quarantine: 'quarantine_records',
                             nonconformity: 'non_conformities',
+                            nonconformity_record: 'nonconformity_records',
                             equipment: 'equipments',
                             dynamic_balance: 'fan_balance_records',
                         };

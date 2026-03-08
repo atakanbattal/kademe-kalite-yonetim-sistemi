@@ -12,6 +12,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { openPrintableReport } from '@/lib/reportUtils';
+    import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
 
     import VehicleDashboard from '@/components/produced-vehicles/VehicleDashboard';
     import VehicleTable from '@/components/produced-vehicles/VehicleTable';
@@ -388,19 +389,11 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                 // Ortalama kontrol süresi hesaplama (control_start ve control_end arasındaki süre - dinamik)
                 let totalControlMillis = 0;
                 let controlCount = 0;
+                const timelineNow = new Date();
                 memoizedVehicles.forEach(vehicle => {
-                    const timeline = vehicle.vehicle_timeline_events || [];
-                    for (let i = 0; i < timeline.length; i++) {
-                        const currentEvent = timeline[i];
-                        if (currentEvent.event_type === 'control_start') {
-                            const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'control_end');
-                            const startTime = new Date(currentEvent.event_timestamp);
-                            // Eğer control_end yoksa, şu anki zamana kadar hesapla (dinamik)
-                            const endTime = nextEnd ? new Date(nextEnd.event_timestamp) : new Date();
-                            totalControlMillis += (endTime - startTime);
-                            controlCount++;
-                        }
-                    }
+                    const timelineStats = calculateVehicleTimelineStats(vehicle.vehicle_timeline_events, timelineNow);
+                    totalControlMillis += timelineStats.totalControlMillis;
+                    controlCount += timelineStats.controlCycleCount;
                 });
                 // Ortalama kontrol süresini saat ve dakika formatında hesapla
                 const averageControlDurationMillis = controlCount > 0 
@@ -412,18 +405,9 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                 let totalReworkMillis = 0;
                 let reworkCount = 0;
                 memoizedVehicles.forEach(vehicle => {
-                    const timeline = vehicle.vehicle_timeline_events || [];
-                    for (let i = 0; i < timeline.length; i++) {
-                        const currentEvent = timeline[i];
-                        if (currentEvent.event_type === 'rework_start') {
-                            const nextEnd = timeline.slice(i + 1).find(e => e.event_type === 'rework_end');
-                            const startTime = new Date(currentEvent.event_timestamp);
-                            // Eğer rework_end yoksa, şu anki zamana kadar hesapla (dinamik)
-                            const endTime = nextEnd ? new Date(nextEnd.event_timestamp) : new Date();
-                            totalReworkMillis += (endTime - startTime);
-                            reworkCount++;
-                        }
-                    }
+                    const timelineStats = calculateVehicleTimelineStats(vehicle.vehicle_timeline_events, timelineNow);
+                    totalReworkMillis += timelineStats.totalReworkMillis;
+                    reworkCount += timelineStats.reworkCycleCount;
                 });
                 const averageReworkDurationMillis = reworkCount > 0 
                     ? totalReworkMillis / reworkCount

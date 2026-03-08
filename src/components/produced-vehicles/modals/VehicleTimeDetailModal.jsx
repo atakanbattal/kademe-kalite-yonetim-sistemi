@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { ScrollArea } from '@/components/ui/scroll-area';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { PlusCircle, Trash2, Clock, Wrench, PackageCheck, Ship, Play, CheckCircle, FlaskConical } from 'lucide-react';
-    import { format, parseISO, differenceInMilliseconds } from 'date-fns';
+    import { format, parseISO } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { formatDuration } from '@/lib/formatDuration.js';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -14,6 +14,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Input } from "@/components/ui/input";
     import { Label } from "@/components/ui/label";
     import { Skeleton } from '@/components/ui/skeleton';
+    import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
 
     const eventTypes = {
       quality_entry: { label: 'Kaliteye Giriş', icon: <Play className="h-4 w-4 text-blue-500" /> },
@@ -136,67 +137,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         }, [isOpen, vehicle, fetchTimeline]);
         
         const summaryStats = useMemo(() => {
-            let totalControlMillis = 0;
-            let totalReworkMillis = 0;
-            let waitingForShippingStart = null;
-
-            if (timeline.length > 0) {
-                // "Sevk Bilgisi Bekleniyor" durumunun başlangıcını bul
-                const waitingEvent = timeline.find(e => e.event_type === 'waiting_for_shipping_info');
-                if (waitingEvent) {
-                    waitingForShippingStart = parseISO(waitingEvent.event_timestamp);
-                }
-
-                for (let i = 0; i < timeline.length; i++) {
-                    const currentEvent = timeline[i];
-                    const currentEventTime = parseISO(currentEvent.event_timestamp);
-                    
-                    // "Sevk Bilgisi Bekleniyor" durumundan sonraki süreleri sayma
-                    if (waitingForShippingStart && currentEventTime >= waitingForShippingStart) {
-                        continue;
-                    }
-
-                    if (currentEvent.event_type === 'control_start') {
-                        const nextEnd = timeline.slice(i + 1).find(e => {
-                            const endTime = parseISO(e.event_timestamp);
-                            if (waitingForShippingStart && endTime >= waitingForShippingStart) {
-                                return false;
-                            }
-                            return e.event_type === 'control_end';
-                        });
-                        if (nextEnd) {
-                            const endTime = waitingForShippingStart && parseISO(nextEnd.event_timestamp) > waitingForShippingStart 
-                                ? waitingForShippingStart 
-                                : parseISO(nextEnd.event_timestamp);
-                            totalControlMillis += differenceInMilliseconds(endTime, currentEventTime);
-                        } else if (waitingForShippingStart) {
-                            totalControlMillis += differenceInMilliseconds(waitingForShippingStart, currentEventTime);
-                        } else {
-                            totalControlMillis += differenceInMilliseconds(new Date(), currentEventTime);
-                        }
-                    } else if (currentEvent.event_type === 'rework_start') {
-                        const nextEnd = timeline.slice(i + 1).find(e => {
-                            const endTime = parseISO(e.event_timestamp);
-                            if (waitingForShippingStart && endTime >= waitingForShippingStart) {
-                                return false;
-                            }
-                            return e.event_type === 'rework_end';
-                        });
-                        if (nextEnd) {
-                            const endTime = waitingForShippingStart && parseISO(nextEnd.event_timestamp) > waitingForShippingStart 
-                                ? waitingForShippingStart 
-                                : parseISO(nextEnd.event_timestamp);
-                            totalReworkMillis += differenceInMilliseconds(endTime, currentEventTime);
-                        } else if (waitingForShippingStart) {
-                            totalReworkMillis += differenceInMilliseconds(waitingForShippingStart, currentEventTime);
-                        } else {
-                            totalReworkMillis += differenceInMilliseconds(new Date(), currentEventTime);
-                        }
-                    }
-                }
-            }
-            
-            const totalQualityMillis = totalControlMillis + totalReworkMillis;
+            const {
+                totalControlMillis,
+                totalReworkMillis,
+                totalQualityMillis,
+            } = calculateVehicleTimelineStats(timeline, new Date());
 
             return {
                 totalControlTime: formatDuration(totalControlMillis),

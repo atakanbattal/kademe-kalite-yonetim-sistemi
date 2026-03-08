@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Plus, LayoutGrid, List, BarChart3 } from 'lucide-react';
+import { Plus, LayoutGrid, List, BarChart3, FileText } from 'lucide-react';
 import DeviationList from '@/components/deviation/DeviationList';
 import DeviationFormModal from '@/components/deviation/DeviationFormModal';
 import DeviationDetailModal from '@/components/deviation/DeviationDetailModal';
@@ -15,7 +15,7 @@ import CreateNCFromDeviationModal from '@/components/deviation/CreateNCFromDevia
 import { openPrintableReport } from '@/lib/reportUtils';
 import { useData } from '@/contexts/DataContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { parseISO, isAfter, isBefore } from 'date-fns';
+import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 
 const DeviationModule = ({ onOpenNCForm }) => {
@@ -112,6 +112,49 @@ const DeviationModule = ({ onOpenNCForm }) => {
         }
     };
 
+    const handleGenerateReport = useCallback(() => {
+        if (filteredDeviations.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Rapor oluşturmak için en az bir sapma kaydı olmalıdır.',
+            });
+            return;
+        }
+
+        const statusCounts = filteredDeviations.reduce((acc, deviation) => {
+            const key = deviation.status || 'Belirsiz';
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {});
+
+        const sourceCounts = filteredDeviations.reduce((acc, deviation) => {
+            const key = deviation.source || 'Belirsiz';
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {});
+
+        const reportData = {
+            id: `deviation-list-${Date.now()}`,
+            title: 'Sapma Yönetimi Liste Raporu',
+            statusCounts,
+            sourceCounts,
+            items: filteredDeviations.map((deviation) => ({
+                request_no: deviation.request_no || '-',
+                status: deviation.status || '-',
+                requesting_person: deviation.requesting_person || '-',
+                requesting_unit: deviation.requesting_unit || '-',
+                source: deviation.source || '-',
+                product_part: deviation.product_part || '-',
+                created_at: deviation.created_at ? format(new Date(deviation.created_at), 'dd.MM.yyyy') : '-',
+                valid_until: deviation.valid_until ? format(new Date(deviation.valid_until), 'dd.MM.yyyy') : '-',
+                description: deviation.description || '-',
+            })),
+        };
+
+        openPrintableReport(reportData, 'deviation_list', true);
+    }, [filteredDeviations, toast]);
+
     return (
         <div className="space-y-6">
             <Helmet>
@@ -119,9 +162,14 @@ const DeviationModule = ({ onOpenNCForm }) => {
                 <meta name="description" content="Üretim ve süreç sapmalarını yönetin, onay süreçlerini takip edin." />
             </Helmet>
 
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-3">
                 <h1 className="text-3xl font-bold text-foreground">Sapma Yönetimi</h1>
-                <Button onClick={() => handleOpenForm()}><Plus className="mr-2 h-4 w-4" /> Yeni Sapma Talebi</Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={handleGenerateReport}>
+                        <FileText className="mr-2 h-4 w-4" /> Rapor Al
+                    </Button>
+                    <Button onClick={() => handleOpenForm()}><Plus className="mr-2 h-4 w-4" /> Yeni Sapma Talebi</Button>
+                </div>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>

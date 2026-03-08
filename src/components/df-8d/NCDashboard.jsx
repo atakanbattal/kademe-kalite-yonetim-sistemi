@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, FolderOpen, CheckCircle, XCircle, FileSpreadsheet, Hourglass, AlertTriangle, BarChart, Percent, CalendarDays, Zap, TrendingUp } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { differenceInDays, parseISO, format, eachMonthOfInterval, isValid, startOfMonth } from 'date-fns';
-import { getStatusBadge } from '@/lib/statusUtils';
+import { getStatusBadge, isNCOverdue } from '@/lib/statusUtils';
 
 const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -82,8 +82,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
             if (isRejected) counts.rejected++;
             if (rec.type in counts) counts[rec.type]++;
             
-            const dueAt = rec.due_at ? parseISO(rec.due_at) : null;
-            const isOverdue = isOpen && dueAt && isValid(dueAt) && now > dueAt;
+            const isOverdue = isNCOverdue(rec, now);
             
             const responsibleDept = rec.department || 'Belirtilmemiş';
             if (!deptPerf[responsibleDept]) {
@@ -126,10 +125,7 @@ const NCDashboard = ({ records, loading, onDashboardInteraction }) => {
             }
         });
 
-        const overdueRecords = records.filter(r => {
-            const dueAt = r.due_at ? parseISO(r.due_at) : null;
-            return r.status !== 'Kapatıldı' && r.status !== 'Reddedildi' && dueAt && isValid(dueAt) && new Date() > dueAt;
-        }).sort((a,b) => {
+        const overdueRecords = records.filter(record => isNCOverdue(record, now)).sort((a,b) => {
              const dueA = a.due_at ? parseISO(a.due_at) : null;
              const dueB = b.due_at ? parseISO(b.due_at) : null;
              if (!dueA || !dueB || !isValid(dueA) || !isValid(dueB)) return 0;

@@ -3,6 +3,7 @@
  */
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
 
 /**
  * Araç için kontrol süresini hesaplar (dakika cinsinden)
@@ -10,25 +11,8 @@ import { supabase } from '@/lib/customSupabaseClient';
  * @returns {number} - Toplam kontrol süresi (dakika)
  */
 export const calculateInspectionDuration = (timelineEvents = []) => {
-    if (!timelineEvents || timelineEvents.length === 0) return 0;
-    
-    let totalMillis = 0;
-    const sortedEvents = [...timelineEvents].sort((a, b) => 
-        new Date(a.event_timestamp) - new Date(b.event_timestamp)
-    );
-    
-    for (let i = 0; i < sortedEvents.length; i++) {
-        if (sortedEvents[i].event_type === 'control_start') {
-            const endEvent = sortedEvents.slice(i + 1).find(e => e.event_type === 'control_end');
-            if (endEvent) {
-                const startTime = new Date(sortedEvents[i].event_timestamp);
-                const endTime = new Date(endEvent.event_timestamp);
-                totalMillis += (endTime - startTime);
-            }
-        }
-    }
-    
-    return Math.round(totalMillis / 60000); // Dakika cinsinden
+    const { totalControlMillis } = calculateVehicleTimelineStats(timelineEvents, new Date());
+    return Math.round(totalControlMillis / 60000);
 };
 
 /**
@@ -38,25 +22,8 @@ export const calculateInspectionDuration = (timelineEvents = []) => {
  * @returns {number} - Toplam rework süresi (dakika)
  */
 export const calculateReworkDuration = (timelineEvents = []) => {
-    if (!timelineEvents || timelineEvents.length === 0) return 0;
-    
-    let totalMillis = 0;
-    const sortedEvents = [...timelineEvents].sort((a, b) => 
-        new Date(a.event_timestamp) - new Date(b.event_timestamp)
-    );
-    const now = new Date();
-    
-    for (let i = 0; i < sortedEvents.length; i++) {
-        if (sortedEvents[i].event_type === 'rework_start') {
-            const endEvent = sortedEvents.slice(i + 1).find(e => e.event_type === 'rework_end');
-            const startTime = new Date(sortedEvents[i].event_timestamp);
-            // Eğer rework_end yoksa, şu anki zamana kadar hesapla (dinamik)
-            const endTime = endEvent ? new Date(endEvent.event_timestamp) : now;
-            totalMillis += (endTime - startTime);
-        }
-    }
-    
-    return Math.round(totalMillis / 60000); // Dakika cinsinden
+    const { totalReworkMillis } = calculateVehicleTimelineStats(timelineEvents, new Date());
+    return Math.round(totalReworkMillis / 60000);
 };
 
 /**
@@ -226,4 +193,3 @@ export const createVehicleQualityCostRecord = async (vehicle, unitCostSettings =
     
     return data;
 };
-
