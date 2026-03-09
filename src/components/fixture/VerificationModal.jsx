@@ -7,17 +7,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { getFixtureVerificationRules } from '@/lib/fixtureRules';
 
-const emptyMeasurement = () => ({
+const emptyMeasurementGroup = (sampleCount = 1) => ({
     characteristic: '',
     nominal: '',
     min_limit: '',
     max_limit: '',
-    measured_value: '',
-    is_conformant: null,
+    measured_values: Array.from({ length: sampleCount }, () => ''),
 });
 
+const parseLocaleNumber = (value) => {
+    if (value === null || value === undefined) return Number.NaN;
+    return parseFloat(String(value).replace(',', '.').trim());
+};
+
 const VerificationModal = ({ open, onOpenChange, fixture, onSave }) => {
+    const { toast } = useToast();
     const [form, setForm] = useState({
         verification_type: 'Periyodik',
         verification_date: new Date().toISOString().split('T')[0],
@@ -25,19 +32,20 @@ const VerificationModal = ({ open, onOpenChange, fixture, onSave }) => {
         verified_by: '',
         notes: '',
     });
-    const [measurements, setMeasurements] = useState([emptyMeasurement()]);
+    const [measurements, setMeasurements] = useState([emptyMeasurementGroup()]);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
+        const sampleCount = getFixtureVerificationRules(fixture?.criticality_class).sampleCountRequired;
         if (open && fixture) {
             setForm({
                 verification_type: fixture.status === 'Devreye Alma Bekleniyor' ? 'Devreye Alma' : 'Periyodik',
                 verification_date: new Date().toISOString().split('T')[0],
-                sample_count: fixture.sample_count_required || 1,
+                sample_count: sampleCount,
                 verified_by: '',
                 notes: '',
             });
-            setMeasurements([emptyMeasurement()]);
+            setMeasurements([emptyMeasurementGroup(sampleCount)]);
         }
     }, [open, fixture]);
 
@@ -49,44 +57,104 @@ const VerificationModal = ({ open, onOpenChange, fixture, onSave }) => {
         setMeasurements(prev => {
             const updated = [...prev];
             updated[idx] = { ...updated[idx], [key]: value };
-
-            // Auto-evaluate conformity when measured value changes
-            if (key === 'measured_value' || key === 'min_limit' || key === 'max_limit') {
-                const m = updated[idx];
-                const measured = parseFloat(m.measured_value);
-                const minL = parseFloat(m.min_limit);
-                const maxL = parseFloat(m.max_limit);
-                if (!isNaN(measured) && !isNaN(minL) && !isNaN(maxL)) {
-                    updated[idx].is_conformant = measured >= minL && measured <= maxL;
-                } else {
-                    updated[idx].is_conformant = null;
-                }
-            }
             return updated;
         });
     };
 
-    const addMeasurement = () => setMeasurements(prev => [...prev, emptyMeasurement()]);
+    const handleSampleMeasurementChange = (measurementIndex, sampleIndex, value) => {
+        setMeasurements(prev => {
+            const updated = [...prev];
+            const currentValues = [...(updated[measurementIndex].measured_values || [])];
+            currentValues[sampleIndex] = value;
+            updated[measurementIndex] = {
+                ...updated[measurementIndex],
+                measured_values: currentValues,
+            };
+            return updated;
+        });
+    };
+
+    const addMeasurement = () => setMeasurements(prev => [...prev, emptyMeasurementGroup(form.sample_count)]);
     const removeMeasurement = (idx) => {
         if (measurements.length > 1) {
             setMeasurements(prev => prev.filter((_, i) => i !== idx));
         }
     };
 
-    const overallResult = measurements.every(m => m.is_conformant === true)
+    const evaluateMeasurementResult = (measurement, value) => {
+        const measured = parseLocaleNumber(value);
+        const minL = parseLocaleNumber(measurement.min_limit);
+        const maxL = parseLocaleNumber(measurement.max_limit);
+
+        if (value === '' || Number.isNaN(measured) || Number.isNaN(minL) || Number.isNaN(maxL)) {
+            return null;
+        }
+
+        return measured >= minL && measured <= maxL;
+    };
+
+    const validationState = measurements.map((measurement) => {
+        const sampleResults = (measurement.measured_values || []).map((value) => evaluateMeasurementResult(measurement, value));
+        const allSamplesFilled = sampleResults.length === form.sample_count && sampleResults.every(result => result !== null);
+        const rowResult = allSamplesFilled && sampleResults.every(result => result === true)
+            ? true
+            : sampleResults.some(result => result === false)
+                ? false
+                : null;
+
+        return {
+            ...measurement,
+            sampleResults,
+            allSamplesFilled,
+            rowResult,
+        };
+    });
+
+    const overallResult = validationState.every(m => m.rowResult === true)
         ? 'Uygun'
-        : measurements.some(m => m.is_conformant === false)
+        : validationState.some(m => m.rowResult === false)
             ? 'Uygunsuz'
             : null;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        const hasIncompleteRows = validationState.some((measurement) =>
+            !measurement.characteristic.trim() ||
+            measurement.nominal === '' ||
+            measurement.min_limit === '' ||
+            measurement.max_limit === '' ||
+            !measurement.allSamplesFilled
+        );
+
+        if (hasIncompleteRows) {
+            toast({
+                variant: 'destructive',
+                title: 'Eksik ölçüm var',
+                description: `${form.sample_count} numune için her özellikte tüm ölçümler doldurulmalıdır.`,
+            });
+            return;
+        }
+
         setSaving(true);
         try {
             const result = overallResult || 'Uygun';
+            const flattenedMeasurements = validationState.flatMap((measurement) =>
+                measurement.measured_values.map((measuredValue, index) => ({
+                    characteristic: measurement.characteristic,
+                    nominal: measurement.nominal,
+                    min_limit: measurement.min_limit,
+                    max_limit: measurement.max_limit,
+                    measured_value: measuredValue,
+                    measurement_number: index + 1,
+                    total_measurements: form.sample_count,
+                    is_conformant: measurement.sampleResults[index],
+                }))
+            );
+
             await onSave({
                 ...form,
-                measurements,
+                measurements: flattenedMeasurements,
                 result,
             });
         } finally {
@@ -127,8 +195,7 @@ const VerificationModal = ({ open, onOpenChange, fixture, onSave }) => {
                         </div>
                         <div className="space-y-1.5">
                             <Label>Numune Sayısı</Label>
-                            <Input type="number" min={1} value={form.sample_count}
-                                onChange={e => handleFormChange('sample_count', parseInt(e.target.value))} required />
+                            <Input type="number" min={1} value={form.sample_count} disabled readOnly />
                         </div>
                     </div>
 
@@ -158,14 +225,18 @@ const VerificationModal = ({ open, onOpenChange, fixture, onSave }) => {
                                         <th className="text-center p-2.5 font-medium text-muted-foreground">Nominal</th>
                                         <th className="text-center p-2.5 font-medium text-muted-foreground">Alt Limit</th>
                                         <th className="text-center p-2.5 font-medium text-muted-foreground">Üst Limit</th>
-                                        <th className="text-center p-2.5 font-medium text-muted-foreground">Ölçülen</th>
+                                        {Array.from({ length: form.sample_count }, (_, sampleIndex) => (
+                                            <th key={sampleIndex} className="text-center p-2.5 font-medium text-muted-foreground">
+                                                Numune {sampleIndex + 1}
+                                            </th>
+                                        ))}
                                         <th className="text-center p-2.5 font-medium text-muted-foreground">Sonuç</th>
                                         <th className="p-2.5"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {measurements.map((m, idx) => (
-                                        <tr key={idx} className={`border-t border-border ${m.is_conformant === false ? 'bg-red-50' : ''}`}>
+                                    {validationState.map((m, idx) => (
+                                        <tr key={idx} className={`border-t border-border ${m.rowResult === false ? 'bg-red-50' : ''}`}>
                                             <td className="p-2">
                                                 <Input className="h-8 text-xs" placeholder="Ör: Çap, Mesafe"
                                                     value={m.characteristic}
@@ -186,15 +257,20 @@ const VerificationModal = ({ open, onOpenChange, fixture, onSave }) => {
                                                     value={m.max_limit}
                                                     onChange={e => handleMeasurementChange(idx, 'max_limit', e.target.value)} />
                                             </td>
-                                            <td className="p-2">
-                                                <Input className="h-8 text-xs text-center font-medium" placeholder="25.01"
-                                                    value={m.measured_value}
-                                                    onChange={e => handleMeasurementChange(idx, 'measured_value', e.target.value)} />
-                                            </td>
+                                            {Array.from({ length: form.sample_count }, (_, sampleIndex) => (
+                                                <td key={sampleIndex} className="p-2">
+                                                    <Input
+                                                        className={`h-8 text-xs text-center font-medium ${m.sampleResults[sampleIndex] === false ? 'border-red-500 bg-red-50' : m.sampleResults[sampleIndex] === true ? 'border-emerald-500 bg-emerald-50' : ''}`}
+                                                        placeholder="25.01"
+                                                        value={m.measured_values?.[sampleIndex] || ''}
+                                                        onChange={e => handleSampleMeasurementChange(idx, sampleIndex, e.target.value)}
+                                                    />
+                                                </td>
+                                            ))}
                                             <td className="p-2 text-center">
-                                                {m.is_conformant === true && <CheckCircle2 className="h-4 w-4 text-emerald-600 mx-auto" />}
-                                                {m.is_conformant === false && <XCircle className="h-4 w-4 text-red-600 mx-auto" />}
-                                                {m.is_conformant === null && <span className="text-muted-foreground">—</span>}
+                                                {m.rowResult === true && <CheckCircle2 className="h-4 w-4 text-emerald-600 mx-auto" />}
+                                                {m.rowResult === false && <XCircle className="h-4 w-4 text-red-600 mx-auto" />}
+                                                {m.rowResult === null && <span className="text-muted-foreground">—</span>}
                                             </td>
                                             <td className="p-2">
                                                 <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500"
@@ -207,8 +283,11 @@ const VerificationModal = ({ open, onOpenChange, fixture, onSave }) => {
                                 </tbody>
                             </table>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                            Her özellik için {form.sample_count} ayrı numune ölçümü girilmelidir. Kayıt, eksik numune varsa tamamlanmaz.
+                        </p>
                         <Button type="button" variant="ghost" size="sm" onClick={addMeasurement} className="text-primary">
-                            <Plus className="h-4 w-4 mr-1" />Satır Ekle
+                            <Plus className="h-4 w-4 mr-1" />Özellik Ekle
                         </Button>
                     </div>
 

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Ruler, CheckCircle2, XCircle, AlertTriangle, RotateCcw, Calendar, User, Building2, Clock, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getFixtureVerificationRules } from '@/lib/fixtureRules';
 
 // ─── Durum renk konfig ───────────────────────────────────────────────────────
 const statusConfig = {
@@ -87,7 +88,7 @@ const VerificationHistory = ({ verifications = [] }) => {
                             <table className="text-xs w-full">
                                 <thead>
                                     <tr className="bg-muted/40 border-b border-border">
-                                        {['Özellik', 'Nominal', 'Alt Limit', 'Üst Limit', 'Ölçülen', 'Sonuç'].map(h => (
+                                        {['Özellik', 'Numune', 'Nominal', 'Alt Limit', 'Üst Limit', 'Ölçülen', 'Sonuç'].map(h => (
                                             <th key={h} className="text-center px-3 py-2 font-semibold text-muted-foreground">{h}</th>
                                         ))}
                                     </tr>
@@ -96,6 +97,7 @@ const VerificationHistory = ({ verifications = [] }) => {
                                     {v.measurements.map((m, i) => (
                                         <tr key={i} className={`border-b border-border last:border-0 ${m.is_conformant === false ? 'bg-red-50' : ''}`}>
                                             <td className="px-3 py-2 font-medium">{m.characteristic || '—'}</td>
+                                            <td className="text-center px-3 py-2">{m.measurement_number ? `${m.measurement_number}/${m.total_measurements || v.sample_count || '-'}` : '—'}</td>
                                             <td className="text-center px-3 py-2">{m.nominal || '—'}</td>
                                             <td className="text-center px-3 py-2">{m.min_limit || '—'}</td>
                                             <td className="text-center px-3 py-2">{m.max_limit || '—'}</td>
@@ -206,6 +208,7 @@ const FixtureDetailModal = ({ open, onOpenChange, fixture }) => {
     const vCount = fixture.fixture_verifications?.length || 0;
     const revCount = fixture.fixture_revisions?.length || 0;
     const ncCount = fixture.fixture_nonconformities?.length || 0;
+    const fixtureRules = getFixtureVerificationRules(fixture.criticality_class);
 
     const fmt = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '—';
 
@@ -280,8 +283,8 @@ const FixtureDetailModal = ({ open, onOpenChange, fixture }) => {
                             value={fmt(fixture.next_verification_date)}
                             accent={overdueVerification ? 'bg-red-50 border-red-200' : undefined}
                         />
-                        <InfoCard icon={Ruler} label="Doğrulama Periyodu" value={`${fixture.verification_period_months} ay`} />
-                        <InfoCard icon={Ruler} label="Gerekli Numune" value={`${fixture.sample_count_required} adet`} />
+                        <InfoCard icon={Ruler} label="Doğrulama Periyodu" value={`${fixtureRules.verificationPeriodMonths} ay`} />
+                        <InfoCard icon={Ruler} label="Gerekli Numune" value={`${fixtureRules.sampleCountRequired} adet`} />
                         {fixture.status === 'Hurdaya Ayrılmış' && (
                             <InfoCard icon={AlertTriangle} label="Hurdaya Ayırma" value={fmt(fixture.scrap_date)} accent="bg-red-50 border-red-200" />
                         )}

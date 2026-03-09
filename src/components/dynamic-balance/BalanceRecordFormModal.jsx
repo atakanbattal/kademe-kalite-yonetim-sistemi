@@ -17,7 +17,8 @@ import { cn } from '@/lib/utils';
 const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSuccess, isViewMode, onDownloadPDF }) => {
     const { toast } = useToast();
     const { user } = useAuth();
-    const isEditMode = !!record && !isViewMode;
+    const hasExistingRecord = !!record;
+    const isEditMode = hasExistingRecord && !isViewMode;
 
     const [formData, setFormData] = useState({
         serial_number: '',
@@ -45,29 +46,34 @@ const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSucc
     const [leftPlanePass, setLeftPlanePass] = useState(null);
     const [rightPlanePass, setRightPlanePass] = useState(null);
 
+    const createFormDataFromRecord = (sourceRecord) => ({
+        serial_number: sourceRecord?.serial_number || '',
+        product_id: sourceRecord?.product_id || '',
+        fan_weight_kg: sourceRecord?.fan_weight_kg ?? '',
+        operating_rpm: sourceRecord?.operating_rpm ?? '',
+        correction_radius_mm: sourceRecord?.correction_radius_mm !== null && sourceRecord?.correction_radius_mm !== undefined
+            ? sourceRecord.correction_radius_mm.toString()
+            : '180.0',
+        balancing_grade: sourceRecord?.balancing_grade || 'G6.3',
+        test_date: sourceRecord?.test_date || new Date().toISOString().split('T')[0],
+        test_operator: sourceRecord?.test_operator || '',
+        supplier_name: sourceRecord?.supplier_name || '',
+        initial_left_weight_gr: sourceRecord?.initial_left_weight_gr ?? '',
+        initial_left_angle_deg: sourceRecord?.initial_left_angle_deg ?? '',
+        initial_right_weight_gr: sourceRecord?.initial_right_weight_gr ?? '',
+        initial_right_angle_deg: sourceRecord?.initial_right_angle_deg ?? '',
+        residual_left_weight_gr: sourceRecord?.residual_left_weight_gr ?? '',
+        residual_left_angle_deg: sourceRecord?.residual_left_angle_deg ?? '',
+        residual_right_weight_gr: sourceRecord?.residual_right_weight_gr ?? '',
+        residual_right_angle_deg: sourceRecord?.residual_right_angle_deg ?? '',
+        notes: sourceRecord?.notes || ''
+    });
+
     // Form verilerini yükle
     useEffect(() => {
         if (isOpen) {
-            if (isEditMode && record) {
-                setFormData({
-                    serial_number: record.serial_number || '',
-                    product_id: record.product_id || '',
-                    fan_weight_kg: record.fan_weight_kg || '',
-                    operating_rpm: record.operating_rpm || '',
-                    balancing_grade: record.balancing_grade || 'G6.3',
-                    test_date: record.test_date || new Date().toISOString().split('T')[0],
-                    test_operator: record.test_operator || '',
-                    supplier_name: record.supplier_name || '',
-                    initial_left_weight_gr: record.initial_left_weight_gr || '',
-                    initial_left_angle_deg: record.initial_left_angle_deg || '',
-                    initial_right_weight_gr: record.initial_right_weight_gr || '',
-                    initial_right_angle_deg: record.initial_right_angle_deg || '',
-                    residual_left_weight_gr: record.residual_left_weight_gr || '',
-                    residual_left_angle_deg: record.residual_left_angle_deg || '',
-                    residual_right_weight_gr: record.residual_right_weight_gr || '',
-                    residual_right_angle_deg: record.residual_right_angle_deg || '',
-                    notes: record.notes || ''
-                });
+            if (hasExistingRecord && record) {
+                setFormData(createFormDataFromRecord(record));
             } else {
                 // Yeni kayıt için varsayılan değerler
                 setFormData({
@@ -92,11 +98,15 @@ const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSucc
                 });
             }
         }
-    }, [isOpen, isEditMode, record]);
+    }, [isOpen, hasExistingRecord, record]);
 
     // Ürün seçildiğinde ağırlık, devir, dengeleme yarıçapı ve kalite sınıfı bilgilerini otomatik doldur
     useEffect(() => {
         if (formData.product_id && formData.product_id !== 'none' && fanProducts && fanProducts.length > 0) {
+            if (record && formData.product_id === record.product_id) {
+                return;
+            }
+
             const selectedProduct = fanProducts.find(p => p.id === formData.product_id);
             if (selectedProduct) {
                 setFormData(prev => ({
@@ -657,4 +667,3 @@ const BalanceRecordFormModal = ({ isOpen, setIsOpen, record, fanProducts, onSucc
 };
 
 export default BalanceRecordFormModal;
-

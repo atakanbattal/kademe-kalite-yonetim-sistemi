@@ -9,6 +9,7 @@ import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import FileUploader from '@/components/shared/FileUploader';
+import { getFixtureVerificationRules } from '@/lib/fixtureRules';
 
 const defaultForm = {
     fixture_no: '',
@@ -121,8 +122,9 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave, supportsImageUp
         }
     };
 
-    const verPeriod = form.criticality_class === 'Kritik' ? '1 ay' : '3 ay';
-    const sampleCount = form.criticality_class === 'Kritik' ? 5 : 3;
+    const { verificationPeriodMonths, sampleCountRequired } = getFixtureVerificationRules(form.criticality_class);
+    const verPeriod = `${verificationPeriodMonths} ay`;
+    const sampleCount = sampleCountRequired;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

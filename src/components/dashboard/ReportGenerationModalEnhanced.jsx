@@ -11,7 +11,7 @@ const REPORT_TYPES = [
     {
         id: 'a3',
         label: 'A3 Kalite Panosu Raporu',
-        description: 'Tüm modülleri kapsayan, kalite panolarına asılmak üzere tasarlanmış yatay A3 format rapor. KPI kartları, pie chart ve bar chartları ile tüm veriler tek sayfada.',
+        description: 'Tüm modülleri kapsayan, kalite panolarına asılmak üzere tasarlanmış çok sayfalı yatay A3 format rapor. Uygunsuzluk yönetimi, fikstür takibi, maliyet yükü, top 10 hatalar ve üretim için kritik uyarıları düzenli sayfa kırılımlarıyla sunar.',
         icon: LayoutDashboard,
         badge: 'ÖNERİLEN',
         badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -60,8 +60,8 @@ const ReportGenerationModalEnhanced = ({ isOpen, setIsOpen }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col p-0">
+                <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
                     <DialogTitle className="flex items-center gap-2">
                         <FileDown className="w-5 h-5 text-primary" />
                         Kalite Panosu Raporu Al
@@ -71,7 +71,8 @@ const ReportGenerationModalEnhanced = ({ isOpen, setIsOpen }) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 py-2">
+                <div className="flex-1 overflow-y-auto px-6 py-2">
+                    <div className="space-y-4">
                     {/* Rapor Türü Seçimi */}
                     <div className="space-y-2">
                         <Label className="text-sm font-semibold">Rapor Türü</Label>
@@ -155,17 +156,20 @@ const ReportGenerationModalEnhanced = ({ isOpen, setIsOpen }) => {
                             <ul className="list-disc list-inside space-y-0.5 text-emerald-700 pl-1">
                                 <li>10 adet KPI kartı (DF/8D, Maliyet, Karantina, Araç Kalite...)</li>
                                 <li>Birim bazlı uygunsuzluk dağılımı (bar chart)</li>
-                                <li>Kalite maliyeti dağılımı ve aylık trend (pie + line chart)</li>
+                                <li>Kalite maliyeti dağılımı, COPQ ve aylık trend (pie + line chart)</li>
                                 <li>Girdi kalite kontrol özeti ve tedarikçi performansı</li>
-                                <li>Üretilen araç hata kategorileri ve aylık trend</li>
-                                <li>Müşteri şikayetleri ve kalite duvarı tablosu</li>
-                                <li>Geciken kayıtlar, karantina, kalibrasyon uyarıları</li>
+                                <li>Uygunsuzluk yönetimi özeti, DF/8D önerilen maddeler ve son kayıtlar</li>
+                                <li>Fikstür takip özeti, kritik fikstür uyarıları ve doğrulama durumu</li>
+                                <li>Üretilen araç hata kategorileri, top 10 hata ve en problemli araçlar</li>
+                                <li>Müşteri şikayetleri, KPI alarm listesi ve kalite duvarı tablosu</li>
+                                <li>Geciken kayıtlar, görevler, doküman ve kalibrasyon uyarıları</li>
                             </ul>
                         </div>
                     )}
+                    </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t">
+                <div className="flex justify-end gap-2 px-6 py-4 border-t bg-background shrink-0">
                     <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isGenerating}>
                         İptal
                     </Button>

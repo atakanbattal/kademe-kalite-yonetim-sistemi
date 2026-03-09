@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,8 +53,8 @@ const TaskModule = () => {
     const [editingProject, setEditingProject] = useState(null);
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
-    // Optimistik güncelleme - sürükle bırak anında UI güncellemesi için
-    const [optimisticUpdates, setOptimisticUpdates] = useState({});
+    const [localTasks, setLocalTasks] = useState(() => tasks || []);
+    const latestStatusUpdateRef = useRef({});
 
     // Navigation state
     const [activeView, setActiveView] = useState('all'); // 'all', 'my', 'overdue', 'unassigned' or project ID
@@ -75,14 +75,19 @@ const TaskModule = () => {
         return taskProjects.find(p => p.id === activeView) || null;
     }, [activeView, taskProjects]);
 
-    // Optimistik güncellemeleri uygula (sürükle bırak performansı)
-    const tasksWithOptimistic = useMemo(() => {
-        if (!tasks || Object.keys(optimisticUpdates).length === 0) return tasks;
-        return tasks.map(t => {
-            const upd = optimisticUpdates[t.id];
-            return upd ? { ...t, ...upd } : t;
-        });
-    }, [tasks, optimisticUpdates]);
+    useEffect(() => {
+        setLocalTasks(tasks || []);
+    }, [tasks]);
+
+    useEffect(() => {
+        if (!selectedTask?.id) return;
+        const nextSelectedTask = localTasks.find(task => task.id === selectedTask.id);
+        if (nextSelectedTask && nextSelectedTask !== selectedTask) {
+            setSelectedTask(nextSelectedTask);
+        }
+    }, [localTasks, selectedTask]);
+
+    const tasksWithOptimistic = useMemo(() => localTasks || [], [localTasks]);
 
     // Compute project stats (optimistik veri ile)
     const projectStats = useMemo(() => {
@@ -169,20 +174,34 @@ const TaskModule = () => {
 
     // Handlers - optimistik güncelleme ile anında UI tepkisi
     const handleUpdateStatus = async (taskId, newStatus) => {
-        const updateData = { status: newStatus };
-        if (newStatus === 'Tamamlandı') updateData.completed_at = new Date().toISOString();
-        else updateData.completed_at = null;
+        const previousTask = localTasks.find(task => task.id === taskId);
+        if (!previousTask || previousTask.status === newStatus) return;
 
-        // Anında UI güncellemesi (sürükle bırak performansı)
-        setOptimisticUpdates(prev => ({ ...prev, [taskId]: { status: newStatus, completed_at: updateData.completed_at } }));
+        const completedAt = newStatus === 'Tamamlandı' ? new Date().toISOString() : null;
+        const requestId = Date.now() + Math.random();
+        latestStatusUpdateRef.current[taskId] = requestId;
 
-        const { error } = await supabase.from('tasks').update(updateData).eq('id', taskId);
+        // Tam refresh beklemeden kartı kalıcı olarak yeni kolona taşı.
+        setLocalTasks(prev => prev.map(task => (
+            task.id === taskId
+                ? { ...task, status: newStatus, completed_at: completedAt, updated_at: new Date().toISOString() }
+                : task
+        )));
+
+        const { error } = await supabase
+            .from('tasks')
+            .update({ status: newStatus, completed_at: completedAt })
+            .eq('id', taskId);
+
+        if (latestStatusUpdateRef.current[taskId] !== requestId) {
+            return;
+        }
+
+        delete latestStatusUpdateRef.current[taskId];
+
         if (error) {
-            setOptimisticUpdates(prev => { const n = { ...prev }; delete n[taskId]; return n; });
+            setLocalTasks(prev => prev.map(task => (task.id === taskId ? previousTask : task)));
             toast({ variant: 'destructive', title: 'Hata!', description: `Durum güncellenemedi: ${error.message}` });
-        } else {
-            setOptimisticUpdates(prev => { const n = { ...prev }; delete n[taskId]; return n; });
-            refreshData();
         }
     };
 

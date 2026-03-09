@@ -13,6 +13,7 @@ import FixtureDetailModal from './FixtureDetailModal';
 import VerificationModal from './VerificationModal';
 import RevisionModal from './RevisionModal';
 import ScrapModal from './ScrapModal';
+import { getFixtureVerificationRules } from '@/lib/fixtureRules';
 
 // =====================================================
 // YARDIMCI: Sonraki Doğrulama Tarihini Hesapla
@@ -157,8 +158,7 @@ const FixtureModule = () => {
     // FIKSTÜR KAYDET (Yeni / Güncelle)
     // =====================================================
     const handleSaveFixture = async (formData, fixtureId) => {
-        const verPeriod = formData.criticality_class === 'Kritik' ? 1 : 3;
-        const sampleCount = formData.criticality_class === 'Kritik' ? 5 : 3;
+        const { verificationPeriodMonths: verPeriod, sampleCountRequired: sampleCount } = getFixtureVerificationRules(formData.criticality_class);
 
         const payload = {
             fixture_no: formData.fixture_no,
@@ -218,6 +218,7 @@ const FixtureModule = () => {
     const handleSaveVerification = async (verData) => {
         const fixture = verifyModal.fixture;
         if (!fixture) return;
+        const fixtureRules = getFixtureVerificationRules(fixture.criticality_class);
 
         try {
             // 1. Doğrulamayı kaydet
@@ -234,13 +235,15 @@ const FixtureModule = () => {
             if (verError) throw verError;
 
             // 2. Fikstür durumunu güncelle
-            const nextVerDate = calcNextVerificationDate(verData.verification_date, fixture.verification_period_months);
+            const nextVerDate = calcNextVerificationDate(verData.verification_date, fixtureRules.verificationPeriodMonths);
             const newStatus = verData.result === 'Uygun' ? 'Aktif' : 'Uygunsuz';
 
             const { error: updateError } = await supabase.from('fixtures').update({
                 status: newStatus,
                 last_verification_date: verData.verification_date,
                 next_verification_date: nextVerDate,
+                verification_period_months: fixtureRules.verificationPeriodMonths,
+                sample_count_required: fixtureRules.sampleCountRequired,
             }).eq('id', fixture.id);
             if (updateError) throw updateError;
 
