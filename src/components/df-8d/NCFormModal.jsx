@@ -20,6 +20,19 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
     const { formData, setFormData, files, handleInputChange, handleOpeningDateChange, handleSelectChange, handlePersonnelChange, personnel, getRootProps, getInputProps, isDragActive, removeFile, initializeForm, clearDraft } = useNCForm();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isSourceTemplate = Boolean(
+        !formData?.created_at &&
+        !formData?.nc_number &&
+        !formData?.mdi_no &&
+        (
+            formData?.source_cost_id ||
+            formData?.source_quarantine_id ||
+            formData?.source_supplier_nc_id ||
+            formData?.source_inspection_id ||
+            formData?.source_finding_id ||
+            formData?.source_inspection_fault_id
+        )
+    );
 
     useEffect(() => {
         if (isOpen) {
@@ -27,7 +40,7 @@ const NCFormModal = ({ isOpen, setIsOpen, onSave, onSaveSuccess, record: initial
         }
     }, [isOpen, initialRecord, initializeForm]);
 
-    const isEditMode = !!(formData && formData.id);
+    const isEditMode = !!(formData && formData.id && !isSourceTemplate);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

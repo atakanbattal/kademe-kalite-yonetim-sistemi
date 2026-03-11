@@ -1,323 +1,361 @@
-import React, { useMemo, useState, useEffect } from 'react';
-    import { motion } from 'framer-motion';
-    import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-    import VehiclePerformanceModal from './VehiclePerformanceModal';
-    import { supabase } from '@/lib/customSupabaseClient';
-    import { Target, Car } from 'lucide-react';
-    import { cn } from '@/lib/utils';
-    import { useData } from '@/contexts/DataContext';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import VehiclePerformanceModal from './VehiclePerformanceModal';
+import { supabase } from '@/lib/customSupabaseClient';
+import { AlertTriangle, Car, CheckCircle2, Target } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useData } from '@/contexts/DataContext';
+import {
+    VEHICLE_METRIC_ORDER,
+    getVehicleMetricDefinition,
+} from '@/components/quality-cost/vehicleMetricConfig';
 
-    const formatCurrency = (value) => {
-        if (typeof value !== 'number' || isNaN(value)) return '-';
-        return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
-    };
+const formatCurrency = (value) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '-';
+    return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+};
 
-    const formatNumber = (value) => {
-        if (typeof value !== 'number' || isNaN(value)) return '-';
-        return value.toFixed(2).replace('.', ',');
-    };
+const formatNumber = (value) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '-';
+    return value.toFixed(2).replace('.', ',');
+};
 
-    const MetricDisplay = ({ label, value, unit, target, isCurrency = false }) => {
-        const targetValue = target?.value ?? 0;
-        const isOverTarget = targetValue > 0 && value > targetValue;
-        const isApproachingTarget = targetValue > 0 && value > targetValue * 0.8 && value <= targetValue;
-        const isUnderTarget = targetValue > 0 && value < targetValue * 0.8;
+const isWithinDateRange = (dateValue, dateRange) => {
+    if (!dateRange?.startDate || !dateRange?.endDate) return true;
+    if (!dateValue) return false;
 
-        const valueColor = isOverTarget
-            ? 'text-red-500'
-            : isApproachingTarget
+    const currentDate = new Date(dateValue);
+    const startDate = new Date(dateRange.startDate);
+    const endDate = new Date(dateRange.endDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    if (Number.isNaN(currentDate.getTime())) return false;
+    return currentDate >= startDate && currentDate <= endDate;
+};
+
+const MetricDisplay = ({ definition, value, target }) => {
+    const targetValue = Number(target?.value) || 0;
+    const hasTarget = targetValue > 0;
+    const isOverTarget = hasTarget && value > targetValue;
+    const isApproachingTarget = hasTarget && value > targetValue * 0.8 && value <= targetValue;
+    const isUnderTarget = hasTarget && value <= targetValue * 0.8;
+
+    const valueColor = isOverTarget
+        ? 'text-red-500'
+        : isApproachingTarget
             ? 'text-yellow-500'
             : isUnderTarget
-            ? 'text-green-500'
-            : 'text-foreground';
+                ? 'text-green-500'
+                : 'text-foreground';
 
-        const formattedValue = isCurrency ? formatCurrency(value) : formatNumber(value);
-        const formattedTarget = isCurrency ? formatCurrency(targetValue) : formatNumber(targetValue);
+    const formattedValue = definition.isCurrency ? formatCurrency(value) : formatNumber(value);
+    const formattedTarget = hasTarget
+        ? (definition.isCurrency ? formatCurrency(targetValue) : formatNumber(targetValue))
+        : 'Tanımsız';
 
-        return (
-            <div className="flex justify-between items-baseline text-sm py-2 border-b border-border/50 last:border-b-0">
-                <span className="text-muted-foreground">{label}</span>
-                <div className="text-right">
-                    <p className={cn("font-bold text-lg", valueColor)}>
-                        {formattedValue} <span className="text-xs font-normal">{unit}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground/80 flex items-center justify-end gap-1">
-                        <Target className="h-3 w-3" /> Hedef: {formattedTarget} {unit}
-                    </p>
-                </div>
+    return (
+        <div className="flex justify-between items-baseline text-sm py-2 border-b border-border/50 last:border-b-0">
+            <span className="text-muted-foreground">{definition.label}</span>
+            <div className="text-right">
+                <p className={cn('font-bold text-lg', valueColor)}>
+                    {formattedValue} <span className="text-xs font-normal">{definition.unit}</span>
+                </p>
+                <p className="text-xs text-muted-foreground/80 flex items-center justify-end gap-1">
+                    <Target className="h-3 w-3" />
+                    Hedef: {formattedTarget} {hasTarget ? definition.unit : ''}
+                </p>
             </div>
-        );
-    };
+        </div>
+    );
+};
 
-    const VehicleCostBreakdown = ({ costs, loading }) => {
-        const [isPerformanceModalOpen, setPerformanceModalOpen] = useState(false);
-        const [selectedVehicleType, setSelectedVehicleType] = useState(null);
-        const [targets, setTargets] = useState({});
-        
-        // DataContext'ten doğrudan producedVehicles, products ve productCategories al
-        const { producedVehicles, products, productCategories } = useData();
-        
-        // Araç tipi kategorisini bul (VEHICLE_TYPES)
-        const vehicleTypeCategory = useMemo(() => {
-            return (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
-        }, [productCategories]);
-        
-        // Üretilen araçlardan model bazlı sayıları al
-        const producedVehiclesByType = useMemo(() => {
-            const vehicles = producedVehicles || [];
-            const counts = {};
-            vehicles.forEach(v => {
-                const vehicleType = v.vehicle_type || 'Bilinmiyor';
-                if (vehicleType && vehicleType !== 'Bilinmiyor') {
-                    counts[vehicleType] = (counts[vehicleType] || 0) + 1;
-                }
+const VehicleCostBreakdown = ({
+    costs,
+    loading,
+    dateRange,
+    onCreateNC,
+    onOpenNCView,
+    hasNCAccess,
+}) => {
+    const [isPerformanceModalOpen, setPerformanceModalOpen] = useState(false);
+    const [selectedVehicleType, setSelectedVehicleType] = useState(null);
+    const [targets, setTargets] = useState({});
+    const { producedVehicles, products, productCategories } = useData();
+
+    const vehicleTypeCategory = useMemo(
+        () => (productCategories || []).find((category) => category.category_code === 'VEHICLE_TYPES'),
+        [productCategories]
+    );
+
+    const filteredProducedVehicles = useMemo(
+        () => (producedVehicles || []).filter((vehicle) => {
+            const vehicleDate = vehicle.created_at || vehicle.production_date;
+            return isWithinDateRange(vehicleDate, dateRange);
+        }),
+        [producedVehicles, dateRange]
+    );
+
+    const producedVehiclesByType = useMemo(() => {
+        const counts = {};
+        filteredProducedVehicles.forEach((vehicle) => {
+            const vehicleType = vehicle.vehicle_type || 'Bilinmiyor';
+            if (vehicleType && vehicleType !== 'Bilinmiyor') {
+                counts[vehicleType] = (counts[vehicleType] || 0) + 1;
+            }
+        });
+        return counts;
+    }, [filteredProducedVehicles]);
+
+    const excludedVehicleTypes = useMemo(
+        () => ['Traktör Kabin', 'Traktör Kabini', 'Kabin'],
+        []
+    );
+
+    const validProductNames = useMemo(() => {
+        if (!vehicleTypeCategory) return [];
+
+        return (products || [])
+            .filter((product) => product.category_id === vehicleTypeCategory.id)
+            .map((product) => product.product_name)
+            .filter(Boolean)
+            .filter((name) => !excludedVehicleTypes.some((excluded) => name.toLowerCase().includes(excluded.toLowerCase())));
+    }, [excludedVehicleTypes, products, vehicleTypeCategory]);
+
+    const fetchTargets = useCallback(async () => {
+        const { data, error } = await supabase.from('quality_cost_targets').select('*');
+        if (error || !data) return;
+
+        const nextTargets = {};
+        data.forEach((target) => {
+            const vehicleType = target.vehicle_type || 'global';
+            if (!nextTargets[vehicleType]) {
+                nextTargets[vehicleType] = {};
+            }
+            nextTargets[vehicleType][target.target_type] = {
+                value: target.value,
+                unit: target.unit,
+            };
+        });
+        setTargets(nextTargets);
+    }, []);
+
+    useEffect(() => {
+        fetchTargets();
+    }, [fetchTargets]);
+
+    const breakdownData = useMemo(() => {
+        if (loading || !validProductNames.length) return [];
+
+        const vehicleData = {};
+
+        validProductNames.forEach((productName) => {
+            if (!productName || productName.length < 2) return;
+            if (/^\d/.test(productName) || /^\d{2}-/.test(productName)) return;
+
+            vehicleData[productName] = {
+                totalCost: 0,
+                producedVehicleCount: producedVehiclesByType[productName] || 0,
+                costRecordIds: new Set(),
+                sourceRecordIds: new Set(),
+                metrics: VEHICLE_METRIC_ORDER.reduce((accumulator, metricKey) => {
+                    accumulator[metricKey] = 0;
+                    return accumulator;
+                }, {}),
+            };
+        });
+
+        (costs || []).forEach((cost) => {
+            const vehicleType = cost.vehicle_type;
+            if (!vehicleType || !vehicleData[vehicleType]) return;
+
+            const currentVehicle = vehicleData[vehicleType];
+            currentVehicle.totalCost += parseFloat(cost.amount) || 0;
+            currentVehicle.costRecordIds.add(cost.id);
+
+            if (cost.source_record_id) {
+                currentVehicle.sourceRecordIds.add(cost.source_record_id);
+            }
+
+            VEHICLE_METRIC_ORDER.forEach((metricKey) => {
+                const definition = getVehicleMetricDefinition(metricKey);
+                if (!definition.costTypes.includes(cost.cost_type)) return;
+                currentVehicle.metrics[metricKey] += definition.valueAccessor(cost);
             });
-            return counts;
-        }, [producedVehicles]);
-        
-        // Gizlenecek araç tipleri (istisnai durumlar)
-        const excludedVehicleTypes = [
-            'Traktör Kabin',
-            'Traktör Kabini',
-            'Kabin',
-        ];
-        
-        // SADECE araç tipi kategorisindeki ürünleri al (Tümosan, Hattat gibi gerçek araç modelleri)
-        const validProductNames = useMemo(() => {
-            if (!vehicleTypeCategory) {
-                console.log('VehicleCostBreakdown - VEHICLE_TYPES kategorisi bulunamadı');
-                return [];
-            }
-            
-            const productList = products || [];
-            // Sadece VEHICLE_TYPES kategorisindeki ürünleri filtrele
-            const vehicleProducts = productList.filter(p => p.category_id === vehicleTypeCategory.id);
-            
-            // İstisnai durumları çıkar (Traktör Kabin gibi)
-            const names = vehicleProducts
-                .map(p => p.product_name)
-                .filter(Boolean)
-                .filter(name => !excludedVehicleTypes.some(excluded => 
-                    name.toLowerCase().includes(excluded.toLowerCase())
-                ));
-            
-            console.log('VehicleCostBreakdown - Araç Tipi Kategorisi:', vehicleTypeCategory);
-            console.log('VehicleCostBreakdown - Araç Modelleri:', names.length, 'model', names);
-            console.log('VehicleCostBreakdown - Üretilen araçlar:', Object.keys(producedVehiclesByType).length, 'model', producedVehiclesByType);
-            
-            return names;
-        }, [products, productCategories, vehicleTypeCategory, producedVehiclesByType]);
+        });
 
-        const fetchTargets = async () => {
-            const { data, error } = await supabase.from('quality_cost_targets').select('*');
-            if (!error && data) {
-                const newTargets = {};
-                data.forEach(target => {
-                    const vehicleType = target.vehicle_type || 'global';
-                    if (!newTargets[vehicleType]) {
-                        newTargets[vehicleType] = {};
-                    }
-                    newTargets[vehicleType][target.target_type] = { value: target.value, unit: target.unit };
-                });
-                setTargets(newTargets);
-            }
-        };
+        return Object.entries(vehicleData)
+            .map(([vehicle, data]) => {
+                const fallbackVehicleCount = data.sourceRecordIds.size || data.costRecordIds.size;
+                const denominator = data.producedVehicleCount || fallbackVehicleCount || 0;
+                const hasData = data.totalCost > 0 || denominator > 0;
 
-        useEffect(() => {
-            fetchTargets();
-        }, []);
-
-        const breakdownData = useMemo(() => {
-            if (loading) return [];
-            
-            // Ürün listesi boşsa hiçbir şey gösterme
-            if (!validProductNames || validProductNames.length === 0) {
-                console.log('VehicleCostBreakdown - Ürün listesi boş, kart gösterilmeyecek');
-                return [];
-            }
-
-            const vehicleData = {};
-            
-            // SADECE ürün listesindeki ürünleri kart olarak göster
-            // Plaka numaraları, "Traktör Kabin" gibi değerler kesinlikle dahil edilmez
-            validProductNames.forEach(productName => {
-                // Ürün adı geçerli mi kontrol et (en az 2 karakter, sayı ile başlamıyor)
-                if (!productName || productName.length < 2) return;
-                // Plaka formatı kontrolü (sayı ile başlıyorsa veya "-" içeriyorsa atla)
-                if (/^\d/.test(productName) || /^\d{2}-/.test(productName)) return;
-                
-                vehicleData[productName] = {
-                    totalCost: 0,
-                    scrapCost: 0,
-                    reworkCost: 0,
-                    scrapWeight: 0,
-                    wasteWeight: 0,
-                    rejectionCount: 0,
-                    vehicleSet: new Set(),
-                    // Üretilen araçlardan model sayısını al
-                    producedVehicleCount: producedVehiclesByType[productName] || 0,
-                };
-            });
-
-            // Maliyet verilerini işle (sadece geçerli ürün adlarına sahip olanları)
-            if (costs && costs.length > 0) {
-                costs.forEach(cost => {
-                    const vehicleType = cost.vehicle_type;
-                    
-                    // "Bilinmiyor" veya boş olanları atla
-                    if (!vehicleType || vehicleType === 'Bilinmiyor') return;
-                    
-                    // Sadece ürün listesinde olan VE vehicleData'da bulunan tipleri kabul et
-                    if (!vehicleData[vehicleType]) return;
-
-                    if (cost.part_code) vehicleData[vehicleType].vehicleSet.add(cost.part_code);
-                    vehicleData[vehicleType].totalCost += cost.amount || 0;
-
-                    if (cost.cost_type === 'Hurda Maliyeti') {
-                        vehicleData[vehicleType].scrapCost += cost.amount || 0;
-                        vehicleData[vehicleType].scrapWeight += cost.scrap_weight || 0;
-                        vehicleData[vehicleType].rejectionCount += cost.quantity || 0;
-                    }
-                    if (cost.cost_type === 'Fire Maliyeti') {
-                        vehicleData[vehicleType].wasteWeight += cost.scrap_weight || 0;
-                    }
-                    if (cost.cost_type === 'Yeniden İşlem Maliyeti') {
-                        vehicleData[vehicleType].reworkCost += cost.amount || 0;
-                    }
-                });
-            }
-
-            return Object.entries(vehicleData).map(([vehicle, data]) => {
-                // Üretilen araç sayısını kullan (0 ise en az 1 olarak hesapla bölme için)
-                const totalVehicles = data.producedVehicleCount || data.vehicleSet.size || 1;
-                const hasData = data.totalCost > 0 || data.vehicleSet.size > 0;
-                
                 return {
                     vehicle,
                     totalCost: data.totalCost,
-                    totalVehicles: totalVehicles,
+                    totalVehicles: denominator,
                     producedVehicleCount: data.producedVehicleCount,
                     hasData,
-                    metrics: {
-                        scrap_cost_per_vehicle: data.scrapCost / totalVehicles,
-                        rework_cost_per_vehicle: data.reworkCost / totalVehicles,
-                        scrap_kg_per_vehicle: data.scrapWeight / totalVehicles,
-                        waste_kg_per_vehicle: data.wasteWeight / totalVehicles,
-                        rejection_count_per_vehicle: data.rejectionCount / totalVehicles,
-                    }
+                    metrics: VEHICLE_METRIC_ORDER.reduce((accumulator, metricKey) => {
+                        accumulator[metricKey] = denominator > 0
+                            ? data.metrics[metricKey] / denominator
+                            : 0;
+                        return accumulator;
+                    }, {}),
                 };
-            }).sort((a, b) => b.totalCost - a.totalCost);
+            })
+            .sort((left, right) => right.totalCost - left.totalCost);
+    }, [costs, loading, producedVehiclesByType, validProductNames]);
 
-        }, [costs, loading, validProductNames, producedVehiclesByType]);
+    const handleCardClick = useCallback((vehicleType) => {
+        setSelectedVehicleType(vehicleType);
+        setPerformanceModalOpen(true);
+    }, []);
 
-        const handleCardClick = (vehicleType) => {
-            setSelectedVehicleType(vehicleType);
-            setPerformanceModalOpen(true);
-        };
+    const selectedVehicleCosts = useMemo(
+        () => (selectedVehicleType ? costs.filter((cost) => cost.vehicle_type === selectedVehicleType) : []),
+        [costs, selectedVehicleType]
+    );
 
-        if (loading) {
-            return <div className="text-center text-muted-foreground p-8">Detaylı analiz verileri yükleniyor...</div>;
-        }
+    const selectedVehicleProducedVehicles = useMemo(
+        () => (
+            selectedVehicleType
+                ? filteredProducedVehicles.filter((vehicle) => vehicle.vehicle_type === selectedVehicleType)
+                : []
+        ),
+        [filteredProducedVehicles, selectedVehicleType]
+    );
 
-        if (breakdownData.length === 0) {
-            return (
-                <div className="text-center text-muted-foreground p-8 bg-muted/30 rounded-xl border border-dashed">
-                    <Car className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                    <p className="text-lg font-medium mb-2">Detaylı Analiz için Araç Tipi Tanımı Gerekli</p>
-                    <p className="text-sm mb-4">
-                        Bu sekme, "Genel Ayarlar → Ürünler" bölümündeki <strong>"Araç Tipleri"</strong> kategorisindeki 
-                        ürünleri (örn: Tümosan, Hattat, vb.) üretilen araç sayılarıyla eşleştirerek model bazlı maliyet analizi sunar.
-                    </p>
-                    <div className="text-xs space-y-1 bg-background/50 p-3 rounded-lg inline-block">
-                        <p>🏷️ Araç Tipi kategorisi: <span className="font-bold">{vehicleTypeCategory ? 'Mevcut ✓' : 'Bulunamadı ✗'}</span></p>
-                        <p>🚗 Tanımlı araç modeli: <span className="font-bold">{validProductNames?.length || 0}</span></p>
-                        <p>📋 Üretilen araç kaydı: <span className="font-bold">{producedVehicles?.length || 0}</span></p>
-                        <p>📊 Eşleşen model tipi: <span className="font-bold">{Object.keys(producedVehiclesByType).length}</span></p>
-                    </div>
-                    {!vehicleTypeCategory && (
-                        <p className="text-sm mt-4 text-destructive">
-                            → "Genel Ayarlar → Ürün Kategorileri" bölümünden "VEHICLE_TYPES" kategorisi ekleyin.
-                        </p>
-                    )}
-                    {vehicleTypeCategory && validProductNames?.length === 0 && (
-                        <p className="text-sm mt-4 text-primary">
-                            → "Genel Ayarlar → Ürünler" bölümünden "Araç Tipleri" kategorisine araç modellerini ekleyin.
-                        </p>
-                    )}
-                </div>
-            );
-        }
+    if (loading) {
+        return <div className="text-center text-muted-foreground p-8">Detaylı analiz verileri yükleniyor...</div>;
+    }
 
-        const allVehicleCosts = selectedVehicleType ? costs.filter(c => c.vehicle_type === selectedVehicleType) : [];
-
+    if (!breakdownData.length) {
         return (
-            <>
-                <motion.div
-                    className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ staggerChildren: 0.05 }}
-                >
-                    {breakdownData.map(({ vehicle, totalCost, totalVehicles, producedVehicleCount, hasData, metrics }) => {
-                        const vehicleTargets = targets[vehicle] || targets['global'] || {};
-                        return (
-                            <motion.div key={vehicle} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                                <Card
-                                    className={cn(
-                                        "h-full flex flex-col cursor-pointer hover:shadow-lg hover:border-primary/50 transition-all duration-300 bg-card/50 backdrop-blur-sm",
-                                        !hasData && "opacity-60"
-                                    )}
-                                    onClick={() => handleCardClick(vehicle)}
-                                >
-                                    <CardHeader className="pb-4">
+            <div className="text-center text-muted-foreground p-8 bg-muted/30 rounded-xl border border-dashed">
+                <Car className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium mb-2">Detaylı Analiz için Araç Tipi Tanımı Gerekli</p>
+                <p className="text-sm mb-4">
+                    Bu sekme, "Genel Ayarlar → Ürünler" bölümündeki <strong>"Araç Tipleri"</strong> kategorisindeki
+                    ürünleri seçilen dönemle eşleştirerek model bazlı maliyet analizi sunar.
+                </p>
+                <div className="text-xs space-y-1 bg-background/50 p-3 rounded-lg inline-block">
+                    <p>🏷️ Araç tipi kategorisi: <span className="font-bold">{vehicleTypeCategory ? 'Mevcut ✓' : 'Bulunamadı ✗'}</span></p>
+                    <p>🚗 Tanımlı araç modeli: <span className="font-bold">{validProductNames.length}</span></p>
+                    <p>📋 Seçili dönemde üretilen araç: <span className="font-bold">{filteredProducedVehicles.length}</span></p>
+                    <p>📊 Maliyetli model tipi: <span className="font-bold">{breakdownData.filter((item) => item.hasData).length}</span></p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <motion.div
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ staggerChildren: 0.05 }}
+            >
+                {breakdownData.map(({ vehicle, totalCost, totalVehicles, producedVehicleCount, hasData, metrics }) => {
+                    const vehicleTargets = targets[vehicle] || targets.global || {};
+                    const definedTargetCount = VEHICLE_METRIC_ORDER.filter(
+                        (metricKey) => Number(vehicleTargets[metricKey]?.value) > 0
+                    ).length;
+                    const exceededMetrics = VEHICLE_METRIC_ORDER.filter((metricKey) => {
+                        const targetValue = Number(vehicleTargets[metricKey]?.value) || 0;
+                        return targetValue > 0 && metrics[metricKey] > targetValue;
+                    });
+
+                    return (
+                        <motion.div key={vehicle} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                            <Card
+                                className={cn(
+                                    'h-full flex flex-col cursor-pointer hover:shadow-lg hover:border-primary/50 transition-all duration-300 bg-card/50 backdrop-blur-sm',
+                                    !hasData && 'opacity-60'
+                                )}
+                                onClick={() => handleCardClick(vehicle)}
+                            >
+                                <CardHeader className="pb-4 space-y-3">
+                                    <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-center gap-2">
                                             <Car className="h-5 w-5 text-primary" />
                                             <CardTitle className="text-lg text-primary">{vehicle}</CardTitle>
                                         </div>
+                                        {exceededMetrics.length > 0 ? (
+                                            <Badge variant="destructive" className="gap-1">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                {exceededMetrics.length} hedef aşımı
+                                            </Badge>
+                                        ) : definedTargetCount === 0 ? (
+                                            <Badge variant="outline" className="gap-1">
+                                                <Target className="h-3 w-3" />
+                                                Hedef yok
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="secondary" className="gap-1">
+                                                <CheckCircle2 className="h-3 w-3" />
+                                                Hedefte
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div>
                                         <p className="text-2xl font-bold text-foreground">{formatCurrency(totalCost)}</p>
-                                        <div className="text-xs text-muted-foreground space-y-0.5">
-                                            <p className="flex items-center gap-1">
+                                        <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
+                                            <p>
                                                 <span className="font-medium">{producedVehicleCount || 0}</span> araç üretildi
                                             </p>
                                             {hasData && (
                                                 <p className="text-muted-foreground/70">
-                                                    ({totalVehicles} araç bazında hesaplandı)
+                                                    Hesaplama paydası: {totalVehicles || 0} araç
                                                 </p>
                                             )}
                                         </div>
-                                    </CardHeader>
-                                    <CardContent className="flex-grow">
-                                        {hasData ? (
-                                            <div className="space-y-1">
-                                                <MetricDisplay label="Hurda Maliyeti" value={metrics.scrap_cost_per_vehicle} unit="TRY/Araç" target={vehicleTargets.scrap_cost_per_vehicle} isCurrency />
-                                                <MetricDisplay label="Yeniden İşlem" value={metrics.rework_cost_per_vehicle} unit="TRY/Araç" target={vehicleTargets.rework_cost_per_vehicle} isCurrency />
-                                                <MetricDisplay label="Hurda Ağırlığı" value={metrics.scrap_kg_per_vehicle} unit="Kg/Araç" target={vehicleTargets.scrap_kg_per_vehicle} />
-                                                <MetricDisplay label="Fire Ağırlığı" value={metrics.waste_kg_per_vehicle} unit="Kg/Araç" target={vehicleTargets.waste_kg_per_vehicle} />
-                                                <MetricDisplay label="Ret Adedi" value={metrics.rejection_count_per_vehicle} unit="Adet/Araç" target={vehicleTargets.rejection_count_per_vehicle} />
-                                            </div>
-                                        ) : (
-                                            <div className="text-center text-muted-foreground py-4">
-                                                <p className="text-sm">Bu dönemde maliyet kaydı yok</p>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        )
-                    })}
-                </motion.div>
+                                    </div>
+                                </CardHeader>
 
-                {selectedVehicleType && (
-                    <VehiclePerformanceModal
-                        isOpen={isPerformanceModalOpen}
-                        setIsOpen={setPerformanceModalOpen}
-                        vehicleType={selectedVehicleType}
-                        costs={allVehicleCosts}
-                        onTargetsUpdate={fetchTargets}
-                    />
-                )}
-            </>
-        );
-    };
+                                <CardContent className="flex-grow">
+                                    {hasData ? (
+                                        <div className="space-y-1">
+                                            {VEHICLE_METRIC_ORDER.map((metricKey) => (
+                                                <MetricDisplay
+                                                    key={metricKey}
+                                                    definition={getVehicleMetricDefinition(metricKey)}
+                                                    value={metrics[metricKey]}
+                                                    target={vehicleTargets[metricKey]}
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center text-muted-foreground py-4">
+                                            <p className="text-sm">Bu dönemde maliyet kaydı yok</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    );
+                })}
+            </motion.div>
 
-    export default VehicleCostBreakdown;
+            {selectedVehicleType && (
+                <VehiclePerformanceModal
+                    isOpen={isPerformanceModalOpen}
+                    setIsOpen={setPerformanceModalOpen}
+                    vehicleType={selectedVehicleType}
+                    costs={selectedVehicleCosts}
+                    producedVehicles={selectedVehicleProducedVehicles}
+                    dateRange={dateRange}
+                    onTargetsUpdate={fetchTargets}
+                    onCreateNC={onCreateNC}
+                    onOpenNCView={onOpenNCView}
+                    hasNCAccess={hasNCAccess}
+                />
+            )}
+        </>
+    );
+};
+
+export default VehicleCostBreakdown;

@@ -258,7 +258,20 @@ const MainLayout = () => {
     };
 
     const handleSaveNC = async (formData, files) => {
-        const isEditMode = !!formData.id;
+        const isSourceTemplate = Boolean(
+            !formData?.created_at &&
+            !formData?.nc_number &&
+            !formData?.mdi_no &&
+            (
+                formData?.source_cost_id ||
+                formData?.source_quarantine_id ||
+                formData?.source_supplier_nc_id ||
+                formData?.source_inspection_id ||
+                formData?.source_finding_id ||
+                formData?.source_inspection_fault_id
+            )
+        );
+        const isEditMode = !!formData.id && !isSourceTemplate;
         let uploadedFilePaths = formData.attachments || [];
         if (files && files.length > 0) {
             const recordId = formData.id || uuidv4();

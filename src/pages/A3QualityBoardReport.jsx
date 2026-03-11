@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Loader2 } from 'lucide-react';
@@ -37,6 +37,7 @@ const RESULT_COLORS = { Kabul: '#15803d', 'Şartlı Kabul': '#b45309', Ret: '#dc
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtCurrency = (n) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(n || 0);
 const fmtNum      = (n) => new Intl.NumberFormat('tr-TR').format(n || 0);
+const fmtPct      = (n, digits = 0) => `%${Number.isFinite(Number(n)) ? Number(n).toFixed(digits) : Number(0).toFixed(digits)}`;
 const safeText = (s) => (s && typeof s === 'string' ? s.normalize('NFC') : s) || '-';
 const trunc = (s, len = 28) => {
     if (!s) return '-';
@@ -46,6 +47,14 @@ const trunc = (s, len = 28) => {
     const lastSpace = cut.lastIndexOf(' ');
     if (lastSpace > len * 0.5) return cut.slice(0, lastSpace) + '…';
     return cut + '…';
+};
+const getAxisWidth = (items, getLabel, min = 90, max = 320, charWidth = 6.6) => {
+    if (!Array.isArray(items) || items.length === 0) return min;
+    const longestLabel = items.reduce((longest, item) => {
+        const labelLength = safeText(getLabel(item)).length;
+        return Math.max(longest, labelLength);
+    }, 0);
+    return Math.max(min, Math.min(max, Math.round(longestLabel * charWidth)));
 };
 
 // ── Temel Bileşenler ──────────────────────────────────────────────────────────
@@ -93,6 +102,23 @@ const StatRow = ({ label, value, color, bold }) => (
     </div>
 );
 
+const CompactStatCard = ({ label, value, color = C.navy, sub, bg = '#f8fafc' }) => (
+    <div className="report-compact-stat" style={{
+        background: bg,
+        border: '1px solid #e2e8f0',
+        borderRadius: 6,
+        padding: '8px 10px',
+        minHeight: 68,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+    }}>
+        <div style={{ fontSize: 10, color: C.slate, lineHeight: 1.35 }}>{label}</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1.15, marginTop: 4 }}>{value}</div>
+        {sub && <div style={{ fontSize: 9, color: C.gray, marginTop: 3, lineHeight: 1.35 }}>{sub}</div>}
+    </div>
+);
+
 const MiniTable = ({ headers, rows, emptyMsg = 'Veri yok', fontSize = 10 }) => (
     <table className="report-mini-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize }}>
         <thead>
@@ -101,6 +127,7 @@ const MiniTable = ({ headers, rows, emptyMsg = 'Veri yok', fontSize = 10 }) => (
                     <th key={i} style={{
                         background: '#f1f5f9', border: '1px solid #e2e8f0',
                         padding: '4px 6px', textAlign: 'left', fontWeight: 700, color: '#374151',
+                        wordBreak: 'break-word', overflowWrap: 'anywhere',
                     }}>{h}</th>
                 ))}
             </tr>
@@ -111,13 +138,34 @@ const MiniTable = ({ headers, rows, emptyMsg = 'Veri yok', fontSize = 10 }) => (
             ) : rows.map((row, ri) => (
                 <tr key={ri} style={{ background: ri % 2 === 0 ? 'white' : '#f8fafc' }}>
                     {row.map((cell, ci) => (
-                        <td key={ci} style={{ border: '1px solid #e2e8f0', padding: '3px 6px', verticalAlign: 'top' }}>{cell}</td>
+                        <td key={ci} style={{ border: '1px solid #e2e8f0', padding: '3px 6px', verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{cell}</td>
                     ))}
                 </tr>
             ))}
         </tbody>
     </table>
 );
+
+const chunkItems = (items, size) => {
+    if (!Array.isArray(items) || items.length === 0) return [[]];
+
+    const safeSize = Math.max(1, size || items.length);
+    if (items.length <= safeSize) return [items];
+
+    const totalChunks = Math.ceil(items.length / safeSize);
+    const baseChunkSize = Math.floor(items.length / totalChunks);
+    const remainder = items.length % totalChunks;
+    const chunks = [];
+
+    let startIndex = 0;
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+        const currentChunkSize = baseChunkSize + (chunkIndex < remainder ? 1 : 0);
+        chunks.push(items.slice(startIndex, startIndex + currentChunkSize));
+        startIndex += currentChunkSize;
+    }
+
+    return chunks;
+};
 
 const Row = ({ cols, gap = 10, mb = 14, className = '', children }) => (
     <div className={`report-row report-block ${className}`.trim()} style={{ display: 'grid', gridTemplateColumns: cols || `repeat(${React.Children.count(children)}, 1fr)`, gap, marginBottom: mb, alignItems: 'start' }}>
@@ -146,8 +194,31 @@ const SectionBlock = ({ children }) => (
     </div>
 );
 
+const ChunkedTablePanels = ({ title, color = C.navy, headers, rows, emptyMsg = 'Veri yok', fontSize = 10, chunkSize = 10, intro }) => {
+    const chunks = chunkItems(rows, chunkSize);
+
+    return chunks.map((chunk, index) => (
+        <Row key={`${title}-${index}`} cols="1fr" gap={12} mb={14}>
+            <Panel title={chunks.length > 1 ? `${title} (${index + 1}/${chunks.length})` : title} color={color}>
+                {intro && index === 0 && (
+                    <div style={{ fontSize: 10, color: C.slate, marginBottom: 8, lineHeight: 1.45 }}>
+                        {intro}
+                    </div>
+                )}
+                <MiniTable
+                    headers={headers}
+                    rows={chunk}
+                    emptyMsg={emptyMsg}
+                    fontSize={fontSize}
+                />
+            </Panel>
+        </Row>
+    ));
+};
+
 // ── Ana Bileşen ───────────────────────────────────────────────────────────────
 const A3QualityBoardReport = () => {
+    const wrapRef = useRef(null);
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { session } = useAuth();
@@ -162,6 +233,137 @@ const A3QualityBoardReport = () => {
         const timer = setTimeout(() => window.print(), 900);
         return () => clearTimeout(timer);
     }, [shouldAutoPrint, loading, error, data]);
+
+    useLayoutEffect(() => {
+        if (loading || error || !data || !wrapRef.current) return;
+
+        const container = wrapRef.current;
+        const mmToPx = (mm) => (mm * 96) / 25.4;
+        const pageMarginMm = 5;
+        const wrapPaddingMm = 4;
+        const printableHeightPx = mmToPx(297 - (pageMarginMm * 2) - (wrapPaddingMm * 2));
+
+        const getFlowBlocks = () => {
+            const blocks = [];
+            Array.from(container.children).forEach((child) => {
+                if (child.classList.contains('report-row') && !child.classList.contains('report-kpi-grid')) {
+                    const panels = Array.from(child.children).filter((node) => node.classList.contains('report-panel'));
+                    if (panels.length > 0) {
+                        blocks.push(...panels);
+                        return;
+                    }
+                }
+                if (child.classList.contains('report-block')) {
+                    blocks.push(child);
+                }
+            });
+            return blocks;
+        };
+
+        const getBlockHeight = (block) => {
+            const style = window.getComputedStyle(block);
+            return (
+                block.getBoundingClientRect().height +
+                (parseFloat(style.marginTop) || 0) +
+                (parseFloat(style.marginBottom) || 0)
+            );
+        };
+
+        const resetFillState = (blocks) => {
+            blocks.forEach((block) => {
+                block.classList.remove('report-fill-panel');
+                Array.from(block.querySelectorAll('.recharts-responsive-container')).forEach((chartNode) => {
+                    if (chartNode.dataset.originalHeight === undefined) {
+                        chartNode.dataset.originalHeight = chartNode.style.height || '';
+                    }
+                    if (chartNode.dataset.originalMaxHeight === undefined) {
+                        chartNode.dataset.originalMaxHeight = chartNode.style.maxHeight || '';
+                    }
+
+                    if (chartNode.dataset.originalHeight) {
+                        chartNode.style.height = chartNode.dataset.originalHeight;
+                    } else {
+                        chartNode.style.removeProperty('height');
+                    }
+
+                    if (chartNode.dataset.originalMaxHeight) {
+                        chartNode.style.maxHeight = chartNode.dataset.originalMaxHeight;
+                    } else {
+                        chartNode.style.removeProperty('max-height');
+                    }
+                });
+            });
+        };
+
+        const fillRemainingPageSpace = (block, extraHeight) => {
+            if (!block || extraHeight < 64) return;
+
+            const hasPieChart = Boolean(block.querySelector('.recharts-pie-sector, .recharts-sector'));
+            const hasCartesianChart = Boolean(block.querySelector('.recharts-cartesian-axis, .recharts-cartesian-grid'));
+            if (hasPieChart || !hasCartesianChart) return;
+
+            const chartNodes = Array.from(block.querySelectorAll('.recharts-responsive-container'));
+            if (chartNodes.length === 0) return;
+
+            const targetChartNode = chartNodes.reduce((tallestNode, currentNode) => (
+                currentNode.getBoundingClientRect().height > tallestNode.getBoundingClientRect().height
+                    ? currentNode
+                    : tallestNode
+            ));
+
+            const baseHeight = targetChartNode.getBoundingClientRect().height || parseFloat(targetChartNode.style.height) || 0;
+            if (baseHeight <= 0) return;
+
+            targetChartNode.style.height = `${Math.round(baseHeight + Math.max(0, extraHeight - 8))}px`;
+            targetChartNode.style.maxHeight = 'none';
+            block.classList.add('report-fill-panel');
+        };
+
+        const applyBreaks = () => {
+            const blocks = getFlowBlocks();
+            blocks.forEach((block) => block.classList.remove('report-break-before'));
+            resetFillState(blocks);
+
+            const pages = [];
+            let currentPage = { blocks: [], usedHeight: 0 };
+
+            blocks.forEach((block) => {
+                const blockHeight = getBlockHeight(block);
+                const requiresNewPage = currentPage.blocks.length > 0 && currentPage.usedHeight + blockHeight > printableHeightPx;
+
+                if (requiresNewPage) {
+                    block.classList.add('report-break-before');
+                    pages.push(currentPage);
+                    currentPage = { blocks: [], usedHeight: 0 };
+                }
+
+                currentPage.blocks.push(block);
+                currentPage.usedHeight += blockHeight;
+            });
+
+            if (currentPage.blocks.length > 0) {
+                pages.push(currentPage);
+            }
+
+            pages.forEach((page, pageIndex) => {
+                const lastBlock = page.blocks[page.blocks.length - 1];
+                const remainingHeight = printableHeightPx - page.usedHeight;
+                const hasAnotherPageAfter = pageIndex < pages.length - 1;
+
+                if (hasAnotherPageAfter || remainingHeight > printableHeightPx * 0.22) {
+                    fillRemainingPageSpace(lastBlock, remainingHeight);
+                }
+            });
+        };
+
+        const rafId = window.requestAnimationFrame(applyBreaks);
+        window.addEventListener('resize', applyBreaks);
+
+        return () => {
+            window.cancelAnimationFrame(rafId);
+            window.removeEventListener('resize', applyBreaks);
+        };
+    }, [data, loading, error]);
 
     if (loading) return (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#f0f4ff', gap:16 }}>
@@ -236,10 +438,28 @@ const A3QualityBoardReport = () => {
         (costBurden?.topDrivers?.length || 0) > 0 ||
         (governance?.kpiWatch?.length || 0) > 0 ||
         (governance?.summary?.length || 0) > 0 ||
-        (governance?.overdueTasks?.length || 0) > 0 ||
+        (data?.overdueNC?.length || 0) > 0 ||
         (governance?.expiringDocs?.length || 0) > 0 ||
         (overdueCalibrations?.length || 0) > 0
     );
+
+    const ncByDeptChartHeight = Math.max(360, Math.min(640, (ncByDept.length || 0) * 28 + 80));
+    const supplierGradeChartHeight = Math.max(120, Math.min(240, (suppliers?.gradeDistribution?.length || 0) * 28 + 24));
+    const ncByTypeChartHeight = Math.max(220, Math.min(420, (ncByType.length || 0) * 42 + 32));
+    const ncByDeptAxisWidth = getAxisWidth(ncByDept, (item) => item.name, 110, 220, 6.8);
+    const ncByTypeAxisWidth = getAxisWidth(ncByType, (item) => item.name, 90, 180, 6.4);
+    const vehicleFaultCategoryAxisWidth = getAxisWidth(vehicles?.faultByCategory || [], (item) => item.name, 220, 340, 6.8);
+    const incomingMonthlyChartHeight = incoming.monthly.length > 4 ? 128 : 114;
+    const complaintsMonthlyChartHeight = complaints.monthly.length > 4 ? 138 : 122;
+    const vehicleTrendData = (vehicles?.monthly || []).slice(-3);
+    const vehicleFaultCategoryChartHeight = Math.max(320, Math.min(560, (vehicles?.faultByCategory?.length || 0) * 28));
+    const finalFaultCostTrendData = vehicles?.finalFaultCostMonthly || [];
+    const bestVehicleTrendMonth = [...vehicleTrendData]
+        .filter(item => item.toplam > 0)
+        .sort((a, b) => a.dpu - b.dpu || b.passRate - a.passRate)[0] || null;
+    const worstVehicleTrendMonth = [...vehicleTrendData]
+        .filter(item => item.toplam > 0)
+        .sort((a, b) => b.dpu - a.dpu || a.passRate - b.passRate)[0] || null;
 
     // Tüm SAYFA CSS
     const css = `
@@ -253,20 +473,27 @@ const A3QualityBoardReport = () => {
         }
         @media print{
             body{background:white!important;}
-            .wrap{padding:8mm;margin:0;max-width:100%;}
-            @page{size:A3 landscape;margin:7mm;}
+            .wrap{padding:4mm;margin:0;max-width:100%;}
+            @page{size:A3 landscape;margin:5mm;}
             .report-panel,.wrap .report-panel{page-break-inside:avoid;break-inside:avoid;}
             .report-mini-table tr{page-break-inside:avoid;break-inside:avoid;}
-            .report-row{page-break-inside:auto;break-inside:auto;gap:8px!important;margin-bottom:10px!important;}
+            .report-row{display:block!important;page-break-inside:auto;break-inside:auto;gap:8px!important;margin-bottom:10px!important;}
+            .report-row.report-kpi-grid{display:grid!important;}
+            .report-row > .report-panel + .report-panel{margin-top:10px!important;}
             .report-section-header{page-break-after:avoid;break-after:avoid-page;}
             .report-section-block{page-break-inside:avoid;break-inside:avoid-page;}
+            .report-break-before{page-break-before:always;break-before:page;}
             .report-page-hero{padding:10px 14px!important;margin-bottom:10px!important;}
             .report-kpi-card{min-height:72px!important;padding:9px 10px!important;}
             .report-kpi-card-label{font-size:10px!important;}
             .report-kpi-card-value{font-size:22px!important;}
             .report-kpi-card-sub{font-size:9px!important;}
+            .report-compact-stat{padding:7px 8px!important;min-height:60px!important;}
             .report-panel-body{padding:8px 10px!important;}
             .report-section-header{padding:7px 12px!important;margin:4px 0 8px!important;}
+            .recharts-responsive-container{max-height:none!important;}
+            .report-mini-table{font-size:9px!important;}
+            .report-mini-table th,.report-mini-table td{padding:3px 5px!important;}
         }
     `;
 
@@ -274,7 +501,7 @@ const A3QualityBoardReport = () => {
         <>
             <Helmet><title>Kalite Panosu – {periodLabel}</title></Helmet>
             <style>{css}</style>
-            <div className="wrap" lang="tr">
+            <div ref={wrapRef} className="wrap" lang="tr">
 
                 {/* ══════════════════════════════════════════════════════════ */}
                 {/* BAŞLIK                                                     */}
@@ -298,35 +525,34 @@ const A3QualityBoardReport = () => {
                 {/* ══════════════════════════════════════════════════════════ */}
                 {/* KPI SATIRLARI (2 × 5)                                     */}
                 {/* ══════════════════════════════════════════════════════════ */}
-                <Row cols="repeat(5,1fr)" gap={8} mb={8}>
+                <Row cols="repeat(4,1fr)" gap={8} mb={8} className="report-kpi-grid">
                     <KpiCard label="Açık DF Kaydı"    value={kpis.openDF}  color={C.red}    bg="#fef2f2" sub={`Toplam ${kpis.totalNc} NC kaydı`} />
                     <KpiCard label="Açık 8D Kaydı"    value={kpis.open8D}  color={C.orange}  bg="#fff7ed" sub={`${kpis.closedNc} kapatıldı`} />
                     <KpiCard label="Ort. Kapatma Süresi" value={`${kpis.avgClosureDays} gün`} color={kpis.avgClosureDays > 30 ? C.red : C.teal} bg={kpis.avgClosureDays > 30 ? '#fef2f2' : '#f0fdfa'} sub="DF/8D ortalama" />
                     <KpiCard label="Dönem Kalite Maliyeti" value={fmtCurrency(kpis.totalCost)} color={C.red}   bg="#fef2f2" sub="Toplam maliyet" />
-                    <KpiCard label="Karantinadaki Ürün"   value={kpis.inQuarantine} color={C.purple} bg="#f5f3ff" sub={`Toplam ${kpis.totalQuarantine} kayıt`} />
                 </Row>
-                <Row cols="repeat(4,1fr)" gap={8} mb={14}>
+                <Row cols="repeat(4,1fr)" gap={8} mb={14} className="report-kpi-grid">
+                    <KpiCard label="Karantinadaki Ürün"   value={kpis.inQuarantine} color={C.purple} bg="#f5f3ff" sub={`Toplam ${kpis.totalQuarantine} kayıt`} />
                     <KpiCard label="Müşteri Şikayeti"  value={kpis.openComplaints} color={C.rose}  bg="#fff1f2" sub={`${kpis.slaOverdue} SLA gecikmiş`} />
-                    <KpiCard label="Girdi Red Oranı"   value={`%${kpis.incomingRejectionRate}`} color={kpis.incomingRejectionRate > 5 ? C.red : C.green} bg={kpis.incomingRejectionRate > 5 ? '#fef2f2':'#f0fdf4'} sub={`${kpis.rejectedIncoming}/${kpis.totalIncoming} kontrol`} />
+                    <KpiCard label="Girdi Ret Oranı"   value={`%${kpis.incomingRejectionRate}`} color={kpis.incomingRejectionRate > 5 ? C.red : C.green} bg={kpis.incomingRejectionRate > 5 ? '#fef2f2':'#f0fdf4'} sub={`${kpis.rejectedIncoming}/${kpis.totalIncoming} kontrol`} />
                     <KpiCard label="Araç Geçiş Oranı"  value={`%${kpis.vehiclePassRate}`} color={parseFloat(kpis.vehiclePassRate) > 90 ? C.green : C.orange} bg={parseFloat(kpis.vehiclePassRate) > 90 ? '#f0fdf4':'#fff7ed'} sub={`${kpis.passedVehicles}/${kpis.totalVehicles} araç`} />
-                    <KpiCard label="Onaylı Firma" value={kpis.activeSuppliers} color={C.blue}  bg="#eff6ff" sub={`${kpis.totalSupplierNC} Ted. NC`} />
                 </Row>
 
                 {/* ══════════════════════════════════════════════════════════ */}
                 {/* SATIR A: Birim NC Dağılımı | Maliyet Dağılımı (2 sütun) */}
                 {/* ══════════════════════════════════════════════════════════ */}
-                <Row cols="1fr 1fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     {/* Birim bazlı NC — Talep eden birimlere göre */}
                     <Panel title="Birim Bazlı Uygunsuzluk Dağılımı" color={C.red}>
                         <div style={{fontSize:9,color:C.slate,marginBottom:6}}>Açıldığı birime göre dağılım</div>
                         {ncByDept.length === 0
                             ? <div style={{textAlign:'center',color:C.slate,padding:30,fontSize:11}}>Bu dönemde uygunsuzluk kaydı yok.</div>
-                            : <div style={{width:'100%',minHeight:320,display:'flex',flexDirection:'column'}}>
-                                <ResponsiveContainer width="100%" height={320}>
+                            : <div style={{width:'100%',minHeight:ncByDeptChartHeight,display:'flex',flexDirection:'column'}}>
+                                <ResponsiveContainer width="100%" height={ncByDeptChartHeight}>
                                     <BarChart data={ncByDept} margin={{top:12,right:16,left:8,bottom:12}} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={true} vertical={false}/>
                                         <XAxis type="number" fontSize={11} tick={{fill:'#374151'}}/>
-                                        <YAxis type="category" dataKey="name" width={110} fontSize={10} tick={{fill:'#374151'}} interval={0} tickFormatter={v=>trunc(safeText(v),18)}/>
+                                        <YAxis type="category" dataKey="name" width={ncByDeptAxisWidth} fontSize={10} tick={{fill:'#374151'}} interval={0} tickFormatter={v=>safeText(v)}/>
                                         <Tooltip contentStyle={{fontSize:11}}/>
                                         <Legend wrapperStyle={{fontSize:11,paddingTop:8}}/>
                                         <Bar dataKey="acik"   name="Açık"   fill={C.red}   stackId="a" radius={[0,2,2,0]}/>
@@ -342,27 +568,54 @@ const A3QualityBoardReport = () => {
                         {costByType.length === 0
                             ? <div style={{textAlign:'center',color:C.slate,padding:30,fontSize:11}}>Maliyet kaydı yok.</div>
                             : <>
-                                <ResponsiveContainer width="100%" height={180}>
-                                    <PieChart>
-                                        <Pie data={costByType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75}
-                                            label={({percent})=>`%${(percent*100).toFixed(0)}`} fontSize={11}>
-                                            {costByType.map((e,i) => <Cell key={i} fill={COST_COLORS[e.name] || CHART_COLORS[i%CHART_COLORS.length]}/>)}
-                                        </Pie>
-                                        <Tooltip formatter={v=>fmtCurrency(v)} contentStyle={{fontSize:11}}/>
-                                    </PieChart>
-                                </ResponsiveContainer>
-                                {costByType.map((c,i)=>(
-                                    <StatRow key={i} label={trunc(safeText(c.name),24)} value={fmtCurrency(c.value)} color={COST_COLORS[c.name]||CHART_COLORS[i]}/>
-                                ))}
-                                <div style={{marginTop:6,paddingTop:6,borderTop:`2px solid ${C.orange}40`}}>
-                                    <StatRow label="TOPLAM MALİYET" value={fmtCurrency(kpis.totalCost)} color={C.red} bold/>
+                                <div style={{display:'grid',gridTemplateColumns:'minmax(280px, 0.95fr) minmax(360px, 1.05fr)',gap:18,alignItems:'start'}}>
+                                    <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:240}}>
+                                        <ResponsiveContainer width="100%" height={240}>
+                                            <PieChart>
+                                                <Pie
+                                                    data={costByType}
+                                                    dataKey="value"
+                                                    nameKey="name"
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={52}
+                                                    outerRadius={92}
+                                                    stroke="#ffffff"
+                                                    strokeWidth={2}
+                                                    paddingAngle={2}
+                                                    label={false}
+                                                >
+                                                    {costByType.map((e,i) => <Cell key={i} fill={COST_COLORS[e.name] || CHART_COLORS[i%CHART_COLORS.length]}/>)}
+                                                </Pie>
+                                                <Tooltip formatter={v=>fmtCurrency(v)} contentStyle={{fontSize:11}}/>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div>
+                                        <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:6}}>Maliyet Bileşenleri</div>
+                                        {costByType.map((c,i)=>(
+                                            <StatRow key={i} label={safeText(c.name)} value={fmtCurrency(c.value)} color={COST_COLORS[c.name]||CHART_COLORS[i]}/>
+                                        ))}
+                                        <div style={{marginTop:8,paddingTop:8,borderTop:`2px solid ${C.orange}40`}}>
+                                            <StatRow label="TOPLAM MALİYET" value={fmtCurrency(kpis.totalCost)} color={C.red} bold/>
+                                        </div>
+                                    </div>
                                 </div>
                                 {costByUnit && costByUnit.length > 0 && (
                                     <>
                                         <div style={{fontSize:11,fontWeight:700,color:C.orange,margin:'12px 0 6px'}}>Birim Bazlı Kalitesizlik Maliyetleri</div>
-                                        <MiniTable headers={['Birim','Maliyet']} rows={costByUnit.slice(0,10).map(c=>[trunc(safeText(c.name),24),fmtCurrency(c.value)])} fontSize={10}/>
+                                        <MiniTable
+                                            headers={['Birim','Maliyet','Toplam Hata','Hata Başı Maliyet']}
+                                            rows={costByUnit.slice(0,10).map(c=>[
+                                                trunc(safeText(c.name),24),
+                                                fmtCurrency(c.value),
+                                                <span style={{fontWeight:700,color:(c.issueCount || 0) > 0 ? C.red : C.green}}>{fmtNum(c.issueCount || 0)}</span>,
+                                                <span style={{fontWeight:700,color:C.orange}}>{c.costPerIssue != null ? fmtCurrency(c.costPerIssue) : '—'}</span>,
+                                            ])}
+                                            fontSize={10}
+                                        />
                                     </>
-                                )}
+                              )}
                               </>
                         }
                     </Panel>
@@ -396,7 +649,7 @@ const A3QualityBoardReport = () => {
 
                 {/* ══════════════════════════════════════════════════════════ */}
                 {/* SATIR B: Kalite Duvarı | Açık NC (2 sütun — Açık NC geniş alan) */}
-                <Row cols="1fr 1.4fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Kalite Duvarı — Birim Performansları" color={C.green}>
                         <div style={{fontSize:9,color:C.slate,marginBottom:6}}>Talep açıp sisteme katkıda bulunan birimler</div>
                         <MiniTable
@@ -421,7 +674,7 @@ const A3QualityBoardReport = () => {
                                 rows={openNC.map(nc=>[
                                     <span style={{fontSize:10,fontWeight:700,whiteSpace:'nowrap'}}>{nc.type!=='MDI'?(safeText(nc.nc_number)||'-'):'—'}</span>,
                                     <span style={{fontSize:10,fontWeight:700,whiteSpace:'nowrap'}}>{nc.type==='MDI'?(safeText(nc.mdi_no)||'-'):'—'}</span>,
-                                    <span style={{fontSize:10}}>{trunc(safeText(nc.title||nc.nc_number||nc.mdi_no),28)}</span>,
+                                    <span style={{fontSize:10,lineHeight:1.35}}>{safeText(nc.title||nc.nc_number||nc.mdi_no)}</span>,
                                     <span style={{fontSize:10}}>{trunc(safeText(nc.department||nc.requesting_unit||'-'),18)}</span>,
                                     <span style={{fontWeight:800,color:nc.gecikme?C.red:C.slate,fontSize:10}}>{nc.gecikme?`${nc.gecikme} gün`:'—'}</span>,
                                 ])}
@@ -437,17 +690,23 @@ const A3QualityBoardReport = () => {
                 </Row>
 
                 {/* SATIR B2: Karantina | İç Tetkik (2 sütun) */}
-                <Row cols="1fr 1fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Aktif Karantina Kayıtları" color={C.purple}>
                         {activeQuarantine.length === 0
                             ? <div style={{textAlign:'center',padding:20,color:C.green,fontWeight:700,fontSize:12}}>Karantinada ürün yok</div>
                             : <MiniTable
-                                headers={['Parça / Parça Kodu','Miktar (Adet)','Tarih','Neden']}
+                                headers={['Parça / Parça Kodu','Miktar (Adet)','Karantina Tarihi','Süre','Neden']}
                                 rows={activeQuarantine.map(q=>[
-                                    <span style={{fontSize:11,fontWeight:500}}>{trunc(safeText(q.part_name||q.part_code||'-'),30)}</span>,
+                                    <span style={{fontSize:11,fontWeight:500}}>
+                                        <strong>{trunc(safeText(q.part_code || q.part_name || '-'),16)}</strong>
+                                        {q.part_name && <span style={{display:'block',color:C.slate}}>{trunc(safeText(q.part_name),28)}</span>}
+                                    </span>,
                                     <span style={{fontWeight:700,color:C.purple,fontSize:11}}>{q.quantity!=null?fmtNum(q.quantity):'-'}</span>,
                                     <span style={{fontSize:10}}>{q.quarantine_date?format(new Date(q.quarantine_date),'dd.MM.yyyy'):'-'}</span>,
-                                    <span style={{fontSize:10}}>{trunc(safeText(q.reason||'-'),28)}</span>,
+                                    <span style={{fontSize:10,fontWeight:700,color:(q.quarantine_duration_days || 0) >= 15 ? C.red : C.orange}}>
+                                        {q.quarantine_duration_days != null ? `${fmtNum(q.quarantine_duration_days)} gün` : '-'}
+                                    </span>,
+                                    <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(q.report_reason || '-'),44)}</span>,
                                 ])}
                                 emptyMsg="Karantinada ürün yok"
                                 fontSize={11}
@@ -455,6 +714,11 @@ const A3QualityBoardReport = () => {
                         }
                         <div style={{marginTop:8}}>
                             <StatRow label="Toplam Aktif Karantina Kaydı" value={kpis.inQuarantine} color={kpis.inQuarantine>0?C.red:C.green} bold/>
+                            <StatRow
+                                label="En Uzun Bekleyen"
+                                value={activeQuarantine.length > 0 ? `${fmtNum(Math.max(...activeQuarantine.map(item => item.quarantine_duration_days || 0)))} gün` : '—'}
+                                color={activeQuarantine.some(item => (item.quarantine_duration_days || 0) >= 15) ? C.red : C.orange}
+                            />
                         </div>
                     </Panel>
                     <Panel title="İç Tetkik Özeti" color={C.yellow}>
@@ -490,73 +754,99 @@ const A3QualityBoardReport = () => {
 
                 {/* ══════════════════════════════════════════════════════════ */}
                 {/* SATIR C: Girdi Kontrol | Tedarikçi (2 sütun) */}
-                <Row cols="1fr 1fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     {/* Girdi Kalite Kontrol Özeti */}
                     <Panel title="Girdi Kalite Kontrol Özeti" color={C.teal}>
-                        <div style={{marginBottom:8}}>
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
                             {qualityActivities && (
-                                <StatRow label="Kontrol Planları" value={`${qualityActivities.totalControlPlans ?? 0} (Girdi: ${qualityActivities.totalIncomingControlPlans ?? 0}, Proses: ${qualityActivities.totalProcessControlPlans ?? 0})`} color={C.navy}/>
+                                <CompactStatCard
+                                    label="Kontrol Planları"
+                                    value={fmtNum(qualityActivities.totalControlPlans ?? 0)}
+                                    color={C.navy}
+                                    sub={`Girdi ${fmtNum(qualityActivities.totalIncomingControlPlans ?? 0)} · Proses ${fmtNum(qualityActivities.totalProcessControlPlans ?? 0)}`}
+                                    bg="#eff6ff"
+                                />
                             )}
-                            <StatRow label="Toplam Kontrol Sayısı" value={fmtNum(kpis.totalIncoming)} color={C.blue} bold/>
-                            <StatRow label="Toplam Parça Kontrol Edilen" value={fmtNum(kpis.totalPartsInspected ?? 0)} color={C.teal} bold/>
-                            <StatRow label="Toplam Parça Red Edilen" value={fmtNum(kpis.totalPartsRejected ?? 0)} color={C.red}/>
-                            <StatRow label="Kabul"        value={fmtNum(kpis.acceptedIncoming)}    color={C.green}/>
-                            <StatRow label="Şartlı Kabul" value={fmtNum(kpis.conditionalIncoming)} color={C.yellow}/>
-                            <StatRow label="Ret"          value={fmtNum(kpis.rejectedIncoming)}    color={C.red}/>
-                            <StatRow label="Beklemede"    value={fmtNum(kpis.pendingIncoming)}     color={C.slate}/>
-                            <StatRow label="Red Oranı"    value={`%${kpis.incomingRejectionRate}`} color={parseFloat(kpis.incomingRejectionRate)>5?C.red:C.green} bold/>
+                            <CompactStatCard label="Toplam Kontrol" value={fmtNum(kpis.totalIncoming)} color={C.blue} bg="#eff6ff" />
+                            <CompactStatCard label="Kontrol Edilen Parça" value={fmtNum(kpis.totalPartsInspected ?? 0)} color={C.teal} bg="#f0fdfa" />
+                            <CompactStatCard label="Ret Edilen Parça" value={fmtNum(kpis.totalPartsRejected ?? 0)} color={C.red} bg="#fef2f2" />
+                            <CompactStatCard label="Kabul" value={fmtNum(kpis.acceptedIncoming)} color={C.green} bg="#f0fdf4" />
+                            <CompactStatCard label="Şartlı Kabul" value={fmtNum(kpis.conditionalIncoming)} color={C.yellow} bg="#fff7ed" />
+                            <CompactStatCard label="Ret" value={fmtNum(kpis.rejectedIncoming)} color={C.red} bg="#fef2f2" />
+                            <CompactStatCard label="Ret Oranı" value={`%${kpis.incomingRejectionRate}`} color={parseFloat(kpis.incomingRejectionRate)>5?C.red:C.green} bg={parseFloat(kpis.incomingRejectionRate)>5?'#fef2f2':'#f0fdf4'} sub={`${fmtNum(kpis.pendingIncoming)} beklemede`} />
                         </div>
                         {/* Sonuç pie */}
                         {kpis.totalIncoming > 0 && (
-                            <ResponsiveContainer width="100%" height={200}>
-                                <PieChart>
-                                    <Pie
-                                        data={[
-                                            {name:'Kabul',        value:kpis.acceptedIncoming},
-                                            {name:'Şartlı Kabul', value:kpis.conditionalIncoming},
-                                            {name:'Ret',          value:kpis.rejectedIncoming},
-                                            {name:'Beklemede',    value:kpis.pendingIncoming},
-                                        ].filter(d=>d.value>0)}
-                                        dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}
-                                        label={({name,percent})=>`${name} %${(percent*100).toFixed(0)}`} fontSize={11}
-                                    >
-                                        {['Kabul','Şartlı Kabul','Ret','Beklemede'].map((k,i)=>(
-                                            <Cell key={i} fill={RESULT_COLORS[k] || CHART_COLORS[i]}/>
-                                        ))}
-                                    </Pie>
-                                    <Tooltip contentStyle={{fontSize:10}}/>
-                                    <Legend wrapperStyle={{fontSize:9}}/>
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <div style={{display:'grid',gridTemplateColumns:'minmax(240px, 0.9fr) minmax(280px, 1.1fr)',gap:16,alignItems:'center'}}>
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <PieChart>
+                                        <Pie
+                                            data={[
+                                                {name:'Kabul',        value:kpis.acceptedIncoming},
+                                                {name:'Şartlı Kabul', value:kpis.conditionalIncoming},
+                                                {name:'Ret',          value:kpis.rejectedIncoming},
+                                                {name:'Beklemede',    value:kpis.pendingIncoming},
+                                            ].filter(d=>d.value>0)}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={48}
+                                            outerRadius={84}
+                                            stroke="#ffffff"
+                                            strokeWidth={2}
+                                            paddingAngle={2}
+                                            label={false}
+                                        >
+                                            {['Kabul','Şartlı Kabul','Ret','Beklemede'].map((k,i)=>(
+                                                <Cell key={i} fill={RESULT_COLORS[k] || CHART_COLORS[i]}/>
+                                            ))}
+                                        </Pie>
+                                        <Tooltip contentStyle={{fontSize:10}}/>
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <MiniTable
+                                    headers={['Sonuç', 'Adet']}
+                                    rows={[
+                                        ['Kabul', <span style={{fontWeight:700,color:RESULT_COLORS.Kabul}}>{fmtNum(kpis.acceptedIncoming)}</span>],
+                                        ['Şartlı Kabul', <span style={{fontWeight:700,color:RESULT_COLORS['Şartlı Kabul']}}>{fmtNum(kpis.conditionalIncoming)}</span>],
+                                        ['Ret', <span style={{fontWeight:700,color:RESULT_COLORS.Ret}}>{fmtNum(kpis.rejectedIncoming)}</span>],
+                                        ['Beklemede', <span style={{fontWeight:700,color:RESULT_COLORS.Beklemede}}>{fmtNum(kpis.pendingIncoming)}</span>],
+                                    ].filter(([, value], index) => [kpis.acceptedIncoming, kpis.conditionalIncoming, kpis.rejectedIncoming, kpis.pendingIncoming][index] > 0)}
+                                    fontSize={10}
+                                />
+                            </div>
                         )}
                         {/* Aylık trend */}
                         {incoming.monthly.length > 0 && (
-                            <ResponsiveContainer width="100%" height={90} style={{marginTop:6}}>
+                            <ResponsiveContainer width="100%" height={incomingMonthlyChartHeight} style={{marginTop:8}}>
                                 <BarChart data={incoming.monthly} margin={{top:2,right:4,left:-20,bottom:15}}>
-                                    <XAxis dataKey="name" fontSize={8.5} angle={-25} textAnchor="end" height={22} tick={{fill:'#374151'}}/>
+                                    <XAxis dataKey="name" fontSize={9} angle={-20} textAnchor="end" height={28} tick={{fill:'#374151'}}/>
                                     <YAxis fontSize={9} tick={{fill:'#374151'}}/>
                                     <Tooltip contentStyle={{fontSize:10}}/>
                                     <Legend wrapperStyle={{fontSize:9}}/>
                                     <Bar dataKey="kontrol" name="Kontrol" fill={C.teal}  radius={[2,2,0,0]}/>
-                                    <Bar dataKey="red"     name="Red"     fill={C.red}   radius={[2,2,0,0]}/>
+                                    <Bar dataKey="red"     name="Ret"     fill={C.red}   radius={[2,2,0,0]}/>
                                 </BarChart>
                             </ResponsiveContainer>
                         )}
                     </Panel>
+                </Row>
+                </SectionBlock>
 
-                    {/* Tedarikçi Değerlendirme Özeti */}
+                <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Tedarikçi Değerlendirme Özeti" color={C.blue}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginBottom: 12 }}>
-                            <KpiCard label="Onaylı Tedarikçi" value={fmtNum(kpis.activeSuppliers)} color={C.blue} sub="Kayıtlı firma" />
-                            <KpiCard label="A+B Sınıfı" value={fmtNum(suppliers.gradeABCount ?? 0)} color={C.green} sub="İyi performans" />
+                            <KpiCard label="Onaylı Tedarikçi" value={fmtNum(suppliers.approvedCount ?? 0)} color={C.blue} sub={`${fmtNum(suppliers.alternativeCount ?? 0)} alternatif`} />
+                            <KpiCard label="A+B Sınıfı" value={fmtNum(suppliers.gradeABCount ?? 0)} color={C.green} sub={`${fmtNum(suppliers.evaluatedCount ?? 0)} değerlendirilen`} />
                             <KpiCard label="NC Açılan Tedarikçi" value={fmtNum(suppliers.suppliersWithNCCount ?? 0)} color={C.orange} sub={`${kpis.totalSupplierNC} NC (${kpis.openSupplierNC} açık)`} />
                             <KpiCard label="Tamamlanan Denetim" value={fmtNum(qualityActivities?.supplierAuditsCompleted ?? 0)} color={C.purple} sub="Tedarikçi denetimi" />
-                            <KpiCard label="Girdi Red" value={fmtNum(kpis.rejectedIncoming ?? 0)} color={C.red} sub={`${suppliers.suppliersWithRejectionCount ?? 0} tedarikçi/parça`} />
+                            <KpiCard label="Genel PPM" value={fmtNum(suppliers.overallPPM ?? 0)} color={C.red} sub={`${fmtNum(suppliers.totalDefectiveParts ?? 0)} hatalı / ${fmtNum(suppliers.totalInspectedParts ?? 0)} kontrol`} />
                         </div>
-                        {suppliers.gradeDistribution.length > 0 && (
+                        {suppliers.gradeDistribution.length > 0 ? (
                             <>
                                 <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, marginBottom: 6 }}>Sınıf Dağılımı</div>
-                                <ResponsiveContainer width="100%" height={100}>
+                                <ResponsiveContainer width="100%" height={supplierGradeChartHeight}>
                                     <BarChart data={suppliers.gradeDistribution} layout="vertical" margin={{ top: 4, right: 12, left: 28, bottom: 4 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={true} vertical={false} />
                                         <XAxis type="number" fontSize={10} tick={{ fill: '#374151' }} />
@@ -570,69 +860,93 @@ const A3QualityBoardReport = () => {
                                     </BarChart>
                                 </ResponsiveContainer>
                             </>
-                        )}
-                        <div style={{ display: 'grid', gridTemplateColumns: (suppliers.topSuppliersNC.length > 0 && incoming.topRejectedSuppliers.length > 0) ? '1fr 1fr' : '1fr', gap: 12, marginTop: 10 }}>
-                            {suppliers.topSuppliersNC.length > 0 && (
-                                <div>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: C.orange, marginBottom: 4 }}>En Fazla NC Alan Tedarikçiler</div>
-                                    <MiniTable
-                                        headers={['Tedarikçi', 'Toplam NC', 'Açık']}
-                                        rows={suppliers.topSuppliersNC.slice(0, 5).map((s) => [
-                                            trunc(safeText(s.name), 20),
-                                            <span style={{ fontWeight: 700, color: C.orange, fontSize: 10 }}>{s.count}</span>,
-                                            <span style={{ fontWeight: 700, color: C.red, fontSize: 10 }}>{s.open}</span>,
-                                        ])}
-                                        fontSize={10}
-                                    />
-                                </div>
-                            )}
-                            {incoming.topRejectedSuppliers.length > 0 && (
-                                <div>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: C.red, marginBottom: 4 }}>Girdi Kontrol — En Çok Red Alan</div>
-                                    <MiniTable
-                                        headers={['Tedarikçi / Parça', 'Red Sayısı']}
-                                        rows={incoming.topRejectedSuppliers.slice(0, 5).map((s) => [
-                                            trunc(safeText(s.name), 22),
-                                            <span style={{ fontWeight: 700, color: C.red, fontSize: 10 }}>{s.count}</span>,
-                                        ])}
-                                        fontSize={10}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        {qualityActivities?.supplierAuditDetails && qualityActivities.supplierAuditDetails.length > 0 && (
-                            <div style={{ marginTop: 10 }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: C.purple, marginBottom: 4 }}>Tamamlanan Tedarikçi Denetimleri ({qualityActivities.supplierAuditsCompleted ?? 0})</div>
-                                <MiniTable
-                                    headers={['Denetlenen', 'Tarih', 'Puan']}
-                                    rows={qualityActivities.supplierAuditDetails.map((d) => [
-                                        <span style={{ fontSize: 10 }}>{trunc(safeText(d.supplierName), 24)}</span>,
-                                        <span style={{ fontSize: 10 }}>{d.date ? format(new Date(d.date), 'dd.MM.yyyy', { locale: tr }) : '—'}</span>,
-                                        <span style={{ fontWeight: 700, color: C.purple }}>{d.score != null ? d.score : '—'}</span>,
-                                    ])}
-                                    fontSize={10}
-                                />
-                            </div>
-                        )}
-                        {suppliers.topSuppliersNC.length === 0 && incoming.topRejectedSuppliers.length === 0 && suppliers.gradeDistribution.length === 0 && (!qualityActivities?.supplierAuditDetails || qualityActivities.supplierAuditDetails.length === 0) && (
-                            <div style={{ textAlign: 'center', color: C.slate, fontSize: 11, padding: 20 }}>Tedarikçi değerlendirme verisi bulunamadı.</div>
+                        ) : (
+                            <div style={{ textAlign: 'center', color: C.slate, fontSize: 11, padding: 20 }}>Tedarikçi sınıf verisi bulunamadı.</div>
                         )}
                     </Panel>
-
                 </Row>
-                </SectionBlock>
+
+                {suppliers.topSuppliersNC.length > 0 && (
+                    <Row cols="1fr" gap={12} mb={14}>
+                        <Panel title="En Fazla NC Alan Tedarikçiler" color={C.orange}>
+                            <MiniTable
+                                headers={['Tedarikçi', 'Toplam NC', 'Açık']}
+                                rows={suppliers.topSuppliersNC.slice(0, 8).map((s) => [
+                                    trunc(safeText(s.name), 24),
+                                    <span style={{ fontWeight: 700, color: C.orange, fontSize: 10 }}>{s.count}</span>,
+                                    <span style={{ fontWeight: 700, color: C.red, fontSize: 10 }}>{s.open}</span>,
+                                ])}
+                                fontSize={10}
+                            />
+                        </Panel>
+                    </Row>
+                )}
+
+                {incoming.topRejectedSuppliers.length > 0 && (
+                    <Row cols="1fr" gap={12} mb={14}>
+                        <Panel title="Girdi Kontrol — En Çok Ret Alan" color={C.red}>
+                            <MiniTable
+                                headers={['Tedarikçi / Parça', 'Ret Sayısı']}
+                                rows={incoming.topRejectedSuppliers.slice(0, 8).map((s) => [
+                                    trunc(safeText(s.name), 28),
+                                    <span style={{ fontWeight: 700, color: C.red, fontSize: 10 }}>{s.count}</span>,
+                                ])}
+                                fontSize={10}
+                            />
+                        </Panel>
+                    </Row>
+                )}
+
+                {suppliers.ppmBySupplier?.length > 0 && (
+                    <ChunkedTablePanels
+                        title="Tedarikçi PPM Listesi"
+                        color={C.red}
+                        headers={['Tedarikçi', 'PPM', 'Kontrol', 'Hatalı']}
+                        rows={suppliers.ppmBySupplier.map((item) => [
+                            <span style={{ fontSize: 10 }}>{trunc(safeText(item.name), 24)}</span>,
+                            <span style={{ fontWeight: 700, color: item.ppm > 50000 ? C.red : item.ppm > 10000 ? C.orange : C.green }}>{fmtNum(item.ppm)}</span>,
+                            <span style={{ fontSize: 10 }}>{fmtNum(item.inspected)}</span>,
+                            <span style={{ fontSize: 10, fontWeight: 700 }}>{fmtNum(item.defective)}</span>,
+                        ])}
+                        fontSize={10}
+                        chunkSize={11}
+                    />
+                )}
+
+                {qualityActivities?.supplierAuditDetails && qualityActivities.supplierAuditDetails.length > 0 && (
+                    <ChunkedTablePanels
+                        title={`Tamamlanan Tedarikçi Denetimleri (${qualityActivities.supplierAuditsCompleted ?? 0})`}
+                        color={C.purple}
+                        headers={['Denetlenen', 'Tarih', 'Puan']}
+                        rows={qualityActivities.supplierAuditDetails.map((d) => [
+                            <span style={{ fontSize: 10 }}>{trunc(safeText(d.supplierName), 24)}</span>,
+                            <span style={{ fontSize: 10 }}>{d.date ? format(new Date(d.date), 'dd.MM.yyyy', { locale: tr }) : '—'}</span>,
+                            <span style={{ fontWeight: 700, color: C.purple }}>{d.score != null ? d.score : '—'}</span>,
+                        ])}
+                        fontSize={10}
+                        chunkSize={12}
+                    />
+                )}
+
+                {suppliers.topSuppliersNC.length === 0 && incoming.topRejectedSuppliers.length === 0 && suppliers.gradeDistribution.length === 0 && (!qualityActivities?.supplierAuditDetails || qualityActivities.supplierAuditDetails.length === 0) && !(suppliers.ppmBySupplier?.length > 0) && (
+                    <Row cols="1fr" gap={12} mb={14}>
+                        <Panel title="Tedarikçi Değerlendirme Özeti" color={C.blue}>
+                            <div style={{ textAlign: 'center', color: C.slate, fontSize: 11, padding: 20 }}>Tedarikçi değerlendirme verisi bulunamadı.</div>
+                        </Panel>
+                    </Row>
+                )}
 
                 {/* SATIR C2: NC Tip + Sapma (2 sütun) */}
-                <Row cols="1fr 1fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="NC Tip Dağılımı" color={C.indigo}>
                         {ncByType.length === 0
                             ? <div style={{textAlign:'center',color:C.slate,fontSize:11,padding:20}}>Veri yok</div>
                             : <>
-                                <ResponsiveContainer width="100%" height={220}>
+                                <ResponsiveContainer width="100%" height={ncByTypeChartHeight}>
                                     <BarChart data={ncByType} margin={{top:12,right:16,left:8,bottom:8}} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={true} vertical={false}/>
                                         <XAxis type="number" fontSize={11} tick={{fill:'#374151'}}/>
-                                        <YAxis type="category" dataKey="name" width={60} fontSize={11} tick={{fill:'#374151'}} interval={0}/>
+                                        <YAxis type="category" dataKey="name" width={ncByTypeAxisWidth} fontSize={11} tick={{fill:'#374151'}} interval={0}/>
                                         <Tooltip contentStyle={{fontSize:11}}/>
                                         <Legend wrapperStyle={{fontSize:11}}/>
                                         <Bar dataKey="acik" name="Açık" fill={C.red} stackId="a" radius={[0,2,2,0]}/>
@@ -651,11 +965,24 @@ const A3QualityBoardReport = () => {
                         }
                     </Panel>
                     <Panel title="Sapma Talepleri" color={C.indigo}>
-                        <StatRow label="Toplam Sapma" value={kpis.totalDeviations} color={C.yellow} bold/>
-                        <StatRow label="Açık Sapmalar" value={kpis.openDeviations} color={C.red}/>
-                        {deviations.byStatus.map((s,i)=>(
-                            <StatRow key={i} label={trunc(safeText(s.name),20)} value={s.value} color={CHART_COLORS[i%CHART_COLORS.length]}/>
-                        ))}
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:12}}>
+                            <CompactStatCard
+                                label="Toplam Sapma"
+                                value={fmtNum(kpis.totalDeviations)}
+                                color={C.indigo}
+                                bg="#eef2ff"
+                                sub="Durum kırılımı aşağıda ayrıca gösterilir"
+                            />
+                            {deviations.byStatus.map((s,i)=>(
+                                <CompactStatCard
+                                    key={s.name || i}
+                                    label={safeText(s.name)}
+                                    value={fmtNum(s.value)}
+                                    color={CHART_COLORS[i%CHART_COLORS.length]}
+                                    bg="#f8fafc"
+                                />
+                            ))}
+                        </div>
                         {deviations.byUnit && deviations.byUnit.length > 0 && (
                             <>
                                 <div style={{fontSize:11,fontWeight:700,color:C.teal,margin:'12px 0 6px'}}>Sapma Talep Eden Birimler</div>
@@ -664,6 +991,30 @@ const A3QualityBoardReport = () => {
                         )}
                     </Panel>
                 </Row>
+                {deviations.details?.length > 0 && (
+                    <ChunkedTablePanels
+                        title="Sapma Talepleri Detayı"
+                        color={C.indigo}
+                        headers={['No','Parça / Araç','Kaynak','Talep Eden','Durum','Detay']}
+                        rows={deviations.details.map((item) => [
+                            <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.requestNo}</span>,
+                            <span style={{fontSize:10}}>
+                                <strong>{trunc(safeText(item.partCode),16)}</strong>
+                                {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.partName),24)}</span>}
+                                {item.vehicleType && item.vehicleType !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.vehicleType),20)}</span>}
+                            </span>,
+                            <span style={{fontSize:10}}>{trunc(safeText(item.source),18)}</span>,
+                            <span style={{fontSize:10}}>
+                                <strong>{trunc(safeText(item.unit),16)}</strong>
+                                {item.requester && item.requester !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.requester),18)}</span>}
+                            </span>,
+                            <span style={{fontSize:10,fontWeight:700}}>{trunc(safeText(item.status),16)}</span>,
+                            <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.description),46)}</span>,
+                        ])}
+                        fontSize={10}
+                        chunkSize={7}
+                    />
+                )}
                 </>
                 )}
 
@@ -671,243 +1022,309 @@ const A3QualityBoardReport = () => {
                     <>
                     <SectionBlock>
                         <PageHeader
-                            title="UYGUNSUZLUK · FİKSTÜR"
+                            title={hasNonconformitySection ? 'UYGUNSUZLUK' : 'FİKSTÜR TAKİP'}
                             periodLabel={periodLabel}
                         />
                         {hasNonconformitySection ? (
-                            <Row cols="repeat(6,1fr)" gap={8} mb={14}>
+                            <Row cols="repeat(5,1fr)" gap={8} mb={14}>
                                 <KpiCard label="Toplam Kayıt" value={fmtNum(nonconformityModule.total)} color={C.teal} bg="#f0fdfa" />
                                 <KpiCard label="Açık Kayıt" value={fmtNum(nonconformityModule.open)} color={nonconformityModule.open > 0 ? C.red : C.green} bg={nonconformityModule.open > 0 ? '#fef2f2' : '#f0fdf4'} />
                                 <KpiCard label="DF Önerildi" value={fmtNum(nonconformityModule.dfSuggested)} color={C.indigo} bg="#eef2ff" />
                                 <KpiCard label="8D Önerildi" value={fmtNum(nonconformityModule.eightDSuggested)} color={C.purple} bg="#f5f3ff" />
-                                <KpiCard label="Dönüştürülen" value={fmtNum(nonconformityModule.converted)} color={C.green} bg="#f0fdf4" />
                                 <KpiCard label="Kritik Açık" value={fmtNum(nonconformityModule.critical)} color={C.red} bg="#fef2f2" sub={`Toplam adet ${fmtNum(nonconformityModule.totalQuantity)}`} />
-                            </Row>
-                        ) : hasFixtureSection ? (
-                            <Row cols="repeat(4,1fr)" gap={8} mb={14}>
-                                <KpiCard label="Toplam Fikstür" value={fmtNum(fixtureTracking.total)} color={C.navy} bg="#eff6ff" />
-                                <KpiCard label="Kritik Fikstür" value={fmtNum(fixtureTracking.critical)} color={C.orange} bg="#fff7ed" />
-                                <KpiCard label="Vadesi Geçmiş" value={fmtNum(fixtureTracking.overdue)} color={fixtureTracking.overdue > 0 ? C.red : C.green} bg={fixtureTracking.overdue > 0 ? '#fef2f2' : '#f0fdf4'} />
-                                <KpiCard label="Uygunsuz Fikstür" value={fmtNum(fixtureTracking.nonconformant)} color={fixtureTracking.nonconformant > 0 ? C.red : C.green} bg={fixtureTracking.nonconformant > 0 ? '#fef2f2' : '#f0fdf4'} />
                             </Row>
                         ) : null}
                     </SectionBlock>
 
                     {hasNonconformitySection && (
                         <>
+                            <ChunkedTablePanels
+                                title="DF ve 8D Önerilen Maddeler"
+                                color={C.teal}
+                                headers={['Öneri','Kayıt No','Parça','Açıklama','Alan','Ciddiyet','Adet','Sorumlu']}
+                                rows={(nonconformityModule.suggestedItems || []).map((item) => [
+                                    <span style={{
+                                        display:'inline-flex',
+                                        alignItems:'center',
+                                        justifyContent:'center',
+                                        minWidth:34,
+                                        padding:'2px 8px',
+                                        borderRadius:999,
+                                        fontSize:10,
+                                        fontWeight:800,
+                                        color:'white',
+                                        background:item.type === '8D' ? C.purple : C.indigo,
+                                    }}>{item.type}</span>,
+                                    <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.recordNumber}</span>,
+                                    <span style={{fontSize:10}}>
+                                        <strong>{trunc(safeText(item.partCode),16)}</strong>
+                                        {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.partName),24)}</span>}
+                                    </span>,
+                                    <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.description),44)}</span>,
+                                    <span style={{fontSize:10}}>{trunc(safeText(item.area),16)}</span>,
+                                    <span style={{fontSize:10,fontWeight:700,color:item.severity === 'Kritik' ? C.red : item.severity === 'Yüksek' ? C.orange : C.gray}}>{item.severity}</span>,
+                                    <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.quantity)}</span>,
+                                    <span style={{fontSize:10}}>{trunc(safeText(item.responsible),18)}</span>,
+                                ])}
+                                emptyMsg="Bu dönemde önerilmiş DF / 8D kaydı yok."
+                                fontSize={10}
+                                chunkSize={7}
+                            />
+
+                            <ChunkedTablePanels
+                                title="DF ve 8D Açılan Maddeler"
+                                color={C.green}
+                                headers={['Tür','Kayıt No','Parça','Açıklama','Alan','Ciddiyet','Adet','Sorumlu']}
+                                rows={(nonconformityModule.openedItems || []).map((item) => [
+                                    <span style={{
+                                        display:'inline-flex',
+                                        alignItems:'center',
+                                        justifyContent:'center',
+                                        minWidth:34,
+                                        padding:'2px 8px',
+                                        borderRadius:999,
+                                        fontSize:10,
+                                        fontWeight:800,
+                                        color:'white',
+                                        background:item.type === '8D' ? C.purple : C.green,
+                                    }}>{item.type}</span>,
+                                    <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.recordNumber}</span>,
+                                    <span style={{fontSize:10}}>
+                                        <strong>{safeText(item.partCode)}</strong>
+                                        {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{safeText(item.partName)}</span>}
+                                    </span>,
+                                    <span style={{fontSize:10,lineHeight:1.35}}>{safeText(item.description)}</span>,
+                                    <span style={{fontSize:10}}>{safeText(item.area)}</span>,
+                                    <span style={{fontSize:10,fontWeight:700,color:item.severity === 'Kritik' ? C.red : item.severity === 'Yüksek' ? C.orange : C.gray}}>{item.severity}</span>,
+                                    <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.quantity)}</span>,
+                                    <span style={{fontSize:10}}>{safeText(item.responsible)}</span>,
+                                ])}
+                                emptyMsg="Bu dönemde açılmış DF / 8D kaydı yok."
+                                fontSize={10}
+                                chunkSize={7}
+                            />
+
                             <Row cols="1fr" gap={12} mb={14}>
-                                <Panel title="Uygunsuzluk Modülü Özeti" color={C.teal}>
-                                    <div style={{fontSize:11,fontWeight:700,color:C.teal,marginBottom:6}}>DF ve 8D Önerilen Maddeler</div>
+                                <Panel title="Uygunsuzluk Durum Dağılımı" color={C.teal}>
                                     <MiniTable
-                                        headers={['Öneri','Kayıt No','Parça','Açıklama','Alan','Ciddiyet','Adet','Sorumlu']}
-                                        rows={(nonconformityModule.suggestedItems || []).map((item) => [
-                                            <span style={{
-                                                display:'inline-flex',
-                                                alignItems:'center',
-                                                justifyContent:'center',
-                                                minWidth:34,
-                                                padding:'2px 8px',
-                                                borderRadius:999,
-                                                fontSize:10,
-                                                fontWeight:800,
-                                                color:'white',
-                                                background:item.type === '8D' ? C.purple : C.indigo,
-                                            }}>{item.type}</span>,
-                                            <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.recordNumber}</span>,
-                                            <span style={{fontSize:10}}>
-                                                <strong>{trunc(safeText(item.partCode),16)}</strong>
-                                                {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.partName),24)}</span>}
-                                            </span>,
-                                            <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.description),44)}</span>,
-                                            <span style={{fontSize:10}}>{trunc(safeText(item.area),16)}</span>,
-                                            <span style={{fontSize:10,fontWeight:700,color:item.severity === 'Kritik' ? C.red : item.severity === 'Yüksek' ? C.orange : C.gray}}>{item.severity}</span>,
-                                            <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.quantity)}</span>,
-                                            <span style={{fontSize:10}}>{trunc(safeText(item.responsible),18)}</span>,
+                                        headers={['Durum','Adet']}
+                                        rows={(nonconformityModule.byStatus || []).map((item, index) => [
+                                            <span style={{fontSize:10,fontWeight:600,color:CHART_COLORS[index % CHART_COLORS.length]}}>{trunc(safeText(item.name),22)}</span>,
+                                            <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.value)}</span>,
                                         ])}
-                                        emptyMsg="Bu dönemde önerilmiş DF / 8D kaydı yok."
+                                        emptyMsg="Durum verisi yok."
                                         fontSize={10}
                                     />
-
-                                    <div style={{display:'grid',gridTemplateColumns:'0.95fr 0.95fr 1.1fr',gap:12,marginTop:12}}>
-                                        <div style={{display:'grid',gridTemplateRows:'auto auto',gap:12}}>
-                                            <div>
-                                                <div style={{fontSize:11,fontWeight:700,color:C.teal,marginBottom:6}}>Durum Dağılımı</div>
-                                                <MiniTable
-                                                    headers={['Durum','Adet']}
-                                                    rows={(nonconformityModule.byStatus || []).map((item, index) => [
-                                                        <span style={{fontSize:10,fontWeight:600,color:CHART_COLORS[index % CHART_COLORS.length]}}>{trunc(safeText(item.name),22)}</span>,
-                                                        <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.value)}</span>,
-                                                    ])}
-                                                    emptyMsg="Durum verisi yok."
-                                                    fontSize={10}
-                                                />
-                                            </div>
-                                            <div>
-                                                <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:6}}>Ciddiyet Dağılımı</div>
-                                                <MiniTable
-                                                    headers={['Ciddiyet','Adet']}
-                                                    rows={(nonconformityModule.bySeverity || []).map((item) => [
-                                                        <span style={{fontSize:10,fontWeight:600}}>{trunc(safeText(item.name),20)}</span>,
-                                                        <span style={{fontSize:10,fontWeight:700,color:item.name === 'Kritik' ? C.red : item.name === 'Yüksek' ? C.orange : C.gray}}>{fmtNum(item.value)}</span>,
-                                                    ])}
-                                                    emptyMsg="Ciddiyet verisi yok."
-                                                    fontSize={10}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:6}}>En Çok Tekrarlayan Kategoriler / Parçalar</div>
-                                            <MiniTable
-                                                headers={['Tür','Kod / Açıklama','Adet']}
-                                                rows={[
-                                                    ...((nonconformityModule.topCategories || []).slice(0, 4).map((item) => [
-                                                        'Kategori',
-                                                        <span style={{fontSize:10}}>{trunc(safeText(item.name),24)}</span>,
-                                                        <span style={{fontSize:10,fontWeight:700,color:C.orange}}>{fmtNum(item.value)}</span>,
-                                                    ])),
-                                                    ...((nonconformityModule.topParts || []).slice(0, 4).map((item) => [
-                                                        'Parça',
-                                                        <span style={{fontSize:10}}>{trunc(safeText(item.name),24)}</span>,
-                                                        <span style={{fontSize:10,fontWeight:700,color:C.red}}>{fmtNum(item.count)}</span>,
-                                                    ])),
-                                                ]}
-                                                emptyMsg="Kategori / parça özeti yok."
-                                                fontSize={10}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:6}}>Sorumlu Yük Dağılımı</div>
-                                            <MiniTable
-                                                headers={['Sorumlu','Açık','Toplam','Kapanış %']}
-                                                rows={(nonconformityModule.responsibleLoad || []).map((item) => [
-                                                    <span style={{fontSize:10}}>{trunc(safeText(item.name),20)}</span>,
-                                                    <span style={{fontSize:10,fontWeight:700,color:item.open > 0 ? C.red : C.green}}>{fmtNum(item.open)}</span>,
-                                                    <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.total)}</span>,
-                                                    <span style={{fontSize:10,fontWeight:700,color:item.closeRate >= 70 ? C.green : item.closeRate >= 40 ? C.orange : C.red}}>%{fmtNum(item.closeRate)}</span>,
-                                                ])}
-                                                emptyMsg="Sorumlu dağılımı yok."
-                                                fontSize={10}
-                                            />
-                                        </div>
-                                    </div>
                                 </Panel>
                             </Row>
 
                             <Row cols="1fr" gap={12} mb={14}>
-                                <Panel title="Uygunsuzluk Modülü — Son Kayıtlar" color={C.teal}>
-                                    {(!nonconformityModule.recentRecords || nonconformityModule.recentRecords.length === 0)
-                                        ? <div style={{textAlign:'center',color:C.slate,padding:30,fontSize:11}}>Bu dönemde uygunsuzluk kaydı yok.</div>
-                                        : <MiniTable
-                                            headers={['Tarih','Kayıt No','Parça','Açıklama','Kategori','Alan','Ciddiyet','Durum','Sorumlu','Adet']}
-                                            rows={nonconformityModule.recentRecords.map((r) => [
-                                                r.tarih ? format(parseISO(r.tarih),'dd.MM.yyyy',{locale:tr}) : '—',
-                                                <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{r.kayitNo || '—'}</span>,
-                                                <span style={{fontSize:10}}>
-                                                    <strong>{trunc(safeText(r.parca),18)}</strong>
-                                                    {r.parcaAdi && r.parcaAdi !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(r.parcaAdi),28)}</span>}
-                                                </span>,
-                                                <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(r.aciklama),64)}</span>,
-                                                <span style={{fontSize:10}}>{trunc(safeText(r.kategori),18)}</span>,
-                                                <span style={{fontSize:10}}>{trunc(safeText(r.alan),18)}</span>,
-                                                <span style={{fontSize:10,fontWeight:700,color:r.onem === 'Kritik' ? C.red : r.onem === 'Yüksek' ? C.orange : C.gray}}>{r.onem}</span>,
-                                                <span style={{fontSize:10,fontWeight:700}}>{trunc(safeText(r.durum),16)}</span>,
-                                                <span style={{fontSize:10}}>{trunc(safeText(r.sorumlu),18)}</span>,
-                                                <span style={{fontSize:10,fontWeight:700}}>{fmtNum(r.adet)}</span>,
-                                            ])}
-                                            emptyMsg="Kayıt yok"
-                                            fontSize={10}
-                                        />
-                                    }
+                                <Panel title="Uygunsuzluk Ciddiyet Dağılımı" color={C.orange}>
+                                    <MiniTable
+                                        headers={['Ciddiyet','Adet']}
+                                        rows={(nonconformityModule.bySeverity || []).map((item) => [
+                                            <span style={{fontSize:10,fontWeight:600}}>{trunc(safeText(item.name),20)}</span>,
+                                            <span style={{fontSize:10,fontWeight:700,color:item.name === 'Kritik' ? C.red : item.name === 'Yüksek' ? C.orange : C.gray}}>{fmtNum(item.value)}</span>,
+                                        ])}
+                                        emptyMsg="Ciddiyet verisi yok."
+                                        fontSize={10}
+                                    />
                                 </Panel>
                             </Row>
+
+                            <Row cols="1fr" gap={12} mb={14}>
+                                <Panel title="En Çok Tekrarlayan Kategoriler" color={C.orange}>
+                                    <MiniTable
+                                        headers={['Kategori','Adet']}
+                                        rows={(nonconformityModule.topCategories || []).slice(0, 6).map((item) => [
+                                            <span style={{fontSize:10}}>{trunc(safeText(item.name),24)}</span>,
+                                            <span style={{fontSize:10,fontWeight:700,color:C.orange}}>{fmtNum(item.value)}</span>,
+                                        ])}
+                                        emptyMsg="Kategori özeti yok."
+                                        fontSize={10}
+                                    />
+                                </Panel>
+                            </Row>
+
+                            <Row cols="1fr" gap={12} mb={14}>
+                                <Panel title="En Çok Tekrarlayan Parçalar" color={C.red}>
+                                    <MiniTable
+                                        headers={['Parça','Adet']}
+                                        rows={(nonconformityModule.topParts || []).slice(0, 6).map((item) => [
+                                            <span style={{fontSize:10}}>{trunc(safeText(item.name),24)}</span>,
+                                            <span style={{fontSize:10,fontWeight:700,color:C.red}}>{fmtNum(item.count)}</span>,
+                                        ])}
+                                        emptyMsg="Parça özeti yok."
+                                        fontSize={10}
+                                    />
+                                </Panel>
+                            </Row>
+
+                            <Row cols="1fr" gap={12} mb={14}>
+                                <Panel title="Sorumlu Yük Dağılımı" color={C.red}>
+                                    <MiniTable
+                                        headers={['Sorumlu','Açık','Toplam','Kapanış %']}
+                                        rows={(nonconformityModule.responsibleLoad || []).map((item) => [
+                                            <span style={{fontSize:10}}>{trunc(safeText(item.name),20)}</span>,
+                                            <span style={{fontSize:10,fontWeight:700,color:item.open > 0 ? C.red : C.green}}>{fmtNum(item.open)}</span>,
+                                            <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.total)}</span>,
+                                            <span style={{fontSize:10,fontWeight:700,color:item.closeRate >= 70 ? C.green : item.closeRate >= 40 ? C.orange : C.red}}>%{fmtNum(item.closeRate)}</span>,
+                                        ])}
+                                        emptyMsg="Sorumlu dağılımı yok."
+                                        fontSize={10}
+                                    />
+                                </Panel>
+                            </Row>
+
+                            <ChunkedTablePanels
+                                title="Uygunsuzluk Modülü — Son Kayıtlar"
+                                color={C.teal}
+                                headers={['Tarih','Kayıt No','Parça','Açıklama','Kategori','Alan','Ciddiyet','Durum','Sorumlu','Adet']}
+                                rows={(nonconformityModule.recentRecords || []).map((r) => [
+                                    r.tarih ? format(parseISO(r.tarih),'dd.MM.yyyy',{locale:tr}) : '—',
+                                    <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{r.kayitNo || '—'}</span>,
+                                    <span style={{fontSize:10}}>
+                                        <strong>{trunc(safeText(r.parca),18)}</strong>
+                                        {r.parcaAdi && r.parcaAdi !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(r.parcaAdi),28)}</span>}
+                                    </span>,
+                                    <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(r.aciklama),64)}</span>,
+                                    <span style={{fontSize:10}}>{trunc(safeText(r.kategori),18)}</span>,
+                                    <span style={{fontSize:10}}>{trunc(safeText(r.alan),18)}</span>,
+                                    <span style={{fontSize:10,fontWeight:700,color:r.onem === 'Kritik' ? C.red : r.onem === 'Yüksek' ? C.orange : C.gray}}>{r.onem}</span>,
+                                    <span style={{fontSize:10,fontWeight:700}}>{trunc(safeText(r.durum),16)}</span>,
+                                    <span style={{fontSize:10}}>{trunc(safeText(r.sorumlu),18)}</span>,
+                                    <span style={{fontSize:10,fontWeight:700}}>{fmtNum(r.adet)}</span>,
+                                ])}
+                                emptyMsg="Kayıt yok"
+                                fontSize={10}
+                                chunkSize={6}
+                            />
+
+                            {(nonconformityModule.rootCausePareto || []).length > 0 && (
+                                <ChunkedTablePanels
+                                    title="Kök Neden Pareto Analizi"
+                                    color={C.indigo}
+                                    headers={['Kök Neden','Kaynak','Adet','Pay','Kümülatif Pay','Etkilenen Birim']}
+                                    rows={(nonconformityModule.rootCausePareto || []).map((item) => [
+                                        <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.name),42)}</span>,
+                                        <span style={{fontSize:10}}>{trunc(safeText(item.sources),20)}</span>,
+                                        <span style={{fontSize:10,fontWeight:700,color:C.indigo}}>{fmtNum(item.count)}</span>,
+                                        <span style={{fontSize:10}}>{fmtPct(item.share)}</span>,
+                                        <span style={{fontSize:10,fontWeight:700,color:item.cumulativeShare >= 80 ? C.red : C.orange}}>{fmtPct(item.cumulativeShare)}</span>,
+                                        <span style={{fontSize:10}}>{fmtNum(item.departmentCount)}</span>,
+                                    ])}
+                                    emptyMsg="Kök neden verisi yok."
+                                    fontSize={10}
+                                    chunkSize={8}
+                                    intro="5 Neden, FTA, 8D D4 ve şikayet analizlerine yazılmış gerçek kök nedenler birleştirilerek sıralanır. Aynı neden tekrar ettikçe öncelik yükselir."
+                                />
+                            )}
                         </>
                     )}
 
                 {hasFixtureSection && (
-                    <Row cols="1fr" gap={12} mb={14}>
-                        <Panel title="Fikstür Takip — Üretimin Görmesi Gerekenler" color={C.orange}>
-                            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
-                                <KpiCard label="Toplam Fikstür" value={fmtNum(fixtureTracking.total)} color={C.navy} bg="#eff6ff" />
-                                <KpiCard label="Kritik Fikstür" value={fmtNum(fixtureTracking.critical)} color={C.orange} bg="#fff7ed" />
-                                <KpiCard label="Vadesi Geçmiş" value={fmtNum(fixtureTracking.overdue)} color={fixtureTracking.overdue > 0 ? C.red : C.green} bg={fixtureTracking.overdue > 0 ? '#fef2f2' : '#f0fdf4'} />
-                                <KpiCard label="Uygunsuz Fikstür" value={fmtNum(fixtureTracking.nonconformant)} color={fixtureTracking.nonconformant > 0 ? C.red : C.green} bg={fixtureTracking.nonconformant > 0 ? '#fef2f2' : '#f0fdf4'} />
-                                <KpiCard label="Revizyon Bekliyor" value={fmtNum(fixtureTracking.revisionPending)} color={C.purple} bg="#f5f3ff" />
-                                <KpiCard label="Açık Düzeltme Aksiyonu" value={fmtNum(fixtureTracking.openCorrectiveActions)} color={fixtureTracking.openCorrectiveActions > 0 ? C.red : C.green} bg={fixtureTracking.openCorrectiveActions > 0 ? '#fef2f2' : '#f0fdf4'} />
-                                <KpiCard label="Dönem Doğrulama" value={fmtNum(fixtureTracking.verificationsInPeriod)} color={C.teal} bg="#f0fdfa" sub={`${fmtNum(fixtureTracking.failedInPeriod)} uygunsuz sonuç`} />
-                                <KpiCard label="Doğrulama Başarı %" value={fixtureTracking.verificationPassRate == null ? '—' : `%${fixtureTracking.verificationPassRate}`} color={fixtureTracking.verificationPassRate == null ? C.gray : fixtureTracking.verificationPassRate >= 90 ? C.green : fixtureTracking.verificationPassRate >= 75 ? C.orange : C.red} bg={fixtureTracking.verificationPassRate == null ? '#f8fafc' : fixtureTracking.verificationPassRate >= 90 ? '#f0fdf4' : '#fff7ed'} sub={`${fmtNum(fixtureTracking.pendingActivation)} devreye alma bekliyor`} />
-                            </div>
+                    <>
+                    <SectionBlock>
+                        {hasNonconformitySection && (
+                            <PageHeader
+                                title="FİKSTÜR TAKİP"
+                                periodLabel={periodLabel}
+                            />
+                        )}
+                        <Row cols="repeat(4,1fr)" gap={8} mb={14} className="report-kpi-grid">
+                            <KpiCard label="Toplam Fikstür" value={fmtNum(fixtureTracking.total)} color={C.navy} bg="#eff6ff" />
+                            <KpiCard label="Kritik Fikstür" value={fmtNum(fixtureTracking.critical)} color={C.orange} bg="#fff7ed" />
+                            <KpiCard label="Doğrulaması Geçmiş" value={fmtNum(fixtureTracking.overdue)} color={fixtureTracking.overdue > 0 ? C.red : C.green} bg={fixtureTracking.overdue > 0 ? '#fef2f2' : '#f0fdf4'} />
+                            <KpiCard label="Uygunsuz Fikstür" value={fmtNum(fixtureTracking.nonconformant)} color={fixtureTracking.nonconformant > 0 ? C.red : C.green} bg={fixtureTracking.nonconformant > 0 ? '#fef2f2' : '#f0fdf4'} />
+                            <KpiCard label="Revizyon Bekliyor" value={fmtNum(fixtureTracking.revisionPending)} color={C.purple} bg="#f5f3ff" />
+                            <KpiCard label="Açık Düzeltme Aksiyonu" value={fmtNum(fixtureTracking.openCorrectiveActions)} color={fixtureTracking.openCorrectiveActions > 0 ? C.red : C.green} bg={fixtureTracking.openCorrectiveActions > 0 ? '#fef2f2' : '#f0fdf4'} />
+                            <KpiCard label="Dönem Doğrulama" value={fmtNum(fixtureTracking.verificationsInPeriod)} color={C.teal} bg="#f0fdfa" sub={`${fmtNum(fixtureTracking.failedInPeriod)} uygunsuz sonuç`} />
+                            <KpiCard label="Doğrulama Başarı %" value={fixtureTracking.verificationPassRate == null ? '—' : `%${fixtureTracking.verificationPassRate}`} color={fixtureTracking.verificationPassRate == null ? C.gray : fixtureTracking.verificationPassRate >= 90 ? C.green : fixtureTracking.verificationPassRate >= 75 ? C.orange : C.red} bg={fixtureTracking.verificationPassRate == null ? '#f8fafc' : fixtureTracking.verificationPassRate >= 90 ? '#f0fdf4' : '#fff7ed'} sub={`${fmtNum(fixtureTracking.pendingActivation)} devreye alma bekliyor`} />
+                        </Row>
+                    </SectionBlock>
 
-                            <div style={{display:'grid',gridTemplateColumns:'1.1fr 0.9fr',gap:12}}>
-                                <div>
-                                    <div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:6}}>Kritik / Acil Takip Listesi</div>
-                                    <MiniTable
-                                        headers={['Fikstür','Parça','Sınıf','Durum','Uyarı','Sonraki Doğrulama']}
-                                        rows={(fixtureTracking.urgentItems || []).map((item) => [
-                                            <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
-                                            <span style={{fontSize:10}}>
-                                                <strong>{trunc(safeText(item.partCode),18)}</strong>
-                                                {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.partName),24)}</span>}
-                                            </span>,
-                                            <span style={{fontSize:10,fontWeight:700,color:item.class === 'Kritik' ? C.orange : C.gray}}>{item.class}</span>,
-                                            <span style={{fontSize:10,fontWeight:700,color:item.status === 'Uygunsuz' ? C.red : item.status === 'Revizyon Beklemede' ? C.purple : C.blue}}>{item.status}</span>,
-                                            <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.alert),42)}</span>,
-                                            <span style={{fontSize:10}}>
-                                                {item.nextVerificationDate ? format(parseISO(item.nextVerificationDate), 'dd.MM.yyyy', { locale: tr }) : '—'}
-                                            </span>,
-                                        ])}
-                                        emptyMsg="Üretimi etkileyecek kritik fikstür uyarısı yok."
-                                        fontSize={10}
-                                    />
-                                </div>
+                    <ChunkedTablePanels
+                        title="Kritik / Acil Takip Listesi"
+                        color={C.red}
+                        headers={['Fikstür','Parça','Sınıf','Durum','Uyarı','Sonraki Doğrulama']}
+                        rows={(fixtureTracking.urgentItems || []).map((item) => [
+                            <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
+                            <span style={{fontSize:10}}>
+                                <strong>{trunc(safeText(item.partCode),18)}</strong>
+                                {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.partName),24)}</span>}
+                            </span>,
+                            <span style={{fontSize:10,fontWeight:700,color:item.class === 'Kritik' ? C.orange : C.gray}}>{item.class}</span>,
+                            <span style={{fontSize:10,fontWeight:700,color:item.status === 'Uygunsuz' ? C.red : item.status === 'Revizyon Beklemede' ? C.purple : C.blue}}>{item.status}</span>,
+                            <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.alert),42)}</span>,
+                            <span style={{fontSize:10}}>
+                                {item.nextVerificationDate ? format(parseISO(item.nextVerificationDate), 'dd.MM.yyyy', { locale: tr }) : item.nextVerificationLabel || '—'}
+                            </span>,
+                        ])}
+                        emptyMsg="Kritik fikstür uyarısı yok."
+                        fontSize={10}
+                        chunkSize={7}
+                    />
 
-                                <div style={{display:'grid',gridTemplateRows:'auto auto auto',gap:12}}>
-                                    <div>
-                                        <div style={{fontSize:11,fontWeight:700,color:C.teal,marginBottom:6}}>Son Doğrulamalar</div>
-                                        <MiniTable
-                                            headers={['Fikstür','Tarih','Sonuç','Numune']}
-                                            rows={(fixtureTracking.recentVerifications || []).map((item) => [
-                                                <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
-                                                <span style={{fontSize:10}}>{item.verificationDate ? format(parseISO(item.verificationDate), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
-                                                <span style={{fontSize:10,fontWeight:700,color:item.result === 'Uygun' ? C.green : C.red}}>{item.result}</span>,
-                                                <span style={{fontSize:10}}>{fmtNum(item.sampleCount)}</span>,
-                                            ])}
-                                            emptyMsg="Son doğrulama kaydı yok."
-                                            fontSize={10}
-                                        />
-                                    </div>
+                    <ChunkedTablePanels
+                        title="Sıradaki Doğrulamalar"
+                        color={C.orange}
+                        headers={['Fikstür','Sonraki Tarih','Durum / Kalan']}
+                        rows={(fixtureTracking.nextVerifications || []).map((item) => [
+                            <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
+                            <span style={{fontSize:10}}>{item.nextVerificationDate ? format(parseISO(item.nextVerificationDate), 'dd.MM.yy', { locale: tr }) : item.nextVerificationLabel}</span>,
+                            <span style={{fontSize:10,fontWeight:700,color:item.daysRemaining < 0 ? C.red : item.daysRemaining <= 7 ? C.orange : C.teal}}>
+                                {item.daysRemaining == null ? trunc(safeText(item.status), 18) : item.daysRemaining < 0 ? `${fmtNum(Math.abs(item.daysRemaining))} gün geçti` : `${fmtNum(item.daysRemaining)} gün`}
+                            </span>,
+                        ])}
+                        emptyMsg="Planlı doğrulama bulunmuyor."
+                        fontSize={10}
+                        chunkSize={14}
+                        intro="Fikstürler doğrulama tarihine göre sıralanır. Tarihi olmayan kayıtlar durum açıklamasıyla listelenir."
+                    />
 
-                                    <div>
-                                        <div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:6}}>Açık Fikstür Uygunsuzlukları</div>
-                                        <MiniTable
-                                            headers={['Fikstür','Tarih','Durum']}
-                                            rows={(fixtureTracking.recentNonconformities || []).map((item) => [
-                                                <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
-                                                <span style={{fontSize:10}}>{item.detectionDate ? format(parseISO(item.detectionDate), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
-                                                <span style={{fontSize:10,fontWeight:700,color:item.status === 'İşlemde' ? C.blue : C.red}}>{item.status}</span>,
-                                            ])}
-                                            emptyMsg="Açık fikstür uygunsuzluğu yok."
-                                            fontSize={10}
-                                        />
-                                    </div>
+                    <ChunkedTablePanels
+                        title="Yaklaşan Doğrulamalar"
+                        color={C.teal}
+                        headers={['Fikstür','Parça','Kalan']}
+                        rows={(fixtureTracking.upcomingVerifications || []).map((item) => [
+                            <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
+                            <span style={{fontSize:10}}>{trunc(safeText(item.partCode || item.partName),18)}</span>,
+                            <span style={{fontSize:10,fontWeight:700,color:item.daysRemaining <= 7 ? C.orange : C.teal}}>{fmtNum(item.daysRemaining)} gün</span>,
+                        ])}
+                        emptyMsg="30 gün içinde doğrulama bekleyen fikstür yok."
+                        fontSize={10}
+                        chunkSize={14}
+                    />
 
-                                    <div>
-                                        <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:6}}>Sorumlu Bölümler</div>
-                                        <MiniTable
-                                            headers={['Bölüm','Fikstür']}
-                                            rows={(fixtureTracking.byDepartment || []).map((item) => [
-                                                <span style={{fontSize:10}}>{trunc(safeText(item.name),24)}</span>,
-                                                <span style={{fontSize:10,fontWeight:700,color:C.orange}}>{fmtNum(item.value)}</span>,
-                                            ])}
-                                            emptyMsg="Bölüm dağılımı yok."
-                                            fontSize={10}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </Panel>
-                    </Row>
+                    <ChunkedTablePanels
+                        title="Son Doğrulamalar"
+                        color={C.teal}
+                        headers={['Fikstür','Tarih','Sonuç','Numune']}
+                        rows={(fixtureTracking.recentVerifications || []).map((item) => [
+                            <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
+                            <span style={{fontSize:10}}>{item.verificationDate ? format(parseISO(item.verificationDate), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
+                            <span style={{fontSize:10,fontWeight:700,color:item.result === 'Uygun' ? C.green : C.red}}>{item.result}</span>,
+                            <span style={{fontSize:10}}>{fmtNum(item.sampleCount)}</span>,
+                        ])}
+                        emptyMsg="Son doğrulama kaydı yok."
+                        fontSize={10}
+                        chunkSize={12}
+                    />
+
+                    <ChunkedTablePanels
+                        title="Açık Fikstür Uygunsuzlukları"
+                        color={C.red}
+                        headers={['Fikstür','Tarih','Durum']}
+                        rows={(fixtureTracking.recentNonconformities || []).map((item) => [
+                            <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.fixtureNo}</span>,
+                            <span style={{fontSize:10}}>{item.detectionDate ? format(parseISO(item.detectionDate), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
+                            <span style={{fontSize:10,fontWeight:700,color:item.status === 'İşlemde' ? C.blue : C.red}}>{item.status}</span>,
+                        ])}
+                        emptyMsg="Açık fikstür uygunsuzluğu yok."
+                        fontSize={10}
+                        chunkSize={12}
+                    />
+                    </>
                 )}
                     </>
                 )}
@@ -916,21 +1333,21 @@ const A3QualityBoardReport = () => {
                 <>
                 <SectionBlock>
                 <PageHeader
-                    title="ÜRETİLEN ARAÇLAR · ŞİKAYETLER"
+                    title="ÜRETİLEN ARAÇLAR · HATALAR"
                     periodLabel={periodLabel}
                 />
 
                 {/* SATIR D: Üretilen Araçlarda Hata Kategorileri — geniş alan */}
                 <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Üretilen Araçlarda Hata Kategorileri" color={C.purple}>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 200px',gap:16,alignItems:'start'}}>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr',gap:16,alignItems:'start'}}>
                             <div>
                                 {vehicles.faultByCategory.length === 0
                                     ? <div style={{textAlign:'center',color:C.slate,padding:40,fontSize:12}}>Bu dönemde kayıtlı araç hatası yok.</div>
-                                    : <ResponsiveContainer width="100%" height={320}>
-                                        <BarChart data={vehicles.faultByCategory} layout="vertical" margin={{top:8,right:20,left:8,bottom:8}}>
+                                    : <ResponsiveContainer width="100%" height={vehicleFaultCategoryChartHeight}>
+                                        <BarChart data={vehicles.faultByCategory} layout="vertical" margin={{top:8,right:24,left:12,bottom:8}}>
                                             <XAxis type="number" fontSize={11} tick={{fill:'#374151'}}/>
-                                            <YAxis type="category" dataKey="name" width={120} fontSize={11} tick={{fill:'#374151'}} interval={0} tickFormatter={v=>trunc(safeText(v),20)}/>
+                                            <YAxis type="category" dataKey="name" width={vehicleFaultCategoryAxisWidth} fontSize={10} tick={{fill:'#374151'}} interval={0} tickFormatter={v=>safeText(v)}/>
                                             <Tooltip contentStyle={{fontSize:11}}/>
                                             <Bar dataKey="count" name="Hata Adedi" radius={[0,3,3,0]}>
                                                 {vehicles.faultByCategory.map((_,i)=>(
@@ -942,24 +1359,29 @@ const A3QualityBoardReport = () => {
                                 }
                             </div>
                             <div>
-                                <StatRow label="Toplam Araç" value={fmtNum(kpis.totalVehicles)} color={C.purple} bold/>
-                                <StatRow label="Kabul" value={fmtNum(kpis.passedVehicles)} color={C.green}/>
-                                <StatRow label="Red" value={fmtNum(kpis.failedVehicles)} color={C.red}/>
-                                <StatRow label="Toplam Hata" value={fmtNum(kpis.totalVehicleFaults)} color={C.orange}/>
-                                <StatRow label="Geçiş %" value={`%${kpis.vehiclePassRate}`} color={parseFloat(kpis.vehiclePassRate)>90?C.green:C.orange} bold/>
-                                {qualityActivities && (
-                                    <>
-                                        <StatRow label="Ort. Kontrol Süresi" value={qualityActivities.avgControlTimeFormatted ?? '—'} color={C.blue}/>
-                                        <StatRow label="Ort. Yeniden İşlem Süresi" value={qualityActivities.avgReworkTimeFormatted ?? '—'} color={C.teal}/>
-                                    </>
-                                )}
-                                <div style={{marginTop:12,fontSize:11,fontWeight:700,color:C.purple}}>Kategori Özeti</div>
-                                {vehicles.faultByCategory.slice(0,8).map((f,i)=>(
-                                    <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:11,padding:'4px 0',borderBottom:'1px dotted #e2e8f0'}}>
-                                        <span>{trunc(safeText(f.name),18)}</span>
-                                        <b style={{color:CHART_COLORS[i]}}>{f.count}</b>
-                                    </div>
-                                ))}
+                                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
+                                    <CompactStatCard label="Toplam Araç" value={fmtNum(kpis.totalVehicles)} color={C.purple} bg="#f5f3ff" />
+                                    <CompactStatCard label="Kabul" value={fmtNum(kpis.passedVehicles)} color={C.green} bg="#f0fdf4" />
+                                    <CompactStatCard label="Ret" value={fmtNum(kpis.failedVehicles)} color={C.red} bg="#fef2f2" />
+                                    <CompactStatCard label="Toplam Hata" value={fmtNum(kpis.totalVehicleFaults)} color={C.orange} bg="#fff7ed" />
+                                    <CompactStatCard label="Geçiş Oranı" value={`%${kpis.vehiclePassRate}`} color={parseFloat(kpis.vehiclePassRate)>90?C.green:C.orange} bg={parseFloat(kpis.vehiclePassRate)>90?'#f0fdf4':'#fff7ed'} />
+                                    {qualityActivities && (
+                                        <>
+                                            <CompactStatCard label="Ort. Kontrol Süresi" value={qualityActivities.avgControlTimeFormatted ?? '—'} color={C.blue} bg="#eff6ff" />
+                                            <CompactStatCard label="Ort. Yeniden İşlem Süresi" value={qualityActivities.avgReworkTimeFormatted ?? '—'} color={C.teal} bg="#f0fdfa" />
+                                        </>
+                                    )}
+                                </div>
+                                <div style={{marginTop:12,fontSize:11,fontWeight:700,color:C.purple,marginBottom:6}}>Kategori Özeti</div>
+                                <MiniTable
+                                    headers={['Kategori', 'Hata', 'Araç']}
+                                    rows={vehicles.faultByCategory.slice(0,8).map((f,i)=>[
+                                        <span style={{fontSize:10,color:CHART_COLORS[i % CHART_COLORS.length],fontWeight:600,lineHeight:1.35}}>{safeText(f.name)}</span>,
+                                        <span style={{fontWeight:700,color:C.purple}}>{fmtNum(f.count)}</span>,
+                                        <span style={{fontWeight:700}}>{fmtNum(f.aracSayisi)}</span>,
+                                    ])}
+                                    fontSize={10}
+                                />
                             </div>
                         </div>
                     </Panel>
@@ -967,39 +1389,76 @@ const A3QualityBoardReport = () => {
                 </SectionBlock>
 
                 {/* SATIR D2: Araç Trend | Müşteri Şikayet (2 sütun) */}
-                <Row cols="1fr 1fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Araç Kalite Aylık Trendi" color={C.teal}>
-                        {vehicles.monthly.length === 0
+                        <div style={{fontSize:10,color:C.slate,marginBottom:8,lineHeight:1.5}}>
+                            Grafik her ay üretilen araç adedini, ilk seferde kabul edilen araçları ve araç başına hata değerini (DPU) birlikte gösterir.
+                            DPU yükseliyorsa aynı hacimde daha fazla kalite yükü oluşuyor demektir.
+                        </div>
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:10}}>
+                            <KpiCard label="Toplam Araç" value={fmtNum(kpis.totalVehicles)} color={C.teal} bg="#f0fdfa" />
+                            <KpiCard label="Toplam Hata" value={fmtNum(kpis.totalVehicleFaults)} color={C.orange} bg="#fff7ed" />
+                            <KpiCard label="DPU" value={vehicles.dpu != null ? vehicles.dpu.toFixed(2) : '0.00'} color={vehicles.dpu > 1 ? C.red : vehicles.dpu > 0.4 ? C.orange : C.green} bg={vehicles.dpu > 1 ? '#fef2f2' : '#f0fdf4'} sub="Hata / araç" />
+                            <KpiCard label="Tekrar Eden Hata %" value={fmtPct(vehicles.recurringFaultRate ?? 0)} color={(vehicles.recurringFaultRate ?? 0) >= 50 ? C.red : (vehicles.recurringFaultRate ?? 0) >= 25 ? C.orange : C.green} bg={(vehicles.recurringFaultRate ?? 0) >= 50 ? '#fef2f2' : '#fff7ed'} sub="Tekrarlayan kategori payı" />
+                        </div>
+                        {vehicleTrendData.length === 0
                             ? <div style={{textAlign:'center',color:C.slate,padding:30,fontSize:11}}>Araç kalite verisi yok.</div>
                             : <ResponsiveContainer width="100%" height={260}>
-                                <ComposedChart data={vehicles.monthly} margin={{top:4,right:8,left:-10,bottom:30}}>
+                                <ComposedChart data={vehicleTrendData} margin={{top:4,right:8,left:0,bottom:8}}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
-                                    <XAxis dataKey="name" fontSize={9.5} angle={-30} textAnchor="end" height={35} tick={{fill:'#374151'}}/>
-                                    <YAxis fontSize={10} tick={{fill:'#374151'}}/>
+                                    <XAxis dataKey="name" fontSize={10} height={20} tick={{fill:'#374151'}}/>
+                                    <YAxis yAxisId="left" fontSize={10} tick={{fill:'#374151'}}/>
+                                    <YAxis yAxisId="right" orientation="right" fontSize={10} tick={{fill:'#374151'}} allowDecimals tickFormatter={(value) => typeof value === 'number' ? value.toFixed(1) : value}/>
                                     <Tooltip contentStyle={{fontSize:11}}/>
                                     <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
-                                    <Bar dataKey="toplam" name="Toplam" fill={C.blue}  radius={[2,2,0,0]} opacity={0.75}/>
-                                    <Bar dataKey="gecti"  name="Kabul"  fill={C.green} radius={[2,2,0,0]}/>
-                                    <Line type="monotone" dataKey="gecti" stroke={C.green} dot={{r:3}} strokeWidth={2} legendType="none"/>
+                                    <Bar yAxisId="left" dataKey="toplam" name="Toplam" fill={C.blue}  radius={[2,2,0,0]} opacity={0.75}/>
+                                    <Bar yAxisId="left" dataKey="gecti"  name="Kabul"  fill={C.green} radius={[2,2,0,0]}/>
+                                    <Line yAxisId="right" type="monotone" dataKey="dpu" name="DPU" stroke={C.red} dot={{r:3}} strokeWidth={2.5}/>
                                 </ComposedChart>
                               </ResponsiveContainer>
                         }
+                        <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12,marginTop:10}}>
+                            <MiniTable
+                                headers={['Özet', 'Değer']}
+                                rows={[
+                                    ['Geçiş Oranı', fmtPct(kpis.vehiclePassRate, 1)],
+                                    ['En İyi Ay', bestVehicleTrendMonth ? `${bestVehicleTrendMonth.name} · DPU ${bestVehicleTrendMonth.dpu.toFixed(2)}` : '—'],
+                                    ['En Zor Ay', worstVehicleTrendMonth ? `${worstVehicleTrendMonth.name} · DPU ${worstVehicleTrendMonth.dpu.toFixed(2)}` : '—'],
+                                ]}
+                                fontSize={10}
+                            />
+                            <MiniTable
+                                headers={['Ay', 'Toplam', 'Kabul', 'DPU']}
+                                rows={vehicleTrendData.map((item) => [
+                                    item.name,
+                                    fmtNum(item.toplam),
+                                    fmtNum(item.gecti),
+                                    <span style={{fontWeight:700,color:item.dpu > 1 ? C.red : item.dpu > 0.4 ? C.orange : C.green}}>{item.dpu.toFixed(2)}</span>,
+                                ])}
+                                fontSize={10}
+                            />
+                        </div>
                     </Panel>
 
                     {/* Müşteri Şikayetleri */}
                     <Panel title="Müşteri Şikayetleri" color={C.rose}>
-                        <div style={{marginBottom:6}}>
-                            <StatRow label="Toplam Şikayet" value={kpis.totalComplaints} color={C.rose} bold/>
-                            <StatRow label="Açık" value={kpis.openComplaints} color={C.red}/>
-                            <StatRow label="SLA Gecikmiş" value={kpis.slaOverdue} color={kpis.slaOverdue>0?C.red:C.green}/>
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:10}}>
+                            <CompactStatCard label="Toplam Şikayet" value={fmtNum(kpis.totalComplaints)} color={C.rose} bg="#fff1f2" />
+                            <CompactStatCard label="Açık Şikayet" value={fmtNum(kpis.openComplaints)} color={C.red} bg="#fef2f2" />
+                            <CompactStatCard label="SLA Gecikmiş" value={fmtNum(kpis.slaOverdue)} color={kpis.slaOverdue>0?C.red:C.green} bg={kpis.slaOverdue>0?'#fef2f2':'#f0fdf4'} />
                         </div>
-                        {complaints.byStatus.map((s,i)=>(
-                            <StatRow key={i} label={trunc(safeText(s.name),22)} value={s.value} color={CHART_COLORS[i%CHART_COLORS.length]}/>
-                        ))}
+                        <MiniTable
+                            headers={['Durum', 'Adet']}
+                            rows={complaints.byStatus.map((s,i)=>[
+                                <span style={{fontSize:10,color:CHART_COLORS[i%CHART_COLORS.length],fontWeight:600}}>{safeText(s.name)}</span>,
+                                <span style={{fontWeight:700}}>{fmtNum(s.value)}</span>,
+                            ])}
+                            fontSize={10}
+                        />
                         {complaints.monthly.length > 0
-                            ? <ResponsiveContainer width="100%" height={110} style={{marginTop:10}}>
+                            ? <ResponsiveContainer width="100%" height={complaintsMonthlyChartHeight} style={{marginTop:10}}>
                                 <BarChart data={complaints.monthly} margin={{top:4,right:4,left:-15,bottom:25}}>
-                                    <XAxis dataKey="name" fontSize={9} angle={-30} textAnchor="end" height={30} tick={{fill:'#374151'}}/>
+                                    <XAxis dataKey="name" fontSize={9} angle={-20} textAnchor="end" height={28} tick={{fill:'#374151'}}/>
                                     <YAxis fontSize={9.5} tick={{fill:'#374151'}}/>
                                     <Tooltip contentStyle={{fontSize:10}}/>
                                     <Bar dataKey="sayi" name="Şikayet" fill={C.rose} radius={[2,2,0,0]}/>
@@ -1009,6 +1468,42 @@ const A3QualityBoardReport = () => {
                         }
                     </Panel>
                 </Row>
+
+                <Row cols="1fr" gap={12} mb={14}>
+                    <Panel title="Proses Bazlı Hatalar" color={C.purple}>
+                        <div style={{fontSize:10,color:C.slate,marginBottom:8}}>
+                            Hata yükünün en yoğun olduğu üretim süreçlerini gösterir. Önceliklendirme için hem hata adedi hem etkilenen araç sayısı birlikte izlenmelidir.
+                        </div>
+                        <MiniTable
+                            headers={['Proses / Birim','Toplam Hata','Etkilenen Araç']}
+                            rows={(vehicles.byProcess || []).map((item) => [
+                                <span style={{fontSize:10,lineHeight:1.35}}>{safeText(item.name)}</span>,
+                                <span style={{fontSize:10,fontWeight:700,color:C.purple}}>{fmtNum(item.count)}</span>,
+                                <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.vehicleCount)}</span>,
+                            ])}
+                            emptyMsg="Proses bazlı hata verisi yok."
+                            fontSize={10}
+                        />
+                    </Panel>
+
+                    <Panel title="COPQ / Araç Tipi" color={C.orange}>
+                        <div style={{fontSize:10,color:C.slate,marginBottom:8}}>
+                            Araç tipine göre kalite maliyeti, hata yükü ve araç başına düşen maliyet birlikte gösterilir. Yüksek COPQ ve yüksek DPU aynı anda varsa iyileştirme önceliği o tiptedir.
+                        </div>
+                        <MiniTable
+                            headers={['Araç Tipi','COPQ','Araç','DPU','Araç Başı COPQ']}
+                            rows={(vehicles.copqByVehicleType || []).map((item) => [
+                                <span style={{fontSize:10,lineHeight:1.35}}>{safeText(item.name)}</span>,
+                                <span style={{fontSize:10,fontWeight:700,color:C.orange}}>{fmtCurrency(item.cost)}</span>,
+                                <span style={{fontSize:10}}>{fmtNum(item.vehicleCount)}</span>,
+                                <span style={{fontSize:10,fontWeight:700,color:item.dpu > 1 ? C.red : item.dpu > 0.4 ? C.orange : C.green}}>{item.dpu.toFixed(2)}</span>,
+                                <span style={{fontSize:10,fontWeight:700}}>{fmtCurrency(item.costPerVehicle)}</span>,
+                            ])}
+                            emptyMsg="Araç tipi bazlı COPQ verisi yok."
+                            fontSize={10}
+                        />
+                    </Panel>
+                </Row>
                 </>
                 )}
 
@@ -1016,17 +1511,17 @@ const A3QualityBoardReport = () => {
                 <>
                 <SectionBlock>
                 <PageHeader
-                    title="ARAÇ TOP 10 · MALİYET TRENDİ · EĞİTİM"
+                    title="ARAÇ TOP 10 · MALİYET TRENDİ"
                     periodLabel={periodLabel}
                 />
 
-                <Row cols="1fr 1fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Araç Hataları — Top 10 Kategori" color={C.purple}>
                         <MiniTable
                             headers={['Kategori', 'Hata Adedi', 'Etkilenen Araç']}
                             rows={vehicles.faultByCategory.slice(0, 10).map((fault, index) => [
                                 <span style={{ fontSize: 10, fontWeight: 600, color: CHART_COLORS[index % CHART_COLORS.length] }}>
-                                    {trunc(safeText(fault.name), 26)}
+                                    {safeText(fault.name)}
                                 </span>,
                                 <span style={{ fontWeight: 800, color: C.purple }}>{fmtNum(fault.count)}</span>,
                                 <span style={{ fontSize: 10 }}>{fmtNum(fault.aracSayisi)}</span>,
@@ -1051,11 +1546,12 @@ const A3QualityBoardReport = () => {
 
                     <Panel title="En Fazla Hata Görülen Araçlar" color={C.rose}>
                         <MiniTable
-                            headers={['Şasi', 'Seri No', 'Araç Tipi', 'Toplam', 'Açık']}
+                            headers={['Şasi', 'Seri No', 'Müşteri', 'Araç Tipi', 'Toplam', 'Açık']}
                             rows={vehicles.topFaultyVehicles.map((vehicle) => [
                                 <span style={{ fontSize: 10, fontFamily: 'monospace' }}>{trunc(safeText(vehicle.chassisNo), 14)}</span>,
                                 <span style={{ fontSize: 10, fontFamily: 'monospace' }}>{trunc(safeText(vehicle.serialNo), 12)}</span>,
-                                <span style={{ fontSize: 10 }}>{trunc(safeText(vehicle.vehicleType), 18)}</span>,
+                                <span style={{ fontSize: 10 }}>{safeText(vehicle.customerName)}</span>,
+                                <span style={{ fontSize: 10 }}>{safeText(vehicle.vehicleType)}</span>,
                                 <span style={{ fontWeight: 800, color: C.rose }}>{fmtNum(vehicle.totalFaults)}</span>,
                                 <span style={{ fontWeight: 700, color: vehicle.activeFaults > 0 ? C.red : C.green }}>{fmtNum(vehicle.activeFaults)}</span>,
                             ])}
@@ -1068,22 +1564,25 @@ const A3QualityBoardReport = () => {
 
                 {/* SATIR E: Kalite Maliyeti Aylık Trendi (tam genişlik) + Birim Bazlı Maliyet */}
                 <Row cols="1fr" gap={12} mb={14}>
-                    <Panel title="Kalite Maliyeti Aylık Trendi" color={C.orange}>
-                        {costMonthly.length === 0
+                    <Panel title="Final Hataları Maliyeti Aylık Trendi" color={C.orange}>
+                        <div style={{fontSize:10,color:C.slate,marginBottom:8}}>
+                            Bu grafik yalnızca final hata kaynaklı kalite maliyetlerini gösterir; toplam kalite maliyetinin tamamını içermez.
+                        </div>
+                        {finalFaultCostTrendData.length === 0
                             ? <div style={{textAlign:'center',color:C.slate,padding:40,fontSize:11}}>Bu dönemde maliyet kaydı yok.</div>
                             : <ResponsiveContainer width="100%" height={260}>
-                                <ComposedChart data={costMonthly} margin={{top:4,right:12,left:15,bottom:30}}>
+                                <ComposedChart data={finalFaultCostTrendData} margin={{top:4,right:12,left:15,bottom:30}}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
                                     <XAxis dataKey="name" fontSize={11} angle={-25} textAnchor="end" height={35} tick={{fill:'#374151'}}/>
                                     <YAxis fontSize={11} tick={{fill:'#374151'}} tickFormatter={v=>`${Math.round(v/1000)}k`}/>
                                     <Tooltip formatter={v=>fmtCurrency(v)} contentStyle={{fontSize:11}}/>
-                                    <Area type="monotone" dataKey="toplam" fill="#fff3e0" stroke={C.orange} strokeWidth={2} name="Maliyet"/>
+                                    <Area type="monotone" dataKey="toplam" fill="#fff3e0" stroke={C.orange} strokeWidth={2} name="Final Hata Maliyeti"/>
                                     <Line type="monotone" dataKey="toplam" stroke={C.orange} dot={{r:4,fill:C.orange}} strokeWidth={2.5} legendType="none"/>
                                 </ComposedChart>
                               </ResponsiveContainer>
                         }
                         <div style={{marginTop:8,display:'flex',gap:16,flexWrap:'wrap'}}>
-                            {costMonthly.slice(-4).map((m,i)=>(
+                            {finalFaultCostTrendData.slice(-4).map((m,i)=>(
                                 <div key={i} style={{textAlign:'center',flex:1,minWidth:80,background:'#fff7ed',borderRadius:4,padding:'8px 6px'}}>
                                     <div style={{fontSize:11,color:C.slate}}>{m.name}</div>
                                     <div style={{fontSize:14,fontWeight:800,color:C.orange}}>{fmtCurrency(m.toplam)}</div>
@@ -1093,7 +1592,16 @@ const A3QualityBoardReport = () => {
                         {costByUnit && costByUnit.length > 0 && (
                             <>
                                 <div style={{fontSize:12,fontWeight:700,color:C.orange,margin:'16px 0 8px',paddingTop:12,borderTop:'2px solid rgba(234,88,12,0.3)'}}>Birimlerin Sebep Olduğu Kalitesizlik Maliyetleri</div>
-                                <MiniTable headers={['Birim','Maliyet']} rows={costByUnit.map(c=>[c.name,fmtCurrency(c.value)])} fontSize={11}/>
+                                <MiniTable
+                                    headers={['Birim','Maliyet','Toplam Hata','Hata Başı Maliyet']}
+                                    rows={costByUnit.map(c=>[
+                                        c.name,
+                                        fmtCurrency(c.value),
+                                        <span style={{fontWeight:700,color:(c.issueCount || 0) > 0 ? C.red : C.green}}>{fmtNum(c.issueCount || 0)}</span>,
+                                        <span style={{fontWeight:700,color:C.orange}}>{c.costPerIssue != null ? fmtCurrency(c.costPerIssue) : '—'}</span>,
+                                    ])}
+                                    fontSize={11}
+                                />
                             </>
                         )}
                     </Panel>
@@ -1176,7 +1684,7 @@ const A3QualityBoardReport = () => {
                 </Row>
                 </SectionBlock>
 
-                <Row cols="1.1fr 0.9fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Kalitesizlik Yük Dağılımı" color={C.orange}>
                         {costBurden?.byCategory?.length > 0 ? (
                             <>
@@ -1193,7 +1701,7 @@ const A3QualityBoardReport = () => {
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginTop: 10 }}>
                                     <div>
                                         <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, marginBottom: 6 }}>Yük Bileşenleri</div>
                                         <MiniTable
@@ -1241,7 +1749,7 @@ const A3QualityBoardReport = () => {
                 </>
                 )}
 
-                <Row cols="1fr 1fr" gap={12} mb={14}>
+                <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Kalite Hedefleri ve KPI Alarm Listesi" color={C.blue}>
                         <MiniTable
                             headers={['KPI', 'Gerçekleşen', 'Hedef', 'Durum']}
@@ -1286,17 +1794,17 @@ const A3QualityBoardReport = () => {
                             ))}
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
                             <div>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6 }}>Geciken Görevler</div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6 }}>DF / 8D ve Uygunsuzluk Uyarıları</div>
                                 <MiniTable
-                                    headers={['Görev', 'Proje', 'Gün']}
-                                    rows={(governance?.overdueTasks || []).slice(0, 5).map((task) => [
-                                        trunc(safeText(task.title), 24),
-                                        trunc(safeText(task.project), 14),
-                                        <span style={{ fontWeight: 700, color: C.red }}>{fmtNum(task.daysOverdue)}</span>,
+                                    headers={['Kayıt', 'Birim', 'Gecikme']}
+                                    rows={(data.overdueNC || []).slice(0, 5).map((item) => [
+                                        trunc(safeText(item.title || item.nc_number || item.mdi_no), 24),
+                                        trunc(safeText(item.department || item.requesting_unit), 16),
+                                        <span style={{ fontWeight: 700, color: C.red }}>{fmtNum(item.gecikme || 0)} gün</span>,
                                     ])}
-                                    emptyMsg="Geciken görev yok."
+                                    emptyMsg="Geciken DF / 8D kaydı yok."
                                     fontSize={10}
                                 />
                             </div>

@@ -49,6 +49,36 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
         }
     };
 
+    const formatAffectedUnits = (affectedUnits) => {
+        if (!affectedUnits) return '';
+
+        if (Array.isArray(affectedUnits)) {
+            return affectedUnits
+                .map((item) => {
+                    if (!item) return null;
+                    if (typeof item === 'string') return item;
+                    if (typeof item === 'object') {
+                        const parts = [];
+                        if (item.unit) parts.push(item.unit);
+                        if (item.duration) parts.push(`${item.duration} dk`);
+                        if (item.cost) parts.push(`${item.cost} TL`);
+                        return parts.join(' - ');
+                    }
+                    return String(item);
+                })
+                .filter(Boolean)
+                .join(', ');
+        }
+
+        if (typeof affectedUnits === 'object') {
+            return Object.entries(affectedUnits)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+        }
+
+        return String(affectedUnits);
+    };
+
     export const NCFormProvider = ({ children }) => {
         const { user, profile } = useAuth();
         const [formData, setFormData] = useState({});
@@ -83,16 +113,6 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
             let sourceData = {};
 
             if (initialRecord?.source_cost_id || initialRecord?.source === 'cost') {
-                console.log('💡 NCFormContext - initializeForm çağrıldı');
-                console.log('💡 initialRecord:', initialRecord);
-                console.log('💡 Koşul kontrolü:', {
-                    source_cost_id: initialRecord?.source_cost_id,
-                    source: initialRecord?.source,
-                    cost_type: initialRecord?.cost_type,
-                    amount: initialRecord?.amount,
-                    description: initialRecord?.description
-                });
-                
                 // Detaylı başlık oluştur
                 generatedTitle = `Kalite Maliyeti: ${initialRecord.cost_type}${initialRecord.part_name ? ` - ${initialRecord.part_name}` : ''}${initialRecord.vehicle_type ? ` - ${initialRecord.vehicle_type}` : ''}`;
                 
@@ -117,7 +137,8 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 if (initialRecord.quantity) descParts.push(`Miktar: ${initialRecord.quantity}${initialRecord.measurement_unit ? ` ${initialRecord.measurement_unit}` : ''}`);
                 if (initialRecord.scrap_weight) descParts.push(`Hurda Ağırlığı: ${initialRecord.scrap_weight} kg`);
                 if (initialRecord.material_type) descParts.push(`Malzeme Tipi: ${initialRecord.material_type}`);
-                if (initialRecord.affected_units) descParts.push(`Etkilenen Birimler: ${initialRecord.affected_units}`);
+                const affectedUnitsText = formatAffectedUnits(initialRecord.affected_units);
+                if (affectedUnitsText) descParts.push(`Etkilenen Birimler: ${affectedUnitsText}`);
                 
                 // Süre Bilgileri
                 if (initialRecord.rework_duration || initialRecord.quality_control_duration) {
@@ -142,11 +163,8 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 
                 generatedDescription = descParts.join('\n');
                 
-                console.log('💡 Oluşturulan descParts:', descParts);
-                console.log('💡 Oluşturulan generatedDescription:', generatedDescription);
-                
                 sourceData = { 
-                    source_cost_id: initialRecord.id, 
+                    source_cost_id: initialRecord.source_cost_id || initialRecord.id, 
                     department: initialRecord.unit || '', 
                     requesting_unit: 'Kalite Maliyetleri',
                     requesting_person: profile?.full_name || '',
@@ -169,7 +187,13 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
             } else if (initialRecord?.source_quarantine_id || initialRecord?.source === 'quarantine') {
                 generatedTitle = `Karantina: ${initialRecord.part_name || ''} (${initialRecord.part_code || 'Kodsuz'})`;
                 generatedDescription = `Karantina Kaynağı: ${initialRecord.source_department}\nAçıklama: ${initialRecord.description || ''}`;
-                sourceData = { source_quarantine_id: initialRecord.id, department: initialRecord.source_department, requesting_unit: 'Karantina', part_name: initialRecord.part_name, part_code: initialRecord.part_code };
+                sourceData = {
+                    source_quarantine_id: initialRecord.source_quarantine_id || initialRecord.id,
+                    department: initialRecord.source_department,
+                    requesting_unit: 'Karantina',
+                    part_name: initialRecord.part_name,
+                    part_code: initialRecord.part_code,
+                };
             } else if (initialRecord?.source_supplier_nc_id || initialRecord?.source === 'supplier') {
                 generatedTitle = initialRecord.title || `Tedarikçi Uygunsuzluğu`;
                 generatedDescription = initialRecord.description || `Tedarikçi: ${initialRecord.supplier_name}\nAçıklama: ${initialRecord.description || ''}`;
@@ -215,7 +239,12 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
             } else if (initialRecord?.source_inspection_fault_id || initialRecord?.source === 'vehicle_fault') {
                 generatedTitle = initialRecord.title;
                 generatedDescription = initialRecord.description;
-                sourceData = { source_inspection_fault_id: initialRecord.id, department: initialRecord.department, requesting_unit: initialRecord.requesting_unit, vehicle_type: initialRecord.vehicle_type };
+                sourceData = {
+                    source_inspection_fault_id: initialRecord.source_inspection_fault_id || initialRecord.id,
+                    department: initialRecord.department,
+                    requesting_unit: initialRecord.requesting_unit,
+                    vehicle_type: initialRecord.vehicle_type,
+                };
             }
 
             const baseData = {
@@ -266,9 +295,9 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
             
             let finalData;
             if (initialRecord) {
+                const isSourceTemplate = Boolean(initialRecord?.source);
                 const mergedRecord = { ...baseData, ...initialRecord, ...sourceData };
-                // Kaynak "cost" ise, her zaman generatedDescription kullan (detaylı bilgi için)
-                if (initialRecord?.source === 'cost' || initialRecord?.source_cost_id) {
+                if (initialRecord?.source === 'cost') {
                     mergedRecord.description = generatedDescription;
                     mergedRecord.title = generatedTitle;
                 } else {
@@ -334,6 +363,14 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 // Eğer supplier_id varsa ama is_supplier_nc yoksa, is_supplier_nc'yi true yap
                 if (finalData.supplier_id && !finalData.is_supplier_nc) {
                     finalData.is_supplier_nc = true;
+                }
+
+                if (isSourceTemplate) {
+                    delete finalData.id;
+                    delete finalData.created_at;
+                    delete finalData.updated_at;
+                    delete finalData.nc_number;
+                    delete finalData.mdi_no;
                 }
                 
                 delete finalData.source;

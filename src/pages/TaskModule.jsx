@@ -21,6 +21,7 @@ import TaskFormModal from '@/components/tasks/TaskFormModal';
 import TaskViewModal from '@/components/tasks/TaskViewModal';
 import ProjectModal from '@/components/tasks/ProjectModal';
 import { MultiSelectPopover } from '@/components/ui/multi-select-popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -61,6 +62,7 @@ const TaskModule = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterAssignees, setFilterAssignees] = useState([]);
     const [filterPriorities, setFilterPriorities] = useState([]);
+    const [filterProjectId, setFilterProjectId] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
 
     // Get current user's personnel ID
@@ -161,9 +163,14 @@ const TaskModule = () => {
             // Priority filter
             const priorityMatch = filterPriorities.length === 0 || filterPriorities.includes(task.priority);
 
-            return viewMatch && searchMatch && assigneeMatch && priorityMatch;
+            // Project filter
+            const projectMatch =
+                filterProjectId === 'all' ||
+                (filterProjectId === 'none' ? !task.project_id : task.project_id === filterProjectId);
+
+            return viewMatch && searchMatch && assigneeMatch && priorityMatch && projectMatch;
         });
-    }, [tasksWithOptimistic, activeView, searchTerm, filterAssignees, filterPriorities, currentPersonnelId, loading]);
+    }, [tasksWithOptimistic, activeView, searchTerm, filterAssignees, filterPriorities, filterProjectId, currentPersonnelId, loading]);
 
     // Status counts for current view
     const statusCounts = useMemo(() => {
@@ -538,7 +545,7 @@ const TaskModule = () => {
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
-                                        variant={showFilters || filterAssignees.length > 0 || filterPriorities.length > 0 ? "default" : "outline"}
+                                        variant={showFilters || filterAssignees.length > 0 || filterPriorities.length > 0 || filterProjectId !== 'all' ? "default" : "outline"}
                                         size="icon"
                                         className="h-8 w-8 shrink-0"
                                         onClick={() => setShowFilters(!showFilters)}
@@ -587,6 +594,20 @@ const TaskModule = () => {
                     {showFilters && (
                         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
                             <span className="text-xs text-muted-foreground font-medium shrink-0">Filtreler:</span>
+                            <Select value={filterProjectId} onValueChange={setFilterProjectId}>
+                                <SelectTrigger className="w-auto min-w-[160px] h-9">
+                                    <SelectValue placeholder="Proje..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tüm Projeler</SelectItem>
+                                    <SelectItem value="none">Projesi Yok</SelectItem>
+                                    {(taskProjects || []).map(project => (
+                                        <SelectItem key={project.id} value={project.id}>
+                                            {project.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <MultiSelectPopover
                                 options={personnelOptions}
                                 value={filterAssignees}
@@ -606,12 +627,16 @@ const TaskModule = () => {
                                 placeholder="Öncelik..."
                                 className="w-auto min-w-[120px]"
                             />
-                            {(filterAssignees.length > 0 || filterPriorities.length > 0) && (
+                            {(filterAssignees.length > 0 || filterPriorities.length > 0 || filterProjectId !== 'all') && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     className="h-7 text-xs text-muted-foreground"
-                                    onClick={() => { setFilterAssignees([]); setFilterPriorities([]); }}
+                                    onClick={() => {
+                                        setFilterAssignees([]);
+                                        setFilterPriorities([]);
+                                        setFilterProjectId('all');
+                                    }}
                                 >
                                     <X className="h-3 w-3 mr-1" /> Temizle
                                 </Button>
@@ -676,7 +701,7 @@ const TaskModule = () => {
                                 )}
                             </div>
                             <h3 className="text-lg font-semibold text-foreground/70 mb-1">
-                                {searchTerm || filterAssignees.length > 0 || filterPriorities.length > 0 
+                                {searchTerm || filterAssignees.length > 0 || filterPriorities.length > 0 || filterProjectId !== 'all'
                                     ? 'Filtre sonucu bulunamadı' 
                                     : activeProject 
                                         ? 'Bu projede henüz görev yok'
@@ -684,12 +709,12 @@ const TaskModule = () => {
                                 }
                             </h3>
                             <p className="text-sm text-muted-foreground mb-4">
-                                {searchTerm || filterAssignees.length > 0 || filterPriorities.length > 0
+                                {searchTerm || filterAssignees.length > 0 || filterPriorities.length > 0 || filterProjectId !== 'all'
                                     ? 'Farklı filtreler deneyebilirsiniz'
                                     : 'İlk görevinizi oluşturarak başlayın'
                                 }
                             </p>
-                            {!searchTerm && filterAssignees.length === 0 && filterPriorities.length === 0 && (
+                            {!searchTerm && filterAssignees.length === 0 && filterPriorities.length === 0 && filterProjectId === 'all' && (
                                 <Button onClick={handleOpenNewTask} size="sm" className="gap-2">
                                     <Plus className="h-4 w-4" /> Görev Oluştur
                                 </Button>

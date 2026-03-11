@@ -21,6 +21,7 @@ import CostTrendAnalysis from '@/components/quality-cost/CostTrendAnalysis';
 // import { CostDetailModal } from '@/components/quality-cost/CostDetailModal'; // Removed in favor of DrillDown
 import UnitCostDistribution from '@/components/quality-cost/UnitCostDistribution';
 import UnitReportModal from '@/components/quality-cost/UnitReportModal';
+import { formatVehicleMetricValue } from '@/components/quality-cost/vehicleMetricConfig';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useData } from '@/contexts/DataContext';
@@ -200,7 +201,70 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         setIsViewModalOpen(true);
     };
 
-    const handleCreateNC = (cost) => {
+    const buildAnalysisContextDescription = useCallback((cost, context) => {
+        if (!context) return cost.description;
+
+        const lines = [
+            'Arac Bazli Hedef Analizinden Otomatik Baslatildi',
+            `Donem: ${context.dateRangeLabel || 'Tum Zamanlar'}`,
+            `Arac Tipi: ${context.vehicleType || cost.vehicle_type || '-'}`,
+            `Metrik: ${context.metricLabel || '-'}`,
+        ];
+
+        if (typeof context.totalVehicles === 'number') {
+            lines.push(`Analize Giren Arac: ${context.totalVehicles}`);
+        }
+
+        if (typeof context.actualValue === 'number') {
+            lines.push(`Gerceklesen: ${formatVehicleMetricValue(context.actualValue, context.metricKey)}`);
+        }
+
+        if (typeof context.targetValue === 'number' && context.targetValue > 0) {
+            lines.push(`Hedef: ${formatVehicleMetricValue(context.targetValue, context.metricKey)}`);
+        }
+
+        if (typeof context.totalContribution === 'number') {
+            lines.push(`Toplam Katki: ${formatVehicleMetricValue(context.totalContribution, context.metricKey, { perVehicle: false })}`);
+        }
+
+        if (cost.description) {
+            lines.push('', 'Maliyet Kaydi Aciklamasi:', cost.description);
+        }
+
+        return lines.join('\n');
+    }, []);
+
+    const buildNCRecordFromCost = useCallback((cost, ncType, context = null) => ({
+        id: cost.id,
+        source: 'cost',
+        source_cost_id: cost.id,
+        cost_type: cost.cost_type,
+        cost_date: cost.cost_date,
+        unit: cost.unit,
+        amount: cost.amount,
+        part_name: cost.part_name,
+        part_code: cost.part_code,
+        vehicle_type: cost.vehicle_type,
+        description: buildAnalysisContextDescription(cost, context),
+        quantity: cost.quantity,
+        measurement_unit: cost.measurement_unit,
+        scrap_weight: cost.scrap_weight,
+        rework_duration: cost.rework_duration,
+        quality_control_duration: cost.quality_control_duration,
+        affected_units: cost.affected_units,
+        responsible_personnel_id: cost.responsible_personnel_id,
+        is_supplier_nc: cost.is_supplier_nc,
+        supplier_id: cost.supplier_id,
+        supplier_name: cost.supplier?.name,
+        type: ncType,
+    }), [buildAnalysisContextDescription]);
+
+    const openNCFromCost = useCallback((cost, ncType, context = null) => {
+        if (!cost || !onOpenNCForm) return;
+        onOpenNCForm(buildNCRecordFromCost(cost, ncType, context));
+    }, [buildNCRecordFromCost, onOpenNCForm]);
+
+    const handleCreateNC = useCallback((cost, directType = null, context = null) => {
         if (!onOpenNCForm) {
             toast({
                 variant: 'destructive',
@@ -209,43 +273,23 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             });
             return;
         }
+
+        if (directType) {
+            openNCFromCost(cost, directType, context);
+            return;
+        }
+
         setCostForNC(cost);
-        setSelectedNCType('DF'); // Varsayılan olarak DF seçili
+        setSelectedNCType('DF');
         setIsCreateNCModalOpen(true);
-    };
+    }, [onOpenNCForm, openNCFromCost, toast]);
 
-    const handleConfirmCreateNC = (ncType) => {
-        if (!costForNC || !onOpenNCForm) return;
-
-        const recordForNC = {
-            id: costForNC.id, // NCFormContext için gerekli
-            source: 'cost', // NCFormContext'te source === 'cost' kontrolü var
-            source_cost_id: costForNC.id,
-            cost_type: costForNC.cost_type,
-            cost_date: costForNC.cost_date,
-            unit: costForNC.unit,
-            amount: costForNC.amount,
-            part_name: costForNC.part_name,
-            part_code: costForNC.part_code,
-            vehicle_type: costForNC.vehicle_type,
-            description: costForNC.description,
-            quantity: costForNC.quantity,
-            measurement_unit: costForNC.measurement_unit,
-            scrap_weight: costForNC.scrap_weight,
-            rework_duration: costForNC.rework_duration,
-            quality_control_duration: costForNC.quality_control_duration,
-            affected_units: costForNC.affected_units,
-            responsible_personnel_id: costForNC.responsible_personnel_id,
-            is_supplier_nc: costForNC.is_supplier_nc,
-            supplier_id: costForNC.supplier_id,
-            supplier_name: costForNC.supplier?.name,
-            type: ncType, // DF, 8D veya MDI
-        };
-
-        onOpenNCForm(recordForNC);
+    const handleConfirmCreateNC = useCallback((ncType) => {
+        if (!costForNC) return;
+        openNCFromCost(costForNC, ncType);
         setIsCreateNCModalOpen(false);
         setCostForNC(null);
-    };
+    }, [costForNC, openNCFromCost]);
 
     const handleSort = (key) => {
         setSortConfig(prev => ({
@@ -278,8 +322,6 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         setDetailModalContent({ title, costs });
         setDetailModalOpen(true);
     }, []);
-
-    // handleCreateNC kaldırıldı - kalitesizlik maliyeti uygunsuzluktan bağımsızdır
 
     const uniqueUnits = useMemo(() => {
         const units = new Set();
@@ -1079,7 +1121,14 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     />
                 </TabsContent>
                 <TabsContent value="details" className="mt-6">
-                    <VehicleCostBreakdown costs={filteredCosts} loading={loading} />
+                    <VehicleCostBreakdown
+                        costs={filteredCosts}
+                        loading={loading}
+                        dateRange={dateRange}
+                        onCreateNC={handleCreateNC}
+                        onOpenNCView={onOpenNCView}
+                        hasNCAccess={hasNCAccess}
+                    />
                 </TabsContent>
             </Tabs>
 
