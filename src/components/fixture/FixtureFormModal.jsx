@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useFileUpload } from '@/hooks/useFileUpload';
@@ -20,6 +21,26 @@ const defaultForm = {
     responsible_department: '',
     activation_date: '',
     notes: '',
+};
+
+const calcNextVerificationDate = (fromDate, periodMonths) => {
+    if (!fromDate) return '';
+
+    const date = new Date(fromDate);
+    if (Number.isNaN(date.getTime())) return '';
+
+    date.setMonth(date.getMonth() + periodMonths);
+    return date.toISOString().split('T')[0];
+};
+
+const formatPreviewDate = (dateStr) => {
+    if (!dateStr) return 'Belirlenecek';
+
+    try {
+        return new Date(dateStr).toLocaleDateString('tr-TR');
+    } catch {
+        return 'Belirlenecek';
+    }
 };
 
 
@@ -125,6 +146,13 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave, supportsImageUp
     const { verificationPeriodMonths, sampleCountRequired } = getFixtureVerificationRules(form.criticality_class);
     const verPeriod = `${verificationPeriodMonths} ay`;
     const sampleCount = sampleCountRequired;
+    const referenceDate = fixture?.last_verification_date || form.activation_date || fixture?.activation_date || '';
+    const previewNextVerificationDate = calcNextVerificationDate(referenceDate, verificationPeriodMonths);
+    const referenceDateLabel = fixture?.last_verification_date
+        ? 'Son doğrulama tarihi'
+        : (form.activation_date || fixture?.activation_date)
+            ? 'Devreye alma tarihi'
+            : 'Referans tarihi';
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -182,9 +210,16 @@ const FixtureFormModal = ({ open, onOpenChange, fixture, onSave, supportsImageUp
                                     <SelectItem value="Standart">Standart</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">
-                                Doğrulama periyodu: <strong>{verPeriod}</strong> · Numune sayısı: <strong>{sampleCount} adet</strong>
-                            </p>
+                            <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline" className="bg-white/80">Doğrulama periyodu: {verPeriod}</Badge>
+                                    <Badge variant="outline" className="bg-white/80">Numune: {sampleCount} adet</Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground leading-5">
+                                    <div><strong>{referenceDateLabel}:</strong> {referenceDate ? formatPreviewDate(referenceDate) : 'Henüz girilmedi'}</div>
+                                    <div><strong>Sonraki doğrulama (önizleme):</strong> {previewNextVerificationDate ? formatPreviewDate(previewNextVerificationDate) : 'Referans tarih girildiğinde otomatik hesaplanır'}</div>
+                                </div>
+                            </div>
                         </div>
                         <div className="space-y-1.5">
                             <Label>Sorumlu Bölüm</Label>

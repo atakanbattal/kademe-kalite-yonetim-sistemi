@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, RefreshCcw, X, Wrench } from 'lucide-react';
+import { Plus, Search, Filter, RefreshCcw, X, Wrench, FileDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,6 +14,7 @@ import VerificationModal from './VerificationModal';
 import RevisionModal from './RevisionModal';
 import ScrapModal from './ScrapModal';
 import { getFixtureVerificationRules } from '@/lib/fixtureRules';
+import { openPrintableReport } from '@/lib/reportUtils';
 
 // =====================================================
 // YARDIMCI: Sonraki Doğrulama Tarihini Hesapla
@@ -23,6 +24,12 @@ const calcNextVerificationDate = (fromDate, periodMonths) => {
     d.setMonth(d.getMonth() + periodMonths);
     return d.toISOString().split('T')[0];
 };
+
+const resolveFixtureReferenceDate = (currentFixture, formData) =>
+    currentFixture?.last_verification_date ||
+    formData.activation_date ||
+    currentFixture?.activation_date ||
+    null;
 
 const isMissingFixtureImageColumnError = (error) =>
     error?.code === 'PGRST204' &&
@@ -39,6 +46,7 @@ const FixtureModule = () => {
     const [allFixtures, setAllFixtures] = useState([]);
     const [loading, setLoading] = useState(false);
     const [supportsFixtureImages, setSupportsFixtureImages] = useState(true);
+    const [exportingPdf, setExportingPdf] = useState(false);
 
     // Filtreler & Arama
     const [searchTerm, setSearchTerm] = useState('');
@@ -154,11 +162,82 @@ const FixtureModule = () => {
 
     const hasActiveFilters = searchTerm || filters.status !== 'all' || filters.criticality_class !== 'all';
 
+    const handleExportFixtureList = async () => {
+        if (filteredFixtures.length === 0) {
+            toast({
+                title: 'Liste boş',
+                description: 'PDF almak için önce listede en az bir fikstür olmalı.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setExportingPdf(true);
+        try {
+            const statusCounts = filteredFixtures.reduce((acc, fixture) => {
+                const key = fixture.status || 'Bilinmiyor';
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+            }, {});
+
+            const criticalityCounts = filteredFixtures.reduce((acc, fixture) => {
+                const key = fixture.criticality_class || 'Bilinmiyor';
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+            }, {});
+
+            const filterInfo = [
+                searchTerm?.trim() ? `Arama: ${searchTerm.trim()}` : null,
+                filters.status !== 'all' ? `Durum: ${filters.status}` : null,
+                filters.criticality_class !== 'all' ? `Sınıf: ${filters.criticality_class}` : null,
+            ].filter(Boolean).join(' | ') || 'Tüm fikstürler';
+
+            const reportData = {
+                id: `fixture-list-${Date.now()}`,
+                title: 'Fikstür Liste Raporu',
+                filterInfo,
+                statusCounts,
+                criticalityCounts,
+                items: filteredFixtures.map((fixture) => ({
+                    id: fixture.id,
+                    fixture_no: fixture.fixture_no || '-',
+                    part_code: fixture.part_code || '-',
+                    part_name: fixture.part_name || '',
+                    responsible_department: fixture.responsible_department || '-',
+                    criticality_class: fixture.criticality_class || '-',
+                    status: fixture.status || '-',
+                    last_verification_date: fixture.last_verification_date || null,
+                    next_verification_date: fixture.next_verification_date || null,
+                    image_paths: Array.isArray(fixture.image_paths) ? fixture.image_paths : [],
+                })),
+            };
+
+            await openPrintableReport(reportData, 'fixture_list', true);
+
+            toast({
+                title: 'PDF hazır',
+                description: `${filteredFixtures.length} fikstür için rapor hazırlandı.`,
+            });
+        } catch (error) {
+            toast({
+                title: 'PDF oluşturulamadı',
+                description: error?.message || "Fikstür liste PDF'i oluşturulurken bir hata oluştu.",
+                variant: 'destructive',
+            });
+        } finally {
+            setExportingPdf(false);
+        }
+    };
+
     // =====================================================
     // FIKSTÜR KAYDET (Yeni / Güncelle)
     // =====================================================
     const handleSaveFixture = async (formData, fixtureId) => {
         const { verificationPeriodMonths: verPeriod, sampleCountRequired: sampleCount } = getFixtureVerificationRules(formData.criticality_class);
+        const currentFixture = fixtureId
+            ? allFixtures.find((fixture) => fixture.id === fixtureId) || formModal.fixture
+            : null;
+        const referenceDate = resolveFixtureReferenceDate(currentFixture, formData);
 
         const payload = {
             fixture_no: formData.fixture_no,
@@ -171,6 +250,9 @@ const FixtureModule = () => {
             notes: formData.notes || null,
             verification_period_months: verPeriod,
             sample_count_required: sampleCount,
+            next_verification_date: referenceDate
+                ? calcNextVerificationDate(referenceDate, verPeriod)
+                : (currentFixture?.next_verification_date || null),
         };
 
         if (supportsFixtureImages) {
@@ -365,6 +447,19 @@ const FixtureModule = () => {
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="icon" onClick={fetchFixtures} disabled={loading} title="Yenile">
                         <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button variant="outline" onClick={handleExportFixtureList} disabled={loading || exportingPdf || filteredFixtures.length === 0}>
+                        {exportingPdf ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                PDF Hazırlanıyor
+                            </>
+                        ) : (
+                            <>
+                                <FileDown className="mr-2 h-4 w-4" />
+                                Liste Al
+                            </>
+                        )}
                     </Button>
                     <Button onClick={() => setFormModal({ open: true, fixture: null })}>
                         <Plus className="mr-2 h-4 w-4" />Yeni Fikstür Ekle

@@ -7,11 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Printer, Loader2, Hourglass, CheckCircle, XCircle, FileText, Truck, Download, Eye, Package, AlertTriangle, DollarSign, Link2, Hash, Calendar, Building2, User, Car } from 'lucide-react';
+import { Printer, Loader2, Hourglass, CheckCircle, XCircle, FileText, Truck, Download, Eye, Package, AlertTriangle, DollarSign, Link2, Hash, Calendar, Building2, User, Car, Droplets, Fan, MessageSquare, Ruler } from 'lucide-react';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { InfoCard } from '@/components/ui/InfoCard';
+import { getSourceTypeLabel } from './sourceRecordUtils';
 
 const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
     const [isPrinting, setIsPrinting] = useState(false);
@@ -56,6 +57,51 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
         
         // Tüm key isimleri (sıralı - uzundan kısaya, özel karakterler escape'li değil)
         const allKeyNames = [
+            'Araç Seri Numarası',
+            'Şikayet Açıklaması',
+            'Düzeltme Açıklaması',
+            'Sorumlu Departman',
+            'Şikayet Tarihi',
+            'Önem Seviyesi',
+            'Hata Kategorisi',
+            'Test Başlangıcı',
+            'Test Operatörü',
+            'Kalite Sınıfı',
+            'Çalışma Devri',
+            'Test Sonucu',
+            'Kaçak Adedi',
+            'Testi Yapan',
+            'Ürünü Kaynatan',
+            'Tank Tipi',
+            'Test Süresi',
+            'Fan Ağırlığı',
+            'Araç Tipi',
+            'Test Tarihi',
+            'Genel Sonuç',
+            'Araç Seri No',
+            'Hata Açıklaması',
+            'Hata Adedi',
+            'Hata Tarihi',
+            'Şikayet No',
+            'Fikstür No',
+            'Ürün/Parça',
+            'Ürün Referansı',
+            'Etkilenen Miktar',
+            'Düzeltme Durumu',
+            'Tespit Tarihi',
+            'Ar-Ge Onayı',
+            'Kaynak Birim',
+            'Talep Eden Birim',
+            'Talep Eden Kişi',
+            'Maliyet Türü',
+            'Birim/Tedarikçi',
+            'Sol Düzlem Sonucu',
+            'Sağ Düzlem Sonucu',
+            'Ürün',
+            'Müşteri',
+            'Başlık',
+            'Durum',
+            'Departman',
             'Beklenen Değer (nominal)',
             'Şartlı Kabul Miktarı',
             'Gerçek Ölçülen Değer',
@@ -90,6 +136,8 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             'TESPİT EDİLEN HATALAR',
             'Tespit Edilen Hatalar',
             'Hata Detayları',
+            'UYGUNSUZLUK DETAYLARI',
+            'Uygunsuzluk Detayları',
         ];
         
         // Tüm başlıklar (ayrıştırma için)
@@ -143,7 +191,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             let remaining = inputText.trim();
             
             // Ana başlığı bul
-            const mainHeadingMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|(Kalite|Kalitesizlik) Maliyeti Kaydı)\s*\([^)]+\)/i);
+            const mainHeadingMatch = remaining.match(/^(Girdi Kalite Kontrol Kaydı|Karantina Kaydı|(Kalite|Kalitesizlik) Maliyeti Kaydı|Sızdırmazlık Kontrol Kaydı|Dinamik Balans Kaydı|Araç Kalite Hatası|Müşteri Şikayeti|Fikstür Uygunsuzluğu)\s*\([^)]+\)/i);
             if (mainHeadingMatch) {
                 tokens.push({ type: 'main-heading', content: mainHeadingMatch[0] });
                 remaining = remaining.substring(mainHeadingMatch[0].length).trim();
@@ -155,7 +203,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 let matched = false;
                 
                 // "Bu Parça İçin Sapma" cümlesini kontrol et
-                const endMatch = remaining.match(/^(Bu Parça\s+[İI]çin\s+Sapma[^.]*\.?)/i);
+                const endMatch = remaining.match(/^(Bu\s+.+?\s+için\s+sapma\s+onayı\s+talep\s+edilmektedir\.?)/i);
                 if (endMatch) {
                     tokens.push({ type: 'end-text', content: endMatch[1] });
                     remaining = remaining.substring(endMatch[0].length).trim();
@@ -244,7 +292,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                         
                         if (!foundSectionInValue) {
                             // "Bu Parça İçin Sapma" cümlesini value'dan ayır
-                            const endSentenceMatch = value.match(/(.*?)\s*(Bu Parça\s+[İI]çin\s+Sapma[^.]*\.?)/i);
+                            const endSentenceMatch = value.match(/(.*?)\s*(Bu\s+.+?\s+için\s+sapma\s+onayı\s+talep\s+edilmektedir\.?)/i);
                             if (endSentenceMatch) {
                                 value = endSentenceMatch[1].trim();
                                 tokens.push({ type: 'key-value', key: keyName, value: value });
@@ -374,6 +422,106 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                     ) : null;
             }
         }).filter(Boolean);
+    };
+
+    const hasValue = (value) => value !== null && value !== undefined && value !== '';
+
+    const getSourceTypeIcon = (sourceType) => {
+        switch (sourceType) {
+            case 'incoming_inspection':
+                return Package;
+            case 'quarantine':
+                return AlertTriangle;
+            case 'quality_cost':
+                return DollarSign;
+            case 'leak_test':
+                return Droplets;
+            case 'dynamic_balance':
+                return Fan;
+            case 'produced_vehicle_fault':
+                return Car;
+            case 'customer_complaint':
+                return MessageSquare;
+            case 'fixture_nonconformity':
+                return Ruler;
+            default:
+                return Package;
+        }
+    };
+
+    const getSourceInfoCards = (sourceType, details = {}) => {
+        switch (sourceType) {
+            case 'incoming_inspection':
+                return [
+                    { icon: Package, label: 'Parça Kodu', value: details.part_code },
+                    { icon: Package, label: 'Miktar', value: details.quantity },
+                    { icon: Building2, label: 'Tedarikçi', value: details.supplier, variant: 'warning' },
+                    { icon: Hash, label: 'Kayıt No', value: details.record_no || details.inspection_number },
+                ];
+            case 'quarantine':
+                return [
+                    { icon: Hash, label: 'Lot No', value: details.lot_no || details.quarantine_number },
+                    { icon: Package, label: 'Parça Kodu', value: details.part_code },
+                    { icon: Package, label: 'Miktar', value: details.quantity },
+                    { icon: Building2, label: 'Kaynak Birim', value: details.source_department },
+                    { icon: Building2, label: 'Talep Eden Birim', value: details.requesting_department },
+                ];
+            case 'quality_cost':
+                return [
+                    { icon: Package, label: 'Parça Kodu', value: details.part_code },
+                    { icon: DollarSign, label: 'Maliyet Türü', value: details.cost_type },
+                    { icon: DollarSign, label: 'Tutar', value: hasValue(details.amount) ? `₺${details.amount}` : null, variant: 'warning' },
+                    { icon: Building2, label: 'Birim/Tedarikçi', value: details.unit || details.supplier },
+                ];
+            case 'leak_test':
+                return [
+                    { icon: Hash, label: 'Kayıt No', value: details.record_number },
+                    { icon: Car, label: 'Araç Tipi', value: details.vehicle_type_label },
+                    { icon: Hash, label: 'Seri No', value: details.vehicle_serial_number },
+                    { icon: Droplets, label: 'Tank Tipi', value: details.tank_type },
+                    { icon: AlertTriangle, label: 'Test Sonucu', value: details.test_result === 'Kaçak Var' ? `${details.test_result} (${details.leak_count || 0})` : details.test_result },
+                    { icon: User, label: 'Testi Yapan', value: details.tester_name },
+                    { icon: User, label: 'Ürünü Kaynatan', value: details.welder_name },
+                ];
+            case 'dynamic_balance':
+                return [
+                    { icon: Hash, label: 'Seri No', value: details.serial_number },
+                    { icon: Package, label: 'Ürün', value: details.product_name || details.product_code },
+                    { icon: AlertTriangle, label: 'Genel Sonuç', value: details.overall_result },
+                    { icon: Building2, label: 'Tedarikçi', value: details.supplier_name },
+                    { icon: User, label: 'Operatör', value: details.test_operator },
+                    { icon: Calendar, label: 'Test Tarihi', value: details.test_date ? format(new Date(details.test_date), 'dd.MM.yyyy', { locale: tr }) : null },
+                ];
+            case 'produced_vehicle_fault':
+                return [
+                    { icon: Car, label: 'Araç Tipi', value: details.vehicle_type },
+                    { icon: Hash, label: 'Araç Seri No', value: details.vehicle_serial_number },
+                    { icon: Hash, label: 'Şasi No', value: details.chassis_no },
+                    { icon: Building2, label: 'Departman', value: details.department_name },
+                    { icon: AlertTriangle, label: 'Kategori', value: details.category_name },
+                    { icon: Package, label: 'Hata Adedi', value: details.fault_quantity },
+                ];
+            case 'customer_complaint':
+                return [
+                    { icon: Hash, label: 'Şikayet No', value: details.complaint_number },
+                    { icon: Building2, label: 'Müşteri', value: details.customer_name },
+                    { icon: FileText, label: 'Başlık', value: details.title },
+                    { icon: Package, label: 'Ürün', value: details.product_name },
+                    { icon: AlertTriangle, label: 'Önem', value: details.severity },
+                    { icon: MessageSquare, label: 'Durum', value: details.status },
+                ];
+            case 'fixture_nonconformity':
+                return [
+                    { icon: Hash, label: 'Fikstür No', value: details.fixture_no },
+                    { icon: Package, label: 'Parça Kodu', value: details.part_code },
+                    { icon: Package, label: 'Parça Adı', value: details.part_name },
+                    { icon: Building2, label: 'Sorumlu Departman', value: details.responsible_department },
+                    { icon: AlertTriangle, label: 'Durum', value: details.correction_status },
+                    { icon: Calendar, label: 'Tespit Tarihi', value: details.detection_date ? format(new Date(details.detection_date), 'dd.MM.yyyy', { locale: tr }) : null },
+                ];
+            default:
+                return [];
+        }
     };
 
     const handlePrint = async (e) => {
@@ -510,46 +658,45 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                                     <Card className="border-2 border-primary">
                                         <CardContent className="p-4">
                                             <div className="flex items-start gap-3">
-                                                {deviation.source_type === 'incoming_inspection' && (
-                                                    <Package className="h-5 w-5 text-blue-500 mt-1" />
-                                                )}
-                                                {deviation.source_type === 'quarantine' && (
-                                                    <AlertTriangle className="h-5 w-5 text-yellow-500 mt-1" />
-                                                )}
-                                                {deviation.source_type === 'quality_cost' && (
-                                                    <DollarSign className="h-5 w-5 text-green-500 mt-1" />
-                                                )}
+                                                {React.createElement(getSourceTypeIcon(deviation.source_type), {
+                                                    className: 'h-5 w-5 text-primary mt-1'
+                                                })}
                                                 <div className="flex-1">
                                                     <Badge variant="outline" className="mb-3">
-                                                        {deviation.source_type === 'incoming_inspection' && 'Girdi Kalite Kontrol'}
-                                                        {deviation.source_type === 'quarantine' && 'Karantina'}
-                                                        {deviation.source_type === 'quality_cost' && 'Kalite Maliyeti'}
+                                                        {getSourceTypeLabel(deviation.source_type)}
                                                     </Badge>
                                                     {deviation.source_record_details && (
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                                                            {deviation.source_record_details.part_code && (
-                                                                <InfoCard 
-                                                                    icon={Package} 
-                                                                    label="Parça Kodu" 
-                                                                    value={deviation.source_record_details.part_code}
-                                                                />
+                                                        <>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                                                                {getSourceInfoCards(deviation.source_type, deviation.source_record_details)
+                                                                    .filter((item) => hasValue(item.value))
+                                                                    .map((item) => (
+                                                                        <InfoCard
+                                                                            key={`${item.label}-${item.value}`}
+                                                                            icon={item.icon}
+                                                                            label={item.label}
+                                                                            value={item.value}
+                                                                            variant={item.variant}
+                                                                        />
+                                                                    ))}
+                                                            </div>
+                                                            {deviation.source_type === 'fixture_nonconformity' &&
+                                                                Array.isArray(deviation.source_record_details.deviation_details) &&
+                                                                deviation.source_record_details.deviation_details.length > 0 && (
+                                                                <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+                                                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                                                        Uygunsuzluk Detayları
+                                                                    </p>
+                                                                    <div className="space-y-1 text-sm">
+                                                                        {deviation.source_record_details.deviation_details.slice(0, 4).map((detail, index) => (
+                                                                            <div key={`${detail.characteristic}-${index}`}>
+                                                                                <strong>{detail.characteristic}:</strong> {detail.deviation}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
                                                             )}
-                                                            {deviation.source_record_details.quantity && (
-                                                                <InfoCard 
-                                                                    icon={Package} 
-                                                                    label="Miktar" 
-                                                                    value={deviation.source_record_details.quantity}
-                                                                />
-                                                            )}
-                                                            {deviation.source_record_details.supplier && (
-                                                                <InfoCard 
-                                                                    icon={Building2} 
-                                                                    label="Tedarikçi" 
-                                                                    value={deviation.source_record_details.supplier}
-                                                                    variant="warning"
-                                                                />
-                                                            )}
-                                                        </div>
+                                                        </>
                                                     )}
                                                 </div>
                                             </div>

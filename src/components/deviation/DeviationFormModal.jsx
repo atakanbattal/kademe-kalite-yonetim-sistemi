@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import SourceRecordSelector from './SourceRecordSelector';
+import { buildSourceRecordDescription, DEVIATION_SOURCE_MODULE_OPTIONS } from './sourceRecordUtils';
 import { useData } from '@/contexts/DataContext';
 
 const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation }) => {
@@ -45,6 +46,13 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         .filter(p => p.category_id === vehicleTypeCategory?.id && p.is_active)
         .map(p => p.product_name)
         .sort();
+
+    const hasCustomSourceValue = Boolean(
+        formData.source &&
+        !DEVIATION_SOURCE_MODULE_OPTIONS.includes(formData.source) &&
+        !departments.includes(formData.source) &&
+        !suppliers.some((supplier) => `TEDARİKÇİ: ${supplier.name}` === formData.source)
+    );
     
     useEffect(() => {
         const fetchSettingsData = async () => {
@@ -374,7 +382,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
     };
 
-    const handleSourceRecordSelect = (autoFillData, record) => {
+    const handleSourceRecordSelect = async (autoFillData, record) => {
         if (!autoFillData) {
             // Temizleme
             setSelectedSourceRecord(null);
@@ -388,197 +396,22 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
 
         setSelectedSourceRecord(record);
-        
-        // Detaylı açıklama oluştur
-        let detailedDescription = '';
-        const details = autoFillData.source_record_details;
-        
-        // Eğer defects ve results bilgisi yoksa, record'dan direkt çek
-        let defectsToUse = details.defects || [];
-        if ((!defectsToUse || defectsToUse.length === 0) && record.defects && Array.isArray(record.defects) && record.defects.length > 0) {
-            defectsToUse = record.defects;
+        const detailedDescription = buildSourceRecordDescription(record, autoFillData.source_record_details);
+        const nextDeviationType = autoFillData.deviation_type || formData.deviation_type || deviationType;
+
+        if (!isEditMode && autoFillData.deviation_type && autoFillData.deviation_type !== (formData.deviation_type || deviationType)) {
+            await generateRequestNumber(autoFillData.deviation_type);
+            setDeviationType(autoFillData.deviation_type);
         }
-        
-        let resultsToUse = details.results || [];
-        if ((!resultsToUse || resultsToUse.length === 0) && record.results && Array.isArray(record.results) && record.results.length > 0) {
-            resultsToUse = record.results;
-        }
-        
-        if (record._source_type === 'incoming_inspection') {
-            detailedDescription = `Girdi Kalite Kontrol Kaydı (${details.record_no || details.inspection_number || '-'})\n\n`;
-            detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
-            if (details.part_name) {
-                detailedDescription += `Parça Adı: ${details.part_name}\n`;
-            }
-            // Red edilen miktar - N/A yerine anlamlı değer göster
-            const rejectedQty = details.quantity_rejected || details.quantity;
-            if (rejectedQty && rejectedQty !== 0 && String(rejectedQty).toLowerCase() !== 'n/a') {
-                detailedDescription += `Red Edilen Miktar: ${rejectedQty} adet\n`;
-            }
-            // Şartlı kabul miktarı
-            if (details.quantity_conditional && details.quantity_conditional !== 0) {
-                detailedDescription += `Şartlı Kabul Miktarı: ${details.quantity_conditional} adet\n`;
-            }
-            detailedDescription += `Tedarikçi: ${details.supplier || 'Belirtilmemiş'}\n`;
-            detailedDescription += `Karar: ${details.decision || '-'}\n`;
-            if (details.delivery_note_number) {
-                detailedDescription += `Teslimat No: ${details.delivery_note_number}\n`;
-            }
-            
-            // Ölçüm sonuçlarını detaylı göster (girdi kontrol formatı gibi)
-            if (resultsToUse && Array.isArray(resultsToUse) && resultsToUse.length > 0) {
-                detailedDescription += `\n`;
-                
-                // Sadece OK olmayanları al
-                const failedResults = resultsToUse.filter(r => {
-                    if (typeof r.result === 'boolean') {
-                        return !r.result;
-                    }
-                    const resultStr = (r.result || '').toString().trim().toUpperCase();
-                    return resultStr !== 'OK' && resultStr !== '';
-                });
-                
-                if (failedResults.length > 0) {
-                    detailedDescription += `UYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;
-                    failedResults.forEach((result, idx) => {
-                        const nominal = result.nominal_value ?? null;
-                        const min = result.min_value ?? null;
-                        const max = result.max_value ?? null;
-                        
-                        let measuredValue = null;
-                        if (result.actual_value !== null && result.actual_value !== undefined) {
-                            const actualValueStr = String(result.actual_value).trim();
-                            if (actualValueStr !== '' && actualValueStr !== 'null' && actualValueStr !== 'undefined') {
-                                measuredValue = result.actual_value;
-                            }
-                        }
-                        if (measuredValue === null && result.measured_value !== null && result.measured_value !== undefined) {
-                            const measuredValueStr = String(result.measured_value).trim();
-                            if (measuredValueStr !== '' && measuredValueStr !== 'null' && measuredValueStr !== 'undefined') {
-                                measuredValue = result.measured_value;
-                            }
-                        }
-                        
-                        detailedDescription += `\n${idx + 1}. ${result.characteristic_name || result.feature || 'Özellik'}`;
-                        if (result.measurement_number && result.total_measurements) {
-                            detailedDescription += ` (Ölçüm ${result.measurement_number}/${result.total_measurements})`;
-                        }
-                        detailedDescription += `:\n`;
-                        
-                        if (nominal !== null || min !== null || max !== null) {
-                            detailedDescription += `   Beklenen Değer (Nominal): ${nominal !== null ? nominal + ' mm' : '-'}\n`;
-                            detailedDescription += `   Tolerans Aralığı: ${min !== null ? min : '-'} mm ~ ${max !== null ? max : '-'} mm\n`;
-                        }
-                        
-                        if (measuredValue !== null && measuredValue !== '') {
-                            detailedDescription += `   Gerçek Ölçülen Değer: ${measuredValue} mm\n`;
-                            
-                            const measuredNum = parseFloat(String(measuredValue).replace(',', '.'));
-                            const isOutOfTolerance = (min !== null && measuredNum < parseFloat(min)) || 
-                                                    (max !== null && measuredNum > parseFloat(max));
-                            
-                            if (isOutOfTolerance) {
-                                detailedDescription += `   ⚠ HATALI DEĞER: Tolerans dışında!\n`;
-                                
-                                if (nominal !== null && !isNaN(measuredNum) && !isNaN(parseFloat(nominal))) {
-                                    const nominalNum = parseFloat(nominal);
-                                    const deviation = measuredNum - nominalNum;
-                                    detailedDescription += `   → Nominal Değerden Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm\n`;
-                                }
-                                
-                                if (min !== null && measuredNum < parseFloat(min)) {
-                                    const underTolerance = parseFloat(min) - measuredNum;
-                                    detailedDescription += `   → Alt Tolerans Aşımı: ${min} mm'den ${underTolerance.toFixed(3)} mm küçük (${((underTolerance / parseFloat(min)) * 100).toFixed(2)}%)\n`;
-                                }
-                                if (max !== null && measuredNum > parseFloat(max)) {
-                                    const overTolerance = measuredNum - parseFloat(max);
-                                    detailedDescription += `   → Üst Tolerans Aşımı: ${max} mm'den ${overTolerance.toFixed(3)} mm büyük (${((overTolerance / parseFloat(max)) * 100).toFixed(2)}%)\n`;
-                                }
-                            } else if (nominal !== null && !isNaN(measuredNum) && !isNaN(parseFloat(nominal))) {
-                                const nominalNum = parseFloat(nominal);
-                                const deviation = measuredNum - nominalNum;
-                                if (Math.abs(deviation) > 0.001) {
-                                    detailedDescription += `   → Nominal Değerden Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(3)} mm (Tolerans içinde)\n`;
-                                }
-                            }
-                        } else {
-                            detailedDescription += `   Gerçek Ölçülen Değer: Ölçülmemiş\n`;
-                        }
-                        
-                        const resultDisplay = typeof result.result === 'boolean' ? (result.result ? 'OK' : 'NOK') : result.result;
-                        detailedDescription += `   Sonuç: ${resultDisplay}\n`;
-                    });
-                }
-                
-                // Ölçüm özeti
-                const totalResults = resultsToUse.length;
-                const okCount = resultsToUse.filter(r => r.result === 'OK' || r.result === 'Kabul').length;
-                const nokCount = totalResults - okCount;
-                
-                detailedDescription += `\n\nÖLÇÜM ÖZETİ:\n`;
-                detailedDescription += `Toplam Ölçüm Sayısı: ${totalResults}\n`;
-                detailedDescription += `Uygun Ölçümler: ${okCount}\n`;
-                detailedDescription += `Uygunsuz Ölçümler: ${nokCount}\n`;
-                if (totalResults > 0) {
-                    detailedDescription += `Ret Oranı: ${((nokCount / totalResults) * 100).toFixed(1)}%\n`;
-                }
-            }
-            
-            // Hata Detayları (Defects) - Girdi kontrol formatı gibi
-            if (defectsToUse && Array.isArray(defectsToUse) && defectsToUse.length > 0) {
-                detailedDescription += `\n\nTESPİT EDİLEN HATALAR:\n`;
-                defectsToUse.forEach((defect, idx) => {
-                    const defectDesc = defect.defect_description || defect.description || 'Belirtilmemiş';
-                    const defectQty = defect.quantity || defect.qty || '-';
-                    detailedDescription += `${idx + 1}. ${defectDesc} (Miktar: ${defectQty} adet)\n`;
-                });
-            }
-            
-            if (details.description) {
-                detailedDescription += `\n\nAçıklama: ${details.description}\n`;
-            }
-            if (details.notes) {
-                detailedDescription += `Notlar: ${details.notes}\n`;
-            }
-            detailedDescription += `\n\nBu parça için sapma onayı talep edilmektedir.`;
-        } else if (record._source_type === 'quarantine') {
-            detailedDescription = `Karantina Kaydı (${details.lot_no || details.quarantine_number || 'N/A'})\n\n`;
-            detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
-            if (details.part_name) {
-                detailedDescription += `Parça Adı: ${details.part_name}\n`;
-            }
-            detailedDescription += `Miktar: ${details.quantity || 'N/A'} adet\n`;
-            if (details.source_department) {
-                detailedDescription += `Kaynak Birim: ${details.source_department}\n`;
-            }
-            if (details.requesting_department) {
-                detailedDescription += `Talep Eden Birim: ${details.requesting_department}\n`;
-            }
-            if (details.requesting_person_name) {
-                detailedDescription += `Talep Eden Kişi: ${details.requesting_person_name}\n`;
-            }
-            if (details.description) {
-                detailedDescription += `\nSebep/Açıklama: ${details.description}\n`;
-            }
-            if (details.decision) {
-                detailedDescription += `Karar: ${details.decision}\n`;
-            }
-            detailedDescription += `\nKarantinadaki bu parça için sapma onayı talep edilmektedir.`;
-        } else if (record._source_type === 'quality_cost') {
-            detailedDescription = `Kalite Maliyeti Kaydı\n\n`;
-            detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
-            detailedDescription += `Maliyet Türü: ${details.cost_type || 'N/A'}\n`;
-            detailedDescription += `Tutar: ₺${details.amount || '0,00'}\n`;
-            detailedDescription += `Birim/Tedarikçi: ${details.unit || details.supplier || 'Belirtilmemiş'}\n`;
-            detailedDescription += `\nBu maliyet kaydı için sapma onayı talep edilmektedir.`;
-        }
-        
-        // Otomatik doldur
+
         setFormData(prev => ({
             ...prev,
             ...autoFillData,
+            deviation_type: nextDeviationType,
+            source: autoFillData.source || prev.source,
+            vehicle_type: autoFillData.vehicle_type || prev.vehicle_type,
             part_code: autoFillData.part_code || prev.part_code,
-            description: detailedDescription,
+            description: detailedDescription || prev.description,
         }));
     };
 
@@ -997,22 +830,22 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             footerDate={formData.created_at}
             rightPanel={rightPanel}
         >
-                <form id="deviation-form" onSubmit={handleSubmit} className="p-6 grid gap-4 min-h-0">
+                <form id="deviation-form" onSubmit={handleSubmit} className="w-full min-w-0 overflow-x-hidden p-6 grid gap-4 min-h-0">
                     {/* Oluşturma Modu Seçimi - Sadece yeni kayıt için */}
                     {!isEditMode && (
-                        <Tabs value={creationMode} onValueChange={setCreationMode} className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="manual" className="flex items-center gap-2">
+                        <Tabs value={creationMode} onValueChange={setCreationMode} className="w-full min-w-0">
+                            <TabsList className="grid w-full min-w-0 grid-cols-2">
+                                <TabsTrigger value="manual" className="flex min-w-0 items-center justify-center gap-2 truncate">
                                     <FileText className="h-4 w-4" />
                                     Manuel Oluştur
                                 </TabsTrigger>
-                                <TabsTrigger value="from_record" className="flex items-center gap-2">
+                                <TabsTrigger value="from_record" className="flex min-w-0 items-center justify-center gap-2 truncate">
                                     <Link2 className="h-4 w-4" />
                                     Mevcut Kayıttan
                                 </TabsTrigger>
                             </TabsList>
                             
-                            <TabsContent value="manual" className="mt-4">
+                            <TabsContent value="manual" className="mt-4 min-w-0">
                                 <div className="grid md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="deviation_type">Sapma Tipi <span className="text-red-500">*</span></Label>
@@ -1035,8 +868,8 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                 </div>
                             </TabsContent>
                             
-                            <TabsContent value="from_record" className="mt-4">
-                                <div className="space-y-4">
+                            <TabsContent value="from_record" className="mt-4 min-w-0">
+                                <div className="space-y-4 min-w-0">
                                     <div className="grid md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="deviation_type_from_record">Sapma Tipi <span className="text-red-500">*</span></Label>
@@ -1150,7 +983,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                     {vehicleTypes.length > 0 ? (
                                         vehicleTypes.map(vt => <SelectItem key={vt} value={vt}>{vt}</SelectItem>)
                                     ) : (
-                                        <SelectItem value="" disabled>Araç tipi bulunamadı</SelectItem>
+                                        <SelectItem value="no_vehicle_type_available" disabled>Araç tipi bulunamadı</SelectItem>
                                     )}
                                 </SelectContent>
                             </Select>
@@ -1221,6 +1054,16 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                 <SelectValue placeholder="Sapma kaynağını seçin..." />
                             </SelectTrigger>
                             <SelectContent>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Modül Kayıtları</div>
+                                {DEVIATION_SOURCE_MODULE_OPTIONS.map((sourceOption) => (
+                                    <SelectItem key={sourceOption} value={sourceOption}>{sourceOption}</SelectItem>
+                                ))}
+                                {hasCustomSourceValue && (
+                                    <>
+                                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">Mevcut Değer</div>
+                                        <SelectItem value={formData.source}>{formData.source}</SelectItem>
+                                    </>
+                                )}
                                 <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Birimler</div>
                                 {departments.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                 {suppliers.length > 0 && <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">Tedarikçiler</div>}

@@ -14,8 +14,8 @@ ALTER TABLE deviations
 ADD COLUMN IF NOT EXISTS source_record_details JSONB;
 
 -- 4. Yorumlar ekle
-COMMENT ON COLUMN deviations.source_type IS 'Kaynak kayıt tipi: incoming_inspection, quarantine, quality_cost, manual';
-COMMENT ON COLUMN deviations.source_record_id IS 'İlgili kayıt ID referansı (Girdi Kontrol, Karantina veya Kalitesizlik Maliyeti)';
+COMMENT ON COLUMN deviations.source_type IS 'Kaynak kayıt tipi: incoming_inspection, quarantine, quality_cost, leak_test, dynamic_balance, produced_vehicle_fault, customer_complaint, fixture_nonconformity, manual';
+COMMENT ON COLUMN deviations.source_record_id IS 'İlgili kayıt ID referansı (girdi, üretim ve kalite modüllerindeki kaynak kayıtlar)';
 COMMENT ON COLUMN deviations.source_record_details IS 'Kaynak kayıt detayları (part_code, quantity, supplier vb.)';
 
 -- 5. İndeks ekle (performans için)
@@ -26,8 +26,41 @@ UPDATE deviations
 SET source_type = 'manual'
 WHERE source_type IS NULL;
 
+-- 6b. Eski veya desteklenmeyen source_type değerlerini güvenli şekilde normalize et
+UPDATE deviations
+SET
+    source_record_details = jsonb_strip_nulls(
+        COALESCE(source_record_details, '{}'::jsonb) ||
+        jsonb_build_object('legacy_source_type', source_type)
+    ),
+    source_type = 'manual'
+WHERE source_type IS NOT NULL
+  AND (
+      btrim(source_type) = ''
+      OR source_type NOT IN (
+          'incoming_inspection',
+          'quarantine',
+          'quality_cost',
+          'leak_test',
+          'dynamic_balance',
+          'produced_vehicle_fault',
+          'customer_complaint',
+          'fixture_nonconformity',
+          'manual'
+      )
+  );
+
 -- 7. Check constraint ekle (sadece valid source_type değerlerine izin ver)
 ALTER TABLE deviations
 ADD CONSTRAINT check_valid_source_type
-CHECK (source_type IN ('incoming_inspection', 'quarantine', 'quality_cost', 'manual') OR source_type IS NULL);
-
+CHECK (source_type IN (
+    'incoming_inspection',
+    'quarantine',
+    'quality_cost',
+    'leak_test',
+    'dynamic_balance',
+    'produced_vehicle_fault',
+    'customer_complaint',
+    'fixture_nonconformity',
+    'manual'
+) OR source_type IS NULL);

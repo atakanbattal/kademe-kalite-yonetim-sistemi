@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler } from 'lucide-react';
+import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler, Droplets } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -30,6 +30,7 @@ const navGroups = [
       { id: 'incoming-quality', icon: Package, label: 'Girdi Kalite Kontrol' },
       { id: 'process-control', icon: Wrench, label: 'Proses Kontrol Yönetimi' },
       { id: 'produced-vehicles', icon: Truck, label: 'Üretilen Araçlar' },
+      { id: 'leak-test', icon: Droplets, label: 'Sızdırmazlık Kontrol' },
       { id: 'dynamic-balance', icon: RotateCcw, label: 'Dinamik Balans Kontrol' },
       { id: 'fixture', icon: Ruler, label: 'Fikstür Takip' },
     ]

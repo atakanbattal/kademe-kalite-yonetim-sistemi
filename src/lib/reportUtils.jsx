@@ -203,7 +203,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			console.error("Error storing report data:", error);
 
 			// Fallback: Liste tipleri için hata, diğerleri için database fetch
-			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list'].includes(type);
+			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list', 'fixture_list'].includes(type);
 			if (isListTypeFallback) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
 				return;
@@ -292,6 +292,8 @@ const getReportTitle = (record, type) => {
 			return record.categoryName
 				? `${record.categoryName} Listesi`
 				: 'Doküman Listesi Raporu';
+		case 'fixture_list':
+			return record.title || 'Fikstür Liste Raporu';
 		default:
 			// Eğer record'da title varsa onu kullan, yoksa genel başlık
 			return record?.title ? `${record.title} Raporu` : 'Detaylı Rapor';
@@ -1267,6 +1269,18 @@ const generatePolyvalenceMatrixHtml = (record) => {
 const generateListReportHtml = (record, type) => {
 	const formatDate = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy') : '-';
 	const formatDateTime = (dateStr) => dateStr ? format(new Date(dateStr), 'dd.MM.yyyy HH:mm') : '-';
+	const escapeHtml = (value) => String(value ?? '-')
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+	const getFixtureImageUrl = (imagePaths) => {
+		const firstImagePath = Array.isArray(imagePaths) ? imagePaths.find(Boolean) : null;
+		if (!firstImagePath) return null;
+		const { data } = supabase.storage.from('incoming_control').getPublicUrl(firstImagePath);
+		return data?.publicUrl || null;
+	};
 
 	let title = '';
 	let headers = [];
@@ -1599,6 +1613,72 @@ const generateListReportHtml = (record, type) => {
 			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
 			${calStatusSummary ? `<p><strong>Kalibrasyon Durumu:</strong> ${calStatusSummary}</p>` : ''}
 			${record.filterInfo ? `<p><strong>Filtre:</strong> ${record.filterInfo}</p>` : ''}
+		`;
+	} else if (type === 'fixture_list') {
+		title = record.title || 'Fikstür Liste Raporu';
+		headers = ['Görsel', 'Fikstür No', 'Parça Bilgisi', 'Bölüm', 'Sınıf', 'Durum', 'Son Doğrulama', 'Sonraki Doğrulama'];
+		rowsHtml = (record.items || []).map(item => {
+			const imageUrl = getFixtureImageUrl(item.image_paths);
+			const criticalityBadge = item.criticality_class === 'Kritik'
+				? '<span style="padding: 4px 8px; border-radius: 999px; font-size: 0.75em; font-weight: 700; background-color: #ffedd5; color: #c2410c; white-space: nowrap;">Kritik</span>'
+				: '<span style="padding: 4px 8px; border-radius: 999px; font-size: 0.75em; font-weight: 700; background-color: #e2e8f0; color: #334155; white-space: nowrap;">Standart</span>';
+
+			const statusBadge = item.status === 'Aktif'
+				? '<span style="padding: 4px 8px; border-radius: 999px; font-size: 0.75em; font-weight: 700; background-color: #dcfce7; color: #166534; white-space: nowrap;">Aktif</span>'
+				: item.status === 'Devreye Alma Bekleniyor'
+					? '<span style="padding: 4px 8px; border-radius: 999px; font-size: 0.75em; font-weight: 700; background-color: #dbeafe; color: #1d4ed8; white-space: nowrap;">Devreye Alma Bekleniyor</span>'
+					: item.status === 'Uygunsuz'
+						? '<span style="padding: 4px 8px; border-radius: 999px; font-size: 0.75em; font-weight: 700; background-color: #fee2e2; color: #991b1b; white-space: nowrap;">Uygunsuz</span>'
+						: item.status === 'Revizyon Beklemede'
+							? '<span style="padding: 4px 8px; border-radius: 999px; font-size: 0.75em; font-weight: 700; background-color: #f3e8ff; color: #7e22ce; white-space: nowrap;">Revizyon Beklemede</span>'
+							: item.status === 'Hurdaya Ayrılmış'
+								? '<span style="padding: 4px 8px; border-radius: 999px; font-size: 0.75em; font-weight: 700; background-color: #e5e7eb; color: #374151; white-space: nowrap;">Hurdaya Ayrılmış</span>'
+								: `<span style="padding: 4px 8px; border-radius: 999px; font-size: 0.75em; font-weight: 700; background-color: #e5e7eb; color: #374151; white-space: nowrap;">${escapeHtml(item.status || '-')}</span>`;
+
+			return `
+				<tr>
+					<td style="width: 12%; text-align: center; vertical-align: middle;">
+						${imageUrl
+							? `<img src="${imageUrl}" alt="${escapeHtml(item.fixture_no)} görseli" class="fixture-thumb" />`
+							: '<div class="fixture-thumb fixture-thumb-placeholder">Görsel Yok</div>'}
+					</td>
+					<td style="width: 10%; vertical-align: middle;">
+						<div style="font-weight: 700; font-size: 1.05em; color: #0f172a;">${escapeHtml(item.fixture_no || '-')}</div>
+					</td>
+					<td style="width: 24%; vertical-align: middle;">
+						<div style="font-weight: 700; color: #1f2937;">${escapeHtml(item.part_code || '-')}</div>
+						<div style="margin-top: 4px; color: #475569; line-height: 1.35;">${escapeHtml(item.part_name || '-')}</div>
+					</td>
+					<td style="width: 13%; vertical-align: middle;">${escapeHtml(item.responsible_department || '-')}</td>
+					<td style="width: 8%; text-align: center; vertical-align: middle;">${criticalityBadge}</td>
+					<td style="width: 13%; vertical-align: middle;">${statusBadge}</td>
+					<td style="width: 10%; white-space: nowrap; vertical-align: middle;">${formatDate(item.last_verification_date)}</td>
+					<td style="width: 10%; white-space: nowrap; vertical-align: middle;">${formatDate(item.next_verification_date)}</td>
+				</tr>
+			`;
+		}).join('');
+
+		const statusCounts = record.statusCounts || (record.items || []).reduce((acc, item) => {
+			acc[item.status || 'Bilinmiyor'] = (acc[item.status || 'Bilinmiyor'] || 0) + 1;
+			return acc;
+		}, {});
+		const statusSummary = Object.entries(statusCounts)
+			.map(([status, count]) => `<span style="margin-right: 15px;"><strong>${escapeHtml(status)}:</strong> ${count}</span>`)
+			.join('');
+
+		const criticalityCounts = record.criticalityCounts || (record.items || []).reduce((acc, item) => {
+			acc[item.criticality_class || 'Bilinmiyor'] = (acc[item.criticality_class || 'Bilinmiyor'] || 0) + 1;
+			return acc;
+		}, {});
+		const criticalitySummary = Object.entries(criticalityCounts)
+			.map(([level, count]) => `<span style="margin-right: 15px;"><strong>${escapeHtml(level)}:</strong> ${count}</span>`)
+			.join('');
+
+		summaryHtml = `
+			<p><strong>Toplam Fikstür Sayısı:</strong> ${totalCount}</p>
+			${record.filterInfo ? `<p><strong>Filtre:</strong> ${escapeHtml(record.filterInfo)}</p>` : ''}
+			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
+			${criticalitySummary ? `<p><strong>Sınıf Dağılımı:</strong> ${criticalitySummary}</p>` : ''}
 		`;
 	} else if (type === 'document_list') {
 		title = record.categoryName || 'Doküman Listesi Raporu';
@@ -5883,8 +5963,70 @@ const generatePrintableReportHtml = async (record, type) => {
 	</div>
 </div>
 `;
-	} else if (type === 'document_list' || type === 'equipment_list' || type === 'deviation_list' || type === 'nonconformity_record_list') {
+	} else if (type === 'document_list' || type === 'equipment_list' || type === 'deviation_list' || type === 'nonconformity_record_list' || type === 'fixture_list') {
 		reportContentHtml = generateListReportHtml(record, type);
+		if (type === 'fixture_list') {
+			cssOverrides = `
+.page-container {
+	width: 297mm !important;
+	min-height: 210mm !important;
+}
+.report-wrapper {
+	padding: 8mm !important;
+}
+.report-header {
+	margin-bottom: 12px !important;
+}
+.meta-box.meta-box-header {
+	margin-bottom: 10px !important;
+}
+.list-summary {
+	margin-bottom: 12px !important;
+}
+.results-table th,
+.results-table td {
+	font-size: 10px !important;
+	padding: 8px 9px !important;
+	vertical-align: middle !important;
+}
+.results-table th {
+	white-space: nowrap;
+}
+.fixture-thumb {
+	display: block;
+	width: 88px;
+	height: 64px;
+	object-fit: cover;
+	border-radius: 8px;
+	border: 1px solid #cbd5e1;
+	margin: 0 auto;
+	background: #ffffff;
+}
+.fixture-thumb-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 9px;
+	font-weight: 600;
+	color: #64748b;
+	background: #f8fafc;
+}
+@media print {
+	@page {
+		size: A4 landscape;
+		margin: 8mm;
+	}
+	body {
+		background-color: #fff !important;
+	}
+	.page-container {
+		width: 100% !important;
+		margin: 0 !important;
+		box-shadow: none !important;
+	}
+}
+`;
+		}
 	} else if (type === 'nonconformity_record') {
 		reportContentHtml = generateManagedNonconformityDetailHtml(normalizedRecord);
 	} else if (type === 'supplier_list' || type === 'supplier_dashboard') {

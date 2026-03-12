@@ -48,6 +48,7 @@ const ProcessControlModule = lazy(() => import('@/components/process-control/Pro
 const DynamicBalanceModule = lazy(() => import('@/components/dynamic-balance/DynamicBalanceModule'));
 const NonconformityModule = lazy(() => import('@/components/nonconformity/NonconformityModule'));
 const FixtureModule = lazy(() => import('@/components/fixture/FixtureModule'));
+const LeakTestModule = lazy(() => import('@/components/leak-test/LeakTestModule'));
 
 // 8D adımları için varsayılan başlıklar
 const getDefault8DTitle = (stepKey) => {
@@ -82,6 +83,7 @@ const moduleTitles = {
     'produced-vehicles': 'Kaliteye Verilen Araçlar',
     'settings': 'Ayarlar',
     'incoming-quality': 'Girdi Kalite Kontrol',
+    'leak-test': 'Sızdırmazlık Kontrol',
     'wps': 'WPS Yönetimi',
     'audit-logs': 'Denetim Kayıtları',
     'training': 'Eğitim Yönetimi',
@@ -471,6 +473,7 @@ const MainLayout = () => {
                 case 'produced-vehicles': return <ProducedVehiclesModule onOpenNCForm={handleOpenNCForm} />;
                 case 'settings': return <CostSettingsModule />;
                 case 'incoming-quality': return <IncomingQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
+                case 'leak-test': return <LeakTestModule />;
                 case 'wps': return <WPSModule />;
                 case 'audit-logs': return <AuditLogModule />;
                 case 'training': return <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />;

@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Plus, Search, FileText, Badge as Certificate, HardHat, FileDown, Eye, Trash2, Edit, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import UploadDocumentModal from '@/components/document/UploadDocumentModal';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -44,7 +42,58 @@ const DOCUMENT_CATEGORIES = [
     { value: 'Diğer', label: 'Diğer', icon: FileText, addText: 'Yeni Doküman Ekle' },
 ];
 
+const DOCUMENT_TYPE_MAPPING = {
+    'Prosedürler': ['Prosedürler', 'Prosedür', 'Prosedurler', 'Prosedur'],
+    'Talimatlar': ['Talimatlar', 'Talimat', 'Talimatlari', 'Talimati'],
+    'Formlar': ['Formlar', 'Form'],
+    'El Kitapları': ['El Kitapları', 'El Kitabı', 'El Kitaplari', 'El Kitabi'],
+    'Şemalar': ['Şemalar', 'Şema', 'Semalar', 'Sema'],
+    'Görev Tanımları': ['Görev Tanımları', 'Görev Tanımı', 'Gorev Tanimlari', 'Gorev Tanimi'],
+    'Süreçler': ['Süreçler', 'Süreç', 'Surecler', 'Surec'],
+    'Planlar': ['Planlar', 'Plan'],
+    'Listeler': ['Listeler', 'Liste'],
+    'Şartnameler': ['Şartnameler', 'Şartname', 'Sartnameler', 'Sartname'],
+    'Politikalar': ['Politikalar', 'Politika'],
+    'Tablolar': ['Tablolar', 'Tablo'],
+    'Antetler': ['Antetler', 'Antet'],
+    'Sözleşmeler': ['Sözleşmeler', 'Sözleşme', 'Sozlesmeler', 'Sozlesme'],
+    'Yönetmelikler': ['Yönetmelikler', 'Yönetmelik', 'Yonetmelikler', 'Yonetmelik'],
+    'Kontrol Planları': ['Kontrol Planları', 'Kontrol Planı', 'Kontrol Planlari', 'Kontrol Plani'],
+    'FMEA Planları': ['FMEA Planları', 'FMEA Planı', 'FMEA Planlari', 'FMEA Plani'],
+    'Proses Kontrol Kartları': ['Proses Kontrol Kartları', 'Proses Kontrol Kartı', 'Proses Kontrol Kartlari', 'Proses Kontrol Karti'],
+    'Görsel Yardımcılar': ['Görsel Yardımcılar', 'Görsel Yardımcı', 'Gorsel Yardimcilar', 'Gorsel Yardimci'],
+    'Kalite Sertifikaları': ['Kalite Sertifikaları', 'Kalite Sertifikası', 'Kalite Sertifikalari', 'Kalite Sertifikasi'],
+    'Personel Sertifikaları': ['Personel Sertifikaları', 'Personel Sertifikası', 'Personel Sertifikalari', 'Personel Sertifikasi'],
+    'Diğer': ['Diğer', 'Diger']
+};
+
+const DEPARTMENT_FILTERABLE_CATEGORIES = new Set([
+    'Tümü', 'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar',
+    'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler',
+    'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler',
+    'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'
+]);
+
 const BUCKET_NAME = 'documents';
+
+const resolveCurrentRevision = (revisions, currentRevisionId) => {
+    if (Array.isArray(revisions) && revisions.length > 0) {
+        if (currentRevisionId) {
+            const currentRevision = revisions.find(revision => revision.id === currentRevisionId);
+            if (currentRevision) {
+                return currentRevision;
+            }
+        }
+
+        return [...revisions].sort((a, b) => {
+            const numA = parseInt(a.revision_number, 10) || 0;
+            const numB = parseInt(b.revision_number, 10) || 0;
+            return numB - numA;
+        })[0] || null;
+    }
+
+    return Array.isArray(revisions) ? null : revisions || null;
+};
 
 // Doküman tipine göre klasör adı döndürür (Storage klasör yapısına uygun)
 const getDocumentFolder = (documentType) => {
@@ -135,75 +184,34 @@ const DocumentModule = () => {
     const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
+    const deferredSearchTerm = useDeferredValue(searchTerm);
 
-
-    const filteredDocuments = useMemo(() => {
-        // documents array'i kontrolü
-        if (!documents || !Array.isArray(documents)) {
+    const preparedDocuments = useMemo(() => {
+        if (!Array.isArray(documents)) {
             return [];
         }
 
-        // Doküman tipi eşleştirme mapping'i (veritabanındaki farklı formatları desteklemek için)
-        const documentTypeMapping = {
-            'Prosedürler': ['Prosedürler', 'Prosedür', 'Prosedurler', 'Prosedur'],
-            'Talimatlar': ['Talimatlar', 'Talimat', 'Talimatlari', 'Talimati'],
-            'Formlar': ['Formlar', 'Form'],
-            'El Kitapları': ['El Kitapları', 'El Kitabı', 'El Kitaplari', 'El Kitabi'],
-            'Şemalar': ['Şemalar', 'Şema', 'Semalar', 'Sema'],
-            'Görev Tanımları': ['Görev Tanımları', 'Görev Tanımı', 'Gorev Tanimlari', 'Gorev Tanimi'],
-            'Süreçler': ['Süreçler', 'Süreç', 'Surecler', 'Surec'],
-            'Planlar': ['Planlar', 'Plan'],
-            'Listeler': ['Listeler', 'Liste'],
-            'Şartnameler': ['Şartnameler', 'Şartname', 'Sartnameler', 'Sartname'],
-            'Politikalar': ['Politikalar', 'Politika'],
-            'Tablolar': ['Tablolar', 'Tablo'],
-            'Antetler': ['Antetler', 'Antet'],
-            'Sözleşmeler': ['Sözleşmeler', 'Sözleşme', 'Sozlesmeler', 'Sozlesme'],
-            'Yönetmelikler': ['Yönetmelikler', 'Yönetmelik', 'Yonetmelikler', 'Yonetmelik'],
-            'Kontrol Planları': ['Kontrol Planları', 'Kontrol Planı', 'Kontrol Planlari', 'Kontrol Plani'],
-            'FMEA Planları': ['FMEA Planları', 'FMEA Planı', 'FMEA Planlari', 'FMEA Plani'],
-            'Proses Kontrol Kartları': ['Proses Kontrol Kartları', 'Proses Kontrol Kartı', 'Proses Kontrol Kartlari', 'Proses Kontrol Karti'],
-            'Görsel Yardımcılar': ['Görsel Yardımcılar', 'Görsel Yardımcı', 'Gorsel Yardimcilar', 'Gorsel Yardimci'],
-            'Kalite Sertifikaları': ['Kalite Sertifikaları', 'Kalite Sertifikası', 'Kalite Sertifikalari', 'Kalite Sertifikasi'],
-            'Personel Sertifikaları': ['Personel Sertifikaları', 'Personel Sertifikası', 'Personel Sertifikalari', 'Personel Sertifikasi'],
-            'Diğer': ['Diğer', 'Diger']
-        };
-
-        let docs = documents
-            .filter(doc => {
-                // "Tümü" seçildiğinde tüm dokümanları göster
-                if (activeTab === 'Tümü') {
-                    return true;
-                }
-                // Aktif tab için geçerli olan tüm tip varyasyonlarını kontrol et
-                const validTypes = documentTypeMapping[activeTab] || [activeTab];
-                const matches = validTypes.includes(doc.document_type);
-                return matches;
-            })
+        return documents
             .map(doc => {
-                // document_revisions bir array ise, current_revision_id ile eşleşeni bul veya en son revizyonu al
-                let revision = doc.document_revisions;
-                if (Array.isArray(revision) && revision.length > 0) {
-                    const revisionsArray = revision;
-                    if (doc.current_revision_id) {
-                        revision = revisionsArray.find(r => r.id === doc.current_revision_id) || null;
-                    }
-                    // current_revision_id yoksa veya bulunamadıysa, en son revizyonu al (revision_number'a göre)
-                    if (!revision) {
-                        const sortedRevisions = [...revisionsArray].sort((a, b) => {
-                            const numA = parseInt(a.revision_number) || 0;
-                            const numB = parseInt(b.revision_number) || 0;
-                            return numB - numA;
-                        });
-                        revision = sortedRevisions[0] || null;
-                    }
-                } else if (!Array.isArray(revision)) {
-                    // Zaten tek bir obje ise olduğu gibi bırak
-                    revision = revision || null;
-                } else {
-                    revision = null;
-                }
-                return { ...doc, document_revisions: revision };
+                const allDocumentRevisions = Array.isArray(doc.document_revisions)
+                    ? doc.document_revisions
+                    : [doc.document_revisions].filter(Boolean);
+                const currentRevision = resolveCurrentRevision(doc.document_revisions, doc.current_revision_id);
+                const searchIndex = normalizeTurkishForSearch([
+                    doc.title,
+                    doc.document_number,
+                    doc.document_type,
+                    doc.personnel?.full_name,
+                    doc.owner?.full_name,
+                    doc.department?.unit_name
+                ].filter(Boolean).join(' '));
+
+                return {
+                    ...doc,
+                    allDocumentRevisions,
+                    searchIndex,
+                    document_revisions: currentRevision
+                };
             })
             .sort((a, b) => {
                 try {
@@ -216,36 +224,31 @@ const DocumentModule = () => {
                     return 0;
                 }
             });
+    }, [documents]);
 
-        // Birim filtresi (belirli kategoriler için veya "Tümü" seçildiğinde)
-        const categoriesWithDepartmentFilter = [
-            'Tümü', 'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar',
-            'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler',
-            'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler',
-            'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'
-        ];
-        if (selectedDepartmentId && categoriesWithDepartmentFilter.includes(activeTab)) {
+    const normalizedSearchTerm = useMemo(
+        () => normalizeTurkishForSearch(deferredSearchTerm.trim()),
+        [deferredSearchTerm]
+    );
+
+    const filteredDocuments = useMemo(() => {
+        let docs = preparedDocuments;
+
+        if (activeTab !== 'Tümü') {
+            const validTypes = DOCUMENT_TYPE_MAPPING[activeTab] || [activeTab];
+            docs = docs.filter(doc => validTypes.includes(doc.document_type));
+        }
+
+        if (selectedDepartmentId && DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab)) {
             docs = docs.filter(doc => doc.department_id === selectedDepartmentId);
         }
 
-        if (searchTerm) {
-            const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
-            docs = docs.filter(doc => {
-                const normalizedTitle = normalizeTurkishForSearch(doc.title);
-                const normalizedDocType = normalizeTurkishForSearch(doc.document_type || '');
-                const titleMatch = normalizedTitle.includes(normalizedSearchTerm);
-                const typeMatch = normalizedDocType.includes(normalizedSearchTerm);
-                const personnelMatch = (
-                    normalizeTurkishForSearch(doc.personnel?.full_name || '').includes(normalizedSearchTerm) ||
-                    normalizeTurkishForSearch(doc.owner?.full_name || '').includes(normalizedSearchTerm)
-                );
-                const departmentMatch = normalizeTurkishForSearch(doc.department?.unit_name || '').includes(normalizedSearchTerm);
-                return titleMatch || typeMatch || personnelMatch || departmentMatch;
-            });
+        if (normalizedSearchTerm) {
+            docs = docs.filter(doc => doc.searchIndex.includes(normalizedSearchTerm));
         }
 
         return docs;
-    }, [documents, activeTab, searchTerm, selectedDepartmentId]);
+    }, [preparedDocuments, activeTab, normalizedSearchTerm, selectedDepartmentId]);
 
     const downloadPdf = async (revision, fileName, documentType) => {
         let filePath = revision?.attachments?.[0]?.path;
@@ -428,13 +431,13 @@ const DocumentModule = () => {
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                                     <input
                                         type="text"
-                                        placeholder={activeTab === 'Tümü' ? "Başlık, kategori, personel veya birim ara..." : "Doküman veya personel adı ara..."}
+                                        placeholder={activeTab === 'Tümü' ? "Başlık, doküman no, kategori, personel veya birim ara..." : "Doküman adı/no veya personel adı ara..."}
                                         className="search-input"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
-                                {['Tümü', 'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab) && (
+                                {DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) && (
                                     <Select value={selectedDepartmentId || 'all'} onValueChange={(value) => setSelectedDepartmentId(value === 'all' ? '' : value)}>
                                         <SelectTrigger className="w-full sm:w-[200px]">
                                             <SelectValue placeholder="Birim seçin..." />
@@ -461,7 +464,7 @@ const DocumentModule = () => {
                                     <tr>
                                         <th>Doküman Adı / Numarası</th>
                                         {activeTab === 'Personel Sertifikaları' && <th>Personel</th>}
-                                        {(activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) && <th>Birim</th>}
+                                        {DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) && <th>Birim</th>}
                                         <th>Doküman Tipi</th>
                                         <th>Versiyon</th>
                                         <th>Yayın Tarihi</th>
@@ -472,23 +475,18 @@ const DocumentModule = () => {
                                 </thead>
                                 <tbody>
                                     {loading ? (
-                                        <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '9' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '9' : '8'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                        <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '9' : DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) ? '9' : '8'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
                                     ) : filteredDocuments.length === 0 ? (
-                                        <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '9' : (activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) ? '9' : '8'} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
+                                        <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '9' : DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) ? '9' : '8'} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
                                     ) : (
-                                        filteredDocuments.map((doc, index) => {
+                                        filteredDocuments.map((doc) => {
                                             // filteredDocuments içinde zaten revision tek bir obje olarak set edilmiş
                                             const revision = doc.document_revisions;
                                             const fileName = revision?.attachments?.[0]?.name;
                                             const hasFile = !!revision?.attachments?.[0]?.path;
 
                                             return (
-                                                <motion.tr
-                                                    key={doc.id}
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                                                >
+                                                <tr key={doc.id}>
                                                     <td
                                                         className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
                                                         onClick={() => {
@@ -500,7 +498,7 @@ const DocumentModule = () => {
                                                         <div className="text-xs text-muted-foreground">{doc.document_number}</div>
                                                     </td>
                                                     {activeTab === 'Personel Sertifikaları' && <td>{doc.personnel?.full_name || doc.owner?.full_name || 'N/A'}</td>}
-                                                    {(activeTab === 'Tümü' || ['Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar', 'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler', 'Politikalar', 'Tablolar', 'Antetler', 'Sözleşmeler', 'Yönetmelikler', 'Kontrol Planları', 'FMEA Planları', 'Proses Kontrol Kartları', 'Görsel Yardımcılar'].includes(activeTab)) && (
+                                                    {DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) && (
                                                         <td className="text-muted-foreground">{doc.department?.unit_name || doc.personnel?.full_name || '-'}</td>
                                                     )}
                                                     <td className="text-muted-foreground">
@@ -551,7 +549,7 @@ const DocumentModule = () => {
                                                             </AlertDialogContent>
                                                         </AlertDialog>
                                                     </td>
-                                                </motion.tr>
+                                                </tr>
                                             )
                                         })
                                     )}

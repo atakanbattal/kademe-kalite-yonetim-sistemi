@@ -197,10 +197,9 @@ export const DataProvider = ({ children }) => {
         const heavyPromises = {
             suppliers: supabase.from('suppliers').select('*, alternative_supplier:suppliers!alternative_to_supplier_id(id, name), supplier_certificates(valid_until), supplier_audits(*), supplier_scores(final_score, grade, period), supplier_audit_plans(*)'),
             equipments: supabase.from('equipments').select('*, equipment_calibrations(*), equipment_assignments(*, personnel(full_name))'),
-            // Documents sorgusu - önce documents çek, sonra document_revisions ayrı çekilecek
+            // Documents sorgusu - dokümanları ve revizyonları toplu çekerek N+1 sorgularını önle
             documents: (async () => {
                 try {
-                    // Önce documents'ı department, personnel ve owner bilgileriyle birlikte çek
                     const { data: docsData, error: docsError } = await supabase
                         .from('documents')
                         .select('*, department:department_id(id, unit_name), personnel:personnel_id(id, full_name), owner:owner_id(id, full_name)')
@@ -211,31 +210,32 @@ export const DataProvider = ({ children }) => {
                         return { data: [], error: null };
                     }
 
-                    // Her doküman için document_revisions ve personel bilgilerini çek
-                    const docsWithRevisions = await Promise.all(docsData.map(async (doc) => {
-                        const [revisionsResult, personnelResult, ownerResult] = await Promise.all([
-                            // Document revisions - sadece revisions çek, join yapma
-                            supabase.from('document_revisions').select('*').eq('document_id', doc.id).order('revision_number', { ascending: false }),
-                            // Personnel bilgisi (eğer personnel_id varsa)
-                            doc.personnel_id ? supabase.from('personnel').select('id, full_name').eq('id', doc.personnel_id).single() : Promise.resolve({ data: null, error: null }),
-                            // Owner bilgisi (eğer owner_id varsa)
-                            doc.owner_id ? supabase.from('personnel').select('id, full_name').eq('id', doc.owner_id).single() : Promise.resolve({ data: null, error: null })
-                        ]);
+                    const documentIds = docsData.map(doc => doc.id).filter(Boolean);
+                    let revisionsByDocumentId = new Map();
 
-                        const revisions = revisionsResult.data || [];
-                        const personnel = personnelResult.data || null;
-                        const owner = ownerResult.data || null;
+                    if (documentIds.length > 0) {
+                        const { data: revisionsData, error: revisionsError } = await supabase
+                            .from('document_revisions')
+                            .select('*')
+                            .in('document_id', documentIds)
+                            .order('document_id', { ascending: true })
+                            .order('revision_number', { ascending: false });
 
-                        if (revisionsResult.error) {
-                            console.warn(`⚠️ Document ${doc.id} için revisions çekilemedi:`, revisionsResult.error);
+                        if (revisionsError) {
+                            console.warn('⚠️ Document revisions toplu çekilemedi:', revisionsError);
+                        } else {
+                            revisionsByDocumentId = (revisionsData || []).reduce((map, revision) => {
+                                const revisions = map.get(revision.document_id) || [];
+                                revisions.push(revision);
+                                map.set(revision.document_id, revisions);
+                                return map;
+                            }, new Map());
                         }
+                    }
 
-                        return {
-                            ...doc,
-                            document_revisions: revisions,
-                            personnel: personnel,
-                            owner: owner
-                        };
+                    const docsWithRevisions = docsData.map(doc => ({
+                        ...doc,
+                        document_revisions: revisionsByDocumentId.get(doc.id) || []
                     }));
 
                     return { data: docsWithRevisions, error: null };

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { sanitizeFileName } from '@/lib/utils';
 
 const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categories }) => {
     const { toast } = useToast();
@@ -86,19 +87,63 @@ const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categorie
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.product_code || !formData.product_name || !formData.category_id) {
-            toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen ürün kodu, adı ve kategorisini girin.' });
+        if (!formData.product_name || !formData.category_id) {
+            toast({ variant: 'destructive', title: 'Eksik Bilgi', description: 'Lütfen ürün adını girin.' });
             return;
         }
 
         setIsSubmitting(true);
 
+        const buildInternalProductCode = async () => {
+            if (existingProduct?.product_code) {
+                return existingProduct.product_code;
+            }
+
+            const normalizedBase = sanitizeFileName(formData.product_name || 'urun')
+                .replace(/_/g, '-')
+                .replace(/\./g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '')
+                .toUpperCase() || 'URUN';
+
+            const { data, error } = await supabase
+                .from('products')
+                .select('id, product_code')
+                .ilike('product_code', `${normalizedBase}%`);
+
+            if (error) throw error;
+
+            const existingCodes = new Set((data || []).map(item => item.product_code));
+
+            if (!existingCodes.has(normalizedBase)) {
+                return normalizedBase;
+            }
+
+            let counter = 2;
+            let candidate = `${normalizedBase}-${counter}`;
+            while (existingCodes.has(candidate)) {
+                counter += 1;
+                candidate = `${normalizedBase}-${counter}`;
+            }
+
+            return candidate;
+        };
+
         // FormData'dan gereksiz alanları temizle ve undefined değerleri null'a çevir
         const { id, created_at, updated_at, product_categories, ...rest } = formData;
+
+        let internalProductCode;
+        try {
+            internalProductCode = await buildInternalProductCode();
+        } catch (error) {
+            setIsSubmitting(false);
+            toast({ variant: 'destructive', title: 'Hata!', description: `İç ürün kodu oluşturulamadı: ${error.message}` });
+            return;
+        }
         
         // Sadece geçerli alanları ekle ve undefined değerleri temizle
         const dataToSubmit = {
-            product_code: formData.product_code,
+            product_code: internalProductCode,
             product_name: formData.product_name,
             category_id: formData.category_id,
             is_active: formData.is_active !== undefined ? formData.is_active : true,
@@ -174,27 +219,15 @@ const ProductFormModal = ({ open, setOpen, onSuccess, existingProduct, categorie
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label>Ürün Kodu (*)</Label>
-                                <Input
-                                    id="product_code"
-                                    value={formData.product_code}
-                                    onChange={handleChange}
-                                    required
-                                    placeholder="Örn: FTH-240, PAR-001"
-                                />
-                            </div>
-                            <div>
-                                <Label>Ürün Adı (*)</Label>
-                                <Input
-                                    id="product_name"
-                                    value={formData.product_name}
-                                    onChange={handleChange}
-                                    required
-                                    placeholder="Ürün adı"
-                                />
-                            </div>
+                        <div>
+                            <Label>Ürün Adı (*)</Label>
+                            <Input
+                                id="product_name"
+                                value={formData.product_name}
+                                onChange={handleChange}
+                                required
+                                placeholder="Araç tipi adı"
+                            />
                         </div>
                         <div>
                             <Label>Kategori (*)</Label>
@@ -368,8 +401,7 @@ const ProductManager = () => {
     }, [fetchData]);
 
     const filteredProducts = products.filter(product => {
-        const matchesSearch = !searchTerm || 
-            product.product_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        const matchesSearch = !searchTerm ||
             product.product_name?.toLowerCase().includes(searchTerm.toLowerCase());
         
         return matchesSearch;
@@ -418,7 +450,7 @@ const ProductManager = () => {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="Araç tipi kodu veya adı ile ara..."
+                            placeholder="Araç tipi adı ile ara..."
                             className="search-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -440,7 +472,6 @@ const ProductManager = () => {
                     <table className="w-full">
                         <thead className="bg-muted">
                             <tr>
-                                <th className="p-3 text-left">Ürün Kodu</th>
                                 <th className="p-3 text-left">Ürün Adı</th>
                                 <th className="p-3 text-left">Kategori</th>
                                 <th className="p-3 text-left">Parça No</th>
@@ -451,15 +482,14 @@ const ProductManager = () => {
                         <tbody>
                             {filteredProducts.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="p-8 text-center text-muted-foreground">
+                                    <td colSpan="5" className="p-8 text-center text-muted-foreground">
                                         Ürün bulunamadı.
                                     </td>
                                 </tr>
                             ) : (
                                 filteredProducts.map((product) => (
                                     <tr key={product.id} className="border-t hover:bg-muted/50">
-                                        <td className="p-3 font-medium">{product.product_code}</td>
-                                        <td className="p-3">{product.product_name}</td>
+                                        <td className="p-3 font-medium">{product.product_name}</td>
                                         <td className="p-3">
                                             <Badge variant="outline">
                                                 {product.product_categories?.category_name || '-'}
@@ -504,4 +534,3 @@ const ProductManager = () => {
 };
 
 export default ProductManager;
-

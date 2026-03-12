@@ -48,11 +48,12 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
             console.log('Çekilen revizyonlar:', revisionsData?.length || 0, 'document_id:', document.id, revisionsData);
             
             // Eğer revizyon yoksa ve document_revisions array'i varsa, onu kullan
-            if ((!revisionsData || revisionsData.length === 0) && document.document_revisions) {
-                console.log('Supabase\'den revizyon gelmedi, document.document_revisions kullanılıyor:', document.document_revisions);
-                const docRevisions = Array.isArray(document.document_revisions) 
-                    ? document.document_revisions 
-                    : [document.document_revisions].filter(Boolean);
+            const fallbackRevisions = document.allDocumentRevisions || document.document_revisions;
+            if ((!revisionsData || revisionsData.length === 0) && fallbackRevisions) {
+                console.log('Supabase\'den revizyon gelmedi, doküman içindeki revizyonlar kullanılıyor:', fallbackRevisions);
+                const docRevisions = Array.isArray(fallbackRevisions)
+                    ? fallbackRevisions
+                    : [fallbackRevisions].filter(Boolean);
                 setRevisions(docRevisions);
                 setLoading(false);
                 return;
@@ -428,4 +429,3 @@ const DocumentDetailModal = ({ isOpen, setIsOpen, document }) => {
 };
 
 export default DocumentDetailModal;
-
