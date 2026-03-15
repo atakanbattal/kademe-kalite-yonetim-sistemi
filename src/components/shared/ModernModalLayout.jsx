@@ -42,24 +42,24 @@ export const ModernModalLayout = ({
     isSubmitting = false,
     submitLabel = 'Kaydı Tamamla',
     cancelLabel = 'İptal Et',
-    maxWidth = 'sm:max-w-2xl',
+    maxWidth = 'sm:max-w-7xl',
     formId,
 }) => {
     const hasTwoColumns = !!rightPanel;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className={`${maxWidth} w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0`}>
                 <DialogHeader className="sr-only"><DialogTitle>{title}</DialogTitle></DialogHeader>
-                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-8 py-6 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
-                        <div className="bg-white/20 p-2.5 rounded-lg">{icon}</div>
+                        <div className="bg-white/20 p-3 rounded-lg">{icon}</div>
                         <div>
-                            <h1 className="text-lg font-bold tracking-tight">{title}</h1>
-                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{subtitle}</p>
+                            <h1 className="text-xl font-bold tracking-tight">{title}</h1>
+                            <p className="text-xs text-blue-100 uppercase tracking-[0.15em] font-medium">{subtitle}</p>
                         </div>
                         {badge && (
-                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                            <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-xs font-bold rounded-full uppercase tracking-wider">
                                 {badge}
                             </span>
                         )}
@@ -68,20 +68,20 @@ export const ModernModalLayout = ({
 
                 {hasTwoColumns ? (
                     <div className="flex flex-1 min-h-0 overflow-hidden">
-                        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden border-r border-border py-4" style={{ scrollbarWidth: 'thin' }}>{children}</div>
-                        <div className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4" style={{ scrollbarWidth: 'thin' }}>{rightPanel}</div>
+                        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden border-r border-border py-5" style={{ scrollbarWidth: 'thin' }}>{children}</div>
+                        <div className="w-[360px] min-w-[320px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-5" style={{ scrollbarWidth: 'thin' }}>{rightPanel}</div>
                     </div>
                 ) : (
                     <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
                 )}
 
-                <footer className="flex shrink-0 justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+                <footer className="flex shrink-0 justify-end gap-2 px-8 py-4 border-t border-border bg-muted/20">
                     <div className="flex items-center gap-3 flex-1 justify-end">
                         {footerExtra}
                         <Button type="button" variant="outline" onClick={onCancel}>
                             {cancelLabel}
                         </Button>
-                        <Button type={formId ? 'submit' : 'button'} form={formId} onClick={!formId ? onSubmit : undefined} disabled={isSubmitting} className="text-sm font-bold shadow-lg shadow-primary/20">
+                        <Button type={formId ? 'submit' : 'button'} form={formId} onClick={!formId ? onSubmit : undefined} disabled={isSubmitting} className="text-base font-bold shadow-lg shadow-primary/20">
                             <CheckCircle className="w-4 h-4 mr-2" />
                             {isSubmitting ? 'Kaydediliyor...' : submitLabel}
                         </Button>

@@ -52,7 +52,7 @@ const NCFormModal = ({ isOpen, setIsOpen, record, onSave, onSaveSuccess }) => {
                         <div className="bg-white/20 p-2.5 rounded-lg"><AlertTriangle className="h-5 w-5 text-white" /></div>
                         <div>
                             <h1 className="text-lg font-bold tracking-tight">{isEditMode ? 'Uygunsuzluk Kaydını Düzenle' : 'Yeni Uygunsuzluk Kaydı'}</h1>
-                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{isEditMode ? 'Mevcut kaydı güncelleyin' : 'Yeni DF/8D kaydı oluşturun'}</p>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{isEditMode ? 'Mevcut kaydı güncelleyin' : 'Yeni DF / MDI / 8D kaydı oluşturun'}</p>
                         </div>
                         {formData.type && (
                             <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{formData.type}</span>

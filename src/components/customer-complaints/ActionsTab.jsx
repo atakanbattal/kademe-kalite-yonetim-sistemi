@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Plus, Edit, Trash2, CheckCircle2, Clock, AlertCircle, Wrench } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
@@ -28,10 +28,36 @@ const ACTION_TYPE_COLORS = {
     'İyileştirme': 'purple'
 };
 
-const ActionsTab = ({ complaintId, actions, onRefresh }) => {
+const OPERATION_STATUS_COLORS = {
+    'Planlandı': 'secondary',
+    'Hazırlanıyor': 'secondary',
+    'Yolda': 'warning',
+    'Sahada': 'default',
+    'Tamamlandı': 'success',
+    'İptal': 'destructive',
+};
+
+const formatDate = (value) => (value ? new Date(value).toLocaleDateString('tr-TR') : '-');
+const formatCurrency = (value) =>
+    Number(value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+
+const ActionsTab = ({ complaintId, actions = [], operations = [], onRefresh }) => {
     const { toast } = useToast();
     const [isFormOpen, setFormOpen] = useState(false);
     const [editingAction, setEditingAction] = useState(null);
+    const hasAutomaticOperations = operations.length > 0;
+    const hasManualActions = actions.length > 0;
+    const hasAnyRecords = hasAutomaticOperations || hasManualActions;
+
+    const sortedOperations = useMemo(
+        () =>
+            [...operations].sort((left, right) => {
+                const leftDate = left.actual_end_date || left.actual_start_date || left.planned_start_date || left.created_at;
+                const rightDate = right.actual_end_date || right.actual_start_date || right.planned_start_date || right.created_at;
+                return new Date(rightDate || 0) - new Date(leftDate || 0);
+            }),
+        [operations]
+    );
 
     const openForm = (action = null) => {
         setEditingAction(action);
@@ -83,7 +109,7 @@ const ActionsTab = ({ complaintId, actions, onRefresh }) => {
                 <div>
                     <h3 className="text-lg font-semibold">Aksiyonlar</h3>
                     <p className="text-sm text-muted-foreground">
-                        Şikayet için alınan tüm aksiyonları yönetin
+                        Satış sonrası vaka için tanımlanan tüm aksiyonları yönetin
                     </p>
                 </div>
                 <Button onClick={() => openForm()}>
@@ -92,12 +118,12 @@ const ActionsTab = ({ complaintId, actions, onRefresh }) => {
                 </Button>
             </div>
 
-            {actions.length === 0 ? (
+            {!hasAnyRecords ? (
                 <Card>
                     <CardContent className="py-12">
                         <div className="text-center text-muted-foreground">
                             <CheckCircle2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>Henüz aksiyon eklenmemiş.</p>
+                            <p>Henüz aksiyon veya operasyon kaydı görünmüyor.</p>
                             <p className="text-sm mt-1">
                                 Yeni bir aksiyon eklemek için yukarıdaki butonu kullanın.
                             </p>
@@ -106,7 +132,64 @@ const ActionsTab = ({ complaintId, actions, onRefresh }) => {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 gap-4">
-                    {actions.map(action => {
+                    {hasAutomaticOperations && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <Wrench className="w-4 h-4 text-primary" />
+                                    Operasyondan Gelen Otomatik Kayıtlar
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {sortedOperations.map((operation) => (
+                                    <div key={operation.id} className="rounded-lg border p-4">
+                                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <Badge variant={OPERATION_STATUS_COLORS[operation.status] || 'default'}>
+                                                        {operation.status}
+                                                    </Badge>
+                                                    <Badge variant="outline">{operation.operation_type || 'Operasyon'}</Badge>
+                                                </div>
+                                                <div className="font-medium">{operation.operation_title || 'Operasyon Kaydı'}</div>
+                                                <div className="text-sm text-muted-foreground">
+                                                    {operation.assigned_person?.full_name || 'Atanmamış'} • {operation.city || operation.current_location || '-'}
+                                                </div>
+                                                {operation.completion_notes && (
+                                                    <div className="text-sm whitespace-pre-wrap">{operation.completion_notes}</div>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3 text-sm min-w-[260px]">
+                                                <div className="rounded-lg bg-muted/40 p-3">
+                                                    <div className="text-muted-foreground">Başlangıç</div>
+                                                    <div className="font-medium mt-1">
+                                                        {formatDate(operation.actual_start_date || operation.planned_start_date)}
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-lg bg-muted/40 p-3">
+                                                    <div className="text-muted-foreground">Bitiş</div>
+                                                    <div className="font-medium mt-1">
+                                                        {formatDate(operation.actual_end_date || operation.planned_end_date)}
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-lg bg-muted/40 p-3">
+                                                    <div className="text-muted-foreground">Hizmet</div>
+                                                    <div className="font-medium mt-1">{Number(operation.labor_hours || 0)} saat</div>
+                                                </div>
+                                                <div className="rounded-lg bg-muted/40 p-3">
+                                                    <div className="text-muted-foreground">Toplam Maliyet</div>
+                                                    <div className="font-medium mt-1">{formatCurrency(operation.total_cost)}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {hasManualActions && actions.map(action => {
                         const daysRemaining = getDaysRemaining(action.planned_end_date);
                         const isOverdue = daysRemaining !== null && daysRemaining < 0 && action.status !== 'Tamamlandı';
                         const isNearDeadline = daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 3 && action.status !== 'Tamamlandı';
@@ -296,4 +379,3 @@ const ActionsTab = ({ complaintId, actions, onRefresh }) => {
 };
 
 export default ActionsTab;
-

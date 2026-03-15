@@ -275,7 +275,7 @@ export const DataProvider = ({ children }) => {
                     controlled_by:profiles!stock_risk_controls_controlled_by_id_fkey(id, full_name)
                 `).order('created_at', { ascending: false }).limit(200),
             inkrReports: supabase.from('inkr_reports').select('*, supplier:supplier_id(name)').order('created_at', { ascending: false }),
-            customerComplaints: supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500),
+            customerComplaints: supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500),
             complaintAnalyses: supabase.from('complaint_analyses').select('*'),
             complaintActions: supabase.from('complaint_actions').select('*, responsible_person:responsible_person_id(full_name), responsible_department:responsible_department_id(unit_name)'),
             complaintDocuments: supabase.from('complaint_documents').select('*'),
@@ -889,7 +889,7 @@ export const DataProvider = ({ children }) => {
     const refreshCustomerComplaints = useCallback(async () => {
         if (!session) return;
         try {
-            const { data: ccData, error } = await supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500);
+            const { data: ccData, error } = await supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500);
             if (!error) {
                 setData(prev => ({ ...prev, customerComplaints: ccData || [] }));
                 console.log('✅ Customer complaints refreshed:', ccData?.length || 0);

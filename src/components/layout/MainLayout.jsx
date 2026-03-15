@@ -77,7 +77,7 @@ const moduleTitles = {
     document: 'Doküman Yönetimi',
     'supplier-quality': 'Tedarikçi Kalite Yönetimi',
     'supplier-audit': 'Tedarikçi Denetimi',
-    'customer-complaints': 'Müşteri Şikayetleri',
+    'customer-complaints': 'Satış Sonrası Hizmetler',
     deviation: 'Sapma Yönetimi',
     equipment: 'Ekipman & Kalibrasyon',
     'produced-vehicles': 'Kaliteye Verilen Araçlar',

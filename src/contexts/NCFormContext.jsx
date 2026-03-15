@@ -79,6 +79,11 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
         return String(affectedUnits);
     };
 
+    const normalizeNCStatus = (status) => {
+        const allowedStatuses = new Set(['Açık', 'İşlemde', 'Kapatıldı', 'Reddedildi']);
+        return allowedStatuses.has(status) ? status : 'Açık';
+    };
+
     export const NCFormProvider = ({ children }) => {
         const { user, profile } = useAuth();
         const [formData, setFormData] = useState({});
@@ -349,6 +354,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 finalData = {
                     ...mergedRecord,
                     type: initialRecord.type || 'DF',
+                    status: normalizeNCStatus(mergedRecord.status),
                     opening_date: toISODateString(parsedOpeningDate),
                     df_opened_at: parsedOpeningDate.toISOString(),
                     due_date: toISODateString(parsedDueDate),

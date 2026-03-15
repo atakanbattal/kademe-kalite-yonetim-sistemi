@@ -89,7 +89,7 @@ const CommunicationTab = ({ complaintId, communications, onRefresh }) => {
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-semibold">İletişim Geçmişi</h3>
-                    <p className="text-sm text-muted-foreground">Müşteri ile yapılan iletişimleri kaydedin</p>
+                    <p className="text-sm text-muted-foreground">Satış sonrası vaka kapsamında müşteri ile yapılan tüm temasları kaydedin</p>
                 </div>
                 <Button onClick={openForm}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -182,4 +182,3 @@ const CommunicationTab = ({ complaintId, communications, onRefresh }) => {
 };
 
 export default CommunicationTab;
-

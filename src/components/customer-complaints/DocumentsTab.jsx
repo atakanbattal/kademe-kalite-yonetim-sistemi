@@ -14,7 +14,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { sanitizeFileName } from '@/lib/utils';
 
-const DOCUMENT_TYPES = ['Şikayet Formu', 'Fotoğraf', 'Rapor', '8D Raporu', 'Test Sonucu', 'Email', 'Diğer'];
+const DOCUMENT_TYPES = [
+    'Servis Formu',
+    'Fotoğraf',
+    'Rapor',
+    '8D Raporu',
+    'Test Sonucu',
+    'Garanti Belgesi',
+    'Kullanıcı Kitapçığı',
+    'Yedek Parça Kataloğu',
+    'Email',
+    'Diğer',
+];
 
 const DocumentsTab = ({ complaintId, documents, onRefresh }) => {
     const { toast } = useToast();
@@ -122,8 +133,8 @@ const DocumentsTab = ({ complaintId, documents, onRefresh }) => {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-lg font-semibold">Dokümanlar</h3>
-                    <p className="text-sm text-muted-foreground">Şikayetle ilgili dökümanları yönetin</p>
+                    <h3 className="text-lg font-semibold">Vaka Dokümanları</h3>
+                    <p className="text-sm text-muted-foreground">Satış sonrası vaka ile ilgili dökümanları yönetin</p>
                 </div>
                 <Button onClick={() => setUploadOpen(true)}>
                     <Upload className="w-4 h-4 mr-2" />
@@ -231,4 +242,3 @@ const DocumentsTab = ({ complaintId, documents, onRefresh }) => {
 };
 
 export default DocumentsTab;
-

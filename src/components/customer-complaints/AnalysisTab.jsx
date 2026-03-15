@@ -213,7 +213,7 @@ const AnalysisTab = ({ complaintId, analyses, onRefresh }) => {
                 <div>
                     <h3 className="text-lg font-semibold">Kök Neden Analizleri</h3>
                     <p className="text-sm text-muted-foreground">
-                        5N1K, Balık Kılçığı ve 5 Neden analizleri yapın
+                        Satış sonrası vaka için 5N1K, Balık Kılçığı ve 5 Neden analizlerini yönetin
                     </p>
                 </div>
                 <Button onClick={() => openForm()}>
@@ -347,4 +347,3 @@ const AnalysisTab = ({ complaintId, analyses, onRefresh }) => {
 };
 
 export default AnalysisTab;
-

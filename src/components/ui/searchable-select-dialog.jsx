@@ -27,7 +27,11 @@ export function SearchableSelectDialog({
   dialogTitle = "Öğe Seçin",
   searchPlaceholder = "Ara...",
   notFoundText = "Sonuç bulunamadı.",
-  allowClear = false
+  allowClear = false,
+  triggerClassName = "",
+  labelClassName = "",
+  dialogContentClassName = "",
+  listClassName = "",
 }) {
   const [open, setOpen] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -62,6 +66,9 @@ export function SearchableSelectDialog({
   
   // A helper to get the displayable label from an option, which might be a React node.
   const getDisplayLabel = (option) => {
+      if (option?.triggerLabel) {
+          return option.triggerLabel;
+      }
       if (React.isValidElement(option?.label)) {
           // Attempt to find the textual content. This is a simplification.
           // It works for simple cases like <div><span>Text</span><Badge>...</Badge></div>
@@ -77,6 +84,9 @@ export function SearchableSelectDialog({
 
   // A helper to get the search value from an option, which must be a string.
   const getSearchValue = (option) => {
+    if (option?.searchText) {
+        return option.searchText;
+    }
     if (React.isValidElement(option?.label)) {
         if (option.label.props && option.label.props.children) {
             const children = React.Children.toArray(option.label.props.children);
@@ -97,10 +107,13 @@ export function SearchableSelectDialog({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className={cn("w-full justify-between gap-2 min-h-11 h-auto py-2", triggerClassName)}
+          title={selectedOption ? String(getDisplayLabel(selectedOption)) : triggerPlaceholder}
         >
-          {selectedOption ? getDisplayLabel(selectedOption) : triggerPlaceholder}
-          <div className="flex items-center gap-1">
+          <span className={cn("flex-1 truncate text-left", labelClassName)}>
+            {selectedOption ? getDisplayLabel(selectedOption) : triggerPlaceholder}
+          </span>
+          <div className="flex shrink-0 items-center gap-1">
             {allowClear && selectedOption && (
               <X 
                 className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100" 
@@ -111,13 +124,13 @@ export function SearchableSelectDialog({
           </div>
         </Button>
       </DialogTrigger>
-      <DialogContent className="p-0" style={{ pointerEvents: 'auto' }}>
+      <DialogContent className={cn("p-0", dialogContentClassName)} style={{ pointerEvents: 'auto' }}>
         <DialogHeader className="p-4 pb-0">
           <DialogTitle>{dialogTitle}</DialogTitle>
         </DialogHeader>
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
-          <ScrollArea className="max-h-[300px]" style={{ pointerEvents: 'auto' }}>
+          <ScrollArea className={cn("max-h-[300px]", listClassName)} style={{ pointerEvents: 'auto' }}>
             <CommandList style={{ pointerEvents: 'auto' }}>
               <CommandEmpty>{notFoundText}</CommandEmpty>
               <CommandGroup style={{ pointerEvents: 'auto' }}>
@@ -144,7 +157,14 @@ export function SearchableSelectDialog({
                         value === option.value ? "opacity-100" : "opacity-0"
                       )}
                     />
-                    {option.label}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{option.label}</div>
+                      {option.description && (
+                        <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                          {option.description}
+                        </div>
+                      )}
+                    </div>
                   </CommandItem>
                 ))}
               </CommandGroup>
