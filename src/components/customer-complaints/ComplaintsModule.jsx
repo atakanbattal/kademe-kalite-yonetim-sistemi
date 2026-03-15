@@ -72,7 +72,7 @@ const METHOD_COLORS = {
     '8D': 'destructive',
 };
 
-const LINKED_NC_SELECT = 'id, source_complaint_id, type, status, nc_number, mdi_no, title, description, created_at';
+const LINKED_NC_SELECT = 'id, type, status, nc_number, mdi_no, title, description, created_at';
 
 const STAT_THEME = {
     blue: {

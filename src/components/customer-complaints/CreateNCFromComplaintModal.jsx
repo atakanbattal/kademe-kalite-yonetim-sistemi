@@ -61,7 +61,6 @@ const NONCONFORMITY_ALLOWED_COLUMNS = new Set([
     'source_quarantine_id',
     'source_supplier_nc_id',
     'source_inspection_fault_id',
-    'source_complaint_id',
     'audit_id',
     'created_by',
     'updated_by',
@@ -190,7 +189,6 @@ const CreateNCFromComplaintModal = ({ open, setOpen, complaint, onSuccess, prefe
             assigned_to_id: complaint.assigned_to_id || null,
             vehicle_type: vehicleLabel !== '-' ? vehicleLabel : '',
             chassis_no: complaint.vehicle_chassis_number || '',
-            source_complaint_id: complaint.id,
             mdi_no: selectedType === 'MDI' ? complaint.complaint_number || '' : null,
             vehicle_serial_number: complaint.vehicle_serial_number || '',
             vehicle_chassis_number: complaint.vehicle_chassis_number || '',
@@ -221,7 +219,6 @@ const CreateNCFromComplaintModal = ({ open, setOpen, complaint, onSuccess, prefe
             const payload = Object.entries({
                 ...formData,
                 description: normalizedDescription,
-                source_complaint_id: complaint.id,
                 attachments: formData.attachments || [],
             }).reduce((acc, [key, value]) => {
                 if (
@@ -236,6 +233,7 @@ const CreateNCFromComplaintModal = ({ open, setOpen, complaint, onSuccess, prefe
                     key !== 'product_name' &&
                     key !== 'batch_number' &&
                     key !== 'quantity_affected' &&
+                    key !== 'source_complaint_id' &&
                     key !== 'nc_type' &&
                     key !== 'source' &&
                     key !== 'detection_date' &&

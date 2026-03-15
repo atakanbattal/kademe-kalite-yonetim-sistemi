@@ -250,6 +250,16 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
         };
 
         const handleDelete = async (recordId) => {
+            // Önce bu NC'ye bağlı şikayetlerin related_nc_id alanını temizle (FK kısıtlaması)
+            const { error: unlinkError } = await supabase
+                .from('customer_complaints')
+                .update({ related_nc_id: null })
+                .eq('related_nc_id', recordId);
+
+            if (unlinkError) {
+                console.warn('Şikayet bağlantısı temizlenemedi (devam ediliyor):', unlinkError.message);
+            }
+
             const { error } = await supabase.from('non_conformities').delete().eq('id', recordId);
             if (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: `Kayıt silinemedi: ${error.message}` });
@@ -258,6 +268,7 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
                 refreshData(); // Listeyi otomatik yenile
             }
         };
+
 
         const onAddNC = () => onOpenNCForm(null, refreshData);
 

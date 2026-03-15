@@ -41,6 +41,7 @@ import {
     calculateResolutionHours,
     formatBooleanLabel,
     getCaseTypeLabel,
+    getComplaintIdsForNCRecord,
     getCustomerDisplayName,
     getDynamicSlaStatus,
     getFaultPartSummaryLabel,
@@ -110,9 +111,9 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
                 supabase.from('customer_communication_history').select('*').eq('complaint_id', complaint.id).order('communication_date', { ascending: false }),
                 supabase
                     .from('non_conformities')
-                    .select('id, nc_number, mdi_no, title, status, type, opening_date, due_date, due_at, closed_at')
-                    .eq('source_complaint_id', complaint.id)
-                    .order('created_at', { ascending: false }),
+                    .select('id, nc_number, mdi_no, title, status, type, opening_date, due_date, due_at, closed_at, description, created_at')
+                    .order('created_at', { ascending: false })
+                    .limit(1500),
                 supabase
                     .from('after_sales_service_operations')
                     .select(`
@@ -139,8 +140,13 @@ const ComplaintDetailModal = ({ open, setOpen, complaint, onEdit, onRefresh }) =
             if (!actionsResult.error) setActions(actionsResult.data || []);
             if (!documentsResult.error) setDocuments(documentsResult.data || []);
             if (!communicationsResult.error) setCommunications(communicationsResult.data || []);
-            if (!linkedMethodsResult.error) setLinkedMethods(linkedMethodsResult.data || []);
-            else setLinkedMethods([]);
+            if (!linkedMethodsResult.error) {
+                const complaintIdsByRelatedNc = complaint?.related_nc_id ? { [complaint.related_nc_id]: [complaint.id] } : {};
+                const matchedLinkedMethods = (linkedMethodsResult.data || []).filter((record) =>
+                    getComplaintIdsForNCRecord(record, [complaint], complaintIdsByRelatedNc).includes(complaint.id)
+                );
+                setLinkedMethods(matchedLinkedMethods);
+            } else setLinkedMethods([]);
 
             if (!operationsResult.error) setServiceOperations(operationsResult.data || []);
             else setServiceOperations([]);

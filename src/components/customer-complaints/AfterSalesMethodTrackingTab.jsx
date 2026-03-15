@@ -39,7 +39,7 @@ const getMethodRecordLabel = (record) =>
 const mergeUniqueMethodRecords = (records) =>
     Array.from(new Map((records || []).map((record) => [record.id, record])).values());
 
-const LINKED_NC_SELECT = 'id, source_complaint_id, type, status, nc_number, mdi_no, title, description, created_at';
+const LINKED_NC_SELECT = 'id, type, status, nc_number, mdi_no, title, description, created_at';
 
 const StatTile = ({ title, value, helper, icon: Icon }) => (
     <Card>
@@ -409,7 +409,7 @@ const AfterSalesMethodTrackingTab = ({ complaints, customers, onRefresh }) => {
         const topPartCode = Array.from(partCodeMap.values()).sort((a, b) => b.count - a.count)[0];
         const repeatedIssue = Array.from(issueMap.values()).sort((a, b) => b.repeatCount - a.repeatCount || b.count - a.count)[0];
 
-        return [
+        const rawRows = [
             topFrequentIssue && attachRecommendation({
                 ...topFrequentIssue,
                 category: 'En Sık Problem',
@@ -441,6 +441,20 @@ const AfterSalesMethodTrackingTab = ({ complaints, customers, onRefresh }) => {
                 chips: [`${repeatedIssue.count} vaka`, `${repeatedIssue.repeatCount} tekrar`],
             }),
         ].filter(Boolean);
+
+        // Aynı şikayet kümesini gösteren satırları tek karta birleştir
+        const mergedMap = new Map();
+        rawRows.forEach((row) => {
+            const baseId = row.complaint?.id || row.title || row.category;
+            const existing = mergedMap.get(baseId);
+            if (existing) {
+                existing.category = `${existing.category} / ${row.category}`;
+            } else {
+                mergedMap.set(baseId, { ...row });
+            }
+        });
+
+        return Array.from(mergedMap.values());
     }, [complaints, methodRecordsByComplaint, operationCostsByComplaint]);
 
     const handleCreate = useCallback((complaint, preferredType) => {
@@ -650,7 +664,10 @@ const AfterSalesMethodTrackingTab = ({ complaints, customers, onRefresh }) => {
                         <EmptyState text="Satış sonrası vakalara bağlı yöntem kaydı bulunmuyor." />
                     ) : (
                         methodRecords.map((record) => {
-                            const complaint = complaints.find((item) => item.id === record.source_complaint_id);
+                            const complaint =
+                                complaintRows.find((item) =>
+                                    (item.linkedRecords || []).some((linkedRecord) => linkedRecord.id === record.id)
+                                ) || null;
                             return (
                                 <div
                                     key={record.id}

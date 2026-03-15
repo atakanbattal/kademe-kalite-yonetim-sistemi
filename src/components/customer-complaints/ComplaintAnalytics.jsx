@@ -59,7 +59,7 @@ const AUDIT_COLORS = {
     violet: '#7c3aed',
 };
 
-const LINKED_NC_SELECT = 'id, source_complaint_id, type, status, nc_number, mdi_no, title, description, created_at';
+const LINKED_NC_SELECT = 'id, type, status, nc_number, mdi_no, title, description, created_at';
 
 const StatCard = ({ title, value, description, icon: Icon }) => (
     <Card>
