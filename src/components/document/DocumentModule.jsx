@@ -13,6 +13,7 @@ import { tr } from 'date-fns/locale';
 import { useData } from '@/contexts/DataContext';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 import DocumentDetailModal from '@/components/document/DocumentDetailModal';
+import FolderDownloadModal from '@/components/document/FolderDownloadModal';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 
@@ -183,6 +184,7 @@ const DocumentModule = () => {
     const [activeTab, setActiveTab] = useState('Tümü');
     const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isFolderDownloadModalOpen, setIsFolderDownloadModalOpen] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
@@ -250,12 +252,13 @@ const DocumentModule = () => {
         return docs;
     }, [preparedDocuments, activeTab, normalizedSearchTerm, selectedDepartmentId]);
 
-    const downloadPdf = async (revision, fileName, documentType) => {
+    const downloadPdf = async (revision, docTitle, documentType, originalFileName) => {
         let filePath = revision?.attachments?.[0]?.path;
         if (!filePath) {
             toast({ variant: 'destructive', title: 'Hata', description: 'İndirilecek dosya yolu bulunamadı.' });
             return;
         }
+        
         // Path'i normalize et (eski formatı yeni klasör yapısına uyarla)
         filePath = normalizeDocumentPath(filePath, documentType);
         const { data, error } = await supabase.storage.from(BUCKET_NAME).download(filePath);
@@ -263,11 +266,22 @@ const DocumentModule = () => {
             toast({ variant: 'destructive', title: 'Hata', description: `Dosya indirilemedi: ${error.message}` });
             return;
         }
+
+        let downloadName = docTitle;
+        if (originalFileName) {
+            const extension = originalFileName.split('.').pop();
+            if (!downloadName.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
+                downloadName = `${downloadName}.${extension}`;
+            }
+        } else {
+            downloadName = downloadName + '.pdf'; // Default to pdf if no original filename available
+        }
+
         const blob = new Blob([data]);
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName;
+        a.download = downloadName || originalFileName;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -365,6 +379,12 @@ const DocumentModule = () => {
                 setIsOpen={setIsDetailModalOpen}
                 document={selectedDocument}
             />
+            <FolderDownloadModal
+                isOpen={isFolderDownloadModalOpen}
+                setIsOpen={setIsFolderDownloadModalOpen}
+                documents={preparedDocuments}
+                categories={DOCUMENT_CATEGORIES.map(c => c.value)}
+            />
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -392,6 +412,17 @@ const DocumentModule = () => {
                                 ))}
                             </SelectContent>
                         </Select>
+                        {preparedDocuments.length > 0 && (
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsFolderDownloadModalOpen(true)}
+                                className="flex items-center gap-2"
+                                type="button"
+                            >
+                                <FileDown className="w-4 h-4" />
+                                Klasör İndir
+                            </Button>
+                        )}
                         {filteredDocuments.length > 0 && (
                             <Button
                                 variant="outline"
@@ -528,7 +559,7 @@ const DocumentModule = () => {
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
                                                     <td className="flex items-center gap-2 flex-wrap">
                                                         <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>
-                                                        <Button variant="ghost" size="sm" onClick={() => downloadPdf(revision, fileName, doc.document_type)} disabled={!hasFile}><FileDown className="w-4 h-4 mr-1" /> İndir</Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => downloadPdf(revision, doc.title, doc.document_type, fileName)} disabled={!hasFile}><FileDown className="w-4 h-4 mr-1" /> İndir</Button>
                                                         <Button variant="ghost" size="sm" onClick={() => handleReviseDocument(doc)}><RefreshCw className="w-4 h-4 mr-1" /> Revize Et</Button>
                                                         <Button variant="ghost" size="icon" onClick={() => handleOpenUploadModal(doc)}><Edit className="w-4 h-4" /></Button>
                                                         <AlertDialog>

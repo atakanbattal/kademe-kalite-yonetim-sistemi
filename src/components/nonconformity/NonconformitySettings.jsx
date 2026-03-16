@@ -22,26 +22,33 @@ const NonconformitySettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchSettings();
+  const fetchSettings = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('nonconformity_settings')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+  
+      if (data) {
+        setSettings(data);
+      } else if (error && error.code !== 'PGRST116') {
+        console.error('Settings fetch error:', error);
+      }
+    } catch (err) {
+      console.error('Settings fetch exception:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const fetchSettings = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('nonconformity_settings')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .single();
-
-    if (data) {
-      setSettings(data);
-    } else if (error && error.code !== 'PGRST116') {
-      console.error('Settings fetch error:', error);
-    }
-    setLoading(false);
-  };
+  useEffect(() => {
+    let active = true;
+    if (active) fetchSettings();
+    return () => { active = false; };
+  }, [fetchSettings]);
 
   const handleSave = async () => {
     setSaving(true);

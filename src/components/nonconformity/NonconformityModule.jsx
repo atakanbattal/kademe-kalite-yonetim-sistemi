@@ -28,6 +28,12 @@ import NonconformityFormModal from './NonconformityFormModal';
 import NonconformityDetailModal from './NonconformityDetailModal';
 import NonconformitySettings from './NonconformitySettings';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import {
+  backfillVehicleFaultNonconformities,
+  parseNonconformityRecordNumber
+} from '@/lib/vehicleFaultNonconformitySync';
+import { backfillProcessInspectionNonconformities } from '@/lib/processInspectionNonconformitySync';
 
 const severityColors = {
   'Düşük': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -47,12 +53,13 @@ const statusColors = {
 
 const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const { toast } = useToast();
+  const { user, profile, loading: authLoading } = useAuth();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
-  const [sortConfig, setSortConfig] = useState({ key: 'detection_date', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'record_number', direction: 'desc' });
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -62,19 +69,32 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
   const [settings, setSettings] = useState(null);
   const [partCodeAnalysis, setPartCodeAnalysis] = useState({});
+  const [categoryAnalysis, setCategoryAnalysis] = useState({});
   const [convertDialog, setConvertDialog] = useState({ open: false, record: null, type: null });
+  const [vehicleFaultSyncDone, setVehicleFaultSyncDone] = useState(false);
+  const [processInspectionSyncDone, setProcessInspectionSyncDone] = useState(false);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('nonconformity_records')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      toast({ variant: 'destructive', title: 'Hata', description: error.message });
-    } else {
-      setRecords(data || []);
+    try {
+      const pageSize = 1000;
+      const allRows = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('nonconformity_records')
+          .select('*')
+          .order('record_number', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const rows = data || [];
+        allRows.push(...rows);
+        if (rows.length < pageSize) break;
+        from += pageSize;
+      }
+      setRecords(allRows);
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Hata', description: err.message });
     }
     setLoading(false);
   }, [toast]);
@@ -94,51 +114,173 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     fetchSettings();
   }, [fetchRecords, fetchSettings]);
 
-  // Parça kodu bazlı tekrar analizi
   useEffect(() => {
-    if (!records.length || !settings) return;
+    if (vehicleFaultSyncDone || authLoading || !user) return;
 
-    const periodDays = settings.threshold_period_days || 30;
+    let isCancelled = false;
+
+    const syncVehicleFaultRecords = async () => {
+      try {
+        const stats = await backfillVehicleFaultNonconformities({
+          supabase,
+          reporterName: profile?.full_name || user?.email || null,
+          userId: user?.id || null,
+        });
+
+        if (isCancelled) return;
+
+        setVehicleFaultSyncDone(true);
+
+        if (stats.created || stats.updated || stats.deletedDuplicates) {
+          await fetchRecords();
+
+          toast({
+            title: 'Araç Hataları Senkronize Edildi',
+            description: [
+              stats.created > 0 ? `${stats.created} yeni kayıt açıldı` : null,
+              stats.deletedDuplicates > 0 ? `${stats.deletedDuplicates} kayıt birleştirildi` : null,
+              stats.updated > 0 ? `${stats.updated} kayıt güncellendi` : null,
+            ].filter(Boolean).join(', ')
+          });
+        }
+      } catch (error) {
+        if (isCancelled) return;
+
+        console.error('Araç hataları uygunsuzluk senkronizasyonu başarısız:', error);
+        setVehicleFaultSyncDone(true);
+        toast({
+          variant: 'destructive',
+          title: 'Senkronizasyon Hatası',
+          description: `Araç hataları uygunsuzluk kayıtlarına aktarılırken hata oluştu: ${error.message}`
+        });
+      }
+    };
+
+    void syncVehicleFaultRecords();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [authLoading, fetchRecords, profile?.full_name, toast, user, user?.email, user?.id, vehicleFaultSyncDone]);
+
+  useEffect(() => {
+    if (processInspectionSyncDone || authLoading || !user) return;
+
+    let isCancelled = false;
+
+    const syncProcessInspectionRecords = async () => {
+      try {
+        const stats = await backfillProcessInspectionNonconformities({
+          supabase,
+          userId: user?.id || null,
+        });
+
+        if (isCancelled) return;
+
+        setProcessInspectionSyncDone(true);
+
+        if (stats.created || stats.updated || stats.deletedDuplicates) {
+          await fetchRecords();
+
+          toast({
+            title: 'Proses Muayene Uygunsuzlukları Senkronize Edildi',
+            description: [
+              stats.created > 0 ? `${stats.created} yeni kayıt açıldı` : null,
+              stats.deletedDuplicates > 0 ? `${stats.deletedDuplicates} kayıt birleştirildi` : null,
+              stats.updated > 0 ? `${stats.updated} kayıt güncellendi` : null,
+            ].filter(Boolean).join(', ')
+          });
+        }
+      } catch (error) {
+        if (isCancelled) return;
+
+        console.error('Proses muayene uygunsuzluk senkronizasyonu başarısız:', error);
+        setProcessInspectionSyncDone(true);
+        toast({
+          variant: 'destructive',
+          title: 'Senkronizasyon Hatası',
+          description: `Proses muayene uygunsuzluk kayıtları aktarılırken hata oluştu: ${error.message}`
+        });
+      }
+    };
+
+    void syncProcessInspectionRecords();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [authLoading, fetchRecords, processInspectionSyncDone, toast, user, user?.id]);
+
+  // Parça kodu ve kategori bazlı tekrar analizi — settings yüklenmeden de çalışır
+  useEffect(() => {
+    if (!records.length) return;
+
+    const periodDays = settings?.threshold_period_days || 30;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - periodDays);
 
-    const analysis = {};
+    const partAnalysis = {};
+    const catAnalysis = {};
     const activeRecords = records.filter(r => r.status !== 'Kapatıldı');
 
     activeRecords.forEach(record => {
-      if (!record.part_code) return;
-      if (!analysis[record.part_code]) {
-        analysis[record.part_code] = { total: 0, inPeriod: 0, records: [] };
+      const inPeriod = new Date(record.detection_date) >= cutoffDate;
+
+      // Parça kodu analizi
+      if (record.part_code) {
+        if (!partAnalysis[record.part_code]) {
+          partAnalysis[record.part_code] = { total: 0, inPeriod: 0, records: [] };
+        }
+        partAnalysis[record.part_code].total += 1;
+        if (inPeriod) partAnalysis[record.part_code].inPeriod += 1;
+        partAnalysis[record.part_code].records.push(record);
       }
-      analysis[record.part_code].total += 1;
-      if (new Date(record.detection_date) >= cutoffDate) {
-        analysis[record.part_code].inPeriod += 1;
+
+      // Kategori analizi
+      if (record.category) {
+        if (!catAnalysis[record.category]) {
+          catAnalysis[record.category] = { total: 0, inPeriod: 0, records: [] };
+        }
+        catAnalysis[record.category].total += 1;
+        if (inPeriod) catAnalysis[record.category].inPeriod += 1;
+        catAnalysis[record.category].records.push(record);
       }
-      analysis[record.part_code].records.push(record);
     });
 
-    setPartCodeAnalysis(analysis);
+    setPartCodeAnalysis(partAnalysis);
+    setCategoryAnalysis(catAnalysis);
   }, [records, settings]);
 
   const getRecordSuggestion = useCallback((record) => {
-    if (!settings?.auto_suggest) return null;
+    // Durum kilitliyse öneri gösterme
     if (['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(record.status)) return null;
 
-    // Adet bazlı kontrol: tek seferde yüksek adet
-    const dfQtyThreshold = settings.df_quantity_threshold || 10;
-    const eightDQtyThreshold = settings.eight_d_quantity_threshold || 20;
+    // Eşik değerleri — settings yüklenmemişse varsayılanlar kullanılır
+    const dfQtyThreshold = settings?.df_quantity_threshold ?? 10;
+    const eightDQtyThreshold = settings?.eight_d_quantity_threshold ?? 20;
+    const dfThreshold = settings?.df_threshold ?? 3;
+    const eightDThreshold = settings?.eight_d_threshold ?? 5;
+
+    // 1) Adet bazlı kontrol: tek seferde yüksek adet
     if (record.quantity) {
       if (record.quantity >= eightDQtyThreshold) return '8D';
       if (record.quantity >= dfQtyThreshold) return 'DF';
     }
 
-    // Tekrar bazlı kontrol
-    if (!record.part_code || !partCodeAnalysis[record.part_code]) return null;
-    const count = partCodeAnalysis[record.part_code].inPeriod;
-    if (count >= (settings.eight_d_threshold || 5)) return '8D';
-    if (count >= (settings.df_threshold || 3)) return 'DF';
+    // 2) Parça kodu bazlı tekrar kontrolü
+    const partCount = record.part_code ? (partCodeAnalysis[record.part_code]?.inPeriod || 0) : 0;
+
+    // 3) Kategori bazlı tekrar kontrolü
+    const catCount = record.category ? (categoryAnalysis[record.category]?.inPeriod || 0) : 0;
+
+    // En yüksek tekrar sayısını kullan (parça kodu veya kategori hangisi daha kritikse)
+    const maxCount = Math.max(partCount, catCount);
+    if (maxCount === 0) return null;
+
+    if (maxCount >= eightDThreshold) return '8D';
+    if (maxCount >= dfThreshold) return 'DF';
     return null;
-  }, [settings, partCodeAnalysis]);
+  }, [settings, partCodeAnalysis, categoryAnalysis]);
 
   const filteredRecords = useMemo(() => {
     let filtered = [...records];
@@ -161,6 +303,10 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     filtered.sort((a, b) => {
       let aVal, bVal;
       switch (sortConfig.key) {
+        case 'record_number':
+          aVal = parseNonconformityRecordNumber(a.record_number);
+          bVal = parseNonconformityRecordNumber(b.record_number);
+          break;
         case 'detection_date':
           aVal = new Date(a.detection_date || 0); bVal = new Date(b.detection_date || 0); break;
         case 'part_code':
@@ -428,9 +574,9 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const closed = records.filter(r => r.status === 'Kapatıldı').length;
     const critical = records.filter(r => r.severity === 'Kritik' && r.status !== 'Kapatıldı').length;
 
-    // En çok tekrarlayan parça kodları
+    // En çok tekrarlayan parça kodları (Üretilen araçlar modülünden gelen seri/şasi numaralarını hariç tut)
     const partCounts = {};
-    records.filter(r => r.part_code && r.status !== 'Kapatıldı').forEach(r => {
+    records.filter(r => r.part_code && r.status !== 'Kapatıldı' && r.detection_area !== 'Üretilen Araçlar').forEach(r => {
       partCounts[r.part_code] = (partCounts[r.part_code] || 0) + 1;
     });
     const topParts = Object.entries(partCounts)
@@ -458,7 +604,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     // En çok tespit eden personeller (raporladıkları uygunsuzluk sayısına göre)
     const detectedByCounts = {};
-    records.filter(r => r.detected_by).forEach(r => {
+    const excludedDetectors = ['Üretilen Araçlar', 'Atakan Battal', 'atakan.battal@kademe.com.tr'];
+    records.filter(r => r.detected_by && !excludedDetectors.includes(r.detected_by)).forEach(r => {
       detectedByCounts[r.detected_by] = (detectedByCounts[r.detected_by] || 0) + 1;
     });
     const topDetectedByPersonnel = Object.entries(detectedByCounts)
@@ -572,8 +719,11 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 <tbody>
                   {filteredRecords.map((record, idx) => {
                     const suggestion = getRecordSuggestion(record);
-                    const repeatCount = record.part_code ? partCodeAnalysis[record.part_code]?.inPeriod || 0 : 0;
-                    const isQuantityBased = suggestion && settings && record.quantity >= (settings.df_quantity_threshold || 10) && !(record.part_code && partCodeAnalysis[record.part_code]?.inPeriod >= (settings.df_threshold || 3));
+                    const partCount = record.part_code ? partCodeAnalysis[record.part_code]?.inPeriod || 0 : 0;
+                    const catCount = record.category ? categoryAnalysis[record.category]?.inPeriod || 0 : 0;
+                    const repeatCount = Math.max(partCount, catCount);
+                    const repeatSource = (partCount >= catCount && partCount > 0) ? 'parça' : (catCount > 0 ? 'kategori' : '');
+                    const isQuantityBased = suggestion && settings && record.quantity >= (settings.df_quantity_threshold || 10) && repeatCount < (settings.df_threshold || 3);
 
                     return (
                       <motion.tr
@@ -615,7 +765,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                          {suggestion && !['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(record.status) && (
+                          {suggestion && settings?.auto_suggest && !['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(record.status) && (
                             <div className="flex flex-col items-start gap-1">
                               <Button
                                 size="sm"
@@ -631,7 +781,9 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                 {suggestion} Aç
                               </Button>
                               <span className="text-[9px] text-muted-foreground">
-                                {isQuantityBased ? `${record.quantity} adet` : `${repeatCount}x tekrar`}
+                                {isQuantityBased
+                                  ? `${record.quantity} adet`
+                                  : `${repeatCount}x tekrar${repeatSource ? ` (${repeatSource})` : ''}`}
                               </span>
                             </div>
                           )}

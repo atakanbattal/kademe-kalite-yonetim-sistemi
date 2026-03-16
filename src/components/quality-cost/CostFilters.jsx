@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon } from 'lucide-react';
@@ -62,23 +62,47 @@ const CostFilters = ({ dateRange, setDateRange }) => {
     };
 
     const handleMonthYearChange = (type, value) => {
-        const currentYear = dateRange.startDate ? new Date(dateRange.startDate).getFullYear().toString() : new Date().getFullYear().toString();
-        const currentMonth = dateRange.startDate ? new Date(dateRange.startDate).getMonth().toString() : new Date().getMonth().toString();
+        let currentYear = new Date().getFullYear().toString();
+        let currentMonth = new Date().getMonth().toString();
+
+        if (dateRange && dateRange.startDate) {
+            const d = new Date(dateRange.startDate);
+            if (!isNaN(d.getTime())) {
+                currentYear = d.getFullYear().toString();
+                currentMonth = d.getMonth().toString();
+            }
+        }
 
         const year = type === 'year' ? value : currentYear;
         const month = type === 'month' ? value : currentMonth;
 
-        const startDate = new Date(parseInt(year), parseInt(month), 1);
-        const endDate = new Date(parseInt(year), parseInt(month) + 1, 0);
+        // Use parsing that prevents timezone drift by using local set boundaries if possible, but YYYY-MM-DD from ISO requires careful offset handling or just manual formatting
+        const pad = (n) => n.toString().padStart(2, '0');
+        const startDateStr = `${year}-${pad(parseInt(month) + 1)}-01`;
+        
+        // Calculate last day of the month manually to avoid tz issues
+        const lastDay = new Date(parseInt(year), parseInt(month) + 1, 0).getDate();
+        const endDateStr = `${year}-${pad(parseInt(month) + 1)}-${pad(lastDay)}`;
 
         setDateRange({
             key: 'custom',
             label: `${months.find(m => m.value === month)?.label || ''} ${year}`,
-            startDate: startDate.toISOString().slice(0, 10),
-            endDate: endDate.toISOString().slice(0, 10),
+            startDate: startDateStr,
+            endDate: endDateStr,
         });
-        setIsOpen(false);
+        // We do not close the popover so the user can select both without annoyance
     };
+
+    // Calculate currently selected month/year for the Select boxes
+    let selectedYear = "";
+    let selectedMonth = "";
+    if (dateRange && dateRange.startDate) {
+        const d = new Date(dateRange.startDate);
+        if (!isNaN(d.getTime())) {
+            selectedYear = d.getFullYear().toString();
+            selectedMonth = d.getMonth().toString();
+        }
+    }
 
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -96,17 +120,17 @@ const CostFilters = ({ dateRange, setDateRange }) => {
                 <div className="p-4">
                     <h4 className="font-medium text-sm mb-2">Hızlı Seçim</h4>
                     <div className="grid grid-cols-2 gap-2">
-                        <Button variant="ghost" onClick={() => handlePresetChange('all')}>Tüm Zamanlar</Button>
-                        <Button variant="ghost" onClick={() => handlePresetChange('this_month')}>Bu Ay</Button>
-                        <Button variant="ghost" onClick={() => handlePresetChange('last_month')}>Geçen Ay</Button>
-                        <Button variant="ghost" onClick={() => handlePresetChange('last_3_months')}>Son 3 Ay</Button>
-                        <Button variant="ghost" onClick={() => handlePresetChange('this_year')}>Bu Yıl</Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange('all')}>Tüm Zamanlar</Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange('this_month')}>Bu Ay</Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange('last_month')}>Geçen Ay</Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange('last_3_months')}>Son 3 Ay</Button>
+                        <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange('this_year')}>Bu Yıl</Button>
                     </div>
                 </div>
                 <div className="border-t p-4">
                     <h4 className="font-medium text-sm mb-2">Ay ve Yıl Seçin</h4>
                     <div className="flex gap-2">
-                        <Select onValueChange={(value) => handleMonthYearChange('month', value)}>
+                        <Select value={selectedMonth} onValueChange={(value) => handleMonthYearChange('month', value)}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Ay" />
                             </SelectTrigger>
@@ -116,7 +140,7 @@ const CostFilters = ({ dateRange, setDateRange }) => {
                                 ))}
                             </SelectContent>
                         </Select>
-                        <Select onValueChange={(value) => handleMonthYearChange('year', value)}>
+                        <Select value={selectedYear} onValueChange={(value) => handleMonthYearChange('year', value)}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Yıl" />
                             </SelectTrigger>

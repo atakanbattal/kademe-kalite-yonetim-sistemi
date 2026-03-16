@@ -9,8 +9,9 @@ import React from 'react';
             return <p className="text-muted-foreground text-center py-4">Kalibrasyon geçmişi bulunmuyor.</p>;
         }
 
-        const handleDownload = async (path, equipmentId) => {
+        const handleDownload = async (calibration, equipmentId) => {
             try {
+                const path = calibration.certificate_path;
                 if (!path) {
                     console.error('Download error: Path is empty');
                     return;
@@ -64,11 +65,14 @@ import React from 'react';
                     return;
                 }
                 
+                let extension = normalizedPath.split('.').pop();
+                let specificName = `Sertifika_${calibration.certificate_number || new Date(calibration.calibration_date).toLocaleDateString("tr-TR")}.${extension}`;
+
                 const blob = new Blob([data], { type: 'application/pdf' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = normalizedPath.split('/').pop();
+                a.download = specificName;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -97,7 +101,7 @@ import React from 'react';
                                     <Button variant="outline" size="sm" onClick={() => onOpenPdfViewer(c.certificate_path, c.certificate_path.split('/').pop())}>
                                         <Eye className="h-4 w-4 mr-2" />Görüntüle
                                     </Button>
-                                    <Button variant="outline" size="sm" onClick={() => handleDownload(c.certificate_path, equipmentId)}>
+                                    <Button variant="outline" size="sm" onClick={() => handleDownload(c, equipmentId)}>
                                         <Download className="h-4 w-4 mr-2" />İndir
                                     </Button>
                                 </>

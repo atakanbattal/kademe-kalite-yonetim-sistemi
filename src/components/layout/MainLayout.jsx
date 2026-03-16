@@ -109,6 +109,12 @@ const MainLayout = () => {
         return profile?.permissions || user?.user_metadata?.permissions || {};
     }, [profile, user]);
 
+    const permissionsReady = useMemo(() => {
+        if (!user) return false;
+        if (user.email === 'atakan.battal@kademe.com.tr') return true;
+        return profile !== null || Object.keys(user.user_metadata?.permissions || {}).length > 0;
+    }, [profile, user]);
+
     const PERMITTED_MODULES = useMemo(() => {
         if (user?.email === 'atakan.battal@kademe.com.tr') return ALL_MODULES;
         if (Object.keys(effectivePermissions).length > 0) {
@@ -509,6 +515,10 @@ const MainLayout = () => {
             setSidebarOpen(false);
         }
     };
+
+    if (!permissionsReady) {
+        return <PageLoader />;
+    }
 
     return (
         <>

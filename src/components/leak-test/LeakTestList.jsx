@@ -162,17 +162,17 @@ const LeakTestList = ({
                         value={searchTerm}
                         onChange={(event) => setSearchTerm(event.target.value)}
                         style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
-                        placeholder="Kayıt no, araç tipi, seri no, tank tipi, personel veya not ile ara..."
+                        placeholder="Kayıt no, araç tipi, seri no, sızdırmazlık parçası, personel veya not ile ara..."
                     />
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 lg:w-auto">
                     <Select value={selectedTankType} onValueChange={setSelectedTankType}>
                         <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Tank tipi" />
+                            <SelectValue placeholder="Sızdırmazlık parçası" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">Tüm tank tipleri</SelectItem>
+                            <SelectItem value="all">Tüm sızdırmazlık parçaları</SelectItem>
                             {TANK_TYPE_OPTIONS.map((tankType) => (
                                 <SelectItem key={tankType} value={tankType}>
                                     {tankType}
@@ -220,7 +220,7 @@ const LeakTestList = ({
                                     <th>Tarih / Saat</th>
                                     <th>Araç Tipi</th>
                                     <th>Araç Seri No</th>
-                                    <th>Tank Tipi</th>
+                                    <th>Sızdırmazlık Parçası</th>
                                     <th>Süre</th>
                                     <th>Sonuç</th>
                                     <th>Testi Yapan</th>

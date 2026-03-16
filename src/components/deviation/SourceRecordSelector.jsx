@@ -51,7 +51,7 @@ const SOURCE_TYPES = [
     {
         id: 'leak_test',
         label: 'Sızdırmazlık',
-        searchPlaceholder: 'Kayıt no, araç tipi, seri no, tank tipi veya personel ile ara...',
+        searchPlaceholder: 'Kayıt no, araç tipi, seri no, sızdırmazlık parçası veya personel ile ara...',
         emptyText: 'Sapmaya aday kaçaklı sızdırmazlık kaydı bulunamadı.',
         icon: Droplets,
     },
@@ -409,7 +409,7 @@ const getRecordMetaFields = (record, sourceType) => {
             return [
                 { label: 'Araç Tipi', value: record.vehicle_type_label || '-' },
                 { label: 'Seri No', value: record.vehicle_serial_number || '-' },
-                { label: 'Tank Tipi', value: record.tank_type || '-' },
+                { label: 'Sızdırmazlık Parçası', value: record.tank_type || '-' },
                 { label: 'Kaçak', value: `${record.leak_count || 0} adet` },
             ];
         case 'dynamic_balance':

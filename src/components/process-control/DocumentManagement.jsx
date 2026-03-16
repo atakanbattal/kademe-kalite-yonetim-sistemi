@@ -179,10 +179,16 @@ const DocumentManagement = ({ equipment, documents, loading, refreshDocuments, r
             
             if (error) throw error;
             
+            let extension = doc.file_name?.split('.').pop() || 'pdf';
+            let downloadName = doc.document_name;
+            if (downloadName && !downloadName.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
+                downloadName = `${downloadName}.${extension}`;
+            }
+
             const url = window.URL.createObjectURL(data);
             const a = document.createElement('a');
             a.href = url;
-            a.download = doc.file_name;
+            a.download = downloadName || doc.file_name;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);

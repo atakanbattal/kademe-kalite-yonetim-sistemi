@@ -151,10 +151,16 @@ const BenchmarkDetail = ({
 
             if (error) throw error;
 
+            let extension = doc.file_name?.split('.').pop() || 'pdf';
+            let downloadName = doc.document_title || doc.file_name;
+            if (downloadName && !downloadName.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
+                downloadName = `${downloadName}.${extension}`;
+            }
+
             const url = URL.createObjectURL(data);
             const a = document.createElement('a');
             a.href = url;
-            a.download = doc.file_name;
+            a.download = downloadName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);

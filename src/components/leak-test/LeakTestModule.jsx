@@ -128,7 +128,7 @@ const LeakTestModule = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-foreground">Sızdırmazlık Kontrol</h1>
                         <p className="mt-1 text-muted-foreground">
-                            Araç tipi, tank tipi ve kaynak sorumluluğu bazında sızdırmazlık testlerini akıllı şekilde arşivleyin.
+                            Araç tipi, sızdırmazlık parçası ve kaynak sorumluluğu bazında sızdırmazlık testlerini akıllı şekilde arşivleyin.
                         </p>
                     </div>
 

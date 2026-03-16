@@ -3,74 +3,25 @@ import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { motion } from 'framer-motion';
 import ProcessControlDashboard from './ProcessControlDashboard';
-import EquipmentManagement from './EquipmentManagement';
-import DocumentManagement from './DocumentManagement';
 import ControlPlanManagement from './ControlPlanManagement';
-import NotesManagement from './NotesManagement';
+import ProcessInkrManagement from './ProcessInkrManagement';
+import ProcessInspectionManagement from './ProcessInspectionManagement';
+
+const PROCESS_CONTROL_TABS = [
+    { value: 'dashboard', label: 'Ana Ekran' },
+    { value: 'inspections', label: 'Muayene Kayıtları' },
+    { value: 'plans', label: 'Kontrol Planları' },
+    { value: 'inkr', label: 'İlk Numune (INKR)' },
+];
 
 const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { toast } = useToast();
-    const [equipment, setEquipment] = useState([]);
-    const [documents, setDocuments] = useState([]);
     const [plans, setPlans] = useState([]);
-    const [notes, setNotes] = useState([]);
+    const [inkrReports, setInkrReports] = useState([]);
+    const [inspections, setInspections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
-
-    const fetchEquipment = useCallback(async () => {
-        try {
-            const { data, error } = await supabase
-                .from('process_control_equipment')
-                .select('*')
-                .order('created_at', { ascending: false });
-            
-            if (error) {
-                // Tablo yoksa veya RLS hatası varsa daha açıklayıcı mesaj
-                if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    console.warn('process_control_equipment tablosu henüz oluşturulmamış');
-                    setEquipment([]);
-                    return;
-                }
-                throw error;
-            }
-            setEquipment(data || []);
-        } catch (err) {
-            console.error('Ekipman yükleme hatası:', err);
-            // Sadece kritik hatalarda toast göster
-            if (err.code !== '42P01' && !err.message.includes('does not exist')) {
-                toast({ 
-                    variant: 'destructive', 
-                    title: 'Hata', 
-                    description: 'Ekipmanlar yüklenemedi: ' + (err.message || 'Bilinmeyen hata')
-                });
-            }
-            setEquipment([]);
-        }
-    }, [toast]);
-
-    const fetchDocuments = useCallback(async () => {
-        try {
-            const { data, error } = await supabase
-                .from('process_control_documents')
-                .select('*, process_control_equipment(equipment_code, equipment_name)')
-                .order('created_at', { ascending: false });
-            
-            if (error) {
-                if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    console.warn('process_control_documents tablosu henüz oluşturulmamış');
-                    setDocuments([]);
-                    return;
-                }
-                throw error;
-            }
-            setDocuments(data || []);
-        } catch (err) {
-            console.error('Doküman yükleme hatası:', err);
-            setDocuments([]);
-        }
-    }, []);
 
     const fetchPlans = useCallback(async () => {
         try {
@@ -94,25 +45,49 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
     }, []);
 
-    const fetchNotes = useCallback(async () => {
+    const fetchInkrReports = useCallback(async () => {
         try {
             const { data, error } = await supabase
-                .from('process_control_notes')
-                .select('*, process_control_documents(document_name, document_number)')
-                .order('created_at', { ascending: false });
-            
+                .from('process_inkr_reports')
+                .select('*')
+                .order('updated_at', { ascending: false });
+
             if (error) {
                 if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    console.warn('process_control_notes tablosu henüz oluşturulmamış');
-                    setNotes([]);
+                    console.warn('process_inkr_reports tablosu henüz oluşturulmamış');
+                    setInkrReports([]);
                     return;
                 }
                 throw error;
             }
-            setNotes(data || []);
+
+            setInkrReports(data || []);
         } catch (err) {
-            console.error('Not yükleme hatası:', err);
-            setNotes([]);
+            console.error('INKR yükleme hatası:', err);
+            setInkrReports([]);
+        }
+    }, []);
+
+    const fetchInspections = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from('process_inspections')
+                .select('*')
+                .order('inspection_date', { ascending: false });
+
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.warn('process_inspections tablosu henüz oluşturulmamış');
+                    setInspections([]);
+                    return;
+                }
+                throw error;
+            }
+
+            setInspections(data || []);
+        } catch (err) {
+            console.error('Muayene kayıtları yükleme hatası:', err);
+            setInspections([]);
         }
     }, []);
 
@@ -120,15 +95,14 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
         const loadData = async () => {
             setLoading(true);
             await Promise.all([
-                fetchEquipment(),
-                fetchDocuments(),
                 fetchPlans(),
-                fetchNotes()
+                fetchInkrReports(),
+                fetchInspections(),
             ]);
             setLoading(false);
         };
         loadData();
-    }, [fetchEquipment, fetchDocuments, fetchPlans, fetchNotes]);
+    }, [fetchInkrReports, fetchInspections, fetchPlans]);
 
     return (
         <>
@@ -140,72 +114,44 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                     <div>
                         <h1 className="text-3xl font-bold text-foreground">Proses Kontrol Yönetimi</h1>
                         <p className="text-muted-foreground mt-1">
-                            Üretim araçlarının dokümanları, kontrol planları ve kalite bulgularını yönetin.
+                            Kontrol planları, ilk numune raporları ve proses muayene kayıtlarını yönetin.
                         </p>
                     </div>
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-5">
-                        <TabsTrigger value="dashboard">Ana Ekran</TabsTrigger>
-                        <TabsTrigger value="equipment">Araçlar</TabsTrigger>
-                        <TabsTrigger value="documents">Dokümanlar</TabsTrigger>
-                        <TabsTrigger value="plans">Kontrol Planları</TabsTrigger>
-                        <TabsTrigger value="notes">Notlar</TabsTrigger>
+                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 lg:grid-cols-4">
+                        {PROCESS_CONTROL_TABS.map((tab) => (
+                            <TabsTrigger key={tab.value} value={tab.value} className="w-full min-w-0">
+                                {tab.label}
+                            </TabsTrigger>
+                        ))}
                     </TabsList>
 
                     <TabsContent value="dashboard" className="mt-6">
                         <ProcessControlDashboard 
-                            equipment={equipment}
-                            documents={documents}
                             plans={plans}
-                            notes={notes}
+                            inkrReports={inkrReports}
+                            inspections={inspections}
                             loading={loading}
-                            onOpenNCForm={onOpenNCForm}
-                            refreshNotes={fetchNotes}
                             onTabChange={setActiveTab}
                         />
                     </TabsContent>
 
-                    <TabsContent value="equipment" className="mt-6">
-                        <EquipmentManagement 
-                            equipment={equipment}
-                            loading={loading}
-                            refreshEquipment={fetchEquipment}
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="documents" className="mt-6">
-                        <DocumentManagement 
-                            equipment={equipment}
-                            documents={documents}
-                            loading={loading}
-                            refreshDocuments={fetchDocuments}
-                            refreshEquipment={fetchEquipment}
-                        />
+                    <TabsContent value="inspections" className="mt-6">
+                        <ProcessInspectionManagement />
                     </TabsContent>
 
                     <TabsContent value="plans" className="mt-6">
                         <ControlPlanManagement 
-                            equipment={equipment}
                             plans={plans}
                             loading={loading}
                             refreshPlans={fetchPlans}
-                            refreshEquipment={fetchEquipment}
                         />
                     </TabsContent>
 
-                    <TabsContent value="notes" className="mt-6">
-                        <NotesManagement 
-                            equipment={equipment}
-                            documents={documents}
-                            notes={notes}
-                            loading={loading}
-                            refreshNotes={fetchNotes}
-                            refreshEquipment={fetchEquipment}
-                            refreshDocuments={fetchDocuments}
-                            onOpenNCForm={onOpenNCForm}
-                        />
+                    <TabsContent value="inkr" className="mt-6">
+                        <ProcessInkrManagement />
                     </TabsContent>
                 </Tabs>
             </div>
@@ -214,4 +160,3 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
 };
 
 export default ProcessControlModule;
-

@@ -30,7 +30,6 @@ function App() {
                             <Route path="/print/dashboard-report" element={<AuthProtected><PrintableDashboardReport /></AuthProtected>} />
                             <Route path="/print/a3-quality-board" element={<AuthProtected><A3QualityBoardReport /></AuthProtected>} />
                             <Route path="/print/internal-audit-dashboard" element={<AuthProtected><PrintableInternalAuditDashboard /></AuthProtected>} />
-                            <Route path="/training" element={<AuthProtected><MainLayout /></AuthProtected>} />
                             <Route path="/*" element={
                                 <AuthProtected>
                                     <MainLayout />

@@ -15,6 +15,12 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useData } from '@/contexts/DataContext';
 import FaultCostModal from './FaultCostModal';
 import { Calculator } from 'lucide-react';
+import {
+    cleanupVehicleFaultNonconformity,
+    enrichVehicleFaultRecord,
+    syncVehicleFaultGroupNonconformity,
+    syncVehicleFaultNonconformity
+} from '@/lib/vehicleFaultNonconformitySync';
 
 const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate, onOpenNCForm }) => {
     const { toast } = useToast();
@@ -56,6 +62,51 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
     };
     const canManage = hasSpecialAccess();
 
+    const categoriesById = useMemo(
+        () => Object.fromEntries((categories || []).map(category => [String(category.id), category])),
+        [categories]
+    );
+
+    const departmentsById = useMemo(
+        () => Object.fromEntries((departments || []).map(department => [String(department.id), department])),
+        [departments]
+    );
+
+    const enrichFaultRecord = useCallback((fault) => {
+        return enrichVehicleFaultRecord(fault, { categoriesById, departmentsById });
+    }, [categoriesById, departmentsById]);
+
+    const syncFaultNonconformityRecord = useCallback(async (fault) => {
+        return syncVehicleFaultNonconformity({
+            supabase,
+            fault,
+            vehicle,
+            reporterName: profile?.full_name || user?.email || null,
+            userId: user?.id || null
+        });
+    }, [profile?.full_name, supabase, user?.email, user?.id, vehicle]);
+
+    const syncFaultCategoryGroup = useCallback(async ({ categoryId = null, categoryName = null }) => {
+        return syncVehicleFaultGroupNonconformity({
+            supabase,
+            vehicle,
+            reporterName: profile?.full_name || user?.email || null,
+            userId: user?.id || null,
+            categoryId,
+            categoryName
+        });
+    }, [profile?.full_name, supabase, user?.email, user?.id, vehicle]);
+
+    const cleanupFaultNonconformityRecord = useCallback(async (fault) => {
+        return cleanupVehicleFaultNonconformity({
+            supabase,
+            fault,
+            vehicle,
+            reporterName: profile?.full_name || user?.email || null,
+            userId: user?.id || null
+        });
+    }, [profile?.full_name, supabase, user?.email, user?.id, vehicle]);
+
     const fetchFaults = useCallback(async () => {
         if (!vehicle || !vehicle.id) {
             setFaults([]);
@@ -64,7 +115,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
         try {
             const { data, error } = await supabase
                 .from('quality_inspection_faults')
-                .select('*, department:production_departments(name)')
+                .select('*, department:production_departments(name), category:fault_categories(name)')
                 .eq('inspection_id', vehicle.id)
                 .order('created_at', { ascending: false });
 
@@ -73,10 +124,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 toast({ variant: 'destructive', title: 'Hata', description: 'Hatalar alınamadı: ' + error.message });
                 setFaults([]);
             } else {
-                const enrichedFaults = (data || []).map(f => ({
-                    ...f,
-                    department_name: f.department?.name || 'Bilinmeyen'
-                }));
+                const enrichedFaults = (data || []).map(enrichFaultRecord);
                 setFaults(enrichedFaults);
             }
         } catch (err) {
@@ -84,7 +132,7 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
             toast({ variant: 'destructive', title: 'Hata', description: 'Hatalar yüklenirken bir hata oluştu.' });
             setFaults([]);
         }
-    }, [vehicle, toast]);
+    }, [vehicle, toast, enrichFaultRecord]);
 
     // Araç verilerini tam olarak yükle (timeline events ve faults ile birlikte)
     const fetchFullVehicleData = useCallback(async () => {
@@ -219,15 +267,31 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 quantity: newFault.quantity,
                 fault_date: new Date().toISOString(),
                 is_resolved: false,
+                user_id: user?.id || null // Hatayı giren kullanıcının ID'sini kaydet
             })
-            .select(`*, department:production_departments(name)`)
+            .select(`*, department:production_departments(name), category:fault_categories(name)`)
             .single();
 
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Hata eklenemedi: ' + error.message });
         } else {
-            toast({ title: 'Başarılı', description: 'Hata başarıyla eklendi.' });
-            const newFaultWithDept = { ...data, department_name: data.department?.name || 'Bilinmeyen' };
+            const newFaultWithDept = enrichFaultRecord(data);
+            let syncWarning = null;
+
+            try {
+                await syncFaultNonconformityRecord(newFaultWithDept);
+            } catch (syncError) {
+                console.error('Araç hatasi eklendikten sonra uygunsuzluk kaydi acilamadi:', syncError);
+                syncWarning = syncError;
+            }
+
+            toast({
+                title: syncWarning ? 'Kısmi Başarı' : 'Başarılı',
+                description: syncWarning
+                    ? `Hata kaydedildi ancak otomatik uygunsuzluk kaydı açılamadı: ${syncWarning.message}`
+                    : 'Hata ve bağlı uygunsuzluk kaydı başarıyla oluşturuldu.'
+            });
+
             setFaults(prev => [newFaultWithDept, ...prev]);
             setNewFault({ description: '', department_id: '', category_id: '', quantity: 1 });
             setFilteredCategories([]);
@@ -238,14 +302,30 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
         setLoading(false);
     };
 
-    const handleRemoveFault = async (faultId) => {
+    const handleRemoveFault = async (fault) => {
         setLoading(true);
-        const { error } = await supabase.from('quality_inspection_faults').delete().eq('id', faultId);
+        const { error } = await supabase.from('quality_inspection_faults').delete().eq('id', fault.id);
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Hata silinemedi: ' + error.message });
         } else {
-            toast({ title: 'Başarılı', description: 'Hata başarıyla silindi.' });
-            setFaults(prev => prev.filter(f => f.id !== faultId));
+            let ncCleanupResult = null;
+            let syncWarning = null;
+
+            try {
+                ncCleanupResult = await cleanupFaultNonconformityRecord(fault);
+            } catch (syncError) {
+                console.error('Hata silindikten sonra bagli uygunsuzluk kaydi temizlenemedi:', syncError);
+                syncWarning = syncError;
+            }
+
+            const successDescription = syncWarning
+                ? `Hata silindi ancak bağlı uygunsuzluk kaydı temizlenemedi: ${syncWarning.message}`
+                : ncCleanupResult?.mode === 'preserved'
+                    ? 'Hata silindi. Açılmış DF/8D süreci olduğu için bağlı uygunsuzluk kaydı korundu.'
+                    : 'Hata ve bağlı otomatik uygunsuzluk kaydı başarıyla silindi.';
+
+            toast({ title: syncWarning ? 'Kısmi Başarı' : 'Başarılı', description: successDescription });
+            setFaults(prev => prev.filter(f => f.id !== fault.id));
             if (onUpdate) {
                 await onUpdate();
             }
@@ -261,13 +341,25 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 resolved_at: !currentStatus ? new Date().toISOString() : null
             })
             .eq('id', faultId)
-            .select(`*, department:production_departments(name)`)
+            .select(`*, department:production_departments(name), category:fault_categories(name)`)
             .single();
 
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Hata durumu güncellenemedi: ' + error.message });
         } else {
-            const updatedFault = { ...data, department_name: data.department?.name || 'Bilinmeyen' };
+            const updatedFault = enrichFaultRecord(data);
+
+            try {
+                await syncFaultNonconformityRecord(updatedFault);
+            } catch (syncError) {
+                console.error('Hata durumuyla bagli uygunsuzluk senkronize edilemedi:', syncError);
+                toast({
+                    variant: 'destructive',
+                    title: 'Senkronizasyon Hatası',
+                    description: `Hata durumu güncellendi ancak uygunsuzluk kaydı senkronize edilemedi: ${syncError.message}`
+                });
+            }
+
             setFaults(prev => prev.map(f => f.id === faultId ? updatedFault : f));
             if (onUpdate) {
                 await onUpdate();
@@ -284,13 +376,13 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 arge_approved_by: !currentStatus ? profile.id : null
             })
             .eq('id', faultId)
-            .select(`*, department:production_departments(name)`)
+            .select(`*, department:production_departments(name), category:fault_categories(name)`)
             .single();
 
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Ar-Ge onay durumu güncellenemedi: ' + error.message });
         } else {
-            const updatedFault = { ...data, department_name: data.department?.name || 'Bilinmeyen' };
+            const updatedFault = enrichFaultRecord(data);
             setFaults(prev => prev.map(f => f.id === faultId ? updatedFault : f));
             toast({
                 title: 'Başarılı',
@@ -330,14 +422,42 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                 quantity: editFaultData.quantity,
             })
             .eq('id', editingFault.id)
-            .select(`*, department:production_departments(name)`)
+            .select(`*, department:production_departments(name), category:fault_categories(name)`)
             .single();
 
         if (error) {
             toast({ variant: 'destructive', title: 'Hata', description: 'Hata güncellenemedi: ' + error.message });
         } else {
-            toast({ title: 'Başarılı', description: 'Hata başarıyla güncellendi.' });
-            const updatedFault = { ...data, department_name: data.department?.name || 'Bilinmeyen' };
+            const updatedFault = enrichFaultRecord(data);
+            let syncWarning = null;
+            const previousCategoryId = editingFault.category_id || null;
+            const previousCategoryName = editingFault.category_name || editingFault.category?.name || null;
+
+            try {
+                await syncFaultNonconformityRecord(updatedFault);
+
+                const categoryChanged =
+                    String(previousCategoryId || '') !== String(updatedFault.category_id || '') ||
+                    (previousCategoryName || '') !== (updatedFault.category_name || '');
+
+                if (categoryChanged && (previousCategoryId || previousCategoryName)) {
+                    await syncFaultCategoryGroup({
+                        categoryId: previousCategoryId,
+                        categoryName: previousCategoryName
+                    });
+                }
+            } catch (syncError) {
+                console.error('Guncellenen hata ile bagli uygunsuzluk kaydi senkronize edilemedi:', syncError);
+                syncWarning = syncError;
+            }
+
+            toast({
+                title: syncWarning ? 'Kısmi Başarı' : 'Başarılı',
+                description: syncWarning
+                    ? `Hata güncellendi ancak bağlı uygunsuzluk kaydı senkronize edilemedi: ${syncWarning.message}`
+                    : 'Hata ve bağlı uygunsuzluk kaydı başarıyla güncellendi.'
+            });
+
             setFaults(prev => prev.map(f => f.id === editingFault.id ? updatedFault : f));
             setEditingFault(null);
             setEditFaultData({ description: '', department_id: '', category_id: '', quantity: 1 });
@@ -395,6 +515,11 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2">
                                                         <p className="font-medium">{fault.description}</p>
+                                                        {fault.category_name && (
+                                                            <Badge variant="outline" className="bg-white/80">
+                                                                {fault.category_name}
+                                                            </Badge>
+                                                        )}
                                                         {fault.arge_approved && (
                                                             <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-300">
                                                                 <FlaskConical className="h-3 w-3 mr-1" />
@@ -446,19 +571,19 @@ const VehicleFaultsModal = ({ isOpen, setIsOpen, vehicle, departments, onUpdate,
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </Button>
                                                             </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>Bu işlem geri alınamaz. Hata kaydı kalıcı olarak silinecektir.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>İptal</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleRemoveFault(fault.id)}>Sil</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    )}
-                                                </div>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>Bu işlem geri alınamaz. Hata kaydı kalıcı olarak silinecektir.</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>İptal</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleRemoveFault(fault)}>Sil</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            )}
+                                                        </div>
                                             </div>
                                         ))}
                                     </div>

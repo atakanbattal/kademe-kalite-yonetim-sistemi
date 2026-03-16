@@ -291,7 +291,7 @@ const LeakTestFormModal = ({
         }
 
         if (!formData.tank_type) {
-            toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Lütfen tank tipini seçin.' });
+            toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Lütfen sızdırmazlık parçasını seçin.' });
             return false;
         }
 
@@ -416,7 +416,7 @@ const LeakTestFormModal = ({
                     <Badge variant={previewResultVariant}>{formData.test_result || '-'}</Badge>
                 </div>
                 <p className="mt-3 text-sm text-slate-700">{previewVehicleLabel || '-'}</p>
-                <p className="mt-1 text-xs text-slate-500">{formData.tank_type || 'Tank tipi seçilmedi'}</p>
+                <p className="mt-1 text-xs text-slate-500">{formData.tank_type || 'Sızdırmazlık parçası seçilmedi'}</p>
             </div>
 
             <div className="rounded-xl border bg-background p-4 space-y-3">
@@ -574,14 +574,14 @@ const LeakTestFormModal = ({
                             )}
                         </div>
 
-                        <ModalField label="Tank Tipi" required>
+                        <ModalField label="Sızdırmazlık Parçası" required>
                             <Select
                                 value={formData.tank_type}
                                 onValueChange={(value) => handleInputChange('tank_type', value)}
                                 disabled={isViewMode}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Tank tipi seçin" />
+                                    <SelectValue placeholder="Sızdırmazlık parçası seçin" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {TANK_TYPE_OPTIONS.map((option) => (

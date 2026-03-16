@@ -128,9 +128,9 @@ const LeakTestDashboard = ({ records = [], loading }) => {
                 <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                     <Card className="h-full">
                         <CardHeader>
-                            <CardTitle>Tank Tipi Yoğunluğu</CardTitle>
+                            <CardTitle>Sızdırmazlık Parçası Yoğunluğu</CardTitle>
                             <CardDescription>
-                                Test yükünün hangi tank tiplerinde biriktiğini hızlıca görün.
+                                Test yükünün hangi sızdırmazlık parçalarında biriktiğini hızlıca görün.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">

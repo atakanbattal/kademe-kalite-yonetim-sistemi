@@ -188,6 +188,7 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
   const fetchNextRecordNumber = useCallback(async () => {
     const yearPrefix = new Date().getFullYear().toString().slice(-2);
     const prefix = `UYG-${yearPrefix}-`;
+    // Sadece önizleme amaçlı – gerçek kayıt numarası kayıt sırasında atomik RPC ile atanır
     const { data: maxRec } = await supabase
       .from('nonconformity_records')
       .select('record_number')
@@ -202,7 +203,7 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
       const lastNum = parseInt(parts[parts.length - 1], 10);
       if (!isNaN(lastNum)) nextNum = lastNum + 1;
     }
-    setPreviewRecordNumber(`${prefix}${String(nextNum).padStart(4, '0')}`);
+    setPreviewRecordNumber(`${prefix}${String(nextNum).padStart(4, '0')} (tahmini)`);
   }, []);
 
   const vehicleTypes = useMemo(() => {
@@ -360,21 +361,12 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
       } else {
         const yearPrefix = new Date().getFullYear().toString().slice(-2);
         const prefix = `UYG-${yearPrefix}-`;
-        const { data: maxRec } = await supabase
-          .from('nonconformity_records')
-          .select('record_number')
-          .like('record_number', `${prefix}%`)
-          .order('record_number', { ascending: false })
-          .limit(1)
-          .single();
-
-        let nextNum = 1;
-        if (maxRec?.record_number) {
-          const parts = maxRec.record_number.split('-');
-          const lastNum = parseInt(parts[parts.length - 1], 10);
-          if (!isNaN(lastNum)) nextNum = lastNum + 1;
-        }
-        dbData.record_number = `${prefix}${String(nextNum).padStart(4, '0')}`;
+        // Atomik RPC kullanarak benzersiz kayıt numarası al (race condition yok)
+        const { data: rpcNum, error: rpcError } = await supabase.rpc('next_nc_record_number', {
+          p_year_prefix: prefix
+        });
+        if (rpcError) throw rpcError;
+        dbData.record_number = rpcNum;
         dbData.created_by = user?.id || null;
 
         const { data, error } = await supabase

@@ -291,7 +291,7 @@ export const buildSourceRecordDescription = (record, sourceDetails = {}) => {
         if (details.vehicle_serial_number) {
             detailedDescription += `Araç Seri Numarası: ${details.vehicle_serial_number}\n`;
         }
-        detailedDescription += `Tank Tipi: ${details.tank_type || '-'}\n`;
+        detailedDescription += `Sızdırmazlık Parçası: ${details.tank_type || '-'}\n`;
         detailedDescription += `Test Başlangıcı: ${formatDateTimeValue(details.test_date, details.test_start_time)}\n`;
         detailedDescription += `Test Süresi: ${details.test_duration_minutes || 0} dk\n`;
         detailedDescription += `Test Sonucu: ${details.test_result || '-'}\n`;
