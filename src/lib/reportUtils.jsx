@@ -1424,6 +1424,7 @@ const generateListReportHtml = (record, type) => {
 
 		summaryHtml = `
 			<p><strong>Toplam Kayıt Sayısı:</strong> ${record.totalRecords || 0}</p>
+			${record.departmentSelectionLabel ? `<p><strong>Seçilen Birimler:</strong> ${record.departmentSelectionLabel}</p>` : ''}
 			${statusSummary ? `<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>` : ''}
 			${typeSummary ? `<p><strong>Tip Dağılımı:</strong> ${typeSummary}</p>` : ''}
 		`;
@@ -1907,6 +1908,7 @@ const generateListReportHtml = (record, type) => {
 
 		summaryHtml = `
 			<p><strong>Toplam Kayıt Sayısı:</strong> ${totalCount}</p>
+			${record.departmentSelectionLabel ? `<p><strong>Seçilen Birimler:</strong> ${record.departmentSelectionLabel}</p>` : ''}
 			<p><strong>Durum Dağılımı:</strong> ${statusSummary}</p>
 			<p><strong>Tip Dağılımı:</strong> ${typeSummary}</p>
 		`;

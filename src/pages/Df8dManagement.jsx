@@ -1,24 +1,185 @@
 import React, { useState, useMemo, useCallback } from 'react';
-    import { useData } from '@/contexts/DataContext';
-    import { supabase } from '@/lib/customSupabaseClient';
-    import { useToast } from '@/components/ui/use-toast';
-    import { Helmet } from 'react-helmet-async';
-    import { motion } from 'framer-motion';
-    import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-    import { LayoutDashboard, List, Plus, FileText } from 'lucide-react';
-    import NCDashboard from '@/components/df-8d/NCDashboard';
-    import NCTable from '@/components/df-8d/NCTable';
-    import NCFilters from '@/components/df-8d/NCFilters';
-    import { RejectModal, ForwardNCModal, InProgressModal, UpdateDueDateModal } from '@/components/df-8d/modals/ActionModals';
-    import CloseNCModal from '@/components/df-8d/modals/CloseNCModal';
-    import RecordListModal from '@/components/df-8d/modals/RecordListModal';
-    import { Button } from '@/components/ui/button';
-import { parseISO, isAfter, format, differenceInDays, isValid } from 'date-fns';
+import { useData } from '@/contexts/DataContext';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
+import { Helmet } from 'react-helmet-async';
+import { motion } from 'framer-motion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LayoutDashboard, List, Plus, FileText } from 'lucide-react';
+import NCDashboard from '@/components/df-8d/NCDashboard';
+import NCTable from '@/components/df-8d/NCTable';
+import NCFilters from '@/components/df-8d/NCFilters';
+import NCReportFilterModal from '@/components/df-8d/NCReportFilterModal';
+import { RejectModal, ForwardNCModal, InProgressModal, UpdateDueDateModal } from '@/components/df-8d/modals/ActionModals';
+import CloseNCModal from '@/components/df-8d/modals/CloseNCModal';
+import RecordListModal from '@/components/df-8d/modals/RecordListModal';
+import { Button } from '@/components/ui/button';
+import { parseISO, format, differenceInDays, isValid } from 'date-fns';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
 
-    const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
+const getDepartmentName = (department) => {
+    const value = String(department || '').trim();
+    return value || 'Belirtilmemiş';
+};
+
+const getNormalizedDepartment = (department) => (
+    normalizeTurkishForSearch(getDepartmentName(department).toLowerCase())
+);
+
+const getRecordPrimaryDate = (record) => {
+    const rawDate = record.df_opened_at || record.created_at;
+    if (!rawDate) {
+        return null;
+    }
+
+    const parsedDate = parseISO(rawDate);
+    return isValid(parsedDate) ? parsedDate : null;
+};
+
+const sortRecordsByNewest = (a, b) => {
+    const dateA = getRecordPrimaryDate(a);
+    const dateB = getRecordPrimaryDate(b);
+
+    if (dateA && dateB && dateB - dateA !== 0) {
+        return dateB - dateA;
+    }
+
+    if (dateB && !dateA) {
+        return 1;
+    }
+
+    if (dateA && !dateB) {
+        return -1;
+    }
+
+    const numA = a.nc_number || a.mdi_no || '';
+    const numB = b.nc_number || b.mdi_no || '';
+    const numAValue = parseInt(numA.replace(/\D/g, ''), 10) || 0;
+    const numBValue = parseInt(numB.replace(/\D/g, ''), 10) || 0;
+
+    if (numBValue !== numAValue) {
+        return numBValue - numAValue;
+    }
+
+    return numB.localeCompare(numA, undefined, { numeric: true, sensitivity: 'base' });
+};
+
+const recordMatchesDateFilter = (record, filters) => {
+    if (!filters.dateFrom && !filters.dateTo) {
+        return true;
+    }
+
+    const recordDate = getRecordPrimaryDate(record);
+    if (!recordDate) {
+        return true;
+    }
+
+    if (filters.dateFrom) {
+        const fromDate = parseISO(filters.dateFrom);
+        if (isValid(fromDate) && recordDate < fromDate) {
+            return false;
+        }
+    }
+
+    if (filters.dateTo) {
+        const toDate = parseISO(filters.dateTo);
+        if (isValid(toDate)) {
+            toDate.setHours(23, 59, 59, 999);
+            if (recordDate > toDate) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+};
+
+const getSearchableRecordText = (record) => (
+    [
+        record.nc_number,
+        record.mdi_no,
+        record.title,
+        record.description,
+        record.problem_definition,
+        record.department,
+        record.responsible_person,
+        record.supplier?.name,
+        record.part_code,
+        record.part_name,
+        record.source,
+        record.requesting_person,
+        record.requesting_unit,
+        record.rejection_reason,
+        record.rejection_notes,
+        record.closing_notes,
+        record.notes,
+        record.priority,
+        record.status,
+        record.eight_d_progress ? JSON.stringify(record.eight_d_progress) : null,
+    ]
+        .filter(Boolean)
+        .map((value) => normalizeTurkishForSearch(String(value)))
+        .join(' ')
+);
+
+const filterNonConformityRecords = (records, filters, { ignoreDepartment = false } = {}) => {
+    const normalizedSearchTerm = normalizeTurkishForSearch((filters.searchTerm || '').trim());
+    const searchWords = normalizedSearchTerm.split(/\s+/).filter((word) => word.length > 0);
+
+    return records
+        .filter((record) => {
+            if (searchWords.length > 0) {
+                const searchableText = getSearchableRecordText(record);
+                const matchesSearch = searchWords.every((word) => searchableText.includes(word));
+                if (!matchesSearch) {
+                    return false;
+                }
+            }
+
+            if (filters.status !== 'all') {
+                if (filters.status === 'Gecikmiş') {
+                    if (!isNCOverdue(record)) {
+                        return false;
+                    }
+                } else if (record.status !== filters.status) {
+                    return false;
+                }
+            }
+
+            if (filters.type !== 'all' && record.type !== filters.type) {
+                return false;
+            }
+
+            if (!ignoreDepartment && filters.department && filters.department !== 'all') {
+                if (getNormalizedDepartment(record.department) !== getNormalizedDepartment(filters.department)) {
+                    return false;
+                }
+            }
+
+            if (filters.supplierId !== 'all' && record.supplier_id !== filters.supplierId) {
+                return false;
+            }
+
+            return recordMatchesDateFilter(record, filters);
+        })
+        .sort(sortRecordsByNewest);
+};
+
+const buildDepartmentSelectionLabel = (selectedDepartments, availableDepartmentCount) => {
+    if (!selectedDepartments || selectedDepartments.length === 0) {
+        return 'Birim seçilmedi';
+    }
+
+    if (availableDepartmentCount > 0 && selectedDepartments.length === availableDepartmentCount) {
+        return 'Tüm Birimler';
+    }
+
+    return selectedDepartments.join(', ');
+};
+
+const Df8dManagement = ({ onOpenNCForm, onOpenNCView, onDownloadPDF }) => {
         const { nonConformities, suppliers, refreshData, loading } = useData();
         const { toast } = useToast();
         const [activeTab, setActiveTab] = useState('dashboard');
@@ -33,6 +194,7 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
         });
         
         const [recordListModal, setRecordListModal] = useState({ isOpen: false, title: '', records: [] });
+        const [reportModal, setReportModal] = useState({ isOpen: false, reportType: 'list' });
 
         const [actionModals, setActionModals] = useState({
             reject: { isOpen: false, record: null },
@@ -55,182 +217,12 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
         };
 
         const filteredRecords = useMemo(() => {
-            // Tarih filtresi kontrolü
-            const checkDateFilter = (record) => {
-                if (!filters.dateFrom && !filters.dateTo) return true;
-                
-                const recordDate = record.df_opened_at ? parseISO(record.df_opened_at) : 
-                                   record.created_at ? parseISO(record.created_at) : null;
-                
-                if (!recordDate || !isValid(recordDate)) return true;
-                
-                if (filters.dateFrom) {
-                    const fromDate = parseISO(filters.dateFrom);
-                    if (isValid(fromDate) && recordDate < fromDate) return false;
-                }
-                
-                if (filters.dateTo) {
-                    const toDate = parseISO(filters.dateTo);
-                    // Bitiş tarihinin sonuna kadar dahil etmek için gün sonuna ayarla
-                    toDate.setHours(23, 59, 59, 999);
-                    if (isValid(toDate) && recordDate > toDate) return false;
-                }
-                
-                return true;
-            };
-
-            // Boş arama terimi için tüm kayıtları göster
-            if (!filters.searchTerm || filters.searchTerm.trim() === '') {
-                const filtered = nonConformities.filter(record => {
-                    let matchesStatus = true;
-                    if (filters.status !== 'all') {
-                        if (filters.status === 'Gecikmiş') {
-                            matchesStatus = isNCOverdue(record);
-                        } else {
-                            matchesStatus = record.status === filters.status;
-                        }
-                    }
-
-                const matchesType = filters.type === 'all' || record.type === filters.type;
-                
-                // Departman filtresi: normalize edilmiş karşılaştırma (büyük/küçük harf ve boşluk duyarsız)
-                let matchesDepartment = true;
-                if (filters.department && filters.department !== 'all') {
-                    if (!record.department) {
-                        matchesDepartment = false;
-                    } else {
-                        const normalizedFilterDept = normalizeTurkishForSearch(filters.department.trim().toLowerCase());
-                        const normalizedRecordDept = normalizeTurkishForSearch(String(record.department).trim().toLowerCase());
-                        matchesDepartment = normalizedFilterDept === normalizedRecordDept;
-                    }
-                }
-
-                const matchesSupplier = filters.supplierId === 'all' || record.supplier_id === filters.supplierId;
-                const matchesDate = checkDateFilter(record);
-
-                return matchesStatus && matchesType && matchesDepartment && matchesSupplier && matchesDate;
-                });
-
-                return filtered.sort((a, b) => {
-                    // En son açılan kayıt en üstte - önce tarihe göre sırala (en yeni önce)
-                    const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
-                    const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
-                    
-                    // Tarihleri karşılaştır (en yeni önce)
-                    if (dateB - dateA !== 0) {
-                        return dateB - dateA;
-                    }
-                    
-                    // Tarihler eşitse en son numaraya göre sırala (en yüksek numara en üstte)
-                    const numA = a.nc_number || a.mdi_no || '';
-                    const numB = b.nc_number || b.mdi_no || '';
-                    
-                    // Numaraları sayısal olarak karşılaştır (en yüksek numara önce)
-                    // Önce sayısal kısmı çıkar (örn: "DF-195" -> 195)
-                    const numAValue = parseInt(numA.replace(/\D/g, '')) || 0;
-                    const numBValue = parseInt(numB.replace(/\D/g, '')) || 0;
-                    
-                    if (numBValue !== numAValue) {
-                        return numBValue - numAValue; // En yüksek numara önce
-                    }
-                    
-                    // Sayısal değerler eşitse string karşılaştırma yap
-                    return numB.localeCompare(numA, undefined, { numeric: true, sensitivity: 'base' });
-                });
-            }
-
-            const normalizedSearchTerm = normalizeTurkishForSearch(filters.searchTerm.trim());
-            // Arama terimini kelimelere böl (daha esnek arama için)
-            const searchWords = normalizedSearchTerm.split(/\s+/).filter(word => word.length > 0);
-            
-            const filtered = nonConformities.filter(record => {
-                // Tüm alanları birleştir ve arama yap (Türkçe karakterleri normalize et)
-                const searchableText = [
-                    record.nc_number,
-                    record.mdi_no,
-                    record.title,
-                    record.description,
-                    record.problem_definition,
-                    record.department,
-                    record.responsible_person,
-                    record.supplier?.name,
-                    record.part_code,
-                    record.part_name,
-                    record.source,
-                    record.requesting_person,
-                    record.requesting_unit,
-                    record.rejection_reason,
-                    record.rejection_notes,
-                    record.closing_notes,
-                    record.notes,
-                    record.priority,
-                    record.status,
-                    // JSON alanlarından da arama yap
-                    record.eight_d_progress ? JSON.stringify(record.eight_d_progress) : null,
-                ]
-                .filter(Boolean)
-                .map(val => normalizeTurkishForSearch(String(val)))
-                .join(' ');
-
-                // Tüm kelimelerin eşleşmesi gerekiyor (AND mantığı)
-                const matchesSearch = searchWords.every(word => searchableText.includes(word));
-
-                let matchesStatus = true;
-                if (filters.status !== 'all') {
-                    if (filters.status === 'Gecikmiş') {
-                        matchesStatus = isNCOverdue(record);
-                    } else {
-                        matchesStatus = record.status === filters.status;
-                    }
-                }
-
-                const matchesType = filters.type === 'all' || record.type === filters.type;
-                
-                // Departman filtresi: normalize edilmiş karşılaştırma (büyük/küçük harf ve boşluk duyarsız)
-                let matchesDepartment = true;
-                if (filters.department && filters.department !== 'all') {
-                    if (!record.department) {
-                        matchesDepartment = false;
-                    } else {
-                        const normalizedFilterDept = normalizeTurkishForSearch(filters.department.trim().toLowerCase());
-                        const normalizedRecordDept = normalizeTurkishForSearch(String(record.department).trim().toLowerCase());
-                        matchesDepartment = normalizedFilterDept === normalizedRecordDept;
-                    }
-                }
-
-                const matchesSupplier = filters.supplierId === 'all' || record.supplier_id === filters.supplierId;
-                const matchesDate = checkDateFilter(record);
-
-                return matchesSearch && matchesStatus && matchesType && matchesDepartment && matchesSupplier && matchesDate;
-            });
-
-            return filtered.sort((a, b) => {
-                // En son açılan kayıt en üstte - önce tarihe göre sırala (en yeni önce)
-                const dateA = a.df_opened_at ? parseISO(a.df_opened_at) : parseISO(a.created_at);
-                const dateB = b.df_opened_at ? parseISO(b.df_opened_at) : parseISO(b.created_at);
-                
-                // Tarihleri karşılaştır (en yeni önce)
-                if (dateB - dateA !== 0) {
-                    return dateB - dateA;
-                }
-                
-                // Tarihler eşitse en son numaraya göre sırala (en yüksek numara en üstte)
-                const numA = a.nc_number || a.mdi_no || '';
-                const numB = b.nc_number || b.mdi_no || '';
-                
-                // Numaraları sayısal olarak karşılaştır (en yüksek numara önce)
-                // Önce sayısal kısmı çıkar (örn: "DF-195" -> 195)
-                const numAValue = parseInt(numA.replace(/\D/g, '')) || 0;
-                const numBValue = parseInt(numB.replace(/\D/g, '')) || 0;
-                
-                if (numBValue !== numAValue) {
-                    return numBValue - numAValue; // En yüksek numara önce
-                }
-                
-                // Sayısal değerler eşitse string karşılaştırma yap
-                return numB.localeCompare(numA, undefined, { numeric: true, sensitivity: 'base' });
-            });
+            return filterNonConformityRecords(nonConformities, filters);
         }, [nonConformities, filters]);
+
+        const reportableRecords = useMemo(() => (
+            filterNonConformityRecords(nonConformities, filters, { ignoreDepartment: true })
+        ), [nonConformities, filters]);
 
         const handleToggleStatus = async (record) => {
             if (record.status === 'Kapatıldı' || record.status === 'Reddedildi') {
@@ -276,8 +268,8 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
             onOpenNCView(record);
         };
 
-        const handleGenerateReport = () => {
-            if (filteredRecords.length === 0) {
+        const handleGenerateReport = useCallback((recordsToReport = filteredRecords, reportDepartments = [], availableDepartmentCount = 0) => {
+            if (recordsToReport.length === 0) {
                 toast({
                     variant: 'destructive',
                     title: 'Hata',
@@ -297,7 +289,8 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
 
             const reportData = {
                 id: `nc-list-${Date.now()}`,
-                items: filteredRecords.map(record => ({
+                departmentSelectionLabel: buildDepartmentSelectionLabel(reportDepartments, availableDepartmentCount),
+                items: recordsToReport.map(record => ({
                     nc_number: record.nc_number || record.mdi_no || '-',
                     type: record.type || '-',
                     title: record.title || '-',
@@ -313,10 +306,10 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
             };
 
             openPrintableReport(reportData, 'nonconformity_list', true);
-        };
+        }, [filteredRecords, toast]);
 
-        const handleGenerateExecutiveReport = useCallback(() => {
-            if (filteredRecords.length === 0) {
+        const handleGenerateExecutiveReport = useCallback((recordsToReport = filteredRecords, reportDepartments = [], availableDepartmentCount = 0) => {
+            if (recordsToReport.length === 0) {
                 toast({
                     variant: 'destructive',
                     title: 'Hata',
@@ -341,7 +334,7 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
             const statusCounts = {};
             const typeCounts = {};
 
-            filteredRecords.forEach(rec => {
+            recordsToReport.forEach(rec => {
                 const isClosed = rec.status === 'Kapatıldı';
                 const isRejected = rec.status === 'Reddedildi';
                 const isOpen = !isClosed && !isRejected;
@@ -403,15 +396,16 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
                 DF: data.DF,
                 '8D': data['8D'],
                 MDI: data.MDI,
-                contribution: filteredRecords.length > 0 ? ((data.total / filteredRecords.length) * 100).toFixed(1) : '0'
+                contribution: recordsToReport.length > 0 ? ((data.total / recordsToReport.length) * 100).toFixed(1) : '0'
             })).sort((a, b) => b.total - a.total);
 
-            const overdueRecords = filteredRecords.filter(record => isNCOverdue(record, now)).slice(0, 20);
+            const overdueRecords = recordsToReport.filter(record => isNCOverdue(record, now)).slice(0, 20);
 
             const reportData = {
                 id: `nc-executive-${Date.now()}`,
                 reportType: 'executive_summary',
-                totalRecords: filteredRecords.length,
+                departmentSelectionLabel: buildDepartmentSelectionLabel(reportDepartments, availableDepartmentCount),
+                totalRecords: recordsToReport.length,
                 kpiStats: {
                     open: counts.open,
                     closed: counts.closed,
@@ -434,7 +428,7 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
                     days_overdue: record.due_at ? differenceInDays(now, parseISO(record.due_at)) : 0,
                     status: getNCDisplayStatus(record, now)
                 })),
-                allRecords: filteredRecords.map(record => ({
+                allRecords: recordsToReport.map(record => ({
                     nc_number: record.nc_number || record.mdi_no || '-',
                     type: record.type || '-',
                     title: record.title || '-',
@@ -451,6 +445,45 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
 
             openPrintableReport(reportData, 'nonconformity_executive', true);
         }, [filteredRecords, toast]);
+
+        const handleOpenReportModal = useCallback(() => {
+            if (reportableRecords.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor oluşturmak için en az bir kayıt olmalıdır.',
+                });
+                return;
+            }
+
+            setReportModal({
+                isOpen: true,
+                reportType: activeTab === 'dashboard' ? 'executive' : 'list',
+            });
+        }, [activeTab, reportableRecords.length, toast]);
+
+        const handleGenerateSelectedReport = useCallback(({ selectedDepartments, availableDepartmentCount }) => {
+            const selectedDepartmentSet = new Set(selectedDepartments.map((department) => getDepartmentName(department)));
+            const selectedRecords = reportableRecords.filter((record) => (
+                selectedDepartmentSet.has(getDepartmentName(record.department))
+            ));
+
+            if (selectedRecords.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Seçilen birimlere ait raporlanacak kayıt bulunamadı.',
+                });
+                return;
+            }
+
+            if (reportModal.reportType === 'executive') {
+                handleGenerateExecutiveReport(selectedRecords, selectedDepartments, availableDepartmentCount);
+                return;
+            }
+
+            handleGenerateReport(selectedRecords, selectedDepartments, availableDepartmentCount);
+        }, [handleGenerateExecutiveReport, handleGenerateReport, reportModal.reportType, reportableRecords, toast]);
 
         return (
             <>
@@ -478,7 +511,7 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
                                     </TabsTrigger>
                                 </TabsList>
                                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                                    <Button onClick={activeTab === 'dashboard' ? handleGenerateExecutiveReport : handleGenerateReport} size="sm" variant="outline" className="flex-1 sm:flex-none">
+                                    <Button onClick={handleOpenReportModal} size="sm" variant="outline" className="flex-1 sm:flex-none">
                                         <FileText className="mr-1.5 sm:mr-2 h-4 w-4" />
                                         <span className="hidden xs:inline">Rapor Al</span>
                                         <span className="xs:hidden">Rapor</span>
@@ -518,6 +551,14 @@ import { getNCDisplayStatus, isNCOverdue } from '@/lib/statusUtils';
                     title={recordListModal.title}
                     records={recordListModal.records}
                     onRecordClick={handleRecordClick}
+                />
+
+                <NCReportFilterModal
+                    isOpen={reportModal.isOpen}
+                    setIsOpen={(isOpen) => setReportModal((prev) => ({ ...prev, isOpen }))}
+                    records={reportableRecords}
+                    reportType={reportModal.reportType}
+                    onGenerate={handleGenerateSelectedReport}
                 />
 
                 {actionModals.reject.isOpen && (

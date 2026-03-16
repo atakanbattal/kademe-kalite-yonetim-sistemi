@@ -3,6 +3,10 @@ const SOURCE_TYPE_META = {
         label: 'Girdi Kalite Kontrol',
         deviationType: 'Girdi Kontrolü',
     },
+    process_inspection: {
+        label: 'Proses Kontrol',
+        deviationType: 'Proses Kontrol',
+    },
     quarantine: {
         label: 'Karantina',
         deviationType: 'Girdi Kontrolü',
@@ -76,6 +80,28 @@ const formatDateTimeValue = (dateValue, timeValue) => {
     return [datePart, timeValue].filter(Boolean).join(' ');
 };
 
+const getBooleanResultValue = (result) => {
+    if (typeof result?.result === 'boolean') return result.result;
+    if (typeof result?.is_ok === 'boolean') return result.is_ok;
+
+    const normalized = String(
+        result?.result ?? result?.measurement_value ?? result?.measured_value ?? result?.actual_value ?? ''
+    )
+        .trim()
+        .toUpperCase();
+
+    if (!normalized) return null;
+    if (['OK', 'KABUL', 'UYGUN', 'PASS'].includes(normalized)) return true;
+    if (['NOK', 'RET', 'RED', 'NG', 'FAIL', 'UYGUN DEĞİL', 'UYGUN DEGIL'].includes(normalized)) {
+        return false;
+    }
+
+    return null;
+};
+
+const getMeasuredValue = (result) =>
+    result?.actual_value ?? result?.measured_value ?? result?.measurement_value ?? null;
+
 export const DEVIATION_SOURCE_MODULE_OPTIONS = Object.values(SOURCE_TYPE_META)
     .filter((meta) => meta.label !== 'Manuel')
     .map((meta) => meta.label);
@@ -133,13 +159,7 @@ export const buildSourceRecordDescription = (record, sourceDetails = {}) => {
         if (resultsToUse.length > 0) {
             detailedDescription += `\n`;
 
-            const failedResults = resultsToUse.filter((result) => {
-                if (typeof result.result === 'boolean') {
-                    return !result.result;
-                }
-                const resultStr = (result.result || '').toString().trim().toUpperCase();
-                return resultStr !== 'OK' && resultStr !== '';
-            });
+            const failedResults = resultsToUse.filter((result) => getBooleanResultValue(result) === false);
 
             if (failedResults.length > 0) {
                 detailedDescription += `UYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;
@@ -148,19 +168,7 @@ export const buildSourceRecordDescription = (record, sourceDetails = {}) => {
                     const min = result.min_value ?? null;
                     const max = result.max_value ?? null;
 
-                    let measuredValue = null;
-                    if (result.actual_value !== null && result.actual_value !== undefined) {
-                        const actualValueStr = String(result.actual_value).trim();
-                        if (actualValueStr && actualValueStr !== 'null' && actualValueStr !== 'undefined') {
-                            measuredValue = result.actual_value;
-                        }
-                    }
-                    if (measuredValue === null && result.measured_value !== null && result.measured_value !== undefined) {
-                        const measuredValueStr = String(result.measured_value).trim();
-                        if (measuredValueStr && measuredValueStr !== 'null' && measuredValueStr !== 'undefined') {
-                            measuredValue = result.measured_value;
-                        }
-                    }
+                    const measuredValue = getMeasuredValue(result);
 
                     detailedDescription += `\n${idx + 1}. ${result.characteristic_name || result.feature || 'Özellik'}`;
                     if (result.measurement_number && result.total_measurements) {
@@ -218,8 +226,8 @@ export const buildSourceRecordDescription = (record, sourceDetails = {}) => {
             }
 
             const totalResults = resultsToUse.length;
-            const okCount = resultsToUse.filter((result) => result.result === 'OK' || result.result === 'Kabul').length;
-            const nokCount = totalResults - okCount;
+            const okCount = resultsToUse.filter((result) => getBooleanResultValue(result) === true).length;
+            const nokCount = resultsToUse.filter((result) => getBooleanResultValue(result) === false).length;
 
             detailedDescription += `\n\nÖLÇÜM ÖZETİ:\n`;
             detailedDescription += `Toplam Ölçüm Sayısı: ${totalResults}\n`;
@@ -246,6 +254,66 @@ export const buildSourceRecordDescription = (record, sourceDetails = {}) => {
             detailedDescription += `Notlar: ${details.notes}\n`;
         }
         detailedDescription += `\n\nBu parça için sapma onayı talep edilmektedir.`;
+        return detailedDescription;
+    }
+
+    if (sourceType === 'process_inspection') {
+        detailedDescription = `Proses Muayene Kaydı (${details.record_no || '-'})\n\n`;
+        detailedDescription += `Parça Kodu: ${details.part_code || 'Belirtilmemiş'}\n`;
+        if (details.part_name) {
+            detailedDescription += `Parça Adı: ${details.part_name}\n`;
+        }
+        detailedDescription += `Karar: ${details.decision || '-'}\n`;
+        detailedDescription += `Üretilen Miktar: ${details.quantity_produced || 0} adet\n`;
+        if (details.quantity_rejected) {
+            detailedDescription += `Ret Miktarı: ${details.quantity_rejected} adet\n`;
+        }
+        if (details.quantity_conditional) {
+            detailedDescription += `Şartlı Kabul Miktarı: ${details.quantity_conditional} adet\n`;
+        }
+        if (details.operator_name) {
+            detailedDescription += `Operatör: ${details.operator_name}\n`;
+        }
+        if (details.inspection_date) {
+            detailedDescription += `Muayene Tarihi: ${formatDateValue(details.inspection_date)}\n`;
+        }
+
+        const failedResults = resultsToUse.filter((result) => getBooleanResultValue(result) === false);
+        if (failedResults.length > 0) {
+            detailedDescription += `\nUYGUNSUZ BULUNAN ÖLÇÜMLER:\n`;
+            failedResults.forEach((result, index) => {
+                const characteristicLabel =
+                    result.characteristic_name ||
+                    result.feature ||
+                    result.characteristic_id ||
+                    'Ölçüm';
+                const measuredValue = getMeasuredValue(result);
+
+                detailedDescription += `${index + 1}. ${characteristicLabel}\n`;
+                if (measuredValue !== null && measuredValue !== '') {
+                    detailedDescription += `   Ölçülen Değer: ${measuredValue}\n`;
+                }
+                if (result.measurement_number && result.total_measurements) {
+                    detailedDescription += `   Ölçüm Tekrarı: ${result.measurement_number}/${result.total_measurements}\n`;
+                }
+            });
+        }
+
+        if (defectsToUse.length > 0) {
+            detailedDescription += `\nTESPİT EDİLEN HATALAR:\n`;
+            defectsToUse.forEach((defect, index) => {
+                detailedDescription += `${index + 1}. ${defect.defect_type || defect.defect_description || 'Hata'} (${defect.defect_count || defect.quantity || 1} adet)\n`;
+                if (defect.description) {
+                    detailedDescription += `   Açıklama: ${defect.description}\n`;
+                }
+            });
+        }
+
+        if (details.notes) {
+            detailedDescription += `\nNotlar: ${details.notes}\n`;
+        }
+
+        detailedDescription += `\nBu proses kontrol kaydı için sapma onayı talep edilmektedir.`;
         return detailedDescription;
     }
 

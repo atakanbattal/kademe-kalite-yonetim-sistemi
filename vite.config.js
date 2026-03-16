@@ -4,6 +4,7 @@ import { createLogger, defineConfig } from 'vite';
 import inlineEditPlugin from './plugins/visual-editor/vite-plugin-react-inline-editor.js';
 import editModeDevPlugin from './plugins/visual-editor/vite-plugin-edit-mode.js';
 import iframeRouteRestorationPlugin from './plugins/vite-plugin-iframe-route-restoration.js';
+import createReportPdfPlugin from './plugins/vite-plugin-report-pdf.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -233,7 +234,7 @@ logger.error = (msg, options) => {
 export default defineConfig({
 	customLogger: logger,
 	plugins: [
-		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), iframeRouteRestorationPlugin()] : []),
+		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), iframeRouteRestorationPlugin(), createReportPdfPlugin()] : []),
 		react(),
 		addTransformIndexHtml
 	],

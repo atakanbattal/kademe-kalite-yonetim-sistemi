@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Plus, Search, Edit, Trash2, Eye, FileText, ChevronLeft, ChevronRight, CheckSquare } from 'lucide-react';
+import { MoreHorizontal, Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ProcessInspectionFormModal from './ProcessInspectionFormModal';
@@ -234,9 +234,9 @@ const ProcessInspectionManagement = () => {
                                         <AlertDialog>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                                        <span className="sr-only">Menüyü aç</span>
+                                                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-foreground">
                                                         <MoreHorizontal className="h-4 w-4" />
+                                                        <span>İşlemler</span>
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">

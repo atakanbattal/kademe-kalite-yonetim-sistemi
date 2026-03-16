@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, FileText, CheckCircle2, XCircle, FileImage, Settings, User, Box, Clock } from 'lucide-react';
+import { Download, FileText, CheckCircle2, XCircle, FileImage, User, Box } from 'lucide-react';
 import { format } from 'date-fns';
 import { useData } from '@/contexts/DataContext';
 
@@ -70,21 +70,16 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                         </div>
 
                         {/* Top Info Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                             <div className="p-4 rounded-xl border bg-slate-50/50 shadow-sm">
                                 <span className="text-sm font-semibold text-slate-500 uppercase flex items-center gap-1.5"><Box className="w-4 h-4"/> Parça Bilgisi</span>
                                 <div className="mt-2 font-mono text-lg font-bold text-slate-800">{inspection.part_code}</div>
                                 <div className="text-sm text-slate-600 truncate" title={inspection.part_name}>{inspection.part_name || '-'}</div>
                             </div>
                             <div className="p-4 rounded-xl border bg-slate-50/50 shadow-sm">
-                                <span className="text-sm font-semibold text-slate-500 uppercase flex items-center gap-1.5"><Settings className="w-4 h-4"/> Üretim</span>
-                                <div className="mt-2 text-lg font-bold text-slate-800">{inspection.production_line || '-'}</div>
-                                <div className="text-sm text-slate-600">Hat / Tezgah</div>
-                            </div>
-                            <div className="p-4 rounded-xl border bg-slate-50/50 shadow-sm">
                                 <span className="text-sm font-semibold text-slate-500 uppercase flex items-center gap-1.5"><User className="w-4 h-4"/> Operatör</span>
                                 <div className="mt-2 text-lg font-bold text-slate-800">{inspection.operator_name || '-'}</div>
-                                <div className="text-sm text-slate-600 flex items-center"><Clock className="w-3.5 h-3.5 mr-1"/> Vardiya: {inspection.shift || '-'}</div>
+                                <div className="text-sm text-slate-600">Muayene operatörü</div>
                             </div>
                             <div className="p-4 rounded-xl border bg-slate-50/50 shadow-sm">
                                 <span className="text-sm font-semibold text-slate-500 uppercase flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4"/> Karar</span>

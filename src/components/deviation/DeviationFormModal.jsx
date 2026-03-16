@@ -23,6 +23,44 @@ import SourceRecordSelector from './SourceRecordSelector';
 import { buildSourceRecordDescription, DEVIATION_SOURCE_MODULE_OPTIONS } from './sourceRecordUtils';
 import { useData } from '@/contexts/DataContext';
 
+const DEVIATION_TYPE_OPTIONS = ['Girdi Kontrolü', 'Proses Kontrol', 'Üretim'];
+
+const getDeviationTypePrefix = (type) => {
+    if (type === 'Üretim') return 'U';
+    if (type === 'Proses Kontrol') return 'P';
+    return '';
+};
+
+const buildDeviationRequestNo = (year, sequence, type) => {
+    const prefix = getDeviationTypePrefix(type);
+    const paddedSequence = String(sequence).padStart(3, '0');
+    return prefix ? `${year}-${prefix}${paddedSequence}` : `${year}-${paddedSequence}`;
+};
+
+const matchesDeviationType = (requestNo, deviationType, targetType) => {
+    const prefix = getDeviationTypePrefix(targetType);
+    const normalizedRequestNo = String(requestNo || '');
+
+    if (prefix) {
+        return normalizedRequestNo.includes(`-${prefix}`) || deviationType === targetType;
+    }
+
+    return (
+        /^\d{4}-\d+$/.test(normalizedRequestNo) ||
+        (!normalizedRequestNo.includes('-U') &&
+            !normalizedRequestNo.includes('-P') &&
+            deviationType === targetType)
+    );
+};
+
+const extractDeviationSequence = (requestNo, type) => {
+    const normalizedRequestNo = String(requestNo || '');
+    const prefix = getDeviationTypePrefix(type);
+    const pattern = prefix ? new RegExp(`\\d{4}-${prefix}(\\d+)`) : /^\d{4}-(\d+)$/;
+    const match = normalizedRequestNo.match(pattern);
+    return match ? parseInt(match[1], 10) : null;
+};
+
 const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation }) => {
     const { toast } = useToast();
     const { products, productCategories } = useData();
@@ -38,7 +76,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const [suppliers, setSuppliers] = useState([]);
     const [creationMode, setCreationMode] = useState('manual'); // 'manual' veya 'from_record'
     const [selectedSourceRecord, setSelectedSourceRecord] = useState(null);
-    const [deviationType, setDeviationType] = useState('Girdi Kontrolü'); // 'Girdi Kontrolü' veya 'Üretim'
+    const [deviationType, setDeviationType] = useState('Girdi Kontrolü');
     
     // Araç tiplerini products tablosundan çek
     const vehicleTypeCategory = (productCategories || []).find(cat => cat.category_code === 'VEHICLE_TYPES');
@@ -255,7 +293,6 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         try {
             const currentYear = new Date().getFullYear();
             
-            // Tüm sapma kayıtlarını al (tip filtresi olmadan - mevcut kayıtları da görmek için)
             const { data, error } = await supabase
                 .from('deviations')
                 .select('request_no, deviation_type, created_at')
@@ -267,7 +304,6 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             let foundCurrentYearNumber = false;
             
             if (data && data.length > 0) {
-                // Bu yıl ve bu tip için yeni format numaraları bul
                 const currentYearNumbers = data.filter(d => {
                     if (!d.request_no) return false;
                     const yearMatch = d.request_no.match(/(\d{4})/);
@@ -275,40 +311,17 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     return parseInt(yearMatch[1]) === currentYear;
                 });
 
-                // Yeni format numaralarını kontrol et
                 if (currentYearNumbers.length > 0) {
-                    const sameTypeNumbers = currentYearNumbers.filter(d => {
-                        // Tip kontrolü: numaraya göre tip belirle
-                        const isProduction = d.request_no && d.request_no.includes('-U');
-                        const isInputControl = d.request_no && d.request_no.match(/^\d{4}-\d+$/) && !d.request_no.includes('-U');
-                        
-                        if (type === 'Üretim') {
-                            return isProduction || d.deviation_type === 'Üretim';
-                        } else {
-                            return isInputControl || (d.deviation_type === 'Girdi Kontrolü' && !isProduction);
-                        }
-                    });
+                    const sameTypeNumbers = currentYearNumbers.filter((deviation) =>
+                        matchesDeviationType(deviation.request_no, deviation.deviation_type, type)
+                    );
 
                     if (sameTypeNumbers.length > 0) {
-                        // En yüksek numarayı bul
                         let maxNumber = 0;
-                        sameTypeNumbers.forEach(d => {
-                            if (type === 'Üretim') {
-                                const match = d.request_no.match(/\d{4}-U(\d+)/);
-                                if (match) {
-                                    const num = parseInt(match[1]);
-                                    if (num > maxNumber) {
-                                        maxNumber = num;
-                                    }
-                                }
-                            } else {
-                                const match = d.request_no.match(/\d{4}-(\d+)/);
-                                if (match && !d.request_no.includes('-U')) {
-                                    const num = parseInt(match[1]);
-                                    if (num > maxNumber) {
-                                        maxNumber = num;
-                                    }
-                                }
+                        sameTypeNumbers.forEach((deviation) => {
+                            const sequence = extractDeviationSequence(deviation.request_no, type);
+                            if (sequence && sequence > maxNumber) {
+                                maxNumber = sequence;
                             }
                         });
                         
@@ -319,65 +332,30 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     }
                 }
 
-                // Eğer bu yıl için numara bulunamadıysa, eski format numaralarını kontrol et
                 if (!foundCurrentYearNumber) {
-                    // Eski format: SAP-0001, SAP-0002 gibi
                     const oldFormatNumbers = data.filter(d => {
                         if (!d.request_no) return false;
                         return d.request_no.match(/^SAP-\d+/);
                     });
 
                     if (oldFormatNumbers.length > 0) {
-                        // En yüksek eski numarayı bul
-                        let maxOldNumber = 0;
-                        oldFormatNumbers.forEach(d => {
-                            const match = d.request_no.match(/SAP-(\d+)/);
-                            if (match) {
-                                const num = parseInt(match[1]);
-                                if (num > maxOldNumber) {
-                                    maxOldNumber = num;
-                                }
-                            }
-                        });
-
-                        // Eski numaralardan sonra devam et
-                        // Eğer tip Üretim ise U001'den başla, değilse 001'den başla
-                        // Ancak eski numaraların toplam sayısını da göz önünde bulundur
-                        if (type === 'Üretim') {
-                            // Üretim için ayrı sayaç başlat (eski kayıtlar genelde Girdi Kontrolü olabilir)
-                            newNumber = 1;
-                        } else {
-                            // Girdi Kontrolü için eski numaralardan devam et
-                            // Eski kayıtların bir kısmı Üretim olabilir, bu yüzden dikkatli ol
-                            // En güvenli yol: eski numaraların sayısını al ve devam et
+                        if (type === 'Girdi Kontrolü') {
                             const oldFormatCount = oldFormatNumbers.length;
-                            // Eğer bu yıl için hiç yeni format numarası yoksa, eski numaralardan devam et
-                            if (currentYearNumbers.length === 0) {
-                                newNumber = oldFormatCount + 1;
-                            } else {
-                                // Bu yıl için yeni format numaraları var, onlardan devam et
-                                newNumber = 1;
-                            }
+                            newNumber = currentYearNumbers.length === 0 ? oldFormatCount + 1 : 1;
+                        } else {
+                            newNumber = 1;
                         }
                     }
                 }
             }
 
-            // Yeni talep numarasını oluştur
-            let requestNo;
-            if (type === 'Üretim') {
-                requestNo = `${currentYear}-U${String(newNumber).padStart(3, '0')}`;
-            } else {
-                requestNo = `${currentYear}-${String(newNumber).padStart(3, '0')}`;
-            }
+            const requestNo = buildDeviationRequestNo(currentYear, newNumber, type);
             
             setFormData(prev => ({ ...prev, request_no: requestNo, deviation_type: type }));
         } catch (error) {
             console.error('Talep numarası oluşturulamadı:', error);
             const currentYear = new Date().getFullYear();
-            const fallbackNo = type === 'Üretim' 
-                ? `${currentYear}-U001`
-                : `${currentYear}-001`;
+            const fallbackNo = buildDeviationRequestNo(currentYear, 1, type);
             setFormData(prev => ({ ...prev, request_no: fallbackNo, deviation_type: type }));
         }
     };
@@ -856,8 +834,9 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                         >
                                             <SelectTrigger><SelectValue placeholder="Sapma tipini seçin..." /></SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="Girdi Kontrolü">Girdi Kontrolü</SelectItem>
-                                                <SelectItem value="Üretim">Üretim</SelectItem>
+                                                {DEVIATION_TYPE_OPTIONS.map((option) => (
+                                                    <SelectItem key={option} value={option}>{option}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -880,8 +859,9 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                             >
                                                 <SelectTrigger><SelectValue placeholder="Sapma tipini seçin..." /></SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="Girdi Kontrolü">Girdi Kontrolü</SelectItem>
-                                                    <SelectItem value="Üretim">Üretim</SelectItem>
+                                                    {DEVIATION_TYPE_OPTIONS.map((option) => (
+                                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                                    ))}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -912,8 +892,9 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                 >
                                     <SelectTrigger><SelectValue placeholder="Sapma tipini seçin..." /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Girdi Kontrolü">Girdi Kontrolü</SelectItem>
-                                        <SelectItem value="Üretim">Üretim</SelectItem>
+                                        {DEVIATION_TYPE_OPTIONS.map((option) => (
+                                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

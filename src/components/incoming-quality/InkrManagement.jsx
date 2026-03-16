@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Search, FileText, Eye, UploadCloud, X as XIcon, FileIcon } from 'lucide-react';
+import { Plus, Trash2, Edit, Search, FileText, Eye, UploadCloud, X as XIcon, FileIcon, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useData } from '@/contexts/DataContext';
 import { Combobox } from '@/components/ui/combobox';
 import { useDropzone } from 'react-dropzone';
+import IncomingInkrFolderDownloadModal from './IncomingInkrFolderDownloadModal';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
@@ -969,6 +970,7 @@ const InkrManagement = ({ onViewPdf }) => {
     const [inkrStatusFilter, setInkrStatusFilter] = useState('all');
     const [inkrReports, setInkrReports] = useState([]);
     const [inkrReportsLoading, setInkrReportsLoading] = useState(true);
+    const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
 
     const handleEdit = (report) => {
         setSelectedReport(report);
@@ -1305,6 +1307,11 @@ const InkrManagement = ({ onViewPdf }) => {
                 onDownloadPDF={handleDownloadDetailPDF}
                 onViewPdf={onViewPdf}
             />
+            <IncomingInkrFolderDownloadModal
+                isOpen={isFolderDownloadOpen}
+                setIsOpen={setIsFolderDownloadOpen}
+                reports={inkrReports}
+            />
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <div className="flex flex-col sm:flex-row gap-2 flex-1">
                     <div className="search-box w-full sm:w-auto sm:max-w-sm">
@@ -1328,7 +1335,13 @@ const InkrManagement = ({ onViewPdf }) => {
                         </SelectContent>
                     </Select>
                 </div>
-                <Button onClick={handleNew}><Plus className="w-4 h-4 mr-2" /> Yeni INKR Raporu</Button>
+                <div className="flex w-full sm:w-auto gap-2">
+                    <Button variant="outline" onClick={() => setIsFolderDownloadOpen(true)} className="flex-1 sm:flex-none">
+                        <Download className="w-4 h-4 mr-2" />
+                        Klasör İndir
+                    </Button>
+                    <Button onClick={handleNew} className="flex-1 sm:flex-none"><Plus className="w-4 h-4 mr-2" /> Yeni INKR Raporu</Button>
+                </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="data-table">

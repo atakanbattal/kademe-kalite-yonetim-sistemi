@@ -2,11 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProcessControlDashboard from './ProcessControlDashboard';
 import ControlPlanManagement from './ControlPlanManagement';
 import ProcessInkrManagement from './ProcessInkrManagement';
 import ProcessInspectionManagement from './ProcessInspectionManagement';
+import ProcessControlFolderDownloadModal from './ProcessControlFolderDownloadModal';
+import { Download } from 'lucide-react';
 
 const PROCESS_CONTROL_TABS = [
     { value: 'dashboard', label: 'Ana Ekran' },
@@ -22,6 +25,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [inspections, setInspections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
+    const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
 
     const fetchPlans = useCallback(async () => {
         try {
@@ -117,7 +121,18 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                             Kontrol planları, ilk numune raporları ve proses muayene kayıtlarını yönetin.
                         </p>
                     </div>
+                    <Button onClick={() => setIsFolderDownloadOpen(true)} className="sm:self-start">
+                        <Download className="mr-2 h-4 w-4" />
+                        Klasör İndir
+                    </Button>
                 </div>
+
+                <ProcessControlFolderDownloadModal
+                    isOpen={isFolderDownloadOpen}
+                    setIsOpen={setIsFolderDownloadOpen}
+                    plans={plans}
+                    inkrReports={inkrReports}
+                />
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 lg:grid-cols-4">

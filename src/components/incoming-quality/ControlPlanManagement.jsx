@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, Edit, Search, UploadCloud, Eye, History, FilePlus, Minus, ChevronsRight, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Edit, Search, UploadCloud, Eye, History, FilePlus, Minus, ChevronsRight, ArrowLeft, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDropzone } from 'react-dropzone';
@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { sanitizeFileName } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { useData } from '@/contexts/DataContext';
+import IncomingControlPlanFolderDownloadModal from './IncomingControlPlanFolderDownloadModal';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
@@ -724,6 +725,7 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedPlanDetail, setSelectedPlanDetail] = useState(null);
+    const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
 
     const fetchPlans = useCallback(async () => {
         setLoading(true);
@@ -903,7 +905,12 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
                 plan={selectedPlanDetail}
                 onDownloadPDF={handleDownloadDetailPDF}
             />
-            <div className="flex justify-between items-center mb-4">
+            <IncomingControlPlanFolderDownloadModal
+                isOpen={isFolderDownloadOpen}
+                setIsOpen={setIsFolderDownloadOpen}
+                plans={plans}
+            />
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <div className="search-box w-full max-w-sm">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                     <input
@@ -914,7 +921,13 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <Button onClick={handleNew}><FilePlus className="w-4 h-4 mr-2" /> Yeni Plan</Button>
+                <div className="flex w-full sm:w-auto gap-2">
+                    <Button variant="outline" onClick={() => setIsFolderDownloadOpen(true)} className="flex-1 sm:flex-none">
+                        <Download className="w-4 h-4 mr-2" />
+                        Klasör İndir
+                    </Button>
+                    <Button onClick={handleNew} className="flex-1 sm:flex-none"><FilePlus className="w-4 h-4 mr-2" /> Yeni Plan</Button>
+                </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="data-table">

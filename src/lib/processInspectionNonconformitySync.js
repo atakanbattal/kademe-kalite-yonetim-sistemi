@@ -73,8 +73,7 @@ const getAutoNotes = ({ inspection, failedMeasurements }) =>
         AUTO_NOTE_TITLE,
         getSourceReference(inspection),
         `Uygun Olmayan Ölçüm Sayısı: ${failedMeasurements.length}`,
-        inspection?.production_line ? `Üretim Hattı / Tezgah: ${inspection.production_line}` : null,
-        inspection?.shift ? `Vardiya: ${inspection.shift}` : null,
+        inspection?.operator_name ? `Operatör: ${inspection.operator_name}` : null,
     ]
         .filter(Boolean)
         .join('\n');
@@ -139,9 +138,7 @@ const buildPayload = ({ inspection, failedMeasurements }) => {
         description: [
             `${category} tespit edildi.`,
             getSourceReference(inspection),
-            inspection?.production_line ? `Üretim Hattı / Tezgah: ${inspection.production_line}` : null,
             inspection?.operator_name ? `Operatör: ${inspection.operator_name}` : null,
-            inspection?.shift ? `Vardiya: ${inspection.shift}` : null,
             `Uygun Olmayan Ölçüm Sayısı: ${failedMeasurements.length}`,
             Number(inspection?.quantity_rejected) > 0
                 ? `Ret Miktarı: ${inspection.quantity_rejected}`
@@ -163,9 +160,7 @@ const buildPayload = ({ inspection, failedMeasurements }) => {
         severity: getMeasurementSeverity({ inspection, failedMeasurements }),
         quantity,
         department: null,
-        action_taken: inspection?.production_line
-            ? `Kaynak proses muayene hattı: ${inspection.production_line}`
-            : null,
+        action_taken: inspection?.operator_name ? `Kaynak proses muayene operatörü: ${inspection.operator_name}` : null,
         notes: getAutoNotes({ inspection, failedMeasurements }),
     };
 };

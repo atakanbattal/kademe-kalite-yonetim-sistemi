@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -24,7 +23,6 @@ import {
     CheckCircle2,
     ClipboardCheck,
     ExternalLink,
-    Factory,
     FileText,
     Gauge,
     Hash,
@@ -46,14 +44,10 @@ const INITIAL_FORM_STATE = {
     quantity_produced: 0,
     quantity_rejected: 0,
     quantity_conditional: 0,
-    production_line: '',
     operator_name: '',
-    shift: '08:00 - 16:00',
     decision: 'Beklemede',
     notes: '',
 };
-
-const SHIFT_OPTIONS = ['08:00 - 16:00', '16:00 - 00:00', '00:00 - 08:00'];
 
 const calculateMeasurementCount = (characteristicType, quantity) => {
     const qty = Number(quantity) || 0;
@@ -66,6 +60,49 @@ const calculateMeasurementCount = (characteristicType, quantity) => {
     if (type.includes('fonksiyonel')) return Math.ceil(qty / 5);
     if (type.includes('minör') || type.includes('minor')) return 1;
     return 1;
+};
+
+const getResultDecisionFlag = (row) => {
+    if (typeof row?.result === 'boolean') return row.result;
+    if (typeof row?.is_ok === 'boolean') return row.is_ok;
+
+    const normalized = String(
+        row?.measured_value ?? row?.measurement_value ?? row?.actual_value ?? row?.result ?? ''
+    )
+        .trim()
+        .toLowerCase();
+
+    if (!normalized) return null;
+    if (['ok', 'uygun', 'kabul', 'gecti', 'gectı', 'gecer', 'geçer', 'pass'].includes(normalized)) {
+        return true;
+    }
+    if (['nok', 'uygun değil', 'uygun degil', 'ret', 'red', 'ng', 'fail'].includes(normalized)) {
+        return false;
+    }
+
+    return null;
+};
+
+const deriveInspectionDecision = ({
+    quantityProduced,
+    quantityRejected,
+    quantityConditional,
+    results,
+}) => {
+    const produced = Number(quantityProduced) || 0;
+    const rejected = Number(quantityRejected) || 0;
+    const conditional = Number(quantityConditional) || 0;
+    const measurementRows = Array.isArray(results) ? results : [];
+    const hasMeasurementRows = measurementRows.length > 0;
+    const hasFailedMeasurements = measurementRows.some((row) => getResultDecisionFlag(row) === false);
+    const hasPendingMeasurements =
+        hasMeasurementRows && measurementRows.some((row) => getResultDecisionFlag(row) === null);
+
+    if (conditional > 0) return 'Şartlı Kabul';
+    if (rejected > 0 || hasFailedMeasurements) return 'Ret';
+    if (produced <= 0) return 'Beklemede';
+    if (hasPendingMeasurements) return 'Beklemede';
+    return 'Kabul';
 };
 
 const normalizeExistingResult = (row, index, characteristics) => {
@@ -552,9 +589,7 @@ const ProcessInspectionFormModal = ({
                     quantity_produced: Number(existingInspection.quantity_produced) || 0,
                     quantity_rejected: Number(existingInspection.quantity_rejected) || 0,
                     quantity_conditional: Number(existingInspection.quantity_conditional) || 0,
-                    production_line: existingInspection.production_line || '',
                     operator_name: existingInspection.operator_name || '',
-                    shift: existingInspection.shift || SHIFT_OPTIONS[0],
                     decision: existingInspection.decision || 'Beklemede',
                     notes: existingInspection.notes || '',
                 });
@@ -624,23 +659,18 @@ const ProcessInspectionFormModal = ({
     }, [characteristics, controlPlan, equipment, existingResultRows, formData.quantity_produced]);
 
     useEffect(() => {
-        const produced = Number(formData.quantity_produced) || 0;
-        const rejected = Number(formData.quantity_rejected) || 0;
-        const conditional = Number(formData.quantity_conditional) || 0;
-
-        let nextDecision = 'Beklemede';
-
-        if (produced > 0 && rejected + conditional <= produced) {
-            if (rejected > 0) nextDecision = 'Ret';
-            else if (conditional > 0) nextDecision = 'Şartlı Kabul';
-            else nextDecision = 'Kabul';
-        }
+        const nextDecision = deriveInspectionDecision({
+            quantityProduced: formData.quantity_produced,
+            quantityRejected: formData.quantity_rejected,
+            quantityConditional: formData.quantity_conditional,
+            results,
+        });
 
         setFormData((previous) => ({
             ...previous,
             decision: nextDecision,
         }));
-    }, [formData.quantity_conditional, formData.quantity_produced, formData.quantity_rejected]);
+    }, [formData.quantity_conditional, formData.quantity_produced, formData.quantity_rejected, results]);
 
     const handleInputChange = (event) => {
         const { name, value, type } = event.target;
@@ -664,13 +694,6 @@ const ProcessInspectionFormModal = ({
         }));
 
         await loadPartContext(value, existingInspection?.part_name || '');
-    };
-
-    const handleSelectChange = (name, value) => {
-        setFormData((previous) => ({
-            ...previous,
-            [name]: value,
-        }));
     };
 
     const handleResultChange = (index, measuredValue, resultStatus) => {
@@ -778,6 +801,13 @@ const ProcessInspectionFormModal = ({
         setIsSubmitting(true);
 
         try {
+            const derivedDecision = deriveInspectionDecision({
+                quantityProduced: formData.quantity_produced,
+                quantityRejected: formData.quantity_rejected,
+                quantityConditional: formData.quantity_conditional,
+                results,
+            });
+
             const payload = {
                 record_no: formData.record_no || null,
                 inspection_date: formData.inspection_date,
@@ -786,10 +816,10 @@ const ProcessInspectionFormModal = ({
                 quantity_produced: Number(formData.quantity_produced) || 0,
                 quantity_rejected: Number(formData.quantity_rejected) || 0,
                 quantity_conditional: Number(formData.quantity_conditional) || 0,
-                production_line: formData.production_line || null,
                 operator_name: formData.operator_name || null,
-                shift: formData.shift || null,
-                decision: formData.decision || 'Beklemede',
+                production_line: null,
+                shift: null,
+                decision: derivedDecision,
                 notes: formData.notes || null,
             };
 
@@ -1059,26 +1089,6 @@ const ProcessInspectionFormModal = ({
                                         />
                                     </div>
 
-                                    <div>
-                                        <Label htmlFor="shift">Vardiya</Label>
-                                        <Select
-                                            value={formData.shift}
-                                            onValueChange={(value) => handleSelectChange('shift', value)}
-                                            disabled={isViewMode}
-                                        >
-                                            <SelectTrigger id="shift">
-                                                <SelectValue placeholder="Vardiya seçin" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {SHIFT_OPTIONS.map((shift) => (
-                                                    <SelectItem key={shift} value={shift}>
-                                                        {shift}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
                                     <div className="lg:col-span-2">
                                         <Label htmlFor="part_name">Parça Adı</Label>
                                         <Input
@@ -1087,18 +1097,6 @@ const ProcessInspectionFormModal = ({
                                             value={formData.part_name}
                                             onChange={handleInputChange}
                                             placeholder="Parça adı"
-                                            disabled={isViewMode}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <Label htmlFor="production_line">Üretim Hattı / Tezgah</Label>
-                                        <Input
-                                            id="production_line"
-                                            name="production_line"
-                                            value={formData.production_line}
-                                            onChange={handleInputChange}
-                                            placeholder="Hat veya tezgah bilgisi"
                                             disabled={isViewMode}
                                         />
                                     </div>
@@ -1567,13 +1565,6 @@ const ProcessInspectionFormModal = ({
                                             Kayıt
                                         </span>
                                         <span className="font-semibold">{formData.record_no || '-'}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="flex items-center gap-2 text-muted-foreground">
-                                            <Factory className="h-4 w-4" />
-                                            Hat
-                                        </span>
-                                        <span className="font-semibold">{formData.production_line || '-'}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="flex items-center gap-2 text-muted-foreground">

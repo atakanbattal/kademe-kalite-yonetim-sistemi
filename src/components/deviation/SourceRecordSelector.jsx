@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     AlertTriangle,
     Car,
+    ClipboardCheck,
     CheckCircle2,
     DollarSign,
     Droplets,
@@ -33,6 +34,13 @@ const SOURCE_TYPES = [
         searchPlaceholder: 'Parça kodu, parça adı, kayıt no veya tedarikçi ile ara...',
         emptyText: 'Şartlı kabul veya red edilmiş girdi kontrol kaydı bulunamadı.',
         icon: Package,
+    },
+    {
+        id: 'process_inspection',
+        label: 'Proses Kontrol',
+        searchPlaceholder: 'Parça kodu, parça adı, kayıt no veya operatör ile ara...',
+        emptyText: 'Şartlı kabul verilmiş proses muayene kaydı bulunamadı.',
+        icon: ClipboardCheck,
     },
     {
         id: 'quarantine',
@@ -118,6 +126,24 @@ const loadSourceRecords = async (sourceType, sourceId = null) => {
 
             return query
                 .in('decision', ['Şartlı Kabul', 'Red'])
+                .order('inspection_date', { ascending: false })
+                .limit(100);
+        }
+        case 'process_inspection': {
+            let query = supabase
+                .from('process_inspections')
+                .select(`
+                    *,
+                    defects:process_inspection_defects(*),
+                    results:process_inspection_results(*)
+                `);
+
+            if (sourceId) {
+                return query.eq('id', sourceId).single();
+            }
+
+            return query
+                .eq('decision', 'Şartlı Kabul')
                 .order('inspection_date', { ascending: false })
                 .limit(100);
         }
@@ -234,6 +260,15 @@ const filterRecordBySearch = (record, sourceType, searchTerm) => {
                 record.description,
                 record.notes,
             ].some((value) => normalizeValue(value).includes(normalizedSearch));
+        case 'process_inspection':
+            return [
+                record.part_code,
+                record.part_name,
+                record.record_no,
+                record.operator_name,
+                record.notes,
+                record.decision,
+            ].some((value) => normalizeValue(value).includes(normalizedSearch));
         case 'quarantine':
             return [
                 record.part_code,
@@ -317,6 +352,8 @@ const getRecordStatusBadge = (record, sourceType) => {
     switch (sourceType) {
         case 'incoming_inspection':
             return getBadge(record.decision, record.decision === 'Red' ? 'destructive' : 'warning', AlertTriangle);
+        case 'process_inspection':
+            return getBadge(record.decision || 'Şartlı Kabul', 'warning', ClipboardCheck);
         case 'quarantine':
             return getBadge(record.status, record.status === 'Karantinada' ? 'warning' : 'secondary', AlertTriangle);
         case 'quality_cost':
@@ -340,6 +377,8 @@ const getRecordTitle = (record, sourceType) => {
     switch (sourceType) {
         case 'incoming_inspection':
             return record.part_code || '-';
+        case 'process_inspection':
+            return record.part_code || '-';
         case 'quarantine':
             return record.part_code || '-';
         case 'quality_cost':
@@ -362,6 +401,8 @@ const getRecordTitle = (record, sourceType) => {
 const getRecordSubtitle = (record, sourceType) => {
     switch (sourceType) {
         case 'incoming_inspection':
+            return record.part_name || '-';
+        case 'process_inspection':
             return record.part_name || '-';
         case 'quarantine':
             return record.part_name || '-';
@@ -389,6 +430,13 @@ const getRecordMetaFields = (record, sourceType) => {
                 { label: 'Kayıt No', value: record.record_no || '-' },
                 { label: 'Tedarikçi', value: record.supplier_name || record.supplier?.name || 'Tedarikçi yok' },
                 { label: 'Red Edilen', value: record.quantity_rejected || 0 },
+                { label: 'Tarih', value: formatDateOnly(record.inspection_date) },
+            ];
+        case 'process_inspection':
+            return [
+                { label: 'Kayıt No', value: record.record_no || '-' },
+                { label: 'Operatör', value: record.operator_name || '-' },
+                { label: 'Şartlı Kabul', value: `${record.quantity_conditional || 0} adet` },
                 { label: 'Tarih', value: formatDateOnly(record.inspection_date) },
             ];
         case 'quarantine':
@@ -473,6 +521,29 @@ const buildAutoFillData = (record, sourceType) => {
                     inspection_date: record.inspection_date,
                     quantity_received: record.quantity_received,
                     quantity_inspected: record.quantity_inspected,
+                },
+            };
+        case 'process_inspection':
+            return {
+                source_type: sourceType,
+                source_record_id: record.id,
+                source: getSourceTypeLabel(sourceType),
+                deviation_type: getSourceTypeDefaultDeviationType(sourceType),
+                part_code: record.part_code || '',
+                source_record_details: {
+                    source_type: sourceType,
+                    part_code: record.part_code,
+                    part_name: record.part_name,
+                    record_no: record.record_no,
+                    inspection_date: record.inspection_date,
+                    decision: record.decision,
+                    operator_name: record.operator_name,
+                    quantity_produced: record.quantity_produced,
+                    quantity_rejected: record.quantity_rejected,
+                    quantity_conditional: record.quantity_conditional,
+                    defects: record.defects || [],
+                    results: record.results || [],
+                    notes: record.notes,
                 },
             };
         case 'quarantine':
@@ -771,6 +842,13 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                     </div>
                 )}
 
+                {sourceType === 'process_inspection' && (
+                    <div className="min-w-0 break-words md:col-span-2">
+                        <strong>Muayene Özeti:</strong> Uygunsuz ölçüm {Array.isArray(record.results) ? record.results.filter((item) => item.is_ok === false).length : 0} adet
+                        {Array.isArray(record.defects) && record.defects.length > 0 ? `, hata kaydı ${record.defects.length} adet` : ''}
+                    </div>
+                )}
+
                 {sourceType === 'fixture_nonconformity' && Array.isArray(record.deviation_details) && record.deviation_details.length > 0 && (
                     <div className="min-w-0 break-words md:col-span-2">
                         <strong>Uygunsuzluk Detayları:</strong>
@@ -831,6 +909,26 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                         </div>
                     )}
                 </>
+            );
+        }
+
+        if (sourceType === 'process_inspection') {
+            const failedCount = Array.isArray(record.results)
+                ? record.results.filter((result) => result.is_ok === false).length
+                : 0;
+
+            return (
+                <div className="mt-2 space-y-2 border-t border-border pt-2 text-xs">
+                    <div>
+                        <strong>Uygunsuz Ölçüm:</strong> {failedCount} adet
+                    </div>
+                    {record.notes && (
+                        <div>
+                            <strong>Notlar:</strong> {record.notes.slice(0, 150)}
+                            {record.notes.length > 150 ? '...' : ''}
+                        </div>
+                    )}
+                </div>
             );
         }
 
