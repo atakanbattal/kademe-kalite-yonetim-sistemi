@@ -135,23 +135,35 @@ const LeakTestFormModal = ({
         notes: sourceRecord?.notes || '',
     }), []);
 
-    const fetchNextRecordNumber = useCallback(async () => {
-        const yearSuffix = new Date().getFullYear().toString().slice(-2);
+    /**
+     * Seçilen test tarihine göre akıllı kayıt numarası üret.
+     * O yıl içinde, seçilen tarih dahil ve öncesindeki kayıt sayısını hesaplar;
+     * bu pozisyon +1 kayıt numarasına karşılık gelir.
+     * Böylece geçmişe yönelik kayıtlar da tarih sırasına uygun numara alır.
+     */
+    const fetchNextRecordNumberForDate = useCallback(async (testDate) => {
+        const dateObj = testDate ? new Date(testDate) : new Date();
+        const year = dateObj.getFullYear();
+        const yearSuffix = String(year).slice(-2);
         const prefix = `SZK-${yearSuffix}-`;
 
-        const { data, error } = await supabase
+        // Yıl başı ve seçilen tarihin bir gün sonrası (seçilen gün dahil)
+        const yearStart = `${year}-01-01`;
+        const dayAfter = new Date(dateObj);
+        dayAfter.setDate(dayAfter.getDate() + 1);
+        const dayAfterStr = dayAfter.toISOString().split('T')[0];
+
+        // Seçilen tarihe kadar (o gün dahil) bu yılda kaç kayıt var?
+        const { count, error } = await supabase
             .from('leak_test_records')
-            .select('record_number')
+            .select('id', { count: 'exact', head: true })
             .like('record_number', `${prefix}%`)
-            .order('record_number', { ascending: false })
-            .limit(1);
+            .gte('test_date', yearStart)
+            .lt('test_date', dayAfterStr);
 
         if (error) throw error;
 
-        const lastRecordNumber = data?.[0]?.record_number;
-        const lastSequence = lastRecordNumber ? parseInt(lastRecordNumber.split('-').pop(), 10) : 0;
-        const nextSequence = Number.isFinite(lastSequence) ? lastSequence + 1 : 1;
-
+        const nextSequence = (count ?? 0) + 1;
         return `${prefix}${String(nextSequence).padStart(4, '0')}`;
     }, []);
 
@@ -220,11 +232,12 @@ const LeakTestFormModal = ({
             }
 
             try {
-                const nextRecordNumber = await fetchNextRecordNumber();
+                const defaultData = createDefaultFormData();
+                const nextRecordNumber = await fetchNextRecordNumberForDate(defaultData.test_date);
                 if (!isMounted) return;
 
                 setFormData({
-                    ...createDefaultFormData(),
+                    ...defaultData,
                     record_number: nextRecordNumber,
                 });
             } catch (error) {
@@ -244,7 +257,7 @@ const LeakTestFormModal = ({
         return () => {
             isMounted = false;
         };
-    }, [createFormDataFromRecord, fetchNextRecordNumber, hasExistingRecord, isOpen, record, toast]);
+    }, [createFormDataFromRecord, fetchNextRecordNumberForDate, hasExistingRecord, isOpen, record, toast]);
 
     const vehicleTypeOptions = useMemo(() => (
         vehicleTypes.map((product) => ({
@@ -369,6 +382,24 @@ const LeakTestFormModal = ({
     const handleInputChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
+
+    /**
+     * Test tarihi değiştiğinde kayıt numarasını o tarihe göre yeniden hesapla.
+     * Sadece yeni kayıt eklerken aktif; düzenleme modunda kayıt no değişmez.
+     */
+    const handleDateChange = useCallback(async (newDate) => {
+        handleInputChange('test_date', newDate);
+
+        if (hasExistingRecord) return; // Düzenleme modunda kayıt no'ya dokunma
+
+        try {
+            const newRecordNumber = await fetchNextRecordNumberForDate(newDate);
+            setFormData((prev) => ({ ...prev, test_date: newDate, record_number: newRecordNumber }));
+        } catch {
+            // Hata olursa sadece tarihi güncelle, kayıt no'yu dokunma
+            setFormData((prev) => ({ ...prev, test_date: newDate }));
+        }
+    }, [fetchNextRecordNumberForDate, hasExistingRecord]);
 
     const handleResultChange = (value) => {
         setFormData((prev) => ({
@@ -647,7 +678,7 @@ const LeakTestFormModal = ({
                                 <Input
                                     type="date"
                                     value={formData.test_date}
-                                    onChange={(event) => handleInputChange('test_date', event.target.value)}
+                                    onChange={(event) => handleDateChange(event.target.value)}
                                     style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
                                     disabled={isViewMode}
                                     required
