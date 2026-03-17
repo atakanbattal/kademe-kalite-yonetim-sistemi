@@ -1,18 +1,141 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import React, { useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import {
+    CalendarDays,
+    CheckCircle2,
+    Download,
+    ExternalLink,
+    File,
+    FileDown,
+    FileSpreadsheet,
+    Hash,
+    Image,
+    Package2,
+    Paperclip,
+    Ruler,
+    ShieldCheck,
+    X,
+    XCircle,
+} from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { FileDown, X, File, Image, FileText as FileTextIcon, Download, ExternalLink, FileSpreadsheet } from 'lucide-react';
-import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getProcessInkrDisplayNumber } from './processInkrUtils';
+
+const DetailStatCard = ({ icon: Icon, label, value, helper, tone = 'slate' }) => {
+    const toneClasses = {
+        slate: 'border-slate-200 bg-white text-slate-900',
+        blue: 'border-blue-200 bg-blue-50/80 text-blue-950',
+        green: 'border-emerald-200 bg-emerald-50/80 text-emerald-950',
+        amber: 'border-amber-200 bg-amber-50/80 text-amber-950',
+    };
+
+    return (
+        <div className={`rounded-3xl border p-4 shadow-sm ${toneClasses[tone] || toneClasses.slate}`}>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">{label}</p>
+                    <p className="mt-3 break-words text-2xl font-semibold tracking-tight">{value}</p>
+                    {helper ? <p className="mt-2 text-sm text-slate-500">{helper}</p> : null}
+                </div>
+                <div className="rounded-2xl bg-white/80 p-3 shadow-sm ring-1 ring-black/5">
+                    <Icon className="h-5 w-5 text-slate-700" />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const getStatusBadge = (status, dark = false) => {
+    const baseClass = dark ? 'border-white/15 text-white' : 'border-transparent';
+
+    switch (status) {
+        case 'Onaylandı':
+            return (
+                <Badge className={`bg-emerald-500/90 ${baseClass}`}>
+                    <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                    Onaylandı
+                </Badge>
+            );
+        case 'Reddedildi':
+            return (
+                <Badge className={`bg-rose-500/90 ${baseClass}`}>
+                    <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                    Reddedildi
+                </Badge>
+            );
+        default:
+            return <Badge className={`bg-amber-500/90 ${baseClass}`}>{status || 'Taslak'}</Badge>;
+    }
+};
+
+const getItemDecision = (item) => {
+    const rawValue = String(item?.measured_value ?? '').trim();
+    if (!rawValue) return null;
+
+    const upperValue = rawValue.toUpperCase();
+    const nominalValue = String(item?.nominal_value ?? '').trim().toUpperCase();
+    const normalizedNumber = parseFloat(rawValue.replace(',', '.'));
+    const minValue = parseFloat(String(item?.min_value ?? '').replace(',', '.'));
+    const maxValue = parseFloat(String(item?.max_value ?? '').replace(',', '.'));
+    const nominalNumber = parseFloat(String(item?.nominal_value ?? '').replace(',', '.'));
+
+    const rejected = ['RET', 'UYGUNSUZ', 'NOK', 'NG', 'HATALI', 'RED'].some(
+        (text) => upperValue === text || upperValue.startsWith(`${text} `)
+    );
+    if (rejected) return false;
+
+    const approved = ['OK', 'UYGUN', 'KABUL', 'PASS', 'GECER', 'GECER', 'GEÇER', 'VAR', 'EVET'].some(
+        (text) => upperValue === text || upperValue.startsWith(`${text} `)
+    );
+    if (approved) return true;
+
+    if (nominalValue && upperValue === nominalValue) return true;
+
+    if (!Number.isNaN(normalizedNumber)) {
+        if (!Number.isNaN(minValue) && !Number.isNaN(maxValue)) {
+            return normalizedNumber >= minValue && normalizedNumber <= maxValue;
+        }
+        if (!Number.isNaN(minValue)) return normalizedNumber >= minValue;
+        if (!Number.isNaN(maxValue)) return normalizedNumber <= maxValue;
+        if (!Number.isNaN(nominalNumber)) return normalizedNumber === nominalNumber;
+    }
+
+    return false;
+};
+
+const getDecisionBadge = (decision) => {
+    if (decision === true) {
+        return <Badge className="border-transparent bg-emerald-100 text-emerald-700">Kabul</Badge>;
+    }
+    if (decision === false) {
+        return <Badge className="border-transparent bg-rose-100 text-rose-700">Ret</Badge>;
+    }
+    return <Badge variant="secondary">Bekliyor</Badge>;
+};
+
+const formatDateTime = (value) => {
+    if (!value) return '-';
+
+    try {
+        return format(new Date(value), 'dd MMMM yyyy HH:mm', { locale: tr });
+    } catch {
+        return '-';
+    }
+};
+
+const formatFileSize = (bytes) => {
+    if (!bytes) return '-';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 const ProcessInkrDetailModal = ({
     isOpen,
@@ -30,76 +153,122 @@ const ProcessInkrDetailModal = ({
     const [loadingAttachments, setLoadingAttachments] = useState(false);
 
     const getCharacteristicName = (id) => {
-        const char = characteristics?.find(c => c.value === id);
-        return char ? char.label : id || '-';
+        const match = characteristics?.find((item) => item.value === id || item.id === id);
+        return match?.label || match?.name || id || '-';
     };
 
     const getEquipmentName = (id) => {
-        const eq = equipment?.find(e => e.value === id);
-        return eq ? eq.label : id || '-';
+        const match = equipment?.find((item) => item.value === id || item.id === id);
+        return match?.label || match?.name || id || '-';
     };
 
-    const handleGenerateReport = async () => {
-        try {
-            // Items'a karakteristik ve ekipman isimlerini ekle
-            const enrichedItems = (report.items || []).map(item => ({
-                ...item,
-                characteristic_name: getCharacteristicName(item.characteristic_id),
-                equipment_name: getEquipmentName(item.equipment_id)
-            }));
+    const enrichedItems = useMemo(
+        () =>
+            (report?.items || []).map((item, index) => {
+                const methodName =
+                    item.measurement_method ||
+                    item.equipment_name ||
+                    getEquipmentName(item.equipment_id);
+                const standardLabel = item.standard_label || item.standard_class || item.tolerance_class || '-';
+                const decision = getItemDecision(item);
 
-            const enrichedData = {
-                ...report,
-                items: enrichedItems,
-                prepared_by: preparedBy || '',
-                controlled_by: controlledBy || '',
-                created_by: createdBy || '',
-            };
-            onDownloadPDF(enrichedData);
-            toast({
-                title: 'Başarılı',
-                description: 'Rapor oluşturuldu!',
-            });
-            setIsOpen(false);
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Hata',
-                description: 'Rapor oluşturulamadı!',
-            });
+                return {
+                    ...item,
+                    row_number: index + 1,
+                    characteristic_name: item.characteristic_name || getCharacteristicName(item.characteristic_id),
+                    equipment_name: methodName,
+                    measurement_method: methodName,
+                    standard_label: standardLabel,
+                    decision,
+                };
+            }),
+        [characteristics, equipment, report]
+    );
+
+    const stats = useMemo(() => {
+        const approved = enrichedItems.filter((item) => item.decision === true).length;
+        const rejected = enrichedItems.filter((item) => item.decision === false).length;
+        const pending = enrichedItems.length - approved - rejected;
+
+        return {
+            total: enrichedItems.length,
+            approved,
+            rejected,
+            pending,
+        };
+    }, [enrichedItems]);
+
+    useEffect(() => {
+        if (!report) {
+            setPreparedBy('');
+            setControlledBy('');
+            setCreatedBy('');
+            return;
         }
-    };
+
+        setPreparedBy(report.prepared_by || '');
+        setControlledBy(report.controlled_by || '');
+        setCreatedBy(report.created_by || '');
+    }, [report]);
 
     useEffect(() => {
         const fetchAttachments = async () => {
-            if (report?.id) {
-                setLoadingAttachments(true);
-                try {
-                    const { data, error } = await supabase
-                        .from('process_inkr_attachments')
-                        .select('*')
-                        .eq('inkr_report_id', report.id)
-                        .order('uploaded_at', { ascending: false });
-                    
-                    if (!error && data) {
-                        setAttachments(data);
-                    }
-                } catch (err) {
-                    console.error('Ek dosyalar alınamadı:', err);
-                }
+            if (!report?.id || !isOpen) {
+                setAttachments([]);
+                setLoadingAttachments(false);
+                return;
+            }
+
+            setLoadingAttachments(true);
+
+            try {
+                const { data, error } = await supabase
+                    .from('process_inkr_attachments')
+                    .select('*')
+                    .eq('inkr_report_id', report.id)
+                    .order('uploaded_at', { ascending: false });
+
+                if (error) throw error;
+                setAttachments(data || []);
+            } catch (error) {
+                console.error('INKR ekleri alınamadı:', error);
+                setAttachments([]);
+            } finally {
                 setLoadingAttachments(false);
             }
         };
 
-        if (isOpen && report) {
-            fetchAttachments();
+        fetchAttachments();
+    }, [isOpen, report?.id]);
+
+    const handleGenerateReport = async () => {
+        if (!report) return;
+
+        try {
+            const enrichedData = {
+                ...report,
+                items: enrichedItems,
+                attachments,
+                prepared_by: preparedBy || '',
+                controlled_by: controlledBy || '',
+                created_by: createdBy || '',
+            };
+
+            await onDownloadPDF(enrichedData);
+        } catch (error) {
+            console.error('INKR PDF hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'INKR raporu oluşturulamadı.',
+            });
         }
-    }, [isOpen, report]);
+    };
 
     const getFileIcon = (fileType) => {
         if (fileType?.startsWith('image/')) return <Image className="h-5 w-5 text-blue-500" />;
-        if (fileType === 'application/pdf') return <FileTextIcon className="h-5 w-5 text-red-500" />;
-        return <File className="h-5 w-5 text-gray-500" />;
+        if (fileType === 'application/pdf') return <FileSpreadsheet className="h-5 w-5 text-red-500" />;
+        return <File className="h-5 w-5 text-slate-500" />;
     };
 
     const handleViewAttachment = async (attachment) => {
@@ -107,21 +276,20 @@ const ProcessInkrDetailModal = ({
             const { data, error } = await supabase.storage
                 .from('process_inkr_attachments')
                 .createSignedUrl(attachment.file_path, 3600);
-            
+
             if (error) throw error;
-            
+
             if (attachment.file_type === 'application/pdf' && onViewPdf) {
                 onViewPdf(attachment.file_path);
-            } else if (attachment.file_type?.startsWith('image/')) {
-                window.open(data.signedUrl, '_blank');
-            } else {
-                window.open(data.signedUrl, '_blank');
+                return;
             }
-        } catch (err) {
+
+            window.open(data.signedUrl, '_blank');
+        } catch (error) {
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Dosya açılamadı: ' + err.message
+                description: `Dosya açılamadı: ${error.message}`,
             });
         }
     };
@@ -131,9 +299,9 @@ const ProcessInkrDetailModal = ({
             const { data, error } = await supabase.storage
                 .from('process_inkr_attachments')
                 .download(attachment.file_path);
-            
+
             if (error) throw error;
-            
+
             const url = URL.createObjectURL(data);
             const link = document.createElement('a');
             link.href = url;
@@ -142,20 +310,13 @@ const ProcessInkrDetailModal = ({
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-        } catch (err) {
+        } catch (error) {
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Dosya indirilemedi: ' + err.message
+                description: `Dosya indirilemedi: ${error.message}`,
             });
         }
-    };
-
-    const formatFileSize = (bytes) => {
-        if (!bytes) return '-';
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     };
 
     if (!report) return null;
@@ -164,298 +325,314 @@ const ProcessInkrDetailModal = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-6xl w-[98vw] sm:w-[96vw] max-h-[96vh] overflow-hidden p-0 flex flex-col">
                 <DialogHeader className="sr-only">
-                    <DialogTitle>INKR Detayları - {displayInkrNumber}</DialogTitle>
-                    <DialogDescription>INKR rapor detayları ve ölçüm sonuçları</DialogDescription>
+                    <DialogTitle>INKR Rapor Detayı: {displayInkrNumber}</DialogTitle>
+                    <DialogDescription>
+                        {displayInkrNumber} numaralı ilk numune kontrol raporu detayları
+                    </DialogDescription>
                 </DialogHeader>
-                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0 shadow-md relative z-10">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-white/20 p-2.5 rounded-xl shadow-inner backdrop-blur-sm"><FileSpreadsheet className="h-5 w-5 text-white" /></div>
-                        <div>
-                            <h1 className="text-lg font-bold tracking-tight">INKR Detayları</h1>
-                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium flex items-center gap-2 mt-0.5">
-                                <span>INKR No: {displayInkrNumber}</span>
-                                <span className="opacity-50">•</span>
-                                <span>{format(new Date(report.report_date || report.created_at), 'dd MMMM yyyy', { locale: tr })}</span>
-                            </p>
+
+                <header className="relative bg-slate-950 text-white">
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.45),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.28),_transparent_32%),linear-gradient(135deg,_#0f172a,_#1d4ed8_55%,_#0f172a)]" />
+                    <div className="relative border-b border-white/10 px-5 py-7 sm:px-6 sm:py-8">
+                        <div className="flex flex-col gap-5">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="min-w-0 flex items-start gap-4">
+                                    <div className="rounded-3xl bg-white/10 p-3 shadow-lg ring-1 ring-white/15 backdrop-blur">
+                                        <FileSpreadsheet className="h-6 w-6 text-white" />
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                                        <Badge className="border-white/15 bg-white/10 text-white">INKR</Badge>
+                                        {getStatusBadge(report.status, true)}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2 self-start">
+                                    <Button
+                                        type="button"
+                                        onClick={handleGenerateReport}
+                                        className="rounded-2xl border border-white/10 bg-white/10 text-white shadow-lg backdrop-blur transition hover:bg-white/20"
+                                    >
+                                        <Download className="mr-2 h-4 w-4" />
+                                        PDF Indir
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="rounded-2xl border border-white/10 bg-white/10 text-white hover:bg-white/20"
+                                        onClick={() => setIsOpen(false)}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="min-w-0 lg:pl-[5.5rem]">
+                                <div className="space-y-2">
+                                    <h1 className="break-words text-[1.7rem] font-semibold leading-[1.15] tracking-tight sm:text-[1.95rem]">
+                                        İlk Numune Kontrol Raporu
+                                    </h1>
+                                    <p className="text-sm leading-5 text-slate-200">
+                                        Ölçüm sonuçları, dosyalar ve imza bilgileri tek rapor görünümünde
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2.5 pt-3 text-sm text-slate-100">
+                                    <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+                                        <Hash className="h-4 w-4" />
+                                        {displayInkrNumber}
+                                    </span>
+                                    <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+                                        <Package2 className="h-4 w-4" />
+                                        {report.part_code || '-'}
+                                    </span>
+                                    <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+                                        <CalendarDays className="h-4 w-4" />
+                                        {formatDateTime(report.report_date || report.created_at)}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white shadow-sm text-[10px] font-bold rounded-full uppercase tracking-wider backdrop-blur-md">Rapor</span>
-                        <Button 
-                            variant="default"
-                            size="icon"
-                            className="bg-white/10 hover:bg-red-500/80 text-white border-white/20 backdrop-blur-md transition-colors h-8 w-8 ml-2"
-                            onClick={() => setIsOpen(false)}
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
                     </div>
                 </header>
-                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
-                <Tabs defaultValue="basic" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="basic">Temel Bilgiler</TabsTrigger>
-                        <TabsTrigger value="details">Muayene Sonuçları</TabsTrigger>
-                        <TabsTrigger value="attachments">
-                            Dosyalar {attachments.length > 0 && <Badge variant="secondary" className="ml-1">{attachments.length}</Badge>}
-                        </TabsTrigger>
-                        <TabsTrigger value="report">Rapor</TabsTrigger>
-                    </TabsList>
 
-                    {/* TAB 1: TEMEL BİLGİLER */}
-                    <TabsContent value="basic" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>INKR Bilgileri</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label className="text-gray-600">INKR Numarası</Label>
-                                        <p className="font-medium">{displayInkrNumber}</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-gray-600">Ürün Adı</Label>
-                                        <p className="font-medium">{report.part_name || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-gray-600">Ürün Kodu</Label>
-                                        <p className="font-medium">{report.part_code || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <Label className="text-gray-600">Durum</Label>
-                                        <p className="font-medium">{report.status || 'Aktif'}</p>
-                                    </div>
+                <div className="flex-1 overflow-y-auto bg-slate-50 px-5 py-5 sm:px-6">
+                    <section className="grid gap-4 xl:grid-cols-4">
+                        <DetailStatCard
+                            icon={Package2}
+                            label="Parça Adı"
+                            value={report.part_name || '-'}
+                            helper={report.part_code || '-'}
+                            tone="slate"
+                        />
+                        <DetailStatCard
+                            icon={Ruler}
+                            label="Ölçüm Satırı"
+                            value={stats.total}
+                            helper={`${stats.pending} bekleyen`}
+                            tone="blue"
+                        />
+                        <DetailStatCard
+                            icon={CheckCircle2}
+                            label="Kabul"
+                            value={stats.approved}
+                            helper="Uygun sonuçlar"
+                            tone="green"
+                        />
+                        <DetailStatCard
+                            icon={ShieldCheck}
+                            label="Durum"
+                            value={report.status || 'Taslak'}
+                            helper={attachments.length ? `${attachments.length} ek dosya` : 'Ek dosya yok'}
+                            tone="amber"
+                        />
+                    </section>
+
+                    <section className="mt-5 grid gap-5 xl:grid-cols-[1.25fr_0.95fr]">
+                        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                            <div className="flex items-center gap-2">
+                                <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                                <h2 className="text-xl font-semibold tracking-tight text-slate-900">Genel Bilgiler</h2>
+                            </div>
+                            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">INKR No</p>
+                                    <p className="mt-2 text-base font-semibold text-slate-900">{displayInkrNumber}</p>
                                 </div>
-                                {report.notes && (
-                                    <div>
-                                        <Label className="text-gray-600">Notlar</Label>
-                                        <p className="font-medium whitespace-pre-wrap">
-                                            {report.notes}
-                                        </p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">Rapor Tarihi</p>
+                                    <p className="mt-2 text-base font-semibold text-slate-900">
+                                        {formatDateTime(report.report_date || report.created_at)}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">Parça Kodu</p>
+                                    <p className="mt-2 text-base font-semibold text-slate-900">{report.part_code || '-'}</p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">Durum</p>
+                                    <div className="mt-2">{getStatusBadge(report.status)}</div>
+                                </div>
+                            </div>
 
-                    {/* TAB 2: MUAYENE SONUÇLARI */}
-                    <TabsContent value="details" className="space-y-4">
-                        {report.items && report.items.length > 0 ? (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Ölçüm Sonuçları</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full border-collapse">
-                                            <thead>
-                                                <tr className="border-b bg-muted/50">
-                                                    <th className="p-2 text-left text-xs font-semibold">#</th>
-                                                    <th className="p-2 text-left text-xs font-semibold">Karakteristik</th>
-                                                    <th className="p-2 text-left text-xs font-semibold">Ekipman</th>
-                                                    <th className="p-2 text-left text-xs font-semibold">Nominal</th>
-                                                    <th className="p-2 text-left text-xs font-semibold">Min</th>
-                                                    <th className="p-2 text-left text-xs font-semibold">Max</th>
-                                                    <th className="p-2 text-left text-xs font-semibold">Ölçülen</th>
-                                                    <th className="p-2 text-center text-xs font-semibold">Durum</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {report.items.map((item, idx) => {
-                                                    // Virgülleri noktaya çevirerek sayısal değerleri al
-                                                    const normalizeValue = (val) => {
-                                                        if (!val) return NaN;
-                                                        return parseFloat(val.toString().replace(',', '.'));
-                                                    };
+                            <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">Kritik Bilgiler / Notlar</p>
+                                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                                    {report.notes || 'Bu kayıt için not eklenmemiş.'}
+                                </p>
+                            </div>
+                        </div>
 
-                                                    const measuredValStr = item.measured_value?.toString().trim().toUpperCase() || '';
-                                                    const nominalValStr = item.nominal_value?.toString().trim().toUpperCase() || '';
+                        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                            <div className="flex items-center gap-2">
+                                <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                                <h2 className="text-xl font-semibold tracking-tight text-slate-900">Rapor Onayı</h2>
+                            </div>
+                            <div className="mt-5 space-y-4">
+                                <div>
+                                    <Label htmlFor="inkr-prepared-by">Hazırlayan</Label>
+                                    <Input
+                                        id="inkr-prepared-by"
+                                        value={preparedBy}
+                                        onChange={(event) => setPreparedBy(event.target.value)}
+                                        placeholder="Ad Soyad"
+                                        className="mt-2 h-11 rounded-2xl"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="inkr-controlled-by">Kontrol Eden</Label>
+                                    <Input
+                                        id="inkr-controlled-by"
+                                        value={controlledBy}
+                                        onChange={(event) => setControlledBy(event.target.value)}
+                                        placeholder="Ad Soyad"
+                                        className="mt-2 h-11 rounded-2xl"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="inkr-created-by">Onaylayan</Label>
+                                    <Input
+                                        id="inkr-created-by"
+                                        value={createdBy}
+                                        onChange={(event) => setCreatedBy(event.target.value)}
+                                        placeholder="Ad Soyad"
+                                        className="mt-2 h-11 rounded-2xl"
+                                    />
+                                </div>
+                                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                                    PDF oluştururken bu bilgiler ortak rapor şablonuna aktarılır.
+                                </div>
+                                <Button onClick={handleGenerateReport} className="h-11 w-full rounded-2xl">
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    PDF Oluştur
+                                </Button>
+                            </div>
+                        </div>
+                    </section>
 
-                                                    const measured = normalizeValue(item.measured_value);
-                                                    const min = normalizeValue(item.min_value);
-                                                    const max = normalizeValue(item.max_value);
+                    <section className="mt-5 rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                            <div>
+                                <h2 className="text-xl font-semibold tracking-tight text-slate-900">Ölçüm Sonuçları</h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Muayene kaydı görünümüne uygun, rapor odaklı tablo
+                                </p>
+                            </div>
+                            <Badge variant="secondary">{stats.total} satır</Badge>
+                        </div>
 
-                                                    // 1. KESİN RED KELİMELERİ (Önce kontrol et)
-                                                    const isExplicitFail = ['RET', 'UYGUNSUZ', 'NOK', 'NG', 'HATALI', 'RED'].some(failText =>
-                                                        measuredValStr === failText || measuredValStr.startsWith(failText + ' ')
-                                                    );
-
-                                                    // 2. KESİN KABUL KELİMELERİ
-                                                    const isExplicitPass = ['OK', 'UYGUN', 'KABUL', 'PASS', 'GEÇER', 'VAR', 'EVET'].some(okText =>
-                                                        measuredValStr === okText || measuredValStr.startsWith(okText + ' ')
-                                                    );
-
-                                                    let isInRange = false;
-
-                                                    if (isExplicitFail) {
-                                                        isInRange = false;
-                                                    } else if (isExplicitPass) {
-                                                        isInRange = true;
-                                                    } else if (nominalValStr && measuredValStr === nominalValStr) {
-                                                        // 3. NOMİNAL DEĞER İLE BİREBİR EŞLEŞME (Metin olarak)
-                                                        isInRange = true;
-                                                    } else if (!isNaN(measured)) {
-                                                        // 4. SAYISAL KONTROL
-                                                        if (!isNaN(min) && !isNaN(max)) {
-                                                            isInRange = measured >= min && measured <= max;
-                                                        } else if (!isNaN(min)) {
-                                                            isInRange = measured >= min;
-                                                        } else if (!isNaN(max)) {
-                                                            isInRange = measured <= max;
-                                                        } else {
-                                                            // Sayısal değer var ama limit yoksa ve nominal de eşleşmediyse
-                                                            // Eğer nominal değer sayısal ise ve eşitse kabul et
-                                                            const nominalNum = normalizeValue(item.nominal_value);
-                                                            if (!isNaN(nominalNum) && measured === nominalNum) {
-                                                                isInRange = true;
-                                                            }
-                                                        }
-                                                    }
-
-
-                                                    const statusBadge = item.measured_value ? (
-                                                        isInRange ? (
-                                                            <Badge variant="success" className="bg-green-500 hover:bg-green-600">Uygun</Badge>
-                                                        ) : (
-                                                            <Badge variant="destructive" className="bg-red-500 hover:bg-red-600">Uygunsuz</Badge>
-                                                        )
-                                                    ) : (
-                                                        <Badge variant="secondary">Ölçülmedi</Badge>
-                                                    );
-
-                                                    return (
-                                                        <tr key={item.id || idx} className="border-b">
-                                                            <td className="p-2">{idx + 1}</td>
-                                                            <td className="p-2">{getCharacteristicName(item.characteristic_id)}</td>
-                                                            <td className="p-2">{getEquipmentName(item.equipment_id)}</td>
-                                                            <td className="p-2">{item.nominal_value || '-'}</td>
-                                                            <td className="p-2">{item.min_value || '-'}</td>
-                                                            <td className="p-2">{item.max_value || '-'}</td>
-                                                            <td className="p-2 font-semibold">{item.measured_value || '-'}</td>
-                                                            <td className="p-2 text-center">{statusBadge}</td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                        {enrichedItems.length ? (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full border-collapse text-sm">
+                                    <thead>
+                                        <tr className="bg-slate-100/80 text-slate-600">
+                                            <th className="px-5 py-4 text-left font-semibold">Karakteristik</th>
+                                            <th className="px-5 py-4 text-left font-semibold">Yöntem</th>
+                                            <th className="px-5 py-4 text-left font-semibold">Standart / Sınıf</th>
+                                            <th className="px-5 py-4 text-center font-semibold">Nominal</th>
+                                            <th className="px-5 py-4 text-center font-semibold">Tolerans</th>
+                                            <th className="px-5 py-4 text-center font-semibold">Ölçülen</th>
+                                            <th className="px-5 py-4 text-center font-semibold">Sonuç</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {enrichedItems.map((item) => (
+                                            <tr key={item.id || item.row_number} className="border-t border-slate-200">
+                                                <td className="px-5 py-4 align-top">
+                                                    <p className="font-semibold text-slate-900">
+                                                        {item.characteristic_name || '-'}
+                                                    </p>
+                                                    <p className="mt-1 text-xs tracking-[0.08em] text-slate-500">
+                                                        Satır {item.row_number}
+                                                    </p>
+                                                </td>
+                                                <td className="px-5 py-4 align-top text-slate-700">
+                                                    {item.measurement_method || '-'}
+                                                </td>
+                                                <td className="px-5 py-4 align-top text-slate-700">
+                                                    {item.standard_label || '-'}
+                                                </td>
+                                                <td className="px-5 py-4 text-center font-medium text-slate-900">
+                                                    {item.nominal_value || '-'}
+                                                </td>
+                                                <td className="px-5 py-4 text-center text-slate-600">
+                                                    {item.min_value !== null && item.min_value !== undefined
+                                                        ? `${item.min_value} - ${item.max_value ?? '-'}`
+                                                        : 'Yok'}
+                                                </td>
+                                                <td className="px-5 py-4 text-center font-semibold text-slate-900">
+                                                    {item.measured_value || '-'}
+                                                </td>
+                                                <td className="px-5 py-4 text-center">{getDecisionBadge(item.decision)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         ) : (
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <p className="text-gray-500">Ölçüm sonucu bulunamadı.</p>
-                                </CardContent>
-                            </Card>
+                            <div className="px-5 py-10 text-center text-sm text-slate-500">
+                                Bu INKR kaydında ölçüm satırı bulunamadı.
+                            </div>
                         )}
-                    </TabsContent>
+                    </section>
 
-                    {/* TAB 3: DOSYALAR */}
-                    <TabsContent value="attachments" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Ek Dosyalar</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {loadingAttachments ? (
-                                    <p className="text-gray-500 text-center py-4">Yükleniyor...</p>
-                                ) : attachments.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {attachments.map((attachment) => (
-                                            <div 
-                                                key={attachment.id} 
-                                                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
-                                            >
-                                                <div className="flex items-center gap-3">
+                    <section className="mt-5 rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                        <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-4">
+                            <Paperclip className="h-4 w-4 text-slate-500" />
+                            <h2 className="text-xl font-semibold tracking-tight text-slate-900">Ek Dosyalar</h2>
+                        </div>
+
+                        <div className="px-5 py-5">
+                            {loadingAttachments ? (
+                                <p className="text-sm text-slate-500">Dosyalar yükleniyor...</p>
+                            ) : attachments.length ? (
+                                <div className="space-y-3">
+                                    {attachments.map((attachment) => (
+                                        <div
+                                            key={attachment.id}
+                                            className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                                                     {getFileIcon(attachment.file_type)}
-                                                    <div>
-                                                        <p className="font-medium text-sm">{attachment.file_name}</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {formatFileSize(attachment.file_size)} • {attachment.uploaded_at ? format(new Date(attachment.uploaded_at), 'dd.MM.yyyy HH:mm') : '-'}
-                                                        </p>
-                                                    </div>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm"
-                                                        onClick={() => handleViewAttachment(attachment)}
-                                                    >
-                                                        <ExternalLink className="h-4 w-4 mr-1" />
-                                                        Görüntüle
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm"
-                                                        onClick={() => handleDownloadAttachment(attachment)}
-                                                    >
-                                                        <Download className="h-4 w-4 mr-1" />
-                                                        İndir
-                                                    </Button>
+                                                <div>
+                                                    <p className="font-medium text-slate-900">{attachment.file_name}</p>
+                                                    <p className="mt-1 text-sm text-slate-500">
+                                                        {formatFileSize(attachment.file_size)} •{' '}
+                                                        {formatDateTime(attachment.uploaded_at)}
+                                                    </p>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-gray-500 text-center py-8">Bu INKR kaydına henüz dosya eklenmemiş.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    {/* TAB 4: RAPOR */}
-                    <TabsContent value="report" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Rapor Bilgileri</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <Label htmlFor="preparedBy">Hazırlayan</Label>
-                                    <Input
-                                        id="preparedBy"
-                                        placeholder="Ad Soyad"
-                                        value={preparedBy}
-                                        onChange={(e) => setPreparedBy(e.target.value)}
-                                    />
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="rounded-2xl"
+                                                    onClick={() => handleViewAttachment(attachment)}
+                                                >
+                                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                                    Görüntüle
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="rounded-2xl"
+                                                    onClick={() => handleDownloadAttachment(attachment)}
+                                                >
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    İndir
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                                <div>
-                                    <Label htmlFor="controlledBy">Kontrol Eden</Label>
-                                    <Input
-                                        id="controlledBy"
-                                        placeholder="Ad Soyad"
-                                        value={controlledBy}
-                                        onChange={(e) => setControlledBy(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="createdBy">Onaylayan</Label>
-                                    <Input
-                                        id="createdBy"
-                                        placeholder="Ad Soyad"
-                                        value={createdBy}
-                                        onChange={(e) => setCreatedBy(e.target.value)}
-                                    />
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <div className="flex gap-2 justify-end">
-                            <Button variant="outline" onClick={() => setIsOpen(false)}>
-                                <X className="mr-2 h-4 w-4" /> Kapat
-                            </Button>
-                            <Button
-                                onClick={handleGenerateReport}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                <FileDown className="mr-2 h-4 w-4" /> Rapor Al
-                            </Button>
+                            ) : (
+                                <p className="text-sm text-slate-500">Bu INKR kaydına henüz dosya eklenmemiş.</p>
+                            )}
                         </div>
-                    </TabsContent>
-                </Tabs>
+                    </section>
                 </div>
             </DialogContent>
         </Dialog>

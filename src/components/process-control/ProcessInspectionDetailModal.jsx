@@ -20,8 +20,10 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/lib/customSupabaseClient';
+import { openPrintableReport } from '@/lib/reportUtils';
 import { buildMeasurementBundle } from './processInspectionUtils';
 
 const getResultDecisionFlag = (row) => {
@@ -64,7 +66,7 @@ const InspectionStatCard = ({ icon: Icon, label, value, helper, tone = 'slate' }
         <div className={`rounded-3xl border p-4 shadow-sm ${selectedTone}`}>
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                    <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">{label}</p>
                     <p className={`mt-3 font-semibold tracking-tight break-words ${valueClass}`}>{value}</p>
                     {helper ? <p className="mt-2 text-sm text-slate-500">{helper}</p> : null}
                 </div>
@@ -124,6 +126,7 @@ const formatInspectionDate = (value) => {
 };
 
 const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
+    const { toast } = useToast();
     const { characteristics, equipment } = useData();
     const [referencePlan, setReferencePlan] = useState(null);
     const [isLoadingReference, setIsLoadingReference] = useState(false);
@@ -238,8 +241,46 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
         (row) => row.min_value !== null || row.max_value !== null
     );
 
-    const handlePrint = () => {
-        window.print();
+    const printableInspection = useMemo(
+        () => ({
+            ...inspection,
+            quantity_accepted: acceptedQuantity,
+            status: inspection?.decision || inspection?.status || 'Beklemede',
+            prepared_by: inspection?.operator_name || '',
+            controlled_by: '',
+            created_by: '',
+            results: enhancedResults.map((row) => ({
+                ...row,
+                feature: row.characteristic_name || '-',
+                actual_value: String(row.measured_value ?? row.measurement_value ?? ''),
+                measured_value: String(row.measured_value ?? row.measurement_value ?? ''),
+                result: getResultDecisionFlag(row),
+            })),
+        }),
+        [acceptedQuantity, enhancedResults, inspection]
+    );
+
+    const handleGenerateReport = async () => {
+        if (!inspection) return;
+
+        if (isLoadingReference) {
+            toast({
+                title: 'Hazırlanıyor',
+                description: 'Referans kontrol planı yükleniyor. Birkaç saniye sonra tekrar deneyin.',
+            });
+            return;
+        }
+
+        try {
+            await openPrintableReport(printableInspection, 'process_inspection', true);
+        } catch (error) {
+            console.error('Proses muayene PDF hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Proses muayene raporu oluşturulamadı.',
+            });
+        }
     };
 
     if (!inspection) return null;
@@ -259,11 +300,11 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.45),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.28),_transparent_32%),linear-gradient(135deg,_#0f172a,_#1d4ed8_55%,_#0f172a)]" />
                     <div className="relative border-b border-white/10 px-5 py-5 sm:px-6 sm:py-6">
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="flex items-start gap-4">
+                            <div className="min-w-0 flex items-start gap-4">
                                 <div className="rounded-3xl bg-white/10 p-3 shadow-lg ring-1 ring-white/15 backdrop-blur">
                                     <FileText className="h-6 w-6 text-white" />
                                 </div>
-                                <div className="space-y-3">
+                                <div className="min-w-0 space-y-3">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Badge className="border-white/15 bg-white/10 text-white">
                                             Proses Muayene
@@ -271,7 +312,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                         {getDecisionBadge(inspection.decision, true)}
                                     </div>
                                     <div>
-                                        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                                        <h1 className="break-words text-xl font-semibold leading-tight tracking-tight sm:text-2xl lg:text-3xl">
                                             Muayene Kayıt Detayı
                                         </h1>
                                         <p className="mt-1 text-sm text-slate-200">
@@ -299,7 +340,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                 <Button
                                     variant="secondary"
                                     className="border-white/15 bg-white/10 text-white hover:bg-white/20"
-                                    onClick={handlePrint}
+                                    onClick={handleGenerateReport}
                                 >
                                     <Download className="mr-2 h-4 w-4" />
                                     PDF Indir
@@ -322,26 +363,26 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <InspectionStatCard
                                 icon={Box}
-                                label="Parca"
+                                label="Parça"
                                 value={inspection.part_name || inspection.part_code || '-'}
                                 helper={inspection.part_name && inspection.part_code ? inspection.part_code : null}
                                 tone="blue"
                             />
                             <InspectionStatCard
                                 icon={User}
-                                label="Operator"
+                                label="Operatör"
                                 value={inspection.operator_name || '-'}
-                                helper="Kaydi olusturan sorumlu"
+                                helper="Kaydı oluşturan sorumlu"
                             />
                             <InspectionStatCard
                                 icon={CalendarDays}
                                 label="Muayene Tarihi"
                                 value={formatInspectionDate(inspection.inspection_date || inspection.created_at)}
-                                helper={inspection.created_at ? `Kayit: ${formatInspectionDate(inspection.created_at)}` : null}
+                                helper={inspection.created_at ? `Kayıt: ${formatInspectionDate(inspection.created_at)}` : null}
                             />
                             <InspectionStatCard
                                 icon={Gauge}
-                                label="Olcum Satiri"
+                                label="Ölçüm Satırı"
                                 value={measurementStats.total}
                                 helper={`${measurementStats.passed} uygun / ${measurementStats.failed} uygunsuz`}
                                 tone="green"
@@ -351,11 +392,11 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                        Miktar Ozeti
+                                    <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">
+                                        Miktar Özeti
                                     </p>
                                     <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
-                                        Karar dagilimi
+                                        Karar dağılımı
                                     </h2>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
@@ -371,7 +412,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                                 <InspectionStatCard
                                     icon={Hash}
-                                    label="Uretilen"
+                                    label="Üretilen"
                                     value={Number(inspection.quantity_produced) || 0}
                                     helper="Toplam kontrol edilen miktar"
                                     tone="blue"
@@ -380,12 +421,12 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                     icon={CheckCircle2}
                                     label="Kabul Edilen"
                                     value={acceptedQuantity}
-                                    helper="Dogrudan kabul"
+                                    helper="Doğrudan kabul"
                                     tone="green"
                                 />
                                 <InspectionStatCard
                                     icon={AlertTriangle}
-                                    label="Sartli Kabul"
+                                    label="Şartlı Kabul"
                                     value={Number(inspection.quantity_conditional) || 0}
                                     helper="Ek aksiyon gerektiren miktar"
                                     tone="amber"
@@ -394,7 +435,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                     icon={XCircle}
                                     label="Ret"
                                     value={Number(inspection.quantity_rejected) || 0}
-                                    helper="Hatali parca adedi"
+                                    helper="Hatalı parça adedi"
                                     tone="red"
                                 />
                             </div>
@@ -404,7 +445,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                             <section className="rounded-[28px] border border-amber-200 bg-amber-50/80 p-5 shadow-sm">
                                 <div className="flex items-center gap-2 text-amber-900">
                                     <AlertTriangle className="h-5 w-5" />
-                                    <h2 className="text-lg font-semibold">Aciklamalar</h2>
+                                    <h2 className="text-lg font-semibold">Açıklamalar</h2>
                                 </div>
                                 <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-amber-950/80">
                                     {inspection.notes}
@@ -416,15 +457,15 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                             <div className="border-b border-slate-200 px-5 py-4">
                                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                     <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                            Olcum Sonuclari
+                                        <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">
+                                            Ölçüm Sonuçları
                                         </p>
                                         <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
-                                            Referans plan ile zenginlestirilmis kontrol listesi
+                                            Referans plan ile zenginleştirilmiş kontrol listesi
                                         </h2>
                                         <p className="mt-1 text-sm text-slate-500">
-                                            Olculen degerler kayittan, nominal ve tolerans bilgileri varsa guncel proses
-                                            kontrol planindan geliyor.
+                                            Ölçülen değerler kayıttan, nominal ve tolerans bilgileri varsa güncel proses
+                                            kontrol planından geliyor.
                                         </p>
                                     </div>
 
@@ -446,7 +487,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
 
                                 {isLoadingReference ? (
                                     <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                                        Referans proses kontrol plani yukleniyor...
+                                        Referans proses kontrol planı yükleniyor...
                                     </div>
                                 ) : null}
 
@@ -468,7 +509,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                                         <p className="font-medium text-slate-900">{item.name}</p>
                                                         <p className="mt-1 text-xs text-slate-500">{item.method}</p>
                                                     </div>
-                                                    <Badge variant="secondary">{item.count} olcum</Badge>
+                                                    <Badge variant="secondary">{item.count} ölçüm</Badge>
                                                 </div>
                                                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
                                                     <span className="rounded-full bg-white px-2.5 py-1">Nominal: {item.nominal || '-'}</span>
@@ -486,14 +527,14 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                 <div className="overflow-x-auto">
                                     <table className="min-w-[920px] w-full text-sm">
                                         <thead className="bg-slate-50">
-                                            <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                            <tr className="border-b border-slate-200 text-left text-xs font-semibold tracking-[0.08em] text-slate-500">
                                                 <th className="px-4 py-3">#</th>
                                                 <th className="px-4 py-3">Karakteristik</th>
-                                                <th className="px-4 py-3">Olcum</th>
+                                                <th className="px-4 py-3">Ölçüm</th>
                                                 <th className="px-4 py-3">Nominal</th>
                                                 {hasToleranceColumn ? <th className="px-4 py-3">Tolerans</th> : null}
-                                                <th className="px-4 py-3">Olculen Deger</th>
-                                                <th className="px-4 py-3 text-center">Sonuc</th>
+                                                <th className="px-4 py-3">Ölçülen Değer</th>
+                                                <th className="px-4 py-3 text-center">Sonuç</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
@@ -548,7 +589,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                 </div>
                             ) : (
                                 <div className="px-5 py-14 text-center text-slate-500">
-                                    Bu kayit icin olcum sonucu bulunamadi.
+                                    Bu kayıt için ölçüm sonucu bulunamadı.
                                 </div>
                             )}
                         </section>
@@ -567,10 +608,10 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
 
                                 <div className="overflow-x-auto">
                                     <table className="w-full min-w-[640px] text-sm">
-                                        <thead className="bg-rose-50/70 text-left text-xs font-semibold uppercase tracking-[0.16em] text-rose-700">
+                                        <thead className="bg-rose-50/70 text-left text-xs font-semibold tracking-[0.08em] text-rose-700">
                                             <tr>
                                                 <th className="px-4 py-3">Hata Tipi</th>
-                                                <th className="px-4 py-3">Aciklama</th>
+                                                <th className="px-4 py-3">Açıklama</th>
                                                 <th className="px-4 py-3 text-center">Adet</th>
                                             </tr>
                                         </thead>

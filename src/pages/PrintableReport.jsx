@@ -3,6 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/customSupabaseClient';
 import { generatePrintableReportHtml, getReportTitle } from '@/lib/reportUtils';
+import { buildMeasurementBundle } from '@/components/process-control/processInspectionUtils';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -332,6 +333,87 @@ const PrintableReport = () => {
                                 }
                             }
                         }
+                        break;
+                    }
+                    case 'process_inspection': {
+                        if (!recordData) {
+                            const { data: inspectionData, error: inspectionError } = await supabase
+                                .from('process_inspections')
+                                .select('*')
+                                .eq('id', id)
+                                .maybeSingle();
+
+                            if (inspectionError) throw inspectionError;
+                            if (!inspectionData) throw new Error('Proses muayene kaydı bulunamadı.');
+
+                            const [attachmentsRes, defectsRes, resultsRes] = await Promise.all([
+                                supabase.from('process_inspection_attachments').select('*').eq('inspection_id', id),
+                                supabase.from('process_inspection_defects').select('*').eq('inspection_id', id),
+                                supabase.from('process_inspection_results').select('*').eq('inspection_id', id),
+                            ]);
+
+                            recordData = {
+                                ...inspectionData,
+                                attachments: attachmentsRes.data || [],
+                                defects: defectsRes.data || [],
+                                results: resultsRes.data || [],
+                            };
+                        } else {
+                            recordData = {
+                                ...recordData,
+                                attachments: recordData.attachments || [],
+                                defects: recordData.defects || [],
+                                results: recordData.results || [],
+                            };
+                        }
+
+                        const [controlPlanRes, characteristicsRes, equipmentRes] = await Promise.all([
+                            recordData.part_code
+                                ? supabase
+                                      .from('process_control_plans')
+                                      .select('items')
+                                      .eq('part_code', recordData.part_code)
+                                      .order('revision_number', { ascending: false })
+                                      .limit(1)
+                                      .maybeSingle()
+                                : Promise.resolve({ data: null, error: null }),
+                            supabase.from('characteristics').select('id, name, type, sampling_rate'),
+                            supabase.from('measurement_equipment').select('id, name').order('name', { ascending: true }),
+                        ]);
+
+                        if (controlPlanRes.error) throw controlPlanRes.error;
+                        if (characteristicsRes.error) throw characteristicsRes.error;
+                        if (equipmentRes.error) throw equipmentRes.error;
+
+                        const bundle = buildMeasurementBundle({
+                            controlPlan: controlPlanRes.data || null,
+                            quantityProduced: Number(recordData.quantity_produced) || 0,
+                            characteristics: (characteristicsRes.data || []).map((item) => ({
+                                value: item.id,
+                                label: item.name,
+                                type: item.type,
+                                sampling_rate: item.sampling_rate,
+                            })),
+                            equipment: (equipmentRes.data || []).map((item) => ({
+                                value: item.id,
+                                label: item.name,
+                            })),
+                            existingRows: recordData.results || [],
+                        });
+
+                        recordData = {
+                            ...recordData,
+                            results: bundle.results || [],
+                            quantity_accepted:
+                                recordData.quantity_accepted ??
+                                Math.max(
+                                    (Number(recordData.quantity_produced) || 0) -
+                                        (Number(recordData.quantity_rejected) || 0) -
+                                        (Number(recordData.quantity_conditional) || 0),
+                                    0
+                                ),
+                            status: recordData.decision || recordData.status || 'Beklemede',
+                        };
                         break;
                     }
 

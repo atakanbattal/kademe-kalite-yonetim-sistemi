@@ -635,10 +635,12 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
 
         try {
             const filteredItems = items.filter(item => item.characteristic_id && item.equipment_id);
+            const normalizedPartCode = String(formData.part_code || '').trim();
+            const normalizedPartName = String(formData.part_name || '').trim();
 
             const reportData = {
-                part_code: formData.part_code,
-                part_name: formData.part_name,
+                part_code: normalizedPartCode,
+                part_name: normalizedPartName,
                 report_date: formData.report_date,
                 status: formData.status,
                 notes: formData.notes || '',
@@ -668,18 +670,65 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
                 }
                 savedReport = updatedReport;
             } else {
-                const { data: insertedReport, error: insertError } = await supabase
+                const { data: existingReports, error: existingReportError } = await supabase
                     .from('process_inkr_reports')
-                    .upsert(reportData, { onConflict: 'part_code' })
-                    .select()
-                    .single();
+                    .select('id')
+                    .eq('part_code', normalizedPartCode)
+                    .order('report_date', { ascending: false })
+                    .order('updated_at', { ascending: false })
+                    .order('created_at', { ascending: false })
+                    .limit(1);
 
-                if (insertError) {
-                    console.error('INKR kaydetme hatası:', insertError);
-                    toast({ variant: 'destructive', title: 'Hata!', description: `INKR Raporu kaydedilemedi: ${insertError.message}` });
+                if (existingReportError) {
+                    console.error('Mevcut INKR kaydı kontrol edilemedi:', existingReportError);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Hata!',
+                        description: `INKR kaydı kontrol edilemedi: ${existingReportError.message}`,
+                    });
                     return;
                 }
-                savedReport = insertedReport;
+
+                const existingRowId = existingReports?.[0]?.id;
+
+                if (existingRowId) {
+                    const { data: updatedReport, error: updateError } = await supabase
+                        .from('process_inkr_reports')
+                        .update(reportData)
+                        .eq('id', existingRowId)
+                        .select()
+                        .single();
+
+                    if (updateError) {
+                        console.error('INKR güncelleme hatası:', updateError);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Hata!',
+                            description: `INKR Raporu güncellenemedi: ${updateError.message}`,
+                        });
+                        return;
+                    }
+
+                    savedReport = updatedReport;
+                } else {
+                    const { data: insertedReport, error: insertError } = await supabase
+                        .from('process_inkr_reports')
+                        .insert(reportData)
+                        .select()
+                        .single();
+
+                    if (insertError) {
+                        console.error('INKR kaydetme hatası:', insertError);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Hata!',
+                            description: `INKR Raporu kaydedilemedi: ${insertError.message}`,
+                        });
+                        return;
+                    }
+
+                    savedReport = insertedReport;
+                }
             }
 
             if (!savedReport) {
@@ -990,9 +1039,8 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
         setIsDetailModalOpen(true);
     };
 
-    const handleDownloadDetailPDF = (enrichedData) => {
+    const handleDownloadDetailPDF = (enrichedData) =>
         openPrintableReport(enrichedData, 'inkr_management', true);
-    };
 
     const getStatusVariant = (status) => {
         switch (status) {

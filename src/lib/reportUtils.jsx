@@ -230,6 +230,8 @@ const getReportTitle = (record, type) => {
 			return `Sac Metal Giriş Raporu-${record.delivery_note_number || 'Bilinmiyor'}`;
 		case 'incoming_inspection':
 			return `Girdi Kontrol Raporu-${record.record_no || 'Bilinmiyor'}`;
+		case 'process_inspection':
+			return `Proses Muayene Raporu-${record.record_no || 'Bilinmiyor'}`;
 		case 'deviation':
 			return `Sapma Talep Raporu-${record.request_no || 'Bilinmiyor'}`;
 		case 'deviation_list':
@@ -3855,6 +3857,7 @@ const generateGenericReportHtml = async (record, type) => {
 			case 'kaizen': return record.kaizen_no || '-';
 			case 'quarantine': return record.lot_no || '-';
 			case 'incoming_inspection': return record.record_no || '-';
+			case 'process_inspection': return record.record_no || '-';
 			case 'incoming_control_plans': return record.part_code || '-';
 			case 'process_control_plans': return record.part_code || '-';
 			case 'sheet_metal_entry': return record.delivery_note_number || '-';
@@ -3883,6 +3886,7 @@ const generateGenericReportHtml = async (record, type) => {
 			case 'kaizen': return 'Kaizen Raporu';
 			case 'quarantine': return 'Karantina Raporu';
 			case 'incoming_inspection': return 'Girdi Kontrol Raporu';
+			case 'process_inspection': return 'Proses Muayene Raporu';
 			case 'incoming_control_plans': return 'Kontrol Planı Raporu';
 			case 'process_control_plans': return 'Proses Kontrol Planı Raporu';
 			case 'sheet_metal_entry': return 'Sac Metal Giriş Raporu';
@@ -4726,6 +4730,76 @@ const generateGenericReportHtml = async (record, type) => {
 			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Kusurlar</h3><ul>${defectsHtml}</ul></td></tr>
 			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Muayene Sonuçları (Ölçüm Detayları)</h3>${resultsTableHtml}</td></tr>
 		`;
+			case 'process_inspection': {
+				const defectsHtml = record.defects && record.defects.length > 0
+					? record.defects.map(d => `<li><strong>${d.defect_type || '-'}</strong>: ${d.description || '-'}</li>`).join('')
+					: '<li>Hata kaydı bulunmamaktadır.</li>';
+
+				const resultsTableHtml = record.results && record.results.length > 0
+					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+					<thead>
+						<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Karakteristik</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Yöntem</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçüm No</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Nominal</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Min</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Max</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçülen</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Sonuç</th>
+						</tr>
+					</thead>
+					<tbody>
+						${record.results.map(r => {
+							const normalizedResult =
+								typeof r.result === 'boolean'
+									? r.result
+									: ['ok', 'uygun', 'kabul', 'pass', 'geçer', 'gecer'].includes(
+										String(r.measured_value || r.actual_value || r.measurement_value || '').trim().toLowerCase()
+									);
+
+							return `
+								<tr style="border-bottom: 1px solid #d1d5db;">
+									<td style="border: 1px solid #d1d5db; padding: 8px;">${r.characteristic_name || r.feature || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; font-size: 0.9em;">${r.measurement_method || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.measurement_number || '-'} / ${r.total_measurements || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.nominal_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.min_value ?? '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">${r.max_value ?? '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold;">${r.measured_value || r.actual_value || r.measurement_value || '-'}</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: bold; color: ${normalizedResult ? '#16a34a' : '#dc2626'};">${normalizedResult ? '✓ UYGUN' : '✗ RET'}</td>
+								</tr>
+							`;
+						}).join('')}
+					</tbody>
+				</table>`
+					: '<p>Muayene sonuçları bulunamadı.</p>';
+
+				const acceptedQuantity =
+					record.quantity_accepted ??
+					Math.max(
+						(Number(record.quantity_produced) || 0) -
+						(Number(record.quantity_rejected) || 0) -
+						(Number(record.quantity_conditional) || 0),
+						0
+					);
+
+				return `
+			<tr><td>Kayıt No</td><td>${record.record_no || '-'}</td></tr>
+			<tr><td>Parça Kodu</td><td>${record.part_code || '-'}</td></tr>
+			<tr><td>Parça Adı</td><td>${record.part_name || '-'}</td></tr>
+			<tr><td>Operatör</td><td>${record.operator_name || '-'}</td></tr>
+			<tr><td>Muayene Tarihi</td><td>${formatDate(record.inspection_date)}</td></tr>
+			<tr><td>Karar</td><td><strong style="font-weight: bold; ${record.decision === 'Kabul' ? 'color: #16a34a' : record.decision === 'Ret' ? 'color: #dc2626' : 'color: #f59e0b'}">${record.decision || 'Beklemede'}</strong></td></tr>
+			<tr><td>Üretilen Miktar</td><td>${record.quantity_produced || 0} Adet</td></tr>
+			<tr><td>Kabul Edilen</td><td>${acceptedQuantity} Adet</td></tr>
+			<tr><td>Şartlı Kabul</td><td>${record.quantity_conditional || 0} Adet</td></tr>
+			<tr><td>Reddedilen</td><td>${record.quantity_rejected || 0} Adet</td></tr>
+			<tr><td>Açıklama / Notlar</td><td><pre style="white-space: pre-wrap; font-family: inherit;">${record.notes || '-'}</pre></td></tr>
+			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Tespit Edilen Hatalar</h3><ul>${defectsHtml}</ul></td></tr>
+			<tr><td colspan="2"><h3 style="margin-top: 15px; margin-bottom: 10px;">Ölçüm Sonuçları</h3>${resultsTableHtml}</td></tr>
+		`;
+			}
 			case 'sheet_metal_entry': {
 				const itemsTableHtml = record.sheet_metal_items && record.sheet_metal_items.length > 0
 					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
@@ -5088,7 +5162,8 @@ const generateGenericReportHtml = async (record, type) => {
 						<tr style="background-color: #f3f4f6; border-bottom: 2px solid #d1d5db;">
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">#</th>
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px; font-weight: 600;">Karakteristik</th>
-							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px; font-weight: 600;">Ekipman</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px; font-weight: 600;">Yöntem</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px; font-weight: 600;">Standart / Sınıf</th>
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">Nominal</th>
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">Min</th>
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">Max</th>
@@ -5104,7 +5179,8 @@ const generateGenericReportHtml = async (record, type) => {
 						};
 
 						const characteristicName = safeText(item.characteristic_name || item.characteristic_id || '-');
-						const equipmentName = safeText(item.equipment_name || item.equipment_id || '-');
+						const methodName = safeText(item.measurement_method || item.equipment_name || item.equipment_id || '-');
+						const standardClass = safeText(item.standard_label || item.standard_class || item.tolerance_class || '-');
 						const nominal = safeText(item.nominal_value || '-');
 						const min = safeText(item.min_value || '-');
 						const max = safeText(item.max_value || '-');
@@ -5170,7 +5246,8 @@ const generateGenericReportHtml = async (record, type) => {
 						<tr style="border-bottom: 1px solid #e5e7eb;">
 							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${idx + 1}</td>
 							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px;">${characteristicName}</td>
-							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px;">${equipmentName}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px;">${methodName}</td>
+							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 11px;">${standardClass}</td>
 							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px; font-weight: 600;">${nominal}</td>
 							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${min}</td>
 							<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-size: 11px;">${max}</td>
@@ -5194,7 +5271,7 @@ const generateGenericReportHtml = async (record, type) => {
 				}
 
 				return `
-	< tr ><td>INKR Numarası</td><td>${displayInkrNumber}</td></tr >
+				<tr><td>INKR Numarası</td><td>${displayInkrNumber}</td></tr>
 				<tr><td>Ürün Adı</td><td>${record.part_name || '-'}</td></tr>
 				<tr><td>Ürün Kodu</td><td>${record.part_code || '-'}</td></tr>
 				<tr><td>Tedarikçi</td><td>${record.supplier_name || record.supplier?.name || '-'}</td></tr>
@@ -5763,17 +5840,20 @@ const generateGenericReportHtml = async (record, type) => {
 		} else if (type === 'inkr_management') {
 			attachments = record.inkr_attachments || [];
 			bucket = 'inkr_attachments';
+		} else if (type === 'process_inspection') {
+			attachments = record.attachments || [];
+			bucket = 'process_inspections';
 		}
 
 		if (attachments.length > 0) {
 			html += `<div class="section" ><h2 class="section-title gray">EKLİ GÖRSELLER</h2><div class="image-grid">`;
 			for (const attachment of attachments) {
 				let pathToUse = attachment;
-				if ((type === 'deviation' || type === 'inkr_management') && typeof attachment === 'object' && attachment !== null) {
+				if ((type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null) {
 					pathToUse = attachment.file_path || attachment.path || attachment;
 				}
 				const url = await getAttachmentUrl(pathToUse, bucket);
-				const fileName = (type === 'deviation' || type === 'inkr_management') && typeof attachment === 'object' && attachment !== null
+				const fileName = (type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null
 					? (attachment.file_name || attachment.name || (typeof pathToUse === 'string' ? pathToUse.split('/').pop() : ''))
 					: (typeof attachment === 'string' ? attachment : attachment.name || attachment.path || '').split('/').pop();
 				const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeof pathToUse === 'string' ? pathToUse : (pathToUse.path || pathToUse.file_path || ''));
@@ -5899,17 +5979,17 @@ const generateGenericReportHtml = async (record, type) => {
 					<div class="signature-box">
 						<p class="role">HAZIRLAYAN</p>
 						<div class="signature-line"></div>
-						<p class="name">${type === 'incoming_inspection' ? (record.prepared_by ? record.prepared_by : '&nbsp;') : '&nbsp;'}</p>
+						<p class="name">${type === 'incoming_inspection' ? (record.prepared_by ? record.prepared_by : '&nbsp;') : type === 'process_inspection' ? (record.prepared_by || record.operator_name || '&nbsp;') : '&nbsp;'}</p>
 					</div>
 					<div class="signature-box">
 						<p class="role">KONTROL EDEN</p>
 						<div class="signature-line"></div>
-						<p class="name">${type === 'incoming_inspection' ? (record.controlled_by ? record.controlled_by : '&nbsp;') : '&nbsp;'}</p>
+						<p class="name">${type === 'incoming_inspection' || type === 'process_inspection' ? (record.controlled_by ? record.controlled_by : '&nbsp;') : '&nbsp;'}</p>
 					</div>
 					<div class="signature-box">
 						<p class="role">ONAYLAYAN</p>
 						<div class="signature-line"></div>
-						<p class="name">${type === 'incoming_inspection' ? (record.created_by ? record.created_by : '&nbsp;') : '&nbsp;'}</p>
+						<p class="name">${type === 'incoming_inspection' || type === 'process_inspection' ? (record.created_by ? record.created_by : '&nbsp;') : '&nbsp;'}</p>
 					</div>
 				`}
 	</div>

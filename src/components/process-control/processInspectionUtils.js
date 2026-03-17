@@ -37,7 +37,7 @@ export const normalizeExistingResult = (row, index, characteristics = []) => {
         nominal_value: row?.nominal_value ?? '',
         min_value: row?.min_value ?? null,
         max_value: row?.max_value ?? null,
-        measurement_method: row?.measurement_method || row?.method || '-',
+        measurement_method: row?.measurement_method || row?.method || null,
         result:
             typeof row?.result === 'boolean'
                 ? row.result
