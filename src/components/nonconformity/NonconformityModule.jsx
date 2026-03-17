@@ -34,6 +34,10 @@ import {
   parseNonconformityRecordNumber
 } from '@/lib/vehicleFaultNonconformitySync';
 import { backfillProcessInspectionNonconformities } from '@/lib/processInspectionNonconformitySync';
+import {
+  buildNonconformityDisplayNumberMap,
+  getNonconformityDisplayRecordNumber
+} from '@/lib/nonconformityRecordNumbers';
 
 const severityColors = {
   'Düşük': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -301,13 +305,23 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     return getStoredSuggestionType(record.status);
   }, [getRecordSuggestion, settings?.auto_suggest]);
 
+  const displayRecordNumberMap = useMemo(
+    () => buildNonconformityDisplayNumberMap(records),
+    [records]
+  );
+
+  const getDisplayRecordNumber = useCallback(
+    (record) => getNonconformityDisplayRecordNumber(record, displayRecordNumberMap),
+    [displayRecordNumberMap]
+  );
+
   const filteredRecords = useMemo(() => {
     let filtered = [...records];
 
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(r =>
-        r.record_number?.toLowerCase().includes(lower) ||
+        getDisplayRecordNumber(r).toLowerCase().includes(lower) ||
         r.part_code?.toLowerCase().includes(lower) ||
         r.part_name?.toLowerCase().includes(lower) ||
         r.description?.toLowerCase().includes(lower) ||
@@ -323,8 +337,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       let aVal, bVal;
       switch (sortConfig.key) {
         case 'record_number':
-          aVal = parseNonconformityRecordNumber(a.record_number);
-          bVal = parseNonconformityRecordNumber(b.record_number);
+          aVal = parseNonconformityRecordNumber(getDisplayRecordNumber(a));
+          bVal = parseNonconformityRecordNumber(getDisplayRecordNumber(b));
           break;
         case 'detection_date':
           aVal = new Date(a.detection_date || 0); bVal = new Date(b.detection_date || 0); break;
@@ -344,7 +358,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     });
 
     return filtered;
-  }, [records, searchTerm, statusFilter, severityFilter, sortConfig]);
+  }, [getDisplayRecordNumber, records, searchTerm, statusFilter, severityFilter, sortConfig]);
 
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -438,7 +452,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       severityCounts,
       personnelPerformance,
       items: filteredRecords.map((item) => ({
-        record_number: item.record_number || '-',
+        record_number: getDisplayRecordNumber(item),
         part_code: item.part_code || '-',
         part_name: item.part_name || '-',
         category: item.category || '-',
@@ -451,7 +465,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     };
 
     openPrintableReport(reportData, 'nonconformity_record_list', true);
-  }, [filteredRecords, toast]);
+  }, [filteredRecords, getDisplayRecordNumber, toast]);
 
   const handleConvertToDF8D = async () => {
     const { record, type } = convertDialog;
@@ -784,9 +798,15 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.02 }}
                         className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                        onClick={() => { setDetailRecord(record); setIsDetailOpen(true); }}
+                        onClick={() => {
+                          setDetailRecord({
+                            ...record,
+                            display_record_number: getDisplayRecordNumber(record),
+                          });
+                          setIsDetailOpen(true);
+                        }}
                       >
-                        <td className="px-3 py-2.5 font-mono text-xs font-semibold">{record.record_number || '-'}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs font-semibold">{getDisplayRecordNumber(record)}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-1.5">
                             <span className="font-medium">{record.part_code || '-'}</span>
@@ -848,13 +868,28 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => { setDetailRecord(record); setIsDetailOpen(true); }}>
+                              <DropdownMenuItem onClick={() => {
+                                setDetailRecord({
+                                  ...record,
+                                  display_record_number: getDisplayRecordNumber(record),
+                                });
+                                setIsDetailOpen(true);
+                              }}>
                                 <Eye className="h-4 w-4 mr-2" /> Görüntüle
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openPrintableReport(record, 'nonconformity_record', true)}>
+                              <DropdownMenuItem onClick={() => openPrintableReport({
+                                ...record,
+                                record_number: getDisplayRecordNumber(record),
+                              }, 'nonconformity_record', true)}>
                                 <FileText className="h-4 w-4 mr-2" /> Rapor Al
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setSelectedRecord(record); setIsFormOpen(true); }}>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedRecord({
+                                  ...record,
+                                  display_record_number: getDisplayRecordNumber(record),
+                                });
+                                setIsFormOpen(true);
+                              }}>
                                 <Edit className="h-4 w-4 mr-2" /> Düzenle
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -1121,7 +1156,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                 return (
                                   <div key={record.id} className="flex items-center justify-between px-3 py-2 text-xs hover:bg-muted/20 transition-colors">
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                      <span className="font-mono text-muted-foreground shrink-0">{record.record_number}</span>
+                                      <span className="font-mono text-muted-foreground shrink-0">{getDisplayRecordNumber(record)}</span>
                                       <span className="truncate text-foreground">{record.description?.substring(0, 60)}</span>
                                       <Badge className={`text-[9px] shrink-0 ${severityColors[record.severity] || ''}`}>{record.severity}</Badge>
                                       <span className="text-muted-foreground shrink-0">x{record.quantity}</span>
@@ -1181,7 +1216,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
           <AlertDialogHeader>
             <AlertDialogTitle>Kaydı silmek istediğinize emin misiniz?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.record_number}" numaralı uygunsuzluk kaydı kalıcı olarak silinecektir.
+              "{deleteTarget ? getDisplayRecordNumber(deleteTarget) : '-'}" numaralı uygunsuzluk kaydı kalıcı olarak silinecektir.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1213,7 +1248,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
               <div className="p-3 rounded-lg bg-muted/50 border space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Kayıt No:</span>
-                  <span className="font-mono font-semibold">{convertDialog.record.record_number}</span>
+                  <span className="font-mono font-semibold">{getDisplayRecordNumber(convertDialog.record)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Parça Kodu:</span>

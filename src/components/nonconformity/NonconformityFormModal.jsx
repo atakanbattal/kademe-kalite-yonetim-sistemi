@@ -188,21 +188,15 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
   const fetchNextRecordNumber = useCallback(async () => {
     const yearPrefix = new Date().getFullYear().toString().slice(-2);
     const prefix = `UYG-${yearPrefix}-`;
-    // Sadece önizleme amaçlı – gerçek kayıt numarası kayıt sırasında atomik RPC ile atanır
-    const { data: maxRec } = await supabase
+    // Sadece önizleme amaçlı – modülde boşluksuz görünen sırayı tahmin eder
+    const { count, error } = await supabase
       .from('nonconformity_records')
-      .select('record_number')
-      .like('record_number', `${prefix}%`)
-      .order('record_number', { ascending: false })
-      .limit(1)
-      .single();
+      .select('id', { count: 'exact', head: true })
+      .like('record_number', `${prefix}%`);
 
-    let nextNum = 1;
-    if (maxRec?.record_number) {
-      const parts = maxRec.record_number.split('-');
-      const lastNum = parseInt(parts[parts.length - 1], 10);
-      if (!isNaN(lastNum)) nextNum = lastNum + 1;
-    }
+    if (error) throw error;
+
+    const nextNum = (count || 0) + 1;
     setPreviewRecordNumber(`${prefix}${String(nextNum).padStart(4, '0')} (tahmini)`);
   }, []);
 
@@ -224,7 +218,7 @@ const NonconformityFormModal = ({ isOpen, setIsOpen, record, onSaveSuccess }) =>
             ? format(new Date(record.detection_date), 'yyyy-MM-dd')
             : format(new Date(), 'yyyy-MM-dd'),
         });
-        setPreviewRecordNumber(record.record_number || null);
+        setPreviewRecordNumber(record.display_record_number || record.record_number || null);
       } else {
         setFormData(defaultFormData);
         fetchNextRecordNumber();

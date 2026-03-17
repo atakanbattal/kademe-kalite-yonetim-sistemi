@@ -33,6 +33,8 @@ const statusConfig = {
 const NonconformityDetailModal = ({ isOpen, setIsOpen, record }) => {
   if (!record) return null;
 
+  const displayRecordNumber = record.display_record_number || record.record_number;
+
   const severity = severityConfig[record.severity] || {};
   const status = statusConfig[record.status] || {};
 
@@ -80,7 +82,10 @@ const NonconformityDetailModal = ({ isOpen, setIsOpen, record }) => {
     >
       <div className="space-y-6">
         <div className="flex justify-end">
-          <Button variant="outline" onClick={() => openPrintableReport(record, 'nonconformity_record', true)}>
+          <Button
+            variant="outline"
+            onClick={() => openPrintableReport({ ...record, record_number: displayRecordNumber }, 'nonconformity_record', true)}
+          >
             <Printer className="h-4 w-4 mr-2" />
             Yazdir / PDF
           </Button>
@@ -91,7 +96,7 @@ const NonconformityDetailModal = ({ isOpen, setIsOpen, record }) => {
           <InfoCard
             icon={Hash}
             label="Kayıt No"
-            value={record.record_number}
+            value={displayRecordNumber}
             variant="primary"
           />
           <InfoCard
