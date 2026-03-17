@@ -232,28 +232,19 @@ const ProcessInspectionManagement = () => {
                                     <TableCell>{getDecisionBadge(inspection.decision)}</TableCell>
                                     <TableCell className="text-right">
                                         <AlertDialog>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-foreground">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                        <span>İşlemler</span>
+                                            <div className="flex justify-end gap-1">
+                                                <Button variant="ghost" size="icon" onClick={() => handleViewDetail(inspection)} title="Görüntüle">
+                                                    <Eye className="h-4 w-4 text-blue-500" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(inspection)} title="Düzenle">
+                                                    <Edit className="h-4 w-4 text-amber-500" />
+                                                </Button>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" title="Sil">
+                                                        <Trash2 className="h-4 w-4" />
                                                     </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleViewDetail(inspection)}>
-                                                        <Eye className="mr-2 h-4 w-4" /> Görüntüle
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleEdit(inspection)}>
-                                                        <Edit className="mr-2 h-4 w-4" /> Düzenle
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <AlertDialogTrigger asChild>
-                                                        <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-700">
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Sil
-                                                        </DropdownMenuItem>
-                                                    </AlertDialogTrigger>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                                </AlertDialogTrigger>
+                                            </div>
                                             
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>

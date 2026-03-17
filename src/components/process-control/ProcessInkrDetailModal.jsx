@@ -169,14 +169,28 @@ const ProcessInkrDetailModal = ({
                     <DialogTitle>INKR Detayları - {displayInkrNumber}</DialogTitle>
                     <DialogDescription>INKR rapor detayları ve ölçüm sonuçları</DialogDescription>
                 </DialogHeader>
-                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0 shadow-md relative z-10">
                     <div className="flex items-center gap-4">
-                        <div className="bg-white/20 p-2.5 rounded-lg"><FileSpreadsheet className="h-5 w-5 text-white" /></div>
+                        <div className="bg-white/20 p-2.5 rounded-xl shadow-inner backdrop-blur-sm"><FileSpreadsheet className="h-5 w-5 text-white" /></div>
                         <div>
                             <h1 className="text-lg font-bold tracking-tight">INKR Detayları</h1>
-                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">INKR No: {displayInkrNumber} • {format(new Date(report.report_date || report.created_at), 'dd MMMM yyyy', { locale: tr })}</p>
+                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium flex items-center gap-2 mt-0.5">
+                                <span>INKR No: {displayInkrNumber}</span>
+                                <span className="opacity-50">•</span>
+                                <span>{format(new Date(report.report_date || report.created_at), 'dd MMMM yyyy', { locale: tr })}</span>
+                            </p>
                         </div>
-                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">Rapor</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white shadow-sm text-[10px] font-bold rounded-full uppercase tracking-wider backdrop-blur-md">Rapor</span>
+                        <Button 
+                            variant="default"
+                            size="icon"
+                            className="bg-white/10 hover:bg-red-500/80 text-white border-white/20 backdrop-blur-md transition-colors h-8 w-8 ml-2"
+                            onClick={() => setIsOpen(false)}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
                     </div>
                 </header>
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">

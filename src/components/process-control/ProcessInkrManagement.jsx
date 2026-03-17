@@ -37,12 +37,140 @@ const ISO_2768_1_TOLERANCES = {
     ]
 };
 
+const TS_13920_TOLERANCES = {
+    linear: [
+        { range: [0, 30], A: 1.0, B: 1.0, C: 1.0, D: 1.0 },
+        { range: [30, 120], A: 1.0, B: 2.0, C: 3.0, D: 4.0 },
+        { range: [120, 400], A: 1.0, B: 2.0, C: 4.0, D: 7.0 },
+        { range: [400, 1000], A: 2.0, B: 3.0, C: 6.0, D: 9.0 },
+        { range: [1000, 2000], A: 3.0, B: 4.0, C: 8.0, D: 12.0 },
+        { range: [2000, 4000], A: 4.0, B: 6.0, C: 11.0, D: 16.0 },
+        { range: [4000, 8000], A: 5.0, B: 8.0, C: 14.0, D: 21.0 },
+        { range: [8000, 12000], A: 6.0, B: 10.0, C: 18.0, D: 27.0 },
+        { range: [12000, 16000], A: 7.0, B: 12.0, C: 21.0, D: 32.0 },
+        { range: [16000, 20000], A: 8.0, B: 14.0, C: 24.0, D: 36.0 },
+        { range: [20000, 1000000], A: 9.0, B: 16.0, C: 27.0, D: 40.0 }
+    ]
+};
+
+const TS_9013_TOLERANCES = {
+    linear: [
+        { range: [0, 30], '1': 0.5, '2': 1.0, '3': 1.5, '4': 2.5 },
+        { range: [30, 120], '1': 1.0, '2': 1.5, '3': 2.5, '4': 4.0 },
+        { range: [120, 315], '1': 1.5, '2': 2.0, '3': 3.5, '4': 6.0 },
+        { range: [315, 1000], '1': 2.0, '2': 3.0, '3': 5.0, '4': 8.0 },
+        { range: [1000, 2000], '1': 2.5, '2': 4.0, '3': 6.5, '4': 10.0 },
+        { range: [2000, 4000], '1': 3.5, '2': 5.5, '3': 9.0, '4': 14.0 },
+        { range: [4000, 8000], '1': 5.0, '2': 8.0, '3': 12.0, '4': 20.0 },
+        { range: [8000, 12000], '1': 7.0, '2': 10.0, '3': 16.0, '4': 26.0 }
+    ]
+};
+
 const STANDARD_OPTIONS = [
     { value: 'ISO 2768-1_f', label: 'ISO 2768-1 f (Fine - İnce)' },
     { value: 'ISO 2768-1_m', label: 'ISO 2768-1 m (Medium - Orta)' },
     { value: 'ISO 2768-1_c', label: 'ISO 2768-1 c (Coarse - Kaba)' },
     { value: 'ISO 2768-1_v', label: 'ISO 2768-1 v (Very Coarse - Çok Kaba)' },
+    { value: 'TS 13920_A', label: 'TS 13920 A (En Hassas)' },
+    { value: 'TS 13920_B', label: 'TS 13920 B (Hassas)' },
+    { value: 'TS 13920_C', label: 'TS 13920 C (Normal)' },
+    { value: 'TS 13920_D', label: 'TS 13920 D (Kaba)' },
+    { value: 'TS 9013_1', label: 'TS 9013 Range 1 (En Hassas)' },
+    { value: 'TS 9013_2', label: 'TS 9013 Range 2 (Hassas)' },
+    { value: 'TS 9013_3', label: 'TS 9013 Range 3 (Normal)' },
+    { value: 'TS 9013_4', label: 'TS 9013 Range 4 (Kaba)' },
 ];
+
+const getToleranceTable = (standardClass = '') => {
+    if (standardClass.startsWith('TS 13920')) return TS_13920_TOLERANCES;
+    if (standardClass.startsWith('TS 9013')) return TS_9013_TOLERANCES;
+    return ISO_2768_1_TOLERANCES;
+};
+
+const getStandardIdFromClass = (standardClass, standards = []) => {
+    if (!standardClass) return null;
+
+    const parts = String(standardClass).split('_');
+    parts.pop();
+    const standardName = parts.join('_');
+
+    if (!standardName) return null;
+
+    const matchingStandard = standards.find((standard) => {
+        const label = standard?.label || standard?.name || standard?.code || '';
+        return label.startsWith(standardName);
+    });
+
+    return matchingStandard?.value || matchingStandard?.id || null;
+};
+
+const deriveStandardClassValue = ({
+    standardClass,
+    standardId,
+    toleranceClass,
+    standards = [],
+}) => {
+    if (standardClass) return standardClass;
+    if (!toleranceClass) return '';
+
+    const matchingStandard = standards.find(
+        (standard) => standard?.value === standardId || standard?.id === standardId
+    );
+    const label = matchingStandard?.label || matchingStandard?.name || matchingStandard?.code || '';
+
+    if (label.includes('ISO 2768-1')) return `ISO 2768-1_${toleranceClass}`;
+    if (label.includes('TS 13920')) return `TS 13920_${toleranceClass}`;
+    if (label.includes('TS 9013')) return `TS 9013_${toleranceClass}`;
+
+    if (['f', 'm', 'c', 'v'].includes(String(toleranceClass))) {
+        return `ISO 2768-1_${toleranceClass}`;
+    }
+    if (['A', 'B', 'C', 'D'].includes(String(toleranceClass))) {
+        return `TS 13920_${toleranceClass}`;
+    }
+    if (['1', '2', '3', '4'].includes(String(toleranceClass))) {
+        return `TS 9013_${toleranceClass}`;
+    }
+
+    return '';
+};
+
+const hydrateInkrItem = (item, { characteristics = [], equipment = [], standards = [] } = {}) => {
+    const matchingCharacteristic = characteristics.find((characteristic) => characteristic.value === item.characteristic_id);
+    const matchingEquipment = equipment.find((entry) => entry.value === item.equipment_id);
+    const isDimensional =
+        !!matchingEquipment && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(matchingEquipment.label);
+
+    let standardId = item.standard_id || null;
+    let toleranceClass = item.tolerance_class || null;
+    let standardClass = deriveStandardClassValue({
+        standardClass: item.standard_class || '',
+        standardId,
+        toleranceClass,
+        standards,
+    });
+
+    if (isDimensional && !standardClass && !standardId && !toleranceClass) {
+        standardClass = 'ISO 2768-1_m';
+        toleranceClass = 'm';
+        standardId = getStandardIdFromClass(standardClass, standards);
+    }
+
+    return {
+        id: item.id || uuidv4(),
+        characteristic_id: item.characteristic_id || '',
+        characteristic_type: item.characteristic_type || matchingCharacteristic?.type || '',
+        equipment_id: item.equipment_id || '',
+        standard_id: standardId,
+        tolerance_class: toleranceClass,
+        standard_class: standardClass,
+        nominal_value: item.nominal_value !== undefined && item.nominal_value !== null ? item.nominal_value : '',
+        min_value: item.min_value !== undefined && item.min_value !== null ? item.min_value : null,
+        max_value: item.max_value !== undefined && item.max_value !== null ? item.max_value : null,
+        tolerance_direction: item.tolerance_direction || '±',
+        measured_value: item.measured_value || '',
+    };
+};
 
 const normalizePartCode = (code) => (code ? code.toString().trim().toLowerCase() : '');
 
@@ -78,9 +206,9 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
     }, [item.equipment_id, equipment]);
 
     const autoCalculateTolerance = useCallback((currentItem) => {
-        const { nominal_value, tolerance_class, tolerance_direction } = currentItem;
+        const { nominal_value, tolerance_class, tolerance_direction, standard_class } = currentItem;
 
-        if (!isDimensional || !tolerance_class || !nominal_value) {
+        if (!isDimensional || !tolerance_class || !nominal_value || !standard_class) {
             return { ...currentItem };
         }
 
@@ -89,11 +217,11 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
             return { ...currentItem };
         }
 
-        const toleranceRule = ISO_2768_1_TOLERANCES.linear.find(
-            rule => nominal > rule.range[0] && nominal <= rule.range[1]
+        const toleranceRule = getToleranceTable(standard_class).linear.find(
+            (rule) => nominal >= rule.range[0] && nominal < rule.range[1]
         );
 
-        if (toleranceRule && toleranceRule[tolerance_class] !== null) {
+        if (toleranceRule && toleranceRule[tolerance_class] !== null && toleranceRule[tolerance_class] !== undefined) {
             const tolerance = toleranceRule[tolerance_class];
             let min, max;
 
@@ -125,16 +253,22 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
         let newItem = { ...item, [field]: value };
 
         if (field === 'standard_class') {
-            if (value && standards) {
-                const [standardName, toleranceClass] = value.split('_');
-                const standard = standards.find(s => s.label.startsWith(standardName));
-                newItem = { ...newItem, standard_id: standard ? standard.value : null, tolerance_class: toleranceClass };
+            if (value) {
+                const parts = value.split('_');
+                const toleranceClass = parts.pop();
+                const standardId = getStandardIdFromClass(value, standards);
+                newItem = {
+                    ...newItem,
+                    standard_id: standardId,
+                    tolerance_class: toleranceClass,
+                    standard_class: value,
+                };
 
                 const calculatedItem = autoCalculateTolerance(newItem);
                 onUpdate(index, calculatedItem);
                 return;
             } else {
-                newItem = { ...newItem, standard_id: null, tolerance_class: null };
+                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: '' };
             }
         }
 
@@ -161,17 +295,16 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
         }
     };
 
-    const selectedCharacteristic = characteristics?.find(c => c.value === item.characteristic_id);
-
-    const standardClassValue = useMemo(() => {
-        if (!standards) return item.standard_class || '';
-        const standard = standards.find(s => s.value === item.standard_id);
-        if (standard && item.tolerance_class) {
-            const standardBaseName = standard.label.split(' ')[0];
-            return `${standardBaseName}_${item.tolerance_class}`;
-        }
-        return item.standard_class || '';
-    }, [item.standard_id, item.tolerance_class, standards, item.standard_class]);
+    const standardClassValue = useMemo(
+        () =>
+            deriveStandardClassValue({
+                standardClass: item.standard_class || '',
+                standardId: item.standard_id,
+                toleranceClass: item.tolerance_class,
+                standards,
+            }),
+        [item.standard_class, item.standard_id, item.tolerance_class, standards]
+    );
 
     return (
         <tr className="border-b transition-colors hover:bg-muted/50 text-sm">
@@ -315,20 +448,9 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
                     notes: existingReport.notes || ''
                 });
                 const reportItems = existingReport.items || [];
-                const loadedItems = reportItems.map((item) => ({
-                    id: item.id || uuidv4(),
-                    characteristic_id: item.characteristic_id || '',
-                    characteristic_type: item.characteristic_type || '',
-                    equipment_id: item.equipment_id || '',
-                    standard_id: item.standard_id || null,
-                    tolerance_class: item.tolerance_class || null,
-                    standard_class: item.standard_class || '',
-                    nominal_value: item.nominal_value !== undefined && item.nominal_value !== null ? item.nominal_value : '',
-                    min_value: item.min_value !== undefined && item.min_value !== null ? item.min_value : null,
-                    max_value: item.max_value !== undefined && item.max_value !== null ? item.max_value : null,
-                    tolerance_direction: item.tolerance_direction || '±',
-                    measured_value: item.measured_value || ''
-                }));
+                const loadedItems = reportItems.map((item) =>
+                    hydrateInkrItem(item, { characteristics, equipment, standards })
+                );
                 setItems(loadedItems);
 
                 // Mevcut attachment'ları yükle
@@ -347,9 +469,22 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
                 let initialItems = [];
                 let derivedPartName = existingReport?.part_name || '';
 
-                // INKR başlangıcını proses muayene kayıtlarından üret.
                 if (existingReport?.part_code) {
                     try {
+                        // 1. İlgili parça kodunun son revizyon Kontrol Planını getir
+                        const { data: controlPlan, error: planError } = await supabase
+                            .from('process_control_plans')
+                            .select('items, part_name')
+                            .eq('part_code', existingReport.part_code)
+                            .order('revision_number', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+
+                        if (controlPlan && controlPlan.part_name) {
+                            derivedPartName = controlPlan.part_name;
+                        }
+
+                        // 2. İlk üretim denemesi/muayenesi kaydını getir
                         const { data: firstInspection, error: inspectionError } = await supabase
                             .from('process_inspections')
                             .select('id, inspection_date, part_name')
@@ -359,66 +494,51 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
                             .limit(1)
                             .maybeSingle();
 
-                        if (inspectionError) {
-                            throw inspectionError;
-                        }
-
                         if (firstInspection) {
                             if (firstInspection.inspection_date) {
                                 initialReportDate = new Date(firstInspection.inspection_date).toISOString().split('T')[0];
                             }
-
-                            if (firstInspection.part_name?.trim()) {
+                            if (!derivedPartName && firstInspection.part_name?.trim()) {
                                 derivedPartName = firstInspection.part_name.trim();
                             }
 
-                            const { data: inspectionResults, error: resultsError } = await supabase
+                            // İlk testin sonuçlarını getir
+                            const { data: inspectionResults } = await supabase
                                 .from('process_inspection_results')
                                 .select('*')
                                 .eq('inspection_id', firstInspection.id);
 
-                            if (!resultsError && inspectionResults?.length) {
-                                const uniqueResultMap = new Map();
-
-                                inspectionResults.forEach((result) => {
-                                    const characteristicKey =
-                                        result.characteristic_id ||
-                                        result.characteristic_name ||
-                                        result.id;
-
-                                    if (!characteristicKey || uniqueResultMap.has(characteristicKey)) {
-                                        return;
+                            const resultsMap = new Map();
+                            if (inspectionResults?.length) {
+                                inspectionResults.forEach(res => {
+                                    if (res.characteristic_id) {
+                                        if (!resultsMap.has(res.characteristic_id)) {
+                                            resultsMap.set(res.characteristic_id, []);
+                                        }
+                                        resultsMap.get(res.characteristic_id).push(res.measured_value ?? res.measurement_value ?? res.actual_value ?? '');
                                     }
-
-                                    uniqueResultMap.set(characteristicKey, result);
-                                });
-
-                                initialItems = Array.from(uniqueResultMap.values()).map((result) => {
-                                    const matchingCharacteristic = characteristics?.find(
-                                        (characteristic) => characteristic.value === result.characteristic_id
-                                    );
-
-                                    return {
-                                        id: uuidv4(),
-                                        characteristic_id: result.characteristic_id || '',
-                                        characteristic_type:
-                                            result.characteristic_type || matchingCharacteristic?.type || '',
-                                        equipment_id: '',
-                                        standard_id: null,
-                                        tolerance_class: null,
-                                        nominal_value: result.nominal_value ?? '',
-                                        min_value: result.min_value ?? null,
-                                        max_value: result.max_value ?? null,
-                                        tolerance_direction: result.tolerance_direction || '±',
-                                        standard_class: '',
-                                        measured_value:
-                                            result.measured_value ??
-                                            result.measurement_value ??
-                                            result.actual_value ??
-                                            ''
-                                    };
                                 });
                             }
+
+                            // 3. Kontrol planı öğelerini baz alıp, ölçülen değerleri eşleştir
+                            if (controlPlan && controlPlan.items?.length) {
+                                initialItems = controlPlan.items.map((planItem) => {
+                                    const characteristicVals = resultsMap.get(planItem.characteristic_id);
+                                    const nextMeasuredValue = characteristicVals && characteristicVals.length > 0 ? characteristicVals.shift() : '';
+                                    return hydrateInkrItem(
+                                        {
+                                            ...planItem,
+                                            measured_value: nextMeasuredValue,
+                                        },
+                                        { characteristics, equipment, standards }
+                                    );
+                                });
+                            }
+                        } else if (controlPlan && controlPlan.items?.length) {
+                            // Sadece kontrol planı varsa
+                            initialItems = controlPlan.items.map((planItem) =>
+                                hydrateInkrItem(planItem, { characteristics, equipment, standards })
+                            );
                         }
                     } catch (err) {
                         console.error('Proses muayene bilgileri alınamadı:', err);
@@ -440,7 +560,7 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
         if (isOpen) {
             initializeForm();
         }
-    }, [isOpen, existingReport]);
+    }, [isOpen, existingReport, characteristics, equipment, standards]);
 
     // Dosya yükleme fonksiyonları
     const onDrop = useCallback(acceptedFiles => {
