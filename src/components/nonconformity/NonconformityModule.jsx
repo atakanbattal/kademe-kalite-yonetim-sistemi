@@ -51,6 +51,15 @@ const statusColors = {
   'Kapatıldı': 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
 };
 
+const CONVERTED_STATUSES = new Set(['DF Açıldı', '8D Açıldı']);
+const FINAL_STATUSES = new Set(['DF Açıldı', '8D Açıldı', 'Kapatıldı']);
+
+const getStoredSuggestionType = (status) => {
+  if (status === 'DF Önerildi') return 'DF';
+  if (status === '8D Önerildi') return '8D';
+  return null;
+};
+
 const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const { toast } = useToast();
   const { user, profile, loading: authLoading } = useAuth();
@@ -253,7 +262,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
   const getRecordSuggestion = useCallback((record) => {
     // Durum kilitliyse öneri gösterme
-    if (['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(record.status)) return null;
+    if (FINAL_STATUSES.has(record.status)) return null;
 
     // Eşik değerleri — settings yüklenmemişse varsayılanlar kullanılır
     const dfQtyThreshold = settings?.df_quantity_threshold ?? 10;
@@ -281,6 +290,16 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     if (maxCount >= dfThreshold) return 'DF';
     return null;
   }, [settings, partCodeAnalysis, categoryAnalysis]);
+
+  const getEffectiveSuggestionForStats = useCallback((record) => {
+    if (!record || FINAL_STATUSES.has(record.status)) return null;
+
+    if (settings?.auto_suggest) {
+      return getRecordSuggestion(record);
+    }
+
+    return getStoredSuggestionType(record.status);
+  }, [getRecordSuggestion, settings?.auto_suggest]);
 
   const filteredRecords = useMemo(() => {
     let filtered = [...records];
@@ -566,13 +585,46 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
   // Dashboard istatistikleri
   const stats = useMemo(() => {
-    const total = records.length;
-    const open = records.filter(r => r.status === 'Açık').length;
-    const dfSuggested = records.filter(r => r.status === 'DF Önerildi').length;
-    const eightDSuggested = records.filter(r => r.status === '8D Önerildi').length;
-    const converted = records.filter(r => ['DF Açıldı', '8D Açıldı'].includes(r.status)).length;
-    const closed = records.filter(r => r.status === 'Kapatıldı').length;
-    const critical = records.filter(r => r.severity === 'Kritik' && r.status !== 'Kapatıldı').length;
+    const summary = records.reduce((acc, record) => {
+      acc.total += 1;
+
+      if (record.severity === 'Kritik' && record.status !== 'Kapatıldı') {
+        acc.critical += 1;
+      }
+
+      if (record.status === 'Kapatıldı') {
+        acc.closed += 1;
+        return acc;
+      }
+
+      if (CONVERTED_STATUSES.has(record.status)) {
+        acc.converted += 1;
+        return acc;
+      }
+
+      const suggestion = getEffectiveSuggestionForStats(record);
+
+      if (suggestion === 'DF') {
+        acc.dfSuggested += 1;
+        return acc;
+      }
+
+      if (suggestion === '8D') {
+        acc.eightDSuggested += 1;
+        return acc;
+      }
+
+      acc.open += 1;
+      return acc;
+    }, {
+      total: 0,
+      open: 0,
+      dfSuggested: 0,
+      eightDSuggested: 0,
+      converted: 0,
+      closed: 0,
+      critical: 0,
+    });
 
     // En çok tekrarlayan parça kodları (Üretilen araçlar modülünden gelen seri/şasi numaralarını hariç tut)
     const partCounts = {};
@@ -612,8 +664,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    return { total, open, dfSuggested, eightDSuggested, converted, closed, critical, topParts, topCategories, topResponsiblePersonnel, topDetectedByPersonnel };
-  }, [records]);
+    return { ...summary, topParts, topCategories, topResponsiblePersonnel, topDetectedByPersonnel };
+  }, [getEffectiveSuggestionForStats, records]);
 
   return (
     <div className="space-y-4">
@@ -765,7 +817,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                          {suggestion && settings?.auto_suggest && !['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(record.status) && (
+                          {suggestion && settings?.auto_suggest && !FINAL_STATUSES.has(record.status) && (
                             <div className="flex flex-col items-start gap-1">
                               <Button
                                 size="sm"
@@ -806,7 +858,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                 <Edit className="h-4 w-4 mr-2" /> Düzenle
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              {!['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(record.status) && (
+                              {!FINAL_STATUSES.has(record.status) && (
                                 <>
                                   <DropdownMenuItem onClick={() => setConvertDialog({ open: true, record, type: 'DF' })}>
                                     <FileText className="h-4 w-4 mr-2" /> DF'ye Dönüştür
@@ -1011,8 +1063,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
           {/* Eşik uyarıları - kayıtlarla birlikte */}
           {settings?.auto_suggest && (() => {
             const allWarningRecords = records.filter(r => {
-              if (['DF Açıldı', '8D Açıldı', 'Kapatıldı'].includes(r.status)) return false;
-              const suggestion = getRecordSuggestion(r);
+              const suggestion = getEffectiveSuggestionForStats(r);
               return suggestion !== null;
             });
             if (allWarningRecords.length === 0) return null;
