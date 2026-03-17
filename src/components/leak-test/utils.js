@@ -3,11 +3,15 @@ import { tr } from 'date-fns/locale';
 
 import { normalizeTurkishForSearch } from '@/lib/utils';
 
-export const TANK_TYPE_OPTIONS = [
+export const LEGACY_TANK_TYPE_OPTIONS = [
     'Yağ Tankı',
     'Su Tankı',
     'Mazot Tankı',
     'Fıskiye',
+];
+
+export const TANK_TYPE_OPTIONS = [
+    ...LEGACY_TANK_TYPE_OPTIONS,
     'Kriko',
     'Yağlama Haznesi',
     'Yağlama Profili',

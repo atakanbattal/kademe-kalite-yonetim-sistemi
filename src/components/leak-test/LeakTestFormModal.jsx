@@ -27,6 +27,7 @@ import {
 } from '@/components/shared/ModernModalLayout';
 
 import {
+    LEGACY_TANK_TYPE_OPTIONS,
     TEST_RESULT_OPTIONS,
     TANK_TYPE_OPTIONS,
     buildVehicleTypeLabel,
@@ -36,6 +37,30 @@ import {
     getVehicleTypeLabel,
     isGeneralScrapProduct,
 } from './utils';
+
+const TANK_TYPE_SUPPORT_CACHE_KEY = 'leak-test-extended-tank-types';
+const EXTENDED_TANK_TYPE_PROBE_VALUE = 'Yağlama Haznesi';
+
+const readCachedTankTypeSupport = () => {
+    if (typeof window === 'undefined') return null;
+    return window.sessionStorage.getItem(TANK_TYPE_SUPPORT_CACHE_KEY);
+};
+
+const writeCachedTankTypeSupport = (mode) => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem(TANK_TYPE_SUPPORT_CACHE_KEY, mode);
+};
+
+const getInitialTankTypeOptions = () => (
+    readCachedTankTypeSupport() === 'supported'
+        ? TANK_TYPE_OPTIONS
+        : LEGACY_TANK_TYPE_OPTIONS
+);
+
+const isTankTypeConstraintError = (error) => (
+    error?.code === '23514'
+    && String(error.message || '').includes('leak_test_records_tank_type_check')
+);
 
 const createDefaultFormData = () => {
     const now = new Date();
@@ -87,6 +112,10 @@ const LeakTestFormModal = ({
     const [personnel, setPersonnel] = useState([]);
     const [setupLoading, setSetupLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [availableTankTypeOptions, setAvailableTankTypeOptions] = useState(() => getInitialTankTypeOptions());
+    const [isLegacyTankTypeMode, setIsLegacyTankTypeMode] = useState(
+        () => getInitialTankTypeOptions().length !== TANK_TYPE_OPTIONS.length
+    );
 
     const createFormDataFromRecord = useCallback((sourceRecord) => ({
         record_number: sourceRecord?.record_number || '',
@@ -255,6 +284,88 @@ const LeakTestFormModal = ({
     const previewWelderName = selectedWelder?.full_name || formData.welded_by_name || record?.welded_by_name || '-';
     const isSetupMissing = !vehicleTypes.length || !personnel.length;
 
+    const applyTankTypeMode = useCallback((mode) => {
+        const nextOptions = mode === 'supported' ? TANK_TYPE_OPTIONS : LEGACY_TANK_TYPE_OPTIONS;
+        setAvailableTankTypeOptions(nextOptions);
+        setIsLegacyTankTypeMode(mode !== 'supported');
+        writeCachedTankTypeSupport(mode);
+
+        if (!hasExistingRecord) {
+            setFormData((prev) => ({
+                ...prev,
+                tank_type: nextOptions.includes(prev.tank_type) ? prev.tank_type : '',
+            }));
+        }
+    }, [hasExistingRecord]);
+
+    const detectTankTypeSupport = useCallback(async () => {
+        const cachedMode = readCachedTankTypeSupport();
+        if (cachedMode === 'supported' || cachedMode === 'legacy') {
+            applyTankTypeMode(cachedMode);
+            return;
+        }
+
+        if (!isOpen || !user) {
+            applyTankTypeMode('legacy');
+            return;
+        }
+
+        const probeRecordNumber = `__LT_PROBE__${Date.now()}`;
+        let probeId = null;
+
+        try {
+            const { data, error } = await supabase
+                .from('leak_test_records')
+                .insert([{
+                    record_number: probeRecordNumber,
+                    vehicle_type_label: 'Destek Kontrolü',
+                    tank_type: EXTENDED_TANK_TYPE_PROBE_VALUE,
+                    test_date: new Date().toISOString().split('T')[0],
+                    test_start_time: '00:00',
+                    test_duration_minutes: 1,
+                    test_result: 'Kabul',
+                    leak_count: 0,
+                    tested_by_name: 'Destek Kontrolü',
+                    welded_by_name: 'Destek Kontrolü',
+                    created_by: user.id,
+                }])
+                .select('id')
+                .single();
+
+            if (error) {
+                if (isTankTypeConstraintError(error)) {
+                    applyTankTypeMode('legacy');
+                    return;
+                }
+
+                throw error;
+            }
+
+            probeId = data?.id || null;
+            applyTankTypeMode('supported');
+        } catch (error) {
+            console.warn('Leak test tank_type destek kontrolü başarısız:', error);
+            applyTankTypeMode('legacy');
+        } finally {
+            if (probeId) {
+                const { error: cleanupError } = await supabase
+                    .from('leak_test_records')
+                    .delete()
+                    .eq('id', probeId);
+
+                if (cleanupError) {
+                    console.warn('Leak test destek kontrolü kaydı silinemedi:', cleanupError);
+                }
+            }
+        }
+    }, [applyTankTypeMode, isOpen, user]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        detectTankTypeSupport();
+    }, [detectTankTypeSupport, isOpen]);
+
     const handleInputChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
@@ -292,6 +403,15 @@ const LeakTestFormModal = ({
 
         if (!formData.tank_type) {
             toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Lütfen sızdırmazlık parçasını seçin.' });
+            return false;
+        }
+
+        if (!availableTankTypeOptions.includes(formData.tank_type)) {
+            toast({
+                variant: 'destructive',
+                title: 'Geçersiz sızdırmazlık parçası',
+                description: 'Sunucuda aktif olmayan bir sızdırmazlık parçası seçildi. Lütfen listeden geçerli bir seçim yapın.',
+            });
             return false;
         }
 
@@ -393,6 +513,16 @@ const LeakTestFormModal = ({
             setIsOpen(false);
             onSuccess?.();
         } catch (error) {
+            if (isTankTypeConstraintError(error)) {
+                applyTankTypeMode('legacy');
+                toast({
+                    variant: 'destructive',
+                    title: 'Sızdırmazlık parçası desteklenmiyor',
+                    description: 'Sunucuda yeni tank/parça tipleri henüz aktif değil. Şimdilik Yağ Tankı, Su Tankı, Mazot Tankı veya Fıskiye seçeneklerinden birini kullanın.',
+                });
+                return;
+            }
+
             toast({
                 variant: 'destructive',
                 title: 'Kayıt işlemi başarısız',
@@ -584,7 +714,7 @@ const LeakTestFormModal = ({
                                     <SelectValue placeholder="Sızdırmazlık parçası seçin" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {TANK_TYPE_OPTIONS.map((option) => (
+                                    {availableTankTypeOptions.map((option) => (
                                         <SelectItem key={option} value={option}>
                                             {option}
                                         </SelectItem>
@@ -635,6 +765,13 @@ const LeakTestFormModal = ({
                             />
                         </ModalField>
                     </div>
+
+                    {isLegacyTankTypeMode && (
+                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            Sunucuda genişletilmiş sızdırmazlık parçası listesi henüz aktif değil.
+                            Bu nedenle form şimdilik veritabanının kabul ettiği mevcut seçeneklerle çalışıyor.
+                        </div>
+                    )}
                 </section>
 
                 <section>
