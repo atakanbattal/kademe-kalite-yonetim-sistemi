@@ -649,7 +649,7 @@ export const DataProvider = ({ children }) => {
         }
     }, [session]);
 
-    // KPI'ları yenile
+    // KPI'ları yenile — kpis.target_value null ise kpi_monthly_data'dan bu ayın hedefini kullan
     const refreshKpis = useCallback(async () => {
         if (!session) return;
         try {
@@ -663,8 +663,29 @@ export const DataProvider = ({ children }) => {
                 return;
             }
 
-            setData(prev => ({ ...prev, kpis: data || [] }));
-            console.log('✅ KPIs refreshed:', data?.length || 0, 'kpis');
+            const kpisRaw = data || [];
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+
+            const { data: monthlyData } = await supabase
+                .from('kpi_monthly_data')
+                .select('kpi_id, target_value')
+                .eq('year', currentYear)
+                .eq('month', currentMonth);
+
+            const monthlyTargetByKpi = {};
+            (monthlyData || []).forEach(m => {
+                if (m.target_value != null) monthlyTargetByKpi[m.kpi_id] = m.target_value;
+            });
+
+            const kpis = kpisRaw.map(k => {
+                const needsFallback = (k.target_value == null || parseFloat(k.target_value) === 0) && monthlyTargetByKpi[k.id] != null;
+                return needsFallback ? { ...k, target_value: monthlyTargetByKpi[k.id] } : k;
+            });
+
+            setData(prev => ({ ...prev, kpis }));
+            console.log('✅ KPIs refreshed:', kpis.length, 'kpis');
         } catch (error) {
             console.error('❌ KPIs refresh error:', error);
         }
