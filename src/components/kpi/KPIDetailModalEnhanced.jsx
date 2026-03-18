@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
-import { Save, Trash2, AlertTriangle, TrendingUp, TrendingDown, Plus, Target, RefreshCw, Zap, Info } from 'lucide-react';
+import { Save, Trash2, AlertTriangle, TrendingUp, Plus, Target, RefreshCw, Zap, Info, CopyCheck, CalendarDays } from 'lucide-react';
 import { format, subMonths } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -42,6 +42,10 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
     const [showSuggestionModal, setShowSuggestionModal] = useState(false);
     const [isBackfilling, setIsBackfilling] = useState(false);
     const [lastBackfillTime, setLastBackfillTime] = useState(null);
+    // Toplu hedef girişi için
+    const [editingTargets, setEditingTargets] = useState({});
+    const [bulkTargetInput, setBulkTargetInput] = useState('');
+    const [annualTargetInput, setAnnualTargetInput] = useState('');
 
     // Auto KPI açıldığında aylık veriyi backfill et, sonra yükle
     const runBackfillAndLoad = useCallback(async () => {
@@ -61,7 +65,9 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
         if (kpi) {
             setTargetValue(kpi.target_value !== null ? String(kpi.target_value) : '');
             setResponsibleUnit(kpi.responsible_unit || '');
-            // Auto KPI ise önce backfill yap, sonra veriyi çek
+            setEditingTargets({});
+            setBulkTargetInput('');
+            setAnnualTargetInput('');
             if (kpi.is_auto) {
                 runBackfillAndLoad().then(() => {
                     fetchMonthlyData();
@@ -74,7 +80,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                 checkTargetAndSuggest();
             }
         }
-    }, [kpi?.id, currentYear, currentMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [kpi?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchMonthlyData = async () => {
         if (!kpi) return;
@@ -221,6 +227,62 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
             checkTargetAndSuggest();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Hata!', description: 'Aylık veri kaydedilemedi.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // Tüm aylara aynı hedefi uygula
+    const handleApplyBulkTarget = () => {
+        if (!bulkTargetInput.trim()) return;
+        const newEdits = {};
+        monthlyData.forEach(d => { newEdits[`${d.year}-${d.month}`] = bulkTargetInput; });
+        setEditingTargets(prev => ({ ...prev, ...newEdits }));
+        setBulkTargetInput('');
+        toast({ title: 'Uygulandı', description: `${monthlyData.length} aya ${bulkTargetInput}${kpi?.unit || ''} hedefi girildi. Kaydetmeyi unutmayın.` });
+    };
+
+    // Yıllık hedefi 12'ye bölerek aylara dağıt
+    const handleDistributeAnnual = () => {
+        const annual = parseFloat(annualTargetInput);
+        if (isNaN(annual)) return;
+        const monthly = (annual / 12).toFixed(2);
+        const newEdits = {};
+        monthlyData.forEach(d => { newEdits[`${d.year}-${d.month}`] = monthly; });
+        setEditingTargets(prev => ({ ...prev, ...newEdits }));
+        setAnnualTargetInput('');
+        toast({ title: 'Dağıtıldı', description: `${annual}${kpi?.unit || ''} / 12 = ${monthly}${kpi?.unit || ''}/ay olarak uygulandı. Kaydetmeyi unutmayın.` });
+    };
+
+    // Tüm değiştirilmiş hedefleri tek seferde kaydet
+    const handleSaveAllTargets = async () => {
+        const entries = Object.entries(editingTargets).filter(([, v]) => v.trim() !== '');
+        if (entries.length === 0) return;
+        setIsSubmitting(true);
+        try {
+            const promises = entries.map(async ([monthKey, targetVal]) => {
+                const [yearStr, monthStr] = monthKey.split('-');
+                const year = parseInt(yearStr);
+                const month = parseInt(monthStr);
+                const targetNum = parseFloat(targetVal);
+                if (isNaN(targetNum)) return;
+                const existing = monthlyData.find(d => d.year === year && d.month === month);
+                if (existing?.id) {
+                    return supabase.from('kpi_monthly_data').update({ target_value: targetNum }).eq('id', existing.id);
+                } else {
+                    return supabase.from('kpi_monthly_data').insert({
+                        kpi_id: kpi.id, year, month,
+                        target_value: targetNum,
+                        actual_value: existing?.actual ?? null
+                    });
+                }
+            });
+            await Promise.all(promises);
+            toast({ title: 'Başarılı!', description: `${entries.length} aylık hedef kaydedildi.` });
+            setEditingTargets({});
+            fetchMonthlyData();
+        } catch {
+            toast({ variant: 'destructive', title: 'Hata!', description: 'Hedefler kaydedilemedi.' });
         } finally {
             setIsSubmitting(false);
         }
@@ -479,102 +541,125 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                     </TabsContent>
 
                     {/* Aylık Veri */}
-                    <TabsContent value="monthly" className="space-y-4">
+                    <TabsContent value="monthly" className="space-y-3">
                         {kpi.is_auto && (
                             <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 px-3 py-2 rounded-lg">
                                 <Zap className="w-4 h-4 shrink-0" />
-                                <span>Gerçekleşen değer otomatik hesaplanmaktadır. Sadece hedef değeri düzenleyebilirsiniz.</span>
+                                <span>Gerçekleşen değerler otomatik hesaplanmaktadır. Hedef değerlerini aşağıdan girebilirsiniz.</span>
                             </div>
                         )}
+
+                        {/* ── Toplu Hedef Araçları ── */}
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Bu Ay Veri Girişi</CardTitle>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                    <CalendarDays className="w-4 h-4 text-primary" /> Toplu Hedef Belirleme
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label>Yıl</Label>
-                                        <Input 
-                                            type="number" 
-                                            value={currentYear} 
-                                            onChange={e => setCurrentYear(parseInt(e.target.value))}
+                            <CardContent className="space-y-3">
+                                {/* Tüm aylara tek hedef */}
+                                <div>
+                                    <Label className="text-xs text-muted-foreground mb-1 block">Tüm Aylara Aynı Hedef Uygula</Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            type="number"
+                                            className="h-8 text-sm"
+                                            value={bulkTargetInput}
+                                            onChange={e => setBulkTargetInput(e.target.value)}
+                                            placeholder={`Örn: 10${kpi.unit || ''}`}
                                         />
-                                    </div>
-                                    <div>
-                                        <Label>Ay</Label>
-                                        <Select value={String(currentMonth)} onValueChange={v => setCurrentMonth(parseInt(v))}>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                                    <SelectItem key={m} value={String(m)}>
-                                                        {format(new Date(2024, m - 1, 1), 'MMMM', { locale: tr })}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <Button size="sm" variant="outline" onClick={handleApplyBulkTarget} disabled={!bulkTargetInput}>
+                                            <CopyCheck className="w-3.5 h-3.5 mr-1.5" /> Tümüne Uygula
+                                        </Button>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label>Hedef</Label>
-                                        <Input 
-                                            type="number" 
-                                            value={currentMonthTarget} 
-                                            onChange={e => setCurrentMonthTarget(e.target.value)}
-                                            placeholder="Aylık hedef..."
+                                {/* Yıllık hedefi dağıt */}
+                                <div>
+                                    <Label className="text-xs text-muted-foreground mb-1 block">Yıllık Toplam Hedef → Aylara Eşit Dağıt (÷ 12)</Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            type="number"
+                                            className="h-8 text-sm"
+                                            value={annualTargetInput}
+                                            onChange={e => setAnnualTargetInput(e.target.value)}
+                                            placeholder={`Örn: 120${kpi.unit || ''}`}
                                         />
-                                    </div>
-                                    <div>
-                                        <Label>Gerçekleşen {kpi.is_auto && <span className="text-xs text-blue-500 font-normal">(otomatik)</span>}</Label>
-                                        <Input 
-                                            type="number" 
-                                            value={currentMonthActual} 
-                                            onChange={e => setCurrentMonthActual(e.target.value)}
-                                            placeholder="Aylık gerçekleşen..."
-                                            readOnly={kpi.is_auto}
-                                            className={kpi.is_auto ? 'bg-muted cursor-not-allowed' : ''}
-                                        />
+                                        <Button size="sm" variant="outline" onClick={handleDistributeAnnual} disabled={!annualTargetInput}>
+                                            <CalendarDays className="w-3.5 h-3.5 mr-1.5" /> Aylara Dağıt
+                                        </Button>
                                     </div>
                                 </div>
-                                <Button onClick={handleMonthlyDataSave} disabled={isSubmitting}>
-                                    <Save className="w-4 h-4 mr-2" /> Kaydet
-                                </Button>
                             </CardContent>
                         </Card>
 
+                        {/* ── 13 Ay Tablo (inline düzenleme) ── */}
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Aylık Veri Tablosu</CardTitle>
+                            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                                <CardTitle className="text-sm">
+                                    13 Aylık Hedef & Gerçekleşen
+                                    {Object.keys(editingTargets).length > 0 && (
+                                        <span className="ml-2 text-[10px] font-normal text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full">
+                                            {Object.keys(editingTargets).length} değişiklik bekliyor
+                                        </span>
+                                    )}
+                                </CardTitle>
+                                <Button
+                                    size="sm"
+                                    onClick={handleSaveAllTargets}
+                                    disabled={isSubmitting || Object.keys(editingTargets).length === 0}
+                                >
+                                    <Save className="w-3 h-3 mr-1.5" />
+                                    {isSubmitting ? 'Kaydediliyor…' : `Kaydet${Object.keys(editingTargets).length > 0 ? ` (${Object.keys(editingTargets).length})` : ''}`}
+                                </Button>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="p-0">
                                 <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Ay</TableHead>
-                                                <TableHead className="text-right">Hedef</TableHead>
+                                            <TableRow className="text-xs">
+                                                <TableHead className="w-28">Ay</TableHead>
                                                 <TableHead className="text-right">Gerçekleşen</TableHead>
-                                                <TableHead className="text-right">Sapma %</TableHead>
+                                                <TableHead className="w-36">Hedef (düzenle)</TableHead>
+                                                <TableHead className="text-right w-20">Sapma</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {monthlyData.map((d, idx) => {
-                                                const deviation = d.target && d.actual && d.target !== 0 
-                                                    ? ((d.actual - d.target) / d.target * 100).toFixed(2)
-                                                    : null;
+                                            {monthlyData.map((d, i) => {
+                                                const monthKey = `${d.year}-${d.month}`;
+                                                const now = new Date();
+                                                const isCurrentMonth = d.year === now.getFullYear() && d.month === now.getMonth() + 1;
+                                                const pendingVal = editingTargets[monthKey];
+                                                const displayTarget = pendingVal !== undefined ? pendingVal : (d.target != null ? String(d.target) : '');
+                                                const tNum = parseFloat(displayTarget);
+                                                const aNum = d.actual != null ? parseFloat(d.actual) : null;
+                                                const dev = !isNaN(tNum) && tNum !== 0 && aNum != null
+                                                    ? ((aNum - tNum) / Math.abs(tNum) * 100) : null;
+                                                const isGood = dev === null ? null : kpi.target_direction === 'decrease' ? dev <= 0 : dev >= 0;
                                                 return (
-                                                    <TableRow key={idx}>
-                                                        <TableCell>{d.monthName}</TableCell>
-                                                        <TableCell className="text-right">{d.target !== null ? `${parseFloat(d.target).toFixed(2)}${kpi.unit}` : '-'}</TableCell>
-                                                        <TableCell className="text-right">{d.actual !== null ? `${parseFloat(d.actual).toFixed(2)}${kpi.unit}` : '-'}</TableCell>
-                                                        <TableCell className="text-right">
-                                                            {deviation !== null ? (
-                                                                <Badge variant={parseFloat(deviation) > 0 ? 'destructive' : 'default'}>
-                                                                    {parseFloat(deviation) > 0 ? '+' : ''}{deviation}%
-                                                                </Badge>
-                                                            ) : '-'}
+                                                    <TableRow key={i} className={`text-xs ${isCurrentMonth ? 'bg-blue-50/60 dark:bg-blue-950/20' : ''}`}>
+                                                        <TableCell className="font-medium py-1.5">
+                                                            {d.monthName}
+                                                            {isCurrentMonth && <span className="ml-1 text-[9px] bg-blue-100 text-blue-600 px-1 py-0.5 rounded">Bu Ay</span>}
+                                                            {pendingVal !== undefined && <span className="ml-1 text-orange-400 text-[10px]">●</span>}
+                                                        </TableCell>
+                                                        <TableCell className="text-right text-muted-foreground py-1.5">
+                                                            {aNum != null ? `${aNum.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}` : '—'}
+                                                        </TableCell>
+                                                        <TableCell className="py-1">
+                                                            <input
+                                                                type="number"
+                                                                className="w-full h-7 px-2 text-xs rounded border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                                                                value={displayTarget}
+                                                                onChange={e => setEditingTargets(prev => ({ ...prev, [monthKey]: e.target.value }))}
+                                                                placeholder="—"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="text-right py-1.5">
+                                                            {dev !== null ? (
+                                                                <span className={`font-medium ${isGood ? 'text-green-600' : 'text-red-500'}`}>
+                                                                    {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                                                                </span>
+                                                            ) : '—'}
                                                         </TableCell>
                                                     </TableRow>
                                                 );
