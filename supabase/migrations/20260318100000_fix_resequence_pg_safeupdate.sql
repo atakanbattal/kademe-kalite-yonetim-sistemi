@@ -1,4 +1,5 @@
-BEGIN;
+-- pg-safeupdate uyumluluğu: resequence fonksiyonundaki WHERE olmayan UPDATE düzeltmesi
+-- Hata: "UPDATE requires a WHERE clause" - INSERT/DELETE trigger sonrası oluşuyordu
 
 CREATE OR REPLACE FUNCTION public.resequence_nonconformity_record_numbers()
 RETURNS void
@@ -42,32 +43,3 @@ BEGIN
     WHERE source.id = target.id;
 END;
 $$;
-
-CREATE OR REPLACE FUNCTION public.trigger_resequence_nonconformity_record_numbers()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-    PERFORM public.resequence_nonconformity_record_numbers();
-    RETURN NULL;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_resequence_nonconformity_record_numbers
-ON public.nonconformity_records;
-
-CREATE TRIGGER trg_resequence_nonconformity_record_numbers
-AFTER INSERT OR DELETE ON public.nonconformity_records
-FOR EACH STATEMENT
-EXECUTE FUNCTION public.trigger_resequence_nonconformity_record_numbers();
-
-GRANT EXECUTE ON FUNCTION public.resequence_nonconformity_record_numbers() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.resequence_nonconformity_record_numbers() TO service_role;
-GRANT EXECUTE ON FUNCTION public.trigger_resequence_nonconformity_record_numbers() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.trigger_resequence_nonconformity_record_numbers() TO service_role;
-
-SELECT public.resequence_nonconformity_record_numbers();
-
-COMMIT;
