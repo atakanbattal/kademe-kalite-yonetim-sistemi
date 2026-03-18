@@ -166,22 +166,24 @@ const KPICard = ({ kpi, onCardClick }) => {
                 </div>
             </div>
 
-            {/* Progress bar */}
-            {hasTarget && (
-                <div className="px-4 pb-3">
-                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+            {/* İlerleme oranı — tüm kartlarda göster */}
+            <div className="px-4 pb-3">
+                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                    {hasTarget && (
                         <motion.div
                             className={`h-full rounded-full ${isOnTarget ? 'bg-emerald-500' : progressPct > 60 ? 'bg-orange-400' : 'bg-red-400'}`}
                             initial={{ width: 0 }}
                             animate={{ width: `${progressPct}%` }}
                             transition={{ duration: 0.6, ease: 'easeOut' }}
                         />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-1 text-right">
-                        {hasData ? `%${progressPct.toFixed(0)} tamamlandı` : 'Veri girilmedi'}
-                    </p>
+                    )}
                 </div>
-            )}
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                    {hasTarget
+                        ? (hasData ? `%${progressPct.toFixed(0)} tamamlandı` : 'Veri girilmedi')
+                        : 'Hedef belirleyin'}
+                </p>
+            </div>
 
             {/* Alt bilgi: oto/manuel */}
             <div className={`px-4 py-1.5 border-t border-border/50 flex items-center justify-between ${kpi.is_auto ? 'bg-muted/30' : 'bg-background'}`}>
