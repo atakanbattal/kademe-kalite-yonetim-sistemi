@@ -464,7 +464,7 @@ const MainLayout = () => {
         const getModuleComponent = () => {
             switch (module) {
                 case 'tasks': return <TaskModule />;
-                case 'kpi': return <KPIModule />;
+                case 'kpi': return <KPIModule onOpenNCForm={handleOpenNCForm} />;
                 case 'kaizen': return <KaizenManagement />;
                 case 'quality-cost': return <QualityCostModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
                 case 'quarantine': return <QuarantineModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;

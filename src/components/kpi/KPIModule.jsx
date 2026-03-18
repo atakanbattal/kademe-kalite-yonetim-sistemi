@@ -34,7 +34,7 @@ const SummaryCard = ({ label, value, icon: Icon, colorClass, bgClass }) => (
 // =====================================================
 // Ana Modül
 // =====================================================
-const KPIModule = () => {
+const KPIModule = ({ onOpenNCForm }) => {
     const { kpis, loading, refreshKpis, refreshAutoKpis } = useData();
     const { toast } = useToast();
     const [isAddModalOpen, setAddModalOpen] = useState(false);
@@ -153,6 +153,7 @@ const KPIModule = () => {
                     open={isDetailModalOpen}
                     setOpen={setDetailModalOpen}
                     refreshKpis={refreshKpis}
+                    onOpenNCForm={onOpenNCForm}
                 />
             )}
 
