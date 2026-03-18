@@ -296,9 +296,9 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <header className="relative overflow-hidden bg-slate-950 text-white">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.45),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.28),_transparent_32%),linear-gradient(135deg,_#0f172a,_#1d4ed8_55%,_#0f172a)]" />
-                    <div className="relative border-b border-white/10 px-5 py-5 sm:px-6 sm:py-6">
+                <header className="relative shrink-0 overflow-visible bg-slate-950 text-white">
+                    <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.45),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.28),_transparent_32%),linear-gradient(135deg,_#0f172a,_#1d4ed8_55%,_#0f172a)]" />
+                    <div className="relative border-b border-white/10 px-5 pt-6 pb-5 pr-12 sm:px-6 sm:pt-7 sm:pb-6 sm:pr-14">
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                             <div className="min-w-0 flex items-start gap-4">
                                 <div className="rounded-3xl bg-white/10 p-3 shadow-lg ring-1 ring-white/15 backdrop-blur">
@@ -312,7 +312,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                         {getDecisionBadge(inspection.decision, true)}
                                     </div>
                                     <div>
-                                        <h1 className="break-words text-xl font-semibold leading-tight tracking-tight sm:text-2xl lg:text-3xl">
+                                        <h1 className="break-words text-xl font-semibold leading-snug tracking-tight sm:text-2xl lg:text-3xl">
                                             Muayene Kayıt Detayı
                                         </h1>
                                         <p className="mt-1 text-sm text-slate-200">
@@ -358,7 +358,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto bg-slate-100/80">
+                <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100/80">
                     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6">
                         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <InspectionStatCard
