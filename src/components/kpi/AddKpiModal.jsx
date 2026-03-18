@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Zap, TrendingUp } from 'lucide-react';
-import { predefinedKpis, KPI_CATEGORIES } from './kpi-definitions';
+import { Zap, TrendingUp, X } from 'lucide-react';
+import { predefinedKpis, KPI_CATEGORIES, KPI_UNIT_OPTIONS } from './kpi-definitions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
@@ -39,7 +39,7 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
             data_source: dataSource,
             target_value: targetValue ? parseFloat(targetValue) : null,
             target_direction: targetDirection,
-            unit,
+            unit: unit || null,
             current_value: 0,
             is_auto: false,
         });
@@ -107,7 +107,7 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => { if(!isOpen) resetForm(); setOpen(isOpen); }}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="bg-white/20 p-2.5 rounded-lg"><TrendingUp className="h-5 w-5 text-white" /></div>
@@ -117,6 +117,10 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
                         </div>
                         <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">Yeni</span>
                     </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setOpen(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+                        <X className="w-4 h-4" />
+                        <span className="sr-only">Kapat</span>
+                    </Button>
                 </header>
                 <div className="flex flex-1 min-h-0 overflow-hidden">
                 <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden border-r border-border py-4">
@@ -197,7 +201,17 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="unit" className="text-right text-foreground">Birim</Label>
-                                <Input id="unit" value={unit} onChange={e => setUnit(e.target.value)} className="col-span-3" placeholder="örn: %, gün, adet" />
+                                <Select value={unit || '__none__'} onValueChange={(v) => setUnit(v === '__none__' ? '' : v)} className="col-span-3">
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Birim seçin" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none__">—</SelectItem>
+                                        {KPI_UNIT_OPTIONS.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </form>
                     </TabsContent>

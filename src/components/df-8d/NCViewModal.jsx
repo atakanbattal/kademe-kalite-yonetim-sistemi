@@ -35,6 +35,7 @@ import {
   Timer,
   FileSearch,
   XCircle,
+  X,
   Edit,
   CalendarCheck2,
   Paperclip,
@@ -385,7 +386,7 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
         onConfirm={handleRejectConfirm}
       />
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
           <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-2.5 rounded-lg"><AlertTriangle className="h-5 w-5 text-white" /></div>
@@ -400,6 +401,10 @@ const NCViewModal = ({ isOpen, setIsOpen, record, onReject, onDownloadPDF, onEdi
                 )}
               </div>
             </div>
+            <Button type="button" variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+              <X className="w-4 h-4" />
+              <span className="sr-only">Kapat</span>
+            </Button>
           </header>
 
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">

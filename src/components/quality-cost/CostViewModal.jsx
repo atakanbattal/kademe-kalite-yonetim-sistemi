@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { DollarSign, Calendar, Building2, Car, Package, User, AlertTriangle, Clock, Users, FileText, Paperclip, Truck, TrendingDown, LayoutGrid, ZoomIn } from 'lucide-react';
+import { DollarSign, Calendar, Building2, Car, Package, User, AlertTriangle, Clock, Users, FileText, Paperclip, Truck, TrendingDown, LayoutGrid, ZoomIn, X } from 'lucide-react';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { openPrintableReport } from '@/lib/reportUtils';
 import QualityCostDocumentsTab from '@/components/quality-cost/QualityCostDocumentsTab';
@@ -74,7 +74,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
 
     return (
         <Dialog open={isOpen} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
                 <DialogHeader className="sr-only"><DialogTitle>Maliyet Kaydı Detayı</DialogTitle></DialogHeader>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
@@ -94,20 +94,26 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                             </span>
                         )}
                     </div>
-                    {selectedLineItem && hasLineItems && (
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            className="shrink-0 h-8 text-white bg-white/20 hover:bg-white/30 border border-white/30"
-                            onClick={() => setShowFullView(prev => !prev)}
-                        >
-                            {isUnitView ? (
-                                <><LayoutGrid className="h-4 w-4 mr-2" />Tümünü Göster</>
-                            ) : (
-                                <><ZoomIn className="h-4 w-4 mr-2" />Birime Dön</>
-                            )}
+                    <div className="flex items-center gap-2 shrink-0">
+                        {selectedLineItem && hasLineItems && (
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-8 text-white bg-white/20 hover:bg-white/30 border border-white/30"
+                                onClick={() => setShowFullView(prev => !prev)}
+                            >
+                                {isUnitView ? (
+                                    <><LayoutGrid className="h-4 w-4 mr-2" />Tümünü Göster</>
+                                ) : (
+                                    <><ZoomIn className="h-4 w-4 mr-2" />Birime Dön</>
+                                )}
+                            </Button>
+                        )}
+                        <Button type="button" variant="ghost" size="icon" onClick={() => setOpen(false)} className="bg-white/20 hover:bg-white/30 text-white rounded-xl">
+                            <X className="w-4 h-4" />
+                            <span className="sr-only">Kapat</span>
                         </Button>
-                    )}
+                    </div>
                 </header>
                 
                 <Tabs defaultValue="info" className="flex-1 overflow-hidden flex flex-col px-6">

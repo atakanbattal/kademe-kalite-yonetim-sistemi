@@ -287,7 +287,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-6xl w-[98vw] sm:w-[96vw] max-h-[96vh] overflow-hidden p-0 flex flex-col">
+            <DialogContent className="sm:max-w-6xl w-[98vw] sm:w-[96vw] max-h-[96vh] overflow-hidden p-0 flex flex-col" hideCloseButton>
                 <DialogHeader className="sr-only">
                     <DialogTitle>Proses Muayene Raporu: {inspection.record_no}</DialogTitle>
                     <DialogDescription>

@@ -13,7 +13,7 @@ import React, { useState, useEffect } from 'react';
     import SupplierPPMDisplay from '@/components/supplier/SupplierPPMDisplay';
     import SupplierOTDDisplay from '@/components/supplier/SupplierOTDDisplay';
     import SupplierEvaluationDisplay from '@/components/supplier/SupplierEvaluationDisplay';
-    import { Building2, CheckCircle, Shield, Hash, Phone, Mail, User } from 'lucide-react';
+    import { Building2, CheckCircle, Shield, Hash, Phone, Mail, User, X } from 'lucide-react';
     import { Separator } from '@/components/ui/separator';
 
     const SupplierFormModal = ({ isOpen, setIsOpen, supplier, refreshSuppliers, allSuppliers, isNewAlternative = false }) => {
@@ -224,7 +224,7 @@ import React, { useState, useEffect } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
                     <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                         <div className="flex items-center gap-4">
                             <div className="bg-white/20 p-2.5 rounded-lg"><Building2 className="h-5 w-5 text-white" /></div>
@@ -241,6 +241,10 @@ import React, { useState, useEffect } from 'react';
                                 <span className="ml-2 px-3 py-1 bg-green-400/20 border border-green-400/30 text-green-100 text-[10px] font-bold rounded-full uppercase tracking-wider">Yeni</span>
                             )}
                         </div>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+                            <X className="w-4 h-4" />
+                            <span className="sr-only">Kapat</span>
+                        </Button>
                     </header>
                     
                     <div className="flex flex-1 min-h-0 overflow-hidden">

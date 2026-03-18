@@ -1,5 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
 /**
  * Görüntüleme modalları için standart layout.
@@ -26,7 +28,7 @@ export const ViewModalLayout = ({
 }) => {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={`${maxWidth} w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0`}>
+            <DialogContent className={`${maxWidth} w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0`} hideCloseButton>
                 <DialogHeader className="sr-only">
                     <DialogTitle>{title}</DialogTitle>
                 </DialogHeader>
@@ -38,7 +40,13 @@ export const ViewModalLayout = ({
                             <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{subtitle}</p>
                         </div>
                     </div>
-                    {badge && <div>{badge}</div>}
+                    <div className="flex items-center gap-2">
+                        {badge && <div>{badge}</div>}
+                        <Button type="button" variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+                            <X className="w-4 h-4" />
+                            <span className="sr-only">Kapat</span>
+                        </Button>
+                    </div>
                 </header>
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     {children}

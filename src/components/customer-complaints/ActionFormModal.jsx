@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
-import { Target } from 'lucide-react';
+import { Target, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 
@@ -120,7 +120,7 @@ const ActionFormModal = ({ open, setOpen, complaintId, existingAction, onSuccess
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="bg-white/20 p-2.5 rounded-lg"><Target className="h-5 w-5 text-white" /></div>
@@ -130,6 +130,10 @@ const ActionFormModal = ({ open, setOpen, complaintId, existingAction, onSuccess
                         </div>
                         <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{isEditMode ? 'Düzenle' : 'Yeni'}</span>
                     </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setOpen(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+                        <X className="w-4 h-4" />
+                        <span className="sr-only">Kapat</span>
+                    </Button>
                 </header>
                 <form id="complaint-action-form" onSubmit={handleSubmit} className="flex flex-1 min-h-0 overflow-hidden">
                     <div className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden border-r border-border py-4">

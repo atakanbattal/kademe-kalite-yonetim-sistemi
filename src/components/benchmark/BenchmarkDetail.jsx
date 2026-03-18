@@ -701,7 +701,7 @@ const BenchmarkDetail = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="bg-white/20 p-2.5 rounded-lg"><TrendingUp className="h-5 w-5 text-white" /></div>
@@ -711,7 +711,7 @@ const BenchmarkDetail = ({
                         </div>
                         <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{benchmark.status}</span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                         <Button size="sm" variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={handleGenerateReport}>
                             <Printer className="h-4 w-4 mr-2" /> Rapor
                         </Button>
@@ -720,6 +720,10 @@ const BenchmarkDetail = ({
                         </Button>
                         <Button size="sm" className="bg-white/20 border border-white/30 text-white hover:bg-white/30" onClick={() => { if (onCompare) { onCompare(benchmark); onClose(); } }}>
                             <TrendingUp className="h-4 w-4 mr-2" /> Karşılaştır
+                        </Button>
+                        <Button size="icon" variant="ghost" className="bg-white/20 hover:bg-white/30 text-white rounded-xl shrink-0" onClick={onClose}>
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">Kapat</span>
                         </Button>
                     </div>
                 </header>

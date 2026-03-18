@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeInStatus } from '@/lib/date-fns-utils';
-import { PackageCheck } from 'lucide-react';
+import { PackageCheck, X } from 'lucide-react';
 
 const InfoCard = ({ label, value, loading, loadingClassName = "h-6 w-24" }) => (
     <div className="bg-muted/50 p-4 rounded-lg">
@@ -87,7 +87,7 @@ const VehicleStatusDetailModal = ({ isOpen, setIsOpen, vehicle }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="bg-white/20 p-2.5 rounded-lg"><PackageCheck className="h-5 w-5 text-white" /></div>
@@ -97,6 +97,10 @@ const VehicleStatusDetailModal = ({ isOpen, setIsOpen, vehicle }) => {
                         </div>
                         {!isLoading && vehicle.status && <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{vehicle.status}</span>}
                     </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+                        <X className="w-4 h-4" />
+                        <span className="sr-only">Kapat</span>
+                    </Button>
                 </header>
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">

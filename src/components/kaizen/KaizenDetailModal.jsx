@@ -9,7 +9,7 @@ import { InfoCard } from '@/components/ui/InfoCard';
 import { format, differenceInDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Printer, ExternalLink, BrainCircuit, Fish, HelpCircle, Sigma, Loader2, File as FileIcon, User, Calendar, Building2, Hash, Users, AlertTriangle, FileText, Clock } from 'lucide-react';
+import { Printer, ExternalLink, BrainCircuit, Fish, HelpCircle, Sigma, Loader2, File as FileIcon, User, Calendar, Building2, Hash, Users, AlertTriangle, FileText, Clock, X } from 'lucide-react';
 
 const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
     const [activeTab, setActiveTab] = useState("general");
@@ -82,7 +82,7 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="bg-white/20 p-2.5 rounded-lg"><BrainCircuit className="h-5 w-5 text-white" /></div>
@@ -92,6 +92,10 @@ const KaizenDetailModal = ({ isOpen, setIsOpen, kaizen, onDownloadPDF }) => {
                         </div>
                         <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{kaizen.status}</span>
                     </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+                        <X className="w-4 h-4" />
+                        <span className="sr-only">Kapat</span>
+                    </Button>
                 </header>
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

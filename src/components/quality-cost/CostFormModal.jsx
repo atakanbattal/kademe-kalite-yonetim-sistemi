@@ -1047,7 +1047,7 @@ const BUCKET_NAME = 'quality_costs';
 
         return (
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
                     {/* Header */}
                     <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                         <div className="flex items-center gap-4">
@@ -1059,12 +1059,15 @@ const BUCKET_NAME = 'quality_costs';
                             {!isEditMode && <span className="ml-2 px-3 py-1 bg-green-400/20 border border-green-400/30 text-green-100 text-[10px] font-bold rounded-full uppercase tracking-wider">Yeni</span>}
                             {isEditMode && <span className="ml-2 px-3 py-1 bg-amber-400/20 border border-amber-400/30 text-amber-100 text-[10px] font-bold rounded-full uppercase tracking-wider">Düzenleme</span>}
                         </div>
-                        {/* Kalem sayısı göstergesi */}
-                        {lineItems.length > 1 && (
-                            <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
+                            {lineItems.length > 1 && (
                                 <Badge variant="outline" className="border-white/30 text-white/90 text-[10px]">{lineItems.length} kalem</Badge>
-                            </div>
-                        )}
+                            )}
+                            <Button type="button" variant="ghost" size="icon" onClick={() => setOpen(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+                                <X className="w-4 h-4" />
+                                <span className="sr-only">Kapat</span>
+                            </Button>
+                        </div>
                     </header>
 
                     {/* Two Column Layout */}

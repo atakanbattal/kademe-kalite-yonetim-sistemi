@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock } from 'lucide-react';
+import { CheckCircle, Clock, X } from 'lucide-react';
 
 /**
  * Modern modal layout - CostFormModal ile uyumlu profesyonel tasarım.
@@ -49,7 +49,7 @@ export const ModernModalLayout = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={`${maxWidth} w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0`}>
+            <DialogContent className={`${maxWidth} w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0`} hideCloseButton>
                 <DialogHeader className="sr-only"><DialogTitle>{title}</DialogTitle></DialogHeader>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-8 py-6 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
@@ -64,6 +64,10 @@ export const ModernModalLayout = ({
                             </span>
                         )}
                     </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="bg-white/20 hover:bg-white/30 text-white shrink-0 rounded-xl">
+                        <X className="w-4 h-4" />
+                        <span className="sr-only">Kapat</span>
+                    </Button>
                 </header>
 
                 {hasTwoColumns ? (
