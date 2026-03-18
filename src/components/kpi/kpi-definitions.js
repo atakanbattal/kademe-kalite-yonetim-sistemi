@@ -1,4 +1,18 @@
 // =====================================================
+// KPI Birim Seçenekleri - Hata önleme için select ile seçim
+// =====================================================
+export const KPI_UNIT_OPTIONS = [
+    { value: '%', label: '%' },
+    { value: 'adet', label: 'adet' },
+    { value: 'gün', label: 'gün' },
+    { value: 'puan', label: 'puan' },
+    { value: 'TRY', label: 'TRY' },
+    { value: 'TRY/Araç', label: 'TRY/Araç' },
+    { value: 'Kg', label: 'Kg' },
+    { value: 'saat', label: 'saat' },
+];
+
+// =====================================================
 // KPI Kategorileri - Her kategorinin renk ve icon bilgisi
 // =====================================================
 export const KPI_CATEGORIES = [
