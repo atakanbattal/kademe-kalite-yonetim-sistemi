@@ -136,8 +136,6 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     const [smartSuggestion, setSmartSuggestion] = useState(null);
     const [loadingSmartSuggestion, setLoadingSmartSuggestion] = useState(false);
     const [isBackfilling, setIsBackfilling] = useState(false);
-    // DF/8D dialog
-    const [df8dDialog, setDf8dDialog] = useState(false);
     const [selectedNcType, setSelectedNcType] = useState('DF');
 
     const runBackfillAndLoad = useCallback(async () => {
@@ -298,7 +296,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     // ─── DF / 8D oluştur ─────────────────────────────────────────────────
     const handleCreateDF8D = () => {
         if (!onOpenNCForm) {
-            toast({ variant: 'destructive', title: 'Hata', description: 'DF/8D formu açılamadı.' });
+            toast({ variant: 'destructive', title: 'Hata', description: 'DF/8D formu açılamadı. Lütfen sayfayı yenileyiniz.' });
             return;
         }
         const deviationTxt = deviation != null
@@ -323,11 +321,14 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
             responsible_person: kpi.responsible_unit || '',
             priority: Math.abs(deviation || 0) > 20 ? 'Kritik' : 'Yüksek',
         };
-        onOpenNCForm(ncFormData, () => {
-            toast({ title: `${selectedNcType} oluşturuldu`, description: 'DF/8D kaydı KPI ile ilişkilendirildi.' });
-        });
-        setDf8dDialog(false);
+        // Önce KPI modalını kapat, sonra kısa gecikmeyle NC formunu aç
+        // (Radix Dialog kapanış animasyonu NC formunu bloke etmesin)
         setOpen(false);
+        setTimeout(() => {
+            onOpenNCForm(ncFormData, () => {
+                toast({ title: `${selectedNcType} oluşturuldu`, description: 'DF/8D kaydı KPI ile ilişkilendirildi.' });
+            });
+        }, 200);
     };
 
     // ─── Türetilmiş değerler ──────────────────────────────────────────────
@@ -622,8 +623,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                     </div>
                                                     <Button
                                                         onClick={handleCreateDF8D}
-                                                        disabled={!onOpenNCForm}
-                                                        className={`w-full font-bold ${selectedNcType === '8D' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                                        className={`w-full font-bold text-white ${selectedNcType === '8D' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                                                     >
                                                         {selectedNcType === '8D'
                                                             ? <AlertOctagon className="w-4 h-4 mr-2" />
