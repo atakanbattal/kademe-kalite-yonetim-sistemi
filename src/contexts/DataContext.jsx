@@ -730,6 +730,18 @@ export const DataProvider = ({ children }) => {
             const successCount = results.filter(r => r !== null).length;
             console.log('✅ Auto KPIs updated:', successCount, 'of', kpis.length);
 
+            // Aylık trend verilerini otomatik backfill et (13 ay geçmiş)
+            try {
+                const { error: backfillError } = await supabase.rpc('backfill_kpi_monthly_data', { p_months_back: 13 });
+                if (backfillError) {
+                    console.warn('⚠️ KPI monthly backfill failed:', backfillError.message);
+                } else {
+                    console.log('✅ KPI monthly trend data backfilled');
+                }
+            } catch (backfillErr) {
+                console.warn('⚠️ KPI monthly backfill error:', backfillErr);
+            }
+
             // KPI listesini yenile
             await refreshKpis();
         } catch (error) {

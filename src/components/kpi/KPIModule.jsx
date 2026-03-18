@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Plus, RefreshCw, Search, LayoutGrid, CheckCircle2, AlertCircle,
-    Minus, TrendingUp, BarChart3, Target, Filter
+    Plus, RefreshCw, Search, CheckCircle2, AlertCircle,
+    TrendingUp, BarChart3, Target, Zap, Clock
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import KPIDetailModalEnhanced from '@/components/kpi/KPIDetailModalEnhanced';
 import KPICard from '@/components/kpi/KPICard';
 import { useData } from '@/contexts/DataContext';
 import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 
 // =====================================================
 // Summary Card - üst istatistik kartları
@@ -41,12 +43,17 @@ const KPIModule = () => {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [activeCategory, setActiveCategory] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [lastSyncTime, setLastSyncTime] = useState(null);
+    const [isSyncing, setIsSyncing] = useState(false);
 
-    // Sayfa açıldığında otomatik KPI'ları güncelle
+    // Sayfa açıldığında otomatik KPI'ları güncelle + aylık veri backfill
     useEffect(() => {
         const updateAutoKpis = async () => {
             if (kpis.length > 0 && kpis.some(k => k.is_auto)) {
+                setIsSyncing(true);
                 await refreshAutoKpis();
+                setLastSyncTime(new Date());
+                setIsSyncing(false);
             }
         };
         updateAutoKpis();
@@ -112,13 +119,16 @@ const KPIModule = () => {
 
     const handleManualRefresh = useCallback(async () => {
         setIsRefreshing(true);
+        setIsSyncing(true);
         try {
             await refreshAutoKpis();
-            toast({ title: 'Başarılı', description: 'KPI değerleri güncellendi.' });
+            setLastSyncTime(new Date());
+            toast({ title: 'Başarılı', description: 'KPI değerleri ve aylık trend verileri güncellendi.' });
         } catch {
             toast({ variant: 'destructive', title: 'Hata', description: 'KPI değerleri güncellenemedi.' });
         } finally {
             setIsRefreshing(false);
+            setIsSyncing(false);
         }
     }, [refreshAutoKpis, toast]);
 
@@ -150,14 +160,23 @@ const KPIModule = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">KPI Yönetimi</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Tüm modüllerden otomatik toplanan performans göstergeleri
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <p className="text-sm text-muted-foreground">Tüm modüllerden otomatik toplanan performans göstergeleri</p>
+                        {isSyncing ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                                <RefreshCw className="w-3 h-3 animate-spin" /> Senkronize ediliyor...
+                            </span>
+                        ) : lastSyncTime ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                                <Clock className="w-3 h-3" /> Son sync: {format(lastSyncTime, 'HH:mm:ss', { locale: tr })}
+                            </span>
+                        ) : null}
+                    </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
                     <Button variant="outline" size="sm" onClick={handleManualRefresh} disabled={isRefreshing}>
                         <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        {isRefreshing ? 'Güncelleniyor…' : 'Değerleri Güncelle'}
+                        {isRefreshing ? 'Güncelleniyor…' : 'Tümünü Yenile'}
                     </Button>
                     <Button size="sm" onClick={() => setAddModalOpen(true)}>
                         <Plus className="w-4 h-4 mr-2" /> Yeni KPI

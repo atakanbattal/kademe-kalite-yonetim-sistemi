@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -20,9 +20,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Save, Trash2, AlertTriangle, TrendingUp, TrendingDown, Plus, Building2, FileText, Target } from 'lucide-react';
-import { format, subMonths, startOfMonth } from 'date-fns';
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import { Save, Trash2, AlertTriangle, TrendingUp, TrendingDown, Plus, Target, RefreshCw, Zap, Info } from 'lucide-react';
+import { format, subMonths } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -40,16 +40,41 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
     const [suggestion, setSuggestion] = useState(null);
     const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+    const [isBackfilling, setIsBackfilling] = useState(false);
+    const [lastBackfillTime, setLastBackfillTime] = useState(null);
+
+    // Auto KPI açıldığında aylık veriyi backfill et, sonra yükle
+    const runBackfillAndLoad = useCallback(async () => {
+        if (!kpi?.is_auto) return;
+        setIsBackfilling(true);
+        try {
+            await supabase.rpc('backfill_kpi_monthly_data', { p_months_back: 13 });
+            setLastBackfillTime(new Date());
+        } catch (err) {
+            console.warn('Backfill hatası:', err);
+        } finally {
+            setIsBackfilling(false);
+        }
+    }, [kpi?.is_auto]);
 
     useEffect(() => {
         if (kpi) {
             setTargetValue(kpi.target_value !== null ? String(kpi.target_value) : '');
             setResponsibleUnit(kpi.responsible_unit || '');
-            fetchMonthlyData();
-            fetchActions();
-            checkTargetAndSuggest();
+            // Auto KPI ise önce backfill yap, sonra veriyi çek
+            if (kpi.is_auto) {
+                runBackfillAndLoad().then(() => {
+                    fetchMonthlyData();
+                    fetchActions();
+                    checkTargetAndSuggest();
+                });
+            } else {
+                fetchMonthlyData();
+                fetchActions();
+                checkTargetAndSuggest();
+            }
         }
-    }, [kpi, currentYear, currentMonth]);
+    }, [kpi?.id, currentYear, currentMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchMonthlyData = async () => {
         if (!kpi) return;
@@ -349,51 +374,113 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
 
                     {/* 12 Aylık Trend */}
                     <TabsContent value="trend" className="space-y-4">
+                        {/* Bilgi & Yenile */}
+                        <div className="flex items-center justify-between gap-3">
+                            {kpi.is_auto ? (
+                                <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 px-3 py-2 rounded-lg">
+                                    <Zap className="w-4 h-4 shrink-0" />
+                                    <span>Veriler veritabanından otomatik hesaplanmaktadır.{lastBackfillTime ? ` Son güncelleme: ${format(lastBackfillTime, 'HH:mm:ss')}` : ''}</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-2 rounded-lg">
+                                    <Info className="w-4 h-4 shrink-0" />
+                                    <span>Aylık veriyi manuel olarak "Aylık Veri" sekmesinden girebilirsiniz.</span>
+                                </div>
+                            )}
+                            {kpi.is_auto && (
+                                <Button variant="outline" size="sm" onClick={() => runBackfillAndLoad().then(fetchMonthlyData)} disabled={isBackfilling}>
+                                    <RefreshCw className={`w-3 h-3 mr-1.5 ${isBackfilling ? 'animate-spin' : ''}`} />
+                                    {isBackfilling ? 'Hesaplanıyor...' : 'Yenile'}
+                                </Button>
+                            )}
+                        </div>
                         <Card>
-                            <CardHeader>
-                                <CardTitle>12 Aylık Trend Analizi</CardTitle>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base">13 Aylık Trend Analizi</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {loadingMonthly ? (
-                                    <div className="text-center py-8">Yükleniyor...</div>
+                                {loadingMonthly || isBackfilling ? (
+                                    <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
+                                        <RefreshCw className="w-8 h-8 animate-spin text-primary/40" />
+                                        <span className="text-sm">{isBackfilling ? 'Geçmiş veriler veritabanından hesaplanıyor...' : 'Yükleniyor...'}</span>
+                                    </div>
+                                ) : chartData.every(d => d.actual === null) ? (
+                                    <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
+                                        <TrendingUp className="w-10 h-10 opacity-20" />
+                                        <p className="text-sm font-medium">Henüz aylık veri yok</p>
+                                        <p className="text-xs">Bu dönem için veritabanında kayıt bulunmamaktadır.</p>
+                                    </div>
                                 ) : (
-                                    <ResponsiveContainer width="100%" height={400}>
-                                        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                                    <ResponsiveContainer width="100%" height={360}>
+                                        <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                                            <XAxis dataKey="month" stroke="hsl(var(--foreground))" fontSize={12} angle={-45} textAnchor="end" height={80} />
-                                            <YAxis stroke="hsl(var(--foreground))" fontSize={12} />
-                                            <Tooltip 
-                                                contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem' }} 
-                                                labelStyle={{ color: 'hsl(var(--foreground))' }}
-                                                formatter={(value) => value !== null ? `${parseFloat(value).toFixed(2)}${kpi.unit}` : 'N/A'}
+                                            <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} angle={-30} textAnchor="end" height={60} />
+                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => v !== null ? parseFloat(v).toLocaleString('tr-TR') : ''} />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '12px' }}
+                                                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
+                                                formatter={(value, name) => value !== null ? [`${parseFloat(value).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}`, name] : ['—', name]}
                                             />
                                             <Legend />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="target" 
-                                                name="Hedef" 
-                                                stroke="#ef4444" 
-                                                strokeWidth={2} 
-                                                strokeDasharray="5 5"
-                                                dot={{ r: 4 }}
-                                            />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="actual" 
-                                                name="Gerçekleşen" 
-                                                stroke="#3b82f6" 
-                                                strokeWidth={2}
-                                                dot={{ r: 4 }}
-                                            />
+                                            {chartData.some(d => d.target !== null) && (
+                                                <Line type="monotone" dataKey="target" name="Hedef" stroke="#ef4444" strokeWidth={2} strokeDasharray="6 3" dot={{ r: 3 }} connectNulls />
+                                            )}
+                                            <Line type="monotone" dataKey="actual" name="Gerçekleşen" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4, fill: '#3b82f6' }} connectNulls activeDot={{ r: 6 }} />
                                         </LineChart>
                                     </ResponsiveContainer>
                                 )}
                             </CardContent>
                         </Card>
+                        {/* Özet Tablo */}
+                        {!loadingMonthly && !isBackfilling && chartData.some(d => d.actual !== null) && (
+                            <Card>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm">Aylık Özet</CardTitle></CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="overflow-x-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="text-xs">
+                                                    <TableHead>Ay</TableHead>
+                                                    <TableHead className="text-right">Gerçekleşen</TableHead>
+                                                    <TableHead className="text-right">Hedef</TableHead>
+                                                    <TableHead className="text-right">Sapma</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {[...monthlyData].reverse().map((d, i) => {
+                                                    const dev = d.target && d.actual ? ((d.actual - d.target) / Math.abs(d.target) * 100) : null;
+                                                    const isGood = dev === null ? null : kpi.target_direction === 'decrease' ? dev <= 0 : dev >= 0;
+                                                    return (
+                                                        <TableRow key={i} className="text-xs">
+                                                            <TableCell className="font-medium">{d.monthName}</TableCell>
+                                                            <TableCell className="text-right">{d.actual !== null ? `${parseFloat(d.actual).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}` : '—'}</TableCell>
+                                                            <TableCell className="text-right text-muted-foreground">{d.target !== null ? `${parseFloat(d.target).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}` : '—'}</TableCell>
+                                                            <TableCell className="text-right">
+                                                                {dev !== null ? (
+                                                                    <span className={`font-medium ${isGood ? 'text-green-600' : 'text-red-500'}`}>
+                                                                        {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                                                                    </span>
+                                                                ) : '—'}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
                     </TabsContent>
 
                     {/* Aylık Veri */}
                     <TabsContent value="monthly" className="space-y-4">
+                        {kpi.is_auto && (
+                            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 px-3 py-2 rounded-lg">
+                                <Zap className="w-4 h-4 shrink-0" />
+                                <span>Gerçekleşen değer otomatik hesaplanmaktadır. Sadece hedef değeri düzenleyebilirsiniz.</span>
+                            </div>
+                        )}
                         <Card>
                             <CardHeader>
                                 <CardTitle>Bu Ay Veri Girişi</CardTitle>
@@ -435,12 +522,14 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                                         />
                                     </div>
                                     <div>
-                                        <Label>Gerçekleşen</Label>
+                                        <Label>Gerçekleşen {kpi.is_auto && <span className="text-xs text-blue-500 font-normal">(otomatik)</span>}</Label>
                                         <Input 
                                             type="number" 
                                             value={currentMonthActual} 
                                             onChange={e => setCurrentMonthActual(e.target.value)}
                                             placeholder="Aylık gerçekleşen..."
+                                            readOnly={kpi.is_auto}
+                                            className={kpi.is_auto ? 'bg-muted cursor-not-allowed' : ''}
                                         />
                                     </div>
                                 </div>
