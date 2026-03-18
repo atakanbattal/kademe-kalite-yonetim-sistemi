@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -21,18 +22,23 @@ import {
 import { format, subMonths } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
+import { KPI_CATEGORIES, KPI_UNIT_OPTIONS } from './kpi-definitions';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (v, decimals = 2) =>
     v == null ? '—' : parseFloat(v).toLocaleString('tr-TR', { maximumFractionDigits: decimals });
 
 const categoryMeta = {
-    quality:     { color: '#ef4444', bg: '#fef2f2', label: 'Kalite' },
-    production:  { color: '#f97316', bg: '#fff7ed', label: 'Üretim' },
+    quality:     { color: '#ef4444', bg: '#fef2f2', label: 'Kalite & Uygunsuzluk' },
+    production:  { color: '#f97316', bg: '#fff7ed', label: 'Üretim & Kontrol' },
     supplier:    { color: '#8b5cf6', bg: '#f5f3ff', label: 'Tedarikçi' },
+    customer:    { color: '#a855f7', bg: '#faf5ff', label: 'Müşteri & Satış Sonrası' },
     training:    { color: '#06b6d4', bg: '#ecfeff', label: 'Eğitim' },
-    document:    { color: '#0ea5e9', bg: '#f0f9ff', label: 'Doküman' },
-    equipment:   { color: '#84cc16', bg: '#f7fee7', label: 'Ekipman' },
+    document:    { color: '#0ea5e9', bg: '#f0f9ff', label: 'Doküman & Tetkik' },
+    equipment:   { color: '#84cc16', bg: '#f7fee7', label: 'Ekipman & Altyapı' },
+    hr:          { color: '#10b981', bg: '#ecfdf5', label: 'İnsan Kaynakları' },
+    improvement: { color: '#14b8a6', bg: '#f0fdfa', label: 'İyileştirme' },
+    management:  { color: '#8b5cf6', bg: '#f5f3ff', label: 'Yönetim & Maliyet' },
     process:     { color: '#f59e0b', bg: '#fffbeb', label: 'Proses' },
     finance:     { color: '#10b981', bg: '#ecfdf5', label: 'Maliyet' },
     performance: { color: '#6366f1', bg: '#eef2ff', label: 'Performans' },
@@ -125,6 +131,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     const [tab, setTab] = useState('overview');
     const [targetValue, setTargetValue] = useState('');
     const [responsibleUnit, setResponsibleUnit] = useState('');
+    const [unit, setUnit] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [monthlyData, setMonthlyData] = useState([]);
     const [loadingMonthly, setLoadingMonthly] = useState(false);
@@ -137,6 +144,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     const [loadingSmartSuggestion, setLoadingSmartSuggestion] = useState(false);
     const [isBackfilling, setIsBackfilling] = useState(false);
     const [selectedNcType, setSelectedNcType] = useState('DF');
+    const [kpiLinkedNcs, setKpiLinkedNcs] = useState([]);
 
     const runBackfillAndLoad = useCallback(async () => {
         if (!kpi?.is_auto) return;
@@ -150,6 +158,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         if (!kpi) return;
         setTargetValue(kpi.target_value != null ? String(kpi.target_value) : '');
         setResponsibleUnit(kpi.responsible_unit || '');
+        setUnit(kpi.unit?.trim() ?? '');
         setEditingTargets({});
         setBulkTargetInput('');
         setAnnualTargetInput('');
@@ -159,6 +168,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
             if (kpi.is_auto) await runBackfillAndLoad();
             await fetchMonthlyData();
             fetchSmartSuggestion();
+            fetchKpiLinkedNcs();
         };
         init();
     }, [kpi?.id]); // eslint-disable-line
@@ -198,6 +208,17 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
             setSmartSuggestion(data?.success ? data : null);
         } catch { setSmartSuggestion(null); }
         finally { setLoadingSmartSuggestion(false); }
+    };
+
+    const fetchKpiLinkedNcs = async () => {
+        if (!kpi?.id) return;
+        try {
+            const { data } = await supabase
+                .from('non_conformities')
+                .select('id, nc_number, mdi_no, type, status, title, source_kpi_year, source_kpi_month')
+                .eq('source_kpi_id', kpi.id);
+            setKpiLinkedNcs(data || []);
+        } catch { setKpiLinkedNcs([]); }
     };
 
     // ─── Bulk / toplu işlemler ────────────────────────────────────────────
@@ -278,8 +299,9 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         if (!kpi) return;
         setIsSubmitting(true);
         const newTarget = targetValue === '' ? null : parseFloat(targetValue);
+        const unitVal = (unit && unit !== '__none__') ? (unit.trim() || null) : null;
         const { error } = await supabase.from('kpis')
-            .update({ target_value: newTarget, responsible_unit: responsibleUnit || null }).eq('id', kpi.id);
+            .update({ target_value: newTarget, responsible_unit: responsibleUnit || null, unit: unitVal }).eq('id', kpi.id);
         if (error) toast({ variant: 'destructive', title: 'Hata', description: 'Hedef güncellenemedi.' });
         else { toast({ title: 'Kaydedildi!' }); refreshKpis(); }
         setIsSubmitting(false);
@@ -303,6 +325,9 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
             ? `Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%`
             : 'Hedef aşımı';
         const ncFormData = {
+            source_kpi_id: kpi.id,
+            source_kpi_year: currentYear,
+            source_kpi_month: currentMonth,
             title: `[KPI] ${kpi.name} - Hedef Tutturulamadı`,
             description: [
                 `Kaynak: KPI Yönetimi`,
@@ -386,7 +411,8 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         ? (Math.abs(deviation || 0) > 20 ? '#ef4444' : '#f97316')
         : '#6366f1';
 
-    const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2ff', label: kpi?.category || 'KPI' };
+    const catFromDef = KPI_CATEGORIES.find(c => c.id === kpi?.category);
+const catMeta   = categoryMeta[kpi?.category] || { color: '#6366f1', bg: '#eef2ff', label: catFromDef?.label || kpi?.category || 'KPI' };
     const trendInfo = TREND_LABELS[smartSuggestion?.trend] || TREND_LABELS.unknown;
 
     const pendingCount  = Object.keys(editingTargets).filter(k => editingTargets[k].trim() !== '').length;
@@ -407,7 +433,10 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                 overflow-hidden
                 translate-x-0 translate-y-0 left-0 top-0
                 sm:left-3 sm:top-3
-            " style={{ transform: 'none', width: 'calc(100vw - 16px)', height: 'calc(100vh - 16px)', maxWidth: 'none', maxHeight: 'none' }}>
+            " style={{ transform: 'none', width: 'calc(100vw - 16px)', height: 'calc(100vh - 16px)', maxWidth: 'none', maxHeight: 'none' }} hideCloseButton>
+                <DialogHeader className="sr-only">
+                    <DialogTitle>KPI Detay: {kpi?.name}</DialogTitle>
+                </DialogHeader>
 
                 {/* ── HEADER ─────────────────────────────────────────────── */}
                 <div className="relative overflow-hidden shrink-0"
@@ -636,17 +665,37 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
 
                                         {/* KPI bilgi ızgarası */}
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            {[
-                                                { label: 'Veri Kaynağı', value: kpi.data_source || '—' },
-                                                { label: 'Birim',        value: kpi.unit?.trim() || '—' },
-                                                { label: 'Hedef Yönü',  value: kpi.target_direction === 'decrease' ? '↓ Düşük' : '↑ Yüksek' },
-                                                { label: 'Kategori',    value: catMeta.label },
-                                            ].map((item, i) => (
-                                                <div key={i} className="rounded-xl border bg-muted/20 px-3 py-2.5">
-                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{item.label}</p>
-                                                    <p className="text-sm font-semibold text-foreground mt-0.5 truncate">{item.value}</p>
-                                                </div>
-                                            ))}
+                                            <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Veri Kaynağı</p>
+                                                <p className="text-sm font-semibold text-foreground mt-0.5 truncate">{kpi.data_source || '—'}</p>
+                                            </div>
+                                            <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Birim</p>
+                                                <Select value={unit || '__none__'} onValueChange={(v) => setUnit(v === '__none__' ? '' : v)}>
+                                                    <SelectTrigger className="h-8 mt-1 text-sm font-medium">
+                                                        <SelectValue placeholder="Birim seçin" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="__none__">—</SelectItem>
+                                                        {[
+                                                            ...KPI_UNIT_OPTIONS,
+                                                            ...(unit && unit !== '__none__' && !KPI_UNIT_OPTIONS.some(o => o.value === unit) ? [{ value: unit, label: unit }] : []),
+                                                        ].map((opt) => (
+                                                            <SelectItem key={opt.value} value={opt.value}>
+                                                                {opt.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Hedef Yönü</p>
+                                                <p className="text-sm font-semibold text-foreground mt-0.5">{kpi.target_direction === 'decrease' ? '↓ Düşük' : '↑ Yüksek'}</p>
+                                            </div>
+                                            <div className="rounded-xl border bg-muted/20 px-3 py-2.5">
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Kategori</p>
+                                                <p className="text-sm font-semibold text-foreground mt-0.5 truncate">{catMeta.label}</p>
+                                            </div>
                                         </div>
 
                                         {/* Hedef güncelle + sil */}
@@ -654,6 +703,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                             <p className="text-sm font-bold text-foreground flex items-center gap-2">
                                                 <Target className="w-4 h-4 text-primary" /> Hedef Güncelle
                                             </p>
+                                            <p className="text-[11px] text-muted-foreground -mt-2">Hedef değer, sorumlu birim ve birim değişiklikleri Kaydet ile uygulanır.</p>
                                             <div className="flex flex-wrap gap-3 items-end">
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs">Hedef Değer</Label>
@@ -911,6 +961,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                         <th className="text-right px-5 py-3 font-medium text-muted-foreground">Gerçekleşen</th>
                                                         <th className="px-5 py-3 font-medium text-muted-foreground w-40">Hedef (düzenle)</th>
                                                         <th className="text-right px-5 py-3 font-medium text-muted-foreground w-28">Sapma</th>
+                                                        <th className="text-left px-5 py-3 font-medium text-muted-foreground w-44">Bağlı Uygunsuzluk</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -958,6 +1009,23 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                                             {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
                                                                         </span>
                                                                     ) : '—'}
+                                                                </td>
+                                                                <td className="px-5 py-3">
+                                                                    {(() => {
+                                                                        const monthNcs = kpiLinkedNcs.filter(nc =>
+                                                                            nc.source_kpi_year === d.year && nc.source_kpi_month === d.month
+                                                                        );
+                                                                        if (monthNcs.length === 0) return <span className="text-muted-foreground">—</span>;
+                                                                        return (
+                                                                            <div className="flex flex-wrap gap-1">
+                                                                                {monthNcs.map(nc => (
+                                                                                    <Badge key={nc.id} variant="outline" className="text-[10px] font-medium">
+                                                                                        {nc.nc_number || nc.mdi_no || nc.type} {nc.status}
+                                                                                    </Badge>
+                                                                                ))}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
                                                                 </td>
                                                             </tr>
                                                         );

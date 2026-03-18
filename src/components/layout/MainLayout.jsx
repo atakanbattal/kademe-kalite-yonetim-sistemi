@@ -276,7 +276,8 @@ const MainLayout = () => {
                 formData?.source_supplier_nc_id ||
                 formData?.source_inspection_id ||
                 formData?.source_finding_id ||
-                formData?.source_inspection_fault_id
+                formData?.source_inspection_fault_id ||
+                formData?.source_kpi_id
             )
         );
         const isEditMode = !!formData.id && !isSourceTemplate;
@@ -353,7 +354,8 @@ const MainLayout = () => {
             'opening_date', 'due_date', 'closed_at', 'rejected_at', 'rejection_reason',
             'rejection_notes', 'related_vehicle_id', 'source_cost_id', 'source_finding_id',
             'source_inspection_id', 'source_quarantine_id', 'source_supplier_nc_id',
-            'source_inspection_fault_id', 'audit_id', 'created_by', 'updated_by', 'priority',
+            'source_inspection_fault_id', 'source_kpi_id', 'source_kpi_year', 'source_kpi_month',
+            'audit_id', 'created_by', 'updated_by', 'priority',
             'problem_definition', 'closing_notes', 'closing_attachments', 'eight_d_steps',
             'mdi_no', 'attachments', 'part_name', 'part_code', 'production_batch', 'vehicle_type', 'affected_units',
             'amount', 'cost_date', 'cost_type', 'material_type', 'measurement_unit',
