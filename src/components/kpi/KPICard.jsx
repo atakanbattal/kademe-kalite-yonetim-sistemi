@@ -180,7 +180,9 @@ const KPICard = ({ kpi, onCardClick }) => {
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1 text-right">
                     {hasTarget
-                        ? (hasData ? `%${progressPct.toFixed(0)} tamamlandı` : 'Veri girilmedi')
+                        ? (hasData
+                            ? (progressPct >= 80 && progressPct < 100 ? `Hedefe yaklaşıyorsunuz! %${progressPct.toFixed(0)}` : `%${progressPct.toFixed(0)} tamamlandı`)
+                            : 'Veri girilmedi')
                         : 'Hedef belirleyin'}
                 </p>
             </div>

@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
-import { Save, Trash2, AlertTriangle, TrendingUp, Plus, Target, RefreshCw, Zap, Info, CopyCheck, CalendarDays } from 'lucide-react';
+import { Save, Trash2, AlertTriangle, TrendingUp, Plus, Target, RefreshCw, Zap, Info, CopyCheck, CalendarDays, Sparkles } from 'lucide-react';
 import { format, subMonths } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,6 +46,9 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
     const [editingTargets, setEditingTargets] = useState({});
     const [bulkTargetInput, setBulkTargetInput] = useState('');
     const [annualTargetInput, setAnnualTargetInput] = useState('');
+    // Akıllı hedef önerisi
+    const [smartSuggestion, setSmartSuggestion] = useState(null);
+    const [loadingSmartSuggestion, setLoadingSmartSuggestion] = useState(false);
 
     // Auto KPI açıldığında aylık veriyi backfill et, sonra yükle
     const runBackfillAndLoad = useCallback(async () => {
@@ -68,16 +71,19 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
             setEditingTargets({});
             setBulkTargetInput('');
             setAnnualTargetInput('');
+            setSmartSuggestion(null);
             if (kpi.is_auto) {
                 runBackfillAndLoad().then(() => {
                     fetchMonthlyData();
                     fetchActions();
                     checkTargetAndSuggest();
+                    fetchSmartSuggestion();
                 });
             } else {
                 fetchMonthlyData();
                 fetchActions();
                 checkTargetAndSuggest();
+                fetchSmartSuggestion();
             }
         }
     }, [kpi?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -145,6 +151,51 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
             setActions(data || []);
         } catch (error) {
             console.error('Aksiyonlar yüklenemedi:', error);
+        }
+    };
+
+    const fetchSmartSuggestion = async () => {
+        if (!kpi) return;
+        setLoadingSmartSuggestion(true);
+        try {
+            const { data, error } = await supabase.rpc('get_smart_target_suggestion', { p_kpi_id: kpi.id });
+            if (error) throw error;
+            if (data?.success) setSmartSuggestion(data);
+            else setSmartSuggestion(null);
+        } catch (err) {
+            console.warn('Akıllı öneri alınamadı:', err);
+            setSmartSuggestion(null);
+        } finally {
+            setLoadingSmartSuggestion(false);
+        }
+    };
+
+    const handleApplySmartSuggestion = async () => {
+        if (!kpi || !smartSuggestion?.suggested_value) return;
+        setIsSubmitting(true);
+        try {
+            const val = parseFloat(smartSuggestion.suggested_value);
+            await supabase.from('kpis').update({ target_value: val }).eq('id', kpi.id);
+            for (const d of monthlyData) {
+                if (d.id) {
+                    await supabase.from('kpi_monthly_data').update({ target_value: val }).eq('id', d.id);
+                } else {
+                    await supabase.from('kpi_monthly_data').insert({
+                        kpi_id: kpi.id, year: d.year, month: d.month,
+                        target_value: val, actual_value: d.actual ?? null
+                    });
+                }
+            }
+            setTargetValue(String(val));
+            setEditingTargets({});
+            setSmartSuggestion(null);
+            toast({ title: 'Uygulandı!', description: `Akıllı hedef (${val}${kpi.unit || ''}) tüm aylara uygulandı.` });
+            refreshKpis();
+            fetchMonthlyData();
+        } catch {
+            toast({ variant: 'destructive', title: 'Hata', description: 'Öneri uygulanamadı.' });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -418,6 +469,57 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                                 </CardContent>
                             </Card>
                         </div>
+
+                        {/* Akıllı Hedef Önerisi */}
+                        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-primary" />
+                                    Akıllı Hedef Önerisi
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {loadingSmartSuggestion ? (
+                                    <div className="text-sm text-muted-foreground py-2">Analiz ediliyor...</div>
+                                ) : smartSuggestion?.success && smartSuggestion.months_analyzed >= 1 ? (
+                                    <>
+                                        <div className="flex flex-wrap items-end gap-4">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">Önerilen hedef</p>
+                                                <p className="text-2xl font-bold text-primary">
+                                                    {parseFloat(smartSuggestion.suggested_value).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}{kpi.unit || ''}
+                                                </p>
+                                            </div>
+                                            {smartSuggestion.recent_avg != null && (
+                                                <div className="text-sm text-muted-foreground">
+                                                    Son {smartSuggestion.months_analyzed} ay ort: {parseFloat(smartSuggestion.recent_avg).toLocaleString('tr-TR')}{kpi.unit || ''}
+                                                </div>
+                                            )}
+                                            {smartSuggestion.trend && smartSuggestion.trend !== 'unknown' && (
+                                                <Badge variant={smartSuggestion.trend === 'improving' ? 'default' : 'secondary'} className="text-xs">
+                                                    {smartSuggestion.trend === 'improving' ? '↑ İyileşiyor' : smartSuggestion.trend === 'declining' ? '↓ Dikkat' : '→ Sabit'}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{smartSuggestion.reason}</p>
+                                        <Button size="sm" onClick={handleApplySmartSuggestion} disabled={isSubmitting}>
+                                            <Sparkles className="w-3 h-3 mr-1.5" />
+                                            Öneriyi Tüm Aylara Uygula
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-sm text-muted-foreground mb-2">
+                                            Geçmiş veriler analiz edilerek gerçekçi, motive edici hedefler önerilir. En az 1 aylık veri gereklidir.
+                                        </p>
+                                        <Button size="sm" variant="outline" onClick={fetchSmartSuggestion} disabled={loadingSmartSuggestion}>
+                                            <RefreshCw className={`w-3 h-3 mr-1.5 ${loadingSmartSuggestion ? 'animate-spin' : ''}`} />
+                                            Tekrar Dene
+                                        </Button>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
 
                         <Card>
                             <CardHeader>
