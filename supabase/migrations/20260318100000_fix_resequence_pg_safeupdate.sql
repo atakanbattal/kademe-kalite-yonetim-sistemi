@@ -8,7 +8,9 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    PERFORM pg_advisory_xact_lock(61720317);
+    IF NOT pg_try_advisory_xact_lock(61720317) THEN
+        RETURN;
+    END IF;
 
     DROP TABLE IF EXISTS pg_temp.tmp_nonconformity_record_numbers;
 

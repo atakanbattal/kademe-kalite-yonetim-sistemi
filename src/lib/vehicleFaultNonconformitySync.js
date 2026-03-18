@@ -1,3 +1,5 @@
+import { withRetryOnDeadlock } from './supabaseRetry';
+
 export const LOCKED_NONCONFORMITY_STATUSES = new Set(['DF Açıldı', '8D Açıldı']);
 
 const AUTO_RECORD_NOTE = [
@@ -495,15 +497,17 @@ export const backfillVehicleFaultNonconformities = async ({ supabase, reporterNa
         };
         const categoryName = faultsInGroup[0]?.category_name || existingRecords[0]?.category || 'Kategorisiz';
 
-        const result = await reconcileGroup({
-            supabase,
-            vehicle,
-            categoryName,
-            faults: faultsInGroup,
-            existingRecords,
-            reporterName,
-            userId
-        });
+        const result = await withRetryOnDeadlock(() =>
+            reconcileGroup({
+                supabase,
+                vehicle,
+                categoryName,
+                faults: faultsInGroup,
+                existingRecords,
+                reporterName,
+                userId
+            })
+        );
 
         if (result.mode === 'created') stats.created += 1;
         if (result.mode === 'updated') stats.updated += 1;

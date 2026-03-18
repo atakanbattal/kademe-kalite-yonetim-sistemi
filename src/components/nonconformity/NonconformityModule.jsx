@@ -185,7 +185,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   }, [authLoading, fetchRecords, profile?.full_name, toast, user, user?.email, user?.id, vehicleFaultSyncDone]);
 
   useEffect(() => {
-    if (processInspectionSyncDone || authLoading || !user) return;
+    if (!vehicleFaultSyncDone || processInspectionSyncDone || authLoading || !user) return;
 
     let isCancelled = false;
 
@@ -230,7 +230,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     return () => {
       isCancelled = true;
     };
-  }, [authLoading, fetchRecords, processInspectionSyncDone, toast, user, user?.id]);
+  }, [authLoading, fetchRecords, processInspectionSyncDone, toast, user, user?.id, vehicleFaultSyncDone]);
 
   // Parça kodu ve kategori bazlı tekrar analizi — settings yüklenmeden de çalışır
   useEffect(() => {

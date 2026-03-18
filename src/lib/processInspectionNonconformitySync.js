@@ -2,6 +2,7 @@ import {
     LOCKED_NONCONFORMITY_STATUSES,
     parseNonconformityRecordNumber,
 } from './vehicleFaultNonconformitySync';
+import { withRetryOnDeadlock } from './supabaseRetry';
 
 const PROCESS_DETECTION_AREA = 'Proses İçi Kontrol';
 const AUTO_NOTE_TITLE = 'Bu kayıt proses muayene kaydındaki uygun olmayan ölçümlerden otomatik oluşturuldu.';
@@ -421,13 +422,15 @@ export const backfillProcessInspectionNonconformities = async ({ supabase, userI
     for (const inspection of inspections || []) {
         const sourceReference = getSourceReference(inspection);
         const failedMeasurements = getFailedMeasurements(resultsByInspection.get(inspection.id) || []);
-        const result = await reconcileInspection({
-            supabase,
-            inspection,
-            failedMeasurements,
-            existingRecords: recordsBySource.get(sourceReference) || [],
-            userId,
-        });
+        const result = await withRetryOnDeadlock(() =>
+            reconcileInspection({
+                supabase,
+                inspection,
+                failedMeasurements,
+                existingRecords: recordsBySource.get(sourceReference) || [],
+                userId,
+            })
+        );
 
         if (result.mode === 'created') stats.created += 1;
         if (result.mode === 'updated') stats.updated += 1;
