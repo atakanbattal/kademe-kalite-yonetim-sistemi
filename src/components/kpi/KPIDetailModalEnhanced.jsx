@@ -89,30 +89,31 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
 
             if (error) throw error;
             
-            // Son 12 ayı al
+            // Son 13 ayı al (backfill 13 ay yapıyor)
             const now = new Date();
-            const last12Months = [];
-            for (let i = 11; i >= 0; i--) {
+            const last13Months = [];
+            for (let i = 12; i >= 0; i--) {
                 const date = subMonths(now, i);
                 const year = date.getFullYear();
                 const month = date.getMonth() + 1;
                 const existing = data?.find(d => d.year === year && d.month === month);
-                last12Months.push({
+                last13Months.push({
                     year,
                     month,
                     monthName: format(date, 'MMM yyyy', { locale: tr }),
-                    target: existing?.target_value || null,
-                    actual: existing?.actual_value || null,
-                    id: existing?.id || null
+                    // ?? null: 0 değerleri kaybolmasın (|| null yanlış çalışıyordu)
+                    target: existing != null ? (existing.target_value ?? null) : null,
+                    actual: existing != null ? (existing.actual_value ?? null) : null,
+                    id: existing?.id ?? null
                 });
             }
-            setMonthlyData(last12Months);
+            setMonthlyData(last13Months);
 
             // Mevcut ay verisini set et
             const currentData = data?.find(d => d.year === currentYear && d.month === currentMonth);
             if (currentData) {
-                setCurrentMonthTarget(currentData.target_value ? String(currentData.target_value) : '');
-                setCurrentMonthActual(currentData.actual_value ? String(currentData.actual_value) : '');
+                setCurrentMonthTarget(currentData.target_value != null ? String(currentData.target_value) : '');
+                setCurrentMonthActual(currentData.actual_value != null ? String(currentData.actual_value) : '');
             } else {
                 setCurrentMonthTarget('');
                 setCurrentMonthActual('');
@@ -274,12 +275,14 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
         }));
     }, [monthlyData]);
 
-    // Sapma hesaplama
+    // Sapma hesaplama — 0 değerleri için ?? kullan
     const currentDeviation = useMemo(() => {
         const current = monthlyData.find(d => d.year === currentYear && d.month === currentMonth);
-        if (!current || !current.target || !current.actual) return null;
-        if (current.target === 0) return null;
-        return ((current.actual - current.target) / current.target * 100).toFixed(2);
+        if (!current || current.target == null || current.actual == null) return null;
+        const t = parseFloat(current.target);
+        const a = parseFloat(current.actual);
+        if (t === 0) return null;
+        return ((a - t) / Math.abs(t) * 100).toFixed(2);
     }, [monthlyData, currentYear, currentMonth]);
 
     if (!kpi) return null;
@@ -404,7 +407,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                                         <RefreshCw className="w-8 h-8 animate-spin text-primary/40" />
                                         <span className="text-sm">{isBackfilling ? 'Geçmiş veriler veritabanından hesaplanıyor...' : 'Yükleniyor...'}</span>
                                     </div>
-                                ) : chartData.every(d => d.actual === null) ? (
+                                ) : chartData.every(d => d.actual == null) ? (
                                     <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
                                         <TrendingUp className="w-10 h-10 opacity-20" />
                                         <p className="text-sm font-medium">Henüz aylık veri yok</p>
@@ -422,7 +425,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                                                 formatter={(value, name) => value !== null ? [`${parseFloat(value).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}`, name] : ['—', name]}
                                             />
                                             <Legend />
-                                            {chartData.some(d => d.target !== null) && (
+                                            {chartData.some(d => d.target != null) && (
                                                 <Line type="monotone" dataKey="target" name="Hedef" stroke="#ef4444" strokeWidth={2} strokeDasharray="6 3" dot={{ r: 3 }} connectNulls />
                                             )}
                                             <Line type="monotone" dataKey="actual" name="Gerçekleşen" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4, fill: '#3b82f6' }} connectNulls activeDot={{ r: 6 }} />
@@ -432,7 +435,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                             </CardContent>
                         </Card>
                         {/* Özet Tablo */}
-                        {!loadingMonthly && !isBackfilling && chartData.some(d => d.actual !== null) && (
+                        {!loadingMonthly && !isBackfilling && chartData.some(d => d.actual != null) && (
                             <Card>
                                 <CardHeader className="pb-2"><CardTitle className="text-sm">Aylık Özet</CardTitle></CardHeader>
                                 <CardContent className="p-0">
@@ -448,13 +451,15 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                                             </TableHeader>
                                             <TableBody>
                                                 {[...monthlyData].reverse().map((d, i) => {
-                                                    const dev = d.target && d.actual ? ((d.actual - d.target) / Math.abs(d.target) * 100) : null;
+                                                    const dev = d.target != null && d.actual != null && parseFloat(d.target) !== 0
+                                                        ? ((parseFloat(d.actual) - parseFloat(d.target)) / Math.abs(parseFloat(d.target)) * 100)
+                                                        : null;
                                                     const isGood = dev === null ? null : kpi.target_direction === 'decrease' ? dev <= 0 : dev >= 0;
                                                     return (
                                                         <TableRow key={i} className="text-xs">
                                                             <TableCell className="font-medium">{d.monthName}</TableCell>
-                                                            <TableCell className="text-right">{d.actual !== null ? `${parseFloat(d.actual).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}` : '—'}</TableCell>
-                                                            <TableCell className="text-right text-muted-foreground">{d.target !== null ? `${parseFloat(d.target).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}` : '—'}</TableCell>
+                                                            <TableCell className="text-right">{d.actual != null ? `${parseFloat(d.actual).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}` : '—'}</TableCell>
+                                                            <TableCell className="text-right text-muted-foreground">{d.target != null ? `${parseFloat(d.target).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}${kpi.unit || ''}` : '—'}</TableCell>
                                                             <TableCell className="text-right">
                                                                 {dev !== null ? (
                                                                     <span className={`font-medium ${isGood ? 'text-green-600' : 'text-red-500'}`}>

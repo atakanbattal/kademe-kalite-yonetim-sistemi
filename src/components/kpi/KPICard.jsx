@@ -80,7 +80,9 @@ const KPICard = ({ kpi, onCardClick }) => {
     let StatusIcon = Minus;
     let statusLabel = 'Veri Yok';
 
-    if (isOnTarget === true) {
+    if (!hasData) {
+        // Hiç veri yok — varsayılan "Veri Yok" kalır
+    } else if (isOnTarget === true) {
         statusColor = 'text-emerald-700';
         statusBg = 'bg-emerald-50';
         StatusIcon = CheckCircle2;
@@ -100,6 +102,12 @@ const KPICard = ({ kpi, onCardClick }) => {
             StatusIcon = Clock;
             statusLabel = 'Geliştirilmeli';
         }
+    } else {
+        // Veri var ama hedef girilmemiş
+        statusColor = 'text-slate-600';
+        statusBg = 'bg-slate-50';
+        StatusIcon = Minus;
+        statusLabel = 'Hedef Yok';
     }
 
     return (
