@@ -278,9 +278,22 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis }) => {
                 }
             });
             await Promise.all(promises);
+
+            // Kartta "Hedef Yok" gözükmesin: kpis.target_value'yu güncelle (bu ay veya ilk kaydedilen hedef)
+            const now = new Date();
+            const currentKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+            const currentTarget = editingTargets[currentKey];
+            const targetToSync = currentTarget && !isNaN(parseFloat(currentTarget))
+                ? parseFloat(currentTarget)
+                : entries.length > 0 ? parseFloat(entries[0][1]) : null;
+            if (targetToSync != null) {
+                await supabase.from('kpis').update({ target_value: targetToSync }).eq('id', kpi.id);
+            }
+
             toast({ title: 'Başarılı!', description: `${entries.length} aylık hedef kaydedildi.` });
             setEditingTargets({});
             fetchMonthlyData();
+            refreshKpis();
         } catch {
             toast({ variant: 'destructive', title: 'Hata!', description: 'Hedefler kaydedilemedi.' });
         } finally {
