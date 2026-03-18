@@ -96,17 +96,25 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
         };
 
-        const handleView = async (filePath, fileName) => {
+        const handleView = async (filePath, fileName, fileType) => {
             try {
-                const { data, error } = await supabase.storage.from('training_documents').createSignedUrl(filePath, 3600);
+                // Document modülüyle aynı yaklaşım: download ile blob al, modalda göster
+                const { data, error } = await supabase.storage.from('training_documents').download(filePath);
                 if (error) {
                     toast({ variant: 'destructive', title: 'Hata', description: `Dosya açılamadı: ${error.message}` });
                     return;
                 }
-                if (/\.pdf$/i.test(fileName)) {
-                    onOpenPdfViewer(data.signedUrl, fileName);
+                if (!data) {
+                    toast({ variant: 'destructive', title: 'Hata', description: 'Dosya içeriği alınamadı.' });
+                    return;
+                }
+                const mimeType = fileType || 'application/pdf';
+                const blob = new Blob([data], { type: mimeType });
+                const blobUrl = window.URL.createObjectURL(blob);
+                if (onOpenPdfViewer) {
+                    onOpenPdfViewer(blobUrl, fileName || 'Doküman');
                 } else {
-                    window.open(data.signedUrl, '_blank');
+                    window.open(blobUrl, '_blank', 'noopener,noreferrer');
                 }
             } catch (err) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Dosya açılırken hata oluştu.' });
@@ -154,7 +162,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                             <TableCell className="font-medium">{doc.file_name}</TableCell>
                                             <TableCell>{new Date(doc.created_at).toLocaleDateString('tr-TR')}</TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="outline" size="sm" onClick={() => handleView(doc.file_path, doc.file_name)}>Görüntüle</Button>
+                                                <Button variant="outline" size="sm" onClick={() => handleView(doc.file_path, doc.file_name, doc.file_type)}>Görüntüle</Button>
                                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(doc.id, doc.file_path)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </TableCell>
                                         </TableRow>

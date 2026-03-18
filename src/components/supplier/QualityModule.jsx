@@ -314,6 +314,46 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
         .sort((a, b) => b.dfCount - a.dfCount)
         .slice(0, 10);
 
+      // Tedarikçi listesi (PDF list raporundan entegre)
+      const supplierListForReport = allSuppliers.map((s, idx) => {
+        const completedAudits = (s.supplier_audit_plans || [])
+          .filter(a => a.status === 'Tamamlandı' && a.score !== null)
+          .sort((a, b) => new Date(b.actual_date || b.planned_date) - new Date(a.actual_date || a.planned_date));
+        const latestAuditScore = completedAudits.length > 0 ? completedAudits[0].score : null;
+        const gradeInfo = getGradeInfo(latestAuditScore);
+        const alternativeSupplier = s.alternative_to_supplier_id ? allSuppliers.find(main => main.id === s.alternative_to_supplier_id) : null;
+        const alternativeSuppliers = allSuppliers.filter(alt => alt.alternative_to_supplier_id === s.id);
+        return {
+          ...s,
+          serialNumber: idx + 1,
+          gradeInfo,
+          alternativeSupplier: alternativeSupplier ? { name: alternativeSupplier.name, id: alternativeSupplier.id } : null,
+          alternativeSuppliers: alternativeSuppliers.map(alt => ({ name: alt.name, id: alt.id }))
+        };
+      });
+
+      // Puan dağılımı (dashboard raporundan entegre)
+      const gradeCounts = allSuppliers.reduce((acc, s) => {
+        const completedAudits = (s.supplier_audit_plans || [])
+          .filter(a => a.status === 'Tamamlandı' && a.score !== null)
+          .sort((a, b) => new Date(b.actual_date || b.planned_date) - new Date(a.actual_date || a.planned_date));
+        const score = completedAudits.length > 0 ? completedAudits[0].score : null;
+        let grade = 'N/A';
+        if (score !== null) {
+          if (score >= 90) grade = 'A';
+          else if (score >= 75) grade = 'B';
+          else if (score >= 60) grade = 'C';
+          else grade = 'D';
+        }
+        acc[grade] = (acc[grade] || 0) + 1;
+        return acc;
+      }, {});
+      const gradeDistribution = ['A', 'B', 'C', 'D', 'N/A'].map(name => ({
+        name,
+        label: name === 'A' ? 'A - Stratejik' : name === 'B' ? 'B - Güvenilir' : name === 'C' ? 'C - İzlenecek' : name === 'D' ? 'D - Riskli' : 'N/A',
+        value: gradeCounts[name] || 0
+      }));
+
       // Rapor verisi
       const reportData = {
         id: `supplier-quality-executive-${Date.now()}`,
@@ -339,7 +379,12 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
         supplierPPM,
         overallPPM,
         topDFSuppliers,
-        reportDate: formatDate(new Date())
+        reportDate: formatDate(new Date()),
+        suppliers: supplierListForReport,
+        totalCount: allSuppliers.length,
+        approvedCount: approvedSuppliers,
+        alternativeCount: alternativeSuppliers,
+        gradeDistribution
       };
 
       openPrintableReport(reportData, 'supplier_quality_executive_summary', true);
@@ -462,40 +507,6 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
             >
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold text-foreground">Onaylı Tedarikçi Listesi</h2>
-                    <Button 
-                        variant="outline" 
-                        onClick={() => {
-                            const reportData = {
-                                id: `supplier-list-${Date.now()}`,
-                                title: 'Tedarikçi Listesi Raporu',
-                                reportDate: new Date().toISOString(),
-                                suppliers: filteredSuppliers.map((s, idx) => {
-                                    const completedAudits = (s.supplier_audit_plans || [])
-                                        .filter(a => a.status === 'Tamamlandı' && a.score !== null)
-                                        .sort((a, b) => new Date(b.actual_date || b.planned_date) - new Date(a.actual_date || a.planned_date));
-                                    const latestAuditScore = completedAudits.length > 0 ? completedAudits[0].score : null;
-                                    const gradeInfo = getGradeInfo(latestAuditScore);
-                                    const alternativeSupplier = s.alternative_to_supplier_id ? suppliers.find(main => main.id === s.alternative_to_supplier_id) : null;
-                                    const alternativeSuppliers = suppliers.filter(alt => alt.alternative_to_supplier_id === s.id);
-                                    return {
-                                        ...s,
-                                        serialNumber: idx + 1,
-                                        gradeInfo,
-                                        alternativeSupplier: alternativeSupplier ? { name: alternativeSupplier.name, id: alternativeSupplier.id } : null,
-                                        alternativeSuppliers: alternativeSuppliers.map(alt => ({ name: alt.name, id: alt.id }))
-                                    };
-                                }),
-                                totalCount: filteredSuppliers.length,
-                                approvedCount: filteredSuppliers.filter(s => s.status === 'Onaylı').length,
-                                alternativeCount: filteredSuppliers.filter(s => s.status === 'Alternatif').length
-                            };
-                            openPrintableReport(reportData, 'supplier_list', true);
-                        }}
-                        disabled={loading || filteredSuppliers.length === 0}
-                    >
-                        <Printer className="w-4 h-4 mr-2" />
-                        PDF Rapor Oluştur
-                    </Button>
                 </div>
                 <SupplierFilters filters={filters} setFilters={setFilters} />
                 {loading ? (

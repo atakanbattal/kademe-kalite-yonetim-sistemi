@@ -23,11 +23,10 @@ import SourceRecordSelector from './SourceRecordSelector';
 import { buildSourceRecordDescription, DEVIATION_SOURCE_MODULE_OPTIONS } from './sourceRecordUtils';
 import { useData } from '@/contexts/DataContext';
 
-const DEVIATION_TYPE_OPTIONS = ['Girdi Kontrolü', 'Proses Kontrol', 'Üretim'];
+const DEVIATION_TYPE_OPTIONS = ['Girdi Kontrolü', 'Üretim'];
 
 const getDeviationTypePrefix = (type) => {
     if (type === 'Üretim') return 'U';
-    if (type === 'Proses Kontrol') return 'P';
     return '';
 };
 

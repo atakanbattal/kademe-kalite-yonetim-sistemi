@@ -230,23 +230,6 @@ import React, { useMemo, useState } from 'react';
                 </div>
 
                 <div className="flex justify-between items-center gap-4 mb-6">
-                    <Button 
-                        variant="outline" 
-                        onClick={() => {
-                            const reportData = {
-                                id: `supplier-dashboard-${Date.now()}`,
-                                title: 'Tedarikçi Kalite Genel Bakış Raporu',
-                                reportDate: new Date().toISOString(),
-                                dashboardData,
-                                filterDescription: getFilterDescription(),
-                                suppliers: allSuppliers || suppliers || []
-                            };
-                            openPrintableReport(reportData, 'supplier_dashboard', true);
-                        }}
-                    >
-                        <Printer className="w-4 h-4 mr-2" />
-                        PDF Rapor Oluştur
-                    </Button>
                     <div className="flex gap-4">
                         <Select value={filterDate.month} onValueChange={(v) => handleFilterChange('month', v)}>
                             <SelectTrigger className="w-[180px]"><SelectValue placeholder="Ay Seçin" /></SelectTrigger>

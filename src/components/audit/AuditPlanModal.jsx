@@ -94,16 +94,16 @@ import React, { useState, useEffect } from 'react';
 
         return (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{isEditMode ? 'Tetkik Planını Düzenle' : 'Yeni Tetkik Planı Oluştur'}</DialogTitle>
-                        <DialogDescription>{isEditMode ? 'Mevcut tetkik planını güncelleyin.' : 'Yeni bir iç tetkik planlayın.'}</DialogDescription>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader className="pb-4">
+                        <DialogTitle className="text-xl">{isEditMode ? 'Tetkik Planını Düzenle' : 'Yeni Tetkik Planı Oluştur'}</DialogTitle>
+                        <DialogDescription className="text-base">{isEditMode ? 'Mevcut tetkik planını güncelleyin.' : 'Yeni bir iç tetkik planlayın.'}</DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                        <div>
-                            <Label htmlFor="audit_standard_id">İç Tetkik Standartı <span className="text-red-500">*</span></Label>
+                    <form onSubmit={handleSubmit} className="space-y-5 py-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="audit_standard_id" className="text-sm font-medium">İç Tetkik Standartı <span className="text-red-500">*</span></Label>
                             <Select value={formData.audit_standard_id} onValueChange={(v) => handleSelectChange('audit_standard_id', v)} required>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-11">
                                     <SelectValue placeholder={auditStandards.length === 0 ? "Standartlar yükleniyor..." : "Standart seçin..."} />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -121,14 +121,14 @@ import React, { useState, useEffect } from 'react';
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div>
-                            <Label htmlFor="title">Tetkik Başlığı</Label>
-                            <Input id="title" value={formData.title} onChange={handleInputChange} required />
+                        <div className="space-y-2">
+                            <Label htmlFor="title" className="text-sm font-medium">Tetkik Başlığı</Label>
+                            <Input id="title" value={formData.title} onChange={handleInputChange} required className="h-11" placeholder="Örn: 2025 Yılı Kalite Yönetim Sistemi Tetkiki" />
                         </div>
-                        <div>
-                            <Label htmlFor="department_id">Denetlenecek Birim <span className="text-red-500">*</span></Label>
+                        <div className="space-y-2">
+                            <Label htmlFor="department_id" className="text-sm font-medium">Denetlenecek Birim <span className="text-red-500">*</span></Label>
                             <Select value={formData.department_id} onValueChange={(v) => handleSelectChange('department_id', v)} required>
-                                <SelectTrigger><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
+                                <SelectTrigger className="h-11"><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
                                 <SelectContent>
                                     {departments.map((dept) => (
                                         <SelectItem key={dept.id} value={dept.id}>
@@ -138,15 +138,17 @@ import React, { useState, useEffect } from 'react';
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div>
-                            <Label htmlFor="audit_date">Tetkik Tarihi</Label>
-                            <Input id="audit_date" type="date" value={formData.audit_date} onChange={handleInputChange} required />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="audit_date" className="text-sm font-medium">Tetkik Tarihi</Label>
+                                <Input id="audit_date" type="date" value={formData.audit_date} onChange={handleInputChange} required className="h-11" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="auditor_name" className="text-sm font-medium">Tetkikçi</Label>
+                                <Input id="auditor_name" value={formData.auditor_name} onChange={handleInputChange} required className="h-11" placeholder="Tetkikçi adı soyadı" />
+                            </div>
                         </div>
-                        <div>
-                            <Label htmlFor="auditor_name">Tetkikçi</Label>
-                            <Input id="auditor_name" value={formData.auditor_name} onChange={handleInputChange} required />
-                        </div>
-                        <DialogFooter>
+                        <DialogFooter className="pt-4 gap-2 sm:gap-0">
                             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>İptal</Button>
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting ? 'Kaydediliyor...' : (isEditMode ? 'Değişiklikleri Kaydet' : 'Planı Kaydet')}

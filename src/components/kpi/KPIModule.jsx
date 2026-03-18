@@ -1,14 +1,37 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    Plus, RefreshCw, Search, LayoutGrid, CheckCircle2, AlertCircle,
+    Minus, TrendingUp, BarChart3, Target, Filter
+} from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import AddKpiModal from '@/components/kpi/AddKpiModal';
 import KPIDetailModalEnhanced from '@/components/kpi/KPIDetailModalEnhanced';
 import KPICard from '@/components/kpi/KPICard';
 import { useData } from '@/contexts/DataContext';
+import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
 
+// =====================================================
+// Summary Card - üst istatistik kartları
+// =====================================================
+const SummaryCard = ({ label, value, icon: Icon, colorClass, bgClass }) => (
+    <div className={`flex items-center gap-3 rounded-xl border p-4 ${bgClass}`}>
+        <div className={`p-2 rounded-lg bg-white/60 dark:bg-black/20 ${colorClass}`}>
+            <Icon className="w-5 h-5" />
+        </div>
+        <div>
+            <p className="text-2xl font-bold text-foreground tabular-nums">{value}</p>
+            <p className="text-xs text-muted-foreground font-medium">{label}</p>
+        </div>
+    </div>
+);
+
+// =====================================================
+// Ana Modül
+// =====================================================
 const KPIModule = () => {
     const { kpis, loading, refreshKpis, refreshAutoKpis } = useData();
     const { toast } = useToast();
@@ -16,92 +39,241 @@ const KPIModule = () => {
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
     const [selectedKpi, setSelectedKpi] = useState(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [activeCategory, setActiveCategory] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Sayfa açıldığında otomatik KPI'ları güncelle
     useEffect(() => {
         const updateAutoKpis = async () => {
-            if (kpis.length > 0) {
-                const hasAutoKpis = kpis.some(kpi => kpi.is_auto);
-                if (hasAutoKpis) {
-                    console.log('🔄 KPI Modülü açıldı, otomatik KPI\'lar güncelleniyor...');
-                    await refreshAutoKpis();
-                }
+            if (kpis.length > 0 && kpis.some(k => k.is_auto)) {
+                await refreshAutoKpis();
             }
         };
         updateAutoKpis();
-    }, []); // Sadece sayfa ilk açıldığında çalış
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const handleAddKpi = () => {
-        setAddModalOpen(true);
-    };
+    // Filtrelenmiş KPI listesi
+    const filteredKpis = useMemo(() => {
+        let list = kpis;
+        if (activeCategory !== 'all') {
+            list = list.filter(k => (k.category || 'default') === activeCategory);
+        }
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            list = list.filter(k =>
+                k.name?.toLowerCase().includes(term) ||
+                k.data_source?.toLowerCase().includes(term) ||
+                k.description?.toLowerCase().includes(term)
+            );
+        }
+        return list;
+    }, [kpis, activeCategory, searchTerm]);
+
+    // Kategori bazlı KPI sayıları
+    const categoryCounts = useMemo(() => {
+        const counts = { all: kpis.length };
+        KPI_CATEGORIES.filter(c => c.id !== 'all').forEach(cat => {
+            counts[cat.id] = kpis.filter(k => (k.category || 'default') === cat.id).length;
+        });
+        return counts;
+    }, [kpis]);
+
+    // Özet istatistikler
+    const summaryStats = useMemo(() => {
+        const withTarget = kpis.filter(k =>
+            k.current_value !== null && k.target_value !== null && parseFloat(k.target_value) !== 0
+        );
+        const onTarget = withTarget.filter(k => {
+            const c = parseFloat(k.current_value), t = parseFloat(k.target_value);
+            return k.target_direction === 'decrease' ? c <= t : c >= t;
+        });
+        const noData = kpis.filter(k => k.current_value === null || k.current_value === undefined);
+        const critical = withTarget.filter(k => {
+            const c = parseFloat(k.current_value), t = parseFloat(k.target_value);
+            const ok = k.target_direction === 'decrease' ? c <= t : c >= t;
+            if (ok || t === 0) return false;
+            return Math.abs((c - t) / t * 100) > 20;
+        });
+        return {
+            total: kpis.length,
+            onTarget: onTarget.length,
+            critical: critical.length,
+            noData: noData.length,
+            onTargetRate: withTarget.length > 0
+                ? Math.round(onTarget.length / withTarget.length * 100)
+                : null,
+        };
+    }, [kpis]);
 
     const handleCardClick = (kpi) => {
         setSelectedKpi(kpi);
         setDetailModalOpen(true);
     };
 
-    // Manuel yenileme
     const handleManualRefresh = useCallback(async () => {
         setIsRefreshing(true);
         try {
             await refreshAutoKpis();
-            toast({ title: 'Başarılı!', description: 'KPI değerleri güncellendi.' });
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Hata!', description: 'KPI değerleri güncellenemedi.' });
+            toast({ title: 'Başarılı', description: 'KPI değerleri güncellendi.' });
+        } catch {
+            toast({ variant: 'destructive', title: 'Hata', description: 'KPI değerleri güncellenemedi.' });
         } finally {
             setIsRefreshing(false);
         }
     }, [refreshAutoKpis, toast]);
 
+    // Aktif kategorileri (en az 1 KPI olan) göster
+    const visibleCategories = useMemo(() =>
+        KPI_CATEGORIES.filter(cat => cat.id === 'all' || (categoryCounts[cat.id] || 0) > 0),
+        [categoryCounts]
+    );
+
     return (
         <div className="space-y-6">
-            <AddKpiModal open={isAddModalOpen} setOpen={setAddModalOpen} refreshKpis={refreshKpis} existingKpis={kpis} />
-            {selectedKpi && <KPIDetailModalEnhanced kpi={selectedKpi} open={isDetailModalOpen} setOpen={setDetailModalOpen} refreshKpis={refreshKpis} />}
+            {/* Modals */}
+            <AddKpiModal
+                open={isAddModalOpen}
+                setOpen={setAddModalOpen}
+                refreshKpis={refreshKpis}
+                existingKpis={kpis}
+            />
+            {selectedKpi && (
+                <KPIDetailModalEnhanced
+                    kpi={selectedKpi}
+                    open={isDetailModalOpen}
+                    setOpen={setDetailModalOpen}
+                    refreshKpis={refreshKpis}
+                />
+            )}
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            {/* ── Başlık ve butonlar ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-foreground">KPI Modülü</h1>
-                    <p className="text-muted-foreground mt-1">Önemli performans göstergelerinizi takip edin.</p>
+                    <h1 className="text-2xl font-bold text-foreground">KPI Yönetimi</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                        Tüm modüllerden otomatik toplanan performans göstergeleri
+                    </p>
                 </div>
-                <div className="flex gap-2">
-                    <Button 
-                        variant="outline" 
-                        onClick={handleManualRefresh} 
-                        disabled={isRefreshing}
-                    >
-                        <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} /> 
-                        {isRefreshing ? 'Güncelleniyor...' : 'Değerleri Güncelle'}
+                <div className="flex gap-2 shrink-0">
+                    <Button variant="outline" size="sm" onClick={handleManualRefresh} disabled={isRefreshing}>
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        {isRefreshing ? 'Güncelleniyor…' : 'Değerleri Güncelle'}
                     </Button>
-                    <Button onClick={handleAddKpi}>
-                        <Plus className="w-4 h-4 mr-2" /> Yeni KPI Ekle
+                    <Button size="sm" onClick={() => setAddModalOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" /> Yeni KPI
                     </Button>
                 </div>
             </div>
-            
-            {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-36 w-full" />)}
+
+            {/* ── Özet istatistik kartları ── */}
+            {!loading && kpis.length > 0 && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <SummaryCard
+                        label="Toplam KPI"
+                        value={summaryStats.total}
+                        icon={BarChart3}
+                        colorClass="text-blue-600"
+                        bgClass="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800"
+                    />
+                    <SummaryCard
+                        label="Hedef Tutuldu"
+                        value={summaryStats.onTarget}
+                        icon={CheckCircle2}
+                        colorClass="text-emerald-600"
+                        bgClass="bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800"
+                    />
+                    <SummaryCard
+                        label="Kritik Durum"
+                        value={summaryStats.critical}
+                        icon={AlertCircle}
+                        colorClass="text-red-600"
+                        bgClass="bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
+                    />
+                    <SummaryCard
+                        label="Hedef Tutma Oranı"
+                        value={summaryStats.onTargetRate !== null ? `%${summaryStats.onTargetRate}` : '—'}
+                        icon={Target}
+                        colorClass="text-violet-600"
+                        bgClass="bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800"
+                    />
                 </div>
-            ) : (
-                <motion.div 
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            )}
+
+            {/* ── Arama ve filtreler ── */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                        className="pl-9"
+                        placeholder="KPI ara…"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                {/* Kategori filtre butonları */}
+                <div className="flex flex-wrap gap-1.5">
+                    {visibleCategories.map(cat => (
+                        <button
+                            key={cat.id}
+                            onClick={() => setActiveCategory(cat.id)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all
+                                ${activeCategory === cat.id
+                                    ? `${cat.bg} ${cat.text} ${cat.border} shadow-sm`
+                                    : 'bg-background border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                                }`}
+                        >
+                            <span>{cat.label}</span>
+                            <span className={`text-[10px] font-bold rounded-full px-1.5 py-0 ${activeCategory === cat.id ? 'bg-white/60' : 'bg-muted'}`}>
+                                {categoryCounts[cat.id] || 0}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* ── KPI Grid ── */}
+            {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[...Array(12)].map((_, i) => (
+                        <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                    ))}
+                </div>
+            ) : filteredKpis.length > 0 ? (
+                <motion.div
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
                     initial="hidden"
                     animate="visible"
-                    variants={{
-                        visible: { transition: { staggerChildren: 0.05 } }
-                    }}
+                    variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
                 >
-                    {kpis.length > 0 ? (
-                        kpis.map(kpi => (
+                    <AnimatePresence>
+                        {filteredKpis.map(kpi => (
                             <KPICard key={kpi.id} kpi={kpi} onCardClick={handleCardClick} />
-                        ))
-                    ) : (
-                        <div className="col-span-full text-center py-12">
-                            <p className="text-muted-foreground">Henüz KPI eklenmemiş.</p>
-                            <Button className="mt-4" onClick={handleAddKpi}>İlk KPI'ınızı Ekleyin</Button>
-                        </div>
-                    )}
+                        ))}
+                    </AnimatePresence>
                 </motion.div>
+            ) : kpis.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="p-4 bg-muted rounded-full mb-4">
+                        <TrendingUp className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground">Henüz KPI Eklenmemiş</h3>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                        Tüm modüllerden otomatik veri toplayan KPI'lar ekleyerek performansınızı takip edin.
+                    </p>
+                    <Button className="mt-5" onClick={() => setAddModalOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" /> İlk KPI'ı Ekle
+                    </Button>
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Filter className="w-8 h-8 text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground">
+                        Bu kategoride veya arama kriterine uyan KPI bulunamadı.
+                    </p>
+                    <Button variant="ghost" size="sm" className="mt-3" onClick={() => { setActiveCategory('all'); setSearchTerm(''); }}>
+                        Filtreyi Temizle
+                    </Button>
+                </div>
             )}
         </div>
     );

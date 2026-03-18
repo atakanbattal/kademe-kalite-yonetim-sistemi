@@ -3379,6 +3379,96 @@ const generateListReportHtml = (record, type) => {
 				`
 				: '';
 
+			// Tedarikçi Puan Dağılımı (dashboard'dan entegre)
+			const gradeDistributionHtml = record.gradeDistribution && record.gradeDistribution.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Tedarikçi Puan Dağılımı</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%;">
+						<thead>
+							<tr style="background-color: #7c3aed; color: white;">
+								<th style="width: 40%; padding: 12px; text-align: left;">Sınıf</th>
+								<th style="width: 30%; padding: 12px; text-align: center;">Tedarikçi Sayısı</th>
+								<th style="width: 30%; padding: 12px; text-align: center;">Oran</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.gradeDistribution.map((entry, idx) => {
+								const total = record.gradeDistribution.reduce((s, e) => s + (e.value || 0), 0);
+								const pct = total > 0 ? ((entry.value || 0) / total * 100).toFixed(1) : '0';
+								const colors = { 'A': '#22c55e', 'B': '#3b82f6', 'C': '#eab308', 'D': '#ef4444', 'N/A': '#9ca3af' };
+								return `
+									<tr style="border-bottom: 1px solid #e5e7eb;">
+										<td style="padding: 12px; font-weight: 600; color: ${colors[entry.name] || '#374151'};">${entry.label || entry.name}</td>
+										<td style="padding: 12px; text-align: center; font-weight: 600;">${formatNumber(entry.value)}</td>
+										<td style="padding: 12px; text-align: center;">%${pct}</td>
+									</tr>
+								`;
+							}).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+
+			// Tedarikçi Listesi (liste raporundan entegre)
+			const supplierListTableHtml = record.suppliers && record.suppliers.length > 0
+				? `
+					<h3 style="font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 15px; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">Tedarikçi Listesi (${record.totalCount || record.suppliers.length} Kayıt)</h3>
+					<table class="info-table results-table" style="margin-bottom: 30px; width: 100%; font-size: 0.85em;">
+						<thead>
+							<tr style="background-color: #1e40af; color: white;">
+								<th style="width: 4%; padding: 10px; text-align: center;">#</th>
+								<th style="width: 18%; padding: 10px; text-align: left;">Tedarikçi</th>
+								<th style="width: 12%; padding: 10px; text-align: left;">Ürün Grubu</th>
+								<th style="width: 10%; padding: 10px; text-align: center;">Durum</th>
+								<th style="width: 12%; padding: 10px; text-align: center;">Puan/Sınıf</th>
+								<th style="width: 18%; padding: 10px; text-align: left;">Ana Tedarikçi</th>
+								<th style="width: 18%; padding: 10px; text-align: left;">Alternatifler</th>
+								<th style="width: 8%; padding: 10px; text-align: left;">İletişim</th>
+							</tr>
+						</thead>
+						<tbody>
+							${record.suppliers.map((supplier, idx) => {
+								const statusBadge = supplier.status === 'Onaylı'
+									? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Onaylı</span>'
+									: supplier.status === 'Alternatif'
+										? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">Alternatif</span>'
+										: supplier.status === 'Askıya Alınmış'
+											? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Askıya Alınmış</span>'
+											: supplier.status === 'Red'
+												? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">Reddedildi</span>'
+												: '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">' + (supplier.status || '-') + '</span>';
+								const gradeInfo = supplier.gradeInfo || {};
+								const gradeBadge = gradeInfo.grade === 'A'
+									? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">A</span>'
+									: gradeInfo.grade === 'B'
+										? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #dbeafe; color: #1e40af;">B</span>'
+										: gradeInfo.grade === 'C'
+											? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fef3c7; color: #92400e;">C</span>'
+											: gradeInfo.grade === 'D'
+												? '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #fee2e2; color: #991b1b;">D</span>'
+												: '<span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #e5e7eb; color: #374151;">N/A</span>';
+								const mainSupplier = supplier.alternativeSupplier ? supplier.alternativeSupplier.name : '-';
+								const alternatives = supplier.alternativeSuppliers && supplier.alternativeSuppliers.length > 0
+									? supplier.alternativeSuppliers.map(alt => alt.name).join(', ')
+									: '-';
+								return `
+									<tr style="border-bottom: 1px solid #e5e7eb;">
+										<td style="padding: 10px; text-align: center; font-weight: 600;">${supplier.serialNumber || (idx + 1)}</td>
+										<td style="padding: 10px; font-weight: 600;">${supplier.name || '-'}</td>
+										<td style="padding: 10px;">${supplier.product_group || '-'}</td>
+										<td style="padding: 10px;">${statusBadge}</td>
+										<td style="padding: 10px;">${gradeBadge}</td>
+										<td style="padding: 10px;">${mainSupplier}</td>
+										<td style="padding: 10px;">${alternatives}</td>
+										<td style="padding: 10px; font-size: 0.8em;">${supplier.email || supplier.phone || '-'}</td>
+									</tr>
+								`;
+							}).join('')}
+						</tbody>
+					</table>
+				`
+				: '';
+
 			summaryHtml = `
 				<div style="margin-bottom: 25px;">
 					<p style="font-size: 14px; color: #6b7280; margin-bottom: 5px;"><strong>Rapor Tarihi:</strong> ${record.reportDate || formatDateLocal(new Date().toISOString())}</p>
@@ -3390,6 +3480,8 @@ const generateListReportHtml = (record, type) => {
 				${topLowScoreSuppliersHtml}
 				${supplierPPMHtml}
 				${topDFSuppliersHtml}
+				${gradeDistributionHtml}
+				${supplierListTableHtml}
 			`;
 
 			headers = [];

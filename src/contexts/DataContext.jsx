@@ -801,6 +801,30 @@ export const DataProvider = ({ children }) => {
             'avg_customer_satisfaction_score': 'get_avg_customer_satisfaction_score',
             'active_supplier_development_plans_count': 'get_active_supplier_development_plans_count',
             'completed_supplier_development_plans_count': 'get_completed_supplier_development_plans_count',
+            // Uygunsuzluk Yönetimi
+            'open_nonconformity_count': 'get_open_nonconformity_count',
+            'nonconformity_closure_rate': 'get_nonconformity_closure_rate',
+            'nonconformity_30d_count': 'get_nonconformity_30d_count',
+            'critical_nonconformity_count': 'get_critical_nonconformity_count',
+            'nonconformity_df_8d_conversion_rate': 'get_nonconformity_df_8d_conversion_rate',
+            // Sızdırmazlık Kontrol
+            'leak_test_pass_rate': 'get_leak_test_pass_rate',
+            'leak_test_30d_count': 'get_leak_test_30d_count',
+            'leak_test_rejection_30d_count': 'get_leak_test_rejection_30d_count',
+            // Fikstür
+            'active_fixture_count': 'get_active_fixture_count',
+            'fixture_nonconformity_count': 'get_fixture_nonconformity_count',
+            'total_fixture_count': 'get_total_fixture_count',
+            // Proses Kontrol
+            'process_inkr_30d_count': 'get_process_inkr_30d_count',
+            'process_inkr_total_count': 'get_process_inkr_total_count',
+            // Satış Sonrası / Müşteri
+            'after_sales_open_count': 'get_after_sales_open_count',
+            'after_sales_30d_count': 'get_after_sales_30d_count',
+            // Görev Yönetimi ek
+            'completed_tasks_30d_count': 'get_completed_tasks_30d_count',
+            // Kalite Maliyeti
+            'total_quality_cost': 'get_total_quality_cost',
         };
         return rpcMap[autoKpiId] || null;
     };

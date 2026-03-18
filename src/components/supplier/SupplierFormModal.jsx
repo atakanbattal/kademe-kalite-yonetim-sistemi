@@ -256,7 +256,7 @@ import React, { useState, useEffect } from 'react';
                             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pr-2">
                                 <div className="md:col-span-2">
                                     <Label htmlFor="name">Firma Adı <span className="text-red-500">*</span></Label>
-                                    <Input id="name" value={formData.name || ''} onChange={handleInputChange} required />
+                                    <Input id="name" value={formData.name || ''} onChange={handleInputChange} autoFormat={false} required />
                                 </div>
                                 <div>
                                     <Label htmlFor="product_group">Ürün Grubu</Label>

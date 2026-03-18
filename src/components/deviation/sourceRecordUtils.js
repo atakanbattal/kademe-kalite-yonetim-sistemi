@@ -5,7 +5,7 @@ const SOURCE_TYPE_META = {
     },
     process_inspection: {
         label: 'Proses Kontrol',
-        deviationType: 'Proses Kontrol',
+        deviationType: 'Üretim',
     },
     quarantine: {
         label: 'Karantina',

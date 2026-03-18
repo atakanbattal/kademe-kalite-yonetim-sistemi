@@ -56,7 +56,7 @@ const statusColors = {
 };
 
 const CONVERTED_STATUSES = new Set(['DF Açıldı', '8D Açıldı']);
-const FINAL_STATUSES = new Set(['DF Açıldı', '8D Açıldı', 'Kapatıldı']);
+const FINAL_STATUSES = new Set(['DF Açıldı', '8D Açıldı']);
 
 const getStoredSuggestionType = (status) => {
   if (status === 'DF Önerildi') return 'DF';
@@ -273,7 +273,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   }, [records, settings]);
 
   const getRecordSuggestion = useCallback((record) => {
-    // Durum kilitliyse öneri gösterme
+    // DF/8D açılmışsa öneri gösterme; Kapatıldı olsa bile öneri göster
     if (FINAL_STATUSES.has(record.status)) return null;
 
     // Eşik değerleri — settings yüklenmemişse varsayılanlar kullanılır
@@ -800,6 +800,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                   <tr className="border-b bg-muted/50">
                     <SortableHeader label="Kayıt No" columnKey="record_number" sortConfig={sortConfig} onSort={handleSort} />
                     <SortableHeader label="Parça Kodu" columnKey="part_code" sortConfig={sortConfig} onSort={handleSort} />
+                    <th className="px-3 py-3 text-left font-medium text-muted-foreground">Araç Bilgisi</th>
                     <th className="px-3 py-3 text-left font-medium text-muted-foreground">Açıklama</th>
                     <SortableHeader label="Kategori" columnKey="category" sortConfig={sortConfig} onSort={handleSort} />
                     <SortableHeader label="Ciddiyet" columnKey="severity" sortConfig={sortConfig} onSort={handleSort} />
@@ -837,14 +838,27 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         <td className="px-3 py-2.5 font-mono text-xs font-semibold">{getDisplayRecordNumber(record)}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-medium">{record.part_code || '-'}</span>
-                            {repeatCount > 1 && (
+                            <span className="font-medium">
+                              {record.detection_area === 'Üretilen Araçlar' ? '-' : (record.part_code || '-')}
+                            </span>
+                            {repeatCount > 1 && record.detection_area !== 'Üretilen Araçlar' && (
                               <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
                                 x{repeatCount}
                               </Badge>
                             )}
                           </div>
-                          {record.part_name && <p className="text-[11px] text-muted-foreground truncate max-w-[140px]">{record.part_name}</p>}
+                          {record.part_name && record.detection_area !== 'Üretilen Araçlar' && (
+                            <p className="text-[11px] text-muted-foreground truncate max-w-[140px]">{record.part_name}</p>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {record.detection_area === 'Üretilen Araçlar' ? (
+                            <div className="text-xs">
+                              {[record.vehicle_type, record.vehicle_identifier].filter(Boolean).join(' / ') || '-'}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </td>
                         <td className="px-3 py-2.5">
                           <p className="truncate max-w-[200px] text-xs">{record.description}</p>
@@ -865,7 +879,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                          {suggestion && settings?.auto_suggest && !FINAL_STATUSES.has(record.status) && (
+                          {suggestion && settings?.auto_suggest && (
                             <div className="flex flex-col items-start gap-1">
                               <Button
                                 size="sm"

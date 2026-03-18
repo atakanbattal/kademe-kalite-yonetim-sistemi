@@ -126,7 +126,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                                 .eq('supplier_id', supplier.id)
                                 .eq('year', currentYear)
                                 .is('month', null)
-                                .single();
+                                .maybeSingle();
                             
                             if (!ppmError && ppmData) {
                                 ppmValue = ppmData.ppm_value;

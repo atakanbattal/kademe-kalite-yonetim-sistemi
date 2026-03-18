@@ -120,9 +120,18 @@ const NonconformityDetailModal = ({ isOpen, setIsOpen, record }) => {
             Parça & Ürün Bilgileri
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <InfoCard icon={Package} label="Parça Kodu" value={record.part_code} variant="primary" />
-            <InfoCard icon={Package} label="Parça Adı" value={record.part_name} />
-            <InfoCard icon={Car} label="Araç Tipi" value={record.vehicle_type} variant="warning" />
+            {record.detection_area === 'Üretilen Araçlar' ? (
+              <>
+                <InfoCard icon={Car} label="Araç Bilgisi" value={[record.vehicle_type, record.vehicle_identifier].filter(Boolean).join(' / ') || '-'} variant="primary" />
+                <InfoCard icon={Package} label="Parça Adı" value={record.part_name} />
+              </>
+            ) : (
+              <>
+                <InfoCard icon={Package} label="Parça Kodu" value={record.part_code} variant="primary" />
+                <InfoCard icon={Package} label="Parça Adı" value={record.part_name} />
+                <InfoCard icon={Car} label="Araç Tipi" value={record.vehicle_type} variant="warning" />
+              </>
+            )}
             <InfoCard icon={Layers} label="Hatalı Adet" value={record.quantity} variant={record.quantity > 10 ? 'danger' : 'default'} />
           </div>
         </div>

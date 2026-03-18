@@ -123,8 +123,9 @@ const buildAggregatedPayload = ({ vehicle, faults, reporterName, categoryName })
         .map(([description, quantity]) => `- ${description}${quantity > 1 ? ` (${quantity} adet)` : ''}`);
 
     return {
-        part_code: vehicleIdentifier,
+        part_code: null,
         part_name: getVehicleDisplayName(vehicle),
+        vehicle_identifier: vehicleIdentifier,
         description: [
             `${categoryName} kategorisinde araç hatası tespit edildi.`,
             vehicle?.vehicle_type ? `Araç Tipi: ${vehicle.vehicle_type}` : null,
@@ -150,6 +151,7 @@ const buildAggregatedPayload = ({ vehicle, faults, reporterName, categoryName })
 const needsRecordUpdate = (record, payload, nextStatus) => {
     return !(
         (record.part_code || null) === (payload.part_code || null) &&
+        (record.vehicle_identifier || null) === (payload.vehicle_identifier || null) &&
         (record.part_name || null) === (payload.part_name || null) &&
         (record.description || null) === (payload.description || null) &&
         (record.category || null) === (payload.category || null) &&
@@ -203,9 +205,9 @@ const fetchVehicleFaults = async (supabase, vehicleId) => {
 const fetchGroupRecords = async (supabase, { vehicleIdentifier, categoryName, vehicleType }) => {
     let query = supabase
         .from('nonconformity_records')
-        .select('id, record_number, status, notes, created_at, part_code, part_name, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
+        .select('id, record_number, status, notes, created_at, part_code, part_name, vehicle_identifier, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
         .eq('detection_area', 'Üretilen Araçlar')
-        .eq('part_code', vehicleIdentifier)
+        .eq('vehicle_identifier', vehicleIdentifier)
         .eq('category', categoryName)
         .order('created_at', { ascending: false });
 
@@ -273,7 +275,7 @@ const preserveLockedRecord = async (supabase, record) => {
         .from('nonconformity_records')
         .update({ notes: nextNotes })
         .eq('id', recordId)
-        .select('id, record_number, status, notes, created_at, part_code, part_name, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
+        .select('id, record_number, status, notes, created_at, part_code, part_name, vehicle_identifier, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
         .single();
 
     if (error) throw error;
@@ -321,7 +323,7 @@ const reconcileGroup = async ({ supabase, vehicle, categoryName, faults, existin
                 record_number: recordNumber,
                 created_by: userId || null
             })
-            .select('id, record_number, status, notes, created_at, part_code, part_name, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
+            .select('id, record_number, status, notes, created_at, part_code, part_name, vehicle_identifier, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
             .single();
 
         if (error) throw error;
@@ -343,6 +345,7 @@ const reconcileGroup = async ({ supabase, vehicle, categoryName, faults, existin
         .update({
             part_code: dbPayload.part_code,
             part_name: dbPayload.part_name,
+            vehicle_identifier: dbPayload.vehicle_identifier,
             description: dbPayload.description,
             category: dbPayload.category,
             detection_area: dbPayload.detection_area,
@@ -356,7 +359,7 @@ const reconcileGroup = async ({ supabase, vehicle, categoryName, faults, existin
             status: nextStatus
         })
         .eq('id', recordId)
-        .select('id, record_number, status, notes, created_at, part_code, part_name, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
+        .select('id, record_number, status, notes, created_at, part_code, part_name, vehicle_identifier, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
         .single();
 
     if (error) throw error;
@@ -437,7 +440,7 @@ export const backfillVehicleFaultNonconformities = async ({ supabase, reporterNa
             .range(from, to)),
         fetchAllRows((from, to) => supabase
             .from('nonconformity_records')
-            .select('id, record_number, status, notes, created_at, part_code, part_name, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
+            .select('id, record_number, status, notes, created_at, part_code, part_name, vehicle_identifier, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
             .eq('detection_area', 'Üretilen Araçlar')
             .order('created_at', { ascending: false })
             .range(from, to))
@@ -466,7 +469,7 @@ export const backfillVehicleFaultNonconformities = async ({ supabase, reporterNa
     const groupedRecords = new Map();
     (records || []).forEach((record) => {
         const groupKey = buildGroupKey({
-            vehicleIdentifier: record.part_code,
+            vehicleIdentifier: record.vehicle_identifier || record.part_code,
             categoryName: record.category
         });
 
@@ -490,8 +493,8 @@ export const backfillVehicleFaultNonconformities = async ({ supabase, reporterNa
         const existingRecords = groupedRecords.get(groupKey) || [];
         const vehicle = vehicleMap.get(groupKey) || {
             id: null,
-            serial_no: existingRecords[0]?.part_code || null,
-            chassis_no: existingRecords[0]?.part_code || null,
+            serial_no: existingRecords[0]?.vehicle_identifier || existingRecords[0]?.part_code || null,
+            chassis_no: existingRecords[0]?.vehicle_identifier || existingRecords[0]?.part_code || null,
             vehicle_type: existingRecords[0]?.vehicle_type || null,
             customer_name: null
         };

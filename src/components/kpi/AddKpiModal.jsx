@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Zap, TrendingUp } from 'lucide-react';
-import { predefinedKpis } from './kpi-definitions';
+import { predefinedKpis, KPI_CATEGORIES } from './kpi-definitions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
@@ -70,12 +70,13 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
             name: predefinedKpi.name,
             description: predefinedKpi.description,
             data_source: predefinedKpi.data_source,
-            target_value: 0, // Default target
+            target_value: 0,
             target_direction: predefinedKpi.target_direction,
             unit: predefinedKpi.unit,
             current_value: rpcData,
             is_auto: true,
             auto_kpi_id: predefinedKpi.id,
+            category: predefinedKpi.category || null,
         });
 
          if (error) {
@@ -93,6 +94,16 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
         const existingAutoIds = existingKpis.filter(k => k.is_auto).map(k => k.auto_kpi_id);
         return predefinedKpis.filter(pk => !existingAutoIds.includes(pk.id));
     }, [existingKpis]);
+
+    const groupedPredefinedKpis = useMemo(() => {
+        const groups = {};
+        availablePredefinedKpis.forEach(kpi => {
+            const cat = kpi.category || 'default';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(kpi);
+        });
+        return groups;
+    }, [availablePredefinedKpis]);
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => { if(!isOpen) resetForm(); setOpen(isOpen); }}>
@@ -115,20 +126,40 @@ const AddKpiModal = ({ open, setOpen, refreshKpis, existingKpis }) => {
                         <TabsTrigger value="manual">Manuel Ekle</TabsTrigger>
                     </TabsList>
                     <TabsContent value="auto" className="py-4">
-                        <ScrollArea className="h-96 pr-4">
-                            <div className="space-y-4">
+                        <ScrollArea className="h-[500px] pr-4">
+                            <div className="space-y-5">
                                 <p className="text-sm text-muted-foreground">Sistemdeki verilerden otomatik olarak hesaplanan bir KPI seçin.</p>
-                                {availablePredefinedKpis.length > 0 ? availablePredefinedKpis.map(kpi => (
-                                    <div key={kpi.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                                        <div>
-                                            <h4 className="font-semibold text-foreground">{kpi.name}</h4>
-                                            <p className="text-xs text-muted-foreground">{kpi.description}</p>
-                                        </div>
-                                        <Button size="sm" onClick={() => handleAutoAdd(kpi)} disabled={isSubmitting}>
-                                            <Zap className="w-4 h-4 mr-2" /> Ekle
-                                        </Button>
-                                    </div>
-                                )) : (
+                                {availablePredefinedKpis.length > 0 ? (
+                                    Object.entries(groupedPredefinedKpis).map(([catId, kpiList]) => {
+                                        const catDef = KPI_CATEGORIES.find(c => c.id === catId);
+                                        return (
+                                            <div key={catId}>
+                                                <div className={`flex items-center gap-2 mb-2 px-2 py-1 rounded-md ${catDef?.bg || 'bg-muted'}`}>
+                                                    <span className={`text-xs font-bold uppercase tracking-wider ${catDef?.text || 'text-muted-foreground'}`}>
+                                                        {catDef?.label || catId}
+                                                    </span>
+                                                    <span className={`ml-auto text-[10px] font-bold px-1.5 rounded-full bg-white/60 ${catDef?.text || 'text-muted-foreground'}`}>
+                                                        {kpiList.length}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {kpiList.map(kpi => (
+                                                        <div key={kpi.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg gap-3">
+                                                            <div className="min-w-0">
+                                                                <h4 className="font-semibold text-foreground text-sm truncate">{kpi.name}</h4>
+                                                                <p className="text-xs text-muted-foreground line-clamp-1">{kpi.description}</p>
+                                                                <span className="text-[10px] text-muted-foreground">{kpi.data_source} · {kpi.unit?.trim() || 'adet'}</span>
+                                                            </div>
+                                                            <Button size="sm" className="shrink-0" onClick={() => handleAutoAdd(kpi)} disabled={isSubmitting}>
+                                                                <Zap className="w-3 h-3 mr-1" /> Ekle
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
                                     <p className="text-center text-muted-foreground p-4">Tüm otomatik KPI'lar zaten eklenmiş.</p>
                                 )}
                             </div>
