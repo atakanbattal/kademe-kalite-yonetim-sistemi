@@ -186,6 +186,14 @@ const ProcessControlDashboard = ({
                                 <Button
                                     variant="outline"
                                     className="w-full justify-between"
+                                    onClick={() => onTabChange?.('equipment')}
+                                >
+                                    Araç Bilgileri
+                                    <MoveRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
                                     onClick={() => onTabChange?.('plans')}
                                 >
                                     Kontrol Planları
@@ -262,8 +270,8 @@ const ProcessControlDashboard = ({
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="text-sm text-muted-foreground">
-                                Araçlar, dokümanlar ve notlar sekmeleri kaldırıldı. Ana akış artık kontrol planı,
-                                ilk numune ve muayene kayıtları üzerinden ilerler.
+                                Araç bilgileri sekmesinden proses araçlarını (kalıp, fixture, jig vb.) yönetebilirsiniz.
+                                Ana akış kontrol planı, ilk numune ve muayene kayıtları üzerinden ilerler.
                             </CardContent>
                         </Card>
                     </motion.div>

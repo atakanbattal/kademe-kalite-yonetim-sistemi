@@ -702,6 +702,39 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                 <DialogDescription>{partName} ({items.length} Karakteristik)</DialogDescription>
                             </DialogHeader>
                             <form onSubmit={handleSubmit}>
+                                {selectedPlan && (
+                                    <div className="mb-4 p-4 rounded-lg border bg-muted/30 space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <Label>Parça Kodu (*)</Label>
+                                                <Input
+                                                    value={partCode}
+                                                    onChange={(e) => setPartCode(e.target.value)}
+                                                    required
+                                                    className="mt-1"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Parça Adı (*)</Label>
+                                                <Input
+                                                    value={partName}
+                                                    onChange={(e) => setPartName(e.target.value)}
+                                                    required
+                                                    className="mt-1"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Araç Tipi</Label>
+                                                <Combobox
+                                                    options={equipmentOptions}
+                                                    value={selectedEquipmentId}
+                                                    onChange={setSelectedEquipmentId}
+                                                    placeholder="Araç tipi seçin..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 <ScrollArea className="h-[70vh] p-1">
                                     {!characteristics || !measurementEquipment || !standards ? (
                                         <div className="flex justify-center items-center h-[60vh]">

@@ -9,11 +9,13 @@ import ControlPlanManagement from './ControlPlanManagement';
 import ProcessInkrManagement from './ProcessInkrManagement';
 import ProcessInspectionManagement from './ProcessInspectionManagement';
 import ProcessControlFolderDownloadModal from './ProcessControlFolderDownloadModal';
+import EquipmentManagement from './EquipmentManagement';
 import { Download } from 'lucide-react';
 import { enrichProcessInkrReports } from './processInkrUtils';
 
 const PROCESS_CONTROL_TABS = [
     { value: 'dashboard', label: 'Ana Ekran' },
+    { value: 'equipment', label: 'Araç Bilgileri' },
     { value: 'inspections', label: 'Muayene Kayıtları' },
     { value: 'plans', label: 'Kontrol Planları' },
     { value: 'inkr', label: 'İlk Numune (INKR)' },
@@ -24,6 +26,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [plans, setPlans] = useState([]);
     const [inkrReports, setInkrReports] = useState([]);
     const [inspections, setInspections] = useState([]);
+    const [equipment, setEquipment] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
@@ -101,6 +104,28 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
     }, []);
 
+    const fetchEquipment = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from('process_control_equipment')
+                .select('*')
+                .order('equipment_code', { ascending: true });
+
+            if (error) {
+                if (error.code === '42P01' || error.message.includes('does not exist')) {
+                    console.warn('process_control_equipment tablosu henüz oluşturulmamış');
+                    setEquipment([]);
+                    return;
+                }
+                throw error;
+            }
+            setEquipment(data || []);
+        } catch (err) {
+            console.error('Araç listesi yükleme hatası:', err);
+            setEquipment([]);
+        }
+    }, []);
+
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
@@ -108,11 +133,12 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                 fetchPlans(),
                 fetchInkrReports(),
                 fetchInspections(),
+                fetchEquipment(),
             ]);
             setLoading(false);
         };
         loadData();
-    }, [fetchInkrReports, fetchInspections, fetchPlans]);
+    }, [fetchPlans, fetchInkrReports, fetchInspections, fetchEquipment]);
 
     return (
         <>
@@ -141,7 +167,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                 />
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 lg:grid-cols-4">
+                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-muted p-1 lg:grid-cols-5">
                         {PROCESS_CONTROL_TABS.map((tab) => (
                             <TabsTrigger key={tab.value} value={tab.value} className="w-full min-w-0">
                                 {tab.label}
@@ -156,6 +182,14 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                             inspections={inspections}
                             loading={loading}
                             onTabChange={setActiveTab}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="equipment" className="mt-6">
+                        <EquipmentManagement
+                            equipment={equipment}
+                            loading={loading}
+                            refreshEquipment={fetchEquipment}
                         />
                     </TabsContent>
 
