@@ -219,11 +219,12 @@ const KPIModule = () => {
             )}
 
             {/* ── Arama ve filtreler ── */}
-            <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="space-y-2">
+                {/* Arama */}
+                <div className="relative w-full sm:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     <Input
-                        className="pl-9"
+                        className="pl-10 pr-3"
                         placeholder="KPI ara…"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
