@@ -184,10 +184,18 @@ export function useSupabaseMutation(table) {
         setLoading(true);
         setError(null);
         try {
+            // pg-safeupdate: UPDATE/DELETE için en az bir geçerli filtre gerekli
+            const validFilters = Object.entries(filters || {}).filter(
+                ([, value]) => value != null && value !== ''
+            );
+            if (validFilters.length === 0) {
+                const err = new Error('UPDATE requires at least one valid filter (WHERE clause).');
+                setError(err);
+                return { data: null, error: err };
+            }
+
             let query = supabase.from(table).update(data);
-            
-            // Filtreleri uygula
-            Object.entries(filters).forEach(([key, value]) => {
+            validFilters.forEach(([key, value]) => {
                 query = query.eq(key, value);
             });
             
@@ -209,9 +217,18 @@ export function useSupabaseMutation(table) {
         setLoading(true);
         setError(null);
         try {
+            // pg-safeupdate: DELETE için en az bir geçerli filtre gerekli
+            const validFilters = Object.entries(filters || {}).filter(
+                ([, value]) => value != null && value !== ''
+            );
+            if (validFilters.length === 0) {
+                const err = new Error('DELETE requires at least one valid filter (WHERE clause).');
+                setError(err);
+                return { data: null, error: err };
+            }
+
             let query = supabase.from(table).delete();
-            
-            Object.entries(filters).forEach(([key, value]) => {
+            validFilters.forEach(([key, value]) => {
                 query = query.eq(key, value);
             });
             

@@ -244,18 +244,20 @@ const sortRecordsForPrimarySelection = (records) => {
 };
 
 const deleteRecordsByIds = async (supabase, recordIds) => {
-    if (!recordIds?.length) return;
+    const validIds = (recordIds || []).filter((id) => id != null && id !== '');
+    if (!validIds.length) return;
 
     const { error } = await supabase
         .from('nonconformity_records')
         .delete()
-        .in('id', recordIds);
+        .in('id', validIds);
 
     if (error) throw error;
 };
 
 const preserveLockedRecord = async (supabase, record) => {
-    if (!record?.id) {
+    const recordId = record?.id;
+    if (recordId == null || recordId === '') {
         throw new Error('Kilidi korunacak uygunsuzluk kaydının id alanı eksik.');
     }
 
@@ -268,7 +270,7 @@ const preserveLockedRecord = async (supabase, record) => {
     const { data, error } = await supabase
         .from('nonconformity_records')
         .update({ notes: nextNotes })
-        .eq('id', record.id)
+        .eq('id', recordId)
         .select('id, record_number, status, notes, created_at, part_code, part_name, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
         .single();
 
@@ -283,7 +285,8 @@ const reconcileGroup = async ({ supabase, vehicle, categoryName, faults, existin
     const duplicateRecords = sortedRecords.slice(1);
 
     if (duplicateRecords.length > 0) {
-        await deleteRecordsByIds(supabase, duplicateRecords.map((record) => record.id));
+        const duplicateIds = duplicateRecords.map((r) => r.id).filter((id) => id != null && id !== '');
+        await deleteRecordsByIds(supabase, duplicateIds);
     }
 
     if (!faults.length) {
@@ -296,7 +299,10 @@ const reconcileGroup = async ({ supabase, vehicle, categoryName, faults, existin
             return { mode: 'preserved', record: preservedRecord, deletedDuplicates: duplicateRecords.length };
         }
 
-        await deleteRecordsByIds(supabase, [primaryRecord.id]);
+        const idToDelete = primaryRecord?.id;
+        if (idToDelete != null && idToDelete !== '') {
+            await deleteRecordsByIds(supabase, [idToDelete]);
+        }
         return { mode: 'deleted', record: primaryRecord, deletedDuplicates: duplicateRecords.length + 1 };
     }
 
@@ -325,8 +331,9 @@ const reconcileGroup = async ({ supabase, vehicle, categoryName, faults, existin
         return { mode: 'existing', record: primaryRecord, deletedDuplicates: duplicateRecords.length };
     }
 
-    if (!primaryRecord?.id) {
-        throw new Error('Güncellenecek araç uygunsuzluk kaydının id alanı eksik.');
+    const recordId = primaryRecord?.id;
+    if (recordId == null || recordId === '') {
+        throw new Error('Güncellenecek araç uygunsuzluk kaydının id alanı geçersiz veya eksik.');
     }
 
     const { data, error } = await supabase
@@ -346,7 +353,7 @@ const reconcileGroup = async ({ supabase, vehicle, categoryName, faults, existin
             notes: dbPayload.notes,
             status: nextStatus
         })
-        .eq('id', primaryRecord.id)
+        .eq('id', recordId)
         .select('id, record_number, status, notes, created_at, part_code, part_name, description, category, detection_area, detection_date, detected_by, severity, vehicle_type, quantity, department')
         .single();
 

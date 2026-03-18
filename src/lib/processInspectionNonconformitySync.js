@@ -181,9 +181,10 @@ const sortRecordsForPrimarySelection = (records) =>
     });
 
 const deleteRecordsByIds = async (supabase, ids) => {
-    if (!ids?.length) return;
+    const validIds = (ids || []).filter((id) => id != null && id !== '');
+    if (!validIds.length) return;
 
-    const { error } = await supabase.from('nonconformity_records').delete().in('id', ids);
+    const { error } = await supabase.from('nonconformity_records').delete().in('id', validIds);
     if (error) throw error;
 };
 
@@ -243,10 +244,8 @@ const reconcileInspection = async ({
     const duplicateRecords = sortedRecords.slice(1);
 
     if (duplicateRecords.length > 0) {
-        await deleteRecordsByIds(
-            supabase,
-            duplicateRecords.map((record) => record.id)
-        );
+        const duplicateIds = duplicateRecords.map((r) => r.id).filter((id) => id != null && id !== '');
+        await deleteRecordsByIds(supabase, duplicateIds);
     }
 
     if (!failedMeasurements.length) {
@@ -255,14 +254,15 @@ const reconcileInspection = async ({
         }
 
         if (LOCKED_NONCONFORMITY_STATUSES.has(primaryRecord.status)) {
-            if (!primaryRecord?.id) {
+            const preservedId = primaryRecord?.id;
+            if (preservedId == null || preservedId === '') {
                 throw new Error('Korunacak proses uygunsuzluk kaydının id alanı eksik.');
             }
 
             const { data, error } = await supabase
                 .from('nonconformity_records')
                 .update({ notes: getPreservedNotes(inspection) })
-                .eq('id', primaryRecord.id)
+                .eq('id', preservedId)
                 .select(RECORD_SELECT)
                 .single();
 
@@ -271,7 +271,10 @@ const reconcileInspection = async ({
             return { mode: 'preserved', record: data, deletedDuplicates: duplicateRecords.length };
         }
 
-        await deleteRecordsByIds(supabase, [primaryRecord.id]);
+        const idToDelete = primaryRecord?.id;
+        if (idToDelete != null && idToDelete !== '') {
+            await deleteRecordsByIds(supabase, [idToDelete]);
+        }
         return {
             mode: 'deleted',
             record: primaryRecord,
@@ -306,8 +309,9 @@ const reconcileInspection = async ({
         return { mode: 'existing', record: primaryRecord, deletedDuplicates: duplicateRecords.length };
     }
 
-    if (!primaryRecord?.id) {
-        throw new Error('Güncellenecek proses uygunsuzluk kaydının id alanı eksik.');
+    const recordId = primaryRecord?.id;
+    if (recordId == null || recordId === '') {
+        throw new Error('Güncellenecek proses uygunsuzluk kaydının id alanı geçersiz veya eksik.');
     }
 
     const { data, error } = await supabase
@@ -327,7 +331,7 @@ const reconcileInspection = async ({
             notes: payload.notes,
             status: nextStatus,
         })
-        .eq('id', primaryRecord.id)
+        .eq('id', recordId)
         .select(RECORD_SELECT)
         .single();
 
