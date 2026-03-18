@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { useDropzone } from 'react-dropzone';
 import { sanitizeFileName } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -177,7 +178,7 @@ const ProcessInspectionFormModal = ({
     isViewMode,
 }) => {
     const { toast } = useToast();
-    const { characteristics, equipment } = useData();
+    const { characteristics, equipment, personnel } = useData();
     const { user } = useAuth();
 
     const [formData, setFormData] = useState(INITIAL_FORM_STATE);
@@ -214,6 +215,39 @@ const ProcessInspectionFormModal = ({
         const conditional = Number(formData.quantity_conditional) || 0;
         return rejected + conditional > produced;
     }, [formData.quantity_conditional, formData.quantity_produced, formData.quantity_rejected]);
+
+    const operatorOptions = useMemo(() => {
+        const activePersonnel = Array.isArray(personnel)
+            ? personnel.filter((person) => person?.is_active && person?.full_name)
+            : [];
+
+        const baseOptions = activePersonnel.map((person) => ({
+            value: person.full_name,
+            label: person.department ? `${person.full_name} • ${person.department}` : person.full_name,
+            triggerLabel: person.full_name,
+            searchText: [person.full_name, person.department].filter(Boolean).join(' '),
+            description: person.department || undefined,
+        }));
+
+        const currentOperatorName = formData.operator_name?.trim();
+        if (
+            currentOperatorName &&
+            !baseOptions.some((option) => option.value === currentOperatorName)
+        ) {
+            return [
+                {
+                    value: currentOperatorName,
+                    label: `${currentOperatorName} (Kayıtlı Değer)`,
+                    triggerLabel: currentOperatorName,
+                    searchText: currentOperatorName,
+                    description: 'Aktif personel listesinde bulunmayan kayıtlı operatör adı',
+                },
+                ...baseOptions,
+            ];
+        }
+
+        return baseOptions;
+    }, [formData.operator_name, personnel]);
 
     const hasReferenceSuccess =
         !warnings.plan && !warnings.inkr && !!controlPlan && !!inkrReport && !!formData.part_code;
@@ -900,14 +934,31 @@ const ProcessInspectionFormModal = ({
 
                                     <div>
                                         <Label htmlFor="operator_name">Operatör</Label>
-                                        <Input
-                                            id="operator_name"
-                                            name="operator_name"
-                                            value={formData.operator_name}
-                                            onChange={handleInputChange}
-                                            placeholder="Operatör adı"
-                                            disabled={isViewMode}
-                                        />
+                                        {isViewMode ? (
+                                            <Input
+                                                id="operator_name"
+                                                name="operator_name"
+                                                value={formData.operator_name}
+                                                placeholder="Operatör adı"
+                                                disabled
+                                            />
+                                        ) : (
+                                            <SearchableSelectDialog
+                                                options={operatorOptions}
+                                                value={formData.operator_name || ''}
+                                                onChange={(value) =>
+                                                    setFormData((previous) => ({
+                                                        ...previous,
+                                                        operator_name: value || '',
+                                                    }))
+                                                }
+                                                triggerPlaceholder="Operatör seçin..."
+                                                dialogTitle="Operatör Seç"
+                                                searchPlaceholder="Personel ara..."
+                                                notFoundText="Personel bulunamadı."
+                                                allowClear
+                                            />
+                                        )}
                                     </div>
                                 </div>
 

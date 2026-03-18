@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -10,6 +10,7 @@ import ProcessInkrManagement from './ProcessInkrManagement';
 import ProcessInspectionManagement from './ProcessInspectionManagement';
 import ProcessControlFolderDownloadModal from './ProcessControlFolderDownloadModal';
 import { Download } from 'lucide-react';
+import { enrichProcessInkrReports } from './processInkrUtils';
 
 const PROCESS_CONTROL_TABS = [
     { value: 'dashboard', label: 'Ana Ekran' },
@@ -26,6 +27,11 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
+
+    const enrichedInkrReports = useMemo(
+        () => enrichProcessInkrReports(inkrReports, plans),
+        [inkrReports, plans]
+    );
 
     const fetchPlans = useCallback(async () => {
         try {
@@ -131,7 +137,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                     isOpen={isFolderDownloadOpen}
                     setIsOpen={setIsFolderDownloadOpen}
                     plans={plans}
-                    inkrReports={inkrReports}
+                    inkrReports={enrichedInkrReports}
                 />
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -146,7 +152,7 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                     <TabsContent value="dashboard" className="mt-6">
                         <ProcessControlDashboard 
                             plans={plans}
-                            inkrReports={inkrReports}
+                            inkrReports={enrichedInkrReports}
                             inspections={inspections}
                             loading={loading}
                             onTabChange={setActiveTab}
@@ -166,7 +172,11 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                     </TabsContent>
 
                     <TabsContent value="inkr" className="mt-6">
-                        <ProcessInkrManagement />
+                        <ProcessInkrManagement
+                            plans={plans}
+                            refreshReports={fetchInkrReports}
+                            refreshData={fetchInkrReports}
+                        />
                     </TabsContent>
                 </Tabs>
             </div>

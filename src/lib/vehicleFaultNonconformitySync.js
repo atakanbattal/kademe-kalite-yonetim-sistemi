@@ -255,6 +255,10 @@ const deleteRecordsByIds = async (supabase, recordIds) => {
 };
 
 const preserveLockedRecord = async (supabase, record) => {
+    if (!record?.id) {
+        throw new Error('Kilidi korunacak uygunsuzluk kaydının id alanı eksik.');
+    }
+
     const nextNotes = [AUTO_RECORD_NOTE, PRESERVED_RECORD_NOTE].join('\n\n');
 
     if (nextNotes === record.notes) {
@@ -319,6 +323,10 @@ const reconcileGroup = async ({ supabase, vehicle, categoryName, faults, existin
 
     if (!needsRecordUpdate(primaryRecord, dbPayload, nextStatus)) {
         return { mode: 'existing', record: primaryRecord, deletedDuplicates: duplicateRecords.length };
+    }
+
+    if (!primaryRecord?.id) {
+        throw new Error('Güncellenecek araç uygunsuzluk kaydının id alanı eksik.');
     }
 
     const { data, error } = await supabase

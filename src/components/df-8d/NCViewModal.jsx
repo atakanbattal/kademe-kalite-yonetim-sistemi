@@ -6,6 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,13 +45,11 @@ import {
 } from 'lucide-react';
 import { Lightbox } from 'react-modal-image';
 import { RejectModal } from '@/components/df-8d/modals/ActionModals';
-import { getStatusBadge } from '@/lib/statusUtils';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RevisionHistory from './RevisionHistory';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { Card, CardContent } from '@/components/ui/card';
-import { DialogClose } from '@/components/ui/dialog';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 
 const EightDStepView = ({ stepKey, step }) => {

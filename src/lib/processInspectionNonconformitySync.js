@@ -255,6 +255,10 @@ const reconcileInspection = async ({
         }
 
         if (LOCKED_NONCONFORMITY_STATUSES.has(primaryRecord.status)) {
+            if (!primaryRecord?.id) {
+                throw new Error('Korunacak proses uygunsuzluk kaydının id alanı eksik.');
+            }
+
             const { data, error } = await supabase
                 .from('nonconformity_records')
                 .update({ notes: getPreservedNotes(inspection) })
@@ -300,6 +304,10 @@ const reconcileInspection = async ({
 
     if (!needsUpdate(primaryRecord, payload, nextStatus)) {
         return { mode: 'existing', record: primaryRecord, deletedDuplicates: duplicateRecords.length };
+    }
+
+    if (!primaryRecord?.id) {
+        throw new Error('Güncellenecek proses uygunsuzluk kaydının id alanı eksik.');
     }
 
     const { data, error } = await supabase

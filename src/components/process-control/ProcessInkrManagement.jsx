@@ -16,6 +16,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { useData } from '@/contexts/DataContext';
 import { Combobox } from '@/components/ui/combobox';
 import { useDropzone } from 'react-dropzone';
+import {
+    buildProcessPlanVehicleTypeMap,
+    enrichProcessInkrReports,
+    fetchProcessInkrAttachmentsForReport,
+    getProcessInkrVehicleType,
+    insertProcessInkrAttachment,
+    normalizeProcessPartCode,
+} from './processInkrUtils';
 
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
@@ -172,7 +180,7 @@ const hydrateInkrItem = (item, { characteristics = [], equipment = [], standards
     };
 };
 
-const normalizePartCode = (code) => (code ? code.toString().trim().toLowerCase() : '');
+const normalizePartCode = normalizeProcessPartCode;
 
 const getTimestamp = (...values) => {
     for (const value of values) {
@@ -419,7 +427,14 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
     );
 };
 
-const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onReportSaved }) => {
+const ProcessInkrFormModal = ({
+    isOpen,
+    setIsOpen,
+    existingReport,
+    refreshReports,
+    refreshData,
+    onReportSaved,
+}) => {
     const { toast } = useToast();
     const isEditMode = !!(existingReport && existingReport.id);
     const [formData, setFormData] = useState({});
@@ -430,6 +445,7 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
     const [deletedAttachmentIds, setDeletedAttachmentIds] = useState([]);
 
     const { characteristics, equipment, standards, loading: dataLoading } = useData();
+    const refreshInkrReports = refreshReports || refreshData;
 
     const initialItemState = { id: uuidv4(), characteristic_id: '', characteristic_type: '', equipment_id: '', standard_id: null, tolerance_class: null, nominal_value: '', min_value: null, max_value: null, tolerance_direction: '±', standard_class: '', measured_value: '' };
 
@@ -442,8 +458,25 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
 
             if (existingReport && existingReport.id) {
                 // Mevcut raporu düzenleme modu
+                let derivedVehicleType = existingReport.vehicle_type || '';
+
+                if (existingReport.part_code && !derivedVehicleType) {
+                    const { data: controlPlan } = await supabase
+                        .from('process_control_plans')
+                        .select('vehicle_type')
+                        .eq('part_code', existingReport.part_code)
+                        .order('revision_number', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (controlPlan?.vehicle_type) {
+                        derivedVehicleType = controlPlan.vehicle_type;
+                    }
+                }
+
                 setFormData({
                     ...existingReport,
+                    vehicle_type: derivedVehicleType,
                     report_date: existingReport.report_date ? new Date(existingReport.report_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                     notes: existingReport.notes || ''
                 });
@@ -454,27 +487,28 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
                 setItems(loadedItems);
 
                 // Mevcut attachment'ları yükle
-                const { data: attachments, error: attachmentsError } = await supabase
-                    .from('process_inkr_attachments')
-                    .select('*')
-                    .eq('inkr_report_id', existingReport.id)
-                    .order('uploaded_at', { ascending: false });
-
-                if (!attachmentsError && attachments) {
+                try {
+                    const attachments = await fetchProcessInkrAttachmentsForReport(
+                        supabase,
+                        existingReport.id
+                    );
                     setExistingAttachments(attachments);
+                } catch (attachmentsError) {
+                    console.error('INKR attachment yükleme hatası:', attachmentsError);
                 }
             } else {
                 // Yeni rapor oluşturma modu
                 let initialReportDate = new Date().toISOString().split('T')[0];
                 let initialItems = [];
                 let derivedPartName = existingReport?.part_name || '';
+                let derivedVehicleType = existingReport?.vehicle_type || '';
 
                 if (existingReport?.part_code) {
                     try {
                         // 1. İlgili parça kodunun son revizyon Kontrol Planını getir
                         const { data: controlPlan, error: planError } = await supabase
                             .from('process_control_plans')
-                            .select('items, part_name')
+                            .select('items, part_name, vehicle_type')
                             .eq('part_code', existingReport.part_code)
                             .order('revision_number', { ascending: false })
                             .limit(1)
@@ -482,6 +516,9 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
 
                         if (controlPlan && controlPlan.part_name) {
                             derivedPartName = controlPlan.part_name;
+                        }
+                        if (controlPlan?.vehicle_type) {
+                            derivedVehicleType = controlPlan.vehicle_type;
                         }
 
                         // 2. İlk üretim denemesi/muayenesi kaydını getir
@@ -548,6 +585,7 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
                 setFormData({
                     part_code: existingReport?.part_code || '',
                     part_name: derivedPartName,
+                    vehicle_type: derivedVehicleType,
                     report_date: initialReportDate,
                     status: 'Beklemede',
                     notes: '',
@@ -784,8 +822,7 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
                             continue;
                         }
 
-                        await supabase.from('process_inkr_attachments').insert({
-                            inkr_report_id: savedReport.id,
+                        await insertProcessInkrAttachment(supabase, savedReport.id, {
                             file_path: uploadResult.data.path,
                             file_name: file.name,
                             file_type: contentType,
@@ -799,7 +836,7 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
             }
 
             toast({ title: 'Başarılı!', description: `INKR Raporu başarıyla kaydedildi.` });
-            if (refreshReports) refreshReports();
+            await refreshInkrReports?.();
             if (onReportSaved) {
                 const { data, error: fetchError } = await supabase
                     .from('process_inkr_reports')
@@ -861,6 +898,15 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
                                 <div className="grid grid-cols-2 gap-4">
                                     <div><Label>Parça Kodu</Label><Input value={formData.part_code || ''} onChange={(e) => setFormData(f => ({ ...f, part_code: e.target.value }))} required disabled={isEditMode || !!(existingReport && existingReport.part_code && !existingReport.id)} /></div>
                                     <div><Label>Parça Adı</Label><Input value={formData.part_name || ''} onChange={(e) => setFormData(f => ({ ...f, part_name: e.target.value }))} required /></div>
+                                    <div>
+                                        <Label>Araç Tipi</Label>
+                                        <Input
+                                            value={formData.vehicle_type || ''}
+                                            readOnly
+                                            placeholder="Kontrol planından otomatik gelir"
+                                            className="bg-muted/40"
+                                        />
+                                    </div>
                                     <div><Label>Rapor Tarihi</Label><Input type="date" value={formData.report_date || ''} onChange={(e) => setFormData(f => ({ ...f, report_date: e.target.value }))} required /></div>
                                     <div><Label>Durum</Label><Select value={formData.status || ''} onValueChange={(v) => setFormData(f => ({ ...f, status: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Beklemede">Beklemede</SelectItem><SelectItem value="Onaylandı">Onaylandı</SelectItem><SelectItem value="Reddedildi">Reddedildi</SelectItem></SelectContent></Select></div>
                                     <div className="col-span-2">
@@ -985,9 +1031,10 @@ const ProcessInkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReport
     );
 };
 
-const ProcessInkrManagement = ({ onViewPdf }) => {
+const ProcessInkrManagement = ({ onViewPdf, plans = [], refreshReports, refreshData }) => {
     const { toast } = useToast();
-    const { loading: globalLoading, refreshData } = useData();
+    const { loading: globalLoading } = useData();
+    const refreshInkrReports = refreshReports || refreshData;
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedInkrDetail, setSelectedInkrDetail] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -998,6 +1045,11 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
     const [inkrStatusFilter, setInkrStatusFilter] = useState('all');
     const [inkrReports, setInkrReports] = useState([]);
     const [inkrReportsLoading, setInkrReportsLoading] = useState(true);
+    const planVehicleTypeMap = useMemo(() => buildProcessPlanVehicleTypeMap(plans), [plans]);
+    const enrichedInkrReports = useMemo(
+        () => enrichProcessInkrReports(inkrReports, planVehicleTypeMap),
+        [inkrReports, planVehicleTypeMap]
+    );
 
     const handleEdit = (report) => {
         setSelectedReport(report);
@@ -1030,7 +1082,7 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
                 });
                 setInkrReports(data);
             }
-            refreshData();
+            await refreshInkrReports?.();
         }
     };
 
@@ -1206,7 +1258,7 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
                 });
 
                 const inkrMap = new Map();
-                (inkrReports || []).forEach((r) => {
+                (enrichedInkrReports || []).forEach((r) => {
                     if (r.part_code) {
                         inkrMap.set(normalizePartCode(r.part_code), r);
                     }
@@ -1215,8 +1267,13 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
                 const partsWithInkrStatus = Array.from(uniquePartsMap.values()).map((part) => {
                     const normalizedPartCode = normalizePartCode(part.part_code);
                     const inkrReport = inkrMap.get(normalizedPartCode);
+                    const vehicleType =
+                        getProcessInkrVehicleType(inkrReport, planVehicleTypeMap) ||
+                        planVehicleTypeMap.get(normalizedPartCode) ||
+                        '';
                     return {
                         ...part,
+                        vehicle_type: vehicleType || null,
                         hasInkr: !!inkrReport,
                         inkrReport: inkrReport || null,
                     };
@@ -1226,12 +1283,13 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
                     Array.from(uniquePartsMap.values()).map((p) => normalizePartCode(p.part_code))
                 );
 
-                (inkrReports || []).forEach((inkrReport) => {
+                (enrichedInkrReports || []).forEach((inkrReport) => {
                     const normalizedInkrPartCode = normalizePartCode(inkrReport.part_code);
                     if (inkrReport.part_code && !existingNormalizedCodes.has(normalizedInkrPartCode)) {
                         partsWithInkrStatus.push({
                             part_code: inkrReport.part_code.trim(),
                             part_name: inkrReport.part_name || '-',
+                            vehicle_type: getProcessInkrVehicleType(inkrReport, planVehicleTypeMap) || null,
                             latestInspectionDate: null,
                             firstInspectionDate: null,
                             latestInspectionTimestamp: null,
@@ -1285,7 +1343,7 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
         if (!inkrReportsLoading) {
             fetchAllParts();
         }
-    }, [inkrReports, inkrReportsLoading, toast]);
+    }, [enrichedInkrReports, inkrReportsLoading, planVehicleTypeMap, toast]);
 
     const filteredParts = useMemo(() => {
         let filtered = allParts;
@@ -1294,7 +1352,8 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
             const normalizedSearch = searchTerm.toLowerCase();
             filtered = filtered.filter(part =>
                 part.part_code.toLowerCase().includes(normalizedSearch) ||
-                (part.part_name && part.part_name.toLowerCase().includes(normalizedSearch))
+                (part.part_name && part.part_name.toLowerCase().includes(normalizedSearch)) ||
+                (part.vehicle_type && part.vehicle_type.toLowerCase().includes(normalizedSearch))
             );
         }
 
@@ -1327,7 +1386,14 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
 
     return (
         <div className="dashboard-widget">
-            <ProcessInkrFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} existingReport={selectedReport} refreshReports={refreshData} onReportSaved={setInkrReports} />
+            <ProcessInkrFormModal
+                isOpen={isModalOpen}
+                setIsOpen={setIsModalOpen}
+                existingReport={selectedReport}
+                refreshReports={refreshReports}
+                refreshData={refreshInkrReports}
+                onReportSaved={setInkrReports}
+            />
             <ProcessInkrDetailModal
                 isOpen={isDetailModalOpen}
                 setIsOpen={setIsDetailModalOpen}
@@ -1341,7 +1407,7 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="Parça kodu veya adı ile ara..."
+                            placeholder="Parça kodu, adı veya araç tipi ile ara..."
                             className="search-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -1366,6 +1432,7 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
                         <tr>
                             <th>Parça Kodu</th>
                             <th>Parça Adı</th>
+                            <th>Araç Tipi</th>
                             <th>INKR Durumu</th>
                             <th>Rapor Tarihi</th>
                             <th>Durum</th>
@@ -1390,6 +1457,7 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
                                 >
                                     <td className="font-medium text-foreground">{part.part_code}</td>
                                     <td className="text-foreground">{part.part_name}</td>
+                                    <td className="text-muted-foreground">{part.inkrReport?.vehicle_type || part.vehicle_type || '-'}</td>
                                     <td>
                                         {part.hasInkr ? (
                                             <Badge variant="success" className="bg-green-500">Mevcut</Badge>
@@ -1416,7 +1484,11 @@ const ProcessInkrManagement = ({ onViewPdf }) => {
                                             </>
                                         ) : (
                                             <Button variant="outline" size="sm" onClick={() => {
-                                                setSelectedReport({ part_code: part.part_code, part_name: part.part_name });
+                                                setSelectedReport({
+                                                    part_code: part.part_code,
+                                                    part_name: part.part_name,
+                                                    vehicle_type: part.vehicle_type || null,
+                                                });
                                                 setIsModalOpen(true);
                                             }}>
                                                 <Plus className="h-4 w-4 mr-1" /> Ekle

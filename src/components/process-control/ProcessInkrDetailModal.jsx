@@ -9,6 +9,7 @@ import {
     File,
     FileDown,
     FileSpreadsheet,
+    Factory,
     Hash,
     Image,
     Package2,
@@ -26,7 +27,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { getProcessInkrDisplayNumber } from './processInkrUtils';
+import {
+    fetchProcessInkrAttachmentsForReport,
+    getProcessInkrDisplayNumber,
+} from './processInkrUtils';
 
 const DetailStatCard = ({ icon: Icon, label, value, helper, tone = 'slate' }) => {
     const toneClasses = {
@@ -222,13 +226,7 @@ const ProcessInkrDetailModal = ({
             setLoadingAttachments(true);
 
             try {
-                const { data, error } = await supabase
-                    .from('process_inkr_attachments')
-                    .select('*')
-                    .eq('inkr_report_id', report.id)
-                    .order('uploaded_at', { ascending: false });
-
-                if (error) throw error;
+                const data = await fetchProcessInkrAttachmentsForReport(supabase, report.id);
                 setAttachments(data || []);
             } catch (error) {
                 console.error('INKR ekleri alınamadı:', error);
@@ -391,6 +389,12 @@ const ProcessInkrDetailModal = ({
                                         <CalendarDays className="h-4 w-4" />
                                         {formatDateTime(report.report_date || report.created_at)}
                                     </span>
+                                    {report.vehicle_type ? (
+                                        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+                                            <Factory className="h-4 w-4" />
+                                            {report.vehicle_type}
+                                        </span>
+                                    ) : null}
                                 </div>
                             </div>
                         </div>
@@ -403,7 +407,7 @@ const ProcessInkrDetailModal = ({
                             icon={Package2}
                             label="Parça Adı"
                             value={report.part_name || '-'}
-                            helper={report.part_code || '-'}
+                            helper={[report.part_code || '-', report.vehicle_type].filter(Boolean).join(' • ')}
                             tone="slate"
                         />
                         <DetailStatCard
@@ -449,6 +453,10 @@ const ProcessInkrDetailModal = ({
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                     <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">Parça Kodu</p>
                                     <p className="mt-2 text-base font-semibold text-slate-900">{report.part_code || '-'}</p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">Araç Tipi</p>
+                                    <p className="mt-2 text-base font-semibold text-slate-900">{report.vehicle_type || '-'}</p>
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                     <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">Durum</p>

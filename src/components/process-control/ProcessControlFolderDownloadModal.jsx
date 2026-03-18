@@ -27,7 +27,11 @@ import {
     runInBatches,
     sanitizeArchiveName,
 } from '@/lib/qualityFolderDownloadUtils';
-import { getProcessInkrDisplayNumber } from './processInkrUtils';
+import {
+    fetchProcessInkrAttachmentsForReports,
+    getProcessInkrAttachmentReportId,
+    getProcessInkrDisplayNumber,
+} from './processInkrUtils';
 
 const MAX_CONCURRENT = 8;
 
@@ -211,24 +215,19 @@ const ProcessControlFolderDownloadModal = ({ isOpen, setIsOpen, plans = [], inkr
             const attachmentsByReport = {};
 
             if (selectedReports.length > 0) {
-                const { data: attachmentRows, error: attachmentError } = await supabase
-                    .from('process_inkr_attachments')
-                    .select('*')
-                    .in(
-                        'inkr_report_id',
-                        selectedReports.map((report) => report.id)
-                    )
-                    .order('uploaded_at', { ascending: false });
-
-                if (attachmentError) {
-                    throw attachmentError;
-                }
+                const attachmentRows = await fetchProcessInkrAttachmentsForReports(
+                    supabase,
+                    selectedReports.map((report) => report.id)
+                );
 
                 (attachmentRows || []).forEach((attachment) => {
-                    if (!attachmentsByReport[attachment.inkr_report_id]) {
-                        attachmentsByReport[attachment.inkr_report_id] = [];
+                    const reportId = getProcessInkrAttachmentReportId(attachment);
+                    if (!reportId) return;
+
+                    if (!attachmentsByReport[reportId]) {
+                        attachmentsByReport[reportId] = [];
                     }
-                    attachmentsByReport[attachment.inkr_report_id].push(attachment);
+                    attachmentsByReport[reportId].push(attachment);
                 });
             }
 

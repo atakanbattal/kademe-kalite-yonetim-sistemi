@@ -64,6 +64,14 @@ const getStoredSuggestionType = (status) => {
   return null;
 };
 
+const INITIAL_CONVERT_DIALOG = {
+  open: false,
+  record: null,
+  source: null,
+  suggestedType: null,
+  selectedType: null,
+};
+
 const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const { toast } = useToast();
   const { user, profile, loading: authLoading } = useAuth();
@@ -83,7 +91,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const [settings, setSettings] = useState(null);
   const [partCodeAnalysis, setPartCodeAnalysis] = useState({});
   const [categoryAnalysis, setCategoryAnalysis] = useState({});
-  const [convertDialog, setConvertDialog] = useState({ open: false, record: null, type: null });
+  const [convertDialog, setConvertDialog] = useState(INITIAL_CONVERT_DIALOG);
   const [vehicleFaultSyncDone, setVehicleFaultSyncDone] = useState(false);
   const [processInspectionSyncDone, setProcessInspectionSyncDone] = useState(false);
 
@@ -467,14 +475,31 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     openPrintableReport(reportData, 'nonconformity_record_list', true);
   }, [filteredRecords, getDisplayRecordNumber, toast]);
 
+  const closeConvertDialog = useCallback(() => {
+    setConvertDialog(INITIAL_CONVERT_DIALOG);
+  }, []);
+
+  const openConvertDialog = useCallback(({ record, type, source = 'manual', suggestedType = null }) => {
+    const normalizedType = type || suggestedType;
+    if (!record || !normalizedType) return;
+
+    setConvertDialog({
+      open: true,
+      record,
+      source,
+      suggestedType: source === 'suggestion' ? (suggestedType || normalizedType) : null,
+      selectedType: normalizedType,
+    });
+  }, []);
+
   const handleConvertToDF8D = async () => {
-    const { record, type } = convertDialog;
-    if (!record || !type) return;
+    const { record, selectedType } = convertDialog;
+    if (!record || !selectedType) return;
 
     const ncFormData = {
       title: `[UYG] ${record.part_code || ''} - ${record.description?.substring(0, 80) || 'Uygunsuzluk'}`,
       description: [
-        `Kaynak: Uygunsuzluk Yönetimi (${record.record_number})`,
+        `Kaynak: Uygunsuzluk Yönetimi (${getDisplayRecordNumber(record)})`,
         `Parça Kodu: ${record.part_code || '-'}`,
         `Parça Adı: ${record.part_name || '-'}`,
         `Kategori: ${record.category || '-'}`,
@@ -487,7 +512,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
         `Açıklama: ${record.description || '-'}`,
         record.action_taken ? `Alınan Acil Aksiyon: ${record.action_taken}` : '',
       ].filter(Boolean).join('\n'),
-      type: type,
+      type: selectedType,
       part_code: record.part_code || '',
       part_name: record.part_name || '',
       vehicle_type: record.vehicle_type || '',
@@ -506,7 +531,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
           await supabase
             .from('nonconformity_records')
             .update({
-              status: type === 'DF' ? 'DF Açıldı' : '8D Açıldı',
+              status: selectedType === 'DF' ? 'DF Açıldı' : '8D Açıldı',
               source_nc_id: savedNC.id
             })
             .eq('id', record.id);
@@ -515,7 +540,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       });
     }
 
-    setConvertDialog({ open: false, record: null, type: null });
+    closeConvertDialog();
   };
 
   const handleSaveSuccess = (savedRecord) => {
@@ -680,6 +705,9 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     return { ...summary, topParts, topCategories, topResponsiblePersonnel, topDetectedByPersonnel };
   }, [getEffectiveSuggestionForStats, records]);
+
+  const activeConvertType = convertDialog.selectedType || convertDialog.suggestedType;
+  const is8DConversion = activeConvertType === '8D';
 
   return (
     <div className="space-y-4">
@@ -847,7 +875,14 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                     ? 'border-red-300 text-red-700 hover:bg-red-50'
                                     : 'border-blue-300 text-blue-700 hover:bg-blue-50'
                                 }`}
-                                onClick={() => setConvertDialog({ open: true, record, type: suggestion })}
+                                onClick={() =>
+                                  openConvertDialog({
+                                    record,
+                                    type: suggestion,
+                                    source: 'suggestion',
+                                    suggestedType: suggestion,
+                                  })
+                                }
                               >
                                 <AlertTriangle className="w-3 h-3" />
                                 {suggestion} Aç
@@ -895,10 +930,10 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                               <DropdownMenuSeparator />
                               {!FINAL_STATUSES.has(record.status) && (
                                 <>
-                                  <DropdownMenuItem onClick={() => setConvertDialog({ open: true, record, type: 'DF' })}>
+                                  <DropdownMenuItem onClick={() => openConvertDialog({ record, type: 'DF' })}>
                                     <FileText className="h-4 w-4 mr-2" /> DF'ye Dönüştür
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => setConvertDialog({ open: true, record, type: '8D' })}>
+                                  <DropdownMenuItem onClick={() => openConvertDialog({ record, type: '8D' })}>
                                     <AlertOctagon className="h-4 w-4 mr-2" /> 8D'ye Dönüştür
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
@@ -1170,7 +1205,14 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                                             ? 'border-red-300 text-red-700 hover:bg-red-50'
                                             : 'border-blue-300 text-blue-700 hover:bg-blue-50'
                                         }`}
-                                        onClick={() => setConvertDialog({ open: true, record, type: recSuggestion || 'DF' })}
+                                        onClick={() =>
+                                          openConvertDialog({
+                                            record,
+                                            type: recSuggestion || 'DF',
+                                            source: 'suggestion',
+                                            suggestedType: recSuggestion || 'DF',
+                                          })
+                                        }
                                       >
                                         {recSuggestion || 'DF'} Aç
                                       </Button>
@@ -1227,24 +1269,85 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       </AlertDialog>
 
       {/* DF/8D Dönüştürme Onayı */}
-      <Dialog open={convertDialog.open} onOpenChange={(open) => !open && setConvertDialog({ open: false, record: null, type: null })}>
+      <Dialog
+        open={convertDialog.open}
+        onOpenChange={(open) => {
+          if (!open) closeConvertDialog();
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {convertDialog.type === '8D' ? (
+              {is8DConversion ? (
                 <AlertOctagon className="h-5 w-5 text-red-600" />
               ) : (
                 <FileText className="h-5 w-5 text-blue-600" />
               )}
-              {convertDialog.type} Oluştur
+              {activeConvertType} Oluştur
             </DialogTitle>
             <DialogDescription>
-              Bu uygunsuzluk kaydı {convertDialog.type === 'DF' ? 'Düzeltici Faaliyet (DF)' : '8D Problem Çözme'} sürecine dönüştürülecektir.
+              Bu uygunsuzluk kaydı {activeConvertType === 'DF' ? 'Düzeltici Faaliyet (DF)' : '8D Problem Çözme'} sürecine dönüştürülecektir.
             </DialogDescription>
           </DialogHeader>
 
           {convertDialog.record && (
             <div className="space-y-3 py-2">
+              {convertDialog.source === 'suggestion' && (
+                <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-amber-900 dark:text-amber-100">
+                        Sistem önerisi: {convertDialog.suggestedType}
+                      </p>
+                      <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-200">
+                        Önerilen seçenek varsayılan olarak işaretlenir, ancak son kararı burada siz verirsiniz.
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="border-amber-300 bg-white text-amber-700 dark:border-amber-700 dark:bg-transparent dark:text-amber-200">
+                      {convertDialog.suggestedType} önerildi
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {['DF', '8D'].map((type) => {
+                      const isSelected = activeConvertType === type;
+                      const isSuggested = convertDialog.suggestedType === type;
+
+                      return (
+                        <Button
+                          key={type}
+                          type="button"
+                          variant={isSelected ? 'default' : 'outline'}
+                          className={
+                            type === '8D'
+                              ? isSelected
+                                ? 'bg-red-600 hover:bg-red-700'
+                                : 'border-red-300 text-red-700 hover:bg-red-50'
+                              : isSelected
+                                ? 'bg-blue-600 hover:bg-blue-700'
+                                : 'border-blue-300 text-blue-700 hover:bg-blue-50'
+                          }
+                          onClick={() =>
+                            setConvertDialog((previous) => ({
+                              ...previous,
+                              selectedType: type,
+                            }))
+                          }
+                        >
+                          {type === '8D' ? (
+                            <AlertOctagon className="mr-2 h-4 w-4" />
+                          ) : (
+                            <FileText className="mr-2 h-4 w-4" />
+                          )}
+                          {type}
+                          {isSuggested ? ' (Önerilen)' : ''}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="p-3 rounded-lg bg-muted/50 border space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Kayıt No:</span>
@@ -1274,23 +1377,36 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                   {convertDialog.record.description?.substring(0, 120)}...
                 </div>
               </div>
-              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                <p className="text-xs text-blue-800 dark:text-blue-200">
-                  {convertDialog.type} formu, uygunsuzluk kaydındaki bilgilerle otomatik doldurulacak ve {convertDialog.type} oluşturma ekranı açılacaktır.
+              <div
+                className={`rounded-lg border p-3 ${
+                  is8DConversion
+                    ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+                    : 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
+                }`}
+              >
+                <p
+                  className={`text-xs ${
+                    is8DConversion
+                      ? 'text-red-800 dark:text-red-200'
+                      : 'text-blue-800 dark:text-blue-200'
+                  }`}
+                >
+                  {activeConvertType} formu, uygunsuzluk kaydındaki bilgilerle otomatik doldurulacak ve {activeConvertType} oluşturma ekranı açılacaktır.
                 </p>
               </div>
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConvertDialog({ open: false, record: null, type: null })}>
+            <Button variant="outline" onClick={closeConvertDialog}>
               İptal
             </Button>
             <Button
               onClick={handleConvertToDF8D}
-              className={convertDialog.type === '8D' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}
+              disabled={!activeConvertType}
+              className={is8DConversion ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}
             >
-              {convertDialog.type} Oluştur
+              {activeConvertType} Oluştur
             </Button>
           </DialogFooter>
         </DialogContent>
