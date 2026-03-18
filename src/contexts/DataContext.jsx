@@ -761,7 +761,7 @@ export const DataProvider = ({ children }) => {
             'quality_inspection_pass_rate': 'get_quality_inspection_pass_rate',
             'avg_quality_inspection_time': 'get_avg_quality_inspection_time',
             'quarantine_count': 'get_quarantine_count',
-            'non_quality_cost': 'get_total_non_quality_cost',
+            'non_quality_cost': 'get_total_quality_cost',
             'expired_document_count': 'get_expired_document_count',
             'open_deviation_count': 'get_open_deviation_count',
             'calibration_due_count': 'get_calibration_due_count',
