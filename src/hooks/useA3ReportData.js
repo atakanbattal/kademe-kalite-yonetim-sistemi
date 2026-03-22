@@ -198,6 +198,8 @@ const useA3ReportData = (period = 'last3months') => {
                 trainings: ctx.trainings || [],
                 complaintAnalyses: ctx.complaintAnalyses || [],
                 complaintActions: ctx.complaintActions || [],
+                stockRiskControls: ctx.stockRiskControls || [],
+                inkrReports: ctx.inkrReports || [],
             };
 
             let fixtureRows = [];
@@ -1359,6 +1361,47 @@ const useA3ReportData = (period = 'last3months') => {
                 .sort((a, b) => b.value - a.value)
                 .slice(0, 10);
 
+            const stockRiskData = (raw.stockRiskControls || []).filter(s =>
+                inDateRange(s.created_at, startDate, endDate)
+            );
+            const stockRiskByStatus = {};
+            stockRiskData.forEach(s => {
+                const st = s.status || 'Beklemede';
+                stockRiskByStatus[st] = (stockRiskByStatus[st] || 0) + 1;
+            });
+            const stockRiskOpen = stockRiskData.filter(s => s.status && s.status !== 'Tamamlandı').length;
+            const stockRiskRecent = [...stockRiskData]
+                .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+                .slice(0, 10)
+                .map(s => ({
+                    partCode: s.part_code || '—',
+                    partName: s.part_name || '—',
+                    supplier: s.supplier?.name || '—',
+                    status: s.status || '—',
+                    decision: s.decision || '—',
+                    createdAt: s.created_at,
+                }));
+
+            const inkrData = (raw.inkrReports || []).filter(r =>
+                inDateRange(r.report_date || r.created_at, startDate, endDate)
+            );
+            const inkrByStatus = {};
+            inkrData.forEach(r => {
+                const st = r.status || 'Beklemede';
+                inkrByStatus[st] = (inkrByStatus[st] || 0) + 1;
+            });
+            const inkrPending = inkrData.filter(r => (r.status || 'Beklemede') === 'Beklemede').length;
+            const inkrRecent = [...inkrData]
+                .sort((a, b) => new Date(b.report_date || b.created_at || 0) - new Date(a.report_date || a.created_at || 0))
+                .slice(0, 10)
+                .map(r => ({
+                    partCode: r.part_code || '—',
+                    partName: r.part_name || '—',
+                    supplier: r.supplier?.name || '—',
+                    status: r.status || '—',
+                    reportDate: r.report_date || r.created_at,
+                }));
+
             const supplierAuditDetails = [];
             (raw.suppliers || []).forEach(s => {
                 (s.supplier_audit_plans || []).forEach(p => {
@@ -1576,6 +1619,18 @@ const useA3ReportData = (period = 'last3months') => {
                     totalTrainings: trainingData.length,
                     trainingDetails,
                 },
+                stockRisk: {
+                    totalInPeriod: stockRiskData.length,
+                    openCount: stockRiskOpen,
+                    byStatus: Object.entries(stockRiskByStatus).map(([name, value]) => ({ name, value })),
+                    recent: stockRiskRecent,
+                },
+                inkrIncoming: {
+                    totalInPeriod: inkrData.length,
+                    pendingCount: inkrPending,
+                    byStatus: Object.entries(inkrByStatus).map(([name, value]) => ({ name, value })),
+                    recent: inkrRecent,
+                },
             });
         } catch (err) {
             setError('A3 Rapor verileri işlenirken hata: ' + (err.message || String(err)));
@@ -1589,6 +1644,7 @@ const useA3ReportData = (period = 'last3months') => {
         ctx.audits, ctx.auditFindings, ctx.personnel, ctx.tasks, ctx.documents, ctx.kpis,
         ctx.suppliers, ctx.supplierNonConformities, ctx.complaintAnalyses, ctx.complaintActions,
         ctx.incomingControlPlans, ctx.processControlPlans, ctx.trainings,
+        ctx.stockRiskControls, ctx.inkrReports,
         startDate, endDate
     ]);
 

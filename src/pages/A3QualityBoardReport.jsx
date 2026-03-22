@@ -7,7 +7,7 @@ import {
     PieChart, Pie, Cell, Legend, CartesianGrid,
     ComposedChart, Area, Line,
 } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import useA3ReportData from '@/hooks/useA3ReportData';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -383,7 +383,7 @@ const A3QualityBoardReport = () => {
     const { kpis, ncByDept, ncByType, ncMonthly, costByType, costByUnit, costMonthly, qualityActivities,
             incoming, suppliers, vehicles, complaints, deviations, nonconformityModule, fixtureTracking,
             qualityWall, openNC, openNCTotal, openNCGeciken, activeQuarantine, overdueCalibrations,
-            costBurden, governance } = data;
+            costBurden, governance, kaizen, personnelByDept, stockRisk, inkrIncoming } = data;
 
     const hasSupplySection = (
         kpis.totalIncoming > 0 ||
@@ -393,8 +393,12 @@ const A3QualityBoardReport = () => {
         (qualityActivities?.supplierAuditDetails?.length || 0) > 0 ||
         ncByType.length > 0 ||
         deviations.byStatus.length > 0 ||
-        (deviations.byUnit?.length || 0) > 0
+        (deviations.byUnit?.length || 0) > 0 ||
+        (stockRisk?.totalInPeriod || 0) > 0 ||
+        (inkrIncoming?.totalInPeriod || 0) > 0
     );
+
+    const hasKaizenSection = (kpis.totalKaizen || 0) > 0 || (kaizen?.byStatus?.length || 0) > 0 || (kaizen?.byDept?.length || 0) > 0 || (kpis.kaizenSavings || 0) > 0;
 
     const hasNonconformitySection = Boolean(
         nonconformityModule && (
@@ -440,7 +444,8 @@ const A3QualityBoardReport = () => {
         (governance?.summary?.length || 0) > 0 ||
         (data?.overdueNC?.length || 0) > 0 ||
         (governance?.expiringDocs?.length || 0) > 0 ||
-        (overdueCalibrations?.length || 0) > 0
+        (overdueCalibrations?.length || 0) > 0 ||
+        (personnelByDept?.length || 0) > 0
     );
 
     const ncByDeptChartHeight = Math.max(360, Math.min(640, (ncByDept.length || 0) * 28 + 80));
@@ -1014,6 +1019,80 @@ const A3QualityBoardReport = () => {
                         fontSize={10}
                         chunkSize={7}
                     />
+                )}
+
+                {((stockRisk?.totalInPeriod || 0) > 0 || (inkrIncoming?.totalInPeriod || 0) > 0) && (
+                    <Row cols="1fr" gap={12} mb={14}>
+                        <Panel title="Stok Risk Kontrolleri (Dönem)" color={C.yellow}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+                                <CompactStatCard label="Dönem Kayıt" value={fmtNum(stockRisk?.totalInPeriod ?? 0)} color={C.yellow} bg="#fffbeb" />
+                                <CompactStatCard label="Açık / Devam Eden" value={fmtNum(stockRisk?.openCount ?? 0)} color={(stockRisk?.openCount || 0) > 0 ? C.red : C.green} bg={(stockRisk?.openCount || 0) > 0 ? '#fef2f2' : '#f0fdf4'} />
+                                <CompactStatCard label="Tamamlanan (hesap)" value={fmtNum((stockRisk?.totalInPeriod ?? 0) - (stockRisk?.openCount ?? 0))} color={C.teal} bg="#f0fdfa" sub="Toplam − açık" />
+                            </div>
+                            {(stockRisk?.byStatus?.length || 0) > 0 && (
+                                <MiniTable
+                                    headers={['Durum', 'Adet']}
+                                    rows={(stockRisk?.byStatus || []).map((s, i) => [
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: CHART_COLORS[i % CHART_COLORS.length] }}>{safeText(s.name)}</span>,
+                                        <span style={{ fontWeight: 700 }}>{fmtNum(s.value)}</span>,
+                                    ])}
+                                    fontSize={10}
+                                />
+                            )}
+                            {(stockRisk?.recent?.length || 0) > 0 ? (
+                                <>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, margin: '12px 0 6px' }}>Son Stok Risk Kayıtları</div>
+                                    <MiniTable
+                                        headers={['Parça', 'Tedarikçi', 'Durum', 'Karar', 'Tarih']}
+                                        rows={(stockRisk?.recent || []).map((item) => [
+                                            <span style={{ fontSize: 10 }}><strong>{trunc(safeText(item.partCode), 14)}</strong>{item.partName && item.partName !== '—' && <span style={{ display: 'block', color: C.slate }}>{trunc(safeText(item.partName), 22)}</span>}</span>,
+                                            <span style={{ fontSize: 10 }}>{trunc(safeText(item.supplier), 18)}</span>,
+                                            <span style={{ fontSize: 10, fontWeight: 700 }}>{trunc(safeText(item.status), 14)}</span>,
+                                            <span style={{ fontSize: 10 }}>{trunc(safeText(item.decision), 12)}</span>,
+                                            <span style={{ fontSize: 9 }}>{item.createdAt && isValid(parseISO(item.createdAt)) ? format(parseISO(item.createdAt), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
+                                        ])}
+                                        fontSize={10}
+                                    />
+                                </>
+                            ) : (
+                                <div style={{ textAlign: 'center', color: C.slate, fontSize: 10, padding: 8 }}>Dönemde stok risk kaydı yok.</div>
+                            )}
+                        </Panel>
+                        <Panel title="Girdi İNKR Raporları (Dönem)" color={C.lime}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+                                <CompactStatCard label="Dönem Rapor" value={fmtNum(inkrIncoming?.totalInPeriod ?? 0)} color={C.lime} bg="#f7fee7" />
+                                <CompactStatCard label="Onay Bekleyen" value={fmtNum(inkrIncoming?.pendingCount ?? 0)} color={(inkrIncoming?.pendingCount || 0) > 0 ? C.orange : C.green} bg={(inkrIncoming?.pendingCount || 0) > 0 ? '#fff7ed' : '#f0fdf4'} />
+                                <CompactStatCard label="Onaylı / Diğer" value={fmtNum((inkrIncoming?.totalInPeriod ?? 0) - (inkrIncoming?.pendingCount ?? 0))} color={C.teal} bg="#f0fdfa" />
+                            </div>
+                            {(inkrIncoming?.byStatus?.length || 0) > 0 && (
+                                <MiniTable
+                                    headers={['Durum', 'Adet']}
+                                    rows={(inkrIncoming?.byStatus || []).map((s, i) => [
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: CHART_COLORS[i % CHART_COLORS.length] }}>{safeText(s.name)}</span>,
+                                        <span style={{ fontWeight: 700 }}>{fmtNum(s.value)}</span>,
+                                    ])}
+                                    fontSize={10}
+                                />
+                            )}
+                            {(inkrIncoming?.recent?.length || 0) > 0 ? (
+                                <>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, margin: '12px 0 6px' }}>Son İNKR Kayıtları</div>
+                                    <MiniTable
+                                        headers={['Parça', 'Tedarikçi', 'Durum', 'Rapor Tarihi']}
+                                        rows={(inkrIncoming?.recent || []).map((item) => [
+                                            <span style={{ fontSize: 10 }}><strong>{trunc(safeText(item.partCode), 14)}</strong>{item.partName && item.partName !== '—' && <span style={{ display: 'block', color: C.slate }}>{trunc(safeText(item.partName), 22)}</span>}</span>,
+                                            <span style={{ fontSize: 10 }}>{trunc(safeText(item.supplier), 18)}</span>,
+                                            <span style={{ fontSize: 10, fontWeight: 700 }}>{trunc(safeText(item.status), 14)}</span>,
+                                            <span style={{ fontSize: 9 }}>{item.reportDate && isValid(parseISO(item.reportDate)) ? format(parseISO(item.reportDate), 'dd.MM.yy', { locale: tr }) : '—'}</span>,
+                                        ])}
+                                        fontSize={10}
+                                    />
+                                </>
+                            ) : (
+                                <div style={{ textAlign: 'center', color: C.slate, fontSize: 10, padding: 8 }}>Dönemde İNKR kaydı yok.</div>
+                            )}
+                        </Panel>
+                    </Row>
                 )}
                 </>
                 )}
@@ -1637,6 +1716,48 @@ const A3QualityBoardReport = () => {
                 </>
                 )}
 
+                {hasKaizenSection && (
+                <>
+                <SectionBlock>
+                <PageHeader
+                    title="KAİZEN · İYİLEŞTİRME"
+                    periodLabel={periodLabel}
+                />
+                <Row cols="repeat(4,1fr)" gap={8} mb={14} className="report-kpi-grid">
+                    <KpiCard label="Dönem Kaizen Kaydı" value={fmtNum(kpis.totalKaizen)} color={C.teal} bg="#f0fdfa" />
+                    <KpiCard label="Tamamlanan" value={fmtNum(kpis.completedKaizen)} color={C.green} bg="#f0fdf4" />
+                    <KpiCard label="Devam Eden" value={fmtNum(kpis.activeKaizen)} color={C.orange} bg="#fff7ed" />
+                    <KpiCard label="Tahmini Yıllık Kazanç" value={fmtCurrency(kpis.kaizenSavings)} color={C.lime} bg="#f7fee7" sub="Toplam öneri kazancı" />
+                </Row>
+                <Row cols="1fr" gap={12} mb={14}>
+                    <Panel title="Kaizen Durum Dağılımı" color={C.teal}>
+                        <MiniTable
+                            headers={['Durum', 'Adet']}
+                            rows={(kaizen?.byStatus || []).map((s, i) => [
+                                <span style={{ fontSize: 10, fontWeight: 600, color: CHART_COLORS[i % CHART_COLORS.length] }}>{safeText(s.name)}</span>,
+                                <span style={{ fontWeight: 700 }}>{fmtNum(s.value)}</span>,
+                            ])}
+                            emptyMsg="Durum verisi yok."
+                            fontSize={10}
+                        />
+                    </Panel>
+                    <Panel title="Kaizen — Departman Özeti" color={C.green}>
+                        <MiniTable
+                            headers={['Departman', 'Tamamlanan', 'Devam Eden']}
+                            rows={(kaizen?.byDept || []).map((d) => [
+                                <span style={{ fontSize: 10 }}>{trunc(safeText(d.name), 22)}</span>,
+                                <span style={{ fontWeight: 700, color: C.green }}>{fmtNum(d.tamamlanan)}</span>,
+                                <span style={{ fontWeight: 700, color: C.orange }}>{fmtNum(d.devamEden)}</span>,
+                            ])}
+                            emptyMsg="Departman verisi yok."
+                            fontSize={10}
+                        />
+                    </Panel>
+                </Row>
+                </SectionBlock>
+                </>
+                )}
+
                 {hasGovernanceSection && (
                 <>
                 <SectionBlock>
@@ -1683,6 +1804,22 @@ const A3QualityBoardReport = () => {
                     />
                 </Row>
                 </SectionBlock>
+
+                {(personnelByDept?.length || 0) > 0 && (
+                    <Row cols="1fr" gap={12} mb={14}>
+                        <Panel title="Aktif Personel — Departman Dağılımı" color={C.blue}>
+                            <div style={{ fontSize: 10, color: C.slate, marginBottom: 8 }}>İK / organizasyon görünümü; kalite süreçlerinde görev alan ekip büyüklüğü için referans.</div>
+                            <MiniTable
+                                headers={['Departman', 'Personel']}
+                                rows={personnelByDept.map((p) => [
+                                    <span style={{ fontSize: 10 }}>{trunc(safeText(p.name), 26)}</span>,
+                                    <span style={{ fontWeight: 800, color: C.blue }}>{fmtNum(p.value)}</span>,
+                                ])}
+                                fontSize={10}
+                            />
+                        </Panel>
+                    </Row>
+                )}
 
                 <Row cols="1fr" gap={12} mb={14}>
                     <Panel title="Kalitesizlik Yük Dağılımı" color={C.orange}>
