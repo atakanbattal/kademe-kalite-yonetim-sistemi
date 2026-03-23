@@ -263,6 +263,14 @@ const TaskModule = () => {
         setProjectModalOpen(true);
     };
 
+    const handleQuickViewChange = (viewId) => {
+        setActiveView(viewId);
+        setFilterProjectId('all');
+        setFilterAssignees([]);
+        setFilterPriorities([]);
+        setSearchTerm('');
+    };
+
     // Get active view label
     const getViewTitle = () => {
         const quick = QUICK_VIEWS.find(v => v.id === activeView);
@@ -303,7 +311,7 @@ const TaskModule = () => {
                             return (
                                 <button
                                     key={view.id}
-                                    onClick={() => setActiveView(view.id)}
+                                    onClick={() => handleQuickViewChange(view.id)}
                                     className={cn(
                                         "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group",
                                         isActive 

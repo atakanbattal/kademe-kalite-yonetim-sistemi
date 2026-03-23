@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -17,6 +17,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { Download, Loader2 } from 'lucide-react';
+import { sanitizeArchiveName } from '@/lib/qualityFolderDownloadUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const BUCKET_NAME = 'documents';
 
@@ -86,18 +88,36 @@ const DOCUMENT_TYPE_MAPPING = {
     'Diğer': ['Diğer', 'Diger']
 };
 
-const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [] }) => {
+const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [], unitCostSettings = [] }) => {
     const { toast } = useToast();
     const [selectedCategories, setSelectedCategories] = useState([]);
+    const [departmentFilter, setDepartmentFilter] = useState('all');
     const [isDownloading, setIsDownloading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [downloadStatus, setDownloadStatus] = useState('');
+
+    const documentsInScope = useMemo(() => {
+        if (departmentFilter === 'all') return documents;
+        if (departmentFilter === 'none') return documents.filter((d) => !d.department_id);
+        return documents.filter((d) => d.department_id === departmentFilter);
+    }, [documents, departmentFilter]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setDepartmentFilter('all');
+            setSelectedCategories([]);
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        setSelectedCategories([]);
+    }, [departmentFilter]);
 
     // Sadece içinde doküman bulunan kategorileri listele ve Tümü hariç
     const availableCategories = categories
         .filter(cat => cat !== 'Tümü' && cat !== 'Tumu')
         .map(cat => {
-            const docCount = documents.filter(d => 
+            const docCount = documentsInScope.filter(d => 
                 d.document_type === cat || 
                 (DOCUMENT_TYPE_MAPPING[cat] && DOCUMENT_TYPE_MAPPING[cat].includes(d.document_type))
             ).length;
@@ -133,7 +153,7 @@ const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [
         const zip = new JSZip();
 
         try {
-            const docsToDownload = documents.filter(doc => {
+            const docsToDownload = documentsInScope.filter(doc => {
                 const isSelected = selectedCategories.some(cat => {
                     const validTypes = DOCUMENT_TYPE_MAPPING[cat] || [cat];
                     return validTypes.includes(doc.document_type);
@@ -184,7 +204,10 @@ const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [
                             }
                         }
 
-                        const folder = zip.folder(categoryFolder);
+                        const deptName = doc.department?.unit_name
+                            ? sanitizeArchiveName(doc.department.unit_name, 'Birim')
+                            : 'Genel';
+                        const folder = zip.folder(`${deptName}/${categoryFolder}`);
                         folder.file(fileName, data);
 
                         downloadedCount++;
@@ -226,11 +249,28 @@ const FolderDownloadModal = ({ isOpen, setIsOpen, documents = [], categories = [
                 <DialogHeader>
                     <DialogTitle>Klasör Olarak İndir</DialogTitle>
                     <DialogDescription>
-                        İndirmek istediğiniz doküman tiplerini seçin. Dosyalar, tiplerine göre klasörlenmiş bir .zip dosyası olarak indirilecektir.
+                        İndirmek istediğiniz doküman tiplerini seçin. Arşivde yapı: <strong>Birim / Kategori / dosya</strong> (birimsiz kayıtlar <strong>Genel</strong> altında).
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4">
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label className="text-sm font-semibold">Departman (birim)</Label>
+                        <Select value={departmentFilter} onValueChange={setDepartmentFilter} disabled={isDownloading}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Tüm birimler" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tüm birimler</SelectItem>
+                                <SelectItem value="none">Birimsiz dokümanlar</SelectItem>
+                                {(unitCostSettings || []).map((u) => (
+                                    <SelectItem key={u.id} value={u.id}>
+                                        {u.unit_name || u.id}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="flex items-center justify-between mb-4">
                         <Label className="text-sm font-semibold text-muted-foreground">Doküman Kategorileri</Label>
                         <Button 

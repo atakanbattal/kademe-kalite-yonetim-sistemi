@@ -21,7 +21,17 @@ const ProcessInspectionManagement = () => {
     const [pageSize] = useState(15);
     const [totalCount, setTotalCount] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
-    
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    useEffect(() => {
+        const id = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 500);
+        return () => clearTimeout(id);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        setPage(0);
+    }, [searchTerm]);
+
     // Modals
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -42,8 +52,9 @@ const ProcessInspectionManagement = () => {
                 .from('process_inspections')
                 .select('*', { count: 'exact' });
 
-            if (searchTerm) {
-                query = query.or(`record_no.ilike.%${searchTerm}%,part_code.ilike.%${searchTerm}%,part_name.ilike.%${searchTerm}%`);
+            if (debouncedSearch) {
+                const term = debouncedSearch;
+                query = query.or(`record_no.ilike.%${term}%,part_code.ilike.%${term}%,part_name.ilike.%${term}%`);
             }
 
             query = query
@@ -62,20 +73,11 @@ const ProcessInspectionManagement = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, pageSize, searchTerm, toast]);
+    }, [page, pageSize, debouncedSearch, toast]);
 
     useEffect(() => {
         fetchInspections();
     }, [fetchInspections]);
-
-    // Handle Search with debounce
-    useEffect(() => {
-        const timeout = setTimeout(() => {
-            setPage(0);
-            fetchInspections();
-        }, 500);
-        return () => clearTimeout(timeout);
-    }, [searchTerm, fetchInspections]);
 
     const getDecisionBadge = (decision) => {
         switch (decision) {

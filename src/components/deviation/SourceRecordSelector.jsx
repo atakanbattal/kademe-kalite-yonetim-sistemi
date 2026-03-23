@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,14 @@ import {
     getSourceTypeDefaultDeviationType,
     getSourceTypeLabel,
 } from './sourceRecordUtils';
+import { useData } from '@/contexts/DataContext';
+import {
+    AUTO_LINK_MIN_SCORE,
+    SUGGEST_MIN_SCORE,
+    buildIncomingInspectionSourceDetails,
+    canAutoLinkDeviationToInspection,
+    findBestHeuristicDeviationForInspection,
+} from '@/lib/incomingDeviationLinkUtils';
 
 const SOURCE_TYPES = [
     {
@@ -708,6 +716,7 @@ const buildAutoFillData = (record, sourceType) => {
 
 const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) => {
     const { toast } = useToast();
+    const { refreshDeviations } = useData();
     const [activeTab, setActiveTab] = useState(getSupportedSourceType(initialSourceType));
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRecord, setSelectedRecord] = useState(null);
@@ -717,12 +726,47 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
         Object.fromEntries(SOURCE_TYPE_IDS.map((sourceType) => [sourceType, []]))
     );
     const [deviationMap, setDeviationMap] = useState({});
+    const [deviationsPool, setDeviationsPool] = useState([]);
+    const deviationMapRef = useRef({});
 
     const activeSourceConfig = SOURCE_TYPES.find((source) => source.id === activeTab) || SOURCE_TYPES[0];
 
     useEffect(() => {
-        loadDeviationMap();
+        deviationMapRef.current = deviationMap;
+    }, [deviationMap]);
+
+    const loadDeviationMap = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from('deviations')
+                .select(
+                    'id, request_no, source_type, source_record_id, deviation_type, part_code, description, record_date, created_at, source'
+                )
+                .order('created_at', { ascending: false })
+                .limit(4000);
+
+            if (error) throw error;
+
+            const map = {};
+            (data || []).forEach((deviation) => {
+                if (deviation.source_type && deviation.source_record_id) {
+                    const key = `${deviation.source_type}_${deviation.source_record_id}`;
+                    if (!map[key]) {
+                        map[key] = { id: deviation.id, request_no: deviation.request_no };
+                    }
+                }
+            });
+
+            setDeviationMap(map);
+            setDeviationsPool(data || []);
+        } catch (error) {
+            console.error('Sapma kayıtları yüklenemedi:', error);
+        }
     }, []);
+
+    useEffect(() => {
+        loadDeviationMap();
+    }, [loadDeviationMap]);
 
     useEffect(() => {
         loadRecords(activeTab);
@@ -735,31 +779,6 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
             loadInitialRecord(sourceType, initialSourceId);
         }
     }, [initialSourceType, initialSourceId]);
-
-    const loadDeviationMap = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('deviations')
-                .select('id, request_no, source_type, source_record_id')
-                .not('source_record_id', 'is', null);
-
-            if (error) throw error;
-
-            const map = {};
-            (data || []).forEach((deviation) => {
-                if (deviation.source_type && deviation.source_record_id) {
-                    map[`${deviation.source_type}_${deviation.source_record_id}`] = {
-                        id: deviation.id,
-                        request_no: deviation.request_no,
-                    };
-                }
-            });
-
-            setDeviationMap(map);
-        } catch (error) {
-            console.error('Sapma kayıtları yüklenemedi:', error);
-        }
-    };
 
     const loadInitialRecord = async (sourceType, sourceId) => {
         try {
@@ -800,9 +819,90 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
         return records.filter((record) => filterRecordBySearch(record, activeTab, searchTerm));
     }, [activeTab, recordsBySource, searchTerm]);
 
+    const incomingRecordsRaw = recordsBySource.incoming_inspection;
+
+    useEffect(() => {
+        if (activeTab !== 'incoming_inspection') return;
+        const records = incomingRecordsRaw || [];
+        const pool = deviationsPool;
+        if (!records.length || !pool.length) return;
+
+        let cancelled = false;
+
+        (async () => {
+            const mapSnapshot = { ...deviationMapRef.current };
+            const pairs = [];
+            for (const rec of records) {
+                const key = `incoming_inspection_${rec.id}`;
+                if (mapSnapshot[key]) continue;
+                const best = findBestHeuristicDeviationForInspection(rec, pool, {
+                    minScore: AUTO_LINK_MIN_SCORE,
+                });
+                if (best && canAutoLinkDeviationToInspection(best.deviation, rec.id)) {
+                    pairs.push({ rec, deviation: best.deviation, score: best.score });
+                }
+            }
+
+            pairs.sort((a, b) => b.score - a.score);
+
+            const usedDevIds = new Set();
+            const detailsCache = new Map();
+
+            for (const p of pairs) {
+                if (cancelled) return;
+                if (usedDevIds.has(p.deviation.id)) continue;
+                usedDevIds.add(p.deviation.id);
+
+                let details = detailsCache.get(p.rec.id);
+                if (!details) {
+                    details = buildIncomingInspectionSourceDetails(p.rec);
+                    detailsCache.set(p.rec.id, details);
+                }
+
+                const { error } = await supabase
+                    .from('deviations')
+                    .update({
+                        source_type: 'incoming_inspection',
+                        source_record_id: p.rec.id,
+                        source_record_details: details,
+                        source: 'Girdi Kalite Kontrol',
+                    })
+                    .eq('id', p.deviation.id);
+
+                if (error) {
+                    console.error('Girdi sapması otomatik bağlanamadı:', p.deviation.id, error);
+                }
+            }
+
+            if (!cancelled && pairs.length > 0) {
+                await loadDeviationMap();
+                refreshDeviations?.();
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeTab, incomingRecordsRaw, deviationsPool, loadDeviationMap, refreshDeviations]);
+
     const hasDeviation = (record, sourceType) => {
         if (!record?.id || !sourceType) return null;
-        return deviationMap[`${sourceType}_${record.id}`] || null;
+        const exact = deviationMap[`${sourceType}_${record.id}`];
+        if (exact) return exact;
+
+        if (sourceType === 'incoming_inspection' && deviationsPool.length > 0) {
+            const best = findBestHeuristicDeviationForInspection(record, deviationsPool, {
+                minScore: SUGGEST_MIN_SCORE,
+            });
+            if (best) {
+                return {
+                    id: best.deviation.id,
+                    request_no: best.deviation.request_no,
+                    heuristic: true,
+                };
+            }
+        }
+        return null;
     };
 
     const handleSelectRecord = (record, sourceType) => {
@@ -1103,7 +1203,9 @@ const SourceRecordSelector = ({ onSelect, initialSourceType, initialSourceId }) 
                                                         {deviation && (
                                                             <Badge variant="outline" className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border-blue-300">
                                                                 <FileCheck className="h-3 w-3" />
-                                                                Sapma Oluşturuldu
+                                                                {deviation.heuristic
+                                                                    ? 'Sapma eşleşmesi (bağlanıyor / öneri)'
+                                                                    : 'Sapma Oluşturuldu'}
                                                             </Badge>
                                                         )}
                                                     </div>

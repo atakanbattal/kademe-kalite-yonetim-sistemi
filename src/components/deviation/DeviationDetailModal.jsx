@@ -4,14 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Printer, Loader2, Hourglass, CheckCircle, XCircle, FileText, Truck, Download, Eye, Package, AlertTriangle, DollarSign, Link2, Hash, Calendar, Building2, User, Car, Droplets, Fan, MessageSquare, Ruler } from 'lucide-react';
+import { Printer, Loader2, Hourglass, CheckCircle, XCircle, FileText, Truck, Download, Eye, Package, AlertTriangle, DollarSign, Link2, Hash, Calendar, Building2, User, Car, Droplets, Fan, MessageSquare, Ruler, Clock } from 'lucide-react';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { InfoCard } from '@/components/ui/InfoCard';
+import { getAttachmentDisplayName } from '@/lib/utils';
 import { getSourceTypeLabel } from './sourceRecordUtils';
 
 const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
@@ -558,6 +559,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
 
     // Dosyayı tarayıcıda görüntüle (yeni sekmede aç)
     const handleViewAttachment = async (filePath, fileName) => {
+        const displayName = getAttachmentDisplayName(fileName, filePath);
         try {
             // Önce signed URL al
             const { data: urlData, error: urlError } = await supabase.storage
@@ -574,7 +576,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
             const blob = await response.blob();
             
             // Doğru MIME type ile yeni Blob oluştur
-            const correctMimeType = getMimeTypeFromFileName(fileName);
+            const correctMimeType = getMimeTypeFromFileName(displayName);
             const correctedBlob = new Blob([blob], { type: correctMimeType });
             
             // Blob URL oluştur ve aç
@@ -590,10 +592,11 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
 
     // Dosyayı indir
     const handleDownloadAttachment = async (filePath, fileName) => {
+        const displayName = getAttachmentDisplayName(fileName, filePath);
         const { data, error } = await supabase.storage
             .from('deviation_attachments')
             .createSignedUrl(filePath, 300, {
-                download: fileName || true // Dosya adını belirterek indirmeyi zorla
+                download: displayName || true,
             });
         
         if (error) {
@@ -626,7 +629,7 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <div className="space-y-6">
                         {/* Önemli Bilgiler */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <InfoCard 
                                 icon={Hash} 
                                 label="Talep No" 
@@ -635,7 +638,19 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                             />
                             <InfoCard 
                                 icon={Calendar} 
-                                label="Oluşturma Tarihi" 
+                                label="Kayıt Tarihi" 
+                                value={(() => {
+                                    const rd = deviation.record_date;
+                                    if (rd) {
+                                        const s = String(rd);
+                                        return format(parseISO(s.includes('T') ? s : `${s}T12:00:00`), 'dd MMMM yyyy', { locale: tr });
+                                    }
+                                    return deviation.created_at ? format(new Date(deviation.created_at), 'dd MMMM yyyy', { locale: tr }) : '-';
+                                })()} 
+                            />
+                            <InfoCard 
+                                icon={Clock} 
+                                label="Sisteme Kayıt" 
                                 value={deviation.created_at ? format(new Date(deviation.created_at), 'dd MMMM yyyy HH:mm', { locale: tr }) : '-'} 
                             />
                             <InfoCard 
@@ -826,11 +841,13 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                                             <Card key={att.id}>
                                                 <CardContent className="p-4">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <FileText className="w-5 h-5 text-muted-foreground" />
-                                                            <span className="text-sm font-medium">{att.file_name}</span>
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <FileText className="w-5 h-5 text-muted-foreground shrink-0" />
+                                                            <span className="text-sm font-medium truncate" title={getAttachmentDisplayName(att.file_name, att.file_path)}>
+                                                                {getAttachmentDisplayName(att.file_name, att.file_path)}
+                                                            </span>
                                                         </div>
-                                                        <div className="flex items-center gap-1">
+                                                        <div className="flex items-center gap-1 shrink-0">
                                                             <Button 
                                                                 variant="ghost" 
                                                                 size="icon" 

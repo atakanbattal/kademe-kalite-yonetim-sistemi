@@ -40,6 +40,34 @@ const formatCurrency = (value) => {
     return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
 };
 
+const getSharedCostsTotal = (cost) => {
+    const list = Array.isArray(cost?.shared_costs) ? cost.shared_costs : [];
+    return list.filter((sc) => sc?.category && (parseFloat(sc.amount) || 0) > 0)
+        .reduce((s, sc) => s + (parseFloat(sc.amount) || 0), 0);
+};
+
+const getCostLineItemsTotal = (cost) => {
+    const items = cost?.cost_line_items;
+    if (!Array.isArray(items) || items.length === 0) return 0;
+    return items.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0);
+};
+
+/** Ortak maliyeti kalem tutarlarına oranla; tek satırda toplu gösterim için */
+const getAllocatedSharedForLine = (cost, lineItem, lineItems) => {
+    const sharedTotal = getSharedCostsTotal(cost);
+    if (sharedTotal <= 0) return 0;
+    const lineTotal = getCostLineItemsTotal(cost);
+    const liAmount = lineItem ? (parseFloat(lineItem.amount) || 0) : 0;
+    if (lineTotal > 0) {
+        return sharedTotal * (liAmount / lineTotal);
+    }
+    const n = Array.isArray(lineItems) ? lineItems.length : 0;
+    if (n > 0 && lineItem) {
+        return sharedTotal / n;
+    }
+    return 0;
+};
+
 const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { toast } = useToast();
     const { profile } = useAuth();
@@ -164,14 +192,14 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
         return costs;
     }, [qualityCosts, dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]);
 
-    // Kalem bazlı genişletme: her birim/tedarikçi ayrı satır
+    // Kalem bazlı genişletme; ortak maliyet tutarı kalemlere oranlanır (ayrı satır yok)
     const expandedRows = useMemo(() => {
         return filteredCosts.flatMap(cost => {
             const items = cost.cost_line_items && Array.isArray(cost.cost_line_items) && cost.cost_line_items.length > 0;
             if (items) {
-                return cost.cost_line_items.map((li, idx) => ({ cost, lineItem: li, lineIndex: idx }));
+                return cost.cost_line_items.map((li, idx) => ({ cost, lineItem: li, lineIndex: idx, rowType: 'line' }));
             }
-            return [{ cost, lineItem: null, lineIndex: 0 }];
+            return [{ cost, lineItem: null, lineIndex: 0, rowType: 'line' }];
         });
     }, [filteredCosts]);
 
@@ -1012,6 +1040,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                         ) : (
                                             displayedCosts.map((row, index) => {
                                                 const { cost, lineItem } = row;
+                                                const lineItems = cost.cost_line_items;
                                                 const partDisplay = lineItem
                                                     ? (lineItem.part_code || lineItem.part_name || '-')
                                                     : (cost.part_code || cost.part_name || '-');
@@ -1029,7 +1058,21 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                                 : (cost.cost_allocations?.length
                                                                     ? `Dağıtılmış (${cost.cost_allocations.map(a => `${a.unit} %${parseFloat(a.percentage).toFixed(0)}`).join(', ')})`
                                                                     : (cost.unit || '-'));
-                                                const amountDisplay = lineItem ? (parseFloat(lineItem.amount) || 0) : (cost.amount || 0);
+                                                const baseAmount = lineItem
+                                                    ? (parseFloat(lineItem.amount) || 0)
+                                                    : (parseFloat(cost.amount) || 0);
+                                                const sharedTotal = getSharedCostsTotal(cost);
+                                                const lineItemsTotal = getCostLineItemsTotal(cost);
+                                                const allocatedShared = lineItem
+                                                    ? getAllocatedSharedForLine(cost, lineItem, lineItems)
+                                                    : sharedTotal;
+                                                const amountDisplay = baseAmount + allocatedShared;
+                                                const sharedPctOfPool =
+                                                    sharedTotal > 0 && lineItemsTotal > 0 && lineItem
+                                                        ? ((parseFloat(lineItem.amount) || 0) / lineItemsTotal) * 100
+                                                        : sharedTotal > 0 && !lineItem
+                                                            ? 100
+                                                            : 0;
                                                 return (
                                                 <tr
                                                     key={`${cost.id}-${row.lineIndex}`}
@@ -1047,10 +1090,22 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                                                     </td>
                                                     <td className="text-sm">{cost.cost_type}</td>
                                                     <td className="text-sm">{unitDisplay}</td>
-                                                    <td className="text-sm truncate max-w-[120px]" title={partDisplay}>
+                                                    <td className="text-sm truncate max-w-[120px]" title={typeof partDisplay === 'string' ? partDisplay : undefined}>
                                                         {partDisplay}
                                                     </td>
-                                                    <td className="text-sm font-semibold">{formatCurrency(amountDisplay)}</td>
+                                                    <td className="text-sm font-semibold align-top">
+                                                        <div>{formatCurrency(amountDisplay)}</div>
+                                                        {allocatedShared > 0 && (
+                                                            <div className="text-[10px] font-normal text-muted-foreground mt-0.5 leading-tight">
+                                                                Kalem {formatCurrency(baseAmount)}
+                                                                {' · '}
+                                                                ortak pay {formatCurrency(allocatedShared)}
+                                                                {sharedPctOfPool > 0 && lineItem && (
+                                                                    <span> ({sharedPctOfPool.toFixed(1)}% kalem payı)</span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </td>
                                                     <td onClick={(e) => e.stopPropagation()}>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>

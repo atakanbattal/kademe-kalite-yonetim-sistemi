@@ -38,8 +38,22 @@ const DeviationModule = ({ onOpenNCForm }) => {
     const filteredDeviations = useMemo(() => {
         return deviations.filter(d => {
             const normalizedSearchTerm = normalizeTurkishForSearch(filters.searchTerm);
-            // Kapsamlı arama: talep no, açıklama, talep eden, birim, kaynak, onaylayan, parça/ürün bilgisi
+            const details = d.source_record_details;
+            const detailsPartHint =
+                details && typeof details === 'object'
+                    ? normalizeTurkishForSearch(
+                          [details.part_code, details.part_name, details.product_code, details.product_name]
+                              .filter(Boolean)
+                              .join(' ')
+                      )
+                    : '';
+            const detailsJsonSearch =
+                details != null
+                    ? normalizeTurkishForSearch(typeof details === 'string' ? details : JSON.stringify(details))
+                    : '';
+            // Kapsamlı arama: talep no, açıklama, parça kodu/adı, kaynak JSON, ürün/parça alanları
             const matchesSearch =
+                !normalizedSearchTerm ||
                 (d.request_no && normalizeTurkishForSearch(d.request_no).includes(normalizedSearchTerm)) ||
                 (d.description && normalizeTurkishForSearch(d.description).includes(normalizedSearchTerm)) ||
                 (d.requesting_person && normalizeTurkishForSearch(d.requesting_person).includes(normalizedSearchTerm)) ||
@@ -47,6 +61,10 @@ const DeviationModule = ({ onOpenNCForm }) => {
                 (d.source && normalizeTurkishForSearch(d.source).includes(normalizedSearchTerm)) ||
                 (d.approving_person && normalizeTurkishForSearch(d.approving_person).includes(normalizedSearchTerm)) ||
                 (d.product_part && normalizeTurkishForSearch(d.product_part).includes(normalizedSearchTerm)) ||
+                (d.part_code && normalizeTurkishForSearch(d.part_code).includes(normalizedSearchTerm)) ||
+                (d.part_name && normalizeTurkishForSearch(d.part_name).includes(normalizedSearchTerm)) ||
+                (detailsPartHint && detailsPartHint.includes(normalizedSearchTerm)) ||
+                (detailsJsonSearch && detailsJsonSearch.includes(normalizedSearchTerm)) ||
                 (d.justification && normalizeTurkishForSearch(d.justification).includes(normalizedSearchTerm));
 
             const matchesStatus = filters.status === 'all' || d.status === filters.status;
@@ -66,13 +84,19 @@ const DeviationModule = ({ onOpenNCForm }) => {
             const matchesSource = filters.source === 'all' || d.source === filters.source;
 
             let matchesDate = true;
+            const dateForFilter = (() => {
+                if (d.record_date) {
+                    const s = String(d.record_date);
+                    return parseISO(s.includes('T') ? s : `${s}T12:00:00`);
+                }
+                return parseISO(d.created_at);
+            })();
             if (filters.dateRange.from && filters.dateRange.to) {
-                const recordDate = parseISO(d.created_at);
-                matchesDate = !isBefore(recordDate, filters.dateRange.from) && !isAfter(recordDate, filters.dateRange.to);
+                matchesDate = !isBefore(dateForFilter, filters.dateRange.from) && !isAfter(dateForFilter, filters.dateRange.to);
             } else if (filters.dateRange.from) {
-                matchesDate = !isBefore(parseISO(d.created_at), filters.dateRange.from);
+                matchesDate = !isBefore(dateForFilter, filters.dateRange.from);
             } else if (filters.dateRange.to) {
-                matchesDate = !isAfter(parseISO(d.created_at), filters.dateRange.to);
+                matchesDate = !isAfter(dateForFilter, filters.dateRange.to);
             }
 
             return matchesSearch && matchesStatus && matchesUnit && matchesSource && matchesDate;
@@ -146,7 +170,11 @@ const DeviationModule = ({ onOpenNCForm }) => {
                 requesting_unit: deviation.requesting_unit || '-',
                 source: deviation.source || '-',
                 product_part: deviation.product_part || '-',
-                created_at: deviation.created_at ? format(new Date(deviation.created_at), 'dd.MM.yyyy') : '-',
+                created_at: deviation.record_date
+                    ? format(new Date(String(deviation.record_date).includes('T') ? deviation.record_date : `${deviation.record_date}T12:00:00`), 'dd.MM.yyyy')
+                    : deviation.created_at
+                        ? format(new Date(deviation.created_at), 'dd.MM.yyyy')
+                        : '-',
                 valid_until: deviation.valid_until ? format(new Date(deviation.valid_until), 'dd.MM.yyyy') : '-',
                 description: deviation.description || '-',
             })),

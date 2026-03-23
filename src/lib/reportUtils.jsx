@@ -1,7 +1,7 @@
 import { format, differenceInDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
-import { toCamelCase } from './utils';
+import { toCamelCase, getAttachmentDisplayName } from './utils';
 
 // Global formatter helpers
 const formatDateHelper = (dateStr, style = 'dd.MM.yyyy') => dateStr ? format(new Date(dateStr), style, { locale: tr }) : '-';
@@ -138,11 +138,27 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			// Benzersiz bir key oluştur
 			const storageKey = `report_${type}_${reportId}_${Date.now()}`;
 
-			// Deviation için deviation_vehicles ve deviation_attachments'ı da dahil et
+			// Sapma: Girdi modülü vb. sadece özet alan gönderdiğinde rapor eksik kalmasın — tam kayıt çek
 			let recordToStore = normalizedRecord;
 			if (type === 'deviation' && normalizedRecord.id) {
-				// Eğer deviation_vehicles yoksa, database'den çek
-				if (!normalizedRecord.deviation_vehicles || normalizedRecord.deviation_vehicles.length === 0) {
+				try {
+					const { data: fullDeviation, error: fullDevError } = await supabase
+						.from('deviations')
+						.select(
+							'*, deviation_approvals!left(*), deviation_vehicles!left(*), deviation_attachments!left(*)'
+						)
+						.eq('id', normalizedRecord.id)
+						.maybeSingle();
+
+					if (!fullDevError && fullDeviation) {
+						recordToStore = normalizeRecord(fullDeviation);
+					}
+				} catch (fullFetchErr) {
+					console.warn('Sapma tam kayıt çekilemedi, gönderilen veri kullanılacak:', fullFetchErr);
+				}
+
+				// Yedek: tam sorgu başarısız veya ilişkiler boş kaldıysa parça parça doldur
+				if (!recordToStore.deviation_vehicles || recordToStore.deviation_vehicles.length === 0) {
 					try {
 						const { data: vehiclesData } = await supabase
 							.from('deviation_vehicles')
@@ -156,8 +172,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 					}
 				}
 
-				// Eğer deviation_attachments yoksa, database'den çek
-				if (!normalizedRecord.deviation_attachments || normalizedRecord.deviation_attachments.length === 0) {
+				if (!recordToStore.deviation_attachments || recordToStore.deviation_attachments.length === 0) {
 					try {
 						const { data: attachmentsData } = await supabase
 							.from('deviation_attachments')
@@ -5946,7 +5961,10 @@ const generateGenericReportHtml = async (record, type) => {
 				}
 				const url = await getAttachmentUrl(pathToUse, bucket);
 				const fileName = (type === 'deviation' || type === 'inkr_management' || type === 'process_inspection') && typeof attachment === 'object' && attachment !== null
-					? (attachment.file_name || attachment.name || (typeof pathToUse === 'string' ? pathToUse.split('/').pop() : ''))
+					? getAttachmentDisplayName(
+							attachment.file_name || attachment.name,
+							attachment.file_path || (typeof pathToUse === 'string' ? pathToUse : '')
+						)
 					: (typeof attachment === 'string' ? attachment : attachment.name || attachment.path || '').split('/').pop();
 				const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(typeof pathToUse === 'string' ? pathToUse : (pathToUse.path || pathToUse.file_path || ''));
 				if (!url) continue;

@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { cn, sanitizeFileName } from '@/lib/utils';
+import { cn, sanitizeFileName, getAttachmentDisplayName } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -147,7 +147,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         // Düzenleme modu: Mevcut sapma verilerini yükle
         if (existingDeviation && existingDeviation.id) {
             console.log('📝 Sapma düzenleme modu - Veriler yükleniyor:', existingDeviation);
-            const { deviation_vehicles, deviation_attachments, deviation_approvals, ...rest } = existingDeviation;
+            const { deviation_vehicles, deviation_attachments, deviation_approvals, created_at: _ignoreSystemCreatedAt, ...rest } = existingDeviation;
             
             // Tüm form verilerini set et - TÜM alanları dahil et
             const formDataToSet = {
@@ -161,7 +161,11 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 requesting_unit: rest.requesting_unit || '',
                 requesting_person: rest.requesting_person || '',
                 deviation_type: rest.deviation_type || 'Girdi Kontrolü',
-                created_at: rest.created_at ? new Date(rest.created_at) : new Date(),
+                record_date: rest.record_date
+                    ? new Date(rest.record_date)
+                    : rest.created_at
+                        ? new Date(rest.created_at)
+                        : new Date(),
             };
             
             console.log('📋 Form verileri set ediliyor:', formDataToSet);
@@ -218,7 +222,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 requesting_unit: '',
                 requesting_person: '',
                 deviation_type: 'Girdi Kontrolü',
-                created_at: new Date(),
+                record_date: new Date(),
             };
             setFormData(initialData);
             setDeviationType('Girdi Kontrolü');
@@ -285,7 +289,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     };
 
     const handleDateChange = (date) => {
-        setFormData(prev => ({ ...prev, created_at: date }));
+        setFormData(prev => ({ ...prev, record_date: date }));
     };
 
     const generateRequestNumber = async (type = 'Girdi Kontrolü') => {
@@ -381,14 +385,16 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             setDeviationType(autoFillData.deviation_type);
         }
 
+        const { created_at: sourceRecordCreatedAt, ...autoFillRest } = autoFillData;
         setFormData(prev => ({
             ...prev,
-            ...autoFillData,
+            ...autoFillRest,
             deviation_type: nextDeviationType,
             source: autoFillData.source || prev.source,
             vehicle_type: autoFillData.vehicle_type || prev.vehicle_type,
             part_code: autoFillData.part_code || prev.part_code,
             description: detailedDescription || prev.description,
+            record_date: sourceRecordCreatedAt ? new Date(sourceRecordCreatedAt) : prev.record_date,
         }));
     };
 
@@ -487,6 +493,14 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             if (submissionData[key] !== undefined && key !== 'undefined') {
                 cleanedData[key] = submissionData[key];
             }
+        }
+
+        delete cleanedData.created_at;
+        if (cleanedData.record_date instanceof Date && !Number.isNaN(cleanedData.record_date.getTime())) {
+            const d = cleanedData.record_date;
+            cleanedData.record_date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        } else if (cleanedData.record_date === null || cleanedData.record_date === '') {
+            delete cleanedData.record_date;
         }
 
         const { data: deviationData, error: deviationError } = isEditMode
@@ -764,7 +778,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                 <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Oluşturma Tarihi</p>
                     <p className="text-xs font-semibold text-foreground">
-                        {formData.created_at ? format(formData.created_at, 'd MMMM yyyy', { locale: tr }) : '-'}
+                        {formData.record_date ? format(formData.record_date, 'd MMMM yyyy', { locale: tr }) : '-'}
                     </p>
                 </div>
             </div>
@@ -804,7 +818,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             submitLabel={isEditMode ? 'Güncelle' : 'Kaydet'}
             cancelLabel="İptal Et"
             formId="deviation-form"
-            footerDate={formData.created_at}
+            footerDate={formData.record_date}
             rightPanel={rightPanel}
         >
                 <form id="deviation-form" onSubmit={handleSubmit} className="w-full min-w-0 overflow-x-hidden p-6 grid gap-4 min-h-0">
@@ -973,19 +987,19 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                             <Input id="part_code" value={formData.part_code || ''} onChange={handleInputChange} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="created_at">Kayıt Tarihi</Label>
+                            <Label htmlFor="record_date">Kayıt Tarihi</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant={"outline"}
-                                        className={cn("w-full justify-start text-left font-normal", !formData.created_at && "text-muted-foreground")}
+                                        className={cn("w-full justify-start text-left font-normal", !formData.record_date && "text-muted-foreground")}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {formData.created_at ? format(formData.created_at, "d MMMM yyyy", { locale: tr }) : <span>Tarih seçin</span>}
+                                        {formData.record_date ? format(formData.record_date, "d MMMM yyyy", { locale: tr }) : <span>Tarih seçin</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
-                                    <Calendar mode="single" selected={formData.created_at} onSelect={handleDateChange} initialFocus />
+                                    <Calendar mode="single" selected={formData.record_date} onSelect={handleDateChange} initialFocus />
                                 </PopoverContent>
                             </Popover>
                         </div>
@@ -1068,7 +1082,9 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                     <div key={att.id} className="flex items-center justify-between bg-muted p-2 rounded-md">
                                         <div className="flex items-center gap-2">
                                             <FileIcon className="w-4 h-4" />
-                                            <span className="text-sm">{att.file_name}</span>
+                                            <span className="text-sm truncate" title={getAttachmentDisplayName(att.file_name, att.file_path)}>
+                                                {getAttachmentDisplayName(att.file_name, att.file_path)}
+                                            </span>
                                         </div>
                                         <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeExistingAttachment(att.id)}>
                                             <XIcon className="w-4 h-4" />

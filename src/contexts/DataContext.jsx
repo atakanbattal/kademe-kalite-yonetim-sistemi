@@ -128,7 +128,7 @@ export const DataProvider = ({ children }) => {
                         .from('audit_log_entries')
                         .select('*')
                         .order('created_at', { ascending: false })
-                        .limit(500);
+                        .limit(2000);
                     if (error) {
                         if (error.code === 'PGRST301' || error.code === '42501' || error.status === 403) {
                             console.warn('⚠️ Audit logs çekilemedi (RLS):', error.message);

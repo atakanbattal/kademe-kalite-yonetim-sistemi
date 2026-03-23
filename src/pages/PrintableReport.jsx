@@ -113,6 +113,25 @@ const PrintableReport = () => {
                                 console.log('✅ WPS ilişkili veriler zaten mevcut');
                             }
                         }
+                        // Sapma: localStorage'a özet yazıldıysa (ör. girdi modülü) rapor = sapma modülü ile aynı olsun
+                        else if (type === 'deviation' && recordData?.id) {
+                            try {
+                                const { data: fullDeviation, error: devErr } = await supabase
+                                    .from('deviations')
+                                    .select(
+                                        '*, deviation_approvals!left(*), deviation_vehicles!left(*), deviation_attachments!left(*)'
+                                    )
+                                    .eq('id', recordData.id)
+                                    .maybeSingle();
+
+                                if (!devErr && fullDeviation) {
+                                    recordData = fullDeviation;
+                                    console.log('✅ Sapma raporu tam kayıt ile güncellendi (onaylar, ekler, araçlar)');
+                                }
+                            } catch (devFetchErr) {
+                                console.warn('Sapma tam kayıt yenilenemedi:', devFetchErr);
+                            }
+                        }
                         // ÖNEMLİ: Nonconformity için attachments ve closing_attachments kontrolü
                         // localStorage'dan gelen veride bu alanlar undefined olabilir
                         else if (type === 'nonconformity' && id) {

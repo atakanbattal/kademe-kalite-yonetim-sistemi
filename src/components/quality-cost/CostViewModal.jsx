@@ -15,7 +15,40 @@ import { supabase } from '@/lib/customSupabaseClient';
 const formatCurrency = (value) => {
     if (typeof value !== 'number') return '-';
     return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
-}
+};
+
+/** JSONB / JSON string / dizi alanları için (shared_costs, indirect_costs vb.) */
+const parseJsonCostArray = (raw) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+        try {
+            const p = JSON.parse(raw);
+            return Array.isArray(p) ? p : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
+
+const lineItemsTotalAmount = (items) =>
+    (Array.isArray(items) ? items : []).reduce((s, li) => s + (parseFloat(li?.amount) || 0), 0);
+
+const sharedCostsTotalAmount = (items) =>
+    (Array.isArray(items) ? items : [])
+        .filter((sc) => sc?.category && (parseFloat(sc.amount) || 0) > 0)
+        .reduce((s, sc) => s + (parseFloat(sc.amount) || 0), 0);
+
+const allocatedSharedForLineItem = (lineItem, lineItems, sharedList) => {
+    const sharedTotal = sharedCostsTotalAmount(sharedList);
+    if (sharedTotal <= 0 || !lineItem) return 0;
+    const lineTotal = lineItemsTotalAmount(lineItems);
+    const liAmount = parseFloat(lineItem.amount) || 0;
+    if (lineTotal > 0) return sharedTotal * (liAmount / lineTotal);
+    const n = lineItems.length;
+    return n > 0 ? sharedTotal / n : 0;
+};
 
 export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefresh }) => {
     const [documents, setDocuments] = useState([]);
@@ -49,11 +82,28 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
     if (!cost) return null;
 
     const lineItems = cost.cost_line_items && Array.isArray(cost.cost_line_items) ? cost.cost_line_items : [];
-    const sharedCostItems = cost.shared_costs && Array.isArray(cost.shared_costs) ? cost.shared_costs : [];
-    const indirectCostItems = cost.indirect_costs && Array.isArray(cost.indirect_costs) ? cost.indirect_costs : [];
+    const sharedCostItems = parseJsonCostArray(cost.shared_costs);
+    const indirectCostItems = parseJsonCostArray(cost.indirect_costs);
     const hasLineItems = lineItems.length > 0;
     const isUnitView = !!selectedLineItem && !showFullView;
-    const totalAmount = parseFloat(cost.amount) || 0;
+    const totalAmount = lineItemsTotalAmount(lineItems) || (parseFloat(cost.amount) || 0);
+    const sharedTotalAll = sharedCostsTotalAmount(sharedCostItems);
+    const allocatedSharedUnit =
+        isUnitView && selectedLineItem
+            ? allocatedSharedForLineItem(selectedLineItem, lineItems, sharedCostItems)
+            : 0;
+    const unitDisplayAmount =
+        isUnitView && selectedLineItem
+            ? (parseFloat(selectedLineItem.amount) || 0) + allocatedSharedUnit
+            : null;
+
+    const sharedCostItemsDisplay = sharedCostItems.filter(
+        (sc) => sc?.category && (parseFloat(sc.amount) || 0) > 0
+    );
+    const indirectCostItemsDisplay = indirectCostItems.filter(
+        (ic) => ic?.category && (parseFloat(ic.amount) || 0) > 0
+    );
+    const indirectTotalAll = indirectCostItemsDisplay.reduce((s, ic) => s + (parseFloat(ic.amount) || 0), 0);
 
     // Ana süre: rework_duration ve unit alanlarından oluşuyor
     const mainReworkCost = cost.rework_duration && cost.unit 
@@ -130,8 +180,23 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <InfoCard 
                                 icon={DollarSign} 
-                                label={isUnitView ? "Birim Tutarı" : "Toplam Tutar"} 
-                                value={formatCurrency(isUnitView ? (parseFloat(selectedLineItem?.amount) || 0) : cost.amount)} 
+                                label={isUnitView ? "Birim Tutarı (kalem + ortak pay)" : "Toplam Tutar"} 
+                                value={
+                                    isUnitView && selectedLineItem && unitDisplayAmount != null ? (
+                                        <span className="block space-y-1">
+                                            <span className="block text-base font-semibold">{formatCurrency(unitDisplayAmount)}</span>
+                                            {allocatedSharedUnit > 0 && (
+                                                <span className="block text-xs font-normal text-muted-foreground leading-snug">
+                                                    Kalem {formatCurrency(parseFloat(selectedLineItem.amount) || 0)}
+                                                    {' · '}
+                                                    ortak pay {formatCurrency(allocatedSharedUnit)}
+                                                </span>
+                                            )}
+                                        </span>
+                                    ) : (
+                                        formatCurrency(parseFloat(cost.amount) || 0)
+                                    )
+                                }
                                 variant="primary"
                             />
                             <InfoCard 
@@ -363,25 +428,45 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                             </>
                         )}
 
-                        {/* Ortak Maliyetler - birim görünümünde gösterme (ortak maliyetler tüm kalemlere ait) */}
-                        {!isUnitView && sharedCostItems.length > 0 && (
+                        {/* Ortak Maliyetler — her görünümde (birim görünümünde de kayıt geneli kalemler) */}
+                        {sharedCostItemsDisplay.length > 0 && (
                             <>
                                 <Separator />
                                 <div>
-                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                                         <Truck className="h-5 w-5 text-amber-600" />
-                                        Ortak Maliyetler (Nakliye / Konaklama)
+                                        Ortak Maliyetler
                                     </h3>
+                                    {isUnitView && selectedLineItem && allocatedSharedUnit > 0 && (
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                            Aşağıdaki tutarlar kayıt genelindeki ortak giderlerdir. Bu birime düşen toplam ortak payı{' '}
+                                            <span className="font-semibold text-amber-700">{formatCurrency(allocatedSharedUnit)}</span>
+                                            {' '}
+                                            (kalem tutarına göre oransal) üstteki birim tutarına eklenmiştir.
+                                        </p>
+                                    )}
+                                    {!isUnitView && sharedTotalAll > 0 && (
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                            Ortak gider toplamı:{' '}
+                                            <span className="font-semibold text-amber-700">{formatCurrency(sharedTotalAll)}</span>
+                                            {' '}
+                                            — kalemlere tutarları oranında dağıtılır.
+                                        </p>
+                                    )}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {sharedCostItems.map((sc, idx) => (
-                                            <Card key={idx} className="border-l-4 border-l-amber-500">
+                                        {sharedCostItemsDisplay.map((sc, idx) => (
+                                            <Card key={sc.id || idx} className="border-l-4 border-l-amber-500">
                                                 <CardContent className="p-4">
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-semibold text-sm">{sc.category || '-'}</span>
                                                         <span className="font-bold text-amber-600">{formatCurrency(parseFloat(sc.amount) || 0)}</span>
                                                     </div>
                                                     {sc.description && <p className="text-xs text-muted-foreground mt-1">{sc.description}</p>}
-                                                    {sc.measurement_unit && <span className="text-xs text-muted-foreground">{sc.measurement_value} {sc.measurement_unit}</span>}
+                                                    {sc.measurement_unit && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {sc.measurement_value} {sc.measurement_unit}
+                                                        </span>
+                                                    )}
                                                 </CardContent>
                                             </Card>
                                         ))}
@@ -390,18 +475,29 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                             </>
                         )}
 
-                        {/* Dolaylı Maliyetler - birim görünümünde gösterme */}
-                        {!isUnitView && indirectCostItems.length > 0 && (
+                        {/* Dolaylı Maliyetler — ortak maliyet ile aynı: birim görünümünde de kayıt geneli */}
+                        {indirectCostItemsDisplay.length > 0 && (
                             <>
                                 <Separator />
                                 <div>
-                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                                         <TrendingDown className="h-5 w-5 text-purple-600" />
                                         Dolaylı Maliyetler
                                     </h3>
+                                    {isUnitView && selectedLineItem && (
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                            Aşağıdaki tutarlar kayıt genelindeki dolaylı giderlerdir (birim tutarına otomatik eklenmez; toplu maliyet özeti için &quot;Tümünü Göster&quot; kullanın).
+                                        </p>
+                                    )}
+                                    {!isUnitView && indirectTotalAll > 0 && (
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                            Dolaylı gider toplamı:{' '}
+                                            <span className="font-semibold text-purple-700">{formatCurrency(indirectTotalAll)}</span>
+                                        </p>
+                                    )}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {indirectCostItems.map((ic, idx) => (
-                                            <Card key={idx} className="border-l-4 border-l-purple-500">
+                                        {indirectCostItemsDisplay.map((ic, idx) => (
+                                            <Card key={ic.id || idx} className="border-l-4 border-l-purple-500">
                                                 <CardContent className="p-4">
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-semibold text-sm">{ic.category || '-'}</span>

@@ -6,6 +6,7 @@ import liberationSansRegularUrl from 'pdfjs-dist/standard_fonts/LiberationSans-R
 import liberationSansBoldUrl from 'pdfjs-dist/standard_fonts/LiberationSans-Bold.ttf?url';
 import liberationSansItalicUrl from 'pdfjs-dist/standard_fonts/LiberationSans-Italic.ttf?url';
 import liberationSansBoldItalicUrl from 'pdfjs-dist/standard_fonts/LiberationSans-BoldItalic.ttf?url';
+import { getAttachmentDisplayName } from '@/lib/utils';
 
 const PAGE_MARGIN_X = 14;
 const PAGE_MARGIN_TOP = 34;
@@ -460,7 +461,12 @@ const addAttachmentList = (doc, currentY, attachments, reportConfig, pdfAssets) 
         startY: nextY,
         head: [['Dosya Adı', 'Türü']],
         body: attachments.map((attachment) => [
-            normalizeValue(attachment.file_name || attachment.name),
+            normalizeValue(
+                getAttachmentDisplayName(
+                    attachment.file_name || attachment.name,
+                    attachment.file_path || attachment.path || ''
+                )
+            ),
             normalizeValue(attachment.file_type || attachment.type, 'Dosya'),
         ]),
         theme: 'grid',

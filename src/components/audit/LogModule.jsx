@@ -1,47 +1,135 @@
-import React, { useMemo, useState } from 'react';
-    import { useData } from '@/contexts/DataContext';
-    import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-    import { Badge } from '@/components/ui/badge';
-    import { formatDistanceToNow, format } from 'date-fns';
-    import { tr } from 'date-fns/locale';
-    import { motion, AnimatePresence } from 'framer-motion';
-    import { Skeleton } from '@/components/ui/skeleton';
-    import { Input } from '@/components/ui/input';
-    import { Search, Filter, Clock, User, FileText, Plus, Edit, Trash2, ChevronRight, Eye, ChevronDown, ChevronUp } from 'lucide-react';
-    import { ScrollArea } from '@/components/ui/scroll-area';
-    import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-    import { normalizeTurkishForSearch } from '@/lib/utils';
-    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-    import { Button } from '@/components/ui/button';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { useData } from '@/contexts/DataContext';
+import { supabase } from '@/lib/customSupabaseClient';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow, format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Search, Filter, Clock, User, FileText, Plus, Edit, Trash2, ChevronRight, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { normalizeTurkishForSearch } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
-    const AuditLogModule = () => {
+const formatDetailValue = (v) => {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+
+const AuditDetailsPane = ({ details }) => {
+  if (!details) return <p className="text-sm text-muted-foreground">Detay yok.</p>;
+  const d = details;
+  if (d.old && d.new && typeof d.old === 'object' && typeof d.new === 'object' && !Array.isArray(d.old)) {
+    const keys = Array.from(new Set([...Object.keys(d.old), ...Object.keys(d.new)])).filter((k) => k !== 'changed_fields').sort();
+    return (
+      <ScrollArea className="h-[min(55vh,480px)] border rounded-md">
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 bg-muted">
+            <tr>
+              <th className="text-left p-2 font-semibold">Alan</th>
+              <th className="text-left p-2 font-semibold">Önce</th>
+              <th className="text-left p-2 font-semibold">Sonra</th>
+            </tr>
+          </thead>
+          <tbody>
+            {keys.map((key) => {
+              const before = d.old[key];
+              const after = d.new[key];
+              const changed = JSON.stringify(before) !== JSON.stringify(after);
+              return (
+                <tr key={key} className={changed ? 'bg-amber-500/10' : ''}>
+                  <td className="p-2 font-mono align-top border-t">{key}</td>
+                  <td className="p-2 align-top border-t break-all max-w-[200px]">{formatDetailValue(before)}</td>
+                  <td className="p-2 align-top border-t break-all max-w-[200px]">{formatDetailValue(after)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </ScrollArea>
+    );
+  }
+  return (
+    <ScrollArea className="h-[min(55vh,480px)] border rounded-md p-3">
+      <pre className="text-xs whitespace-pre-wrap break-all">{JSON.stringify(details, null, 2)}</pre>
+    </ScrollArea>
+  );
+};
+
+const AuditLogModule = () => {
       const { auditLogs, loading } = useData();
       const [searchTerm, setSearchTerm] = useState('');
       const [tableFilter, setTableFilter] = useState('all');
+      const [userFilter, setUserFilter] = useState('all');
       const [selectedLog, setSelectedLog] = useState(null);
       const [expandedLogs, setExpandedLogs] = useState(new Set());
+      const [additionalLogs, setAdditionalLogs] = useState([]);
+      const [auditLoadMoreLoading, setAuditLoadMoreLoading] = useState(false);
+      const [auditHasMore, setAuditHasMore] = useState(true);
+
+      useEffect(() => {
+        setAdditionalLogs([]);
+        setAuditHasMore(true);
+      }, [auditLogs]);
+
+      const allAuditLogs = useMemo(() => [...auditLogs, ...additionalLogs], [auditLogs, additionalLogs]);
+
+      const userOptions = useMemo(() => {
+        const names = new Set();
+        allAuditLogs.forEach((log) => names.add(log.user_full_name || 'Sistem'));
+        return Array.from(names).sort((a, b) => a.localeCompare(b, 'tr'));
+      }, [allAuditLogs]);
+
+      const loadMoreAudit = useCallback(async () => {
+        if (auditLoadMoreLoading || !auditHasMore) return;
+        setAuditLoadMoreLoading(true);
+        const offset = auditLogs.length + additionalLogs.length;
+        try {
+          const { data, error } = await supabase
+            .from('audit_log_entries')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .range(offset, offset + 499);
+          if (error) throw error;
+          const batch = data || [];
+          setAdditionalLogs((prev) => [...prev, ...batch]);
+          setAuditHasMore(batch.length === 500);
+        } catch (e) {
+          console.error('Denetim kayıtları yüklenemedi:', e);
+          setAuditHasMore(false);
+        } finally {
+          setAuditLoadMoreLoading(false);
+        }
+      }, [auditLoadMoreLoading, auditHasMore, auditLogs.length, additionalLogs.length]);
 
       const filteredLogs = useMemo(() => {
-        let logs = auditLogs;
-        
-        // Tablo filtresi
+        let logs = allAuditLogs;
+
         if (tableFilter !== 'all') {
           logs = logs.filter(log => log.table_name === tableFilter);
         }
-        
-        // Arama filtresi
+
+        if (userFilter !== 'all') {
+          logs = logs.filter((log) => (log.user_full_name || 'Sistem') === userFilter);
+        }
+
         if (searchTerm) {
           const normalizedSearchTerm = normalizeTurkishForSearch(searchTerm);
           logs = logs.filter(log =>
             normalizeTurkishForSearch(log.action).includes(normalizedSearchTerm) ||
-            normalizeTurkishForSearch(log.user_full_name).includes(normalizedSearchTerm) ||
+            normalizeTurkishForSearch(log.user_full_name || '').includes(normalizedSearchTerm) ||
             normalizeTurkishForSearch(log.table_name).includes(normalizedSearchTerm) ||
             (log.details && normalizeTurkishForSearch(JSON.stringify(log.details)).includes(normalizedSearchTerm))
           );
         }
-        
+
         return logs;
-      }, [auditLogs, searchTerm, tableFilter]);
+      }, [allAuditLogs, searchTerm, tableFilter, userFilter]);
 
       // Kayıt ID'sini bul (DB trigger: INSERT/UPDATE new/old, DELETE: details = kayıt)
       const getRecordId = (log) => {
@@ -517,11 +605,12 @@ import React, { useMemo, useState } from 'react';
             <CardHeader>
               <CardTitle>Sistem Denetim Kayıtları</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Sistemde gerçekleştirilen tüm kritik işlemler (Ekleme, Güncelleme, Silme) aşağıda listelenmiştir. 
-                <span className="font-semibold text-foreground"> Son 500 kayıt</span> gösterilmektedir.
+                Sistemde gerçekleştirilen tüm kritik işlemler (Ekleme, Güncelleme, Silme) aşağıda listelenmiştir.
+                <span className="font-semibold text-foreground"> İlk yüklemede son 2000 kayıt</span> gelir; gerekirse daha fazlasını yükleyebilirsiniz.
               </p>
-               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                  <div className="search-box flex-1">
+               <div className="flex flex-col gap-4 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+                  <div className="search-box flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                     <input
                         type="text"
@@ -531,6 +620,18 @@ import React, { useMemo, useState } from 'react';
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
+                  <Select value={userFilter} onValueChange={setUserFilter}>
+                    <SelectTrigger className="w-full sm:w-[220px]">
+                      <User className="h-4 w-4 mr-2 shrink-0" />
+                      <SelectValue placeholder="Hesap (kullanıcı)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tüm kullanıcılar</SelectItem>
+                      {userOptions.map((name) => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Select value={tableFilter} onValueChange={setTableFilter}>
                     <SelectTrigger className="w-full sm:w-[250px]">
                       <Filter className="h-4 w-4 mr-2" />
@@ -558,7 +659,6 @@ import React, { useMemo, useState } from 'react';
                       <SelectItem value="customer_complaints">Müşteri Şikayetleri</SelectItem>
                       <SelectItem value="produced_vehicles">Üretilen Araçlar</SelectItem>
                       <SelectItem value="quality_inspections">Kalite Kontrolleri</SelectItem>
-                      <SelectItem value="produced_vehicles">Üretilen Araçlar</SelectItem>
                       <SelectItem value="task_assignees">Görev Atamaları</SelectItem>
                       <SelectItem value="task_comments">Görev Yorumları</SelectItem>
                       <SelectItem value="deviation_approvals">Sapma Onayları</SelectItem>
@@ -571,10 +671,16 @@ import React, { useMemo, useState } from 'react';
                       <SelectItem value="cost_settings">Maliyet Ayarları</SelectItem>
                     </SelectContent>
                   </Select>
-                  {(searchTerm || tableFilter !== 'all') && (
+                  {(searchTerm || tableFilter !== 'all' || userFilter !== 'all') && (
                     <Badge variant="secondary" className="self-center whitespace-nowrap">
                       {filteredLogs.length} kayıt
                     </Badge>
+                  )}
+                  </div>
+                  {auditHasMore && (
+                    <Button type="button" variant="outline" size="sm" className="w-fit" onClick={loadMoreAudit} disabled={auditLoadMoreLoading}>
+                      {auditLoadMoreLoading ? 'Yükleniyor…' : 'Daha fazla yükle (500)'}
+                    </Button>
                   )}
               </div>
             </CardHeader>
@@ -744,17 +850,19 @@ import React, { useMemo, useState } from 'react';
                       <div className="text-sm">{selectedLog.user_full_name || 'Sistem'}</div>
                     </div>
                     <div>
+                      <div className="text-sm font-medium text-muted-foreground">Kullanıcı ID</div>
+                      <div className="text-xs font-mono break-all">{selectedLog.user_id || '—'}</div>
+                    </div>
+                    <div>
                       <div className="text-sm font-medium text-muted-foreground">Tarih</div>
                       <div className="text-sm">{format(new Date(selectedLog.created_at), 'dd.MM.yyyy HH:mm:ss', { locale: tr })}</div>
                     </div>
                   </div>
                   
                   {selectedLog.details && (
-                    <div className="mt-6">
-                      <div className="text-sm font-medium text-muted-foreground mb-2">Detaylar (JSON)</div>
-                      <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto">
-                        {JSON.stringify(selectedLog.details, null, 2)}
-                      </pre>
+                    <div className="mt-6 flex-1 min-h-0 flex flex-col">
+                      <div className="text-sm font-medium text-muted-foreground mb-2">Kayıt detayı</div>
+                      <AuditDetailsPane details={selectedLog.details} />
                     </div>
                   )}
                 </div>

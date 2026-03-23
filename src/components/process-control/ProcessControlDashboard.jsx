@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import {
     ClipboardCheck,
     Factory,
-    FileStack,
     Gauge,
     ListChecks,
     Microscope,
@@ -254,24 +253,6 @@ const ProcessControlDashboard = ({
                                         ))}
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-
-                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-                        <Card className="border-primary/20 bg-primary/5">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <FileStack className="h-4 w-4 text-primary" />
-                                    Modül Odağı
-                                </CardTitle>
-                                <CardDescription>
-                                    Proses kontrol modülü artık sadece aktif kalite akışlarına odaklanır.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="text-sm text-muted-foreground">
-                                Araç bilgileri sekmesinden proses araçlarını (kalıp, fixture, jig vb.) yönetebilirsiniz.
-                                Ana akış kontrol planı, ilk numune ve muayene kayıtları üzerinden ilerler.
                             </CardContent>
                         </Card>
                     </motion.div>

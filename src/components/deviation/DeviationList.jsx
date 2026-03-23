@@ -57,7 +57,11 @@ const DeviationList = ({ deviations, onEdit, onView, onDelete, onApprove, onCrea
                             <td className="font-mono text-primary">{d.request_no}</td>
                             <td className="font-medium text-foreground max-w-sm truncate">{d.description}</td>
                             <td className="text-muted-foreground">{d.source}</td>
-                            <td className="text-muted-foreground">{format(new Date(d.created_at), 'dd.MM.yyyy')}</td>
+                            <td className="text-muted-foreground">
+                                {d.record_date
+                                    ? format(new Date(String(d.record_date).includes('T') ? d.record_date : `${d.record_date}T12:00:00`), 'dd.MM.yyyy')
+                                    : format(new Date(d.created_at), 'dd.MM.yyyy')}
+                            </td>
                             <td>
                                 <Badge variant={getStatusVariant(d.status)}>{d.status}</Badge>
                             </td>

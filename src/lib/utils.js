@@ -40,6 +40,48 @@ export function sanitizeFileName(fileName) {
 }
 
 /**
+ * Ek kayıtlarında file_name bazen yanlışlıkla tam imzalı URL olarak saklanır.
+ * Arayüz ve raporlarda okunaklı dosya adı döndürür (öncelik: path son segmenti, URL path'i).
+ */
+export function getAttachmentDisplayName(fileName, filePath) {
+    const basenameFromPath = () => {
+        if (!filePath || typeof filePath !== 'string') return '';
+        const parts = filePath.split('/').filter(Boolean);
+        const last = parts[parts.length - 1] || '';
+        try {
+            return decodeURIComponent(last);
+        } catch {
+            return last;
+        }
+    };
+
+    const pathBase = basenameFromPath();
+    const raw = String(fileName ?? '').trim();
+    if (!raw) return pathBase || 'Dosya';
+
+    if (/^https?:\/\//i.test(raw)) {
+        try {
+            const u = new URL(raw);
+            const segments = u.pathname.split('/').filter(Boolean);
+            let leaf = segments[segments.length - 1] || '';
+            try {
+                leaf = decodeURIComponent(leaf);
+            } catch {
+                /* ignore */
+            }
+            if (leaf && /\.[a-z0-9]{2,5}$/i.test(leaf)) {
+                return leaf;
+            }
+            return pathBase || leaf || 'Dosya';
+        } catch {
+            return pathBase || 'Dosya';
+        }
+    }
+
+    return raw;
+}
+
+/**
  * Türkçe karakterleri normalize eder (arama için)
  * Örnek: "İzin" -> "izin", "Öğrenci" -> "ogrenci"
  * Tüm Türkçe karakter varyasyonlarını destekler (farklı Unicode kodlamaları dahil)

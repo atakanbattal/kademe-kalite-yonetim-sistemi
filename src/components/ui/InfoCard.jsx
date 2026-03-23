@@ -22,7 +22,7 @@ export const InfoCard = ({ icon: Icon, label, value, variant = 'default' }) => {
                     )}
                     <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-                        <p className="text-sm font-semibold text-foreground break-words">{value || '-'}</p>
+                        <div className="text-sm font-semibold text-foreground break-words">{value ?? '-'}</div>
                     </div>
                 </div>
             </CardContent>

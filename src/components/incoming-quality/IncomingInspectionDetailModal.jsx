@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -26,12 +26,24 @@ import {
     Building2,
     Hash,
     CheckCircle2,
+    Link2,
+    Loader2,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, subDays, addDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { normalizeTurkishForSearch } from '@/lib/utils';
+import { useData } from '@/contexts/DataContext';
+import {
+    AUTO_LINK_MIN_SCORE,
+    SUGGEST_MIN_SCORE,
+    buildIncomingInspectionSourceDetails,
+    canAutoLinkDeviationToInspection,
+    normalizePartCode,
+    scoreDeviationForIncomingInspection,
+} from '@/lib/incomingDeviationLinkUtils';
 
 const IncomingInspectionDetailModal = ({
     isOpen,
@@ -43,6 +55,7 @@ const IncomingInspectionDetailModal = ({
     onOpenNCView,
 }) => {
     const { toast } = useToast();
+    const { refreshDeviations } = useData();
     const [preparedBy, setPreparedBy] = useState('');
     const [controlledBy, setControlledBy] = useState('');
     const [createdBy, setCreatedBy] = useState('');
@@ -63,6 +76,9 @@ const IncomingInspectionDetailModal = ({
     const [linkedDeviations, setLinkedDeviations] = useState([]);
     const [loadingNCs, setLoadingNCs] = useState(false);
     const [loadingDeviations, setLoadingDeviations] = useState(false);
+    const [suggestedDeviations, setSuggestedDeviations] = useState([]);
+    const [autoLinkMessage, setAutoLinkMessage] = useState('');
+    const [linkingDeviationId, setLinkingDeviationId] = useState(null);
     const [hasStockRiskControl, setHasStockRiskControl] = useState(false);
     const [stockRiskControlInfo, setStockRiskControlInfo] = useState(null);
 
@@ -258,38 +274,199 @@ const IncomingInspectionDetailModal = ({
         fetchLinkedNonConformities();
     }, [isOpen, enrichedInspection?.id]);
 
+    const fetchExactLinkedDeviations = useCallback(async (inspectionId) => {
+        const { data, error } = await supabase
+            .from('deviations')
+            .select('id, request_no, status, created_at, description, requesting_unit, source_type, source_record_id')
+            .eq('source_type', 'incoming_inspection')
+            .eq('source_record_id', inspectionId)
+            .order('created_at', { ascending: false });
+        if (error) {
+            console.error('Sapmalar yüklenirken hata:', error);
+            return [];
+        }
+        return data || [];
+    }, []);
+
+    const handleManualLinkDeviation = useCallback(
+        async (deviationId) => {
+            if (!enrichedInspection?.id || !deviationId) return;
+            setLinkingDeviationId(deviationId);
+            try {
+                const details = buildIncomingInspectionSourceDetails(enrichedInspection);
+                const { error } = await supabase
+                    .from('deviations')
+                    .update({
+                        source_type: 'incoming_inspection',
+                        source_record_id: enrichedInspection.id,
+                        source_record_details: details,
+                        source: 'Girdi Kalite Kontrol',
+                    })
+                    .eq('id', deviationId);
+
+                if (error) throw error;
+
+                toast({
+                    title: 'Bağlandı',
+                    description: 'Sapma bu girdi muayenesi ile ilişkilendirildi.',
+                });
+                const fresh = await fetchExactLinkedDeviations(enrichedInspection.id);
+                setLinkedDeviations(fresh);
+                setSuggestedDeviations((prev) => prev.filter((s) => s.deviation.id !== deviationId));
+                refreshDeviations?.();
+            } catch (err) {
+                console.error('Sapma bağlama hatası:', err);
+                toast({
+                    variant: 'destructive',
+                    title: 'Bağlanamadı',
+                    description: err?.message || 'Sapma güncellenemedi.',
+                });
+            } finally {
+                setLinkingDeviationId(null);
+            }
+        },
+        [enrichedInspection, fetchExactLinkedDeviations, toast, refreshDeviations]
+    );
+
     useEffect(() => {
-        const fetchLinkedDeviations = async () => {
+        let cancelled = false;
+
+        const syncDeviationsForInspection = async () => {
             if (!isOpen || !enrichedInspection?.id) {
                 setLinkedDeviations([]);
+                setSuggestedDeviations([]);
+                setAutoLinkMessage('');
                 return;
             }
 
+            const insp = enrichedInspection;
             setLoadingDeviations(true);
-            try {
-                const { data, error } = await supabase
-                    .from('deviations')
-                    .select('id, request_no, status, created_at, description, requesting_unit, source_type, source_record_id')
-                    .eq('source_type', 'incoming_inspection')
-                    .eq('source_record_id', enrichedInspection.id)
-                    .order('created_at', { ascending: false });
+            setAutoLinkMessage('');
+            setSuggestedDeviations([]);
 
-                if (error) {
-                    console.error('Sapmalar yüklenirken hata:', error);
-                    setLinkedDeviations([]);
+            try {
+                const exact = await fetchExactLinkedDeviations(insp.id);
+                if (cancelled) return;
+
+                const partCode = (insp.part_code || '').trim();
+                const recNo = (insp.record_no || '').trim();
+                const exactIds = new Set(exact.map((d) => d.id));
+
+                const base = new Date(insp.inspection_date || insp.created_at || Date.now());
+                const fromIso = subDays(base, 55).toISOString();
+                const toIso = addDays(base, 55).toISOString();
+
+                const { data: poolRows, error: poolError } = await supabase
+                    .from('deviations')
+                    .select(
+                        'id, request_no, status, created_at, description, requesting_unit, source_type, source_record_id, part_code, deviation_type, record_date'
+                    )
+                    .gte('created_at', fromIso)
+                    .lte('created_at', toIso)
+                    .limit(600);
+
+                if (poolError) {
+                    console.error('Sapma aday havuzu hatası:', poolError);
+                    setLinkedDeviations(exact);
+                    setLoadingDeviations(false);
+                    return;
+                }
+
+                let pool = (poolRows || []).filter(
+                    (d) => !d.deviation_type || d.deviation_type === 'Girdi Kontrolü'
+                );
+                if (partCode) {
+                    const npc = normalizePartCode(partCode);
+                    pool = pool.filter((d) => normalizePartCode(d.part_code) === npc);
+                } else if (recNo.length >= 2) {
+                    const rn = normalizeTurkishForSearch(recNo);
+                    pool = pool.filter((d) =>
+                        normalizeTurkishForSearch(d.description || '').includes(rn)
+                    );
                 } else {
-                    setLinkedDeviations(data || []);
+                    pool = [];
+                }
+
+                const scored = pool
+                    .filter((d) => !exactIds.has(d.id))
+                    .map((d) => {
+                        const result = scoreDeviationForIncomingInspection(d, insp);
+                        return { deviation: d, score: result.score, reasons: result.reasons, disqualify: result.disqualify };
+                    })
+                    .filter((x) => !x.disqualify && x.score >= SUGGEST_MIN_SCORE)
+                    .sort((a, b) => b.score - a.score);
+
+                const toAutoLink = scored.filter(
+                    (x) =>
+                        x.score >= AUTO_LINK_MIN_SCORE &&
+                        canAutoLinkDeviationToInspection(x.deviation, insp.id)
+                );
+
+                const details = buildIncomingInspectionSourceDetails(insp);
+
+                if (toAutoLink.length > 0) {
+                    const updateResults = await Promise.all(
+                        toAutoLink.map((x) =>
+                            supabase
+                                .from('deviations')
+                                .update({
+                                    source_type: 'incoming_inspection',
+                                    source_record_id: insp.id,
+                                    source_record_details: details,
+                                    source: 'Girdi Kalite Kontrol',
+                                })
+                                .eq('id', x.deviation.id)
+                        )
+                    );
+                    const failed = updateResults.filter((r) => r.error);
+                    if (failed.length > 0) {
+                        console.error('Bazı sapma güncellemeleri başarısız:', failed.map((f) => f.error));
+                    }
+                }
+
+                if (cancelled) return;
+
+                const exactFinal = await fetchExactLinkedDeviations(insp.id);
+                const finalIds = new Set(exactFinal.map((d) => d.id));
+
+                const suggestions = scored.filter(
+                    (x) =>
+                        !finalIds.has(x.deviation.id) &&
+                        canAutoLinkDeviationToInspection(x.deviation, insp.id) &&
+                        x.score >= SUGGEST_MIN_SCORE
+                );
+
+                setLinkedDeviations(exactFinal);
+                setSuggestedDeviations(suggestions);
+
+                if (toAutoLink.length > 0) {
+                    setAutoLinkMessage(
+                        `${toAutoLink.length} sapma kaydı parça kodu, kayıt no, tarih ve miktar ipuçlarıyla otomatik olarak bu muayeneye bağlandı.`
+                    );
+                    toast({
+                        title: 'Sapma eşleştirmesi',
+                        description: `${toAutoLink.length} sapma bu muayene ile ilişkilendirildi.`,
+                    });
+                    refreshDeviations?.();
                 }
             } catch (err) {
-                console.error('Sapma fetch hatası:', err);
-                setLinkedDeviations([]);
+                console.error('Sapma senkron hatası:', err);
+                if (!cancelled) {
+                    setLinkedDeviations([]);
+                    setSuggestedDeviations([]);
+                }
             } finally {
-                setLoadingDeviations(false);
+                if (!cancelled) {
+                    setLoadingDeviations(false);
+                }
             }
         };
 
-        fetchLinkedDeviations();
-    }, [isOpen, enrichedInspection?.id]);
+        syncDeviationsForInspection();
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, enrichedInspection, fetchExactLinkedDeviations, toast, refreshDeviations]);
 
     const getDecisionBadge = (decision) => {
         switch (decision) {
@@ -1256,44 +1433,120 @@ const IncomingInspectionDetailModal = ({
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Sapma modülünde kaynak olarak bu muayene seçilmediyse kayıtlar burada görünmez.
+                                    Aynı parça kodu, kayıt no, tarih ve miktar bilgileriyle eşleşen &quot;Girdi Kontrolü&quot;
+                                    sapmaları otomatik bağlanır; emin olmadığınız öneriler için aşağıdan tek tıkla bağlayabilirsiniz.
+                                </p>
+                                {autoLinkMessage ? (
+                                    <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                                        <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                                        <span>{autoLinkMessage}</span>
+                                    </div>
+                                ) : null}
                                 {loadingDeviations ? (
-                                    <div className="text-sm text-muted-foreground text-center py-2">
-                                        Sapmalar yükleniyor...
+                                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-4">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Sapmalar kontrol ediliyor…
                                     </div>
-                                ) : linkedDeviations.length > 0 ? (
-                                    linkedDeviations.map((deviation) => (
-                                        <div
-                                            key={deviation.id}
-                                            className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-white p-3"
-                                        >
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <Badge className="bg-blue-600">{deviation.request_no || 'Sapma'}</Badge>
-                                                    <Badge variant="outline">{deviation.status || '-'}</Badge>
-                                                </div>
-                                                <div className="text-xs text-muted-foreground mt-1 truncate">
-                                                    {deviation.description || deviation.requesting_unit || 'Açıklama girilmemiş'}
-                                                </div>
-                                                {deviation.created_at && (
-                                                    <div className="text-xs text-muted-foreground mt-1">
-                                                        Oluşturulma: {format(new Date(deviation.created_at), 'dd.MM.yyyy HH:mm', { locale: tr })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                onClick={() => openPrintableReport(deviation, 'deviation', true)}
+                                ) : null}
+                                {!loadingDeviations && linkedDeviations.length > 0 ? (
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-medium text-blue-900">Bağlı sapmalar</p>
+                                        {linkedDeviations.map((deviation) => (
+                                            <div
+                                                key={deviation.id}
+                                                className="flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-white p-3"
                                             >
-                                                <Eye className="h-4 w-4 mr-1" />
-                                                Raporu Aç
-                                            </Button>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="text-sm text-muted-foreground">
-                                        Bu muayene kaydı için ilişkilendirilmiş sapma bulunmuyor.
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <Badge className="bg-blue-600">{deviation.request_no || 'Sapma'}</Badge>
+                                                        <Badge variant="outline">{deviation.status || '-'}</Badge>
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground mt-1 truncate">
+                                                        {deviation.description || deviation.requesting_unit || 'Açıklama girilmemiş'}
+                                                    </div>
+                                                    {deviation.created_at && (
+                                                        <div className="text-xs text-muted-foreground mt-1">
+                                                            Oluşturulma:{' '}
+                                                            {format(new Date(deviation.created_at), 'dd.MM.yyyy HH:mm', {
+                                                                locale: tr,
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => openPrintableReport(deviation, 'deviation', true)}
+                                                >
+                                                    <Eye className="h-4 w-4 mr-1" />
+                                                    Raporu Aç
+                                                </Button>
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
+                                ) : null}
+                                {!loadingDeviations &&
+                                linkedDeviations.length === 0 &&
+                                suggestedDeviations.length === 0 ? (
+                                    <div className="text-sm text-muted-foreground">
+                                        Bu muayene için bağlı sapma yok; otomatik eşleşen aday da bulunamadı (parça kodu veya
+                                        kayıt no ile aynı dönemde oluşturulmuş sapma aranır).
+                                    </div>
+                                ) : null}
+                                {!loadingDeviations && suggestedDeviations.length > 0 ? (
+                                    <div className="space-y-2 pt-2 border-t border-blue-100">
+                                        <p className="text-xs font-medium text-amber-900">
+                                            {`Manuel bağlanabilir öneriler (otomatik bağlama eşiği ${AUTO_LINK_MIN_SCORE}+)`}
+                                        </p>
+                                        {suggestedDeviations.map((s) => (
+                                            <div
+                                                key={s.deviation.id}
+                                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/80 p-3"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <Badge variant="secondary">{s.deviation.request_no || 'Sapma'}</Badge>
+                                                        <Badge variant="outline" className="text-[10px]">
+                                                            Skor {s.score}
+                                                        </Badge>
+                                                        <Badge variant="outline">{s.deviation.status || '-'}</Badge>
+                                                    </div>
+                                                    <p className="text-[11px] text-muted-foreground mt-1">
+                                                        {s.reasons.slice(0, 4).join(' · ')}
+                                                    </p>
+                                                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                                        {s.deviation.description || '—'}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 shrink-0">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        disabled={linkingDeviationId === s.deviation.id}
+                                                        onClick={() => handleManualLinkDeviation(s.deviation.id)}
+                                                    >
+                                                        {linkingDeviationId === s.deviation.id ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <>
+                                                                <Link2 className="h-4 w-4 mr-1" />
+                                                                Bu muayeneye bağla
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => openPrintableReport(s.deviation, 'deviation', true)}
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : null}
                             </CardContent>
                         </Card>
                     </TabsContent>

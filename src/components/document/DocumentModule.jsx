@@ -384,6 +384,7 @@ const DocumentModule = () => {
                 setIsOpen={setIsFolderDownloadModalOpen}
                 documents={preparedDocuments}
                 categories={DOCUMENT_CATEGORIES.map(c => c.value)}
+                unitCostSettings={unitCostSettings || []}
             />
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
