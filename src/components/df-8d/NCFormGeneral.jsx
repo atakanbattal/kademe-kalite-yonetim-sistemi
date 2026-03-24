@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +11,7 @@ import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog
 import { supabase } from '@/lib/customSupabaseClient';
 import { Badge } from '@/components/ui/badge';
 import { useNCForm } from '@/hooks/useNCForm';
+import { useData } from '@/contexts/DataContext';
 import { Lightbox } from 'react-modal-image';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
 import { Loader2 } from 'lucide-react';
@@ -165,6 +166,24 @@ const NCFormGeneral = ({
     const [selectedSupplierStatus, setSelectedSupplierStatus] = useState(null);
     const { toInputDateString } = useNCForm();
     const [lightboxUrl, setLightboxUrl] = useState(null);
+    const { unitCostSettings } = useData();
+
+    const organizationUnitOptions = useMemo(() => {
+        const fromSettings = (unitCostSettings || [])
+            .map((u) => u.unit_name)
+            .filter(Boolean);
+        const names = new Set(fromSettings);
+        const extra = [];
+        if (formData.requesting_unit && !names.has(formData.requesting_unit)) {
+            extra.push(formData.requesting_unit);
+            names.add(formData.requesting_unit);
+        }
+        if (formData.department && !names.has(formData.department)) {
+            extra.push(formData.department);
+        }
+        const merged = [...extra, ...fromSettings];
+        return merged.map((name) => ({ value: name, label: name }));
+    }, [unitCostSettings, formData.requesting_unit, formData.department]);
 
     useEffect(() => {
         // Tedarikçi DF kontrolü: hem is_supplier_nc hem de supplier_id ile kontrol et
@@ -378,7 +397,19 @@ const NCFormGeneral = ({
             </div>
             <div>
                 <Label htmlFor="requesting_unit">Talep Eden Birim</Label>
-                <Input id="requesting_unit" value={formData.requesting_unit || ''} onChange={handleInputChange} disabled />
+                {organizationUnitOptions.length > 0 ? (
+                    <SearchableSelectDialog
+                        options={organizationUnitOptions}
+                        value={formData.requesting_unit || ''}
+                        onChange={(value) => setFormData((prev) => ({ ...prev, requesting_unit: value }))}
+                        triggerPlaceholder="Birim seçin..."
+                        dialogTitle="Talep Eden Birim"
+                        searchPlaceholder="Birim ara..."
+                        notFoundText="Birim bulunamadı. Ayarlardan birim ekleyin."
+                    />
+                ) : (
+                    <Input id="requesting_unit" value={formData.requesting_unit || ''} onChange={handleInputChange} />
+                )}
             </div>
 
             {!isSupplierNC && (
@@ -404,7 +435,19 @@ const NCFormGeneral = ({
                     </div>
                      <div>
                         <Label htmlFor="department">İlgili Birim <span className="text-red-500">*</span></Label>
-                        <Input id="department" value={formData.department || ''} onChange={handleInputChange} disabled />
+                        {organizationUnitOptions.length > 0 ? (
+                            <SearchableSelectDialog
+                                options={organizationUnitOptions}
+                                value={formData.department || ''}
+                                onChange={(value) => setFormData((prev) => ({ ...prev, department: value }))}
+                                triggerPlaceholder="İlgili birimi seçin..."
+                                dialogTitle="İlgili Birim"
+                                searchPlaceholder="Birim ara..."
+                                notFoundText="Birim bulunamadı. Ayarlardan birim ekleyin."
+                            />
+                        ) : (
+                            <Input id="department" value={formData.department || ''} onChange={handleInputChange} required />
+                        )}
                     </div>
                 </>
             )}

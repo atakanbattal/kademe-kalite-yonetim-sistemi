@@ -1,16 +1,32 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, Plus, Edit, Search } from 'lucide-react';
+import { Trash2, Plus, Edit, Search, User, Building2, Briefcase, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { formatPersonnelModuleField } from '@/lib/utils';
+
+const PERSONNEL_TITLE_FIELDS = ['full_name', 'department', 'management_department', 'job_title'];
+
+function displayPersonnelTitle(value) {
+    if (value == null || String(value).trim() === '') return '';
+    return formatPersonnelModuleField(String(value));
+}
+
+function collarDisplayLabel(type) {
+    if (type === 'MAVİ') return 'Mavi';
+    if (type === 'BEYAZ') return 'Beyaz';
+    return type || '';
+}
 
 /** Sicil no artan (en düşük üstte); boş sicil sonda; eşitlikte ad soyad */
 const comparePersonnelBySicil = (a, b) => {
@@ -33,9 +49,24 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        const initialData = { full_name: '', registration_number: '', department: '', job_title: '', is_active: true, unit_id: null };
-        if (isEditMode) {
-            setFormData({ ...existingPersonnel });
+        const initialData = {
+            full_name: '',
+            registration_number: '',
+            department: '',
+            management_department: '',
+            job_title: '',
+            collar_type: '',
+            is_active: true,
+            unit_id: null,
+        };
+        if (isEditMode && existingPersonnel) {
+            const p = { ...existingPersonnel };
+            for (const key of PERSONNEL_TITLE_FIELDS) {
+                if (typeof p[key] === 'string' && p[key].trim()) {
+                    p[key] = formatPersonnelModuleField(p[key]);
+                }
+            }
+            setFormData(p);
         } else {
             setFormData(initialData);
         }
@@ -44,18 +75,32 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
     const handleChange = (e) => {
         const { id, value } = e.target;
         setFormData(prev => ({...prev, [id]: value }));
-    }
+    };
+
+    const handleTitleFieldBlur = (e) => {
+        const { id, value } = e.target;
+        if (!PERSONNEL_TITLE_FIELDS.includes(id)) return;
+        const formatted = formatPersonnelModuleField(value);
+        if (formatted !== value) {
+            setFormData((prev) => ({ ...prev, [id]: formatted }));
+        }
+    };
     
     const handleCheckboxChange = (id, checked) => {
         setFormData(prev => ({...prev, [id]: checked }));
     };
 
+    const handleCollarChange = (value) => {
+        setFormData((prev) => ({ ...prev, collar_type: value === '__none__' ? '' : value }));
+    };
+
     const handleUnitChange = (unitId) => {
         const selectedUnit = units.find(u => u.id === unitId);
+        const rawName = selectedUnit?.unit_name ?? '';
         setFormData(prev => ({
             ...prev,
             unit_id: unitId,
-            department: selectedUnit ? selectedUnit.unit_name : ''
+            department: rawName ? formatPersonnelModuleField(rawName) : '',
         }));
     };
 
@@ -68,7 +113,13 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
         setIsSubmitting(true);
         
         let error;
-        const { id, created_at, updated_at, unit, ...dataToSubmit } = formData;
+        const { id, created_at, updated_at, unit, ...raw } = formData;
+        const dataToSubmit = { ...raw };
+        for (const key of PERSONNEL_TITLE_FIELDS) {
+            if (typeof dataToSubmit[key] === 'string') {
+                dataToSubmit[key] = formatPersonnelModuleField(dataToSubmit[key]);
+            }
+        }
       
         if (isEditMode) {
             const { error: updateError } = await supabase.from('personnel').update(dataToSubmit).eq('id', existingPersonnel.id);
@@ -87,70 +138,170 @@ const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units
         setIsSubmitting(false);
     }
     
-    const unitOptions = units.map(unit => ({ value: unit.id, label: unit.unit_name }));
+    const unitOptions = useMemo(
+        () =>
+            units.map((unit) => ({
+                value: unit.id,
+                label: formatPersonnelModuleField(unit.unit_name || ''),
+            })),
+        [units]
+    );
 
     if (units.length === 0 && !isEditMode) {
          return (
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Birim Bulunamadı</DialogTitle>
+                        <DialogTitle>Önce birim tanımlayın</DialogTitle>
                         <DialogDescription>
-                            Yeni personel ekleyebilmek için önce sistemde en az bir birim tanımlanmalıdır. Lütfen "Birim Maliyetleri" sekmesinden yeni bir birim ekleyin.
+                            Yeni personel eklemek için en az bir organizasyon birimi gerekir. &quot;Birim Maliyetleri&quot; sekmesinden birim ekleyip bu ekrana dönün.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button onClick={() => setOpen(false)}>Anladım</Button>
+                        <Button onClick={() => setOpen(false)}>Tamam</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         );
     }
 
+    const formId = 'personnel-form-main';
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <DialogTitle>{isEditMode ? 'Personel Düzenle' : 'Yeni Personel Ekle'}</DialogTitle>
+            <DialogContent className="sm:max-w-2xl w-[96vw] max-h-[min(92vh,calc(100vh-1.5rem))] p-0 gap-0 overflow-hidden grid grid-rows-[auto_minmax(0,1fr)_auto]">
+                <DialogHeader className="px-6 pt-6 pb-3 border-b border-border shrink-0 text-left">
+                    <DialogTitle className="text-xl">{isEditMode ? 'Personeli düzenle' : 'Yeni personel'}</DialogTitle>
+                    <DialogDescription className="text-sm leading-relaxed">
+                        {isEditMode
+                            ? 'Kimlik, birim ve ünvan bilgilerini güncelleyin. Durum &quot;Pasif&quot; ise personel çoğu seçicide görünmez.'
+                            : 'Birimi listeden seçin; birim adı otomatik olarak düzgün yazım (Satınalma, Üretim müdürlüğü) ile dolar. Üst departman ve yaka alanlarını doldurun.'}
+                    </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                    <div>
-                        <Label htmlFor="full_name">Ad Soyad <span className="text-red-500">*</span></Label>
-                        <Input id="full_name" value={formData.full_name || ''} onChange={handleChange} required />
-                    </div>
-                    <div>
-                        <Label htmlFor="registration_number">Sicil Numarası</Label>
-                        <Input id="registration_number" value={formData.registration_number || ''} onChange={handleChange} />
-                    </div>
-                    <div>
-                        <Label htmlFor="unit_id">Birim <span className="text-red-500">*</span></Label>
-                        <SearchableSelectDialog
-                            options={unitOptions}
-                            value={formData.unit_id || ''}
-                            onChange={handleUnitChange}
-                            triggerPlaceholder="Birim seçin..."
-                            dialogTitle="Birim Seç"
-                            searchPlaceholder="Birim ara..."
-                            notFoundText="Birim bulunamadı."
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Personelin ana birimi. Departman alanı otomatik dolar, ancak manuel değiştirilebilir.</p>
-                    </div>
-                    <div>
-                        <Label htmlFor="department">Departman</Label>
-                        <Input id="department" value={formData.department || ''} onChange={handleChange} placeholder="Örn: Kalite Kontrol"/>
-                    </div>
-                     <div className="md:col-span-2">
-                        <Label htmlFor="job_title">Görevi</Label>
-                        <Input id="job_title" value={formData.job_title || ''} onChange={handleChange} />
-                    </div>
-                    <div className="flex items-center space-x-2 pt-6">
-                        <Checkbox id="is_active" checked={!!formData.is_active} onCheckedChange={(c) => handleCheckboxChange('is_active', c)} />
-                        <Label htmlFor="is_active">Aktif</Label>
-                    </div>
-                    <DialogFooter className="md:col-span-2 mt-4">
-                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}</Button>
-                    </DialogFooter>
-                </form>
+                <div className="min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-4">
+                    <form id={formId} onSubmit={handleSubmit} className="space-y-6 pb-2">
+                        <section className="space-y-3">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                <User className="h-4 w-4 shrink-0" aria-hidden />
+                                <span>Kimlik</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="full_name">Ad soyad <span className="text-destructive">*</span></Label>
+                                    <Input id="full_name" value={formData.full_name || ''} onChange={handleChange} onBlur={handleTitleFieldBlur} required autoComplete="name" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="registration_number">Sicil numarası</Label>
+                                    <Input id="registration_number" value={formData.registration_number || ''} onChange={handleChange} placeholder="Örn: A012345" className="font-mono" />
+                                </div>
+                            </div>
+                        </section>
+
+                        <Separator />
+
+                        <section className="space-y-3">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                <Building2 className="h-4 w-4 shrink-0" aria-hidden />
+                                <span>Organizasyon ve birim</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label>Birim (maliyet / organizasyon) <span className="text-destructive">*</span></Label>
+                                    <SearchableSelectDialog
+                                        options={unitOptions}
+                                        value={formData.unit_id || ''}
+                                        onChange={handleUnitChange}
+                                        triggerPlaceholder="Listeden birim seçin..."
+                                        dialogTitle="Birim seç"
+                                        searchPlaceholder="Birim ara..."
+                                        notFoundText="Birim bulunamadı."
+                                    />
+                                    <p className="text-xs text-muted-foreground">Seçim, sistemdeki birim adına ve maliyet kaydına bağlanır.</p>
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label htmlFor="department">Birim adı (görünen)</Label>
+                                    <Input
+                                        id="department"
+                                        value={formData.department || ''}
+                                        onChange={handleChange}
+                                        onBlur={handleTitleFieldBlur}
+                                        placeholder="Birim seçince otomatik dolar; gerekirse düzenleyin"
+                                    />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label htmlFor="management_department">Üst departman / müdürlük</Label>
+                                    <Input
+                                        id="management_department"
+                                        value={formData.management_department || ''}
+                                        onChange={handleChange}
+                                        onBlur={handleTitleFieldBlur}
+                                        placeholder="Örn: Üretim müdürlüğü (üst yapı)"
+                                    />
+                                    <p className="text-xs text-muted-foreground">PL’deki üst yapı; listede tam metin olarak gösterilir.</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <Separator />
+
+                        <section className="space-y-3">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                <Briefcase className="h-4 w-4 shrink-0" aria-hidden />
+                                <span>Ünvan</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="collar_type">Yaka (MAVİ / BEYAZ)</Label>
+                                    <Select value={formData.collar_type || '__none__'} onValueChange={handleCollarChange}>
+                                        <SelectTrigger id="collar_type">
+                                            <SelectValue placeholder="Seçiniz" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__none__">Belirtilmedi</SelectItem>
+                                            <SelectItem value="MAVİ">Mavi</SelectItem>
+                                            <SelectItem value="BEYAZ">Beyaz</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label htmlFor="job_title">Şirket ünvanı / görev</Label>
+                                    <Input id="job_title" value={formData.job_title || ''} onChange={handleChange} onBlur={handleTitleFieldBlur} placeholder="Örn: Montaj formeni" />
+                                </div>
+                            </div>
+                        </section>
+
+                        <Separator />
+
+                        <section className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
+                                <span>Durum</span>
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <Label htmlFor="is_active_switch" className="text-base font-medium text-foreground">Aktif personel</Label>
+                                    <p className="text-sm text-muted-foreground mt-0.5">
+                                        Kapalıysa pasif sayılır; DF, sapma ve benzeri modüllerde seçilmez.
+                                    </p>
+                                </div>
+                                <Switch
+                                    id="is_active_switch"
+                                    checked={!!formData.is_active}
+                                    onCheckedChange={(c) => handleCheckboxChange('is_active', c)}
+                                    className="shrink-0"
+                                />
+                            </div>
+                        </section>
+                    </form>
+                </div>
+                <DialogFooter className="px-6 py-4 border-t border-border shrink-0 flex flex-row gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
+                        İptal
+                    </Button>
+                    <Button type="submit" form={formId} disabled={isSubmitting}>
+                        {isSubmitting ? 'Kaydediliyor...' : isEditMode ? 'Güncelle' : 'Personeli kaydet'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -164,6 +315,8 @@ const PersonnelManager = () => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [editingPersonnel, setEditingPersonnel] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [togglingId, setTogglingId] = useState(null);
     const [transferModalOpen, setTransferModalOpen] = useState(false);
     const [personnelToDelete, setPersonnelToDelete] = useState(null);
     const [targetPersonnelId, setTargetPersonnelId] = useState(null);
@@ -190,16 +343,45 @@ const PersonnelManager = () => {
 
     useEffect(() => { fetchData() }, [fetchData]);
 
-    const filteredPersonnel = useMemo(() => {
-        if (!searchTerm) return personnel;
+    const statusCounts = useMemo(() => {
+        const active = personnel.filter((p) => p.is_active !== false).length;
+        return { all: personnel.length, active, inactive: personnel.length - active };
+    }, [personnel]);
+
+    const searchedPersonnel = useMemo(() => {
+        if (!searchTerm.trim()) return personnel;
         const lowercasedTerm = searchTerm.toLowerCase();
         return personnel.filter(p =>
             p.full_name.toLowerCase().includes(lowercasedTerm) ||
             (p.registration_number && p.registration_number.toLowerCase().includes(lowercasedTerm)) ||
             p.department?.toLowerCase().includes(lowercasedTerm) ||
-            p.job_title?.toLowerCase().includes(lowercasedTerm)
+            p.job_title?.toLowerCase().includes(lowercasedTerm) ||
+            p.management_department?.toLowerCase().includes(lowercasedTerm) ||
+            p.collar_type?.toLowerCase().includes(lowercasedTerm) ||
+            p.unit?.unit_name?.toLowerCase().includes(lowercasedTerm)
         );
     }, [personnel, searchTerm]);
+
+    const filteredPersonnel = useMemo(() => {
+        if (statusFilter === 'active') return searchedPersonnel.filter((p) => p.is_active !== false);
+        if (statusFilter === 'inactive') return searchedPersonnel.filter((p) => p.is_active === false);
+        return searchedPersonnel;
+    }, [searchedPersonnel, statusFilter]);
+
+    const setPersonnelActive = async (p, checked) => {
+        const wasActive = p.is_active !== false;
+        if (wasActive === checked) return;
+        setTogglingId(p.id);
+        setPersonnel((prev) => prev.map((x) => (x.id === p.id ? { ...x, is_active: checked } : x)));
+        const { error } = await supabase.from('personnel').update({ is_active: checked }).eq('id', p.id);
+        setTogglingId(null);
+        if (error) {
+            setPersonnel((prev) => prev.map((x) => (x.id === p.id ? { ...x, is_active: wasActive } : x)));
+            toast({ variant: 'destructive', title: 'Güncellenemedi', description: error.message });
+        } else {
+            toast({ title: checked ? 'Personel aktif' : 'Personel pasif', description: `${p.full_name} durumu kaydedildi.` });
+        }
+    };
     
     const openModal = (person = null) => {
         setEditingPersonnel(person);
@@ -364,44 +546,121 @@ const PersonnelManager = () => {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="dashboard-widget">
             {isModalOpen && <PersonnelFormModal open={isModalOpen} setOpen={setModalOpen} onSuccess={handleSuccess} existingPersonnel={editingPersonnel} units={units} />}
-            <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
-                <h2 className="widget-title">Personel Listesi</h2>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="search-box w-full sm:w-auto">
+            <div className="flex flex-col gap-4 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h2 className="widget-title">Personel listesi</h2>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Üst departman ve yaka bilgileri tabloda görünür; durumu filtreleyebilir veya satırdan anında değiştirebilirsiniz.
+                        </p>
+                    </div>
+                    <Button size="sm" onClick={() => openModal()} className="flex-shrink-0 self-start sm:self-center">
+                        <Plus className="w-4 h-4 mr-2" /> Yeni personel
+                    </Button>
+                </div>
+                <div className="flex flex-col lg:flex-row gap-3 lg:items-end">
+                    <div className="search-box w-full lg:max-w-md flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="Personel ara..."
+                            placeholder="Ad, sicil, birim, üst departman, yaka veya ünvan ara..."
                             className="search-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => openModal()} className="flex-shrink-0"><Plus className="w-4 h-4 mr-2" /> Yeni Personel Ekle</Button>
+                    <div className="flex flex-col gap-1.5 w-full sm:w-auto min-w-[200px]">
+                        <Label className="text-xs text-muted-foreground">Durum filtresi</Label>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger aria-label="Personel durum filtresi">
+                                <SelectValue placeholder="Durum" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tümü ({statusCounts.all})</SelectItem>
+                                <SelectItem value="active">Aktif ({statusCounts.active})</SelectItem>
+                                <SelectItem value="inactive">Pasif ({statusCounts.inactive})</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="data-table">
                     <thead>
                         <tr>
-                            <th>S.No</th>
-                            <th>Ad Soyad</th>
-                            <th>Sicil No</th>
-                            <th>Görevi</th>
-                            <th>Departman</th>
-                            <th>Durum</th>
+                            <th className="w-10">S.No</th>
+                            <th>Ad soyad</th>
+                            <th>Sicil</th>
+                            <th>Birim</th>
+                            <th className="min-w-[220px] max-w-[280px]">Üst departman / müdürlük</th>
+                            <th>Yaka</th>
+                            <th className="min-w-[160px]">Şirket ünvanı</th>
+                            <th className="whitespace-nowrap">Aktif</th>
                             <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {loading ? <tr><td colSpan="7" className="text-center">Yükleniyor...</td></tr> : filteredPersonnel.map((p, index) => (
-                            <tr key={p.id}>
-                                <td>{index + 1}</td>
-                                <td className="font-medium">{p.full_name}</td>
-                                <td>{p.registration_number}</td>
-                                <td>{p.job_title}</td>
-                                <td>{p.department}</td>
-                                <td><Badge variant={p.is_active ? "success" : "destructive"}>{p.is_active ? 'Aktif' : 'Pasif'}</Badge></td>
+                        {loading ? (
+                            <tr><td colSpan="9" className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                        ) : filteredPersonnel.length === 0 ? (
+                            <tr>
+                                <td colSpan="9" className="text-center py-10 text-muted-foreground">
+                                    {personnel.length === 0
+                                        ? 'Henüz personel yok. Yeni personel ile ekleyebilirsiniz.'
+                                        : 'Filtre veya arama kriterlerine uygun kayıt yok.'}
+                                </td>
+                            </tr>
+                        ) : filteredPersonnel.map((p, index) => (
+                            <tr
+                                key={p.id}
+                                className={p.is_active === false ? 'bg-muted/40 text-muted-foreground' : undefined}
+                            >
+                                <td className="tabular-nums text-muted-foreground">{index + 1}</td>
+                                <td className="font-medium">{displayPersonnelTitle(p.full_name) || '—'}</td>
+                                <td className="font-mono text-sm">{p.registration_number || '—'}</td>
+                                <td className="text-sm">
+                                    {displayPersonnelTitle(p.unit?.unit_name || p.department) || '—'}
+                                </td>
+                                <td className="text-sm align-top">
+                                    {p.management_department ? (
+                                        <span className="block leading-snug whitespace-normal break-words">
+                                            {displayPersonnelTitle(p.management_department)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                    )}
+                                </td>
+                                <td>
+                                    {p.collar_type ? (
+                                        <Badge variant={p.collar_type === 'MAVİ' ? 'default' : 'secondary'} className="font-medium">
+                                            {collarDisplayLabel(p.collar_type)}
+                                        </Badge>
+                                    ) : (
+                                        <span className="text-muted-foreground text-sm">—</span>
+                                    )}
+                                </td>
+                                <td className="text-sm align-top">
+                                    {p.job_title ? (
+                                        <span className="block leading-snug whitespace-normal break-words">
+                                            {displayPersonnelTitle(p.job_title)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                    )}
+                                </td>
+                                <td>
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            checked={p.is_active !== false}
+                                            onCheckedChange={(checked) => setPersonnelActive(p, checked)}
+                                            disabled={togglingId === p.id}
+                                            aria-label={p.is_active !== false ? `${p.full_name} pasif yap` : `${p.full_name} aktif yap`}
+                                        />
+                                        <span className="text-xs text-muted-foreground hidden xl:inline">
+                                            {p.is_active !== false ? 'Aktif' : 'Pasif'}
+                                        </span>
+                                    </div>
+                                </td>
                                 <td className="flex gap-2">
                                     <Button size="sm" variant="outline" onClick={() => openModal(p)}><Edit className="w-4 h-4 mr-1" /> Düzenle</Button>
                                     <Button 

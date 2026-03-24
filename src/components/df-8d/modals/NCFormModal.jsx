@@ -13,7 +13,7 @@ const NCFormModal = ({ isOpen, setIsOpen, record, onSave, onSaveSuccess }) => {
     const { toast } = useToast();
     const {
         formData, setFormData, files, handleInputChange, handleOpeningDateChange,
-        handleSelectChange, handlePersonnelChange, personnel, departments,
+        handleSelectChange, handlePersonnelChange, personnel,
         getRootProps, getInputProps, isDragActive, removeFile
     } = useNCForm();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -72,12 +72,12 @@ const NCFormModal = ({ isOpen, setIsOpen, record, onSave, onSaveSuccess }) => {
                                 <TabsContent value="general" className="mt-4">
                                     <NCFormGeneral
                                         formData={formData}
+                                        setFormData={setFormData}
                                         handleInputChange={handleInputChange}
                                         handleOpeningDateChange={handleOpeningDateChange}
                                         handleSelectChange={handleSelectChange}
                                         handlePersonnelChange={handlePersonnelChange}
                                         personnel={personnel}
-                                        departments={departments}
                                         getRootProps={getRootProps}
                                         getInputProps={getInputProps}
                                         isDragActive={isDragActive}

@@ -325,3 +325,96 @@ export function checkBalanceResult(residualWeight, uperLimit) {
     }
     return residualWeight <= uperLimit;
 }
+
+const TR_LOCALE = 'tr-TR';
+
+/**
+ * ASCII I ile yazılınca tr-TR toLowerCase ile bozulabilecek isimler (FATIH → fatıh olmaması için en-US title).
+ * Küçük harf karşılaştırması en-US ile yapılır.
+ */
+const PERSONNEL_NAME_ASCII_I_EXCEPTIONS = new Set(['fatih']);
+
+/**
+ * Personel modülü metinleri: kelime başı büyük (title case), tr-TR ile I/İ/ı kuralları.
+ * "Yilmaz" / "YILMAZ" → "Yılmaz"; "Yigit" / "YIGIT" → "Yiğit". "Fatih" / "FATIH" → "Fatih".
+ */
+function formatPersonnelBareWord(word) {
+    if (!word) return word;
+    const core = word.normalize('NFC');
+    if (!/[A-Za-zÇçĞğİıÖöŞşÜü]/.test(core)) return word;
+
+    const enLower = core.toLocaleLowerCase('en-US');
+
+    if (enLower === 'yigit') {
+        return 'Yiğit';
+    }
+
+    if (enLower === 'satinalma') {
+        return 'Satınalma';
+    }
+
+    if (PERSONNEL_NAME_ASCII_I_EXCEPTIONS.has(enLower)) {
+        const first = core.charAt(0).toLocaleUpperCase('en-US');
+        const rest = core.slice(1).toLocaleLowerCase('en-US');
+        return first + rest;
+    }
+
+    const hasTurkishLetter = /[ÇçĞğİıÖöŞşÜü]/.test(core);
+    const asciiLettersOnly = /^[A-Za-z]+$/.test(core);
+
+    let s;
+    if (asciiLettersOnly && !hasTurkishLetter) {
+        s = core.toLocaleLowerCase(TR_LOCALE);
+        s = s.replace(/^([yY])([iI])(?=[lL])/g, (_, y) => `${y}\u0131`);
+    } else {
+        s = core.toLocaleLowerCase(TR_LOCALE);
+    }
+
+    const first = s.charAt(0).toLocaleUpperCase(TR_LOCALE);
+    const rest = s.slice(1);
+    return first + rest;
+}
+
+function formatPersonnelHyphenPart(segment) {
+    if (!segment) return segment;
+    if (segment.includes('-')) {
+        return segment.split('-').map((p) => formatPersonnelBareWord(p)).join('-');
+    }
+    return formatPersonnelBareWord(segment);
+}
+
+/**
+ * Boşluklarla ayrılmış (ve AR-GE gibi tireli) personel alanları için title case + Türkçe karakter düzeltmesi.
+ * Parantez / noktalama içeren parçalar mümkün olduğunca korunur.
+ */
+export function formatPersonnelModuleField(text) {
+    if (text == null || typeof text !== 'string') return text;
+    const normalized = text.normalize('NFC').replace(/\s+/g, ' ').trim();
+    if (!normalized) return '';
+
+    return normalized
+        .split(/\s+/)
+        .map((token) => {
+            let pre = '';
+            let post = '';
+            let w = token;
+            if (w.startsWith('(')) {
+                pre = '(';
+                w = w.slice(1);
+            }
+            if (w.endsWith(')')) {
+                post = ')';
+                w = w.slice(0, -1);
+            }
+            if (!w) return pre + post;
+            const trailing = w.match(/([.,;:]+)$/);
+            let mid = w;
+            let trail = '';
+            if (trailing) {
+                trail = trailing[1];
+                mid = w.slice(0, -trail.length);
+            }
+            return pre + formatPersonnelHyphenPart(mid) + trail + post;
+        })
+        .join(' ');
+}

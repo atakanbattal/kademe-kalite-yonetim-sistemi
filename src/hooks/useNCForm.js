@@ -89,7 +89,10 @@ import { useContext, useEffect, useCallback } from 'react';
                     .map(p => ({
                         id: p.id,
                         full_name: p.full_name,
-                        department: p.department
+                        department: p.department,
+                        job_title: p.job_title,
+                        collar_type: p.collar_type,
+                        management_department: p.management_department,
                     }));
                 setPersonnel(activePersonnel);
                 console.log('✅ Personnel loaded from DataContext:', activePersonnel.length, 'personnel');
