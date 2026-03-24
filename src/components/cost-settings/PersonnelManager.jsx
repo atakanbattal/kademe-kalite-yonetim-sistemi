@@ -12,6 +12,20 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 
+/** Sicil no artan (en düşük üstte); boş sicil sonda; eşitlikte ad soyad */
+const comparePersonnelBySicil = (a, b) => {
+    const sa = String(a.registration_number ?? '').trim();
+    const sb = String(b.registration_number ?? '').trim();
+    if (!sa && !sb) {
+        return (a.full_name || '').localeCompare(b.full_name || '', 'tr');
+    }
+    if (!sa) return 1;
+    if (!sb) return -1;
+    const bySicil = sa.localeCompare(sb, 'tr', { numeric: true, sensitivity: 'base' });
+    if (bySicil !== 0) return bySicil;
+    return (a.full_name || '').localeCompare(b.full_name || '', 'tr');
+};
+
 const PersonnelFormModal = ({ open, setOpen, onSuccess, existingPersonnel, units }) => {
     const { toast } = useToast();
     const isEditMode = !!existingPersonnel;
@@ -156,10 +170,19 @@ const PersonnelManager = () => {
 
     const fetchData = useCallback(async () => {
         setLoading(true);
-        const { data: personnelData, error: personnelError } = await supabase.from('personnel').select('*, unit:cost_settings(unit_name)').order('full_name');
+        const { data: personnelData, error: personnelError } = await supabase.from('personnel').select('*, unit:cost_settings(unit_name)');
         const { data: unitsData, error: unitsError } = await supabase.from('cost_settings').select('*').order('unit_name');
 
-        if (personnelError) toast({ variant: 'destructive', title: 'Personel alınamadı!' }); else setPersonnel(personnelData.map(p => ({...p, department: p.department || p.unit?.unit_name })));
+        if (personnelError) {
+            toast({ variant: 'destructive', title: 'Personel alınamadı!' });
+        } else {
+            const mapped = (personnelData || []).map((p) => ({
+                ...p,
+                department: p.department || p.unit?.unit_name,
+            }));
+            mapped.sort(comparePersonnelBySicil);
+            setPersonnel(mapped);
+        }
         if (unitsError) toast({ variant: 'destructive', title: 'Birimler alınamadı!' }); else setUnits(unitsData);
         
         setLoading(false);
