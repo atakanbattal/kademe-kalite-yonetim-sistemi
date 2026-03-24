@@ -496,6 +496,28 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
         }
 
         delete cleanedData.created_at;
+
+        if (!isEditMode) {
+            const yearMatch = String(formData.request_no || '').match(/^(\d{4})/);
+            const yearForNo = yearMatch ? parseInt(yearMatch[1], 10) : new Date().getFullYear();
+            const devType = cleanedData.deviation_type || 'Girdi Kontrolü';
+            const { data: rpcRequestNo, error: rpcNoError } = await supabase.rpc('next_deviation_request_no', {
+                p_year: yearForNo,
+                p_deviation_type: devType,
+            });
+            if (rpcNoError) {
+                toast({ variant: 'destructive', title: 'Hata!', description: `Talep numarası alınamadı: ${rpcNoError.message}` });
+                setIsSubmitting(false);
+                return;
+            }
+            if (!rpcRequestNo) {
+                toast({ variant: 'destructive', title: 'Hata!', description: 'Talep numarası alınamadı.' });
+                setIsSubmitting(false);
+                return;
+            }
+            cleanedData.request_no = rpcRequestNo;
+        }
+
         if (cleanedData.record_date instanceof Date && !Number.isNaN(cleanedData.record_date.getTime())) {
             const d = cleanedData.record_date;
             cleanedData.record_date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

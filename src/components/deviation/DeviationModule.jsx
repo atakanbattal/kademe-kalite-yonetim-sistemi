@@ -17,6 +17,7 @@ import { useData } from '@/contexts/DataContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, parseISO, isAfter, isBefore } from 'date-fns';
 import { normalizeTurkishForSearch } from '@/lib/utils';
+import { compareDeviationsByRequestNo } from '@/lib/deviationRequestNoSort';
 
 const DeviationModule = ({ onOpenNCForm }) => {
     const { toast } = useToast();
@@ -100,7 +101,7 @@ const DeviationModule = ({ onOpenNCForm }) => {
             }
 
             return matchesSearch && matchesStatus && matchesUnit && matchesSource && matchesDate;
-        }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        }).sort(compareDeviationsByRequestNo);
     }, [deviations, filters]);
 
     const handleOpenForm = (deviation = null) => {
