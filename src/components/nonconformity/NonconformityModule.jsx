@@ -636,22 +636,60 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { record, selectedType } = convertDialog;
     if (!record || !selectedType) return;
 
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
+    const recNo = getDisplayRecordNumber(record);
+    const partCount = record.part_code ? (partCodeAnalysis[record.part_code]?.inPeriod || 0) : 0;
+    const catCount = record.category ? (categoryAnalysis[record.category]?.inPeriod || 0) : 0;
+
+    const L = [
+      '■ KAYNAK BİLGİSİ',
+      `  Uygunsuzluk No : ${recNo}`,
+      `  Tespit Tarihi  : ${fmtDate(record.detection_date)}`,
+      `  Tespit Alanı   : ${record.detection_area || '-'}`,
+      `  Tespit Eden    : ${record.detected_by || '-'}`,
+      `  Ciddiyet       : ${record.severity || '-'}`,
+      record.shift ? `  Vardiya         : ${record.shift}` : null,
+      '',
+      '■ ÜRÜN / PARÇA BİLGİSİ',
+      record.part_code ? `  Parça Kodu      : ${record.part_code}` : null,
+      record.part_name ? `  Parça Adı       : ${record.part_name}` : null,
+      record.vehicle_type ? `  Araç Tipi       : ${record.vehicle_type}` : null,
+      record.vehicle_identifier ? `  Araç Seri/Şasi  : ${record.vehicle_identifier}` : null,
+      '',
+      '■ UYGUNSUZLUK DETAYI',
+      `  Kategori        : ${record.category || '-'}`,
+      `  Hatalı Adet     : ${record.quantity || '-'}`,
+      record.department ? `  Sorumlu Birim   : ${record.department}` : null,
+      record.responsible_person ? `  Sorumlu Kişi    : ${record.responsible_person}` : null,
+      '',
+      '  Açıklama:',
+      `  ${(record.description || '-').replace(/\n/g, '\n  ')}`,
+    ];
+
+    if (partCount > 1 || catCount > 1) {
+      L.push('', '■ TEKRAR ANALİZİ');
+      if (partCount > 1)
+        L.push(`  Aynı parça kodu (${record.part_code}) son dönemde ${partCount} kez tekrarladı.`);
+      if (catCount > 1)
+        L.push(`  Aynı kategori (${record.category}) son dönemde ${catCount} kez tekrarladı.`);
+    }
+
+    if (record.action_taken) {
+      L.push('', '■ ALINAN ACİL AKSİYON', `  ${record.action_taken.replace(/\n/g, '\n  ')}`);
+    }
+
+    if (record.notes) {
+      L.push('', '■ EK NOTLAR', `  ${record.notes.replace(/\n/g, '\n  ')}`);
+    }
+
+    const titleParts = [record.category || 'Uygunsuzluk'];
+    if (record.part_code) titleParts.push(record.part_code);
+    else if (record.vehicle_type && record.vehicle_identifier) titleParts.push(`${record.vehicle_type}/${record.vehicle_identifier}`);
+    else if (record.vehicle_type) titleParts.push(record.vehicle_type);
+
     const ncFormData = {
-      title: `[UYG] ${record.part_code || ''} - ${record.description?.substring(0, 80) || 'Uygunsuzluk'}`,
-      description: [
-        `Kaynak: Uygunsuzluk Yönetimi (${getDisplayRecordNumber(record)})`,
-        `Parça Kodu: ${record.part_code || '-'}`,
-        `Parça Adı: ${record.part_name || '-'}`,
-        `Kategori: ${record.category || '-'}`,
-        `Tespit Alanı: ${record.detection_area || '-'}`,
-        `Tespit Eden: ${record.detected_by || '-'}`,
-        `Sorumlu Kişi: ${record.responsible_person || '-'}`,
-        `Ciddiyet: ${record.severity || '-'}`,
-        `Adet: ${record.quantity || '-'}`,
-        '',
-        `Açıklama: ${record.description || '-'}`,
-        record.action_taken ? `Alınan Acil Aksiyon: ${record.action_taken}` : '',
-      ].filter(Boolean).join('\n'),
+      title: `[UYG-${recNo}] ${titleParts.join(' — ')}`,
+      description: L.filter(l => l !== null).join('\n'),
       type: selectedType,
       part_code: record.part_code || '',
       part_name: record.part_name || '',
@@ -690,25 +728,81 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const sorted = [...group.records].sort(
       (a, b) => new Date(a.detection_date || 0) - new Date(b.detection_date || 0)
     );
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
+    const earliest = sorted[0]?.detection_date;
+    const latest = sorted[sorted.length - 1]?.detection_date;
+
+    const deptCounts = {};
+    const vehicleCounts = {};
+    const faultSnippets = {};
+    sorted.forEach(r => {
+      if (r.department) deptCounts[r.department] = (deptCounts[r.department] || 0) + 1;
+      if (r.vehicle_type) vehicleCounts[r.vehicle_type] = (vehicleCounts[r.vehicle_type] || 0) + 1;
+
+      const desc = r.description || '';
+      const lines = desc.split('\n').filter(l => l.startsWith('- ') || l.startsWith('• '));
+      lines.forEach(l => {
+        const clean = l.replace(/^[-•]\s*/, '').trim();
+        if (clean) faultSnippets[clean] = (faultSnippets[clean] || 0) + 1;
+      });
+    });
+
+    const topDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]);
+    const topVehicles = Object.entries(vehicleCounts).sort((a, b) => b[1] - a[1]);
+    const topFaults = Object.entries(faultSnippets).sort((a, b) => b[1] - a[1]).slice(0, 15);
+    const sevEntries = Object.entries(group.severities).sort((a, b) => b[1] - a[1]);
+
+    const descLines = [
+      '■ GRUP ÖZETİ',
+      `  Kategori        : ${group.category}`,
+      `  Tespit Alanı    : ${group.detection_area}`,
+      `  Toplam Kayıt    : ${group.records.length}`,
+      `  Toplam Adet     : ${group.totalQuantity}`,
+      `  Dönem           : ${fmtDate(earliest)} — ${fmtDate(latest)}`,
+      `  Ciddiyet Dağılımı: ${sevEntries.map(([s, c]) => `${s}: ${c}`).join(' | ')}`,
+    ];
+
+    if (topDepts.length > 0) {
+      descLines.push('', '■ ETKİLENEN BİRİMLER');
+      topDepts.forEach(([d, c]) => descLines.push(`  ${d}: ${c} kayıt`));
+    }
+
+    if (topVehicles.length > 0) {
+      descLines.push('', '■ ETKİLENEN ARAÇ TİPLERİ');
+      topVehicles.forEach(([v, c]) => descLines.push(`  ${v}: ${c} kayıt`));
+    }
+
+    if (topFaults.length > 0) {
+      descLines.push('', '■ EN SIK TEKRARLAYAN HATALAR');
+      topFaults.forEach(([f, c]) => descLines.push(`  • ${f}${c > 1 ? ` (${c}x)` : ''}`));
+    }
+
+    descLines.push('', '■ İLGİLİ UYGUNSUZLUK KAYITLARI');
+    sorted.slice(0, 50).forEach(r => {
+      const vInfo = [r.vehicle_type, r.vehicle_identifier].filter(Boolean).join('/');
+      descLines.push(
+        `  ${getDisplayRecordNumber(r)} | ${fmtDate(r.detection_date)} | ${vInfo || r.part_code || '-'} | x${r.quantity || 1} | ${r.severity || '-'}`
+      );
+    });
+    if (sorted.length > 50) descLines.push(`  ... ve ${sorted.length - 50} kayıt daha`);
+
+    const actionRecords = sorted.filter(r => r.action_taken);
+    if (actionRecords.length > 0) {
+      descLines.push('', '■ ALINAN ACİL AKSİYONLAR');
+      actionRecords.slice(0, 10).forEach(r => {
+        descLines.push(`  ${getDisplayRecordNumber(r)}: ${r.action_taken.substring(0, 120)}`);
+      });
+    }
+
+    const mostCommonDept = topDepts[0]?.[0] || '';
+    const mostCommonVehicle = topVehicles[0]?.[0] || '';
 
     const ncFormData = {
-      title: `[UYG-GRUP] ${group.category} — ${group.detection_area} (${group.records.length} kayıt)`,
-      description: [
-        'Kaynak: Uygunsuzluk Yönetimi — Toplu Dönüştürme',
-        `Tespit Alanı: ${group.detection_area}`,
-        `Kategori: ${group.category}`,
-        `Toplam Kayıt: ${group.records.length}`,
-        `Toplam Hatalı Adet: ${group.totalQuantity}`,
-        '',
-        'İlgili Uygunsuzluk Kayıtları:',
-        ...sorted.slice(0, 50).map(r =>
-          `  • ${getDisplayRecordNumber(r)}: ${r.description?.substring(0, 60) || '-'} (x${r.quantity || 1})`
-        ),
-        sorted.length > 50 ? `  ... ve ${sorted.length - 50} kayıt daha` : '',
-      ].filter(Boolean).join('\n'),
+      title: `[UYG-GRUP] ${group.category} — ${group.detection_area} (${group.records.length} kayıt, ${group.totalQuantity} adet)`,
+      description: descLines.join('\n'),
       type: selectedType,
-      department: group.records[0]?.department || '',
-      vehicle_type: group.records[0]?.vehicle_type || '',
+      department: mostCommonDept,
+      vehicle_type: mostCommonVehicle,
       priority: group.severities['Kritik'] ? 'Kritik' : group.severities['Yüksek'] ? 'Yüksek' : 'Orta',
     };
 
