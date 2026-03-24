@@ -93,6 +93,9 @@ export function getNonconformityProvenance(record) {
 
   if (isLeakAuto) {
     rows.push({ label: 'Kaynak modül', value: 'Sızdırmazlık Kontrol' });
+    if (record?.part_code) {
+      rows.push({ label: 'Parça kodu', value: String(record.part_code) });
+    }
     const ref = pickMatch(combined, /Sızdırmazlık Kayıt No:\s*([^\n\r]+)/i);
     if (ref) rows.push({ label: 'Sızdırmazlık test kayıt no', value: ref });
     const leaks = pickMatch(combined, /Kaçak adedi:\s*([^\n\r]+)/i);

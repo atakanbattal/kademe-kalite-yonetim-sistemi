@@ -72,6 +72,7 @@ const createDefaultFormData = () => {
         vehicle_type_id: '',
         vehicle_type_label: '',
         vehicle_serial_number: '',
+        part_code: '',
         tank_type: '',
         test_date: now.toISOString().split('T')[0],
         test_start_time: now.toTimeString().slice(0, 5),
@@ -129,6 +130,7 @@ const LeakTestFormModal = ({
         vehicle_type_id: sourceRecord?.vehicle_type_id || '',
         vehicle_type_label: sourceRecord?.vehicle_type_label || '',
         vehicle_serial_number: sourceRecord?.vehicle_serial_number || '',
+        part_code: sourceRecord?.part_code || '',
         tank_type: sourceRecord?.tank_type || '',
         test_date: sourceRecord?.test_date || createDefaultFormData().test_date,
         test_start_time: sourceRecord?.test_start_time || '',
@@ -577,6 +579,7 @@ const LeakTestFormModal = ({
                 vehicle_type_id: formData.vehicle_type_id || null,
                 vehicle_type_label: previewVehicleLabel || null,
                 vehicle_serial_number: formData.vehicle_serial_number?.trim() || null,
+                part_code: formData.part_code?.trim() || null,
                 tank_type: formData.tank_type,
                 test_date: formData.test_date,
                 test_start_time: formData.test_start_time,
@@ -683,6 +686,9 @@ const LeakTestFormModal = ({
                 </div>
                 <p className="mt-3 text-sm text-slate-700">{previewVehicleLabel || '-'}</p>
                 <p className="mt-1 text-xs text-slate-500">{formData.tank_type || 'Sızdırmazlık parçası seçilmedi'}</p>
+                {formData.part_code?.trim() ? (
+                    <p className="mt-1 text-xs font-medium text-slate-600">Parça kodu: {formData.part_code.trim()}</p>
+                ) : null}
             </div>
 
             <div className="rounded-xl border bg-background p-4 space-y-3">
@@ -859,6 +865,21 @@ const LeakTestFormModal = ({
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </ModalField>
+
+                        <ModalField label="Parça kodu">
+                            <LeadingIconField icon={Package}>
+                                <Input
+                                    value={formData.part_code}
+                                    onChange={(event) => handleInputChange('part_code', event.target.value)}
+                                    style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
+                                    placeholder="Örn: ABC-12345"
+                                    disabled={isViewMode}
+                                />
+                            </LeadingIconField>
+                            <p className="text-[11px] text-muted-foreground leading-snug">
+                                Uygunsuzluk yönetiminde parça kodu olarak kullanılır. Boş bırakılırsa SZK kayıt numarası yazılır.
+                            </p>
                         </ModalField>
 
                         <ModalField label="Araç Seri Numarası">

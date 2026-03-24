@@ -84,13 +84,16 @@ const buildWelderDescriptionLine = (leak) => {
 
 const buildPayload = (leak) => {
     const leakCount = Math.max(Number(leak?.leak_count) || 0, 1);
+    const partCodeFromForm = String(leak?.part_code || '').trim();
+    const ncPartCode = partCodeFromForm || leak?.record_number || null;
 
     return {
-        part_code: leak?.record_number || null,
+        part_code: ncPartCode,
         part_name: leak?.tank_type || 'Sızdırmazlık parçası',
         description: [
             `Sızdırmazlık testinde kaçak tespit edildi (${leakCount} adet).`,
             getLeakTestSourceReference(leak),
+            `Parça kodu: ${partCodeFromForm || leak?.record_number || '-'}`,
             `Araç tipi: ${leak?.vehicle_type_label || '-'}`,
             `Seri no: ${leak?.vehicle_serial_number || '-'}`,
             `Sızdırmazlık parçası: ${leak?.tank_type || '-'}`,
@@ -170,15 +173,19 @@ const needsUpdate = (record, payload, nextStatus) =>
         (record.status || null) === (nextStatus || null)
     );
 
+const escapeForIlike = (value) =>
+    String(value).replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+
 const fetchExistingRecordsForLeak = async (supabase, leak) => {
     if (!leak?.record_number) return [];
 
     const sourceReference = getLeakTestSourceReference(leak);
+    const needle = escapeForIlike(leak.record_number);
     const { data, error } = await supabase
         .from('nonconformity_records')
         .select(RECORD_SELECT)
         .eq('detection_area', LEAK_DETECTION_AREA)
-        .eq('part_code', leak.record_number)
+        .ilike('notes', `%${needle}%`)
         .order('created_at', { ascending: false });
 
     if (error) throw error;

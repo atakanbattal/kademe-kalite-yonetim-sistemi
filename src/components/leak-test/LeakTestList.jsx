@@ -82,6 +82,7 @@ const LeakTestList = ({
             const normalizedSearch = normalizeTurkishForSearch(searchTerm);
             const searchableText = normalizeTurkishForSearch([
                 record.record_number,
+                record.part_code,
                 getVehicleTypeLabel(record),
                 record.vehicle_serial_number,
                 record.tank_type,
@@ -224,13 +225,14 @@ const LeakTestList = ({
                     </div>
 
                     <div className="table-responsive">
-                        <table className="data-table min-w-[1180px]">
+                        <table className="data-table min-w-[1260px]">
                             <thead>
                                 <tr>
                                     <th>Kayıt No</th>
                                     <th>Tarih / Saat</th>
                                     <th>Araç Tipi</th>
                                     <th>Araç Seri No</th>
+                                    <th>Parça Kodu</th>
                                     <th>Sızdırmazlık Parçası</th>
                                     <th>Süre</th>
                                     <th>Sonuç</th>
@@ -242,7 +244,7 @@ const LeakTestList = ({
                             <tbody>
                                 {filteredRecords.length === 0 ? (
                                     <tr>
-                                        <td colSpan="10" className="py-10 text-center text-muted-foreground">
+                                        <td colSpan="11" className="py-10 text-center text-muted-foreground">
                                             Filtrelere uyan kayıt bulunamadı.
                                         </td>
                                     </tr>
@@ -265,6 +267,7 @@ const LeakTestList = ({
                                                 <div className="font-medium">{getVehicleTypeLabel(record)}</div>
                                             </td>
                                             <td>{record.vehicle_serial_number || '-'}</td>
+                                            <td className="font-mono text-xs">{record.part_code?.trim() || '-'}</td>
                                             <td>{record.tank_type || '-'}</td>
                                             <td>{formatDuration(record.test_duration_minutes)}</td>
                                             <td>{getResultBadge(record.test_result, record.leak_count)}</td>

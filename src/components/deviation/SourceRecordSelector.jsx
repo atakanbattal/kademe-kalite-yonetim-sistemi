@@ -298,6 +298,7 @@ const filterRecordBySearch = (record, sourceType, searchTerm) => {
         case 'leak_test':
             return [
                 record.record_number,
+                record.part_code,
                 record.vehicle_type_label,
                 record.vehicle_serial_number,
                 record.tank_type,
@@ -392,7 +393,7 @@ const getRecordTitle = (record, sourceType) => {
         case 'quality_cost':
             return record.part_code || 'Genel Maliyet';
         case 'leak_test':
-            return record.record_number || '-';
+            return record.part_code?.trim() || record.record_number || '-';
         case 'dynamic_balance':
             return record.serial_number || '-';
         case 'produced_vehicle_fault':
@@ -600,10 +601,11 @@ const buildAutoFillData = (record, sourceType) => {
                 source: getSourceTypeLabel(sourceType),
                 deviation_type: getSourceTypeDefaultDeviationType(sourceType),
                 vehicle_type: record.vehicle_type_label || '',
-                part_code: record.record_number || '',
+                part_code: record.part_code?.trim() || record.record_number || '',
                 source_record_details: {
                     source_type: sourceType,
                     record_number: record.record_number,
+                    part_code: record.part_code,
                     vehicle_type_label: record.vehicle_type_label,
                     vehicle_serial_number: record.vehicle_serial_number,
                     tank_type: record.tank_type,
