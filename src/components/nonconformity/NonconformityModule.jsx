@@ -63,6 +63,17 @@ const CONVERTED_STATUSES = new Set(['DF Açıldı', '8D Açıldı']);
 const isNonconformityLinkedToDf8d = (record) =>
   !!record?.source_nc_id && CONVERTED_STATUSES.has(record?.status);
 
+/** PostgREST embed: linked_nc veya dizi dönüşü */
+const getLinkedNcMeta = (record) => {
+  const raw = record?.linked_nc;
+  const row = Array.isArray(raw) ? raw[0] : raw;
+  if (!row?.nc_number && !record?.source_nc_id) return null;
+  return {
+    nc_number: row?.nc_number || null,
+    type: row?.type || (record?.status === '8D Açıldı' ? '8D' : 'DF'),
+  };
+};
+
 const getStoredSuggestionType = (status) => {
   if (status === 'DF Önerildi') return 'DF';
   if (status === '8D Önerildi') return '8D';
@@ -112,7 +123,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       while (true) {
         const { data, error } = await supabase
           .from('nonconformity_records')
-          .select('*')
+          .select('*, linked_nc:non_conformities!source_nc_id(nc_number,type)')
           .order('record_number', { ascending: false })
           .range(from, from + pageSize - 1);
         if (error) throw error;
@@ -1256,6 +1267,32 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         </td>
                         <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                           {(() => {
+                            if (isNonconformityLinkedToDf8d(record)) {
+                              const linked = getLinkedNcMeta(record);
+                              const label = linked?.nc_number
+                                ? `${linked.type} ${linked.nc_number}`
+                                : `${linked?.type || 'DF/8D'} — no yükleniyor`;
+                              return (
+                                <div className="flex flex-col items-start gap-0.5">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 max-w-[160px] text-[10px] font-mono font-semibold gap-1 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-800 dark:text-emerald-200 dark:bg-emerald-950/40"
+                                    onClick={() => {
+                                      if (onOpenNCView && record.source_nc_id) {
+                                        onOpenNCView({ id: record.source_nc_id });
+                                      }
+                                    }}
+                                    disabled={!onOpenNCView || !record.source_nc_id}
+                                  >
+                                    <ExternalLink className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">{label}</span>
+                                  </Button>
+                                  <span className="text-[9px] text-muted-foreground">Bağlı</span>
+                                </div>
+                              );
+                            }
                             const group = recordGroupMap.get(record.id);
                             if (group && settings?.auto_suggest) {
                               const is8D = group.suggestion === '8D';
