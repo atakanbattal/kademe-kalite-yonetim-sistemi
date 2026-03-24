@@ -1,19 +1,7 @@
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^ index.html [L]
-</IfModule>
-
+# Apache / bazı Hostinger kurulumları: index.html önbelleğe alınmasın (SPA chunk uyumsuzluğunu önler)
 <IfModule mod_headers.c>
-  Header set X-Powered-By "Hostinger Horizons"
-
-  # Cache everything on CDN by default
-  Header set Cache-Control "public, s-maxage=604800, max-age=0"
-  
-  # Cache in browser all assets
-  <If "%{REQUEST_URI} =~ m#^/assets/.*$#">
-    Header set Cache-Control "public, max-age=604800"
-  </If>
+  <Files "index.html">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+  </Files>
 </IfModule>

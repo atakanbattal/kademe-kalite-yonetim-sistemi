@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
@@ -18,37 +18,38 @@ import PdfViewerModal from '@/components/document/PdfViewerModal';
 import NCViewModal from '@/components/df-8d/NCViewModal';
 import NCFormModal from '@/components/df-8d/NCFormModal';
 import { PageLoader } from '@/components/shared/LoadingSpinner';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
 // Dashboard direkt yüklenir (ilk görünen sayfa)
 import Dashboard from '@/components/dashboard/Dashboard';
 
-// Modules - Lazy Loading (sadece açıldığında yüklenir, performans artışı)
-const KPIModule = lazy(() => import('@/components/kpi/KPIModule'));
-const QualityCostModule = lazy(() => import('@/components/quality-cost/QualityCostModule'));
-const QuarantineModule = lazy(() => import('@/components/quarantine/QuarantineModule'));
-const Df8dManagement = lazy(() => import('@/pages/Df8dManagement'));
-const InternalAuditModule = lazy(() => import('@/components/audit/InternalAuditModule'));
-const DocumentModule = lazy(() => import('@/components/document/DocumentModule'));
-const SupplierQualityModule = lazy(() => import('@/components/supplier/QualityModule'));
-const DeviationModule = lazy(() => import('@/components/deviation/DeviationModule'));
-const EquipmentModule = lazy(() => import('@/components/equipment/EquipmentModule'));
-const ProducedVehiclesModule = lazy(() => import('@/components/produced-vehicles/ProducedVehiclesModule'));
-const CostSettingsModule = lazy(() => import('@/components/cost-settings/SettingsModule'));
-const IncomingQualityModule = lazy(() => import('@/components/incoming-quality/IncomingQualityModule'));
-const KaizenManagement = lazy(() => import('@/pages/KaizenManagement'));
-const TaskModule = lazy(() => import('@/pages/TaskModule'));
-const AuditLogModule = lazy(() => import('@/components/audit/LogModule'));
-const SupplierLiveAudit = lazy(() => import('@/pages/SupplierLiveAudit'));
-const TrainingModule = lazy(() => import('@/components/training/TrainingModule'));
-const WPSModule = lazy(() => import('@/components/wps/WPSModule'));
-const CustomerComplaintsModule = lazy(() => import('@/components/customer-complaints/ComplaintsModule'));
-const PolyvalenceModule = lazy(() => import('@/components/polyvalence/PolyvalenceModule'));
-const BenchmarkModule = lazy(() => import('@/components/benchmark/BenchmarkModule'));
-const ProcessControlModule = lazy(() => import('@/components/process-control/ProcessControlModule'));
-const DynamicBalanceModule = lazy(() => import('@/components/dynamic-balance/DynamicBalanceModule'));
-const NonconformityModule = lazy(() => import('@/components/nonconformity/NonconformityModule'));
-const FixtureModule = lazy(() => import('@/components/fixture/FixtureModule'));
-const LeakTestModule = lazy(() => import('@/components/leak-test/LeakTestModule'));
+// Modules — lazy + chunk hatasında bir kez yenile (eski index.html / silinmiş chunk)
+const KPIModule = lazyWithRetry(() => import('@/components/kpi/KPIModule'));
+const QualityCostModule = lazyWithRetry(() => import('@/components/quality-cost/QualityCostModule'));
+const QuarantineModule = lazyWithRetry(() => import('@/components/quarantine/QuarantineModule'));
+const Df8dManagement = lazyWithRetry(() => import('@/pages/Df8dManagement'));
+const InternalAuditModule = lazyWithRetry(() => import('@/components/audit/InternalAuditModule'));
+const DocumentModule = lazyWithRetry(() => import('@/components/document/DocumentModule'));
+const SupplierQualityModule = lazyWithRetry(() => import('@/components/supplier/QualityModule'));
+const DeviationModule = lazyWithRetry(() => import('@/components/deviation/DeviationModule'));
+const EquipmentModule = lazyWithRetry(() => import('@/components/equipment/EquipmentModule'));
+const ProducedVehiclesModule = lazyWithRetry(() => import('@/components/produced-vehicles/ProducedVehiclesModule'));
+const CostSettingsModule = lazyWithRetry(() => import('@/components/cost-settings/SettingsModule'));
+const IncomingQualityModule = lazyWithRetry(() => import('@/components/incoming-quality/IncomingQualityModule'));
+const KaizenManagement = lazyWithRetry(() => import('@/pages/KaizenManagement'));
+const TaskModule = lazyWithRetry(() => import('@/pages/TaskModule'));
+const AuditLogModule = lazyWithRetry(() => import('@/components/audit/LogModule'));
+const SupplierLiveAudit = lazyWithRetry(() => import('@/pages/SupplierLiveAudit'));
+const TrainingModule = lazyWithRetry(() => import('@/components/training/TrainingModule'));
+const WPSModule = lazyWithRetry(() => import('@/components/wps/WPSModule'));
+const CustomerComplaintsModule = lazyWithRetry(() => import('@/components/customer-complaints/ComplaintsModule'));
+const PolyvalenceModule = lazyWithRetry(() => import('@/components/polyvalence/PolyvalenceModule'));
+const BenchmarkModule = lazyWithRetry(() => import('@/components/benchmark/BenchmarkModule'));
+const ProcessControlModule = lazyWithRetry(() => import('@/components/process-control/ProcessControlModule'));
+const DynamicBalanceModule = lazyWithRetry(() => import('@/components/dynamic-balance/DynamicBalanceModule'));
+const NonconformityModule = lazyWithRetry(() => import('@/components/nonconformity/NonconformityModule'));
+const FixtureModule = lazyWithRetry(() => import('@/components/fixture/FixtureModule'));
+const LeakTestModule = lazyWithRetry(() => import('@/components/leak-test/LeakTestModule'));
 
 // 8D adımları için varsayılan başlıklar
 const getDefault8DTitle = (stepKey) => {
