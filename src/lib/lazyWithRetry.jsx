@@ -1,4 +1,4 @@
-import { lazy } from 'react';
+import * as React from 'react';
 import { Button } from '@/components/ui/button';
 
 const RELOAD_FLAG = 'kademe_chunk_reload_pending';
@@ -37,7 +37,7 @@ function ChunkLoadRecovery() {
  * React.lazy ile aynı API; chunk 404 / eski deploy / HTML dönüşü durumunda bir kez tam sayfa yeniler.
  */
 export function lazyWithRetry(factory) {
-  return lazy(async () => {
+  return React.lazy(async () => {
     try {
       const mod = await factory();
       sessionStorage.removeItem(RELOAD_FLAG);

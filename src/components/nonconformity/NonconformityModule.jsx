@@ -123,7 +123,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       while (true) {
         const { data, error } = await supabase
           .from('nonconformity_records')
-          .select('*, linked_nc:non_conformities!source_nc_id(nc_number,type)')
+          .select('*')
           .order('record_number', { ascending: false })
           .range(from, from + pageSize - 1);
         if (error) throw error;
@@ -132,7 +132,33 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
         if (rows.length < pageSize) break;
         from += pageSize;
       }
-      setRecords(allRows);
+
+      const ncIds = [...new Set(allRows.map((r) => r.source_nc_id).filter(Boolean))];
+      let ncMap = {};
+      if (ncIds.length > 0) {
+        const chunk = 200;
+        for (let i = 0; i < ncIds.length; i += chunk) {
+          const slice = ncIds.slice(i, i + chunk);
+          const { data: ncRows, error: ncErr } = await supabase
+            .from('non_conformities')
+            .select('id, nc_number, type')
+            .in('id', slice);
+          if (ncErr) {
+            console.warn('DF/8D numaraları yüklenemedi:', ncErr.message);
+            break;
+          }
+          (ncRows || []).forEach((row) => {
+            ncMap[row.id] = { nc_number: row.nc_number, type: row.type };
+          });
+        }
+      }
+
+      setRecords(
+        allRows.map((r) => ({
+          ...r,
+          linked_nc: r.source_nc_id ? ncMap[r.source_nc_id] ?? null : null,
+        }))
+      );
     } catch (err) {
       toast({ variant: 'destructive', title: 'Hata', description: err.message });
     }
