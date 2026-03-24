@@ -7,8 +7,13 @@ import { useData } from '@/contexts/DataContext';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
+const normalizeVehicleTypeKey = (s) => {
+    if (!s || typeof s !== 'string') return '';
+    return s.trim().replace(/\s+/g, ' ').toLowerCase();
+};
+
 const CriticalNonConformities = ({ onViewDetails }) => {
-    const { nonConformities, qualityCosts, producedVehicles, loading } = useData();
+    const { nonConformities, qualityCosts, producedVehicles, nonconformityRecords, loading } = useData();
 
     // RPN'i yüksek maddeler (RPN = Severity × Occurrence × Detection)
     // RPN skorları genellikle 1-10 arası değerlerle çalışır, maksimum 10×10×10 = 1000
@@ -91,31 +96,68 @@ const CriticalNonConformities = ({ onViewDetails }) => {
             .slice(0, 5);
     }, [nonConformities]);
 
-    // Kritik araçlar (en çok DF çıkan)
+    // Araç tipi bazlı sorun yoğunluğu: uygunsuzluk kayıtları (tüm modüller) + bağlantısız DF/8D + üretim muayene hataları
     const criticalVehicles = useMemo(() => {
-        if (!producedVehicles) return [];
-        
-        const vehicleNCMap = {};
-        nonConformities?.forEach(nc => {
-            if (nc.vehicle_type) {
-                if (!vehicleNCMap[nc.vehicle_type]) {
-                    vehicleNCMap[nc.vehicle_type] = {
-                        vehicleType: nc.vehicle_type,
-                        ncCount: 0,
-                        openNCs: 0
-                    };
-                }
-                vehicleNCMap[nc.vehicle_type].ncCount++;
-                if (nc.status !== 'Kapatıldı') {
-                    vehicleNCMap[nc.vehicle_type].openNCs++;
-                }
+        const byKey = {};
+
+        const bump = (rawType, { openDelta = 0, recordDelta = 0, faultDelta = 0 }) => {
+            const t = (rawType || '').trim();
+            if (!t) return;
+            const key = normalizeVehicleTypeKey(t);
+            if (!byKey[key]) {
+                byKey[key] = {
+                    vehicleType: t,
+                    ncCount: 0,
+                    openNCs: 0,
+                    productionFaults: 0,
+                };
             }
+            byKey[key].ncCount += recordDelta;
+            byKey[key].openNCs += openDelta;
+            byKey[key].productionFaults += faultDelta;
+            if (t.length > (byKey[key].vehicleType?.length || 0)) {
+                byKey[key].vehicleType = t;
+            }
+        };
+
+        (nonconformityRecords || []).forEach((r) => {
+            if (!r.vehicle_type?.trim()) return;
+            bump(r.vehicle_type, {
+                recordDelta: 1,
+                openDelta: r.status !== 'Kapatıldı' ? 1 : 0,
+            });
         });
 
-        return Object.values(vehicleNCMap)
-            .sort((a, b) => b.openNCs - a.openNCs)
+        const linkedNcIds = new Set(
+            (nonconformityRecords || []).map((r) => r.source_nc_id).filter(Boolean)
+        );
+
+        (nonConformities || []).forEach((nc) => {
+            if (!nc.vehicle_type?.trim()) return;
+            if (linkedNcIds.has(nc.id)) return;
+            bump(nc.vehicle_type, {
+                recordDelta: 1,
+                openDelta: nc.status !== 'Kapatıldı' ? 1 : 0,
+            });
+        });
+
+        (producedVehicles || []).forEach((insp) => {
+            if (!insp.vehicle_type?.trim()) return;
+            const faults = insp.quality_inspection_faults || [];
+            if (faults.length === 0) return;
+            bump(insp.vehicle_type, { faultDelta: faults.length });
+        });
+
+        return Object.values(byKey)
+            .filter((v) => v.ncCount > 0 || v.productionFaults > 0)
+            .sort((a, b) => {
+                const scoreA = a.ncCount + a.productionFaults * 0.25;
+                const scoreB = b.ncCount + b.productionFaults * 0.25;
+                if (scoreB !== scoreA) return scoreB - scoreA;
+                return b.openNCs - a.openNCs;
+            })
             .slice(0, 5);
-    }, [producedVehicles, nonConformities]);
+    }, [nonconformityRecords, nonConformities, producedVehicles]);
 
     if (loading) {
         return (
@@ -250,7 +292,7 @@ const CriticalNonConformities = ({ onViewDetails }) => {
                 <CardContent>
                     {criticalVehicles.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
-                            Araç tipi verisi bulunamadı.
+                            Araç tipi verisi bulunamadı (uygunsuzluk kaydı veya üretim hatası yok).
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -259,12 +301,26 @@ const CriticalNonConformities = ({ onViewDetails }) => {
                                     key={idx} 
                                     className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900"
                                 >
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="font-medium">{vehicle.vehicleType}</p>
-                                            <p className="text-xs text-muted-foreground">Toplam {vehicle.ncCount} uygunsuzluk</p>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="font-medium truncate">{vehicle.vehicleType}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {vehicle.ncCount > 0 && (
+                                                    <>Kayıt: {vehicle.ncCount} uygunsuzluk{vehicle.openNCs > 0 ? ` (${vehicle.openNCs} açık)` : ''}</>
+                                                )}
+                                                {vehicle.ncCount > 0 && vehicle.productionFaults > 0 && ' · '}
+                                                {vehicle.productionFaults > 0 && (
+                                                    <>{vehicle.productionFaults} üretim muayene hatası</>
+                                                )}
+                                            </p>
                                         </div>
-                                        <Badge variant="destructive">{vehicle.openNCs} açık</Badge>
+                                        {vehicle.openNCs > 0 ? (
+                                            <Badge variant="destructive" className="shrink-0">{vehicle.openNCs} açık</Badge>
+                                        ) : vehicle.ncCount > 0 ? (
+                                            <Badge variant="secondary" className="shrink-0">Kapalı</Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="shrink-0">Muayene</Badge>
+                                        )}
                                     </div>
                                 </div>
                             ))}

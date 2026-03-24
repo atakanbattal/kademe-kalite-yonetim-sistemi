@@ -258,7 +258,28 @@ export const DataProvider = ({ children }) => {
                 .select('*,audits!audit_id(report_number),non_conformities!fk_source_finding(id,nc_number,status,due_at,due_date)'),
             quarantineRecords: supabase.from('quarantine_records_api').select('*').order('quarantine_date', { ascending: false }).limit(500),
             incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*').limit(500),
-            incomingControlPlans: supabase.from('incoming_control_plans').select('part_code, is_current'),
+            incomingControlPlans: (async () => {
+                try {
+                    const pageSize = 1000;
+                    const all = [];
+                    let from = 0;
+                    for (;;) {
+                        const { data, error } = await supabase
+                            .from('incoming_control_plans')
+                            .select('part_code, is_current')
+                            .order('part_code', { ascending: true })
+                            .range(from, from + pageSize - 1);
+                        if (error) return { data: [], error };
+                        if (!data?.length) break;
+                        all.push(...data);
+                        if (data.length < pageSize) break;
+                        from += pageSize;
+                    }
+                    return { data: all, error: null };
+                } catch (e) {
+                    return { data: [], error: e };
+                }
+            })(),
             processControlPlans: (async () => {
                 try {
                     const { data, error } = await supabase.from('process_control_plans').select('id').eq('is_active', true);

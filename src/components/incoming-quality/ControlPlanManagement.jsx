@@ -19,6 +19,15 @@ import { Combobox } from '@/components/ui/combobox';
 import { useData } from '@/contexts/DataContext';
 import IncomingControlPlanFolderDownloadModal from './IncomingControlPlanFolderDownloadModal';
 
+/** .or() içinde ilike: % _ joker ve virgül (ayırıcı) güvenliği */
+function sanitizeTermForIlikeOrFilter(raw) {
+    return String(raw ?? '')
+        .replace(/%/g, '')
+        .replace(/_/g, '')
+        .replace(/,/g, '')
+        .trim();
+}
+
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme",
     "Fonksiyonel Test", "Manuel Kontrol", "Pürüzlülük Ölçüm Cihazı",
@@ -722,16 +731,23 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(isOpen || false);
     const [selectedPlan, setSelectedPlan] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchInput, setSearchInput] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedPlanDetail, setSelectedPlanDetail] = useState(null);
     const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
 
+    useEffect(() => {
+        const id = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+        return () => clearTimeout(id);
+    }, [searchInput]);
+
     const fetchPlans = useCallback(async () => {
         setLoading(true);
         let query = supabase.from('incoming_control_plans').select('*').order('updated_at', { ascending: false });
-        if (searchTerm) {
-            query = query.or(`part_code.ilike.%${searchTerm}%,part_name.ilike.%${searchTerm}%`);
+        const safeSearch = sanitizeTermForIlikeOrFilter(debouncedSearch);
+        if (safeSearch) {
+            query = query.or(`part_code.ilike.%${safeSearch}%,part_name.ilike.%${safeSearch}%`);
         }
         const { data, error } = await query;
         if (error) {
@@ -741,7 +757,7 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
             setPlans(data || []);
         }
         setLoading(false);
-    }, [toast, searchTerm]);
+    }, [toast, debouncedSearch]);
 
     useEffect(() => {
         if (isOpen !== undefined) {
@@ -910,15 +926,15 @@ const ControlPlanManagement = ({ onViewPdf, isOpen, setIsOpen }) => {
                 setIsOpen={setIsFolderDownloadOpen}
                 plans={plans}
             />
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-4">
                 <div className="search-box w-full max-w-sm">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                     <input
                         type="text"
                         placeholder="Parça kodu veya adı ile ara..."
                         className="search-input"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
                     />
                 </div>
                 <div className="flex w-full sm:w-auto gap-2">

@@ -185,14 +185,6 @@ const ProcessControlDashboard = ({
                                 <Button
                                     variant="outline"
                                     className="w-full justify-between"
-                                    onClick={() => onTabChange?.('equipment')}
-                                >
-                                    Araç Bilgileri
-                                    <MoveRight className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-between"
                                     onClick={() => onTabChange?.('plans')}
                                 >
                                     Kontrol Planları

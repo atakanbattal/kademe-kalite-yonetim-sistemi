@@ -1,15 +1,24 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import {
-    AlertTriangle, FileText, Beaker, CheckSquare, BarChart, List, ShieldCheck, CalendarClock, TrendingUp, BookCheck, ClipboardCheck, WalletCards, FileDown, ScrollText, Plus, Edit, Trash2, GraduationCap
+  AlertTriangle, FileText, Beaker, CheckSquare, BarChart, ShieldCheck,
+  CalendarClock, TrendingUp, TrendingDown, BookCheck, ClipboardCheck,
+  WalletCards, FileDown, ScrollText, Plus, Edit, Trash2, GraduationCap,
+  Activity, Shield, Gauge, ArrowUpRight, ArrowDownRight, Minus,
+  AlertOctagon, Package, Users, Wrench, ChevronDown, ChevronUp,
+  Target, Zap, Clock, BarChart3
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import {
+  AreaChart, Area, BarChart as RechartsBarChart, Bar, XAxis, YAxis,
+  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid,
+  RadialBarChart, RadialBar, Legend
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn, normalizeTurkishForSearch } from '@/lib/utils';
 import useDashboardData from '@/hooks/useDashboardData';
 import { useData } from '@/contexts/DataContext';
@@ -20,744 +29,750 @@ import DFDrillDownAnalysis from '@/components/dashboard/DFDrillDownAnalysis';
 import QuarantineDrillDownAnalysis from '@/components/dashboard/QuarantineDrillDownAnalysis';
 import CostDrillDownAnalysis from '@/components/dashboard/CostDrillDownAnalysis';
 import DashboardAlerts from '@/components/dashboard/DashboardAlerts';
-import DashboardTrends from '@/components/dashboard/DashboardTrends';
 import TodayTasks from '@/components/dashboard/TodayTasks';
 import CriticalNonConformities from '@/components/dashboard/CriticalNonConformities';
 import QualityWall from '@/components/dashboard/QualityWall';
 import RootCauseHeatmap from '@/components/dashboard/RootCauseHeatmap';
-import QualityGoalsPanel from '@/components/dashboard/QualityGoalsPanel';
-import RiskBasedIndicators from '@/components/dashboard/RiskBasedIndicators';
-import AIRootCausePrediction from '@/components/dashboard/AIRootCausePrediction';
-import NotificationCenter from '@/components/dashboard/NotificationCenter';
-import QualityAdvisor from '@/components/dashboard/QualityAdvisor';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ErrorBoundary from '@/components/dashboard/ErrorBoundary';
 
-const CHART_COLORS = ['#3B82F6', '#818CF8', '#A78BFA', '#F472B6', '#FBBF24', '#60A5FA'];
-const PIE_COLORS = {
-    'İç Hata Maliyetleri': '#EF4444',
-    'Dış Hata Maliyetleri': '#F97316',
-    'Önleme Maliyetleri': '#F59E0B',
-    'Değerlendirme Maliyetleri': '#84CC16',
+const COST_COLORS = { 'İç Hata Maliyetleri': '#ef4444', 'Dış Hata Maliyetleri': '#f97316', 'Önleme Maliyetleri': '#eab308', 'Değerlendirme Maliyetleri': '#22c55e' };
+const SEVERITY_COLORS = { 'Kritik': '#ef4444', 'Yüksek': '#f97316', 'Orta': '#eab308', 'Düşük': '#22c55e', 'Belirsiz': '#94a3b8' };
+const DEPT_COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c084fc', '#818cf8', '#60a5fa', '#38bdf8', '#22d3ee'];
+
+const fmtCurrency = (v) => {
+  if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M ₺`;
+  if (v >= 1000) return `${Math.round(v / 1000)}K ₺`;
+  return `${Math.round(v)} ₺`;
 };
 
-const StatCard = ({ icon: Icon, title, value, color, onClick, loading }) => (
-    <motion.div
-        whileHover={{ y: -3 }}
-        whileTap={{ scale: 0.98 }}
-        className="h-full"
-    >
-        <Card className="h-full cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300 active:shadow-md touch-manipulation" onClick={onClick}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-6">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground line-clamp-2">{title}</CardTitle>
-                {Icon && <Icon className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${color || 'text-muted-foreground'}`} />}
-            </CardHeader>
-            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-                {loading ? (
-                    <Skeleton className="h-7 sm:h-8 w-3/4 mt-1" />
-                ) : (
-                    <div className={cn("text-2xl sm:text-3xl font-bold", color || 'text-foreground')}>{value}</div>
-                )}
-            </CardContent>
-        </Card>
-    </motion.div>
+const HEALTH_COLOR = (score) => {
+  if (score >= 80) return { ring: '#22c55e', bg: 'from-emerald-500/10 to-emerald-500/5', text: 'text-emerald-600 dark:text-emerald-400', label: 'Mükemmel' };
+  if (score >= 60) return { ring: '#eab308', bg: 'from-yellow-500/10 to-yellow-500/5', text: 'text-yellow-600 dark:text-yellow-400', label: 'İyi' };
+  if (score >= 40) return { ring: '#f97316', bg: 'from-orange-500/10 to-orange-500/5', text: 'text-orange-600 dark:text-orange-400', label: 'Dikkat' };
+  return { ring: '#ef4444', bg: 'from-red-500/10 to-red-500/5', text: 'text-red-600 dark:text-red-400', label: 'Kritik' };
+};
+
+const TrendBadge = ({ value, suffix = '%', invert = false }) => {
+  if (value == null || isNaN(value)) return <span className="text-xs text-muted-foreground">—</span>;
+  const positive = invert ? value <= 0 : value >= 0;
+  const Icon = value > 0 ? ArrowUpRight : value < 0 ? ArrowDownRight : Minus;
+  return (
+    <span className={cn('inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums', positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400')}>
+      <Icon className="w-3 h-3" />
+      {Math.abs(Math.round(value))}{suffix}
+    </span>
+  );
+};
+
+const MiniSpark = ({ data, dataKey = 'value', color = '#6366f1', height = 32 }) => (
+  <ResponsiveContainer width="100%" height={height}>
+    <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+      <defs>
+        <linearGradient id={`spark-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={1.5} fill={`url(#spark-${color.replace('#', '')})`} dot={false} isAnimationActive={false} />
+    </AreaChart>
+  </ResponsiveContainer>
 );
 
-
-const ListWidget = ({ title, items, icon: Icon, onRowClick, emptyText, onSeeAllClick, loading }) => (
-    <Card className="dashboard-widget h-full flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-4 p-3 sm:p-6">
-            <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base font-semibold min-w-0">
-                <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-                <span className="truncate">{title}</span>
-            </CardTitle>
-            {items && items.length > 0 && (
-                <Button variant="link" size="sm" onClick={onSeeAllClick} className="p-0 h-auto text-xs sm:text-sm shrink-0">Tümünü Gör</Button>
-            )}
-        </CardHeader>
-        <CardContent className="pt-0 flex-grow p-3 sm:p-6 min-w-0">
-            {loading ? (
-                <div className="space-y-2 sm:space-y-3">
-                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-9 sm:h-10 w-full" />)}
-                </div>
-            ) : !items || items.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                    <p className="text-xs sm:text-sm text-muted-foreground text-center py-3 sm:py-4">{emptyText}</p>
-                </div>
-            ) : (
-                <ul className="space-y-0.5 sm:space-y-1">
-                    {items.slice(0, 5).map((item, index) => (
-                        <li
-                            key={item.id || index}
-                            onClick={() => onRowClick(item.module)}
-                            className="flex items-center gap-2 sm:gap-3 p-2 rounded-md hover:bg-accent active:bg-accent transition-colors cursor-pointer touch-manipulation min-w-0"
-                        >
-                            <div className="min-w-0 flex-1 truncate">
-                                <p className="font-medium text-foreground truncate text-xs sm:text-sm">{item.name}</p>
-                                {item.user && <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{item.user}</p>}
-                            </div>
-                            {item.date && <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap shrink-0 tabular-nums">{format(new Date(item.date), 'dd.MM.yy', { locale: tr })}</span>}
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </CardContent>
-    </Card>
-);
+const CustomTooltip = ({ active, payload, label, formatter }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2 shadow-xl text-xs">
+      <p className="font-medium text-foreground mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="font-semibold">{formatter ? formatter(p.value) : p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const TABLE_LABELS = { tasks: 'Görev', non_conformities: 'Uygunsuzluk', deviations: 'Sapma', audit_findings: 'Tetkik Bulgusu', quarantine_records: 'Karantina', quality_costs: 'Kalite Maliyeti', equipments: 'Ekipman', equipment_calibrations: 'Kalibrasyon', suppliers: 'Tedarikçi', supplier_non_conformities: 'Ted. Uygunsuzluk', supplier_audit_plans: 'Ted. Denetim', incoming_inspections: 'Girdi Muayene', documents: 'Doküman', personnel: 'Personel', kpis: 'KPI', customer_complaints: 'Müşteri Şikayeti', quality_inspections: 'Kalite Kontrol', kaizen_entries: 'Kaizen' };
 
 const Dashboard = ({ setActiveModule, onOpenNCView }) => {
-    const { toast } = useToast();
-    const dashboardData = useDashboardData();
-    const { kpiData, nonconformityData, costData, pendingApprovals, upcomingCalibrations, expiringDocs, completedAudits, loading, error } = dashboardData;
-    const refreshDashboard = dashboardData.refreshDashboard || (() => { });
-    const { nonConformities, equipments, documents, qualityCosts, auditLogs, refreshData } = useData();
+  const { toast } = useToast();
+  const dashData = useDashboardData();
+  const { loading, error } = dashData;
+  const refreshDashboard = dashData.refreshDashboard || (() => {});
+  const {
+    nonConformities, equipments, documents, qualityCosts, auditLogs,
+    quarantineRecords, deviations, nonconformityRecords, audits, trainings,
+    suppliers, personnel, refreshData
+  } = useData();
 
-    const [isDetailModalOpen, setDetailModalOpen] = useState(false);
-    const [detailModalContent, setDetailModalContent] = useState({ title: '', records: [], renderItem: () => null });
-    const [isReportModalOpen, setReportModalOpen] = useState(false);
-    const [drillDownType, setDrillDownType] = useState(null); // 'df', 'quarantine', 'cost', null
-    const [detailModalData, setDetailModalData] = useState({ isOpen: false, title: '', description: '', data: [], columns: [] });
-    const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-    const refreshIntervalRef = useRef(null);
+  const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailModalContent, setDetailModalContent] = useState({ title: '', records: [], renderItem: () => null });
+  const [isReportModalOpen, setReportModalOpen] = useState(false);
+  const [drillDownType, setDrillDownType] = useState(null);
+  const [detailModalData, setDetailModalData] = useState({ isOpen: false, title: '', description: '', data: [], columns: [] });
+  const [expandedSections, setExpandedSections] = useState({ alerts: true, advanced: false });
+  const refreshIntervalRef = useRef(null);
 
-    // Otomatik yenileme: 5 dakikada bir
-    useEffect(() => {
-        if (autoRefreshEnabled) {
-            refreshIntervalRef.current = setInterval(() => {
-                if (refreshDashboard) {
-                    refreshDashboard();
-                }
-                if (refreshData) {
-                    refreshData();
-                }
-            }, 5 * 60 * 1000); // 5 dakika
-        }
+  useEffect(() => {
+    refreshIntervalRef.current = setInterval(() => {
+      refreshDashboard?.();
+      refreshData?.();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(refreshIntervalRef.current);
+  }, [refreshDashboard, refreshData]);
 
-        return () => {
-            if (refreshIntervalRef.current) {
-                clearInterval(refreshIntervalRef.current);
-            }
-        };
-    }, [autoRefreshEnabled, refreshDashboard, refreshData]);
+  const m = useMemo(() => {
+    const ncs = nonConformities || [];
+    const costs = qualityCosts || [];
+    const equips = equipments || [];
+    const docs = documents || [];
+    const trains = trainings || [];
+    const logs = auditLogs || [];
+    const qRecs = quarantineRecords || [];
+    const devs = deviations || [];
+    const ncRecs = nonconformityRecords || [];
+    const auds = audits || [];
+    const supps = suppliers || [];
+    const pers = personnel || [];
 
-    const handleCardClick = useCallback((module, kpiTitle) => {
-        // KPI kartlarına özel drill-down analizleri
-        if (kpiTitle) {
-            if (kpiTitle.includes('DF')) {
-                setDrillDownType('df');
-                return;
-            } else if (kpiTitle.includes('Karantina')) {
-                setDrillDownType('quarantine');
-                return;
-            } else if (kpiTitle.includes('Maliyet')) {
-                setDrillDownType('cost');
-                return;
-            }
-        }
+    const today = new Date();
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const thirtyDays = new Date(today.getTime() + 30 * 86400000);
 
-        // Diğer modüller için normal yönlendirme
-        if (module) {
-            setActiveModule(module);
-        } else {
-            toast({
-                title: "🚧 Özellik Henüz Geliştirilmedi!",
-                description: "Bu özellik yakında gelecek. Takipte kalın! 🚀",
-            });
-        }
-    }, [setActiveModule, toast]);
+    const openDf = ncs.filter(n => n.type === 'DF' && n.status !== 'Kapatıldı');
+    const open8d = ncs.filter(n => n.type === '8D' && n.status !== 'Kapatıldı');
+    const closedNcs = ncs.filter(n => n.status === 'Kapatıldı');
+    const openedThisMonth = ncs.filter(n => new Date(n.opening_date || n.created_at) >= thisMonth).length;
+    const closedThisMonth = ncs.filter(n => n.status === 'Kapatıldı' && new Date(n.closing_date || n.updated_at) >= thisMonth).length;
+    const openedLastMonth = ncs.filter(n => { const d = new Date(n.opening_date || n.created_at); return d >= lastMonth && d < thisMonth; }).length;
 
-    const handleChartClick = (data) => {
-        if (data && data.payload && data.payload.records && data.payload.records.length > 0) {
-            const isCost = !!data.payload.records[0].cost_date;
-            setDetailModalContent({
-                title: data.name,
-                records: data.payload.records,
-                renderItem: isCost ? renderCostItem : renderNCItem
-            });
-            setDetailModalOpen(true);
-        }
-    };
+    const overdueNcs = ncs.filter(n => {
+      if (n.status === 'Kapatıldı') return false;
+      return (today - new Date(n.opening_date || n.created_at)) / 86400000 > 30;
+    });
 
-    const getIconForKpi = (title) => {
-        if (title.includes('DF')) return AlertTriangle;
-        if (title.includes('8D')) return FileText;
-        if (title.includes('Karantina')) return Beaker;
-        if (title.includes('Maliyet')) return WalletCards;
-        if (title.includes('Eğitim')) return GraduationCap;
-        return BarChart;
-    }
+    const thisMonthCosts = costs.filter(c => new Date(c.cost_date) >= thisMonth);
+    const lastMonthCosts = costs.filter(c => { const d = new Date(c.cost_date); return d >= lastMonth && d < thisMonth; });
+    const totalThisMonth = thisMonthCosts.reduce((s, c) => s + (c.amount || 0), 0);
+    const totalLastMonth = lastMonthCosts.reduce((s, c) => s + (c.amount || 0), 0);
+    const costTrend = totalLastMonth > 0 ? ((totalThisMonth - totalLastMonth) / totalLastMonth * 100) : 0;
 
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
-    };
+    const costByType = {};
+    thisMonthCosts.forEach(c => {
+      const t = c.cost_type || 'Diğer';
+      costByType[t] = (costByType[t] || 0) + (c.amount || 0);
+    });
+    const costPieData = Object.entries(costByType).map(([name, value]) => ({ name, value: Math.round(value) })).sort((a, b) => b.value - a.value);
 
-    const itemVariants = {
-        hidden: { y: 20, opacity: 0 },
-        visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 100 } }
-    };
+    const allCals = equips.flatMap(e => (e.equipment_calibrations || []).map(c => ({ ...c, equipName: e.name })));
+    const overdueCals = allCals.filter(c => c.next_calibration_date && new Date(c.next_calibration_date) < today);
+    const upcomingCals = allCals.filter(c => c.next_calibration_date && new Date(c.next_calibration_date) >= today && new Date(c.next_calibration_date) <= thirtyDays).sort((a, b) => new Date(a.next_calibration_date) - new Date(b.next_calibration_date));
+    const expiringDocs = docs.filter(d => d.valid_until && new Date(d.valid_until) >= today && new Date(d.valid_until) <= thirtyDays).sort((a, b) => new Date(a.valid_until) - new Date(b.valid_until));
 
-    if (error) {
-        return (
-            <div className="p-6">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h2 className="text-lg font-semibold text-red-800 mb-2">Dashboard Yüklenirken Hata Oluştu</h2>
-                    <p className="text-red-700">{error}</p>
-                    <Button
-                        onClick={() => window.location.reload()}
-                        className="mt-4"
-                        variant="destructive"
-                    >
-                        Sayfayı Yenile
-                    </Button>
-                </div>
-            </div>
-        );
-    }
+    const completedTrainings = trains.filter(t => t.status === 'Tamamlandı').length;
+    const trainingRate = trains.length > 0 ? Math.round(completedTrainings / trains.length * 100) : 0;
 
-    return (
-        <div className="space-y-6 sm:space-y-8">
-            {/* Drill-Down Analiz Modalleri */}
-            <Dialog open={drillDownType === 'df'} onOpenChange={(open) => !open && setDrillDownType(null)}>
-                <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader className="sr-only"><DialogTitle>DF Analiz Detayı</DialogTitle></DialogHeader>
-                    <DFDrillDownAnalysis onClose={() => setDrillDownType(null)} />
-                </DialogContent>
-            </Dialog>
+    const ncClosureRate = ncs.length > 0 ? closedNcs.length / ncs.length * 100 : 100;
+    const totalOpen = openDf.length + open8d.length;
+    const overdueRate = totalOpen > 0 ? (1 - overdueNcs.length / totalOpen) * 100 : 100;
+    const calCompliance = allCals.length > 0 ? (1 - overdueCals.length / allCals.length) * 100 : 100;
+    const costScore = Math.min(100, costTrend <= 0 ? 100 : Math.max(0, 100 - costTrend));
 
-            <Dialog open={drillDownType === 'quarantine'} onOpenChange={(open) => !open && setDrillDownType(null)}>
-                <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader className="sr-only"><DialogTitle>Karantina Analiz Detayı</DialogTitle></DialogHeader>
-                    <QuarantineDrillDownAnalysis onClose={() => setDrillDownType(null)} />
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={drillDownType === 'cost'} onOpenChange={(open) => !open && setDrillDownType(null)}>
-                <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader className="sr-only"><DialogTitle>Maliyet Analiz Detayı</DialogTitle></DialogHeader>
-                    <CostDrillDownAnalysis onClose={() => setDrillDownType(null)} />
-                </DialogContent>
-            </Dialog>
-
-            <DashboardDetailModal
-                isOpen={isDetailModalOpen}
-                setIsOpen={setDetailModalOpen}
-                title={detailModalContent.title}
-                records={detailModalContent.records}
-                renderItem={detailModalContent.renderItem}
-                onRowClick={(item) => handleCardClick(item.module)}
-            />
-            <ReportGenerationModalEnhanced isOpen={isReportModalOpen} setIsOpen={setReportModalOpen} />
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
-                <div className="min-w-0">
-                    <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground">Ana Panel</h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Tüm kalite süreçlerinize genel bir bakış.</p>
-                </div>
-                <Button onClick={() => setReportModalOpen(true)} size="sm" className="shrink-0 w-full sm:w-auto">
-                    <FileDown className="w-4 h-4 mr-2" /> Rapor Al
-                </Button>
-            </div>
-
-            {/* Bildirim Merkezi - Kompakt */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Bildirim Merkezi">
-                    <NotificationCenter />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* Son İşlemler - Personel faaliyetleri */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Son İşlemler">
-                    <Card className="dashboard-widget h-full flex flex-col">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <ScrollText className="w-4 h-4 text-primary" />
-                                Son İşlemler
-                            </CardTitle>
-                            <Button variant="link" size="sm" onClick={() => setActiveModule?.('audit-logs')} className="p-0 h-auto text-xs">
-                                Tümünü Gör
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="pt-0 flex-grow p-4 min-w-0">
-                            {loading ? (
-                                <div className="space-y-2">
-                                    {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
-                                </div>
-                            ) : !auditLogs || auditLogs.length === 0 ? (
-                                <p className="text-xs text-muted-foreground text-center py-4">İşlem kaydı bulunmuyor.</p>
-                            ) : (
-                                <ul className="space-y-1">
-                                    {auditLogs.slice(0, 8).map((log) => {
-                                        const isAdd = log.action?.startsWith('EKLEME');
-                                        const isDel = log.action?.startsWith('SİLME');
-                                        const tableLabel = TABLE_LABELS[log.table_name] || log.table_name;
-                                        const shortAction = isAdd ? 'Eklendi' : isDel ? 'Silindi' : 'Güncellendi';
-                                        let desc = '';
-                                        try {
-                                            const d = log.details;
-                                            if (d?.new?.title) desc = d.new.title;
-                                            else if (d?.new?.name) desc = d.new.name;
-                                            else if (d?.new?.nc_number) desc = `NC: ${d.new.nc_number}`;
-                                            else if (d?.new?.mdi_no) desc = `MDI: ${d.new.mdi_no}`;
-                                            else if (d?.new?.request_no) desc = `Talep: ${d.new.request_no}`;
-                                            else if (d?.old?.title) desc = d.old.title;
-                                            else if (d?.old?.name) desc = d.old.name;
-                                            else if (typeof d === 'object' && d?.title) desc = d.title;
-                                            else if (typeof d === 'object' && d?.name) desc = d.name;
-                                        } catch (_) {}
-                                        const display = desc ? (desc.length > 40 ? desc.slice(0, 40) + '…' : desc) : '—';
-                                        return (
-                                            <li
-                                                key={log.id}
-                                                onClick={() => setActiveModule?.('audit-logs')}
-                                                className="flex items-center gap-2 p-2 rounded-md hover:bg-accent cursor-pointer text-xs min-w-0"
-                                            >
-                                                <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${
-                                                    isAdd ? 'bg-green-100 text-green-700 dark:bg-green-900/30' :
-                                                    isDel ? 'bg-red-100 text-red-700 dark:bg-red-900/30' :
-                                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30'
-                                                }`}>
-                                                    {isAdd ? <Plus className="w-3 h-3" /> : isDel ? <Trash2 className="w-3 h-3" /> : <Edit className="w-3 h-3" />}
-                                                </span>
-                                                <div className="min-w-0 flex-1 truncate">
-                                                    <span className="font-medium"> {log.user_full_name || 'Sistem'}</span>
-                                                    <span className="text-muted-foreground"> {shortAction} · </span>
-                                                    <span className="text-muted-foreground truncate">{tableLabel}: {display}</span>
-                                                </div>
-                                                <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 tabular-nums">
-                                                    {format(new Date(log.created_at), 'dd.MM HH:mm', { locale: tr })}
-                                                </span>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                        </CardContent>
-                    </Card>
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* Kalite Sistem Danışmanı - AI Destekli Analiz */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Kalite Danışmanı">
-                    <QualityAdvisor onNavigate={(module) => {
-                        // Modül navigasyonu için callback
-                        console.log('Navigate to module:', module);
-                    }} />
-                </ErrorBoundary>
-            </motion.div>
-
-            <motion.div
-                className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-            >
-                {(kpiData || []).map((item, index) => (
-                    <motion.div key={index} variants={itemVariants}>
-                        <StatCard
-                            icon={getIconForKpi(item.title)}
-                            title={item.title}
-                            value={item.value}
-                            color={item.title.includes('Maliyet') ? 'text-red-500' : item.title.includes('Eğitim') ? 'text-teal-600' : 'text-primary'}
-                            loading={loading}
-                            onClick={() => handleCardClick(item.module, item.title)}
-                        />
-                    </motion.div>
-                ))}
-            </motion.div>
-
-            <motion.div variants={itemVariants}>
-                <Card className="dashboard-widget h-full">
-                    <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-4">
-                        <CardTitle className="text-sm sm:text-base md:text-lg">Birim Bazlı Uygunsuzluk Dağılımı</CardTitle>
-                        <p className="text-xs text-muted-foreground mt-0.5">İlgili Birim (sorumlu birim) bazında</p>
-                    </CardHeader>
-                    <CardContent className="p-2 sm:p-6 pt-0">
-                        {loading ? <Skeleton className="h-[200px] sm:h-[250px] md:h-[300px] w-full" /> : (
-                            <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : window.innerWidth < 768 ? 250 : 350}>
-                                <RechartsBarChart data={nonconformityData || []} margin={{ top: 5, right: 10, left: 10, bottom: 60 }}>
-                                    <XAxis
-                                        dataKey="name"
-                                        stroke="hsl(var(--muted-foreground))"
-                                        fontSize={window.innerWidth < 640 ? 9 : 11}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        interval={0}
-                                        angle={-45}
-                                        textAnchor="end"
-                                        height={80}
-                                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                                    />
-                                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={window.innerWidth < 640 ? 10 : 12} tickLine={false} axisLine={false} width={40} />
-                                    <Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '12px' }} />
-                                    <Bar dataKey="value" name="Uygunsuzluk Sayısı" radius={[4, 4, 0, 0]} onClick={handleChartClick}>
-                                        {(nonconformityData || []).map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="cursor-pointer" />
-                                        ))}
-                                    </Bar>
-                                </RechartsBarChart>
-                            </ResponsiveContainer>
-                        )}
-                    </CardContent>
-                </Card>
-            </motion.div>
-
-            {/* Gerçek Zamanlı Uyarılar */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Gerçek Zamanlı Uyarılar">
-                    <DashboardAlerts onAlertClick={(type, data) => {
-                        if (type === 'overdue-nc-detail' && data) {
-                            // Tek bir kayıt detayını doğrudan aç
-                            if (onOpenNCView && data.id) {
-                                onOpenNCView(data);
-                            } else {
-                                handleCardClick('df-8d');
-                            }
-                        } else if (type === 'overdue-nc') {
-                            setDetailModalData({
-                                isOpen: true,
-                                title: '30+ Gün Açık DF/8D Kayıtları',
-                                description: `${data.length} adet geciken kayıt bulundu`,
-                                data: data,
-                                columns: [
-                                    { key: 'nc_number', label: 'Kayıt No' },
-                                    { key: 'title', label: 'Başlık' },
-                                    { key: 'department', label: 'Sorumlu Birim' },
-                                    {
-                                        key: 'daysOverdue',
-                                        label: 'Gecikme (Gün)',
-                                        render: (row) => <span className="font-semibold text-red-600">{row.daysOverdue}</span>
-                                    },
-                                    { key: 'status', label: 'Durum' }
-                                ],
-                                onRowClick: (row) => {
-                                    // Satıra tıklandığında kaydı doğrudan aç
-                                    if (onOpenNCView && row.id) {
-                                        setDetailModalData(prev => ({ ...prev, isOpen: false }));
-                                        onOpenNCView(row);
-                                    } else {
-                                        handleCardClick('df-8d');
-                                    }
-                                }
-                            });
-                        } else if (type === 'overdue-calibration-detail' && data) {
-                            // Tek bir kalibrasyon detayı göster
-                            handleCardClick('equipment');
-                        } else if (type === 'overdue-calibration') {
-                            setDetailModalData({
-                                isOpen: true,
-                                title: 'Geciken Kalibrasyonlar',
-                                description: `${data.length} adet geciken kalibrasyon bulundu`,
-                                data: data,
-                                columns: [
-                                    { key: 'equipment', label: 'Ekipman Adı' },
-                                    {
-                                        key: 'dueDate',
-                                        label: 'Son Geçerlilik',
-                                        render: (row) => format(new Date(row.dueDate), 'dd.MM.yyyy', { locale: tr })
-                                    },
-                                    {
-                                        key: 'daysOverdue',
-                                        label: 'Gecikme (Gün)',
-                                        render: (row) => <span className="font-semibold text-red-600">{row.daysOverdue}</span>
-                                    }
-                                ],
-                                onRowClick: (row) => handleCardClick('equipment')
-                            });
-                        } else if (type === 'expiring-docs-detail' && data) {
-                            // Tek bir doküman detayı göster
-                            handleCardClick('document');
-                        } else if (type === 'expiring-docs') {
-                            setDetailModalData({
-                                isOpen: true,
-                                title: 'Geçerliliği Dolacak Dokümanlar',
-                                description: `${data.length} adet doküman yakında geçerliliğini yitirecek`,
-                                data: data,
-                                columns: [
-                                    { key: 'name', label: 'Doküman Adı' },
-                                    {
-                                        key: 'valid_until',
-                                        label: 'Son Geçerlilik',
-                                        render: (row) => format(new Date(row.valid_until), 'dd.MM.yyyy', { locale: tr })
-                                    },
-                                    {
-                                        key: 'daysRemaining',
-                                        label: 'Kalan Gün',
-                                        render: (row) => <span className="font-semibold text-yellow-600">{row.daysRemaining}</span>
-                                    }
-                                ],
-                                onRowClick: (row) => handleCardClick('document')
-                            });
-                        } else if (type === 'cost-anomaly') {
-                            // Maliyet anomalisi için detaylı analiz modalı veya drill-down
-                            if (data && data.length > 0) {
-                                setDrillDownType('cost');
-                            } else {
-                                handleCardClick('quality-cost');
-                            }
-                        }
-                    }} />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* Bu Ayın Trendleri */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Bu Ayın Trendleri">
-                    <DashboardTrends />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* Bugünün Görevleri */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Bugünün Görevleri">
-                    <TodayTasks onTaskClick={(type, data) => {
-                        if (type === 'overdue-8d') {
-                            setDetailModalData({
-                                isOpen: true,
-                                title: 'Bugün Kapanması Gereken 8D Kayıtları',
-                                description: `${data.length} adet 8D kaydı bugün kapanması gerekiyor`,
-                                data: data,
-                                columns: [
-                                    { key: 'nc_number', label: 'Kayıt No' },
-                                    { key: 'title', label: 'Başlık' },
-                                    { key: 'department', label: 'Sorumlu Birim' },
-                                    {
-                                        key: 'target_close_date',
-                                        label: 'Hedef Kapanış',
-                                        render: (row) => format(new Date(row.target_close_date), 'dd.MM.yyyy', { locale: tr })
-                                    },
-                                    {
-                                        key: 'daysOverdue',
-                                        label: 'Gecikme',
-                                        render: (row) => row.isOverdue ? (
-                                            <span className="font-semibold text-red-600">{row.daysOverdue} gün</span>
-                                        ) : (
-                                            <span className="text-green-600">Bugün</span>
-                                        )
-                                    }
-                                ],
-                                onRowClick: (row) => {
-                                    if (onOpenNCView && row.id) {
-                                        setDetailModalData(prev => ({ ...prev, isOpen: false }));
-                                        onOpenNCView(row);
-                                    } else {
-                                        handleCardClick('df-8d');
-                                    }
-                                }
-                            });
-                        } else if (type === 'due-calibration') {
-                            setDetailModalData({
-                                isOpen: true,
-                                title: 'Bugün Kalibrasyonu Dolan Cihazlar',
-                                description: `${data.length} adet cihazın kalibrasyonu bugün doluyor`,
-                                data: data,
-                                columns: [
-                                    { key: 'equipment', label: 'Ekipman Adı' },
-                                    {
-                                        key: 'dueDate',
-                                        label: 'Son Geçerlilik',
-                                        render: (row) => format(new Date(row.dueDate), 'dd.MM.yyyy', { locale: tr })
-                                    },
-                                    {
-                                        key: 'daysOverdue',
-                                        label: 'Durum',
-                                        render: (row) => row.isOverdue ? (
-                                            <span className="font-semibold text-red-600">{row.daysOverdue} gün gecikme</span>
-                                        ) : (
-                                            <span className="text-green-600">Bugün</span>
-                                        )
-                                    }
-                                ],
-                                onRowClick: (row) => handleCardClick('equipment')
-                            });
-                        }
-                    }} />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* 5 En Kritik Uygunsuzluk */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Kritik Uygunsuzluklar">
-                    <CriticalNonConformities onViewDetails={(nc) => {
-                        if (nc && nc.id) {
-                            setDetailModalData({
-                                isOpen: true,
-                                title: `Uygunsuzluk Detayı - ${nc.nc_number || nc.mdi_no || 'N/A'}`,
-                                description: nc.title || 'Detay bilgisi',
-                                data: [nc],
-                                columns: [
-                                    { key: 'nc_number', label: 'Kayıt No' },
-                                    { key: 'title', label: 'Başlık' },
-                                    { key: 'type', label: 'Tip' },
-                                    { key: 'status', label: 'Durum' },
-                                    { key: 'department', label: 'Sorumlu Birim' },
-                                    {
-                                        key: 'severity',
-                                        label: 'Şiddet',
-                                        render: (row) => row.severity || '-'
-                                    },
-                                    {
-                                        key: 'opening_date',
-                                        label: 'Açılış Tarihi',
-                                        render: (row) => row.opening_date ? format(new Date(row.opening_date), 'dd.MM.yyyy', { locale: tr }) : '-'
-                                    }
-                                ],
-                                onRowClick: (row) => {
-                                    if (onOpenNCView && row.id) {
-                                        setDetailModalData(prev => ({ ...prev, isOpen: false }));
-                                        onOpenNCView(row);
-                                    } else {
-                                        handleCardClick('df-8d');
-                                    }
-                                }
-                            });
-                        } else {
-                            handleCardClick('df-8d');
-                        }
-                    }} />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* Kalite Duvarı */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Kalite Duvarı">
-                    <QualityWall />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* Kök Neden Isı Haritası */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Kök Neden Isı Haritası">
-                    <RootCauseHeatmap onDeptClick={(deptName) => {
-                        const normalizedDeptName = normalizeTurkishForSearch(deptName.trim().toLowerCase());
-                        const deptNCs = (nonConformities || []).filter(nc => {
-                            const ncDept = nc.department || nc.responsible_unit;
-                            if (!ncDept) return false;
-                            const normalizedNcDept = normalizeTurkishForSearch(String(ncDept).trim().toLowerCase());
-                            return normalizedNcDept === normalizedDeptName;
-                        });
-                        setDetailModalData({
-                            isOpen: true,
-                            title: `${deptName} - Uygunsuzluk Detayları`,
-                            description: `${deptNCs.length} adet uygunsuzluk kaydı bulundu`,
-                            data: deptNCs,
-                            columns: [
-                                { key: 'nc_number', label: 'Kayıt No' },
-                                { key: 'title', label: 'Başlık' },
-                                { key: 'type', label: 'Tip' },
-                                { key: 'status', label: 'Durum' },
-                                {
-                                    key: 'severity',
-                                    label: 'Şiddet',
-                                    render: (row) => row.severity || '-'
-                                },
-                                {
-                                    key: 'opening_date',
-                                    label: 'Açılış Tarihi',
-                                    render: (row) => row.opening_date ? format(new Date(row.opening_date), 'dd.MM.yyyy', { locale: tr }) : '-'
-                                }
-                            ],
-                            onRowClick: (row) => {
-                                if (onOpenNCView && row.id) {
-                                    setDetailModalData(prev => ({ ...prev, isOpen: false }));
-                                    onOpenNCView(row);
-                                } else {
-                                    handleCardClick('df-8d');
-                                }
-                            }
-                        });
-                    }} />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* Kalite Hedefleri Paneli */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Kalite Hedefleri">
-                    <QualityGoalsPanel />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* Risk Bazlı Göstergeler */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="Risk Göstergeleri">
-                    <RiskBasedIndicators />
-                </ErrorBoundary>
-            </motion.div>
-
-            {/* AI Destekli Kök Neden Tahmin */}
-            <motion.div variants={itemVariants}>
-                <ErrorBoundary componentName="AI Kök Neden Tahmin">
-                    <AIRootCausePrediction />
-                </ErrorBoundary>
-            </motion.div>
-
-            <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-            >
-                <motion.div variants={itemVariants}>
-                    <ListWidget
-                        title="Yaklaşan Kalibrasyonlar"
-                        items={upcomingCalibrations || []}
-                        icon={CalendarClock}
-                        onRowClick={handleCardClick}
-                        onSeeAllClick={() => handleCardClick('equipment')}
-                        emptyText="Yaklaşan kalibrasyon bulunmuyor."
-                        loading={loading}
-                    />
-                </motion.div>
-                <motion.div variants={itemVariants}>
-                    <ListWidget
-                        title="Yaklaşan Dok. Son Geçerlilik"
-                        items={expiringDocs || []}
-                        icon={BookCheck}
-                        onRowClick={handleCardClick}
-                        onSeeAllClick={() => handleCardClick('document')}
-                        emptyText="Yaklaşan doküman tarihi yok."
-                        loading={loading}
-                    />
-                </motion.div>
-                <motion.div variants={itemVariants}>
-                    <ListWidget
-                        title="Bu Ay Tamamlanan Tetkikler"
-                        items={completedAudits || []}
-                        icon={ClipboardCheck}
-                        onRowClick={handleCardClick}
-                        onSeeAllClick={() => handleCardClick('internal-audit')}
-                        emptyText="Bu ay tetkik tamamlanmamış."
-                        loading={loading}
-                    />
-                </motion.div>
-                <motion.div variants={itemVariants}>
-                    <ListWidget
-                        title="Bekleyen Onaylar"
-                        items={pendingApprovals || []}
-                        icon={ShieldCheck}
-                        onRowClick={handleCardClick}
-                        onSeeAllClick={() => handleCardClick('deviation')}
-                        emptyText="Onayınızı bekleyen bir işlem yok."
-                        loading={loading}
-                    />
-                </motion.div>
-            </motion.div>
-
-            {/* Detay Modal */}
-            <DetailModal
-                isOpen={detailModalData.isOpen}
-                onClose={() => setDetailModalData({ ...detailModalData, isOpen: false })}
-                title={detailModalData.title}
-                description={detailModalData.description}
-                data={detailModalData.data}
-                columns={detailModalData.columns}
-                onRowClick={detailModalData.onRowClick}
-            />
-        </div>
+    const healthScore = Math.round(
+      Math.min(ncClosureRate, 100) * 0.30 +
+      Math.min(overdueRate, 100) * 0.25 +
+      Math.min(calCompliance, 100) * 0.20 +
+      costScore * 0.15 +
+      trainingRate * 0.10
     );
+
+    const ncTrend = [];
+    for (let i = 5; i >= 0; i--) {
+      const ms = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const me = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
+      const label = ms.toLocaleDateString('tr-TR', { month: 'short' });
+      ncTrend.push({
+        month: label,
+        açılan: ncs.filter(n => { const d = new Date(n.opening_date || n.created_at); return d >= ms && d <= me; }).length,
+        kapanan: ncs.filter(n => { if (n.status !== 'Kapatıldı') return false; const d = new Date(n.closing_date || n.updated_at); return d >= ms && d <= me; }).length,
+      });
+    }
+
+    const costTrend6 = [];
+    for (let i = 5; i >= 0; i--) {
+      const ms = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const me = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
+      costTrend6.push({
+        month: ms.toLocaleDateString('tr-TR', { month: 'short' }),
+        value: costs.filter(c => { const d = new Date(c.cost_date); return d >= ms && d <= me; }).reduce((s, c) => s + (c.amount || 0), 0),
+      });
+    }
+
+    const ncByDept = {};
+    ncs.filter(n => n.status !== 'Kapatıldı').forEach(n => {
+      const dept = n.department || n.responsible_unit || 'Belirsiz';
+      ncByDept[dept] = (ncByDept[dept] || 0) + 1;
+    });
+    const deptData = Object.entries(ncByDept).sort((a, b) => b[1] - a[1]).slice(0, 8)
+      .map(([name, value]) => ({ name: name.length > 18 ? name.slice(0, 18) + '…' : name, value, fullName: name }));
+
+    const activityByDay = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today); d.setDate(d.getDate() - i);
+      const ds = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const de = new Date(ds.getTime() + 86400000);
+      activityByDay.push({
+        day: d.toLocaleDateString('tr-TR', { weekday: 'short' }),
+        value: logs.filter(l => { const t = new Date(l.created_at); return t >= ds && t < de; }).length,
+      });
+    }
+
+    const sevDist = { 'Kritik': 0, 'Yüksek': 0, 'Orta': 0, 'Düşük': 0 };
+    ncRecs.filter(r => r.status !== 'Kapatıldı').forEach(r => {
+      const sev = r.severity || 'Orta';
+      if (sevDist[sev] !== undefined) sevDist[sev]++;
+    });
+    const sevData = Object.entries(sevDist).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
+
+    const completedAuditsMonth = auds.filter(a => a.status === 'Tamamlandı' && new Date(a.audit_date) >= thisMonth);
+    const pendingApprovals = devs.filter(d => d.status === 'Onay Bekliyor');
+
+    return {
+      openDf: openDf.length, open8d: open8d.length, totalOpen,
+      overdueCount: overdueNcs.length, closedThisMonth, openedThisMonth,
+      openedLastMonth, ncClosureRate: Math.round(ncClosureRate),
+      totalThisMonthCost: totalThisMonth, costTrend, costPieData, costTrend6,
+      quarantine: qRecs.filter(q => q.status === 'Karantinada').length,
+      overdueCals: overdueCals.length, upcomingCals, expiringDocs,
+      totalEquip: equips.length, calCompliance: Math.round(calCompliance),
+      trainingRate, completedTrainings, totalTrainings: trains.length,
+      healthScore, ncTrend, deptData, activityByDay, sevData,
+      openRecords: ncRecs.filter(r => r.status !== 'Kapatıldı').length,
+      totalRecords: ncRecs.length, totalNcs: ncs.length,
+      pendingApprovals: pendingApprovals.length, pendingApprovalsList: pendingApprovals.slice(0, 5),
+      totalSuppliers: supps.length, totalPersonnel: pers.length,
+      activeAudits: auds.filter(a => a.status !== 'Tamamlandı' && a.status !== 'İptal Edildi').length,
+      completedAuditsMonth: completedAuditsMonth.length,
+      completedAuditsList: completedAuditsMonth.sort((a, b) => new Date(b.audit_date) - new Date(a.audit_date)).slice(0, 5),
+      expiringDocsCount: expiringDocs.length, totalDocs: docs.length,
+      recentLogs: logs.slice(0, 6),
+    };
+  }, [nonConformities, qualityCosts, equipments, documents, trainings, auditLogs, quarantineRecords, deviations, nonconformityRecords, audits, suppliers, personnel]);
+
+  const handleCardClick = useCallback((module, kpiTitle) => {
+    if (kpiTitle) {
+      if (kpiTitle.includes('DF') || kpiTitle.includes('8D')) { setDrillDownType('df'); return; }
+      if (kpiTitle.includes('Karantina')) { setDrillDownType('quarantine'); return; }
+      if (kpiTitle.includes('Maliyet')) { setDrillDownType('cost'); return; }
+    }
+    if (module) setActiveModule(module);
+  }, [setActiveModule]);
+
+  const handleAlertClick = useCallback((type, data) => {
+    if (type === 'overdue-nc-detail' && data) {
+      if (onOpenNCView && data.id) onOpenNCView(data); else handleCardClick('df-8d');
+    } else if (type === 'overdue-nc') {
+      setDetailModalData({ isOpen: true, title: '30+ Gün Açık DF/8D Kayıtları', description: `${data.length} adet geciken kayıt`, data, columns: [{ key: 'nc_number', label: 'No' }, { key: 'title', label: 'Başlık' }, { key: 'department', label: 'Birim' }, { key: 'daysOverdue', label: 'Gecikme', render: (r) => <span className="font-semibold text-red-600">{r.daysOverdue} gün</span> }], onRowClick: (row) => { setDetailModalData(p => ({ ...p, isOpen: false })); if (onOpenNCView && row.id) onOpenNCView(row); else handleCardClick('df-8d'); } });
+    } else if (type === 'overdue-calibration') {
+      setDetailModalData({ isOpen: true, title: 'Geciken Kalibrasyonlar', description: `${data.length} adet`, data, columns: [{ key: 'equipment', label: 'Ekipman' }, { key: 'dueDate', label: 'Son Tarih', render: (r) => format(new Date(r.dueDate), 'dd.MM.yyyy', { locale: tr }) }, { key: 'daysOverdue', label: 'Gecikme', render: (r) => <span className="text-red-600 font-semibold">{r.daysOverdue} gün</span> }], onRowClick: () => handleCardClick('equipment') });
+    } else if (type === 'expiring-docs') {
+      setDetailModalData({ isOpen: true, title: 'Geçerliliği Dolacak Dokümanlar', description: `${data.length} adet`, data, columns: [{ key: 'name', label: 'Doküman' }, { key: 'valid_until', label: 'Son Tarih', render: (r) => format(new Date(r.valid_until), 'dd.MM.yyyy', { locale: tr }) }, { key: 'daysRemaining', label: 'Kalan', render: (r) => <span className="text-yellow-600 font-semibold">{r.daysRemaining} gün</span> }], onRowClick: () => handleCardClick('document') });
+    } else if (type === 'cost-anomaly' && data?.length) { setDrillDownType('cost'); }
+    else if (type.endsWith('-detail') && data) { handleCardClick(type.includes('calibration') ? 'equipment' : 'document'); }
+  }, [handleCardClick, onOpenNCView]);
+
+  const handleTaskClick = useCallback((type, data) => {
+    if (type === 'overdue-8d') {
+      setDetailModalData({ isOpen: true, title: 'Bugün Kapanması Gereken 8D', description: `${data.length} adet`, data, columns: [{ key: 'nc_number', label: 'No' }, { key: 'title', label: 'Başlık' }, { key: 'department', label: 'Birim' }, { key: 'daysOverdue', label: 'Gecikme', render: (r) => r.isOverdue ? <span className="text-red-600 font-semibold">{r.daysOverdue} gün</span> : <span className="text-green-600">Bugün</span> }], onRowClick: (row) => { setDetailModalData(p => ({ ...p, isOpen: false })); if (onOpenNCView && row.id) onOpenNCView(row); else handleCardClick('df-8d'); } });
+    } else if (type === 'due-calibration') {
+      setDetailModalData({ isOpen: true, title: 'Bugün Dolan Kalibrasyonlar', description: `${data.length} adet`, data, columns: [{ key: 'equipment', label: 'Ekipman' }, { key: 'dueDate', label: 'Tarih', render: (r) => format(new Date(r.dueDate), 'dd.MM.yyyy', { locale: tr }) }], onRowClick: () => handleCardClick('equipment') });
+    }
+  }, [handleCardClick, onOpenNCView]);
+
+  const toggleSection = useCallback((key) => setExpandedSections(p => ({ ...p, [key]: !p[key] })), []);
+
+  if (error) {
+    return (
+      <div className="p-6"><div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <h2 className="text-lg font-semibold text-red-800 mb-2">Dashboard Yüklenirken Hata</h2>
+        <p className="text-red-700">{error}</p>
+        <Button onClick={() => window.location.reload()} className="mt-4" variant="destructive">Sayfayı Yenile</Button>
+      </div></div>
+    );
+  }
+
+  const hc = HEALTH_COLOR(m.healthScore);
+  const gaugeData = [{ value: m.healthScore, fill: hc.ring }];
+  const todayStr = format(new Date(), 'dd MMMM yyyy, EEEE', { locale: tr });
+
+  return (
+    <div className="space-y-5">
+      {/* Drill-down dialogs */}
+      {['df', 'quarantine', 'cost'].map(type => (
+        <Dialog key={type} open={drillDownType === type} onOpenChange={o => !o && setDrillDownType(null)}>
+          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="sr-only"><DialogTitle>{type} Analiz</DialogTitle></DialogHeader>
+            {type === 'df' && <DFDrillDownAnalysis onClose={() => setDrillDownType(null)} />}
+            {type === 'quarantine' && <QuarantineDrillDownAnalysis onClose={() => setDrillDownType(null)} />}
+            {type === 'cost' && <CostDrillDownAnalysis onClose={() => setDrillDownType(null)} />}
+          </DialogContent>
+        </Dialog>
+      ))}
+      <DashboardDetailModal isOpen={isDetailModalOpen} setIsOpen={setDetailModalOpen} title={detailModalContent.title} records={detailModalContent.records} renderItem={detailModalContent.renderItem} />
+      <ReportGenerationModalEnhanced isOpen={isReportModalOpen} setIsOpen={setReportModalOpen} />
+      <DetailModal isOpen={detailModalData.isOpen} onClose={() => setDetailModalData(p => ({ ...p, isOpen: false }))} title={detailModalData.title} description={detailModalData.description} data={detailModalData.data} columns={detailModalData.columns} onRowClick={detailModalData.onRowClick} />
+
+      {/* ═══════ HERO HEADER — marka mavisi (açık tema ile uyumlu) ═══════ */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/[0.08] via-background to-muted/40 dark:from-primary/[0.12] dark:via-background dark:to-muted/25 p-5 sm:p-6 shadow-sm">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/[0.12] via-transparent to-transparent pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/[0.06] rounded-full blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Kalite Yönetim Paneli</h1>
+            <p className="text-sm text-muted-foreground mt-1">{todayStr}</p>
+            <div className="flex flex-wrap items-center gap-3 mt-4">
+              <button type="button" onClick={() => handleCardClick('df-8d', 'DF')} className="flex items-center gap-2 rounded-lg bg-card/95 backdrop-blur-sm border border-border px-3 py-2 shadow-sm hover:bg-accent/80 transition-colors">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Açık DF/8D</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.totalOpen}</p></div>
+              </button>
+              <button type="button" onClick={() => handleCardClick('quality-cost', 'Maliyet')} className="flex items-center gap-2 rounded-lg bg-card/95 backdrop-blur-sm border border-border px-3 py-2 shadow-sm hover:bg-accent/80 transition-colors">
+                <WalletCards className="w-4 h-4 text-red-500" />
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Bu Ay Maliyet</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : fmtCurrency(m.totalThisMonthCost)}</p></div>
+                {!loading && <TrendBadge value={m.costTrend} invert />}
+              </button>
+              <button type="button" onClick={() => handleCardClick('nonconformity')} className="flex items-center gap-2 rounded-lg bg-card/95 backdrop-blur-sm border border-border px-3 py-2 shadow-sm hover:bg-accent/80 transition-colors">
+                <Zap className="w-4 h-4 text-primary" />
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Uygunsuzluk</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.openRecords}</p></div>
+              </button>
+              <button type="button" onClick={() => handleCardClick('quarantine', 'Karantina')} className="flex items-center gap-2 rounded-lg bg-card/95 backdrop-blur-sm border border-border px-3 py-2 shadow-sm hover:bg-accent/80 transition-colors">
+                <Beaker className="w-4 h-4 text-purple-500" />
+                <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Karantina</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.quarantine}</p></div>
+              </button>
+            </div>
+          </div>
+
+          {/* Quality Health Score Gauge */}
+          <div className="flex flex-col items-center shrink-0">
+            <div className="relative w-36 h-36 sm:w-44 sm:h-44">
+              {loading ? <Skeleton className="w-full h-full rounded-full" /> : (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadialBarChart innerRadius="75%" outerRadius="100%" data={gaugeData} startAngle={225} endAngle={-45} barSize={10}>
+                      <RadialBar background={{ fill: 'hsl(var(--muted))' }} clockWise dataKey="value" cornerRadius={10} max={100} />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-4xl sm:text-5xl font-black text-foreground tabular-nums">{m.healthScore}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">Kalite Skoru</span>
+                    <Badge className={cn('mt-1 text-[10px]', hc.ring === '#22c55e' ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30' : hc.ring === '#eab308' ? 'bg-yellow-100 text-yellow-900 border-yellow-200 dark:bg-yellow-500/20 dark:text-yellow-300 dark:border-yellow-500/30' : hc.ring === '#f97316' ? 'bg-orange-100 text-orange-900 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30' : 'bg-red-100 text-red-800 border-red-200 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30')} variant="outline">{hc.label}</Badge>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex gap-3 mt-2 text-[10px] text-muted-foreground">
+              <span>Kapanış: %{m.ncClosureRate}</span>
+              <span>Kalibrasyon: %{m.calCompliance}</span>
+            </div>
+          </div>
+        </div>
+        <div className="relative flex justify-end mt-3">
+          <Button onClick={() => setReportModalOpen(true)} size="sm" variant="default">
+            <FileDown className="w-4 h-4 mr-2" />Rapor Al
+          </Button>
+        </div>
+      </div>
+
+      {/* ═══════ KPI CARDS ROW ═══════ */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { title: 'Açık DF', value: m.openDf, icon: AlertTriangle, color: 'text-amber-500', module: 'df-8d', spark: m.ncTrend, sparkKey: 'açılan', sparkColor: '#f59e0b' },
+          { title: 'Açık 8D', value: m.open8d, icon: AlertOctagon, color: 'text-red-500', module: 'df-8d' },
+          { title: 'Geciken DF/8D', value: m.overdueCount, icon: Clock, color: m.overdueCount > 0 ? 'text-red-600' : 'text-emerald-500', module: 'df-8d' },
+          { title: 'Bu Ay Açılan', value: m.openedThisMonth, icon: TrendingUp, color: 'text-blue-500', module: 'df-8d', trend: m.openedLastMonth > 0 ? ((m.openedThisMonth - m.openedLastMonth) / m.openedLastMonth * 100) : null, trendInvert: true },
+          { title: 'Bu Ay Kapanan', value: m.closedThisMonth, icon: CheckSquare, color: 'text-emerald-500', module: 'df-8d' },
+          { title: 'Eğitim Oranı', value: `%${m.trainingRate}`, icon: GraduationCap, color: 'text-teal-500', module: 'training' },
+        ].map((kpi, i) => (
+          <Card key={i} className="group cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5" onClick={() => handleCardClick(kpi.module, kpi.title)}>
+            <CardContent className="p-3.5">
+              <div className="flex items-start justify-between">
+                <kpi.icon className={cn('w-4 h-4 shrink-0', kpi.color)} />
+                {kpi.trend != null && <TrendBadge value={kpi.trend} invert={kpi.trendInvert} />}
+              </div>
+              <div className="mt-2">
+                <p className="text-2xl font-bold tabular-nums">{loading ? <Skeleton className="h-7 w-12" /> : kpi.value}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{kpi.title}</p>
+              </div>
+              {kpi.spark && !loading && (
+                <div className="mt-2 -mx-1"><MiniSpark data={kpi.spark} dataKey={kpi.sparkKey} color={kpi.sparkColor} height={28} /></div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* ═══════ MAIN CHARTS ═══════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* NC Trend - 3/5 */}
+        <Card className="lg:col-span-3">
+          <CardHeader className="pb-2 p-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-500" />DF/8D Trend (6 Ay)
+              </CardTitle>
+              <div className="flex items-center gap-3 text-[10px]">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" />Açılan</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />Kapanan</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            {loading ? <Skeleton className="h-[220px] w-full" /> : (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={m.ncTrend} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradOpened" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradClosed" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} /><stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={35} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="açılan" name="Açılan" stroke="#6366f1" strokeWidth={2} fill="url(#gradOpened)" dot={{ r: 3, fill: '#6366f1' }} />
+                  <Area type="monotone" dataKey="kapanan" name="Kapanan" stroke="#22c55e" strokeWidth={2} fill="url(#gradClosed)" dot={{ r: 3, fill: '#22c55e' }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Cost Donut + Trend - 2/5 */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2 p-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <WalletCards className="w-4 h-4 text-red-500" />Maliyet Dağılımı (Bu Ay)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-0 flex flex-col items-center">
+            {loading ? <Skeleton className="h-[180px] w-full" /> : m.costPieData.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8">Bu ay maliyet verisi yok</p>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={170}>
+                  <PieChart>
+                    <Pie data={m.costPieData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value" strokeWidth={0}>
+                      {m.costPieData.map((entry, i) => <Cell key={i} fill={COST_COLORS[entry.name] || DEPT_COLORS[i % DEPT_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v) => `${v.toLocaleString('tr-TR')} ₺`} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '11px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px]">
+                  {m.costPieData.map((entry, i) => (
+                    <span key={i} className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COST_COLORS[entry.name] || DEPT_COLORS[i % DEPT_COLORS.length] }} />
+                      <span className="text-muted-foreground">{entry.name.replace(' Maliyetleri', '')}</span>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+            {!loading && (
+              <div className="w-full mt-3 pt-3 border-t">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Maliyet Trendi (6 Ay)</p>
+                <MiniSpark data={m.costTrend6} color="#ef4444" height={36} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ═══════ DEPARTMENT BAR + SEVERITY + ACTIVITY ═══════ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Department Bar */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="pb-2 p-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-indigo-500" />Birim Bazlı Açık DF/8D
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            {loading ? <Skeleton className="h-[200px] w-full" /> : m.deptData.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">Veri yok</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <RechartsBarChart data={m.deptData} layout="vertical" margin={{ top: 0, right: 5, left: 5, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={100} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="value" name="Açık DF/8D" radius={[0, 4, 4, 0]} barSize={14}>
+                    {m.deptData.map((_, i) => <Cell key={i} fill={DEPT_COLORS[i % DEPT_COLORS.length]} />)}
+                  </Bar>
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Severity Distribution */}
+        <Card>
+          <CardHeader className="pb-2 p-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Shield className="w-4 h-4 text-amber-500" />Ciddiyet Dağılımı (Uygunsuzluk Kayıtları)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-4">
+            {loading ? <Skeleton className="h-[200px] w-full" /> : m.sevData.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">Açık kayıt yok</p>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={130}>
+                  <PieChart>
+                    <Pie data={m.sevData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={4} dataKey="value" strokeWidth={0}>
+                      {m.sevData.map((entry, i) => <Cell key={i} fill={SEVERITY_COLORS[entry.name] || '#94a3b8'} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: '0.5rem', fontSize: '11px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-2">
+                  {m.sevData.map((s, i) => (
+                    <div key={i} className="flex items-center gap-2 p-1.5 rounded-md bg-muted/30">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: SEVERITY_COLORS[s.name] }} />
+                      <span className="text-xs text-muted-foreground flex-1">{s.name}</span>
+                      <span className="text-xs font-bold tabular-nums">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Activity + Quick Stats */}
+        <Card>
+          <CardHeader className="pb-2 p-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-500" />Haftalık Aktivite
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-3">
+            {loading ? <Skeleton className="h-[80px] w-full" /> : (
+              <ResponsiveContainer width="100%" height={80}>
+                <RechartsBarChart data={m.activityByDay} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="value" name="İşlem" radius={[3, 3, 0, 0]} barSize={20} fill="#6366f1" opacity={0.8} />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { icon: Users, label: 'Personel', value: m.totalPersonnel, color: 'text-blue-500' },
+                { icon: Package, label: 'Tedarikçi', value: m.totalSuppliers, color: 'text-indigo-500' },
+                { icon: Wrench, label: 'Ekipman', value: m.totalEquip, color: 'text-amber-500' },
+                { icon: FileText, label: 'Doküman', value: m.totalDocs, color: 'text-emerald-500' },
+                { icon: ClipboardCheck, label: 'Tetkik (Ay)', value: m.completedAuditsMonth, color: 'text-purple-500' },
+                { icon: Target, label: 'Onay Bekl.', value: m.pendingApprovals, color: m.pendingApprovals > 0 ? 'text-red-500' : 'text-slate-400' },
+              ].map((s, i) => (
+                <div key={i} className="flex items-center gap-2 p-1.5 rounded-md bg-muted/30">
+                  <s.icon className={cn('w-3.5 h-3.5 shrink-0', s.color)} />
+                  <span className="text-[10px] text-muted-foreground flex-1">{s.label}</span>
+                  <span className="text-xs font-bold tabular-nums">{loading ? '…' : s.value}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ═══════ SON İŞLEMLER ═══════ */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <ScrollText className="w-4 h-4 text-indigo-500" />Son İşlemler
+          </CardTitle>
+          <Button variant="link" size="sm" onClick={() => handleCardClick('audit-logs')} className="p-0 h-auto text-xs">Tümünü Gör</Button>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          {loading ? (
+            <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}</div>
+          ) : !m.recentLogs?.length ? (
+            <p className="text-xs text-muted-foreground text-center py-4">İşlem kaydı yok</p>
+          ) : (
+            <div className="space-y-0.5">
+              {m.recentLogs.map((log) => {
+                const isAdd = log.action?.startsWith('EKLEME');
+                const isDel = log.action?.startsWith('SİLME');
+                const tableLabel = TABLE_LABELS[log.table_name] || log.table_name;
+                const shortAction = isAdd ? 'Eklendi' : isDel ? 'Silindi' : 'Güncellendi';
+                let desc = '';
+                try {
+                  const d = log.details;
+                  desc = d?.new?.title || d?.new?.name || (d?.new?.nc_number ? `NC: ${d.new.nc_number}` : '') || d?.old?.title || d?.old?.name || '';
+                } catch (_) {}
+                const display = desc ? (desc.length > 50 ? desc.slice(0, 50) + '…' : desc) : '—';
+                return (
+                  <div key={log.id} onClick={() => handleCardClick('audit-logs')} className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 cursor-pointer text-xs transition-colors">
+                    <span className={cn('shrink-0 w-6 h-6 rounded-full flex items-center justify-center', isAdd ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : isDel ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400')}>
+                      {isAdd ? <Plus className="w-3 h-3" /> : isDel ? <Trash2 className="w-3 h-3" /> : <Edit className="w-3 h-3" />}
+                    </span>
+                    <div className="min-w-0 flex-1 truncate">
+                      <span className="font-medium">{log.user_full_name || 'Sistem'}</span>
+                      <span className="text-muted-foreground"> {shortAction} · {tableLabel}: </span>
+                      <span className="text-muted-foreground">{display}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 tabular-nums">
+                      {format(new Date(log.created_at), 'dd.MM HH:mm', { locale: tr })}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ═══════ ALERTS + TASKS ═══════ */}
+      <div className="space-y-1">
+        <button onClick={() => toggleSection('alerts')} className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors w-full text-left py-1">
+          {expandedSections.alerts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          Uyarılar & Görevler
+        </button>
+        {expandedSections.alerts && (
+          <div className="space-y-4 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+            <ErrorBoundary componentName="Uyarılar">
+              <DashboardAlerts onAlertClick={handleAlertClick} />
+            </ErrorBoundary>
+            <ErrorBoundary componentName="Görevler">
+              <TodayTasks onTaskClick={handleTaskClick} />
+            </ErrorBoundary>
+            <ErrorBoundary componentName="Kritik NC">
+              <CriticalNonConformities onViewDetails={(nc) => {
+                if (nc?.id && onOpenNCView) onOpenNCView(nc);
+                else handleCardClick('df-8d');
+              }} />
+            </ErrorBoundary>
+          </div>
+        )}
+      </div>
+
+      {/* ═══════ QUICK LISTS ═══════ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Upcoming Calibrations */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-amber-500" />Yaklaşan Kalibrasyonlar
+              {m.overdueCals > 0 && <Badge variant="destructive" className="text-[9px] px-1.5 py-0">{m.overdueCals} gecikmiş</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {loading ? <Skeleton className="h-24 w-full" /> : m.upcomingCals.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">Yaklaşan kalibrasyon yok</p>
+            ) : (
+              <ul className="space-y-1">
+                {m.upcomingCals.slice(0, 5).map((c, i) => (
+                  <li key={i} onClick={() => handleCardClick('equipment')} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent/50 cursor-pointer text-xs transition-colors">
+                    <span className="truncate flex-1">{c.equipName}</span>
+                    <span className="text-muted-foreground tabular-nums shrink-0 ml-2">
+                      {format(new Date(c.next_calibration_date), 'dd.MM.yy', { locale: tr })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Expiring Docs */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <BookCheck className="w-4 h-4 text-orange-500" />Süresi Dolacak Dokümanlar
+              {m.expiringDocsCount > 0 && <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-orange-300 text-orange-600">{m.expiringDocsCount}</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {loading ? <Skeleton className="h-24 w-full" /> : m.expiringDocs.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">Yaklaşan tarih yok</p>
+            ) : (
+              <ul className="space-y-1">
+                {m.expiringDocs.slice(0, 5).map((d, i) => (
+                  <li key={i} onClick={() => handleCardClick('document')} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent/50 cursor-pointer text-xs transition-colors">
+                    <span className="truncate flex-1">{d.name}</span>
+                    <span className="text-muted-foreground tabular-nums shrink-0 ml-2">
+                      {format(new Date(d.valid_until), 'dd.MM.yy', { locale: tr })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Completed Audits */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-emerald-500" />Bu Ay Tamamlanan Tetkikler
+              {m.completedAuditsMonth > 0 && <Badge className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{m.completedAuditsMonth}</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {loading ? <Skeleton className="h-24 w-full" /> : m.completedAuditsList.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">Bu ay tetkik tamamlanmamış</p>
+            ) : (
+              <ul className="space-y-1">
+                {m.completedAuditsList.map((a, i) => (
+                  <li key={i} onClick={() => handleCardClick('internal-audit')} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent/50 cursor-pointer text-xs transition-colors">
+                    <span className="truncate flex-1 font-mono">{a.report_number || a.title || '—'}</span>
+                    <span className="text-muted-foreground tabular-nums shrink-0 ml-2">
+                      {a.audit_date ? format(new Date(a.audit_date), 'dd.MM.yy', { locale: tr }) : '—'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ═══════ ADVANCED ANALYTICS (Collapsible) ═══════ */}
+      <div className="space-y-1">
+        <button onClick={() => toggleSection('advanced')} className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors w-full text-left py-1">
+          {expandedSections.advanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          Gelişmiş Analitik
+        </button>
+        {expandedSections.advanced && (
+          <div className="space-y-4 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+            <ErrorBoundary componentName="Kalite Duvarı">
+              <QualityWall />
+            </ErrorBoundary>
+            <ErrorBoundary componentName="Kök Neden Isı Haritası">
+              <RootCauseHeatmap onDeptClick={(deptName) => {
+                const norm = normalizeTurkishForSearch(deptName.trim().toLowerCase());
+                const deptNCs = (nonConformities || []).filter(nc => {
+                  const d = nc.department || nc.responsible_unit;
+                  return d && normalizeTurkishForSearch(String(d).trim().toLowerCase()) === norm;
+                });
+                setDetailModalData({
+                  isOpen: true, title: `${deptName} - Uygunsuzluklar`, description: `${deptNCs.length} kayıt`, data: deptNCs,
+                  columns: [{ key: 'nc_number', label: 'No' }, { key: 'title', label: 'Başlık' }, { key: 'type', label: 'Tip' }, { key: 'status', label: 'Durum' }],
+                  onRowClick: (row) => { setDetailModalData(p => ({ ...p, isOpen: false })); if (onOpenNCView && row.id) onOpenNCView(row); else handleCardClick('df-8d'); }
+                });
+              }} />
+            </ErrorBoundary>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default Dashboard;

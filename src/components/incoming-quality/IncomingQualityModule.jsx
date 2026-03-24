@@ -24,6 +24,12 @@ import StockRiskControlModal from '@/components/incoming-quality/StockRiskContro
 import ControlPlanDetailModal from '@/components/incoming-quality/ControlPlanDetailModal';
 import InkrDetailModal from '@/components/incoming-quality/InkrDetailModal';
 import StockRiskDetailModal from '@/components/incoming-quality/StockRiskDetailModal';
+import {
+  normalizeIncomingPartCode,
+  formatPartCodesForPostgrestInFilter,
+  uniqueTrimmedPartCodesFromPlans,
+  buildControlPlanNormalizedKeySet,
+} from '@/lib/incomingQualityPartCodes';
 
 const PAGE_SIZE = 20;
 const DASHBOARD_FETCH_LIMIT = 1000;
@@ -31,6 +37,12 @@ const DASHBOARD_FETCH_LIMIT = 1000;
 const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { toast } = useToast();
     const { suppliers, incomingControlPlans, inkrReports, refreshData: globalRefresh, refreshEquipment, characteristics, equipment } = useData();
+
+    /** Dashboard / liste ile uyum: yalnızca geçerli (veya legacy null) kontrol planları */
+    const activeIncomingControlPlans = useMemo(
+        () => (incomingControlPlans || []).filter((p) => p.is_current !== false),
+        [incomingControlPlans]
+    );
 
     useEffect(() => {
         refreshEquipment?.();
@@ -104,43 +116,38 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             query = query.eq('supplier_id', currentFilters.supplier);
         }
         if (currentFilters.controlPlanStatus !== 'all') {
-            const partCodesWithPlan = (incomingControlPlans || []).map(p => p.part_code);
+            const partCodesWithPlan = uniqueTrimmedPartCodesFromPlans(activeIncomingControlPlans);
+            const inList = formatPartCodesForPostgrestInFilter(partCodesWithPlan);
             if (currentFilters.controlPlanStatus === 'Mevcut') {
-                if (partCodesWithPlan.length > 0) {
-                    query = query.in('part_code', partCodesWithPlan);
+                if (inList) {
+                    // Tire / özel karakter içeren parça kodları için tırnaklı PostgREST listesi (.in() yeterince tırnaklamıyor)
+                    query = query.filter('part_code', 'in', inList);
                 } else {
-                    // Hiç kontrol planı yoksa hiçbir kayıt döndürme
                     query = query.eq('id', '00000000-0000-0000-0000-000000000000');
                 }
             } else if (currentFilters.controlPlanStatus === 'Mevcut Değil') {
-                // Kontrol planı olmayan kayıtları getir
-                if (partCodesWithPlan.length > 0) {
-                    // Supabase'de NOT IN için doğru syntax
-                    query = query.not('part_code', 'in', `(${partCodesWithPlan.join(',')})`);
+                if (inList) {
+                    query = query.filter('part_code', 'not.in', inList);
                 }
-                // Eğer hiç kontrol planı yoksa, tüm kayıtlar "Mevcut Değil" demektir, filtre eklemeye gerek yok
             }
         }
         if (currentFilters.inkrStatus !== 'all') {
-            const partCodesWithInkr = (inkrReports || []).map(r => r.part_code);
+            const partCodesWithInkr = uniqueTrimmedPartCodesFromPlans(inkrReports);
+            const inkrInList = formatPartCodesForPostgrestInFilter(partCodesWithInkr);
             if (currentFilters.inkrStatus === 'Mevcut') {
-                if (partCodesWithInkr.length > 0) {
-                    query = query.in('part_code', partCodesWithInkr);
+                if (inkrInList) {
+                    query = query.filter('part_code', 'in', inkrInList);
                 } else {
-                    // Hiç INKR yoksa hiçbir kayıt döndürme
                     query = query.eq('id', '00000000-0000-0000-0000-000000000000');
                 }
             } else if (currentFilters.inkrStatus === 'Mevcut Değil') {
-                // INKR olmayan kayıtları getir
-                if (partCodesWithInkr.length > 0) {
-                    // Supabase'de NOT IN için doğru syntax
-                    query = query.not('part_code', 'in', `(${partCodesWithInkr.join(',')})`);
+                if (inkrInList) {
+                    query = query.filter('part_code', 'not.in', inkrInList);
                 }
-                // Eğer hiç INKR yoksa, tüm kayıtlar "Mevcut Değil" demektir, filtre eklemeye gerek yok
             }
         }
         return query;
-    }, [incomingControlPlans, inkrReports]);
+    }, [activeIncomingControlPlans, inkrReports]);
 
     const fetchDashboardData = useCallback(async (currentFilters) => {
         setDashboardLoading(true);
@@ -171,12 +178,12 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 }
             }
 
-            const controlPlanMap = new Map((incomingControlPlans || []).map(p => [p.part_code, true]));
-            const inkrMap = new Map((inkrReports || []).map(r => [r.part_code, true]));
+            const controlPlanKeys = buildControlPlanNormalizedKeySet(activeIncomingControlPlans);
+            const inkrKeys = buildControlPlanNormalizedKeySet(inkrReports);
             const inspectionsWithPlanStatus = allInspections.map(inspection => ({
                 ...inspection,
-                control_plan_status: controlPlanMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
-                inkr_status: inkrMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
+                control_plan_status: controlPlanKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
+                inkr_status: inkrKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
             }));
 
             setDashboardData(inspectionsWithPlanStatus);
@@ -189,7 +196,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         } finally {
             setDashboardLoading(false);
         }
-    }, [toast, buildFilterQuery, incomingControlPlans, inkrReports]);
+    }, [toast, buildFilterQuery, activeIncomingControlPlans, inkrReports]);
 
     const fetchInspections = useCallback(async (page, currentFilters) => {
         setLoading(true);
@@ -214,19 +221,19 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
             }
             setInspections([]);
         } else {
-            const controlPlanMap = new Map((incomingControlPlans || []).map(p => [p.part_code, true]));
-            const inkrMap = new Map((inkrReports || []).map(r => [r.part_code, true]));
+            const controlPlanKeys = buildControlPlanNormalizedKeySet(activeIncomingControlPlans);
+            const inkrKeys = buildControlPlanNormalizedKeySet(inkrReports);
             const dataWithPlanStatus = data.map(inspection => ({
                 ...inspection,
                 supplier_name: inspection.supplier_name || '-',
-                control_plan_status: controlPlanMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
-                inkr_status: inkrMap.has(inspection.part_code) ? 'Mevcut' : 'Mevcut Değil',
+                control_plan_status: controlPlanKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
+                inkr_status: inkrKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
             }));
             setInspections(dataWithPlanStatus);
             setTotalCount(count || 0);
         }
         setLoading(false);
-    }, [toast, buildFilterQuery, incomingControlPlans]);
+    }, [toast, buildFilterQuery, activeIncomingControlPlans, inkrReports]);
 
     useEffect(() => {
         fetchInspections(currentPage, filters);

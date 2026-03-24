@@ -1,15 +1,33 @@
 import React, { useMemo } from 'react';
-    import { motion } from 'framer-motion';
-    import { Skeleton } from '@/components/ui/skeleton';
-    import { Card, CardContent } from '@/components/ui/card';
-    import { Clock, CheckCircle, Wrench, Truck, Hourglass, BarChartHorizontal, FlaskConical, PackageCheck, ClipboardCheck } from 'lucide-react';
-    import { formatDuration } from '@/lib/formatDuration.js';
-    import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-    import { Badge } from '@/components/ui/badge';
-    import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
+import { motion } from 'framer-motion';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Clock, CheckCircle, Wrench, Truck, Hourglass, BarChartHorizontal, FlaskConical, PackageCheck, ClipboardCheck } from 'lucide-react';
+import { formatDuration } from '@/lib/formatDuration.js';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Badge } from '@/components/ui/badge';
+import { calculateVehicleTimelineStats, calculateMonthlyAvgQualityAndRework } from '@/lib/vehicleTimelineUtils';
 
-    // Durum konfigürasyonları
-    const STATUS_CONFIG = [
+const MonthlyDurationTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="rounded-lg border border-border bg-popover px-3 py-2 text-sm shadow-md">
+            <p className="mb-1 font-semibold text-foreground">{label}</p>
+            {payload.map((entry) => (
+                <p key={String(entry.dataKey)} className="text-foreground/90">
+                    <span className="font-medium" style={{ color: entry.color }}>{entry.name}: </span>
+                    {entry.value != null && !Number.isNaN(entry.value)
+                        ? formatDuration(entry.value * 60000)
+                        : '—'}
+                </p>
+            ))}
+        </div>
+    );
+};
+
+// Durum konfigürasyonları
+const STATUS_CONFIG = [
         { 
             key: 'inQuality', 
             label: 'Kalitede Bekleyen', 
@@ -290,6 +308,11 @@ import React, { useMemo } from 'react';
             };
         }, [vehicles, loading]);
 
+        const monthlyChartData = useMemo(() => {
+            if (loading || !vehicles?.length) return [];
+            return calculateMonthlyAvgQualityAndRework(vehicles, new Date()).slice(-24);
+        }, [vehicles, loading]);
+
         const total = vehicles?.length || 0;
 
         return (
@@ -328,6 +351,91 @@ import React, { useMemo } from 'react';
                         </div>
                     </div>
 
+                    {monthlyChartData.length > 0 && (
+                        <div className="space-y-3 border-t border-border/80 pt-4">
+                            <CardHeader className="p-0 space-y-1.5">
+                                <CardTitle className="text-base font-semibold tracking-tight text-foreground">
+                                    Aylık süre özeti
+                                </CardTitle>
+                                <CardDescription className="text-sm leading-relaxed text-muted-foreground">
+                                    Tamamlanan kalite kontrolü ile yeniden işlem adımlarının ortalama süreleri, ilgili adımın bittiği aya göre gruplanır.
+                                    <span className="mt-1 block text-xs text-muted-foreground/90">
+                                        Son {monthlyChartData.length} ay · Sol eksen: kontrol, sağ eksen: yeniden işlem (dakika).
+                                    </span>
+                                </CardDescription>
+                            </CardHeader>
+                            <div className="h-[300px] w-full min-w-0 pr-1">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart
+                                        data={monthlyChartData}
+                                        margin={{ top: 10, right: 14, left: 2, bottom: 44 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" className="stroke-border/80" />
+                                        <XAxis
+                                            dataKey="monthShort"
+                                            tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                                            tickMargin={10}
+                                            interval={monthlyChartData.length > 16 ? 'preserveStartEnd' : 0}
+                                            minTickGap={4}
+                                            padding={{ left: 12, right: 28 }}
+                                            height={46}
+                                        />
+                                        <YAxis
+                                            yAxisId="kalite"
+                                            orientation="left"
+                                            tick={{ fontSize: 10, fill: '#9333ea' }}
+                                            tickFormatter={(v) => `${Math.round(v)} dk`}
+                                            width={46}
+                                            domain={['auto', 'auto']}
+                                        />
+                                        <YAxis
+                                            yAxisId="rework"
+                                            orientation="right"
+                                            tick={{ fontSize: 10, fill: '#ea580c' }}
+                                            tickFormatter={(v) => `${Math.round(v)} dk`}
+                                            width={52}
+                                            domain={['auto', 'auto']}
+                                        />
+                                        <RechartsTooltip content={<MonthlyDurationTooltip />} />
+                                        <Legend
+                                            verticalAlign="bottom"
+                                            align="center"
+                                            wrapperStyle={{ fontSize: '12px', paddingTop: '12px', lineHeight: '1.35' }}
+                                        />
+                                        <Line
+                                            yAxisId="kalite"
+                                            type="monotone"
+                                            dataKey="ortKaliteDk"
+                                            name="Ort. kontrol süresi"
+                                            stroke="#9333ea"
+                                            strokeWidth={2}
+                                            dot={{ r: 3, strokeWidth: 1 }}
+                                            activeDot={{ r: 5 }}
+                                            connectNulls
+                                        />
+                                        <Line
+                                            yAxisId="rework"
+                                            type="monotone"
+                                            dataKey="ortYenidenIslemDk"
+                                            name="Ort. yeniden işlem süresi"
+                                            stroke="#ea580c"
+                                            strokeWidth={2}
+                                            dot={{ r: 3, strokeWidth: 1 }}
+                                            activeDot={{ r: 5 }}
+                                            connectNulls
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    )}
+
+                    {!loading && monthlyChartData.length === 0 && vehicles?.length > 0 && (
+                        <p className="border-t border-border/80 pt-3 text-center text-sm text-muted-foreground">
+                            Zaman çizelgesinde tamamlanmış kontrol veya yeniden işlem adımı olmadığı için aylık özet gösterilemiyor.
+                        </p>
+                    )}
+
                     {/* Segmented Progress Bar */}
                     <SegmentedProgressBar 
                         stats={stats} 
@@ -347,4 +455,4 @@ import React, { useMemo } from 'react';
         );
     };
 
-    export default VehicleDashboard;
+export default VehicleDashboard;

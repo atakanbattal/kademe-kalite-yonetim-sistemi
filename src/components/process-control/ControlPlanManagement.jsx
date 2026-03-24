@@ -823,8 +823,8 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 </AlertDialogContent>
             </AlertDialog>
 
-            <div className="flex justify-between items-center">
-                <div className="search-box w-full max-w-sm">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="search-box w-full max-w-md">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                     <input
                         type="text"
@@ -834,50 +834,76 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <Button onClick={() => handleOpenForm()}>
+                <Button onClick={() => handleOpenForm()} className="w-full shrink-0 sm:w-auto">
                     <FilePlus className="w-4 h-4 mr-2" /> Yeni Plan
                 </Button>
             </div>
 
-            <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
-                    <thead className="bg-muted">
-                        <tr>
-                            <th className="p-3 text-left">Araç</th>
-                            <th className="p-3 text-left">Parça Kodu</th>
-                            <th className="p-3 text-left">Parça Adı</th>
-                            <th className="p-3 text-left">Rev. No</th>
-                            <th className="p-3 text-center">Ölçüm Sayısı</th>
-                            <th className="p-3 text-right z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] border-collapse text-sm">
+                        <thead>
+                            <tr className="border-b border-border bg-muted/50">
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Araç
+                                </th>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                                    Parça Kodu
+                                </th>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground min-w-[12rem]">
+                                    Parça Adı
+                                </th>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap w-24">
+                                    Rev. No
+                                </th>
+                                <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground w-28">
+                                    Ölçüm Sayısı
+                                </th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground w-[11.5rem]">
+                                    İşlemler
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/70">
                         {loading ? (
                             <tr>
-                                <td colSpan="6" className="p-8 text-center text-muted-foreground">Yükleniyor...</td>
+                                <td colSpan="6" className="px-4 py-10 text-center text-muted-foreground">Yükleniyor...</td>
                             </tr>
                         ) : filteredPlans.length === 0 ? (
                             <tr>
-                                <td colSpan="6" className="p-8 text-center text-muted-foreground">Kontrol planı bulunamadı.</td>
+                                <td colSpan="6" className="px-4 py-10 text-center text-muted-foreground">Kontrol planı bulunamadı.</td>
                             </tr>
                         ) : (
                             filteredPlans.map((plan) => (
-                                <tr key={plan.id} className="border-t hover:bg-muted/50">
-                                    <td className="p-3">{plan.vehicle_type || plan.process_control_equipment?.equipment_name || '-'}</td>
-                                    <td className="p-3 font-medium">{plan.part_code}</td>
-                                    <td className="p-3">{plan.part_name}</td>
-                                    <td className="p-3">Rev.{plan.revision_number || 0}</td>
-                                    <td className="p-3 text-center">{(plan.items || []).length}</td>
-                                    <td className="p-3 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" size="icon" onClick={() => handleViewDetail(plan)} title="Detayları Görüntüle">
+                                <tr key={plan.id} className="transition-colors hover:bg-muted/40">
+                                    <td className="px-4 py-3 align-middle text-foreground/90">
+                                        {plan.vehicle_type || plan.process_control_equipment?.equipment_name || '-'}
+                                    </td>
+                                    <td className="px-4 py-3 align-middle font-medium tabular-nums text-foreground whitespace-nowrap">
+                                        {plan.part_code}
+                                    </td>
+                                    <td className="px-4 py-3 align-middle text-foreground/90 max-w-[20rem] sm:max-w-md break-words">
+                                        {plan.part_name}
+                                    </td>
+                                    <td className="px-4 py-3 align-middle text-muted-foreground whitespace-nowrap">
+                                        Rev.{plan.revision_number || 0}
+                                    </td>
+                                    <td className="px-4 py-3 align-middle text-center tabular-nums text-foreground/90">
+                                        {(plan.items || []).length}
+                                    </td>
+                                    <td className="px-2 py-2 align-middle">
+                                        <div
+                                            className="flex flex-nowrap items-center justify-end gap-0.5"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={() => handleViewDetail(plan)} title="Detayları Görüntüle">
                                                 <Eye className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDownloadDetailPDF(plan)} title="Rapor Al">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={() => handleDownloadDetailPDF(plan)} title="Rapor Al">
                                                 <FileSpreadsheet className="h-4 w-4" />
                                             </Button>
                                             {plan.file_path && (
-                                                <Button variant="ghost" size="icon" onClick={() => {
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={() => {
                                                     supabase.storage.from('process_control').createSignedUrl(plan.file_path, 3600).then(({ data }) => {
                                                         if (data) window.open(data.signedUrl, '_blank');
                                                     });
@@ -885,20 +911,20 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                                     <FilePlus className="h-4 w-4" />
                                                 </Button>
                                             )}
-                                            <Button variant="ghost" size="icon" onClick={() => {
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={() => {
                                                 setSelectedPlan(plan);
                                                 setIsFormOpen(true);
                                             }} title="Düzenle">
                                                 <Edit className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => {
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground" onClick={() => {
                                                 const newRevisionNumber = (plan.revision_number || 0) + 1;
                                                 setSelectedPlan({ ...plan, revision_number: newRevisionNumber });
                                                 setIsFormOpen(true);
                                             }} title="Revize Et">
                                                 <History className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => {
                                                 if (confirm('Bu kontrol planını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
                                                     handleDelete(plan.id);
                                                 }
@@ -910,8 +936,9 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                 </tr>
                             ))
                         )}
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Detay Modal */}
