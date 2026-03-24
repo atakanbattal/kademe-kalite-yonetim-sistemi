@@ -274,12 +274,7 @@ const PrintableReport = () => {
                     case 'internal_audit': {
                         const { data: auditData, error: auditError } = await supabase
                             .from('audits')
-                            .select(`
-                                *,
-                                department:department_id!left(unit_name),
-                                audit_standard:audit_standards!audit_standard_id(id, code, name),
-                                audit_results:audit_results!left(*)
-                            `)
+                            .select('*,department:cost_settings!department_id(unit_name),audit_standard:audit_standards!audit_standard_id(id,code,name),audit_results!audit_id(*)')
                             .eq('id', id)
                             .maybeSingle();
                         recordData = auditData;

@@ -47,11 +47,7 @@ const PrintableInternalAuditDashboard = () => {
                 // Tarih filtresi için query oluştur
                 let auditsQuery = supabase
                     .from('audits')
-                    .select(`
-                        *,
-                        department:cost_settings(id, unit_name),
-                        audit_standard:audit_standards!audit_standard_id(id, code, name)
-                    `);
+                    .select('*,department:cost_settings!department_id(id,unit_name),audit_standard:audit_standards!audit_standard_id(id,code,name)');
                 
                 // Ay filtresi varsa uygula
                 if (filterMonth) {
@@ -72,11 +68,7 @@ const PrintableInternalAuditDashboard = () => {
                 
                 let findingsQuery = supabase
                     .from('audit_findings')
-                    .select(`
-                        *,
-                        audit:audits(id, report_number, title, audit_date, department:cost_settings(unit_name), audit_standard:audit_standards!audit_standard_id(code, name)),
-                        non_conformity:non_conformities!source_finding_id(id, nc_number, status, type, created_at, due_at, due_date, closed_at)
-                    `);
+                    .select('*,audit:audits!audit_id(id,report_number,title,audit_date,department:cost_settings!department_id(unit_name),audit_standard:audit_standards!audit_standard_id(code,name)),non_conformity:non_conformities!fk_source_finding(id,nc_number,status,type,created_at,due_at,due_date,closed_at)');
                 
                 // Filtrelenmiş audit'lere ait bulguları al
                 if (auditIds.length > 0) {

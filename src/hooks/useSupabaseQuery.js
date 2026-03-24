@@ -45,6 +45,7 @@ export function useSupabaseQuery(table, {
             // Filtreleri uygula
             for (const filter of filters) {
                 const { column, operator = 'eq', value } = filter;
+                if (column == null || column === '' || typeof column !== 'string') continue;
                 if (value === undefined || value === null) continue;
                 
                 switch (operator) {
@@ -64,7 +65,7 @@ export function useSupabaseQuery(table, {
             }
 
             // Sıralama
-            if (order) {
+            if (order && order.column != null && order.column !== '' && typeof order.column === 'string') {
                 query = query.order(order.column, { ascending: order.ascending ?? false });
             }
 
@@ -196,6 +197,7 @@ export function useSupabaseMutation(table) {
 
             let query = supabase.from(table).update(data);
             validFilters.forEach(([key, value]) => {
+                if (key == null || key === '' || typeof key !== 'string') return;
                 query = query.eq(key, value);
             });
             
@@ -229,6 +231,7 @@ export function useSupabaseMutation(table) {
 
             let query = supabase.from(table).delete();
             validFilters.forEach(([key, value]) => {
+                if (key == null || key === '' || typeof key !== 'string') return;
                 query = query.eq(key, value);
             });
             

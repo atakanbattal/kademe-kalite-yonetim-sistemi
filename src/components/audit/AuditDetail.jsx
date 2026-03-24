@@ -24,11 +24,7 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
         setLoading(true);
         const { data: auditData, error: auditError } = await supabase
             .from('audits')
-            .select(`
-                *,
-                department:cost_settings(id, unit_name),
-                audit_standard:audit_standards(id, code, name)
-            `)
+            .select('*,department:cost_settings!department_id(id,unit_name),audit_standard:audit_standards!audit_standard_id(id,code,name)')
             .eq('id', auditId)
             .single();
 

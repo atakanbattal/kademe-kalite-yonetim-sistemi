@@ -249,12 +249,13 @@ export const DataProvider = ({ children }) => {
         // DÜŞÜK ÖNCELİKLİ TABLOLAR (Son dalga - limit ile)
         const lowPriorityPromises = {
             supplierNonConformities: supabase.from('supplier_non_conformities').select('*'),
-            audits: supabase.from('audits').select(`
-                    *,
-                    department:cost_settings(id, unit_name),
-                    audit_standard:audit_standards!audit_standard_id(id, code, name)
-                `).order('report_number', { ascending: false }),
-            auditFindings: supabase.from('audit_findings').select('*, audits(report_number), non_conformities!source_finding_id(id, nc_number, status, due_at, due_date)'),
+            audits: supabase
+                .from('audits')
+                .select('*,department:cost_settings!department_id(id,unit_name),audit_standard:audit_standards!audit_standard_id(id,code,name)')
+                .order('report_number', { ascending: false }),
+            auditFindings: supabase
+                .from('audit_findings')
+                .select('*,audits!audit_id(report_number),non_conformities!fk_source_finding(id,nc_number,status,due_at,due_date)'),
             quarantineRecords: supabase.from('quarantine_records_api').select('*').order('quarantine_date', { ascending: false }).limit(500),
             incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*').limit(500),
             incomingControlPlans: supabase.from('incoming_control_plans').select('part_code, is_current'),

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { useData } from '@/contexts/DataContext';
@@ -9,9 +9,23 @@ import React, { useState, useEffect } from 'react';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
     import { format } from 'date-fns';
 
+    const AUDIT_FORM_KEYS = ['title', 'department_id', 'audit_date', 'auditor_name', 'audit_standard_id'];
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    const buildAuditPayload = (raw) => {
+        const out = {};
+        for (const key of AUDIT_FORM_KEYS) {
+            let v = raw[key];
+            if (v === undefined) continue;
+            if ((key === 'department_id' || key === 'audit_standard_id') && v !== '' && v != null && !UUID_RE.test(String(v))) continue;
+            out[key] = v;
+        }
+        return out;
+    };
+
     const AuditPlanModal = ({ isOpen, setIsOpen, refreshAudits, auditToEdit }) => {
         const { toast } = useToast();
-        const { standards: globalStandards, unitCostSettings: globalDepartments, loading: dataLoading } = useData();
+        const { standards: globalStandards, unitCostSettings: globalDepartments } = useData();
         
         const [formData, setFormData] = useState({
             title: '',
@@ -24,19 +38,29 @@ import React, { useState, useEffect } from 'react';
         const [auditStandards, setAuditStandards] = useState([]);
         const [isSubmitting, setIsSubmitting] = useState(false);
         const isEditMode = !!auditToEdit;
+        const prevOpenRef = useRef(false);
 
+        // Liste verilerini bağlamdan senkronize et (modal açıkken formu sıfırlama)
         useEffect(() => {
             if (!isOpen) return;
-
-            // DataContext'ten gelen verileri kullan
             const deptList = globalDepartments || [];
-            setDepartments(deptList.map(d => ({ id: d.id, unit_name: d.unit_name })));
-            
+            setDepartments(deptList.filter((d) => d && d.id).map((d) => ({ id: d.id, unit_name: d.unit_name })));
             const standardsList = globalStandards || [];
-            setAuditStandards(standardsList.map(s => ({ id: s.id, code: s.code, name: s.name })));
-            
-            // Form verilerini ayarla
-            if (isEditMode) {
+            setAuditStandards(standardsList.filter((s) => s && s.id).map((s) => ({ id: s.id, code: s.code, name: s.name })));
+        }, [isOpen, globalDepartments, globalStandards]);
+
+        // Sadece modal açıldığında formu başlat (global veri yenilenince seçimler kaybolmasın)
+        useEffect(() => {
+            if (!isOpen) {
+                prevOpenRef.current = false;
+                return;
+            }
+            const justOpened = !prevOpenRef.current;
+            prevOpenRef.current = true;
+            if (!justOpened) return;
+
+            const standardsList = globalStandards || [];
+            if (isEditMode && auditToEdit) {
                 setFormData({
                     title: auditToEdit.title || '',
                     department_id: auditToEdit.department_id || '',
@@ -45,40 +69,60 @@ import React, { useState, useEffect } from 'react';
                     audit_standard_id: auditToEdit.audit_standard_id || auditToEdit.audit_standard?.id || '',
                 });
             } else {
-                // Varsayılan olarak 9001'i seç
-                const defaultStandard = standardsList.find(s => s.code === '9001');
-                setFormData({ 
-                    title: '', 
-                    department_id: '', 
-                    audit_date: '', 
+                const defaultStandard = standardsList.find((s) => s.code === '9001');
+                const firstId = standardsList[0]?.id;
+                setFormData({
+                    title: '',
+                    department_id: '',
+                    audit_date: '',
                     auditor_name: '',
-                    audit_standard_id: defaultStandard?.id || (standardsList.length > 0 ? standardsList[0].id : ''),
+                    audit_standard_id: defaultStandard?.id || firstId || '',
                 });
             }
-        }, [isOpen, auditToEdit, isEditMode, globalDepartments, globalStandards]);
+        }, [isOpen, isEditMode, auditToEdit, globalStandards]);
 
 
         const handleInputChange = (e) => {
             const { id, value } = e.target;
+            if (!id || typeof id !== 'string') return;
             setFormData((prev) => ({ ...prev, [id]: value }));
         };
 
-        const handleSelectChange = (id, value) => {
-            setFormData((prev) => ({ ...prev, [id]: value }));
+        const handleSelectChange = (field, value) => {
+            if (!field || typeof field !== 'string' || !AUDIT_FORM_KEYS.includes(field)) return;
+            if (value === undefined) return;
+            setFormData((prev) => ({ ...prev, [field]: value }));
         };
 
         const handleSubmit = async (e) => {
             e.preventDefault();
             setIsSubmitting(true);
 
+            const auditPayload = buildAuditPayload(formData);
+            if (!auditPayload.title?.trim()) {
+                toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Tetkik başlığı zorunludur.' });
+                setIsSubmitting(false);
+                return;
+            }
+            if (!auditPayload.department_id || !UUID_RE.test(String(auditPayload.department_id))) {
+                toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Geçerli bir birim seçin.' });
+                setIsSubmitting(false);
+                return;
+            }
+            if (!auditPayload.audit_standard_id || !UUID_RE.test(String(auditPayload.audit_standard_id))) {
+                toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Geçerli bir tetkik standardı seçin.' });
+                setIsSubmitting(false);
+                return;
+            }
+
             let result;
             if (isEditMode) {
                 // Düzenleme modunda - trigger otomatik olarak rapor numarasını güncelleyecek
-                const { error } = await supabase.from('audits').update(formData).eq('id', auditToEdit.id);
+                const { error } = await supabase.from('audits').update(auditPayload).eq('id', auditToEdit.id);
                 result = { error };
             } else {
                 // Yeni kayıt - report_number trigger tarafından otomatik oluşturulacak
-                const { error } = await supabase.from('audits').insert({ ...formData, status: 'Planlandı' });
+                const { error } = await supabase.from('audits').insert({ ...auditPayload, status: 'Planlandı' });
                 result = { error };
             }
 
@@ -108,8 +152,8 @@ import React, { useState, useEffect } from 'react';
                                 </SelectTrigger>
                                 <SelectContent>
                                     {auditStandards.length > 0 ? (
-                                        auditStandards.map((standard) => (
-                                            <SelectItem key={standard.id} value={standard.id}>
+                                        auditStandards.filter((s) => s.id && UUID_RE.test(String(s.id))).map((standard) => (
+                                            <SelectItem key={standard.id} value={String(standard.id)}>
                                                 {standard.code} - {standard.name}
                                             </SelectItem>
                                         ))
@@ -130,8 +174,8 @@ import React, { useState, useEffect } from 'react';
                             <Select value={formData.department_id} onValueChange={(v) => handleSelectChange('department_id', v)} required>
                                 <SelectTrigger className="h-11"><SelectValue placeholder="Birim seçin..." /></SelectTrigger>
                                 <SelectContent>
-                                    {departments.map((dept) => (
-                                        <SelectItem key={dept.id} value={dept.id}>
+                                    {departments.filter((dept) => dept.id && UUID_RE.test(String(dept.id))).map((dept) => (
+                                        <SelectItem key={dept.id} value={String(dept.id)}>
                                             {dept.unit_name}
                                         </SelectItem>
                                     ))}
