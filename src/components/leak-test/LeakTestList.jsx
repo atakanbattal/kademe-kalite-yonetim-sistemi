@@ -40,6 +40,7 @@ import {
     formatTestDateTime,
     getPersonnelName,
     getVehicleTypeLabel,
+    getWelderOrSupplierLine,
 } from './utils';
 
 const RESULT_FILTER_OPTIONS = ['all', 'Kabul', 'Kaçak Var'];
@@ -82,7 +83,8 @@ const LeakTestList = ({
                 record.vehicle_serial_number,
                 record.tank_type,
                 getPersonnelName(record, 'tested_by', 'tested_by_name'),
-                getPersonnelName(record, 'welded_by', 'welded_by_name'),
+                getWelderOrSupplierLine(record),
+                record.supplier_name,
                 record.notes,
             ].filter(Boolean).join(' '));
 
@@ -162,7 +164,7 @@ const LeakTestList = ({
                         value={searchTerm}
                         onChange={(event) => setSearchTerm(event.target.value)}
                         style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
-                        placeholder="Kayıt no, araç tipi, seri no, sızdırmazlık parçası, personel veya not ile ara..."
+                        placeholder="Kayıt no, araç, seri no, parça, personel, tedarikçi veya not ile ara..."
                     />
                 </div>
 
@@ -224,7 +226,7 @@ const LeakTestList = ({
                                     <th>Süre</th>
                                     <th>Sonuç</th>
                                     <th>Testi Yapan</th>
-                                    <th>Ürünü Kaynatan</th>
+                                    <th>Kaynak / tedarikçi</th>
                                     <th>İşlemler</th>
                                 </tr>
                             </thead>
@@ -258,7 +260,14 @@ const LeakTestList = ({
                                             <td>{formatDuration(record.test_duration_minutes)}</td>
                                             <td>{getResultBadge(record.test_result, record.leak_count)}</td>
                                             <td>{getPersonnelName(record, 'tested_by', 'tested_by_name')}</td>
-                                            <td>{getPersonnelName(record, 'welded_by', 'welded_by_name')}</td>
+                                            <td>
+                                                <div className="max-w-[200px] whitespace-normal">
+                                                    {record.welding_at_supplier && (
+                                                        <Badge variant="outline" className="mb-1 text-[10px]">Tedarikçi</Badge>
+                                                    )}
+                                                    <div>{getWelderOrSupplierLine(record)}</div>
+                                                </div>
+                                            </td>
                                             <td>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>

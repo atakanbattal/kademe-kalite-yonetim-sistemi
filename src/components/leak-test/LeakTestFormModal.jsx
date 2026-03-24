@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+    Building2,
     CalendarDays,
     Clock3,
     Droplets,
@@ -20,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import {
     ModalField,
     ModalSectionHeader,
@@ -79,6 +81,9 @@ const createDefaultFormData = () => {
         tested_by_name: '',
         welded_by_personnel_id: '',
         welded_by_name: '',
+        welding_at_supplier: false,
+        supplier_id: '',
+        supplier_name: '',
         notes: '',
     };
 };
@@ -110,6 +115,7 @@ const LeakTestFormModal = ({
     const [formData, setFormData] = useState(createDefaultFormData());
     const [vehicleTypes, setVehicleTypes] = useState([]);
     const [personnel, setPersonnel] = useState([]);
+    const [suppliers, setSuppliers] = useState([]);
     const [setupLoading, setSetupLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [availableTankTypeOptions, setAvailableTankTypeOptions] = useState(() => getInitialTankTypeOptions());
@@ -132,6 +138,9 @@ const LeakTestFormModal = ({
         tested_by_name: sourceRecord?.tested_by_name || '',
         welded_by_personnel_id: sourceRecord?.welded_by_personnel_id || '',
         welded_by_name: sourceRecord?.welded_by_name || '',
+        welding_at_supplier: !!sourceRecord?.welding_at_supplier,
+        supplier_id: sourceRecord?.supplier_id || '',
+        supplier_name: sourceRecord?.supplier_name || '',
         notes: sourceRecord?.notes || '',
     }), []);
 
@@ -170,7 +179,7 @@ const LeakTestFormModal = ({
     const fetchSetupData = useCallback(async () => {
         setSetupLoading(true);
         try {
-            const [{ data: vehicleCategory, error: categoryError }, { data: personnelData, error: personnelError }] = await Promise.all([
+            const [{ data: vehicleCategory, error: categoryError }, { data: personnelData, error: personnelError }, { data: suppliersData, error: suppliersError }] = await Promise.all([
                 supabase
                     .from('product_categories')
                     .select('id')
@@ -181,10 +190,15 @@ const LeakTestFormModal = ({
                     .select('id, full_name, department')
                     .eq('is_active', true)
                     .order('full_name'),
+                supabase
+                    .from('suppliers')
+                    .select('id, name')
+                    .order('name'),
             ]);
 
             if (categoryError) throw categoryError;
             if (personnelError) throw personnelError;
+            if (suppliersError) throw suppliersError;
 
             let productsData = [];
             if (vehicleCategory?.id) {
@@ -201,6 +215,7 @@ const LeakTestFormModal = ({
 
             setVehicleTypes(productsData.filter((product) => !isGeneralScrapProduct(product)));
             setPersonnel(personnelData || []);
+            setSuppliers(suppliersData || []);
         } catch (error) {
             toast({
                 variant: 'destructive',
@@ -273,6 +288,11 @@ const LeakTestFormModal = ({
         }))
     ), [personnel]);
 
+    const supplierOptions = useMemo(
+        () => (suppliers || []).map((s) => ({ value: s.id, label: s.name || '—' })),
+        [suppliers],
+    );
+
     const selectedVehicle = useMemo(
         () => vehicleTypes.find((vehicle) => vehicle.id === formData.vehicle_type_id),
         [vehicleTypes, formData.vehicle_type_id],
@@ -295,6 +315,9 @@ const LeakTestFormModal = ({
         : (formData.vehicle_type_label || getVehicleTypeLabel(record));
     const previewTesterName = selectedTester?.full_name || formData.tested_by_name || record?.tested_by_name || '-';
     const previewWelderName = selectedWelder?.full_name || formData.welded_by_name || record?.welded_by_name || '-';
+    const previewWelderOrSupplier = formData.welding_at_supplier
+        ? (formData.supplier_name || record?.supplier_name || '-')
+        : previewWelderName;
     const isSetupMissing = !vehicleTypes.length || !personnel.length;
 
     const applyTankTypeMode = useCallback((mode) => {
@@ -383,6 +406,31 @@ const LeakTestFormModal = ({
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
+    const handleWeldingAtSupplierChange = (checked) => {
+        setFormData((prev) => ({
+            ...prev,
+            welding_at_supplier: checked,
+            ...(checked
+                ? {
+                    welded_by_personnel_id: '',
+                    welded_by_name: '',
+                }
+                : {
+                    supplier_id: '',
+                    supplier_name: '',
+                }),
+        }));
+    };
+
+    const handleSupplierChange = (supplierId) => {
+        const s = suppliers.find((x) => x.id === supplierId);
+        setFormData((prev) => ({
+            ...prev,
+            supplier_id: supplierId || '',
+            supplier_name: s?.name?.trim() || '',
+        }));
+    };
+
     /**
      * Test tarihi değiştiğinde kayıt numarasını o tarihe göre yeniden hesapla.
      * Sadece yeni kayıt eklerken aktif; düzenleme modunda kayıt no değişmez.
@@ -461,11 +509,29 @@ const LeakTestFormModal = ({
             return false;
         }
 
-        if (!formData.tested_by_personnel_id || !formData.welded_by_personnel_id) {
+        if (!formData.tested_by_personnel_id) {
             toast({
                 variant: 'destructive',
                 title: 'Eksik bilgi',
-                description: 'Testi yapan ve ürünü kaynatan personel seçilmelidir.',
+                description: 'Testi yapan personel seçilmelidir.',
+            });
+            return false;
+        }
+
+        if (formData.welding_at_supplier) {
+            if (!formData.supplier_id || !String(formData.supplier_name || '').trim()) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Eksik bilgi',
+                    description: 'Kaynak tedarikçide yapıldı seçiliyken tedarikçi seçilmelidir.',
+                });
+                return false;
+            }
+        } else if (!formData.welded_by_personnel_id) {
+            toast({
+                variant: 'destructive',
+                title: 'Eksik bilgi',
+                description: 'Ürünü kaynatan personel seçilmelidir (veya kaynağı tedarikçide yapıldı seçeneğini açın).',
             });
             return false;
         }
@@ -504,6 +570,7 @@ const LeakTestFormModal = ({
                 recordNumber = rpcNum;
             }
 
+            const atSupplier = !!formData.welding_at_supplier;
             const payload = {
                 record_number: recordNumber,
                 vehicle_type_id: formData.vehicle_type_id || null,
@@ -517,8 +584,11 @@ const LeakTestFormModal = ({
                 leak_count: formData.test_result === 'Kaçak Var' ? Number(formData.leak_count) : 0,
                 tested_by_personnel_id: formData.tested_by_personnel_id || null,
                 tested_by_name: previewTesterName || null,
-                welded_by_personnel_id: formData.welded_by_personnel_id || null,
-                welded_by_name: previewWelderName || null,
+                welded_by_personnel_id: atSupplier ? null : (formData.welded_by_personnel_id || null),
+                welded_by_name: atSupplier ? null : (previewWelderName || null),
+                welding_at_supplier: atSupplier,
+                supplier_id: atSupplier ? (formData.supplier_id || null) : null,
+                supplier_name: atSupplier ? (String(formData.supplier_name || '').trim() || null) : null,
                 notes: formData.notes?.trim() || null,
                 updated_at: new Date().toISOString(),
             };
@@ -623,8 +693,10 @@ const LeakTestFormModal = ({
                     <p className="text-sm font-medium text-foreground">{previewTesterName}</p>
                 </div>
                 <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ürünü Kaynatan</p>
-                    <p className="text-sm font-medium text-foreground">{previewWelderName}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {formData.welding_at_supplier ? 'Kaynak tedarikçi' : 'Ürünü kaynatan'}
+                    </p>
+                    <p className="text-sm font-medium text-foreground">{previewWelderOrSupplier}</p>
                 </div>
             </div>
 
@@ -816,6 +888,50 @@ const LeakTestFormModal = ({
                 </section>
 
                 <section>
+                    <ModalSectionHeader>Kaynak ortamı</ModalSectionHeader>
+                    <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                    <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    Kaynak tedarikçide yapıldı
+                                </div>
+                                <p className="text-xs text-muted-foreground max-w-xl">
+                                    Ürün kaynağı fabrika dışında (tedarikçi tesisinde) yapıldıysa bu seçeneği açın ve tedarikçiyi seçin.
+                                    Testi yapan personel yine sizden seçilir.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={!!formData.welding_at_supplier}
+                                onCheckedChange={handleWeldingAtSupplierChange}
+                                disabled={isViewMode}
+                                aria-label="Kaynak tedarikçide yapıldı"
+                            />
+                        </div>
+                        {formData.welding_at_supplier && (
+                            <div className="space-y-1.5">
+                                <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Kaynağı yapan tedarikçi <span className="text-destructive">*</span>
+                                </Label>
+                                {isViewMode ? (
+                                    <Input value={formData.supplier_name || '-'} readOnly className="bg-muted/30" />
+                                ) : (
+                                    <SearchableSelectDialog
+                                        options={supplierOptions}
+                                        value={formData.supplier_id}
+                                        onChange={handleSupplierChange}
+                                        triggerPlaceholder={setupLoading ? 'Tedarikçiler yükleniyor...' : 'Tedarikçi seçin...'}
+                                        dialogTitle="Tedarikçi seç"
+                                        searchPlaceholder="Tedarikçi ara..."
+                                        notFoundText="Tedarikçi bulunamadı."
+                                    />
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                <section>
                     <ModalSectionHeader>Sorumlular</ModalSectionHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
@@ -837,24 +953,26 @@ const LeakTestFormModal = ({
                             )}
                         </div>
 
-                        <div className="space-y-1.5">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                Ürünü Kaynatan <span className="text-destructive">*</span>
-                            </Label>
-                            {isViewMode ? (
-                                <Input value={previewWelderName} readOnly className="bg-muted/30" />
-                            ) : (
-                                <SearchableSelectDialog
-                                    options={personnelOptions}
-                                    value={formData.welded_by_personnel_id}
-                                    onChange={(value) => handleInputChange('welded_by_personnel_id', value)}
-                                    triggerPlaceholder={setupLoading ? 'Personel yükleniyor...' : 'Personel seçin...'}
-                                    dialogTitle="Ürünü Kaynatan Personeli Seç"
-                                    searchPlaceholder="Personel ara..."
-                                    notFoundText="Personel bulunamadı."
-                                />
-                            )}
-                        </div>
+                        {!formData.welding_at_supplier && (
+                            <div className="space-y-1.5">
+                                <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Ürünü Kaynatan <span className="text-destructive">*</span>
+                                </Label>
+                                {isViewMode ? (
+                                    <Input value={previewWelderName} readOnly className="bg-muted/30" />
+                                ) : (
+                                    <SearchableSelectDialog
+                                        options={personnelOptions}
+                                        value={formData.welded_by_personnel_id}
+                                        onChange={(value) => handleInputChange('welded_by_personnel_id', value)}
+                                        triggerPlaceholder={setupLoading ? 'Personel yükleniyor...' : 'Personel seçin...'}
+                                        dialogTitle="Ürünü Kaynatan Personeli Seç"
+                                        searchPlaceholder="Personel ara..."
+                                        notFoundText="Personel bulunamadı."
+                                    />
+                                )}
+                            </div>
+                        )}
                     </div>
                 </section>
 
@@ -891,9 +1009,11 @@ const LeakTestFormModal = ({
                     <div className="rounded-xl border bg-muted/20 p-4">
                         <div className="mb-2 flex items-center gap-2 text-primary">
                             <Wrench className="h-4 w-4" />
-                            <p className="text-xs font-semibold uppercase tracking-wider">Kaynak Personeli</p>
+                            <p className="text-xs font-semibold uppercase tracking-wider">
+                                {formData.welding_at_supplier ? 'Tedarikçi kaynağı' : 'Kaynak personeli'}
+                            </p>
                         </div>
-                        <p className="text-sm font-medium text-foreground">{previewWelderName}</p>
+                        <p className="text-sm font-medium text-foreground">{previewWelderOrSupplier}</p>
                     </div>
                 </div>
 

@@ -35,6 +35,15 @@ export const getPersonnelName = (record, relationKey, snapshotKey) => {
     return record?.[relationKey]?.full_name || record?.[snapshotKey] || '-';
 };
 
+/** Kaynak dahili personeldeyse kaynakçı; tedarikçideyse tedarikçi adı */
+export const getWelderOrSupplierLine = (record) => {
+    if (!record) return '-';
+    if (record.welding_at_supplier) {
+        return record.supplier_name || record.supplier?.name || '-';
+    }
+    return getPersonnelName(record, 'welded_by', 'welded_by_name');
+};
+
 export const formatTestDate = (dateValue) => {
     if (!dateValue) return '-';
 

@@ -9,6 +9,7 @@ import {
     formatTestDateTime,
     getPersonnelName,
     getVehicleTypeLabel,
+    getWelderOrSupplierLine,
 } from './utils';
 
 const StatCard = ({ title, value, description, icon: Icon, valueClassName = '' }) => (
@@ -199,7 +200,7 @@ const LeakTestDashboard = ({ records = [], loading }) => {
                                             Testi yapan: {getPersonnelName(record, 'tested_by', 'tested_by_name')}
                                         </div>
                                         <div className="text-xs text-muted-foreground">
-                                            Kaynatan: {getPersonnelName(record, 'welded_by', 'welded_by_name')}
+                                            Kaynak: {getWelderOrSupplierLine(record)}
                                         </div>
                                     </div>
                                 ))

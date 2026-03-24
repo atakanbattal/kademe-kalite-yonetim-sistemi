@@ -40,7 +40,8 @@ const LeakTestModule = () => {
                     *,
                     vehicle_type:vehicle_type_id(id, product_code, product_name),
                     tested_by:tested_by_personnel_id(id, full_name, department),
-                    welded_by:welded_by_personnel_id(id, full_name, department)
+                    welded_by:welded_by_personnel_id(id, full_name, department),
+                    supplier:supplier_id(id, name)
                 `)
                 .order('test_date', { ascending: false })
                 .order('test_start_time', { ascending: false })
