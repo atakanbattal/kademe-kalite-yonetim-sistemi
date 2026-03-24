@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,11 @@ import { ViewModalLayout } from '@/components/shared/ViewModalLayout';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { getNonconformityProvenance } from '@/lib/nonconformityProvenance';
 import {
   ClipboardList, Hash, Calendar, Package, User, Building2,
   MapPin, AlertTriangle, Layers, Car, FileText, MessageSquare,
-  Shield, Activity, Wrench, Printer
+  Shield, Activity, Wrench, Printer, Link2
 } from 'lucide-react';
 
 const severityConfig = {
@@ -37,6 +38,8 @@ const NonconformityDetailModal = ({ isOpen, setIsOpen, record }) => {
 
   const severity = severityConfig[record.severity] || {};
   const status = statusConfig[record.status] || {};
+
+  const provenance = useMemo(() => getNonconformityProvenance(record), [record]);
 
   const formatDate = (date) => {
     if (!date) return '-';
@@ -109,6 +112,37 @@ const NonconformityDetailModal = ({ isOpen, setIsOpen, record }) => {
             label="Oluşturulma Tarihi"
             value={formatDateTime(record.created_at)}
           />
+        </div>
+
+        <Separator />
+
+        {/* Kaynak ve köken */}
+        <div>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground uppercase tracking-wider">
+              <Link2 className="h-4 w-4 text-primary" />
+              Kaynak ve köken
+            </h3>
+            <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wide">
+              {provenance.moduleLabel}
+            </Badge>
+          </div>
+          <Card className="bg-primary/5 border-primary/15 mb-4">
+            <CardContent className="p-4">
+              <p className="text-sm text-foreground leading-relaxed">{provenance.summary}</p>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {provenance.rows.map((row, idx) => (
+              <InfoCard
+                key={`${row.label}-${idx}`}
+                icon={Link2}
+                label={row.label}
+                value={row.value}
+                variant={idx === 0 ? 'primary' : 'default'}
+              />
+            ))}
+          </div>
         </div>
 
         <Separator />

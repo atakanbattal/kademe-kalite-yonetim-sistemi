@@ -34,6 +34,7 @@ import {
   parseNonconformityRecordNumber
 } from '@/lib/vehicleFaultNonconformitySync';
 import { backfillProcessInspectionNonconformities } from '@/lib/processInspectionNonconformitySync';
+import { backfillLeakTestNonconformities } from '@/lib/leakTestNonconformitySync';
 import {
   buildNonconformityDisplayNumberMap,
   getNonconformityDisplayRecordNumber
@@ -94,6 +95,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const [convertDialog, setConvertDialog] = useState(INITIAL_CONVERT_DIALOG);
   const [vehicleFaultSyncDone, setVehicleFaultSyncDone] = useState(false);
   const [processInspectionSyncDone, setProcessInspectionSyncDone] = useState(false);
+  const [leakTestSyncDone, setLeakTestSyncDone] = useState(false);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -231,6 +233,70 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       isCancelled = true;
     };
   }, [authLoading, fetchRecords, processInspectionSyncDone, toast, user, user?.id, vehicleFaultSyncDone]);
+
+  useEffect(() => {
+    if (!processInspectionSyncDone || leakTestSyncDone || authLoading || !user) return;
+
+    let isCancelled = false;
+
+    const syncLeakTestRecords = async () => {
+      try {
+        const stats = await backfillLeakTestNonconformities({
+          supabase,
+          userId: user?.id || null,
+        });
+
+        if (isCancelled) return;
+
+        setLeakTestSyncDone(true);
+
+        if (
+          stats.created ||
+          stats.updated ||
+          stats.deletedDuplicates ||
+          stats.deleted ||
+          stats.preserved
+        ) {
+          await fetchRecords();
+
+          toast({
+            title: 'Sızdırmazlık uygunsuzlukları senkronize edildi',
+            description: [
+              stats.created > 0 ? `${stats.created} yeni kayıt açıldı` : null,
+              stats.updated > 0 ? `${stats.updated} kayıt güncellendi` : null,
+              stats.deleted > 0 ? `${stats.deleted} kayıt kaldırıldı` : null,
+              stats.preserved > 0 ? `${stats.preserved} kayıt DF/8D nedeniyle korundu` : null,
+              stats.deletedDuplicates > 0 ? `${stats.deletedDuplicates} yinelenen kayıt birleştirildi` : null,
+            ].filter(Boolean).join(', '),
+          });
+        }
+      } catch (error) {
+        if (isCancelled) return;
+
+        console.error('Sızdırmazlık uygunsuzluk senkronizasyonu başarısız:', error);
+        setLeakTestSyncDone(true);
+        toast({
+          variant: 'destructive',
+          title: 'Senkronizasyon hatası',
+          description: `Sızdırmazlık kayıtları uygunsuzluğa aktarılırken hata oluştu: ${error.message}`,
+        });
+      }
+    };
+
+    void syncLeakTestRecords();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    authLoading,
+    fetchRecords,
+    leakTestSyncDone,
+    processInspectionSyncDone,
+    toast,
+    user,
+    user?.id,
+  ]);
 
   // Parça kodu ve kategori bazlı tekrar analizi — settings yüklenmeden de çalışır
   useEffect(() => {

@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { cleanupLeakTestNonconformity } from '@/lib/leakTestNonconformitySync';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +69,7 @@ const LeakTestList = ({
     onDelete,
 }) => {
     const { toast } = useToast();
+    const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTankType, setSelectedTankType] = useState('all');
     const [selectedResult, setSelectedResult] = useState('all');
@@ -106,6 +109,12 @@ const LeakTestList = ({
 
         setIsDeleting(true);
         try {
+            await cleanupLeakTestNonconformity({
+                supabase,
+                leakTestRecord: recordToDelete,
+                userId: user?.id || null,
+            });
+
             const { error } = await supabase
                 .from('leak_test_records')
                 .delete()

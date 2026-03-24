@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { syncLeakTestNonconformity } from '@/lib/leakTestNonconformitySync';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Badge } from '@/components/ui/badge';
@@ -593,31 +594,55 @@ const LeakTestFormModal = ({
                 updated_at: new Date().toISOString(),
             };
 
+            let savedRow = null;
+
             if (isEditMode && record?.id) {
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('leak_test_records')
                     .update(payload)
-                    .eq('id', record.id);
+                    .eq('id', record.id)
+                    .select('*')
+                    .single();
 
                 if (error) throw error;
+                savedRow = data;
 
                 toast({
                     title: 'Kayıt güncellendi',
                     description: `${payload.record_number} başarıyla güncellendi.`,
                 });
             } else {
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('leak_test_records')
                     .insert([{
                         ...payload,
                         created_by: user?.id || null,
-                    }]);
+                    }])
+                    .select('*')
+                    .single();
 
                 if (error) throw error;
+                savedRow = data;
 
                 toast({
                     title: 'Kayıt oluşturuldu',
                     description: `${payload.record_number} başarıyla kaydedildi.`,
+                });
+            }
+
+            try {
+                await syncLeakTestNonconformity({
+                    supabase,
+                    leakTestRecord: savedRow,
+                    userId: user?.id || null,
+                });
+            } catch (syncError) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Uygunsuzluk senkronu',
+                    description:
+                        syncError?.message
+                        || 'Kayıt kaydedildi ancak uygunsuzluk modülüne aktarım sırasında hata oluştu.',
                 });
             }
 
