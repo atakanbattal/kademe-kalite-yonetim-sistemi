@@ -494,8 +494,18 @@ const LeakTestFormModal = ({
 
         setIsSubmitting(true);
         try {
+            let recordNumber = formData.record_number;
+            if (!isEditMode) {
+                const { data: rpcNum, error: rpcError } = await supabase.rpc('next_leak_test_record_number', {
+                    p_test_date: formData.test_date,
+                });
+                if (rpcError) throw rpcError;
+                if (!rpcNum) throw new Error('Kayıt numarası alınamadı.');
+                recordNumber = rpcNum;
+            }
+
             const payload = {
-                record_number: formData.record_number,
+                record_number: recordNumber,
                 vehicle_type_id: formData.vehicle_type_id || null,
                 vehicle_type_label: previewVehicleLabel || null,
                 vehicle_serial_number: formData.vehicle_serial_number?.trim() || null,
