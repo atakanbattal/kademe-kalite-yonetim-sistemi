@@ -4,7 +4,7 @@ import {
   Search, Plus, MoreHorizontal, Eye, Edit, Trash2, AlertTriangle,
   FileText, ArrowUpDown, ArrowUp, ArrowDown, Settings2, BarChart3,
   ClipboardList, Filter, RefreshCw, ExternalLink, TrendingUp, AlertOctagon,
-  Layers, ChevronDown, ChevronUp
+  Layers
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -109,7 +109,6 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const [categoryAnalysis, setCategoryAnalysis] = useState({});
   const [convertDialog, setConvertDialog] = useState(INITIAL_CONVERT_DIALOG);
   const [groupConvertDialog, setGroupConvertDialog] = useState({ open: false, group: null, selectedType: null });
-  const [groupPanelOpen, setGroupPanelOpen] = useState(true);
   const [vehicleFaultSyncDone, setVehicleFaultSyncDone] = useState(false);
   const [processInspectionSyncDone, setProcessInspectionSyncDone] = useState(false);
   const [leakTestSyncDone, setLeakTestSyncDone] = useState(false);
@@ -1116,85 +1115,6 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
-
-          {/* Akıllı Gruplandırma Önerileri */}
-          {smartGroups.length > 0 && settings?.auto_suggest && (
-            <Card className="border-amber-200 bg-gradient-to-r from-amber-50/80 to-orange-50/50 dark:from-amber-900/10 dark:to-orange-900/10 dark:border-amber-800">
-              <CardHeader className="pb-2 cursor-pointer" onClick={() => setGroupPanelOpen(v => !v)}>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2 text-amber-800 dark:text-amber-300">
-                    <Layers className="h-4 w-4" />
-                    Toplu Dönüştürme Önerileri
-                    <Badge variant="outline" className="text-[10px] border-amber-300 bg-white dark:bg-transparent">
-                      {smartGroups.length} grup — {smartGroups.reduce((s, g) => s + g.records.length, 0)} kayıt
-                    </Badge>
-                  </CardTitle>
-                  {groupPanelOpen
-                    ? <ChevronUp className="h-4 w-4 text-amber-600" />
-                    : <ChevronDown className="h-4 w-4 text-amber-600" />}
-                </div>
-                <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
-                  Benzer uygunsuzluklar gruplandı. Tek seferde toplu DF/8D açarak sistemi verimli kullanın.
-                </p>
-              </CardHeader>
-              {groupPanelOpen && (
-                <CardContent className="pt-0">
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {smartGroups.map(group => {
-                      const is8D = group.suggestion === '8D';
-                      const hasCritical = group.severities['Kritik'] > 0;
-                      return (
-                        <div
-                          key={group.key}
-                          className={`rounded-lg border p-3 space-y-2 transition-colors ${
-                            is8D
-                              ? 'border-red-200 bg-white dark:bg-red-950/20 dark:border-red-800'
-                              : 'border-blue-200 bg-white dark:bg-blue-950/20 dark:border-blue-800'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-xs truncate">{group.category}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{group.detection_area}</p>
-                            </div>
-                            <Badge className={`shrink-0 text-[10px] ${is8D ? 'bg-red-600' : 'bg-blue-600'}`}>
-                              {group.suggestion}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                            <span className="font-medium text-foreground">{group.records.length} kayıt</span>
-                            <span>•</span>
-                            <span>{group.totalQuantity} adet</span>
-                            {hasCritical && (
-                              <>
-                                <span>•</span>
-                                <span className="text-red-600 font-medium">{group.severities['Kritik']} kritik</span>
-                              </>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">{group.reason}</p>
-                          <Button
-                            size="sm"
-                            className={`w-full h-7 text-xs font-bold gap-1.5 ${
-                              is8D ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
-                            }`}
-                            onClick={() => setGroupConvertDialog({
-                              open: true,
-                              group,
-                              selectedType: group.suggestion,
-                            })}
-                          >
-                            <Layers className="w-3 h-3" />
-                            Toplu {group.suggestion} Aç ({group.records.length} kayıt)
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          )}
 
           {/* Tablo */}
           {loading ? (
