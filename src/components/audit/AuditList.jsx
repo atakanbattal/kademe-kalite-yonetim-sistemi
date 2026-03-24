@@ -60,7 +60,8 @@ import React, { useState, useMemo } from 'react';
                 const matchesSearch = searchTerm === '' ||
                     audit.report_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     audit.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    audit.department?.unit_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                    audit.department?.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    audit.auditor_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
                 const matchesStatus = statusFilter === 'all' || audit.status === statusFilter;
 
@@ -127,7 +128,7 @@ import React, { useState, useMemo } from 'react';
                 <div className="dashboard-widget p-0">
                     <div className="p-4 flex flex-col sm:flex-row gap-4">
                         <Input
-                            placeholder="Tetkik ara (No, Başlık, Birim...)"
+                            placeholder="Tetkik ara (No, Başlık, Birim, Denetçi...)"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="max-w-sm"
@@ -152,6 +153,7 @@ import React, { useState, useMemo } from 'react';
                                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Rapor No</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Başlık</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Denetlenen Birim</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Denetçi</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Tarih</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Durum</th>
                                     <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
@@ -159,9 +161,9 @@ import React, { useState, useMemo } from 'react';
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan="6" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                    <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
                                 ) : filteredAudits.length === 0 ? (
-                                    <tr><td colSpan="6" className="text-center p-8 text-muted-foreground">Filtreye uygun tetkik bulunamadı.</td></tr>
+                                    <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Filtreye uygun tetkik bulunamadı.</td></tr>
                                 ) : (
                                     filteredAudits.map((audit, index) => (
                                         <motion.tr
@@ -175,6 +177,7 @@ import React, { useState, useMemo } from 'react';
                                             <td className="px-4 py-3 font-medium text-foreground">{audit.report_number}</td>
                                             <td className="px-4 py-3 text-muted-foreground">{audit.title}</td>
                                             <td className="px-4 py-3 text-muted-foreground">{audit.department?.unit_name || 'N/A'}</td>
+                                            <td className="px-4 py-3 text-muted-foreground">{audit.auditor_name?.trim() || '—'}</td>
                                             <td className="px-4 py-3 text-muted-foreground">{formatDate(audit.audit_date)}</td>
                                             <td className="px-4 py-3"><Badge variant={getStatusVariant(audit.status)}>{audit.status}</Badge></td>
                                             <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
