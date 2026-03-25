@@ -173,12 +173,19 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         );
     };
 
-    const VehicleDetailModal = ({ isOpen, setIsOpen, vehicle, onUpdate }) => {
+    const VehicleDetailModal = ({ isOpen, setIsOpen, vehicle, onUpdate, initialTab = 'details' }) => {
         const { toast } = useToast();
         const [faults, setFaults] = useState([]);
         const [timeline, setTimeline] = useState([]);
         const [loadingFaults, setLoadingFaults] = useState(false);
         const [equipment, setEquipment] = useState(null);
+        const [activeDetailTab, setActiveDetailTab] = useState('details');
+
+        useEffect(() => {
+            if (isOpen && vehicle) {
+                setActiveDetailTab(initialTab === 'history' ? 'history' : 'details');
+            }
+        }, [isOpen, vehicle?.id, initialTab]);
 
         useEffect(() => {
             const fetchData = async () => {
@@ -325,7 +332,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         </Button>
                     </header>
                     <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
-                        <Tabs defaultValue="details" className="w-full">
+                        <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="details">Temel Bilgiler</TabsTrigger>
                                 <TabsTrigger value="history">İşlem Geçmişi</TabsTrigger>

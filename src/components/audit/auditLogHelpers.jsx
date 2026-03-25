@@ -1,6 +1,31 @@
 import React from 'react';
+import { format, isValid, parseISO } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+
+/** vehicle_timeline_events.event_type → kullanıcı dostu etiket */
+const VEHICLE_TIMELINE_EVENT_LABELS = {
+  quality_entry: 'Kaliteye giriş',
+  control_start: 'Kontrol başladı',
+  control_end: 'Kontrol bitti',
+  rework_start: 'Yeniden işlem başladı',
+  rework_end: 'Yeniden işlem bitti',
+  waiting_for_shipping_info: 'Sevk bilgisi bekleniyor',
+  ready_to_ship: 'Sevke hazır',
+  shipped: 'Sevk edildi',
+  arge_sent: 'Ar-Ge\'ye gönderildi',
+  arge_returned: 'Ar-Ge\'den döndü',
+};
+
+const labelForUnknownTimelineEvent = (type) => {
+  if (!type || typeof type !== 'string') return 'Bilinmeyen adım';
+  return type
+    .split('_')
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toLocaleUpperCase('tr-TR') + w.slice(1))
+    .join(' ');
+};
 const getReadableTableName = (tableName) => {
   const tableMap = {
     'tasks': 'Görevler',
@@ -48,6 +73,7 @@ const getReadableTableName = (tableName) => {
     'kpis': 'KPI Kayıtları',
     'produced_vehicles': 'Üretilen Araçlar',
     'quality_inspections': 'Kalite Kontrolleri',
+    'vehicle_timeline_events': 'Kaliteye verilen araç — süreç adımı',
     'quality_inspection_faults': 'Kalite Hataları',
     'quality_inspection_history': 'Kalite Kontrol Geçmişi',
     'fault_categories': 'Hata Kategorileri',
@@ -260,16 +286,61 @@ const getHumanReadableMessage = (log) => {
   let recordIdentifier = '';
   let mainMessage = '';
   
-  // Record ID
-  if (recordInfo.id) {
-    recordIdentifier = `ID: ${recordInfo.id.substring(0, 8)}...`;
+  // Kayıt referansı (zaman çizelgesi: olay satırı UUID’si yerine muayene bağlantısı gösterilir)
+  if (log.table_name !== 'vehicle_timeline_events' && recordInfo.id) {
+    recordIdentifier = `ID: ${String(recordInfo.id).substring(0, 8)}…`;
   }
   
   // Tablo bazlı özel mesajlar oluştur
   const tableNameLower = log.table_name.toLowerCase();
-  
+
+  // Kaliteye verilen araç — zaman çizelgesi adımları (audit’te anlamlı özet)
+  if (tableNameLower === 'vehicle_timeline_events') {
+    const details = log.details || {};
+    const row = details.new || details.old || details;
+    const eventType =
+      recordInfo.timelineEventType || row.event_type || details.new?.event_type || details.old?.event_type;
+    const eventLabel =
+      VEHICLE_TIMELINE_EVENT_LABELS[eventType] || labelForUnknownTimelineEvent(eventType);
+    const inspectionId =
+      recordInfo.inspectionId || row.inspection_id || details.new?.inspection_id || details.old?.inspection_id;
+
+    let timeLabel = '';
+    const tsRaw =
+      recordInfo.eventTimestamp || row.event_timestamp || details.new?.event_timestamp || details.old?.event_timestamp;
+    if (tsRaw) {
+      try {
+        const d = parseISO(tsRaw);
+        if (isValid(d)) timeLabel = format(d, 'dd.MM.yyyy HH:mm', { locale: tr });
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    if (action.startsWith('EKLEME')) {
+      mainMessage = `Kalite sürecine adım eklendi: ${eventLabel}`;
+    } else if (action.startsWith('SİLME')) {
+      mainMessage = `Kalite süreci adımı silindi: ${eventLabel}`;
+    } else {
+      mainMessage = `Kalite süreci adımı güncellendi: ${eventLabel}`;
+    }
+
+    const parts = [];
+    if (timeLabel) parts.push(`Olay zamanı: ${timeLabel}`);
+    if (inspectionId) parts.push(`Kalite kaydı: ${String(inspectionId).slice(0, 8)}…`);
+    const note = recordInfo.timelineNotes || row.notes;
+    if (note && String(note).trim() && String(note).length <= 120) {
+      parts.push(`Not: ${String(note).trim()}`);
+    } else if (note && String(note).trim()) {
+      parts.push(`Not: ${String(note).trim().slice(0, 117)}…`);
+    }
+    extraInfo = parts.length > 0 ? parts.join(' · ') : inspectionId
+      ? `Kalite kaydı referansı: ${String(inspectionId).slice(0, 8)}…`
+      : '';
+    recordIdentifier = '';
+  }
   // Tedarikçi Uygunsuzlukları için özel mesaj
-  if (tableNameLower === 'supplier_non_conformities') {
+  else if (tableNameLower === 'supplier_non_conformities') {
     const parts = [];
     if (recordInfo.supplierName) parts.push(`Tedarikçi: ${recordInfo.supplierName}`);
     if (recordInfo.ncNumber) parts.push(`Uygunsuzluk No: ${recordInfo.ncNumber}`);
@@ -427,7 +498,11 @@ const getHumanReadableMessage = (log) => {
       'due_date': 'Bitiş Tarihi',
       'supplier_name': 'Tedarikçi',
       'nc_number': 'Uygunsuzluk No',
-      'part_name': 'Parça Adı'
+      'part_name': 'Parça Adı',
+      'event_type': 'Olay türü',
+      'event_timestamp': 'Olay zamanı',
+      'inspection_id': 'Kalite kaydı',
+      'notes': 'Not',
     };
     
     const changedFieldsStr = recordInfo.changedFields

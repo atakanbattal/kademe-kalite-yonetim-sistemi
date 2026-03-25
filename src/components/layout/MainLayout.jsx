@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useData } from '@/contexts/DataContext';
 import { openPrintableReport as openPrintableReportUtil } from '@/lib/reportUtils';
 import { cn } from '@/lib/utils';
+import { getAuditNavigationAction } from '@/lib/auditDeepLink';
 
 // Components (her zaman gerekli - lazy loading yok)
 import Sidebar from '@/components/layout/Sidebar';
@@ -217,6 +218,30 @@ const MainLayout = () => {
             toast({ variant: 'destructive', title: 'Hata', description: 'Uygunsuzluk açılırken hata oluştu.' });
         }
     }, [toast]);
+
+    const handleAuditDeepLink = useCallback(
+        async (log) => {
+            const action = getAuditNavigationAction(log);
+            if (action.kind === 'none') return;
+            if (action.kind === 'openNcView') {
+                await handleOpenNCView({ id: action.recordId });
+                return;
+            }
+            if (action.kind === 'navigate') {
+                if (!PERMITTED_MODULES.includes(action.module)) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Yetkisiz Erişim',
+                        description: 'Bu kayda ait modüle erişim izniniz yok.',
+                    });
+                    return;
+                }
+                const q = new URLSearchParams(action.query);
+                navigate(`/${action.module}?${q.toString()}`);
+            }
+        },
+        [handleOpenNCView, navigate, PERMITTED_MODULES, toast]
+    );
 
     // Dosya adını normalize et ve güvenli hale getir
     const normalizeFileName = (fileName) => {
@@ -484,7 +509,7 @@ const MainLayout = () => {
                 case 'incoming-quality': return <IncomingQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
                 case 'leak-test': return <LeakTestModule />;
                 case 'wps': return <WPSModule />;
-                case 'audit-logs': return <AuditLogModule />;
+                case 'audit-logs': return <AuditLogModule onOpenRelatedRecord={handleAuditDeepLink} />;
                 case 'training': return <TrainingModule onOpenPdfViewer={handleOpenPdfViewer} />;
                 case 'polyvalence': return <PolyvalenceModule />;
                 case 'benchmark': return <BenchmarkModule />;

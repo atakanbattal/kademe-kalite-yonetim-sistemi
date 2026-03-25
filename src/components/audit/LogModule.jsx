@@ -5,9 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
 import { Search, Filter, User, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,54 +15,10 @@ import { Button } from '@/components/ui/button';
 import { useDebounce } from '@/hooks/useDebounce';
 import AuditLogEntryRow from './AuditLogEntryRow';
 import { getHumanReadableMessage, getActionBadge, getReadableTableName } from './auditLogHelpers';
+import { hasAuditDeepLink } from '@/lib/auditDeepLink';
+import { AuditDetailsPane } from '@/components/audit/auditDetailPresentation';
 
-const formatDetailValue = (v) => {
-  if (v === null || v === undefined) return '—';
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-};
-
-const AuditDetailsPane = ({ details }) => {
-  if (!details) return <p className="text-sm text-muted-foreground">Detay yok.</p>;
-  const d = details;
-  if (d.old && d.new && typeof d.old === 'object' && typeof d.new === 'object' && !Array.isArray(d.old)) {
-    const keys = Array.from(new Set([...Object.keys(d.old), ...Object.keys(d.new)])).filter((k) => k !== 'changed_fields').sort();
-    return (
-      <ScrollArea className="h-[min(55vh,480px)] border rounded-md">
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-muted">
-            <tr>
-              <th className="text-left p-2 font-semibold">Alan</th>
-              <th className="text-left p-2 font-semibold">Önce</th>
-              <th className="text-left p-2 font-semibold">Sonra</th>
-            </tr>
-          </thead>
-          <tbody>
-            {keys.map((key) => {
-              const before = d.old[key];
-              const after = d.new[key];
-              const changed = JSON.stringify(before) !== JSON.stringify(after);
-              return (
-                <tr key={key} className={changed ? 'bg-amber-500/10' : ''}>
-                  <td className="p-2 font-mono align-top border-t">{key}</td>
-                  <td className="p-2 align-top border-t break-all max-w-[200px]">{formatDetailValue(before)}</td>
-                  <td className="p-2 align-top border-t break-all max-w-[200px]">{formatDetailValue(after)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </ScrollArea>
-    );
-  }
-  return (
-    <ScrollArea className="h-[min(55vh,480px)] border rounded-md p-3">
-      <pre className="text-xs whitespace-pre-wrap break-all">{JSON.stringify(details, null, 2)}</pre>
-    </ScrollArea>
-  );
-};
-
-const AuditLogModule = () => {
+const AuditLogModule = ({ onOpenRelatedRecord }) => {
       const { auditLogs, loading } = useData();
       const [searchTerm, setSearchTerm] = useState('');
       const [tableFilter, setTableFilter] = useState('all');
@@ -112,39 +66,29 @@ const AuditLogModule = () => {
 
       const debouncedSearchTerm = useDebounce(searchTerm, 280);
 
-      const auditSearchBlobById = useMemo(() => {
-        const map = new Map();
-        for (const log of allAuditLogs) {
+      const filteredBySelects = useMemo(() => {
+        let logs = allAuditLogs;
+        if (tableFilter !== 'all') {
+          logs = logs.filter((log) => log.table_name === tableFilter);
+        }
+        if (userFilter !== 'all') {
+          logs = logs.filter((log) => (log.user_full_name || 'Sistem') === userFilter);
+        }
+        return logs;
+      }, [allAuditLogs, tableFilter, userFilter]);
+
+      const filteredLogs = useMemo(() => {
+        const term = debouncedSearchTerm.trim();
+        if (!term) return filteredBySelects;
+        const normalizedSearchTerm = normalizeTurkishForSearch(term);
+        return filteredBySelects.filter((log) => {
           const detailStr = log.details != null ? JSON.stringify(log.details) : '';
           const blob = normalizeTurkishForSearch(
             [log.action, log.user_full_name || '', log.table_name, detailStr].join('\u0001')
           );
-          map.set(log.id, blob);
-        }
-        return map;
-      }, [allAuditLogs]);
-
-      const filteredLogs = useMemo(() => {
-        let logs = allAuditLogs;
-
-        if (tableFilter !== 'all') {
-          logs = logs.filter((log) => log.table_name === tableFilter);
-        }
-
-        if (userFilter !== 'all') {
-          logs = logs.filter((log) => (log.user_full_name || 'Sistem') === userFilter);
-        }
-
-        if (debouncedSearchTerm.trim()) {
-          const normalizedSearchTerm = normalizeTurkishForSearch(debouncedSearchTerm.trim());
-          logs = logs.filter((log) => {
-            const blob = auditSearchBlobById.get(log.id);
-            return blob && blob.includes(normalizedSearchTerm);
-          });
-        }
-
-        return logs;
-      }, [allAuditLogs, debouncedSearchTerm, tableFilter, userFilter, auditSearchBlobById]);
+          return blob.includes(normalizedSearchTerm);
+        });
+      }, [filteredBySelects, debouncedSearchTerm]);
 
       const toggleExpand = useCallback((logId) => {
         setExpandedLogs((prev) => {
@@ -160,11 +104,7 @@ const AuditLogModule = () => {
       }, []);
 
       return (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <div>
           <Card>
             <CardHeader>
               <CardTitle>Sistem Denetim Kayıtları</CardTitle>
@@ -223,6 +163,7 @@ const AuditLogModule = () => {
                       <SelectItem value="customer_complaints">Müşteri Şikayetleri</SelectItem>
                       <SelectItem value="produced_vehicles">Üretilen Araçlar</SelectItem>
                       <SelectItem value="quality_inspections">Kalite Kontrolleri</SelectItem>
+                      <SelectItem value="vehicle_timeline_events">Kaliteye verilen araç — süreç adımları</SelectItem>
                       <SelectItem value="task_assignees">Görev Atamaları</SelectItem>
                       <SelectItem value="task_comments">Görev Yorumları</SelectItem>
                       <SelectItem value="deviation_approvals">Sapma Onayları</SelectItem>
@@ -273,6 +214,7 @@ const AuditLogModule = () => {
                         isExpanded={expandedLogs.has(log.id)}
                         onToggleExpand={toggleExpand}
                         onSelectLog={handleSelectLog}
+                        onOpenRelatedRecord={onOpenRelatedRecord}
                       />
                     ))
                   ) : (
@@ -288,17 +230,34 @@ const AuditLogModule = () => {
           </Card>
           
           {/* Detay Modal */}
-          <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-              <DialogHeader>
-                <DialogTitle>İşlem Detayları</DialogTitle>
-                <DialogDescription>
+          <Dialog
+            open={!!selectedLog}
+            onOpenChange={(open) => {
+              if (!open) setSelectedLog(null);
+            }}
+          >
+            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0 gap-0">
+              <DialogHeader className="px-6 pt-6 pb-2 space-y-1 border-b bg-muted/30">
+                <DialogTitle className="text-lg">İşlem Detayları</DialogTitle>
+                <DialogDescription className="text-sm text-foreground/80">
                   {selectedLog && getHumanReadableMessage(selectedLog).message}
                 </DialogDescription>
               </DialogHeader>
               {selectedLog && (
-                <div className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4 px-6 py-4 overflow-y-auto flex-1 min-h-0">
+                  {onOpenRelatedRecord && hasAuditDeepLink(selectedLog) && (
+                    <Button
+                      type="button"
+                      className="w-full sm:w-auto"
+                      onClick={() => {
+                        onOpenRelatedRecord(selectedLog);
+                        setSelectedLog(null);
+                      }}
+                    >
+                      İlgili kayda git
+                    </Button>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 rounded-lg border bg-card p-4">
                     <div>
                       <div className="text-sm font-medium text-muted-foreground">Modül</div>
                       <div className="text-sm font-semibold">{getReadableTableName(selectedLog.table_name)}</div>
@@ -322,16 +281,16 @@ const AuditLogModule = () => {
                   </div>
                   
                   {selectedLog.details && (
-                    <div className="mt-6 flex-1 min-h-0 flex flex-col">
-                      <div className="text-sm font-medium text-muted-foreground mb-2">Kayıt detayı</div>
-                      <AuditDetailsPane details={selectedLog.details} />
+                    <div className="mt-2 flex-1 min-h-0 flex flex-col gap-2">
+                      <div className="text-sm font-semibold text-foreground">Kayıt detayı</div>
+                      <AuditDetailsPane details={selectedLog.details} tableName={selectedLog.table_name} />
                     </div>
                   )}
                 </div>
               )}
             </DialogContent>
           </Dialog>
-        </motion.div>
+        </div>
       );
     };
 

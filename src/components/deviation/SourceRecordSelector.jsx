@@ -156,7 +156,7 @@ const loadSourceRecords = async (sourceType, sourceId = null) => {
                 .limit(100);
         }
         case 'quarantine': {
-            let query = supabase.from('quarantine_records').select('*');
+            let query = supabase.from('quarantine_records_api').select('*');
             if (sourceId) {
                 return query.eq('id', sourceId).single();
             }
@@ -286,6 +286,7 @@ const filterRecordBySearch = (record, sourceType, searchTerm) => {
                 record.source_department,
                 record.requesting_department,
                 record.requesting_person_name,
+                record.supplier_name,
             ].some((value) => normalizeValue(value).includes(normalizedSearch));
         case 'quality_cost':
             return [
@@ -453,6 +454,7 @@ const getRecordMetaFields = (record, sourceType) => {
                 { label: 'Lot No', value: record.lot_no || '-' },
                 { label: 'Miktar', value: `${record.quantity || 0} ${record.unit || 'Adet'}` },
                 { label: 'Kaynak Birim', value: record.source_department || '-' },
+                { label: 'Tedarikçi', value: record.supplier_name || '-' },
                 { label: 'Tarih', value: formatDateOnly(record.quarantine_date || record.created_at) },
             ];
         case 'quality_cost':

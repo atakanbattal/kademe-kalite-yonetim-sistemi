@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
     import { motion } from 'framer-motion';
     import { Plus, SlidersHorizontal, Search, BarChart2, List, ArrowUpDown, ArrowUp, ArrowDown, FileText, BarChart3 } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
@@ -47,6 +48,9 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 
         const [selectedVehicle, setSelectedVehicle] = useState(null);
         const [activeTab, setActiveTab] = useState('operations');
+        const [vehicleDetailInitialTab, setVehicleDetailInitialTab] = useState('details');
+        const [searchParams, setSearchParams] = useSearchParams();
+        const deepLinkHandledRef = useRef(null);
         
         // selectedVehicle'ı producedVehicles güncellendiğinde senkronize tut
         useEffect(() => {
@@ -160,8 +164,66 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 
         const handleOpenModal = (setter, vehicle) => {
             setSelectedVehicle(vehicle);
+            setVehicleDetailInitialTab('details');
             setter(true);
         };
+
+        const openInspectionFromDeepLink = useCallback(
+            async (inspectionId, detailTab) => {
+                if (!inspectionId) return;
+                let v = producedVehicles.find((x) => x.id === inspectionId);
+                if (!v) {
+                    try {
+                        const { data, error } = await supabase
+                            .from('quality_inspections')
+                            .select(
+                                '*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)'
+                            )
+                            .eq('id', inspectionId)
+                            .maybeSingle();
+                        if (error) throw error;
+                        v = data;
+                    } catch (e) {
+                        toast({
+                            variant: 'destructive',
+                            title: 'Kayıt açılamadı',
+                            description: e?.message || 'Kalite kaydı yüklenemedi veya bulunamadı.',
+                        });
+                        return;
+                    }
+                }
+                if (!v) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Kayıt bulunamadı',
+                        description: 'Bu kalite kaydına erişilemiyor.',
+                    });
+                    return;
+                }
+                setVehicleDetailInitialTab(detailTab === 'history' ? 'history' : 'details');
+                setSelectedVehicle(v);
+                setDetailModalOpen(true);
+                setActiveTab('operations');
+            },
+            [producedVehicles, toast]
+        );
+
+        useEffect(() => {
+            const openId = searchParams.get('openInspection');
+            if (!openId) {
+                deepLinkHandledRef.current = null;
+                return;
+            }
+            const detailTab = searchParams.get('detailTab') || 'details';
+            const sig = `${openId}:${detailTab}`;
+            if (deepLinkHandledRef.current === sig) return;
+            deepLinkHandledRef.current = sig;
+            const next = new URLSearchParams(searchParams);
+            next.delete('openInspection');
+            next.delete('detailTab');
+            setSearchParams(next, { replace: true });
+            openInspectionFromDeepLink(openId, detailTab);
+        }, [searchParams, setSearchParams, openInspectionFromDeepLink]);
 
         const handleStatusCardClick = (status) => {
             setStatusDetail(status);
@@ -467,7 +529,13 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
                     <>
                         <EditVehicleModal isOpen={isEditModalOpen} setIsOpen={setEditModalOpen} vehicle={selectedVehicle} refreshVehicles={refreshProducedVehicles || refreshData} />
                         <VehicleFaultsModal isOpen={isFaultsModalOpen} setIsOpen={setFaultsModalOpen} vehicle={selectedVehicle} departments={productionDepartments} onUpdate={refreshProducedVehicles || refreshData} onOpenNCForm={onOpenNCForm}/>
-                        <VehicleDetailModal isOpen={isDetailModalOpen} setIsOpen={setDetailModalOpen} vehicle={selectedVehicle} onUpdate={refreshProducedVehicles || refreshData} />
+                        <VehicleDetailModal
+                            isOpen={isDetailModalOpen}
+                            setIsOpen={setDetailModalOpen}
+                            vehicle={selectedVehicle}
+                            onUpdate={refreshProducedVehicles || refreshData}
+                            initialTab={vehicleDetailInitialTab}
+                        />
                         <VehicleTimeDetailModal isOpen={isTimeDetailModalOpen} setIsOpen={setTimeDetailModalOpen} vehicle={selectedVehicle} onUpdate={refreshProducedVehicles || refreshData} />
                     </>
                 )}

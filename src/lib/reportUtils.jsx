@@ -2,6 +2,7 @@ import { format, differenceInDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
 import { toCamelCase, getAttachmentDisplayName } from './utils';
+import { normalizeQuarantineAttachments } from './quarantineAttachments';
 
 // Global formatter helpers
 const formatDateHelper = (dateStr, style = 'dd.MM.yyyy') => dateStr ? format(new Date(dateStr), style, { locale: tr }) : '-';
@@ -4764,6 +4765,7 @@ const generateGenericReportHtml = async (record, type) => {
 								'background-color: #e5e7eb; color: #374151;'
 					}">${record.status || 'Bilinmiyor'}</span></td></tr>
 				<tr><td>Sebep Olan Birim</td><td>${record.source_department || '-'}</td></tr>
+				<tr><td>Sebep Olan Tedarikçi</td><td>${record.supplier_name || '-'}</td></tr>
 				<tr><td>Talebi Yapan Birim</td><td>${record.requesting_department || '-'}</td></tr>
 				<tr><td>Talebi Yapan Kişi</td><td>${record.requesting_person_name || '-'}</td></tr>
 				<tr><td>Karantina Sebebi / Açıklama</td><td><pre style="white-space: pre-wrap; font-family: inherit;">${record.description || '-'}</pre></td></tr>
@@ -5484,6 +5486,37 @@ const generateGenericReportHtml = async (record, type) => {
 					</tbody>
 				</table>
 			</div> `;
+		}
+
+		// Karantina ürün ekleri (görsel / PDF)
+		if (type === 'quarantine') {
+			const qAtts = normalizeQuarantineAttachments(record.attachments);
+			if (qAtts.length > 0) {
+				const esc = (s) => String(s || '')
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/"/g, '&quot;');
+				const sectionNum = record.history && record.history.length > 0 ? '3' : '2';
+				html += `<div class="section"><h2 class="section-title blue">${sectionNum}. ÜRÜN EKLERİ (GÖRSEL / PDF)</h2><div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;">`;
+				for (const att of qAtts) {
+					let url = att.public_url || '';
+					if (!url && att.path) {
+						const { data } = supabase.storage.from('quarantine_documents').getPublicUrl(att.path);
+						url = data?.publicUrl || '';
+					}
+					const isImg =
+						(att.mime_type && String(att.mime_type).startsWith('image/')) ||
+						/\.(jpe?g|png|gif|webp|bmp)$/i.test(att.name || '');
+					if (isImg && url) {
+						html += `<div style="flex:0 0 auto;max-width:220px;"><img src="${url}" alt="" style="max-width:200px;max-height:180px;border:1px solid #e5e7eb;border-radius:4px;object-fit:cover;" crossorigin="anonymous" /><div style="font-size:10px;margin-top:6px;color:#4b5563;">${esc(att.name)}</div></div>`;
+					} else if (url) {
+						html += `<div style="margin:6px 0;"><a href="${url}" target="_blank" rel="noopener noreferrer">${esc(att.name || 'PDF / dosya')}</a></div>`;
+					} else {
+						html += `<div style="font-size:11px;color:#6b7280;">${esc(att.name || 'Dosya')} (URL yok)</div>`;
+					}
+				}
+				html += `</div></div>`;
+			}
 		}
 
 		// Kök Neden Analizleri (her zaman göster-doldurulabilir alanlar için)

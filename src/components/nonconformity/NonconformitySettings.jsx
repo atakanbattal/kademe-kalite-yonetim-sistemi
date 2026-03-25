@@ -100,8 +100,8 @@ const NonconformitySettings = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <Card>
+    <div className="w-full min-w-0 max-w-full space-y-6">
+      <Card className="shadow-sm border-border">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
@@ -130,7 +130,7 @@ const NonconformitySettings = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
             <div className="space-y-3 p-4 rounded-lg border bg-blue-50/50 dark:bg-blue-900/10">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />
@@ -172,9 +172,6 @@ const NonconformitySettings = () => {
                 <span className="text-sm text-muted-foreground">adet</span>
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3 p-4 rounded-lg border bg-blue-50/50 dark:bg-blue-900/10">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />

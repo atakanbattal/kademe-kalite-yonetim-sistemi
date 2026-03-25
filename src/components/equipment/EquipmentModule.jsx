@@ -14,6 +14,7 @@ import EquipmentDetailModal from '@/components/equipment/EquipmentDetailModal';
 import EquipmentFilters from '@/components/equipment/EquipmentFilters';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { normalizeTurkishForSearch } from '@/lib/utils';
+import { getEquipmentDisplayStatus } from '@/components/equipment/equipmentDisplayStatus';
 
 const EquipmentModule = ({ onOpenPdfViewer }) => {
     const { toast } = useToast();
@@ -55,6 +56,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                     measurement_range,
                     measurement_uncertainty,
                     calibration_frequency_months,
+                    scrap_date,
                     created_at,
                     updated_at
                 `)
@@ -163,11 +165,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
 
         // Durum filtresi
         if (filters.status) {
-            filtered = filtered.filter(eq => {
-                const activeAssignment = eq.equipment_assignments?.find(a => a.is_active);
-                const displayStatus = activeAssignment ? 'Zimmetli' : eq.status;
-                return displayStatus === filters.status;
-            });
+            filtered = filtered.filter((eq) => getEquipmentDisplayStatus(eq) === filters.status);
         }
 
         // Kalibrasyon durumu filtresi
@@ -338,7 +336,11 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">Ekipman ve Kalibrasyon Yönetimi</h1>
-                    <p className="text-muted-foreground mt-1">Ölçüm cihazlarınızı, kalibrasyonlarını ve zimmetlerini takip edin.</p>
+                    <p className="text-muted-foreground mt-1 max-w-3xl">
+                        Ölçüm cihazları, kalibrasyon ve zimmet takibi. Üstteki özet, kayıtlı tüm ekipman üzerinden
+                        hesaplanır; aşağıdaki liste arama ve filtreyle sınırlanır. Soru işaretinden göstergelerin tanımına
+                        ulaşabilirsiniz.
+                    </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button onClick={() => handleOpenForm()}>
@@ -347,7 +349,7 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
                 </div>
             </div>
 
-            <EquipmentDashboard equipments={equipments} loading={loading} />
+            <EquipmentDashboard allEquipments={allEquipments} loading={loading} />
 
             <motion.div
                 className="dashboard-widget"

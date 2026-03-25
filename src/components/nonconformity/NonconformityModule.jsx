@@ -1475,8 +1475,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
           )}
         </TabsContent>
 
-        {/* AYARLAR */}
-        <TabsContent value="settings">
+        {/* AYARLAR — tam genişlik (dar A4 benzeri sütun yok) */}
+        <TabsContent value="settings" className="space-y-4 w-full min-w-0">
           <NonconformitySettings />
         </TabsContent>
       </Tabs>

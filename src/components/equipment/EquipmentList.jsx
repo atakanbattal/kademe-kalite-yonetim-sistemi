@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { getEquipmentDisplayStatus } from '@/components/equipment/equipmentDisplayStatus';
 
 const EquipmentList = ({ equipments, onEdit, onView, onDelete, onSort, sortConfig, getSortIcon }) => {
     
@@ -138,9 +139,7 @@ const EquipmentList = ({ equipments, onEdit, onView, onDelete, onSort, sortConfi
                         // Aktif zimmet kontrolü
                         const activeAssignment = eq.equipment_assignments?.find(a => a.is_active);
                         const assignedPersonnel = activeAssignment?.personnel?.full_name;
-                        
-                        // Durum belirleme: Eğer aktif zimmet varsa durum "Zimmetli" olmalı
-                        const displayStatus = assignedPersonnel ? 'Zimmetli' : eq.status;
+                        const displayStatus = getEquipmentDisplayStatus(eq);
                         
                         return (
                         <motion.tr

@@ -105,6 +105,17 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
                 throw updateError;
             }
 
+            const nowIso = new Date().toISOString();
+            const { error: closeAssignError } = await supabase
+                .from('equipment_assignments')
+                .update({ is_active: false, return_date: nowIso })
+                .eq('equipment_id', equipment.id)
+                .eq('is_active', true);
+
+            if (closeAssignError) {
+                console.error('Zimmet kapatma hatası:', closeAssignError);
+            }
+
             // Aktif kalibrasyon kayıtlarını pasif yap (silme, sadece pasif yap)
             const { error: calibrationError } = await supabase
                 .from('equipment_calibrations')
@@ -119,7 +130,8 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
 
             toast({
                 title: 'Başarılı',
-                description: 'Ekipman başarıyla hurdaya ayrıldı ve kalibrasyondan düşürüldü.'
+                description:
+                    'Ekipman hurdaya ayrıldı; aktif zimmetler kapatıldı ve kalibrasyon kayıtları pasifleştirildi.',
             });
 
             // Formu temizle

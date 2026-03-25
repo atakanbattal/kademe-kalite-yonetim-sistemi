@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
     import { FileText, History, Paperclip } from 'lucide-react';
     import { openPrintableReport } from '@/lib/reportUtils';
+    import { normalizeQuarantineAttachments } from '@/lib/quarantineAttachments';
 
     const DetailItem = ({ label, value }) => (
         <div className="grid grid-cols-3 gap-2 py-2 border-b border-border">
@@ -47,6 +48,16 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             const totalProcessed = history.reduce((sum, h) => sum + (h.processed_quantity || 0), 0);
             return (record?.quantity || 0) + totalProcessed;
         }, [history, record]);
+
+        const attachmentList = useMemo(() => normalizeQuarantineAttachments(record?.attachments), [record?.attachments]);
+
+        const getAttachmentPublicUrl = useCallback((att) => {
+            if (att.public_url) return att.public_url;
+            if (att.path) {
+                return supabase.storage.from('quarantine_documents').getPublicUrl(att.path).data.publicUrl;
+            }
+            return null;
+        }, []);
 
         useEffect(() => {
             if (isOpen) {
@@ -101,11 +112,47 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                         <DetailItem label="Karantina Tarihi" value={new Date(record.quarantine_date).toLocaleDateString('tr-TR')} />
                                         <DetailItem label="Durum" value={record.status} />
                                         <DetailItem label="Sebep Olan Birim" value={record.source_department} />
+                                        <DetailItem label="Sebep Olan Tedarikçi" value={record.supplier_name} />
                                         <DetailItem label="Talebi Yapan Birim" value={record.requesting_department} />
                                         <DetailItem label="Talebi Yapan Kişi" value={record.requesting_person_name} />
                                         <DetailItem label="Neden Karantinaya Alındı" value={record.description || 'Belirtilmemiş'} />
                                         {record.decision && (
                                             <DetailItem label="Son Karar" value={`${record.decision}${record.decision_date ? ` (${new Date(record.decision_date).toLocaleDateString('tr-TR')})` : ''}`} />
+                                        )}
+                                        {attachmentList.length > 0 && (
+                                            <div className="pt-4 mt-2 border-t border-border">
+                                                <Label className="font-semibold text-muted-foreground text-sm mb-3 block">Ürün görselleri ve ekler</Label>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                    {attachmentList.map((att, idx) => {
+                                                        const url = getAttachmentPublicUrl(att);
+                                                        const isImg =
+                                                            (att.mime_type && att.mime_type.startsWith('image/')) ||
+                                                            /\.(jpe?g|png|gif|webp|bmp)$/i.test(att.name || '');
+                                                        return (
+                                                            <div key={att.path || idx} className="rounded-lg border border-border bg-muted/20 overflow-hidden">
+                                                                {isImg && url ? (
+                                                                    <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+                                                                        <img src={url} alt={att.name || ''} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
+                                                                        <p className="text-[10px] p-2 truncate text-muted-foreground">{att.name}</p>
+                                                                    </a>
+                                                                ) : url ? (
+                                                                    <a
+                                                                        href={url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-2 p-3 text-sm text-primary hover:underline"
+                                                                    >
+                                                                        <FileText className="w-4 h-4 shrink-0" />
+                                                                        <span className="truncate">{att.name || 'PDF / dosya'}</span>
+                                                                    </a>
+                                                                ) : (
+                                                                    <p className="p-3 text-xs text-muted-foreground truncate">{att.name}</p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 </ScrollArea>

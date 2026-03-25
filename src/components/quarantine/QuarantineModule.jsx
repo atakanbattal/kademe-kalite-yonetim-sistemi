@@ -44,7 +44,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 record.nc_number?.toLowerCase().includes(lowercasedFilter) ||
                 record.source_department?.toLowerCase().includes(lowercasedFilter) ||
                 record.requesting_department?.toLowerCase().includes(lowercasedFilter) ||
-                record.requesting_person_name?.toLowerCase().includes(lowercasedFilter)
+                record.requesting_person_name?.toLowerCase().includes(lowercasedFilter) ||
+                record.supplier_name?.toLowerCase().includes(lowercasedFilter)
             );
         }
 
@@ -144,6 +145,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           unit: r.unit,
           reason: r.reason,
           source_department: r.source_department,
+          supplier_name: r.supplier_name,
           requesting_department: r.requesting_department,
           requesting_person_name: r.requesting_person_name,
           status: r.status,
@@ -305,6 +307,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                         {getSortIcon('source_department')}
                       </div>
                     </th>
+                    <th className="whitespace-nowrap">Tedarikçi</th>
                     <th 
                       className="cursor-pointer hover:bg-secondary/50 select-none"
                       onClick={() => handleSort('status')}
@@ -320,9 +323,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
+                    <tr><td colSpan="8" className="text-center p-8 text-muted-foreground">Yükleniyor...</td></tr>
                   ) : records.length === 0 ? (
-                    <tr><td colSpan="7" className="text-center p-8 text-muted-foreground">Kayıt bulunamadı.</td></tr>
+                    <tr><td colSpan="8" className="text-center p-8 text-muted-foreground">Kayıt bulunamadı.</td></tr>
                   ) : (
                     records.map((item) => (
                       <motion.tr 
@@ -347,6 +350,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                             )}
                         </td>
                         <td className="text-foreground">{item.source_department || 'Belirtilmemiş'}</td>
+                        <td className="text-foreground text-sm max-w-[180px] truncate" title={item.supplier_name || ''}>
+                          {item.supplier_name || '—'}
+                        </td>
                         <td>
                           <span className={`status-indicator ${getStatusColor(item.status)}`}>{item.status}</span>
                         </td>

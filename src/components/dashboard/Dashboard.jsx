@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import {
   AlertTriangle, FileText, Beaker, CheckSquare, BarChart, ShieldCheck,
   CalendarClock, TrendingUp, TrendingDown, BookCheck, ClipboardCheck,
   WalletCards, FileDown, ScrollText, Plus, Edit, Trash2, GraduationCap,
-  Activity, Shield, Gauge, ArrowUpRight, ArrowDownRight, Minus,
+  Activity, Shield, ArrowUpRight, ArrowDownRight, Minus,
   AlertOctagon, Package, Users, Wrench, ChevronDown, ChevronUp,
   Target, Zap, Clock, BarChart3
 } from 'lucide-react';
@@ -13,7 +13,6 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   AreaChart, Area, BarChart as RechartsBarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid,
-  RadialBarChart, RadialBar, Legend
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,13 +43,6 @@ const fmtCurrency = (v) => {
   if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M ₺`;
   if (v >= 1000) return `${Math.round(v / 1000)}K ₺`;
   return `${Math.round(v)} ₺`;
-};
-
-const HEALTH_COLOR = (score) => {
-  if (score >= 80) return { ring: '#22c55e', bg: 'from-emerald-500/10 to-emerald-500/5', text: 'text-emerald-600 dark:text-emerald-400', label: 'Mükemmel' };
-  if (score >= 60) return { ring: '#eab308', bg: 'from-yellow-500/10 to-yellow-500/5', text: 'text-yellow-600 dark:text-yellow-400', label: 'İyi' };
-  if (score >= 40) return { ring: '#f97316', bg: 'from-orange-500/10 to-orange-500/5', text: 'text-orange-600 dark:text-orange-400', label: 'Dikkat' };
-  return { ring: '#ef4444', bg: 'from-red-500/10 to-red-500/5', text: 'text-red-600 dark:text-red-400', label: 'Kritik' };
 };
 
 const TrendBadge = ({ value, suffix = '%', invert = false }) => {
@@ -95,7 +87,20 @@ const CustomTooltip = ({ active, payload, label, formatter }) => {
   );
 };
 
-const TABLE_LABELS = { tasks: 'Görev', non_conformities: 'Uygunsuzluk', deviations: 'Sapma', audit_findings: 'Tetkik Bulgusu', quarantine_records: 'Karantina', quality_costs: 'Kalite Maliyeti', equipments: 'Ekipman', equipment_calibrations: 'Kalibrasyon', suppliers: 'Tedarikçi', supplier_non_conformities: 'Ted. Uygunsuzluk', supplier_audit_plans: 'Ted. Denetim', incoming_inspections: 'Girdi Muayene', documents: 'Doküman', personnel: 'Personel', kpis: 'KPI', customer_complaints: 'Müşteri Şikayeti', quality_inspections: 'Kalite Kontrol', kaizen_entries: 'Kaizen' };
+const TABLE_LABELS = { tasks: 'Görev', non_conformities: 'Uygunsuzluk', deviations: 'Sapma', audit_findings: 'Tetkik Bulgusu', quarantine_records: 'Karantina', quality_costs: 'Kalite Maliyeti', equipments: 'Ekipman', equipment_calibrations: 'Kalibrasyon', suppliers: 'Tedarikçi', supplier_non_conformities: 'Ted. Uygunsuzluk', supplier_audit_plans: 'Ted. Denetim', incoming_inspections: 'Girdi Muayene', documents: 'Doküman', personnel: 'Personel', kpis: 'KPI', customer_complaints: 'Müşteri Şikayeti', quality_inspections: 'Kalite Kontrol', vehicle_timeline_events: 'Araç süreç adımı', kaizen_entries: 'Kaizen' };
+
+const AUDIT_TIMELINE_EVENT_LABELS = {
+  quality_entry: 'Kaliteye giriş',
+  control_start: 'Kontrol başladı',
+  control_end: 'Kontrol bitti',
+  rework_start: 'Yeniden işlem başladı',
+  rework_end: 'Yeniden işlem bitti',
+  waiting_for_shipping_info: 'Sevk bilgisi bekleniyor',
+  ready_to_ship: 'Sevke hazır',
+  shipped: 'Sevk edildi',
+  arge_sent: 'Ar-Ge\'ye gönderildi',
+  arge_returned: 'Ar-Ge\'den döndü',
+};
 
 const Dashboard = ({ setActiveModule, onOpenNCView }) => {
   const { toast } = useToast();
@@ -113,7 +118,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
   const [isReportModalOpen, setReportModalOpen] = useState(false);
   const [drillDownType, setDrillDownType] = useState(null);
   const [detailModalData, setDetailModalData] = useState({ isOpen: false, title: '', description: '', data: [], columns: [] });
-  const [expandedSections, setExpandedSections] = useState({ alerts: true, advanced: false });
+  const [expandedSections, setExpandedSections] = useState({ alerts: true, advanced: true });
   const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
@@ -145,7 +150,6 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
 
     const openDf = ncs.filter(n => n.type === 'DF' && n.status !== 'Kapatıldı');
     const open8d = ncs.filter(n => n.type === '8D' && n.status !== 'Kapatıldı');
-    const closedNcs = ncs.filter(n => n.status === 'Kapatıldı');
     const openedThisMonth = ncs.filter(n => new Date(n.opening_date || n.created_at) >= thisMonth).length;
     const closedThisMonth = ncs.filter(n => n.status === 'Kapatıldı' && new Date(n.closing_date || n.updated_at) >= thisMonth).length;
     const openedLastMonth = ncs.filter(n => { const d = new Date(n.opening_date || n.created_at); return d >= lastMonth && d < thisMonth; }).length;
@@ -176,19 +180,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
     const completedTrainings = trains.filter(t => t.status === 'Tamamlandı').length;
     const trainingRate = trains.length > 0 ? Math.round(completedTrainings / trains.length * 100) : 0;
 
-    const ncClosureRate = ncs.length > 0 ? closedNcs.length / ncs.length * 100 : 100;
     const totalOpen = openDf.length + open8d.length;
-    const overdueRate = totalOpen > 0 ? (1 - overdueNcs.length / totalOpen) * 100 : 100;
-    const calCompliance = allCals.length > 0 ? (1 - overdueCals.length / allCals.length) * 100 : 100;
-    const costScore = Math.min(100, costTrend <= 0 ? 100 : Math.max(0, 100 - costTrend));
-
-    const healthScore = Math.round(
-      Math.min(ncClosureRate, 100) * 0.30 +
-      Math.min(overdueRate, 100) * 0.25 +
-      Math.min(calCompliance, 100) * 0.20 +
-      costScore * 0.15 +
-      trainingRate * 0.10
-    );
 
     const ncTrend = [];
     for (let i = 5; i >= 0; i--) {
@@ -244,13 +236,13 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
     return {
       openDf: openDf.length, open8d: open8d.length, totalOpen,
       overdueCount: overdueNcs.length, closedThisMonth, openedThisMonth,
-      openedLastMonth, ncClosureRate: Math.round(ncClosureRate),
+      openedLastMonth,
       totalThisMonthCost: totalThisMonth, costTrend, costPieData, costTrend6,
       quarantine: qRecs.filter(q => q.status === 'Karantinada').length,
       overdueCals: overdueCals.length, upcomingCals, expiringDocs,
-      totalEquip: equips.length, calCompliance: Math.round(calCompliance),
+      totalEquip: equips.length,
       trainingRate, completedTrainings, totalTrainings: trains.length,
-      healthScore, ncTrend, deptData, activityByDay, sevData,
+      ncTrend, deptData, activityByDay, sevData,
       openRecords: ncRecs.filter(r => r.status !== 'Kapatıldı').length,
       totalRecords: ncRecs.length, totalNcs: ncs.length,
       pendingApprovals: pendingApprovals.length, pendingApprovalsList: pendingApprovals.slice(0, 5),
@@ -305,8 +297,6 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
     );
   }
 
-  const hc = HEALTH_COLOR(m.healthScore);
-  const gaugeData = [{ value: m.healthScore, fill: hc.ring }];
   const todayStr = format(new Date(), 'dd MMMM yyyy, EEEE', { locale: tr });
 
   return (
@@ -330,64 +320,83 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/[0.08] via-background to-muted/40 dark:from-primary/[0.12] dark:via-background dark:to-muted/25 p-5 sm:p-6 shadow-sm">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/[0.12] via-transparent to-transparent pointer-events-none" />
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/[0.06] rounded-full blur-3xl pointer-events-none" />
-        <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Kalite Yönetim Paneli</h1>
-            <p className="text-sm text-muted-foreground mt-1">{todayStr}</p>
-            <div className="flex flex-wrap items-center gap-3 mt-4">
-              <button type="button" onClick={() => handleCardClick('df-8d', 'DF')} className="flex items-center gap-2 rounded-lg bg-card/95 backdrop-blur-sm border border-border px-3 py-2 shadow-sm hover:bg-accent/80 transition-colors">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Açık DF/8D</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.totalOpen}</p></div>
-              </button>
-              <button type="button" onClick={() => handleCardClick('quality-cost', 'Maliyet')} className="flex items-center gap-2 rounded-lg bg-card/95 backdrop-blur-sm border border-border px-3 py-2 shadow-sm hover:bg-accent/80 transition-colors">
-                <WalletCards className="w-4 h-4 text-red-500" />
-                <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Bu Ay Maliyet</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : fmtCurrency(m.totalThisMonthCost)}</p></div>
-                {!loading && <TrendBadge value={m.costTrend} invert />}
-              </button>
-              <button type="button" onClick={() => handleCardClick('nonconformity')} className="flex items-center gap-2 rounded-lg bg-card/95 backdrop-blur-sm border border-border px-3 py-2 shadow-sm hover:bg-accent/80 transition-colors">
-                <Zap className="w-4 h-4 text-primary" />
-                <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Uygunsuzluk</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.openRecords}</p></div>
-              </button>
-              <button type="button" onClick={() => handleCardClick('quarantine', 'Karantina')} className="flex items-center gap-2 rounded-lg bg-card/95 backdrop-blur-sm border border-border px-3 py-2 shadow-sm hover:bg-accent/80 transition-colors">
-                <Beaker className="w-4 h-4 text-purple-500" />
-                <div><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Karantina</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.quarantine}</p></div>
-              </button>
+        <div className="relative flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Kalite Yönetim Paneli</h1>
+              <p className="text-sm text-muted-foreground mt-1">{todayStr}</p>
             </div>
+            <Button onClick={() => setReportModalOpen(true)} size="sm" variant="default" className="shrink-0 w-full sm:w-auto">
+              <FileDown className="w-4 h-4 mr-2" />Rapor Al
+            </Button>
           </div>
 
-          {/* Quality Health Score Gauge */}
-          <div className="flex flex-col items-center shrink-0">
-            <div className="relative w-36 h-36 sm:w-44 sm:h-44">
-              {loading ? <Skeleton className="w-full h-full rounded-full" /> : (
-                <>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadialBarChart innerRadius="75%" outerRadius="100%" data={gaugeData} startAngle={225} endAngle={-45} barSize={10}>
-                      <RadialBar background={{ fill: 'hsl(var(--muted))' }} clockWise dataKey="value" cornerRadius={10} max={100} />
-                    </RadialBarChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-4xl sm:text-5xl font-black text-foreground tabular-nums">{m.healthScore}</span>
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">Kalite Skoru</span>
-                    <Badge className={cn('mt-1 text-[10px]', hc.ring === '#22c55e' ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30' : hc.ring === '#eab308' ? 'bg-yellow-100 text-yellow-900 border-yellow-200 dark:bg-yellow-500/20 dark:text-yellow-300 dark:border-yellow-500/30' : hc.ring === '#f97316' ? 'bg-orange-100 text-orange-900 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30' : 'bg-red-100 text-red-800 border-red-200 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30')} variant="outline">{hc.label}</Badge>
+          <div className="flex flex-wrap items-stretch gap-2 sm:gap-3">
+            <button type="button" onClick={() => handleCardClick('df-8d', 'DF')} className="flex flex-1 min-w-[140px] sm:min-w-[160px] items-center gap-2 rounded-xl bg-card/95 backdrop-blur-sm border border-border px-3 py-2.5 shadow-sm hover:bg-accent/80 transition-colors text-left">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+              <div className="min-w-0"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Açık DF/8D</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.totalOpen}</p></div>
+            </button>
+            <button type="button" onClick={() => handleCardClick('quality-cost', 'Maliyet')} className="flex flex-1 min-w-[140px] sm:min-w-[160px] items-center gap-2 rounded-xl bg-card/95 backdrop-blur-sm border border-border px-3 py-2.5 shadow-sm hover:bg-accent/80 transition-colors text-left">
+              <WalletCards className="w-4 h-4 text-red-500 shrink-0" />
+              <div className="min-w-0"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Bu Ay Maliyet</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : fmtCurrency(m.totalThisMonthCost)}</p></div>
+              {!loading && <TrendBadge value={m.costTrend} invert />}
+            </button>
+            <button type="button" onClick={() => handleCardClick('nonconformity')} className="flex flex-1 min-w-[140px] sm:min-w-[160px] items-center gap-2 rounded-xl bg-card/95 backdrop-blur-sm border border-border px-3 py-2.5 shadow-sm hover:bg-accent/80 transition-colors text-left">
+              <Zap className="w-4 h-4 text-primary shrink-0" />
+              <div className="min-w-0"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Uygunsuzluk</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.openRecords}</p></div>
+            </button>
+            <button type="button" onClick={() => handleCardClick('quarantine', 'Karantina')} className="flex flex-1 min-w-[140px] sm:min-w-[160px] items-center gap-2 rounded-xl bg-card/95 backdrop-blur-sm border border-border px-3 py-2.5 shadow-sm hover:bg-accent/80 transition-colors text-left">
+              <Beaker className="w-4 h-4 text-purple-500 shrink-0" />
+              <div className="min-w-0"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Karantina</p><p className="text-lg font-bold text-foreground tabular-nums">{loading ? '…' : m.quarantine}</p></div>
+            </button>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Operasyonel özet</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+              {[
+                { label: '30+ gün geciken', value: m.overdueCount, mod: 'df-8d', k: 'DF', Icon: Clock, accent: m.overdueCount > 0 },
+                { label: 'Gecikmiş kalibrasyon', value: m.overdueCals, mod: 'equipment', Icon: CalendarClock, accent: m.overdueCals > 0 },
+                { label: 'Süresi dolacak doküman', value: m.expiringDocsCount, mod: 'document', Icon: BookCheck, accent: m.expiringDocsCount > 0 },
+                { label: 'Aktif iç tetkik', value: m.activeAudits, mod: 'internal-audit', Icon: ClipboardCheck, accent: m.activeAudits > 0 },
+                { label: 'Onay bekleyen sapma', value: m.pendingApprovals, mod: 'deviation', Icon: Target, accent: m.pendingApprovals > 0 },
+                { label: 'Ekipman', value: m.totalEquip, mod: 'equipment', Icon: Wrench, accent: false },
+                { label: 'Personel', value: m.totalPersonnel, mod: 'settings', Icon: Users, accent: false },
+                { label: 'Tedarikçi', value: m.totalSuppliers, mod: 'supplier-quality', Icon: Package, accent: false },
+              ].map((row, idx) => {
+                const RowIcon = row.Icon;
+                return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleCardClick(row.mod, row.k)}
+                  className={cn(
+                    'rounded-lg border bg-card/90 backdrop-blur-sm px-2.5 py-2 text-left shadow-sm hover:bg-accent/70 transition-colors',
+                    row.accent ? 'border-amber-200/80 dark:border-amber-900/50 ring-1 ring-amber-500/15' : 'border-border'
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <RowIcon className={cn('w-3.5 h-3.5 shrink-0', row.accent ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')} />
+                    <span className="text-[9px] leading-tight text-muted-foreground uppercase tracking-wide line-clamp-2">{row.label}</span>
                   </div>
-                </>
-              )}
-            </div>
-            <div className="flex gap-3 mt-2 text-[10px] text-muted-foreground">
-              <span>Kapanış: %{m.ncClosureRate}</span>
-              <span>Kalibrasyon: %{m.calCompliance}</span>
+                  <p className="text-base font-bold tabular-nums text-foreground">{loading ? '…' : row.value}</p>
+                </button>
+                );
+              })}
             </div>
           </div>
-        </div>
-        <div className="relative flex justify-end mt-3">
-          <Button onClick={() => setReportModalOpen(true)} size="sm" variant="default">
-            <FileDown className="w-4 h-4 mr-2" />Rapor Al
-          </Button>
         </div>
       </div>
 
+      {/* ═══════ Akıllı uyarılar (kalite zihniyeti) — hero altında her zaman görünür ═══════ */}
+      <ErrorBoundary componentName="Kalite uyarıları">
+        <DashboardAlerts onAlertClick={handleAlertClick} onModuleNavigate={handleCardClick} showSmartInsightsStandalone />
+      </ErrorBoundary>
+
       {/* ═══════ KPI CARDS ROW ═══════ */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div>
+        <h2 className="text-sm font-semibold text-foreground tracking-tight mb-2">Ana göstergeler</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3">
         {[
           { title: 'Açık DF', value: m.openDf, icon: AlertTriangle, color: 'text-amber-500', module: 'df-8d', spark: m.ncTrend, sparkKey: 'açılan', sparkColor: '#f59e0b' },
           { title: 'Açık 8D', value: m.open8d, icon: AlertOctagon, color: 'text-red-500', module: 'df-8d' },
@@ -395,6 +404,10 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
           { title: 'Bu Ay Açılan', value: m.openedThisMonth, icon: TrendingUp, color: 'text-blue-500', module: 'df-8d', trend: m.openedLastMonth > 0 ? ((m.openedThisMonth - m.openedLastMonth) / m.openedLastMonth * 100) : null, trendInvert: true },
           { title: 'Bu Ay Kapanan', value: m.closedThisMonth, icon: CheckSquare, color: 'text-emerald-500', module: 'df-8d' },
           { title: 'Eğitim Oranı', value: `%${m.trainingRate}`, icon: GraduationCap, color: 'text-teal-500', module: 'training' },
+          { title: 'Gec. Kalibrasyon', value: m.overdueCals, icon: CalendarClock, color: m.overdueCals > 0 ? 'text-red-600' : 'text-emerald-500', module: 'equipment' },
+          { title: 'Doküman (30 gün)', value: m.expiringDocsCount, icon: BookCheck, color: m.expiringDocsCount > 0 ? 'text-orange-500' : 'text-slate-400', module: 'document' },
+          { title: 'Aktif Tetkik', value: m.activeAudits, icon: ClipboardCheck, color: 'text-violet-500', module: 'internal-audit' },
+          { title: 'Onay Bekleyen Sapma', value: m.pendingApprovals, icon: Target, color: m.pendingApprovals > 0 ? 'text-red-500' : 'text-slate-400', module: 'deviation' },
         ].map((kpi, i) => (
           <Card key={i} className="group cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5" onClick={() => handleCardClick(kpi.module, kpi.title)}>
             <CardContent className="p-3.5">
@@ -412,6 +425,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
             </CardContent>
           </Card>
         ))}
+        </div>
       </div>
 
       {/* ═══════ MAIN CHARTS ═══════ */}
@@ -614,7 +628,19 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
                 let desc = '';
                 try {
                   const d = log.details;
-                  desc = d?.new?.title || d?.new?.name || (d?.new?.nc_number ? `NC: ${d.new.nc_number}` : '') || d?.old?.title || d?.old?.name || '';
+                  if (log.table_name === 'vehicle_timeline_events') {
+                    const row = d?.new || d?.old;
+                    const et = row?.event_type;
+                    const evLabel = (et && AUDIT_TIMELINE_EVENT_LABELS[et]) || et || '';
+                    let timeBit = '';
+                    if (row?.event_timestamp) {
+                      const t = parseISO(row.event_timestamp);
+                      if (isValid(t)) timeBit = format(t, 'dd.MM. HH:mm', { locale: tr });
+                    }
+                    desc = [evLabel, timeBit].filter(Boolean).join(' · ');
+                  } else {
+                    desc = d?.new?.title || d?.new?.name || (d?.new?.nc_number ? `NC: ${d.new.nc_number}` : '') || d?.old?.title || d?.old?.name || '';
+                  }
                 } catch (_) {}
                 const display = desc ? (desc.length > 50 ? desc.slice(0, 50) + '…' : desc) : '—';
                 return (
@@ -647,7 +673,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
         {expandedSections.alerts && (
           <div className="space-y-4 animate-in fade-in-0 slide-in-from-top-2 duration-300">
             <ErrorBoundary componentName="Uyarılar">
-              <DashboardAlerts onAlertClick={handleAlertClick} />
+              <DashboardAlerts onAlertClick={handleAlertClick} onModuleNavigate={handleCardClick} hideSmartInsights />
             </ErrorBoundary>
             <ErrorBoundary componentName="Görevler">
               <TodayTasks onTaskClick={handleTaskClick} />
