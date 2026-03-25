@@ -250,6 +250,7 @@ export const DataProvider = ({ children }) => {
                 .select(
                     '*, customer:customer_id(id, name, customer_name, customer_code), supplier:supplier_id(id, name), audit_standard:audit_standard_id(id, code, name), training:training_id(id, title, training_code)'
                 )
+                .order('received_at', { ascending: false, nullsFirst: false })
                 .order('created_at', { ascending: false }),
         };
 

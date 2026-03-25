@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Label } from '@/components/ui/label';
     import { Textarea } from '@/components/ui/textarea';
     import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-    import { Calendar as CalendarIcon, GraduationCap } from 'lucide-react';
+    import { Calendar as CalendarIcon, GraduationCap, Loader2 } from 'lucide-react';
     import { Calendar } from '@/components/ui/calendar';
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
@@ -20,6 +20,14 @@ import React, { useState, useEffect, useCallback } from 'react';
     const TRAINING_TYPES = ['İç', 'Dış', 'Online', 'Hibrit'];
     const TRAINING_STATUSES = ['Planlandı', 'Aktif', 'Onay Bekliyor', 'Onaylandı', 'Tamamlandı', 'İptal'];
 
+    const toReferenceDateString = (startDate) => {
+        if (startDate) {
+            const d = startDate instanceof Date ? startDate : new Date(startDate);
+            if (!Number.isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+        }
+        return format(new Date(), 'yyyy-MM-dd');
+    };
+
     const TrainingFormModal = ({ isOpen, setIsOpen, training, onSave, polyvalenceData = null }) => {
         const { toast } = useToast();
         const { personnel } = useData();
@@ -27,6 +35,8 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [selectedParticipants, setSelectedParticipants] = useState([]);
         const [isSubmitting, setIsSubmitting] = useState(false);
         const [skills, setSkills] = useState([]);
+        const [codePreview, setCodePreview] = useState('');
+        const [codePreviewLoading, setCodePreviewLoading] = useState(false);
 
         const personnelOptions = personnel.map(p => ({ value: p.id, label: p.full_name }));
 
@@ -100,6 +110,52 @@ import React, { useState, useEffect, useCallback } from 'react';
             if (isOpen) initialize();
         }, [training, isOpen, resetForm, polyvalenceData, skills]);
 
+        /* Planlanan başlangıç tarihine göre sıra (aynı yıl içinde); DB tetikleyicisi kayıtta tüm yılı yeniden numaralar */
+        useEffect(() => {
+            if (!isOpen) {
+                setCodePreview('');
+                setCodePreviewLoading(false);
+                return;
+            }
+
+            let cancelled = false;
+
+            const finish = (code, loading = false) => {
+                if (!cancelled) {
+                    setCodePreview(code || '—');
+                    setCodePreviewLoading(loading);
+                }
+            };
+
+            if (training && !formData.start_date) {
+                finish(training.training_code || '—', false);
+                return () => {
+                    cancelled = true;
+                };
+            }
+
+            setCodePreviewLoading(true);
+            const t = setTimeout(async () => {
+                if (cancelled) return;
+                const refStr = toReferenceDateString(formData.start_date);
+                const args = { p_plan_date: refStr };
+                if (training?.id && training?.created_at) {
+                    args.p_exclude_id = training.id;
+                    args.p_anchor_created_at = training.created_at;
+                    args.p_anchor_id = training.id;
+                }
+                const { data, error } = await supabase.rpc('preview_training_code', args);
+                if (cancelled) return;
+                if (!error && data) finish(data, false);
+                else finish('—', false);
+            }, 320);
+
+            return () => {
+                cancelled = true;
+                clearTimeout(t);
+            };
+        }, [isOpen, training?.id, training?.created_at, formData.start_date]);
+
         const handleChange = (e) => {
             const { name, value } = e.target;
             setFormData(prev => ({ ...prev, [name]: value }));
@@ -125,6 +181,9 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
 
             if (training) {
+                delete cleanedData.id;
+                delete cleanedData.training_code;
+
                 const { error } = await supabase.from('trainings').update(cleanedData).eq('id', training.id);
                 if (error) {
                     toast({ variant: 'destructive', title: 'Hata', description: `Eğitim güncellenemedi: ${error.message}` });
@@ -135,16 +194,9 @@ import React, { useState, useEffect, useCallback } from 'react';
                 /* Formda kalan / istemciden gelen kod RPC sonucunun üzerine yazılmasın */
                 delete cleanedData.training_code;
 
-                let refDateStr = new Date().toISOString().slice(0, 10);
-                const sd = formData.start_date;
-                if (sd) {
-                    const d = sd instanceof Date ? sd : new Date(sd);
-                    if (!Number.isNaN(d.getTime())) {
-                        refDateStr = format(d, 'yyyy-MM-dd');
-                    }
-                }
-                const { data: codeData, error: codeError } = await supabase.rpc('generate_training_code', {
-                    p_reference_date: refDateStr,
+                const refDateStr = toReferenceDateString(formData.start_date);
+                const { data: codeData, error: codeError } = await supabase.rpc('preview_training_code', {
+                    p_plan_date: refDateStr,
                 });
                 if (codeError) {
                     toast({ variant: 'destructive', title: 'Hata', description: `Eğitim kodu oluşturulamadı: ${codeError.message}` });
@@ -243,6 +295,16 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 <p className="font-bold text-foreground truncate">{formData.title || '-'}</p>
                             </div>
                             <div className="space-y-2 text-sm">
+                                <div className="flex justify-between items-center gap-2">
+                                    <span className="text-muted-foreground shrink-0">Eğitim kodu:</span>
+                                    <span className="font-mono font-semibold text-foreground text-right inline-flex items-center gap-1.5 min-w-0">
+                                        {codePreviewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" /> : null}
+                                        <span className="truncate">{codePreviewLoading ? '…' : codePreview || '—'}</span>
+                                    </span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground leading-snug">
+                                    Aynı yıl içinde kod sırası planlanan başlangıç tarihine göredir; kayıt/güncellemede veritabanı ilgili yılı otomatik yeniden numaralar.
+                                </p>
                                 <div className="flex justify-between"><span className="text-muted-foreground">Kategori:</span><span className="font-semibold text-foreground">{formData.category || '-'}</span></div>
                                 <div className="flex justify-between"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
                                 <div className="flex justify-between"><span className="text-muted-foreground">Başlangıç:</span><span className="font-semibold text-foreground">{formData.start_date ? format(formData.start_date, 'dd.MM.yyyy') : '-'}</span></div>

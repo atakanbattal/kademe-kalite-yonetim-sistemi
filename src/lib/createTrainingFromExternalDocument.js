@@ -60,8 +60,8 @@ export async function createTrainingPlanFromExternalDocument({
     const refDateStr =
         snapshot.received_at && String(snapshot.received_at).slice(0, 10) ||
         new Date().toISOString().slice(0, 10);
-    const { data: codeData, error: codeError } = await supabase.rpc('generate_training_code', {
-        p_reference_date: refDateStr,
+    const { data: codeData, error: codeError } = await supabase.rpc('preview_training_code', {
+        p_plan_date: refDateStr,
     });
     if (codeError) throw codeError;
 
@@ -104,11 +104,14 @@ export async function createTrainingPlanFromExternalDocument({
 
     if (trainingError) throw trainingError;
 
+    const { data: trainingFresh } = await supabase.from('trainings').select('*').eq('id', training.id).maybeSingle();
+    const trainingRow = trainingFresh || training;
+
     const { data: fileBlob, error: downloadError } = await supabase.storage.from('documents').download(filePath);
     if (downloadError) throw downloadError;
 
     const safeName = sanitizeFileName(fileName || snapshot.title || 'belge');
-    const destPath = `${training.id}/${uuidv4()}-${safeName}`;
+    const destPath = `${trainingRow.id}/${uuidv4()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage.from('training_documents').upload(destPath, fileBlob, {
         contentType: mimeType || 'application/octet-stream',
@@ -117,7 +120,7 @@ export async function createTrainingPlanFromExternalDocument({
     if (uploadError) throw uploadError;
 
     const { error: tdError } = await supabase.from('training_documents').insert({
-        training_id: training.id,
+        training_id: trainingRow.id,
         file_name: fileName || safeName,
         file_path: destPath,
         file_type: mimeType || null,
@@ -126,10 +129,10 @@ export async function createTrainingPlanFromExternalDocument({
 
     const { error: linkError } = await supabase
         .from('external_documents')
-        .update({ training_id: training.id, training_required: true })
+        .update({ training_id: trainingRow.id, training_required: true })
         .eq('id', externalDocumentId);
 
     if (linkError) throw linkError;
 
-    return training;
+    return trainingRow;
 }
