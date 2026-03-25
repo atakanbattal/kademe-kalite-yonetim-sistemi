@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Input } from '@/components/ui/input';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-    import { MoreHorizontal, PlusCircle, Search, PlayCircle, CheckCircle, XCircle, FileText, RefreshCw } from 'lucide-react';
+    import { MoreHorizontal, PlusCircle, Search, PlayCircle, CheckCircle, XCircle, FileText } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Badge } from '@/components/ui/badge';
@@ -34,8 +34,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [isAlertOpen, setIsAlertOpen] = useState(false);
         const [trainingToDelete, setTrainingToDelete] = useState(null);
         const [polyvalenceData, setPolyvalenceData] = useState(null);
-        const [repairCodesOpen, setRepairCodesOpen] = useState(false);
-        const [repairingCodes, setRepairingCodes] = useState(false);
 
         const fetchTrainings = useCallback(async () => {
             setLoading(true);
@@ -141,26 +139,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             return list;
         }, [filteredTrainings]);
 
-        const handleRepairTrainingCodes = useCallback(async () => {
-            setRepairingCodes(true);
-            setRepairCodesOpen(false);
-            const { error } = await supabase.rpc('renumber_all_training_codes');
-            if (error) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Kodlar güncellenemedi',
-                    description: error.message,
-                });
-            } else {
-                toast({
-                    title: 'Tamam',
-                    description: 'Eğitim kodları planlanan başlangıç tarihine göre yeniden numaralandı.',
-                });
-                await fetchTrainings();
-            }
-            setRepairingCodes(false);
-        }, [toast, fetchTrainings]);
-
         const handleAddTraining = () => {
             setSelectedTraining(null);
             setPolyvalenceData(null);
@@ -233,17 +211,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         />
                     </div>
                     <div className="flex flex-wrap items-center gap-2 justify-end">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={repairingCodes || loading}
-                            onClick={() => setRepairCodesOpen(true)}
-                            title="Tüm eğitim kodlarını planlanan başlangıç tarihine göre yeniden sıralar"
-                        >
-                            <RefreshCw className={`mr-2 h-4 w-4 ${repairingCodes ? 'animate-spin' : ''}`} />
-                            Kodları tarihe göre düzelt
-                        </Button>
                         <Button onClick={handleAddTraining}>
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Yeni Eğitim Planı
@@ -328,21 +295,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         </TableBody>
                     </Table>
                 </div>
-                <AlertDialog open={repairCodesOpen} onOpenChange={setRepairCodesOpen}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Eğitim kodlarını yeniden numarala?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Her yıl için kodlar, planlanan başlangıç tarihine göre (erken tarih küçük numara) yeniden
-                                atanır. Yazdırılmış belgelerdeki eski kodlar geçerliliğini yitirebilir.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleRepairTrainingCodes}>Evet, düzelt</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
                 <TrainingFormModal
                     isOpen={isModalOpen}
                     setIsOpen={(open) => {

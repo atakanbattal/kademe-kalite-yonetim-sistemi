@@ -775,10 +775,15 @@ const PrintableReport = () => {
     }, [data, type]);
 
     const handleIframeLoad = () => {
-        if (window.location.search.includes('autoprint=true') && iframeRef.current) {
+        const iframe = iframeRef.current;
+        // Yazdır/PDF varsayılan dosya adı iframe document.title üzerinden gelir; blob HTML ile senkron tut
+        if (iframe?.contentDocument && reportTitle) {
+            iframe.contentDocument.title = reportTitle;
+        }
+        if (window.location.search.includes('autoprint=true') && iframe) {
             setTimeout(() => {
-                if (iframeRef.current && iframeRef.current.contentWindow) {
-                    iframeRef.current.contentWindow.print();
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.print();
                 }
             }, 500);
         }

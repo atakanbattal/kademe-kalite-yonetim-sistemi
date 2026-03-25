@@ -106,6 +106,25 @@ const normalizeRecord = (record) => {
 	return normalized;
 };
 
+/** PDF/yazdır penceresi dosya adı için: geçersiz karakterleri temizle, kısalt. */
+const safeReportTitleSegment = (s, maxLen) => {
+	if (s == null || s === '') return '';
+	return String(s)
+		.slice(0, maxLen)
+		.replace(/[/\\?%*:|"<>]/g, '-')
+		.replace(/\s+/g, ' ')
+		.trim();
+};
+
+const escapeHtmlTitle = (str) => {
+	if (str == null) return '';
+	return String(str)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+};
+
 const openPrintableReport = async (record, type, useUrlParams = false) => {
 	if (!record) {
 		console.error("openPrintableReport called with invalid record:", record);
@@ -276,14 +295,32 @@ const getReportTitle = (record, type) => {
 			return `Sapma Talep Raporu-${record.request_no || 'Bilinmiyor'}`;
 		case 'deviation_list':
 			return record.title || 'Sapma Yönetimi Liste Raporu';
-		case 'nonconformity':
-			// Tedarikçi kaynaklı ise format: [Tedarikçi Adı]-[NC No]
+		case 'nonconformity': {
+			// Yazdır / PDF farkındalığı: <title> ve iframe document.title kayıt no + başlık içermeli
+			// (aksi halde tarayıcı "KADEME A.Ş." gibi ilk görünen metni önerilen dosya adı yapabiliyor)
+			const typeStr =
+				record.type === 'MDI' ? 'MDI' :
+				record.type === '8D' ? '8D' :
+				record.type === 'DF' ? 'DF' :
+				safeReportTitleSegment(record.type, 12) || 'DF';
+			const docNo = safeReportTitleSegment(record.nc_number || record.mdi_no || '', 48);
+			const fallbackId = record.id ? `Kayıt-${String(record.id).slice(0, 36)}` : '';
+			const numberPart = docNo || fallbackId || 'NumaraYok';
+			const titlePart = safeReportTitleSegment(record.title || '', 100);
+
 			if (record.is_supplier_nc || record.department === 'Tedarikçi' || record.supplier_id) {
-				const supplierName = record.supplier_name || record.supplier?.name || (record.suppliers && record.suppliers.name) || 'Tedarikçi';
-				const ncNumber = record.nc_number || record.mdi_no || 'NC';
-				return `${supplierName}-${ncNumber}`;
+				const supplierName =
+					record.supplier_name ||
+					record.supplier?.name ||
+					(record.suppliers && record.suppliers.name) ||
+					'Tedarikçi';
+				const sup = safeReportTitleSegment(supplierName, 60);
+				if (titlePart) return `${typeStr} ${numberPart} - ${sup} - ${titlePart}`;
+				return `${typeStr} ${numberPart} - ${sup}`;
 			}
-			return `${record.type} Raporu-${record.nc_number || record.mdi_no || 'Bilinmiyor'}`;
+			if (titlePart) return `${typeStr} ${numberPart} - ${titlePart}`;
+			return `${typeStr} ${numberPart}`;
+		}
 		case 'nonconformity_record':
 			return `Uygunsuzluk Yönetimi Raporu-${record.record_number || 'Bilinmiyor'}`;
 		case 'nonconformity_record_list':
@@ -8307,7 +8344,7 @@ a: after,
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>${getReportTitle(record, type)}</title>
+	<title>${escapeHtmlTitle(getReportTitle(normalizedRecord, type))}</title>
 	<style>
 		${isCertificate ? certificateStyles : (isExam ? `${defaultStyles} ${examPaperStyles}` : isTrainingRecord ? `${defaultStyles} ${trainingRecordReportStyles}` : defaultStyles)}
 		${cssOverrides}
