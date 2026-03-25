@@ -17,6 +17,11 @@ import { useData } from '@/contexts/DataContext';
 import { Combobox } from '@/components/ui/combobox';
 import { useDropzone } from 'react-dropzone';
 import {
+    lookupTs9013LimitDeviationMm,
+    normalizeLegacyTs9013StandardItem,
+    ts9013QualityClassFromToleranceClass,
+} from '@/lib/ts9013LimitDeviations';
+import {
     buildProcessPlanVehicleTypeMap,
     enrichProcessInkrReports,
     fetchProcessInkrAttachmentsForReport,
@@ -61,19 +66,6 @@ const TS_13920_TOLERANCES = {
     ]
 };
 
-const TS_9013_TOLERANCES = {
-    linear: [
-        { range: [0, 30], '1': 0.5, '2': 1.0, '3': 1.5, '4': 2.5 },
-        { range: [30, 120], '1': 1.0, '2': 1.5, '3': 2.5, '4': 4.0 },
-        { range: [120, 315], '1': 1.5, '2': 2.0, '3': 3.5, '4': 6.0 },
-        { range: [315, 1000], '1': 2.0, '2': 3.0, '3': 5.0, '4': 8.0 },
-        { range: [1000, 2000], '1': 2.5, '2': 4.0, '3': 6.5, '4': 10.0 },
-        { range: [2000, 4000], '1': 3.5, '2': 5.5, '3': 9.0, '4': 14.0 },
-        { range: [4000, 8000], '1': 5.0, '2': 8.0, '3': 12.0, '4': 20.0 },
-        { range: [8000, 12000], '1': 7.0, '2': 10.0, '3': 16.0, '4': 26.0 }
-    ]
-};
-
 const STANDARD_OPTIONS = [
     { value: 'ISO 2768-1_f', label: 'ISO 2768-1 f (Fine - İnce)' },
     { value: 'ISO 2768-1_m', label: 'ISO 2768-1 m (Medium - Orta)' },
@@ -83,15 +75,12 @@ const STANDARD_OPTIONS = [
     { value: 'TS 13920_B', label: 'TS 13920 B (Hassas)' },
     { value: 'TS 13920_C', label: 'TS 13920 C (Normal)' },
     { value: 'TS 13920_D', label: 'TS 13920 D (Kaba)' },
-    { value: 'TS 9013_1', label: 'TS 9013 Range 1 (En Hassas)' },
-    { value: 'TS 9013_2', label: 'TS 9013 Range 2 (Hassas)' },
-    { value: 'TS 9013_3', label: 'TS 9013 Range 3 (Normal)' },
-    { value: 'TS 9013_4', label: 'TS 9013 Range 4 (Kaba)' },
+    { value: 'TS 9013_S1', label: 'TS 9013 Sınıf 1' },
+    { value: 'TS 9013_S2', label: 'TS 9013 Sınıf 2' },
 ];
 
 const getToleranceTable = (standardClass = '') => {
     if (standardClass.startsWith('TS 13920')) return TS_13920_TOLERANCES;
-    if (standardClass.startsWith('TS 9013')) return TS_9013_TOLERANCES;
     return ISO_2768_1_TOLERANCES;
 };
 
@@ -128,7 +117,10 @@ const deriveStandardClassValue = ({
 
     if (label.includes('ISO 2768-1')) return `ISO 2768-1_${toleranceClass}`;
     if (label.includes('TS 13920')) return `TS 13920_${toleranceClass}`;
-    if (label.includes('TS 9013')) return `TS 9013_${toleranceClass}`;
+    if (label.includes('TS 9013')) {
+        if (['1', '2', '3', '4'].includes(String(toleranceClass))) return 'TS 9013_S1';
+        return `TS 9013_${toleranceClass}`;
+    }
 
     if (['f', 'm', 'c', 'v'].includes(String(toleranceClass))) {
         return `ISO 2768-1_${toleranceClass}`;
@@ -136,23 +128,27 @@ const deriveStandardClassValue = ({
     if (['A', 'B', 'C', 'D'].includes(String(toleranceClass))) {
         return `TS 13920_${toleranceClass}`;
     }
-    if (['1', '2', '3', '4'].includes(String(toleranceClass))) {
+    if (['S1', 'S2'].includes(String(toleranceClass))) {
         return `TS 9013_${toleranceClass}`;
+    }
+    if (['1', '2', '3', '4'].includes(String(toleranceClass))) {
+        return 'TS 9013_S1';
     }
 
     return '';
 };
 
 const hydrateInkrItem = (item, { characteristics = [], equipment = [], standards = [] } = {}) => {
-    const matchingCharacteristic = characteristics.find((characteristic) => characteristic.value === item.characteristic_id);
-    const matchingEquipment = equipment.find((entry) => entry.value === item.equipment_id);
+    const normalized = normalizeLegacyTs9013StandardItem(item);
+    const matchingCharacteristic = characteristics.find((characteristic) => characteristic.value === normalized.characteristic_id);
+    const matchingEquipment = equipment.find((entry) => entry.value === normalized.equipment_id);
     const isDimensional =
         !!matchingEquipment && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(matchingEquipment.label);
 
-    let standardId = item.standard_id || null;
-    let toleranceClass = item.tolerance_class || null;
+    let standardId = normalized.standard_id || null;
+    let toleranceClass = normalized.tolerance_class || null;
     let standardClass = deriveStandardClassValue({
-        standardClass: item.standard_class || '',
+        standardClass: normalized.standard_class || '',
         standardId,
         toleranceClass,
         standards,
@@ -165,18 +161,22 @@ const hydrateInkrItem = (item, { characteristics = [], equipment = [], standards
     }
 
     return {
-        id: item.id || uuidv4(),
-        characteristic_id: item.characteristic_id || '',
-        characteristic_type: item.characteristic_type || matchingCharacteristic?.type || '',
-        equipment_id: item.equipment_id || '',
+        id: normalized.id || uuidv4(),
+        characteristic_id: normalized.characteristic_id || '',
+        characteristic_type: normalized.characteristic_type || matchingCharacteristic?.type || '',
+        equipment_id: normalized.equipment_id || '',
         standard_id: standardId,
         tolerance_class: toleranceClass,
         standard_class: standardClass,
-        nominal_value: item.nominal_value !== undefined && item.nominal_value !== null ? item.nominal_value : '',
-        min_value: item.min_value !== undefined && item.min_value !== null ? item.min_value : null,
-        max_value: item.max_value !== undefined && item.max_value !== null ? item.max_value : null,
-        tolerance_direction: item.tolerance_direction || '±',
-        measured_value: item.measured_value || '',
+        nominal_value: normalized.nominal_value !== undefined && normalized.nominal_value !== null ? normalized.nominal_value : '',
+        min_value: normalized.min_value !== undefined && normalized.min_value !== null ? normalized.min_value : null,
+        max_value: normalized.max_value !== undefined && normalized.max_value !== null ? normalized.max_value : null,
+        tolerance_direction: normalized.tolerance_direction || '±',
+        measured_value: normalized.measured_value || '',
+        sheet_thickness_mm:
+            normalized.sheet_thickness_mm !== undefined && normalized.sheet_thickness_mm !== null
+                ? String(normalized.sheet_thickness_mm)
+                : '',
     };
 };
 
@@ -214,14 +214,55 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
     }, [item.equipment_id, equipment]);
 
     const autoCalculateTolerance = useCallback((currentItem) => {
-        const { nominal_value, tolerance_class, tolerance_direction, standard_class } = currentItem;
+        const { nominal_value, tolerance_class, tolerance_direction, standard_class, sheet_thickness_mm } = currentItem;
 
-        if (!isDimensional || !tolerance_class || !nominal_value || !standard_class) {
+        if (!isDimensional || !nominal_value || !standard_class) {
             return { ...currentItem };
         }
 
         const nominal = parseFloat(String(nominal_value).replace(',', '.'));
         if (isNaN(nominal)) {
+            return { ...currentItem };
+        }
+
+        if (standard_class.startsWith('TS 9013')) {
+            if (!tolerance_class) return { ...currentItem };
+            const qClass = ts9013QualityClassFromToleranceClass(tolerance_class);
+            if (!qClass) {
+                return { ...currentItem, min_value: null, max_value: null };
+            }
+            const t = parseFloat(String(sheet_thickness_mm ?? '').replace(',', '.'));
+            if (isNaN(t) || t <= 0) {
+                return { ...currentItem, min_value: null, max_value: null };
+            }
+            const tolerance = lookupTs9013LimitDeviationMm(t, nominal, qClass);
+            if (tolerance === null) {
+                return { ...currentItem, min_value: null, max_value: null };
+            }
+            let min, max;
+            switch (tolerance_direction) {
+                case '+':
+                    min = nominal;
+                    max = nominal + tolerance;
+                    break;
+                case '-':
+                    min = nominal - tolerance;
+                    max = nominal;
+                    break;
+                case '±':
+                default:
+                    min = nominal - tolerance;
+                    max = nominal + tolerance;
+                    break;
+            }
+            return {
+                ...currentItem,
+                min_value: parseFloat(min.toPrecision(10)).toString(),
+                max_value: parseFloat(max.toPrecision(10)).toString(),
+            };
+        }
+
+        if (!tolerance_class) {
             return { ...currentItem };
         }
 
@@ -270,13 +311,14 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
                     standard_id: standardId,
                     tolerance_class: toleranceClass,
                     standard_class: value,
+                    ...(!value.startsWith('TS 9013') ? { sheet_thickness_mm: '' } : {}),
                 };
 
                 const calculatedItem = autoCalculateTolerance(newItem);
                 onUpdate(index, calculatedItem);
                 return;
             } else {
-                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: '' };
+                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: '', sheet_thickness_mm: '' };
             }
         }
 
@@ -284,7 +326,7 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
             const selectedEquipment = equipment.find(e => e.value === value);
             const isNowDimensional = selectedEquipment && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(selectedEquipment.label);
             if (!isNowDimensional) {
-                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null, tolerance_direction: '±', min_value: null, max_value: null };
+                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null, sheet_thickness_mm: '', tolerance_direction: '±', min_value: null, max_value: null };
             }
         }
 
@@ -295,7 +337,7 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
             }
         }
 
-        if (['nominal_value', 'tolerance_direction'].includes(field)) {
+        if (['nominal_value', 'tolerance_direction', 'sheet_thickness_mm'].includes(field)) {
             const calculatedItem = autoCalculateTolerance(newItem);
             onUpdate(index, calculatedItem);
         } else {
@@ -314,6 +356,8 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
         [item.standard_class, item.standard_id, item.tolerance_class, standards]
     );
 
+    const isTs9013 = item.standard_class?.startsWith('TS 9013');
+
     return (
         <tr className="border-b transition-colors hover:bg-muted/50 text-sm">
             <td className="p-2 align-top text-center font-medium">{index + 1}</td>
@@ -322,6 +366,18 @@ const InkrItem = ({ item, index, onUpdate, characteristics, equipment, standards
             </td>
             <td className="p-2 align-top min-w-[200px]"><Combobox options={equipment || []} value={item.equipment_id} onChange={(v) => handleFieldChange('equipment_id', v)} placeholder="Ekipman seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı." /></td>
             <td className="p-2 align-top min-w-[220px]"><Combobox options={STANDARD_OPTIONS} value={standardClassValue} onChange={(v) => handleFieldChange('standard_class', v)} placeholder="Standart ve Sınıf seçin..." searchPlaceholder="Ara..." notFoundText="Bulunamadı." disabled={!isDimensional} /></td>
+            <td className="p-2 align-top min-w-[100px]">
+                <Input
+                    type="text"
+                    inputMode="decimal"
+                    title={isTs9013 ? 'TS 9013 için iş parçası / sac kalınlığı (mm)' : undefined}
+                    placeholder={isTs9013 ? 'mm' : '—'}
+                    value={item.sheet_thickness_mm ?? ''}
+                    onChange={(e) => handleFieldChange('sheet_thickness_mm', e.target.value)}
+                    disabled={!isDimensional || !isTs9013}
+                    className={`w-full ${!isTs9013 ? 'opacity-60' : ''}`}
+                />
+            </td>
             <td className="p-2 align-top min-w-[130px]">
                 <Input
                     type="text"
@@ -447,7 +503,7 @@ const ProcessInkrFormModal = ({
     const { characteristics, equipment, standards, loading: dataLoading } = useData();
     const refreshInkrReports = refreshReports || refreshData;
 
-    const initialItemState = { id: uuidv4(), characteristic_id: '', characteristic_type: '', equipment_id: '', standard_id: null, tolerance_class: null, nominal_value: '', min_value: null, max_value: null, tolerance_direction: '±', standard_class: '', measured_value: '' };
+    const initialItemState = { id: uuidv4(), characteristic_id: '', characteristic_type: '', equipment_id: '', standard_id: null, tolerance_class: null, nominal_value: '', min_value: null, max_value: null, tolerance_direction: '±', standard_class: '', measured_value: '', sheet_thickness_mm: '' };
 
     useEffect(() => {
         const initializeForm = async () => {
@@ -676,13 +732,43 @@ const ProcessInkrFormModal = ({
             const normalizedPartCode = String(formData.part_code || '').trim();
             const normalizedPartName = String(formData.part_name || '').trim();
 
+            const ts9013Invalid = filteredItems.some((item) => {
+                if (!item.standard_class?.startsWith('TS 9013')) return false;
+                const selectedEquipment = equipment?.find((eq) => eq.value === item.equipment_id);
+                const isDimensional = selectedEquipment && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(selectedEquipment.label);
+                if (!isDimensional) return false;
+                const t = parseFloat(String(item.sheet_thickness_mm ?? '').replace(',', '.'));
+                const nom = parseFloat(String(item.nominal_value ?? '').replace(',', '.'));
+                const q = ts9013QualityClassFromToleranceClass(item.tolerance_class);
+                if (isNaN(t) || t <= 0 || isNaN(nom) || !q) return true;
+                return lookupTs9013LimitDeviationMm(t, nom, q) === null;
+            });
+            if (ts9013Invalid) {
+                toast({
+                    variant: 'destructive',
+                    title: 'TS 9013 — eksik veya geçersiz veri',
+                    description: 'Sınıf 1 veya 2, sac kalınlığı (mm) ve sayısal nominal boyut girilmeli; kombinasyon tabloda tanımlı olmalıdır.',
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
             const reportData = {
                 part_code: normalizedPartCode,
                 part_name: normalizedPartName,
                 report_date: formData.report_date,
                 status: formData.status,
                 notes: formData.notes || '',
-                items: filteredItems,
+                items: filteredItems.map((item) => ({
+                    ...item,
+                    sheet_thickness_mm:
+                        item.standard_class?.startsWith('TS 9013') &&
+                        item.sheet_thickness_mm !== undefined &&
+                        item.sheet_thickness_mm !== null &&
+                        String(item.sheet_thickness_mm).trim() !== ''
+                            ? String(item.sheet_thickness_mm).replace(',', '.')
+                            : null,
+                })),
             };
 
             if (!reportData.part_code || !reportData.part_name || !reportData.report_date || !reportData.status) {
@@ -939,13 +1025,14 @@ const ProcessInkrFormModal = ({
                                         </div>
                                     ) : (
                                         <div className="overflow-x-auto">
-                                            <table className="w-full border-collapse" style={{ minWidth: '1350px' }}>
+                                            <table className="w-full border-collapse" style={{ minWidth: '1460px' }}>
                                                 <thead>
                                                     <tr className="border-b bg-muted/50">
                                                         <th className="p-2 text-left text-xs font-semibold text-muted-foreground w-12">#</th>
                                                         <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[200px]">Karakteristik</th>
                                                         <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[200px]">Ekipman</th>
                                                         <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[220px]">Standart/Sınıf</th>
+                                                        <th className="p-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap min-w-[100px]" title="TS 9013 için zorunlu">Sac kalın. (mm)</th>
                                                         <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[130px]">Nominal</th>
                                                         <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[100px]">Yön</th>
                                                         <th className="p-2 text-left text-xs font-semibold text-muted-foreground min-w-[110px]">Min</th>

@@ -337,31 +337,41 @@ const addPlanItemsTable = (doc, currentY, items, reportConfig, pdfAssets) => {
             'Karakteristik',
             'Ölçüm Ekipmanı',
             'Standart',
+            'Sac kal. (mm)',
             'Nominal',
             'Yön',
             'Min',
             'Max',
         ]],
-        body: (items || []).map((item, index) => [
-            String(index + 1),
-            normalizeValue(item.characteristic_name || item.characteristic_id),
-            normalizeValue(item.equipment_name || item.equipment_id),
-            normalizeValue(item.standard_name || item.standard_class || item.standard_id),
-            normalizeValue(item.nominal_value),
-            normalizeValue(item.tolerance_direction, '±'),
-            normalizeValue(item.min_value),
-            normalizeValue(item.max_value),
-        ]),
+        body: (items || []).map((item, index) => {
+            const sc = item.standard_class ? String(item.standard_class) : '';
+            const sac =
+                sc.startsWith('TS 9013') && item.sheet_thickness_mm != null && String(item.sheet_thickness_mm).trim() !== ''
+                    ? normalizeValue(item.sheet_thickness_mm)
+                    : '-';
+            return [
+                String(index + 1),
+                normalizeValue(item.characteristic_name || item.characteristic_id),
+                normalizeValue(item.equipment_name || item.equipment_id),
+                normalizeValue(item.standard_name || item.standard_class || item.standard_id),
+                sac,
+                normalizeValue(item.nominal_value),
+                normalizeValue(item.tolerance_direction, '±'),
+                normalizeValue(item.min_value),
+                normalizeValue(item.max_value),
+            ];
+        }),
         theme: 'grid',
         columnStyles: {
             0: { cellWidth: 12, halign: 'center' },
-            1: { cellWidth: 62 },
-            2: { cellWidth: 48 },
-            3: { cellWidth: 54 },
-            4: { cellWidth: 24, halign: 'center' },
-            5: { cellWidth: 16, halign: 'center' },
-            6: { cellWidth: 22, halign: 'center' },
-            7: { cellWidth: 22, halign: 'center' },
+            1: { cellWidth: 56 },
+            2: { cellWidth: 44 },
+            3: { cellWidth: 48 },
+            4: { cellWidth: 16, halign: 'center' },
+            5: { cellWidth: 22, halign: 'center' },
+            6: { cellWidth: 14, halign: 'center' },
+            7: { cellWidth: 20, halign: 'center' },
+            8: { cellWidth: 20, halign: 'center' },
         },
     });
 
@@ -376,6 +386,7 @@ const addInkrItemsTable = (doc, currentY, items, reportConfig, pdfAssets) => {
             'No',
             'Karakteristik',
             'Ekipman',
+            'Sac (mm)',
             'Nominal',
             'Min',
             'Max',
@@ -384,10 +395,16 @@ const addInkrItemsTable = (doc, currentY, items, reportConfig, pdfAssets) => {
         ]],
         body: (items || []).map((item, index) => {
             const result = getMeasurementDecision(item);
+            const sc = item.standard_class ? String(item.standard_class) : '';
+            const sac =
+                sc.startsWith('TS 9013') && item.sheet_thickness_mm != null && String(item.sheet_thickness_mm).trim() !== ''
+                    ? normalizeValue(item.sheet_thickness_mm)
+                    : '-';
             return [
                 String(index + 1),
                 normalizeValue(item.characteristic_name || item.characteristic_id),
                 normalizeValue(item.equipment_name || item.equipment_id),
+                sac,
                 normalizeValue(item.nominal_value),
                 normalizeValue(item.min_value),
                 normalizeValue(item.max_value),
@@ -418,13 +435,14 @@ const addInkrItemsTable = (doc, currentY, items, reportConfig, pdfAssets) => {
         theme: 'grid',
         columnStyles: {
             0: { cellWidth: 12, halign: 'center' },
-            1: { cellWidth: 72 },
-            2: { cellWidth: 46 },
-            3: { cellWidth: 24, halign: 'center' },
+            1: { cellWidth: 64 },
+            2: { cellWidth: 40 },
+            3: { cellWidth: 16, halign: 'center' },
             4: { cellWidth: 22, halign: 'center' },
-            5: { cellWidth: 22, halign: 'center' },
-            6: { cellWidth: 28, halign: 'center' },
-            7: { cellWidth: 24, halign: 'center' },
+            5: { cellWidth: 20, halign: 'center' },
+            6: { cellWidth: 20, halign: 'center' },
+            7: { cellWidth: 26, halign: 'center' },
+            8: { cellWidth: 22, halign: 'center' },
         },
     });
 

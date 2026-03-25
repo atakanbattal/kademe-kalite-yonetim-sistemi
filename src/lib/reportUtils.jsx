@@ -5484,12 +5484,13 @@ const generateGenericReportHtml = async (record, type) => {
 					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse; table-layout: fixed;">
 					<colgroup>
 						<col style="width: 35px;">
+						<col style="width: 17%;">
+						<col style="width: 17%;">
 						<col style="width: 18%;">
-						<col style="width: 18%;">
-						<col style="width: 20%;">
-						<col style="width: 10%;">
-						<col style="width: 10%;">
-						<col style="width: 10%;">
+						<col style="width: 7%;">
+						<col style="width: 9%;">
+						<col style="width: 9%;">
+						<col style="width: 9%;">
 						<col style="width: 35px;">
 					</colgroup>
 					<thead>
@@ -5498,6 +5499,7 @@ const generateGenericReportHtml = async (record, type) => {
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Karakteristik</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Ölçüm Ekipmanı</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Standart</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 8px; font-weight: 600;">Sac kal. (mm)</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Nominal Değer</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Min Tolerans</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Max Tolerans</th>
@@ -5546,6 +5548,7 @@ const generateGenericReportHtml = async (record, type) => {
 										<div style="word-wrap: break-word; overflow-wrap: break-word;">${standardName}</div>
 										${standardInfo}
 									</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.standard_class && String(item.standard_class).startsWith('TS 9013') ? (item.sheet_thickness_mm != null && item.sheet_thickness_mm !== '' ? safeText(String(item.sheet_thickness_mm)) : '-') : '-'}</td>
 									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; background-color: #eff6ff; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.nominal_value || '-'}</td>
 									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; background-color: #fef3c7; font-weight: 500; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.min_value || '-'}</td>
 									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; background-color: #fef3c7; font-weight: 500; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${item.max_value || '-'}</td>

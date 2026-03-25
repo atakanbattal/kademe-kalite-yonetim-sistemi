@@ -5,6 +5,12 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+    lookupTs9013LimitDeviationMm,
+    normalizeLegacyTs9013StandardItem,
+    ts9013QualityClassFromToleranceClass,
+} from '@/lib/ts9013LimitDeviations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -53,22 +59,6 @@ const TS_13920_TOLERANCES = {
     ]
 };
 
-// TS EN ISO 9013 tolerans tablosu (Isıl kesim toleransları)
-// Boyut toleransları (kesim uzunluğuna göre)
-// Range sınıfları: 1 (en hassas), 2, 3, 4 (en kaba)
-const TS_9013_TOLERANCES = {
-    linear: [
-        { range: [0, 30], '1': 0.5, '2': 1.0, '3': 1.5, '4': 2.5 },
-        { range: [30, 120], '1': 1.0, '2': 1.5, '3': 2.5, '4': 4.0 },
-        { range: [120, 315], '1': 1.5, '2': 2.0, '3': 3.5, '4': 6.0 },
-        { range: [315, 1000], '1': 2.0, '2': 3.0, '3': 5.0, '4': 8.0 },
-        { range: [1000, 2000], '1': 2.5, '2': 4.0, '3': 6.5, '4': 10.0 },
-        { range: [2000, 4000], '1': 3.5, '2': 5.5, '3': 9.0, '4': 14.0 },
-        { range: [4000, 8000], '1': 5.0, '2': 8.0, '3': 12.0, '4': 20.0 },
-        { range: [8000, 12000], '1': 7.0, '2': 10.0, '3': 16.0, '4': 26.0 }
-    ]
-};
-
 // Process Control'e özel standartlar (13920 ve 9013 sadece burada)
 const STANDARD_OPTIONS = [
     // ISO 2768-1 standartları
@@ -81,11 +71,9 @@ const STANDARD_OPTIONS = [
     { value: 'TS 13920_B', label: 'TS 13920 B (Hassas)' },
     { value: 'TS 13920_C', label: 'TS 13920 C (Normal)' },
     { value: 'TS 13920_D', label: 'TS 13920 D (Kaba)' },
-    // TS EN ISO 9013 - Isıl Kesim Toleransları (Range 1, 2, 3, 4)
-    { value: 'TS 9013_1', label: 'TS 9013 Range 1 (En Hassas)' },
-    { value: 'TS 9013_2', label: 'TS 9013 Range 2 (Hassas)' },
-    { value: 'TS 9013_3', label: 'TS 9013 Range 3 (Normal)' },
-    { value: 'TS 9013_4', label: 'TS 9013 Range 4 (Kaba)' },
+    // TS EN ISO 9013: Sınıf 1 / Sınıf 2 tabloları (sac kalınlığı × anma boyutu)
+    { value: 'TS 9013_S1', label: 'TS 9013 Sınıf 1' },
+    { value: 'TS 9013_S2', label: 'TS 9013 Sınıf 2' },
 ];
 
 const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, standards }) => {
@@ -93,9 +81,9 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                           !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(equipment.find(e => e.value === item.equipment_id)?.label || '');
 
     const autoCalculateTolerance = useCallback((currentItem) => {
-        const { nominal_value, tolerance_class, tolerance_direction, standard_class } = currentItem;
+        const { nominal_value, tolerance_class, tolerance_direction, standard_class, sheet_thickness_mm } = currentItem;
         
-        if (!isDimensional || !nominal_value || !tolerance_class || !standard_class) {
+        if (!isDimensional || !nominal_value || !standard_class) {
             return { ...currentItem };
         }
 
@@ -104,21 +92,58 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
              return { ...currentItem };
         }
 
-        // Standarta göre tolerans tablosunu seç
-        // standard_class formatı: "ISO 2768-1_f", "TS 13920_A", "TS 9013_1"
+        if (standard_class.startsWith('TS 9013')) {
+            if (!tolerance_class) {
+                return { ...currentItem };
+            }
+            const qClass = ts9013QualityClassFromToleranceClass(tolerance_class);
+            if (!qClass) {
+                return { ...currentItem, min_value: null, max_value: null };
+            }
+            const t = parseFloat(String(sheet_thickness_mm ?? '').replace(',', '.'));
+            if (isNaN(t) || t <= 0) {
+                return { ...currentItem, min_value: null, max_value: null };
+            }
+            const tolerance = lookupTs9013LimitDeviationMm(t, nominal, qClass);
+            if (tolerance === null) {
+                return { ...currentItem, min_value: null, max_value: null };
+            }
+            let min, max;
+            switch (tolerance_direction) {
+                case '+':
+                    min = nominal;
+                    max = nominal + tolerance;
+                    break;
+                case '-':
+                    min = nominal - tolerance;
+                    max = nominal;
+                    break;
+                case '±':
+                default:
+                    min = nominal - tolerance;
+                    max = nominal + tolerance;
+                    break;
+            }
+            return {
+                ...currentItem,
+                min_value: parseFloat(min.toPrecision(10)).toString(),
+                max_value: parseFloat(max.toPrecision(10)).toString()
+            };
+        }
+
+        if (!tolerance_class) {
+            return { ...currentItem };
+        }
+
         let toleranceTable = null;
         if (standard_class.startsWith('TS 13920')) {
             toleranceTable = TS_13920_TOLERANCES;
-        } else if (standard_class.startsWith('TS 9013')) {
-            toleranceTable = TS_9013_TOLERANCES;
         } else if (standard_class.startsWith('ISO 2768-1')) {
             toleranceTable = ISO_2768_1_TOLERANCES;
         } else {
-            // Varsayılan olarak ISO 2768-1 kullan
             toleranceTable = ISO_2768_1_TOLERANCES;
         }
 
-        // Nominal değere göre tolerans kuralını bul
         const toleranceRule = toleranceTable.linear.find(
             rule => nominal >= rule.range[0] && nominal < rule.range[1]
         );
@@ -157,7 +182,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         if (field === 'standard_class') {
             if (value) {
                 // Tüm standartlar için aynı işlem: value formatı "STANDART_SINIF" şeklinde
-                // Örn: "ISO 2768-1_f", "TS 13920_A", "TS 9013_1"
+                // Örn: "ISO 2768-1_f", "TS 13920_A", "TS 9013_S1"
                 const parts = value.split('_');
                 const toleranceClass = parts.pop(); // Son kısım tolerans sınıfı
                 const standardName = parts.join('_'); // Geri kalan standart adı
@@ -173,13 +198,14 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                     ...newItem, 
                     standard_id: standardId, 
                     tolerance_class: toleranceClass, 
-                    standard_class: value 
+                    standard_class: value,
+                    ...(!value.startsWith('TS 9013') ? { sheet_thickness_mm: '' } : {}),
                 };
                 const calculatedItem = autoCalculateTolerance(newItem);
                 onUpdate(index, calculatedItem);
                 return;
             } else {
-                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null };
+                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null, sheet_thickness_mm: '' };
             }
         }
     
@@ -187,7 +213,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             const selectedEquipment = equipment.find(e => e.value === value);
             const isNowDimensional = selectedEquipment && !NON_DIMENSIONAL_EQUIPMENT_LABELS.includes(selectedEquipment.label);
             if (!isNowDimensional) {
-                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null, tolerance_direction: '±', min_value: null, max_value: null };
+                newItem = { ...newItem, standard_id: null, tolerance_class: null, standard_class: null, sheet_thickness_mm: '', tolerance_direction: '±', min_value: null, max_value: null };
             }
         }
     
@@ -198,7 +224,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
             }
         }
         
-        if (['nominal_value', 'tolerance_direction'].includes(field)) {
+        if (['nominal_value', 'tolerance_direction', 'sheet_thickness_mm'].includes(field)) {
             const calculatedItem = autoCalculateTolerance(newItem);
             onUpdate(index, calculatedItem);
         } else {
@@ -206,7 +232,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
         }
     };
 
-    const selectedCharacteristic = characteristics?.find(c => c.value === item.characteristic_id);
+    const isTs9013 = item.standard_class?.startsWith('TS 9013');
 
     return (
         <tr className="border-b transition-colors hover:bg-muted/50 text-sm">
@@ -229,6 +255,18 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
                         disabled={!isDimensional}
                     />
                 </div>
+            </td>
+            <td className="p-2 align-top min-w-[110px]">
+                <Input
+                    type="text"
+                    inputMode="decimal"
+                    title={isTs9013 ? 'TS 9013 için iş parçası / sac kalınlığı (mm)' : undefined}
+                    placeholder={isTs9013 ? 'mm' : '—'}
+                    value={item.sheet_thickness_mm ?? ''}
+                    onChange={(e) => handleFieldChange('sheet_thickness_mm', e.target.value)}
+                    disabled={!isDimensional || !isTs9013}
+                    className={!isTs9013 ? 'opacity-60' : ''}
+                />
             </td>
             <td className="p-2 align-top min-w-[120px]">
                 <Input 
@@ -305,7 +343,8 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
         min_value: null, 
         max_value: null, 
         tolerance_direction: '±', 
-        standard_class: '' 
+        standard_class: '',
+        sheet_thickness_mm: '',
     };
 
     const onDrop = useCallback(acceptedFiles => {
@@ -337,7 +376,9 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
             setRevisionNotes(selectedPlan.revision_notes || '');
             const planItems = selectedPlan.items || [];
             setCharacteristicCount(planItems.length || 1);
-            const loadedItems = planItems.map((item) => ({
+            const loadedItems = planItems.map((raw) => {
+                const item = normalizeLegacyTs9013StandardItem(raw);
+                return {
                 id: item.id || uuidv4(),
                 characteristic_id: item.characteristic_id || '',
                 characteristic_type: item.characteristic_type || '',
@@ -348,8 +389,10 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 nominal_value: item.nominal_value !== undefined && item.nominal_value !== null ? item.nominal_value : '',
                 min_value: item.min_value !== undefined && item.min_value !== null ? item.min_value : null,
                 max_value: item.max_value !== undefined && item.max_value !== null ? item.max_value : null,
-                tolerance_direction: item.tolerance_direction || '±'
-            }));
+                tolerance_direction: item.tolerance_direction || '±',
+                sheet_thickness_mm: item.sheet_thickness_mm !== undefined && item.sheet_thickness_mm !== null ? String(item.sheet_thickness_mm) : '',
+            };
+            });
             setItems(loadedItems);
             setStep(2);
         }
@@ -442,11 +485,18 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                 if (isDimensional && item.min_value && item.max_value && parseFloat(String(item.min_value).replace(',', '.')) > parseFloat(String(item.max_value).replace(',', '.'))) {
                     return true; // Min > Max
                 }
+                if (isDimensional && item.standard_class?.startsWith('TS 9013')) {
+                    const t = parseFloat(String(item.sheet_thickness_mm ?? '').replace(',', '.'));
+                    const nom = parseFloat(String(item.nominal_value ?? '').replace(',', '.'));
+                    const q = ts9013QualityClassFromToleranceClass(item.tolerance_class);
+                    if (isNaN(t) || t <= 0 || isNaN(nom) || !q) return true;
+                    if (lookupTs9013LimitDeviationMm(t, nom, q) === null) return true;
+                }
                 return false;
             });
 
             if (validationError) {
-                toast({ variant: 'destructive', title: 'Validasyon Hatası', description: 'Lütfen tüm karakteristikleri ve ölçüm ekipmanlarını seçin. Min toleransın Max toleranstan büyük olmadığından emin olun.' });
+                toast({ variant: 'destructive', title: 'Validasyon Hatası', description: 'Lütfen tüm karakteristikleri ve ölçüm ekipmanlarını seçin. TS 9013 için Sınıf 1 veya 2, sac kalınlığı (mm) ve sayısal nominal boyut zorunludur; kombinasyon tabloda tanımlı olmalıdır. Min toleransın Max toleranstan büyük olmadığından emin olun.' });
                 setIsSubmitting(false);
                 return;
             }
@@ -495,6 +545,10 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                     min_value: item.min_value !== undefined && item.min_value !== null && item.min_value !== '' ? String(item.min_value) : null,
                     max_value: item.max_value !== undefined && item.max_value !== null && item.max_value !== '' ? String(item.max_value) : null,
                     tolerance_direction: item.tolerance_direction || '±',
+                    sheet_thickness_mm:
+                        item.standard_class?.startsWith('TS 9013') && item.sheet_thickness_mm !== undefined && item.sheet_thickness_mm !== null && String(item.sheet_thickness_mm).trim() !== ''
+                            ? String(item.sheet_thickness_mm).replace(',', '.')
+                            : null,
                 };
             });
 
@@ -750,6 +804,7 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
                                                             <th className="p-2 text-left">Karakteristik</th>
                                                             <th className="p-2 text-left">Ölçüm Ekipmanı</th>
                                                             <th className="p-2 text-left">Standart</th>
+                                                            <th className="p-2 text-left whitespace-nowrap" title="TS EN ISO 9013 için zorunlu">Sac kalınlığı (mm)</th>
                                                             <th className="p-2 text-left">Nominal Değer</th>
                                                             <th className="p-2 text-left">Tol. Yönü</th>
                                                             <th className="p-2 text-left">Min Tolerans</th>

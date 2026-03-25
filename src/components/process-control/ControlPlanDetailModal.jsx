@@ -151,6 +151,7 @@ const ControlPlanDetailModal = ({
                                                     <th className="border p-2 text-left">Karakteristik</th>
                                                     <th className="border p-2 text-left">Ölçüm Ekipmanı</th>
                                                     <th className="border p-2 text-left">Standart</th>
+                                                    <th className="border p-2 text-left whitespace-nowrap" title="TS 9013">Sac kalınlığı (mm)</th>
                                                     <th className="border p-2 text-left">Nominal Değer</th>
                                                     <th className="border p-2 text-left">Min Tolerans</th>
                                                     <th className="border p-2 text-left">Max Tolerans</th>
@@ -186,6 +187,11 @@ const ControlPlanDetailModal = ({
                                                                     </Badge>
                                                                 )}
                                                             </div>
+                                                        </td>
+                                                        <td className="border p-2 text-center">
+                                                            {item.standard_class?.startsWith('TS 9013')
+                                                                ? item.sheet_thickness_mm ?? '-'
+                                                                : '-'}
                                                         </td>
                                                         <td className="border p-2 font-medium text-center">
                                                             {item.nominal_value || '-'}
