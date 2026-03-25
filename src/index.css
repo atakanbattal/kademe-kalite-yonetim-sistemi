@@ -233,7 +233,6 @@ body {
   @apply bg-secondary;
 }
 
-
 /* Responsive table wrapper */
 .table-responsive {
   @apply w-full overflow-x-auto;

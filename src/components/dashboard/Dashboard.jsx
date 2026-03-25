@@ -323,8 +323,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
         <div className="relative flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full">
             <div className="min-w-0 flex-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Kalite Yönetim Paneli</h1>
-              <p className="text-sm text-muted-foreground mt-1">{todayStr}</p>
+              <p className="text-sm text-muted-foreground">{todayStr}</p>
             </div>
             <Button onClick={() => setReportModalOpen(true)} size="sm" variant="default" className="shrink-0 w-full sm:w-auto">
               <FileDown className="w-4 h-4 mr-2" />Rapor Al

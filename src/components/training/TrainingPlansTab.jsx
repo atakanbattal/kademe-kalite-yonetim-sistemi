@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { Input } from '@/components/ui/input';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-    import { MoreHorizontal, PlusCircle, Search, PlayCircle, CheckCircle, XCircle } from 'lucide-react';
+    import { MoreHorizontal, PlusCircle, Search, PlayCircle, CheckCircle, XCircle, FileText } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Badge } from '@/components/ui/badge';
@@ -21,8 +21,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { format } from 'date-fns';
     import { tr } from 'date-fns/locale';
     import { useLocation } from 'react-router-dom';
+    import { openPrintableReport } from '@/lib/reportUtils';
 
-    const TrainingPlansTab = () => {
+    const TrainingPlansTab = ({ pendingOpenTrainingId, onPendingOpenConsumed }) => {
         const { toast } = useToast();
         const location = useLocation();
         const [trainings, setTrainings] = useState([]);
@@ -52,6 +53,38 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         useEffect(() => {
             fetchTrainings();
         }, [fetchTrainings]);
+
+        // Dış kaynaklı doküman modülünden: planı aç
+        useEffect(() => {
+            if (!pendingOpenTrainingId) return undefined;
+            let cancelled = false;
+            (async () => {
+                try {
+                    const { data, error } = await supabase
+                        .from('trainings')
+                        .select('*')
+                        .eq('id', pendingOpenTrainingId)
+                        .single();
+                    if (cancelled) return;
+                    if (error || !data) {
+                        toast({
+                            variant: 'destructive',
+                            title: 'Eğitim bulunamadı',
+                            description: error?.message || 'Kayıt yüklenemedi.',
+                        });
+                    } else {
+                        setPolyvalenceData(null);
+                        setSelectedTraining(data);
+                        setIsModalOpen(true);
+                    }
+                } finally {
+                    onPendingOpenConsumed?.();
+                }
+            })();
+            return () => {
+                cancelled = true;
+            };
+        }, [pendingOpenTrainingId, onPendingOpenConsumed, toast]);
 
         // Polivalans modülünden gelen durumu kontrol et
         useEffect(() => {
@@ -192,6 +225,12 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={() => handleEditTraining(training)}>Görüntüle / Düzenle</DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => openPrintableReport({ id: training.id }, 'training_record', false)}
+                                                    >
+                                                        <FileText className="mr-2 h-4 w-4" />
+                                                        Rapor oluştur
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     {training.status === 'Planlandı' && (
                                                         <DropdownMenuItem onClick={() => handleUpdateStatus(training.id, 'Aktif')}>

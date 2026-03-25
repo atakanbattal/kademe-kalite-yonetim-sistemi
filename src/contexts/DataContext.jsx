@@ -32,6 +32,7 @@ export const DataProvider = ({ children }) => {
         audits: [],
         auditFindings: [],
         documents: [],
+        externalDocuments: [],
         equipments: [],
         deviations: [],
         quarantineRecords: [],
@@ -244,6 +245,12 @@ export const DataProvider = ({ children }) => {
                     return { data: [], error };
                 }
             })(),
+            externalDocuments: supabase
+                .from('external_documents')
+                .select(
+                    '*, customer:customer_id(id, name, customer_name, customer_code), supplier:supplier_id(id, name), audit_standard:audit_standard_id(id, code, name), training:training_id(id, title, training_code)'
+                )
+                .order('created_at', { ascending: false }),
         };
 
         // DÜŞÜK ÖNCELİKLİ TABLOLAR (Son dalga - limit ile)
@@ -555,7 +562,7 @@ export const DataProvider = ({ children }) => {
         };
 
         // SADECE KRİTİK TABLOLARI DİNLE (kpis, quality_costs ve documents dahil)
-        const criticalTables = ['tasks', 'non_conformities', 'deviations', 'personnel', 'kpis', 'quality_costs', 'documents'];
+        const criticalTables = ['tasks', 'non_conformities', 'deviations', 'personnel', 'kpis', 'quality_costs', 'documents', 'external_documents'];
 
         const subscription = supabase.channel('critical-db-changes')
             .on('postgres_changes', {
@@ -589,7 +596,11 @@ export const DataProvider = ({ children }) => {
                 if (payload.table === 'documents') {
                     console.log('🔄 Documents değişikliği algılandı:', payload.eventType);
                     // Doküman numaraları database trigger ile güncellendiğinden full refresh gerekli
-                    refreshData();
+                    fetchData(true);
+                }
+                if (payload.table === 'external_documents') {
+                    console.log('🔄 Dış kaynaklı doküman değişikliği algılandı:', payload.eventType);
+                    fetchData(true);
                 }
             })
             .subscribe((status, err) => {
@@ -609,7 +620,7 @@ export const DataProvider = ({ children }) => {
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, [session, logAudit]);
+    }, [session, logAudit, fetchData]);
 
     const refreshProducedVehicles = useCallback(async () => {
         if (!session) return;

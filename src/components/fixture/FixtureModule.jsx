@@ -438,7 +438,6 @@ const FixtureModule = () => {
                         <Wrench className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-foreground">Fikstür Takip Modülü</h2>
                         <p className="text-sm text-muted-foreground">
                             {allFixtures.length} fikstür kayıtlı · {filteredFixtures.length} gösteriliyor
                         </p>

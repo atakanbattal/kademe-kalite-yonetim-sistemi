@@ -191,8 +191,7 @@ const DeviationModule = ({ onOpenNCForm }) => {
                 <meta name="description" content="Üretim ve süreç sapmalarını yönetin, onay süreçlerini takip edin." />
             </Helmet>
 
-            <div className="flex justify-between items-center gap-3">
-                <h1 className="text-3xl font-bold text-foreground">Sapma Yönetimi</h1>
+            <div className="flex justify-end items-center gap-3">
                 <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={handleGenerateReport}>
                         <FileText className="mr-2 h-4 w-4" /> Rapor Al

@@ -767,8 +767,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 <meta name="description" content="Gelen malzeme kalite kontrol süreçlerini yönetin." />
             </Helmet>
 
-            <h1 className="text-3xl font-bold text-foreground">Girdi Kalite Kontrol</h1>
-
             <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} />
 
             <Tabs defaultValue="inspections" className="w-full">

@@ -132,6 +132,31 @@ const PrintableReport = () => {
                                 console.warn('Sapma tam kayıt yenilenemedi:', devFetchErr);
                             }
                         }
+                        else if (type === 'training_record' && (recordData?.id || id)) {
+                            const tid = recordData?.id || id;
+                            try {
+                                const { data: fullTraining, error: trErr } = await supabase
+                                    .from('trainings')
+                                    .select(`
+                                        *,
+                                        training_participants (
+                                            id,
+                                            status,
+                                            score,
+                                            personnel_id,
+                                            personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+                                        )
+                                    `)
+                                    .eq('id', tid)
+                                    .maybeSingle();
+                                if (!trErr && fullTraining) {
+                                    recordData = fullTraining;
+                                    console.log('✅ Eğitim kayıt raporu tam veri ile güncellendi');
+                                }
+                            } catch (trFetchErr) {
+                                console.warn('Eğitim tam kayıt yenilenemedi:', trFetchErr);
+                            }
+                        }
                         // ÖNEMLİ: Nonconformity için attachments ve closing_attachments kontrolü
                         // localStorage'dan gelen veride bu alanlar undefined olabilir
                         else if (type === 'nonconformity' && id) {
@@ -639,6 +664,25 @@ const PrintableReport = () => {
                             .maybeSingle();
                         recordData = examData;
                         queryError = examError;
+                        break;
+                    }
+                    case 'training_record': {
+                        const { data: trainingRow, error: trainingError } = await supabase
+                            .from('trainings')
+                            .select(`
+                                *,
+                                training_participants (
+                                    id,
+                                    status,
+                                    score,
+                                    personnel_id,
+                                    personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+                                )
+                            `)
+                            .eq('id', id)
+                            .maybeSingle();
+                        recordData = trainingRow;
+                        queryError = trainingError;
                         break;
                     }
                     case 'wps': {

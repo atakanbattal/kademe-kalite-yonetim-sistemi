@@ -456,9 +456,9 @@ const TaskModule = () => {
                                     style={{ backgroundColor: activeProject.color || '#6366f1' }}
                                 />
                             )}
-                            <h1 className="text-lg font-bold text-foreground truncate">
+                            <h2 className="text-lg font-bold text-foreground truncate">
                                 {getViewTitle()}
-                            </h1>
+                            </h2>
                             {activeProject?.description && (
                                 <TooltipProvider>
                                     <Tooltip>

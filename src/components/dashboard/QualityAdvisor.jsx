@@ -51,7 +51,7 @@ const moduleNames = {
     audit: 'İç Tetkikler',
     supplier: 'Tedarikçi Kalite',
     calibration: 'Kalibrasyon',
-    document: 'Doküman Yönetimi',
+    document: 'İç Kaynaklı Doküman Yönetimi',
     training: 'Eğitim Yönetimi',
     complaint: 'Müşteri Şikayetleri',
     kpi: 'KPI Takibi',

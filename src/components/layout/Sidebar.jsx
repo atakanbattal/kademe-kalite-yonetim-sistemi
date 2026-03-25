@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler, Droplets } from 'lucide-react';
+import { Home, BarChart2, DollarSign, Archive, FileText, Users, Settings, Truck, HardHat, Package, FlaskConical, BookOpen, ShieldCheck, GitBranch, ClipboardList, Bot, FileSignature, ScrollText, X, AlertCircle, GraduationCap, TrendingUp, Wrench, LogOut, User, RotateCcw, Ruler, Droplets, Globe2 } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -53,7 +53,8 @@ const navGroups = [
     label: 'Ekipman ve Dokümantasyon',
     items: [
       { id: 'equipment', icon: FlaskConical, label: 'Ekipman & Kalibrasyon' },
-      { id: 'document', icon: BookOpen, label: 'Doküman Yönetimi' },
+      { id: 'document', icon: BookOpen, label: 'İç Kaynaklı Doküman Yönetimi' },
+      { id: 'external-docs', icon: Globe2, label: 'Dış Kaynak Dokümanları' },
       { id: 'wps', icon: FileSignature, label: 'WPS Yönetimi' },
     ]
   },
@@ -97,6 +98,15 @@ const Sidebar = ({
     await signOut();
   };
 
+  const activeSidebarTitle = useMemo(() => {
+    if (!activeModule) return null;
+    for (const group of navGroups) {
+      const item = group.items.find((i) => i.id === activeModule);
+      if (item) return item.label;
+    }
+    return moduleTitles?.[activeModule] ?? null;
+  }, [activeModule, moduleTitles]);
+
   const handleItemClick = (itemId) => {
     setActiveModule(itemId);
     if (window.innerWidth < 1024) {
@@ -127,11 +137,11 @@ const Sidebar = ({
           </Button>
         </div>
         {/* Aktif Modül Göstergesi */}
-        {activeModule && moduleTitles?.[activeModule] && (
+        {activeModule && activeSidebarTitle && (
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/10">
             <div className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0"></div>
             <p className="text-xs sm:text-sm font-semibold text-primary truncate flex-1">
-              {moduleTitles[activeModule]}
+              {activeSidebarTitle}
             </p>
           </div>
         )}

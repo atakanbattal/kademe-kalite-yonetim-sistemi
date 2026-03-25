@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { sanitizeFileName } from '@/lib/utils';
     import { v4 as uuidv4 } from 'uuid';
 
-    const TrainingDocumentsTab = ({ onOpenPdfViewer }) => {
+    const TrainingDocumentsTab = ({ onOpenPdfViewer, preselectTrainingId, onPreselectConsumed }) => {
         const { toast } = useToast();
         const [trainings, setTrainings] = useState([]);
         const [selectedTrainingId, setSelectedTrainingId] = useState('');
@@ -24,6 +24,17 @@ import React, { useState, useEffect, useCallback } from 'react';
             };
             fetchTrainings();
         }, []);
+
+        useEffect(() => {
+            if (!preselectTrainingId) return;
+            const run = async () => {
+                const { data, error } = await supabase.from('trainings').select('id, title, training_code').order('title');
+                if (!error && data) setTrainings(data);
+                setSelectedTrainingId(preselectTrainingId);
+                onPreselectConsumed?.();
+            };
+            run();
+        }, [preselectTrainingId, onPreselectConsumed]);
 
         const fetchDocuments = useCallback(async () => {
             if (!selectedTrainingId) {

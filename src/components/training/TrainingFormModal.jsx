@@ -132,7 +132,20 @@ import React, { useState, useEffect, useCallback } from 'react';
                     return;
                 }
             } else {
-                const { data: codeData, error: codeError } = await supabase.rpc('generate_training_code');
+                /* Formda kalan / istemciden gelen kod RPC sonucunun üzerine yazılmasın */
+                delete cleanedData.training_code;
+
+                let refDateStr = new Date().toISOString().slice(0, 10);
+                const sd = formData.start_date;
+                if (sd) {
+                    const d = sd instanceof Date ? sd : new Date(sd);
+                    if (!Number.isNaN(d.getTime())) {
+                        refDateStr = format(d, 'yyyy-MM-dd');
+                    }
+                }
+                const { data: codeData, error: codeError } = await supabase.rpc('generate_training_code', {
+                    p_reference_date: refDateStr,
+                });
                 if (codeError) {
                     toast({ variant: 'destructive', title: 'Hata', description: `Eğitim kodu oluşturulamadı: ${codeError.message}` });
                     setIsSubmitting(false);

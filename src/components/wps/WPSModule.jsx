@@ -89,8 +89,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     <meta name="description" content="Kaynak Prosedür Şartnamelerini (WPS) yönetin." />
                 </Helmet>
 
-                <div className="flex justify-between items-center">
-                    <h1 className="text-3xl font-bold text-foreground">WPS Yönetimi</h1>
+                <div className="flex justify-end items-center">
                     <Button onClick={() => handleOpenModal(null, false)}>
                         <Plus className="mr-2 h-4 w-4" />
                         Yeni WPS Oluştur

@@ -77,6 +77,7 @@ import {
   XCircle,
   Ruler,
   Droplets,
+  Globe,
 } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -118,7 +119,7 @@ const ALL_MODULES = [
   'incoming-quality', 'process-control', 'produced-vehicles', 'leak-test', 'dynamic-balance',
   'fixture',
   'supplier-quality', 'supplier-audit', 'internal-audit', 'deviation', 'audit-logs',
-  'equipment', 'document', 'wps', 'kaizen', 'training', 'polyvalence', 'benchmark',
+  'equipment', 'document', 'external-docs', 'wps', 'kaizen', 'training', 'polyvalence', 'benchmark',
   'quarantine', 'tasks', 'settings',
 ];
 
@@ -131,7 +132,7 @@ const moduleLabels = {
   fixture: 'Fikstür Takibi',
   'supplier-quality': 'Tedarikçi Kalite', 'supplier-audit': 'Tedarikçi Denetimi',
   'internal-audit': 'İç Tetkik', deviation: 'Sapma', 'audit-logs': 'Denetim Kayıtları',
-  equipment: 'Ekipman', document: 'Doküman', wps: 'WPS', kaizen: 'Kaizen',
+  equipment: 'Ekipman', document: 'İç kaynaklı doküman', 'external-docs': 'Dış kaynaklı doküman', wps: 'WPS', kaizen: 'Kaizen',
   training: 'Eğitim', polyvalence: 'Polivalans', benchmark: 'Benchmark',
   quarantine: 'Karantina', tasks: 'Görevler', settings: 'Ayarlar',
 };
@@ -146,7 +147,7 @@ const PERMISSION_TEMPLATES = {
       'customer-complaints': 'full', 'incoming-quality': 'full', 'process-control': 'read',
       'produced-vehicles': 'full', 'leak-test': 'full', 'dynamic-balance': 'full', fixture: 'full', 'supplier-quality': 'read',
       'supplier-audit': 'read', 'internal-audit': 'read', deviation: 'full', 'audit-logs': 'none',
-      equipment: 'read', document: 'read', wps: 'read', kaizen: 'full', training: 'read',
+      equipment: 'read', document: 'read', 'external-docs': 'read', wps: 'read', kaizen: 'full', training: 'read',
       polyvalence: 'read', benchmark: 'read', quarantine: 'full', tasks: 'full', settings: 'none',
     },
   },
@@ -230,7 +231,7 @@ const MODULE_ICONS = {
   'leak-test': Droplets,
   'dynamic-balance': Activity, fixture: Ruler, 'supplier-quality': Factory, 'supplier-audit': ClipboardCheck,
   'internal-audit': SearchCheck, deviation: FileText, 'audit-logs': BookOpen,
-  equipment: Wrench, document: FileCog, wps: FileText, kaizen: Lightbulb,
+  equipment: Wrench, document: FileCog, 'external-docs': Globe, wps: FileText, kaizen: Lightbulb,
   training: GraduationCap, polyvalence: Users, benchmark: TrendingUp,
   quarantine: ShieldAlert, tasks: ListTodo, settings: Settings,
 };
@@ -241,7 +242,7 @@ const MODULE_GROUPS = [
   { title: 'Üretim & Kontrol', modules: ['incoming-quality', 'process-control', 'produced-vehicles', 'leak-test', 'dynamic-balance', 'fixture'] },
   { title: 'Tedarikçi', modules: ['supplier-quality', 'supplier-audit'] },
   { title: 'Denetim & Kayıtlar', modules: ['internal-audit', 'audit-logs'] },
-  { title: 'Doküman & Ekipman', modules: ['equipment', 'document', 'wps'] },
+  { title: 'Doküman & Ekipman', modules: ['equipment', 'document', 'external-docs', 'wps'] },
   { title: 'İyileştirme & Eğitim', modules: ['kaizen', 'training', 'polyvalence', 'benchmark'] },
   { title: 'Maliyet', modules: ['quality-cost'] },
 ];

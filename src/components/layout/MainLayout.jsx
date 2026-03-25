@@ -51,6 +51,7 @@ const DynamicBalanceModule = lazyWithRetry(() => import('@/components/dynamic-ba
 const NonconformityModule = lazyWithRetry(() => import('@/components/nonconformity/NonconformityModule'));
 const FixtureModule = lazyWithRetry(() => import('@/components/fixture/FixtureModule'));
 const LeakTestModule = lazyWithRetry(() => import('@/components/leak-test/LeakTestModule'));
+const ExternalDocumentsModule = lazyWithRetry(() => import('@/components/external-docs/ExternalDocumentsModule'));
 
 // 8D adımları için varsayılan başlıklar
 const getDefault8DTitle = (stepKey) => {
@@ -76,7 +77,8 @@ const moduleTitles = {
     quarantine: 'Karantina Yönetimi',
     'df-8d': 'DF ve 8D Yönetimi',
     'internal-audit': 'İç Tetkik Yönetimi',
-    document: 'Doküman Yönetimi',
+    document: 'İç Kaynaklı Doküman Yönetimi',
+    'external-docs': 'Dış Kaynaklı Doküman Yönetimi',
     'supplier-quality': 'Tedarikçi Kalite Yönetimi',
     'supplier-audit': 'Tedarikçi Denetimi',
     'customer-complaints': 'Satış Sonrası Hizmetler',
@@ -108,7 +110,11 @@ const MainLayout = () => {
     const effectivePermissions = useMemo(() => {
         if (!user) return {};
         if (user?.email === 'atakan.battal@kademe.com.tr') return Object.fromEntries(ALL_MODULES.map(m => [m, 'full']));
-        return profile?.permissions || user?.user_metadata?.permissions || {};
+        const p = { ...(profile?.permissions || user?.user_metadata?.permissions || {}) };
+        if (p['external-docs'] == null && (p.document === 'read' || p.document === 'full')) {
+            p['external-docs'] = p.document;
+        }
+        return p;
     }, [profile, user]);
 
     const permissionsReady = useMemo(() => {
@@ -499,6 +505,7 @@ const MainLayout = () => {
                 case 'df-8d': return <Df8dManagement onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onDownloadPDF={handleDownloadPDF} />;
                 case 'internal-audit': return <InternalAuditModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} />;
                 case 'document': return <DocumentModule />;
+                case 'external-docs': return <ExternalDocumentsModule />;
                 case 'supplier-quality': return <SupplierQualityModule onOpenNCForm={handleOpenNCForm} onOpenNCView={handleOpenNCView} onOpenPdfViewer={handleOpenPdfViewer} />;
                 case 'customer-complaints': return <CustomerComplaintsModule />;
                 case 'supplier-audit': return <SupplierLiveAudit onOpenNCForm={handleOpenNCForm} />;

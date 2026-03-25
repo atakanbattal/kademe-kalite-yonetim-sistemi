@@ -559,8 +559,7 @@ import { useSearchParams } from 'react-router-dom';
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                     <div className="min-w-0">
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Kaliteye Verilen Araçlar</h1>
-                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Üretimden kalite sürecine giren araçları yönetin.</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Üretimden kalite sürecine giren araçları yönetin.</p>
                     </div>
                 </div>
 

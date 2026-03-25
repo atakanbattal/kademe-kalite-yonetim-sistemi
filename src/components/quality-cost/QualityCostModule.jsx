@@ -921,8 +921,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             <div className="flex flex-col gap-3 sm:gap-4">
                 <div className="min-w-0">
-                    <h1 className="text-xl sm:text-2xl font-bold text-foreground">Kalite Maliyeti Takibi</h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">İç/dış hata, önleme ve değerlendirme maliyetlerini analiz edin.</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">İç/dış hata, önleme ve değerlendirme maliyetlerini analiz edin.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <CostFilters dateRange={dateRange} setDateRange={setDateRange} />

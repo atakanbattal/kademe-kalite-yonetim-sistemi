@@ -158,7 +158,7 @@ const AuditLogModule = ({ onOpenRelatedRecord }) => {
                       <SelectItem value="equipments">Ekipman & Kalibrasyon</SelectItem>
                       <SelectItem value="suppliers">Tedarikçi Yönetimi</SelectItem>
                       <SelectItem value="quality_costs">Kalite Maliyetleri</SelectItem>
-                      <SelectItem value="documents">Doküman Yönetimi</SelectItem>
+                      <SelectItem value="documents">İç Kaynaklı Doküman Yönetimi</SelectItem>
                       <SelectItem value="kpis">KPI Yönetimi</SelectItem>
                       <SelectItem value="customer_complaints">Müşteri Şikayetleri</SelectItem>
                       <SelectItem value="produced_vehicles">Üretilen Araçlar</SelectItem>

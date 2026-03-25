@@ -389,8 +389,7 @@ const DocumentModule = () => {
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-foreground">Doküman Yönetimi</h1>
-                    <p className="text-muted-foreground mt-1">Tüm kalite dokümanlarınızı tek bir yerden yönetin.</p>
+                    <p className="text-muted-foreground">Şirket içi kalite dokümanlarınızı tek bir yerden yönetin.</p>
                 </div>
             </div>
 

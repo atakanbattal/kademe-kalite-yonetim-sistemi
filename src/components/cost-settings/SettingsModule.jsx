@@ -17,8 +17,7 @@ const CostSettingsModule = () => {
     return (
         <div className="space-y-4 sm:space-y-6 md:space-y-8">
             <div className="mb-4 sm:mb-6 md:mb-8">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Genel Ayarlar</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Sistem genelindeki maliyetleri, personeli ve hesapları yönetin.</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Sistem genelindeki maliyetleri, personeli ve hesapları yönetin.</p>
             </div>
 
             <Tabs defaultValue={hasAccountAccess ? "accounts" : "personnel"} className="w-full">

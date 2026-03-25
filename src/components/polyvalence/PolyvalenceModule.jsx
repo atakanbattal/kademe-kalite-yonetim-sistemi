@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-    Users, GraduationCap, TrendingUp, AlertTriangle,
+    Users, TrendingUp, AlertTriangle,
     Search, Plus, Filter, Download, BarChart3,
     Award, Target, BookOpen, Clock
 } from 'lucide-react';
@@ -282,10 +282,6 @@ const PolyvalenceModule = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold flex items-center gap-3">
-                        <GraduationCap className="h-8 w-8 text-primary" />
-                        Polivalans Matrisi
-                    </h1>
                     <p className="text-muted-foreground mt-1">
                         Personel yetkinlik ve gelişim takip sistemi
                     </p>

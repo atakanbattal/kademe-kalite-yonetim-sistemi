@@ -188,6 +188,30 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 				}
 			}
 
+			if (type === 'training_record' && normalizedRecord.id) {
+				try {
+					const { data: fullTraining, error: trainingFetchError } = await supabase
+						.from('trainings')
+						.select(`
+							*,
+							training_participants (
+								id,
+								status,
+								score,
+								personnel_id,
+								personnel:personnel_id ( id, full_name, department, unit:cost_settings ( unit_name ) )
+							)
+						`)
+						.eq('id', normalizedRecord.id)
+						.maybeSingle();
+					if (!trainingFetchError && fullTraining) {
+						recordToStore = normalizeRecord(fullTraining);
+					}
+				} catch (trainingErr) {
+					console.warn('Eğitim tam kayıt çekilemedi, gönderilen veri kullanılacak:', trainingErr);
+				}
+			}
+
 			// Veriyi localStorage'a kaydet (zaten normalize edilmiş)
 			const normalizedRecordToStore = recordToStore;
 			localStorage.setItem(storageKey, JSON.stringify(normalizedRecordToStore));
@@ -280,6 +304,10 @@ const getReportTitle = (record, type) => {
 			return `Başarı Sertifikası-${record.personnelName || ''}`;
 		case 'exam_paper':
 			return `Sınav Kağıdı-${record.title || ''}`;
+		case 'training_record':
+			return record.title
+				? `Eğitim Kayıt Raporu — ${record.title}`
+				: 'Eğitim Kayıt ve Katılım Raporu';
 		case 'incoming_control_plans':
 			return `Gelen Kontrol Planı-${record.part_code || 'Bilinmiyor'}`;
 		case 'inkr_management':
@@ -335,6 +363,7 @@ const getFormNumber = (type) => {
 		certificate: 'FR-EGT-001',
 		exam_paper: 'FR-EGT-002',
 		polyvalence_matrix: 'FR-EGT-003',
+		training_record: 'FR-EGT-004',
 		dynamic_balance: 'FR-KAL-031',
 		nonconformity_record: 'FR-KAL-032',
 		nonconformity_record_list: 'FR-KAL-032-A',
@@ -485,6 +514,266 @@ const generateExamPaperHtml = (record) => {
 		</div>
 	`;
 };
+
+const generateTrainingRecordReportHtml = (record) => {
+	const escapeHtml = (v) => {
+		if (v == null || v === '') return '';
+		return String(v)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	};
+	/* Birleşik nokta (i + U+0307) gibi kayıtları yazdırmada düzelt */
+	const normalizeTrDisplay = (v) => {
+		if (v == null || v === '') return '';
+		return String(v)
+			.normalize('NFC')
+			.replace(/\u0069\u0307/g, '\u0069')
+			.replace(/\u0049\u0307/g, '\u0130')
+			.replace(/\u0130\u0307/g, '\u0130');
+	};
+	const esc = (v) => escapeHtml(normalizeTrDisplay(v));
+	const nl2br = (s) => {
+		if (s == null || String(s).trim() === '') return '—';
+		const n = normalizeTrDisplay(s);
+		return n === '' ? '—' : escapeHtml(n).replace(/\n/g, '<br>');
+	};
+	const fmtDateLong = (d) => (d ? format(new Date(d), 'dd MMMM yyyy', { locale: tr }) : '—');
+
+	const localLogoUrl = getLogoUrl('logo.png');
+	const mainLogoBase64 = logoCache[localLogoUrl] || localLogoUrl;
+
+	const participants = [...(record.training_participants || [])].sort((a, b) =>
+		normalizeTrDisplay(a.personnel?.full_name || '').localeCompare(normalizeTrDisplay(b.personnel?.full_name || ''), 'tr')
+	);
+
+	const participantsRows = participants.length
+		? participants.map((p, index) => `
+			<tr>
+				<td>${index + 1}</td>
+				<td>${esc(p.personnel?.full_name) || '—'}</td>
+				<td>${esc(p.personnel?.unit?.unit_name || p.personnel?.department) || '—'}</td>
+				<td>${esc(p.status) || '—'}</td>
+				<td class="training-sign-cell"></td>
+			</tr>
+		`).join('')
+		: `<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:12px;">Kayıtlı katılımcı yok.</td></tr>`;
+
+	const instructorName = record.instructor || '—';
+	const formNo = getFormNumber('training_record');
+
+	return `
+		<div class="report-header training-record-report-header">
+			<div class="report-logo">
+				<img src="${mainLogoBase64}" alt="Kademe Logo">
+			</div>
+			<div class="company-title training-record-company-block">
+				<h1>KADEME A.Ş.</h1>
+				<p class="company-subline">Kalite Yönetim Sistemi</p>
+				<p class="training-record-doc-title">Eğitim kayıt ve katılım raporu</p>
+			</div>
+			<div class="training-record-header-spec">
+				<div class="training-record-spec-title">Form bilgileri</div>
+				<div class="training-record-spec-row"><span class="spec-k">Doküman no</span><span class="spec-v">${formNo}</span></div>
+				<div class="training-record-spec-row"><span class="spec-k">Eğitim kodu</span><span class="spec-v">${esc(record.training_code) || '—'}</span></div>
+				<div class="training-record-spec-row"><span class="spec-k">Revizyon</span><span class="spec-v">00</span></div>
+				<div class="training-record-spec-row"><span class="spec-k">Sayfa</span><span class="spec-v">1 / 1</span></div>
+			</div>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">1. EĞİTİM BİLGİLERİ</h2>
+			<table class="info-table">
+				<tbody>
+					<tr><td>Eğitim başlığı</td><td>${esc(record.title) || '—'}</td></tr>
+					<tr><td>Eğitim kodu</td><td>${esc(record.training_code) || '—'}</td></tr>
+					<tr><td>Kategori</td><td>${esc(record.category) || '—'}</td></tr>
+					<tr><td>Eğitim türü</td><td>${esc(record.training_type) || '—'}</td></tr>
+					<tr><td>Başlangıç</td><td>${fmtDateLong(record.start_date)}</td></tr>
+					<tr><td>Bitiş</td><td>${fmtDateLong(record.end_date)}</td></tr>
+					<tr><td>Süre (saat)</td><td>${record.duration_hours != null ? esc(String(record.duration_hours)) : '—'}</td></tr>
+					<tr><td>Konum / ortam</td><td>${esc(record.location) || '—'}</td></tr>
+					<tr><td>Eğitmen</td><td>${esc(instructorName)}</td></tr>
+					<tr><td>Kontenjan</td><td>${record.capacity != null ? esc(String(record.capacity)) : '—'}</td></tr>
+					<tr><td>Hedef kitle</td><td class="training-value-multiline">${nl2br(record.target_audience)}</td></tr>
+					<tr><td>Amaçlar</td><td class="training-value-multiline">${nl2br(record.objectives)}</td></tr>
+					<tr><td>Ön koşullar</td><td class="training-value-multiline">${nl2br(record.prerequisites)}</td></tr>
+					<tr><td>Açıklama</td><td class="training-value-multiline">${nl2br(record.description)}</td></tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">2. KATILIMCI LİSTESİ</h2>
+			<table class="training-participants-table">
+				<thead>
+					<tr>
+						<th style="width:36px;">#</th>
+						<th>Ad soyad</th>
+						<th style="width:24%;">Birim</th>
+						<th style="width:16%;">Durum</th>
+						<th style="width:22%;">İmza</th>
+					</tr>
+				</thead>
+				<tbody>
+					${participantsRows}
+				</tbody>
+			</table>
+		</div>
+
+		<div class="section">
+			<h2 class="section-title blue">3. EĞİTMEN VE ONAY</h2>
+			<div class="training-footer-signatures">
+				<div class="training-sign-block">
+					<div class="role">Eğitmen</div>
+					<div class="named">${esc(instructorName)}</div>
+					<div class="line"></div>
+					<div class="sub">Ad Soyad ve İmza</div>
+				</div>
+				<div class="training-sign-block">
+					<div class="role">Eğitim sorumlusu</div>
+					<div class="named">&nbsp;</div>
+					<div class="line"></div>
+					<div class="sub">Ad Soyad ve İmza</div>
+				</div>
+			</div>
+		</div>
+	`;
+};
+
+const trainingRecordReportStyles = `
+	.report-header.training-record-report-header {
+		grid-template-columns: auto minmax(0, 1fr) minmax(148px, 24%);
+		gap: 10px 14px;
+		align-items: center;
+		padding: 8px 12px !important;
+		margin-bottom: 10px !important;
+	}
+	.training-record-report-header .report-logo {
+		padding: 0;
+	}
+	.training-record-report-header .report-logo img {
+		height: 40px !important;
+		max-height: 40px;
+		width: auto;
+	}
+	.training-record-company-block {
+		text-align: center;
+		padding: 2px 8px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		min-width: 0;
+		border-left: 1px solid #e5e7eb;
+		border-right: 1px solid #e5e7eb;
+	}
+	.training-record-company-block h1 {
+		margin: 0 0 1px 0 !important;
+		font-size: 15px !important;
+		line-height: 1.2 !important;
+		letter-spacing: 0.02em;
+		color: #0f172a;
+	}
+	.training-record-company-block .company-subline {
+		margin: 0 0 3px 0 !important;
+		font-size: 9px !important;
+		line-height: 1.2 !important;
+		font-weight: 600;
+		color: #64748b;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+	.training-record-doc-title {
+		margin: 0 !important;
+		font-size: 10px !important;
+		font-weight: 700;
+		color: #1e40af;
+		line-height: 1.25 !important;
+		text-transform: none;
+		letter-spacing: 0.02em;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.training-record-header-spec {
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: 4px;
+		padding: 6px 8px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0;
+		box-sizing: border-box;
+		align-self: center;
+	}
+	.training-record-spec-title {
+		font-size: 7px;
+		font-weight: 800;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: #475569;
+		margin: 0 0 4px 0;
+		padding-bottom: 3px;
+		border-bottom: 1px solid #1e40af;
+		line-height: 1.2;
+	}
+	.training-record-spec-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 8px;
+		padding: 2px 0;
+		border-bottom: 1px solid #e5e7eb;
+		font-size: 8px;
+		line-height: 1.25;
+	}
+	.training-record-spec-row:last-of-type {
+		border-bottom: none;
+		padding-bottom: 0;
+	}
+	.training-record-header-spec .spec-k {
+		color: #64748b;
+		font-weight: 600;
+		flex-shrink: 0;
+	}
+	.training-record-header-spec .spec-v {
+		color: #0f172a;
+		font-weight: 700;
+		text-align: right;
+		word-break: break-word;
+		max-width: 58%;
+	}
+	@media print {
+		.report-header.training-record-report-header {
+			padding: 6px 10px !important;
+			margin-bottom: 8px !important;
+			gap: 8px 12px;
+		}
+		.training-record-header-spec {
+			print-color-adjust: exact;
+			-webkit-print-color-adjust: exact;
+		}
+	}
+	.info-table td.training-value-multiline {
+		white-space: pre-wrap;
+		line-height: 1.5;
+		vertical-align: top;
+	}
+	.training-participants-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 6px; }
+	.training-participants-table thead { display: table-header-group; }
+	.training-participants-table thead th { background: #1e40af; color: #fff; padding: 8px; text-align: left; font-weight: 600; }
+	.training-participants-table td { border: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: middle; }
+	.training-participants-table tbody tr { page-break-inside: avoid; break-inside: avoid; }
+	.training-sign-cell { min-height: 44px; background: #fafafa; border-bottom: 2px solid #94a3b8 !important; vertical-align: bottom !important; }
+	.training-footer-signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px; page-break-inside: avoid; break-inside: avoid; }
+	.training-sign-block { border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; text-align: center; background: #fff; }
+	.training-sign-block .role { font-size: 10px; font-weight: 700; color: #1f2937; margin-bottom: 8px; }
+	.training-sign-block .named { font-size: 10px; color: #4b5563; min-height: 20px; }
+	.training-sign-block .line { border-bottom: 2px solid #374151; min-height: 52px; margin: 10px 8px 6px; }
+	.training-sign-block .sub { font-size: 8px; color: #6b7280; line-height: 1.35; }
+`;
 
 
 const generateDynamicBalanceReportHtml = (record) => {
@@ -6706,6 +6995,8 @@ h3 {
 		reportContentHtml = generateWPSReportHtml(record);
 	} else if (type === 'certificate') {
 		reportContentHtml = generateCertificateReportHtml(record);
+	} else if (type === 'training_record') {
+		reportContentHtml = generateTrainingRecordReportHtml(record);
 	} else if (type === 'exam_paper') {
 		reportContentHtml = generateExamPaperHtml(record);
 	} else if (type === 'dynamic_balance') {
@@ -6975,6 +7266,7 @@ h3 {
 	const formNumber = getFormNumber(normalizedRecord.report_type || type);
 	const isCertificate = type === 'certificate';
 	const isExam = type === 'exam_paper';
+	const isTrainingRecord = type === 'training_record';
 
 	const defaultStyles = `
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
@@ -8017,7 +8309,7 @@ a: after,
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<title>${getReportTitle(record, type)}</title>
 	<style>
-		${isCertificate ? certificateStyles : (isExam ? `${defaultStyles} ${examPaperStyles}` : defaultStyles)}
+		${isCertificate ? certificateStyles : (isExam ? `${defaultStyles} ${examPaperStyles}` : isTrainingRecord ? `${defaultStyles} ${trainingRecordReportStyles}` : defaultStyles)}
 		${cssOverrides}
 	</style>
 </head>
@@ -8029,7 +8321,7 @@ a: after,
 		${!isCertificate ? `
 		<div class="report-footer">
 			<span>Bu belge, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.</span>
-			<span>Belge Tarihi: ${format(new Date(), 'dd.MM.yyyy HH:mm')}</span>
+			${!isTrainingRecord ? `<span>Belge Tarihi: ${format(new Date(), 'dd.MM.yyyy HH:mm')}</span>` : ''}
 			<span>Form No: ${formNumber}</span>
 			<span>Sayfa 1/1</span>
 			<span>Rev: 01</span>
