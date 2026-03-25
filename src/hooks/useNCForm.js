@@ -56,6 +56,15 @@ import { useContext, useEffect, useCallback } from 'react';
         }
     };
 
+    /** Personel ayarındaki üst departman/müdürlük; boşsa birim (department) yedeklenir. */
+    export const ncOrganizationalUnitFromPersonnel = (p) => {
+        if (!p) return '';
+        const md = typeof p.management_department === 'string' ? p.management_department.trim() : '';
+        if (md) return md;
+        const dept = typeof p.department === 'string' ? p.department.trim() : '';
+        return dept || '';
+    };
+
     export const defaultEightDSteps = {
         D1: { title: "Ekip Oluşturma", responsible: "", completionDate: "", description: "" },
         D2: { title: "Problemi Tanımlama", responsible: "", completionDate: "", description: "" },
@@ -191,10 +200,11 @@ import { useContext, useEffect, useCallback } from 'react';
             const updates = { [field]: personName };
             
             if (selectedPerson) {
+                const orgUnit = ncOrganizationalUnitFromPersonnel(selectedPerson);
                 if (field === 'responsible_person') {
-                    updates['department'] = selectedPerson.department;
+                    updates['department'] = orgUnit;
                 } else if (field === 'requesting_person') {
-                    updates['requesting_unit'] = selectedPerson.department;
+                    updates['requesting_unit'] = orgUnit;
                 }
             }
 

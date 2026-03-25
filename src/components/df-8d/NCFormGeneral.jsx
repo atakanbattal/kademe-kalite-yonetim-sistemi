@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Badge } from '@/components/ui/badge';
-import { useNCForm } from '@/hooks/useNCForm';
+import { useNCForm, ncOrganizationalUnitFromPersonnel } from '@/hooks/useNCForm';
 import { useData } from '@/contexts/DataContext';
 import { Lightbox } from 'react-modal-image';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
@@ -202,20 +202,17 @@ const NCFormGeneral = ({
         }
     }, [formData.supplier_id, suppliers]);
 
-    // Personnel listesi yüklendikten sonra requesting_person'dan requesting_unit'i otomatik set et
-    // ÖNEMLİ: requesting_unit HER ZAMAN personelin gerçek departmanından alınmalı
+    // Personnel listesi yüklendikten sonra requesting_person ile requesting_unit'i hizala
+    // (Üst departman/müdürlük; yoksa personel birimi — useNCForm ile aynı kural)
     useEffect(() => {
         if (personnel && personnel.length > 0 && formData.requesting_person) {
             const selectedPerson = personnel.find(p => p.full_name === formData.requesting_person);
-            // Personelin gerçek departmanını her zaman kullan (mevcut değer yanlış olsa bile düzelt)
-            if (selectedPerson && selectedPerson.department) {
-                // Eğer requesting_unit personelin departmanından farklıysa düzelt
-                if (formData.requesting_unit !== selectedPerson.department) {
-                    setFormData(prev => ({
-                        ...prev,
-                        requesting_unit: selectedPerson.department
-                    }));
-                }
+            const targetUnit = ncOrganizationalUnitFromPersonnel(selectedPerson);
+            if (selectedPerson && targetUnit && formData.requesting_unit !== targetUnit) {
+                setFormData(prev => ({
+                    ...prev,
+                    requesting_unit: targetUnit
+                }));
             }
         }
     }, [personnel, formData.requesting_person, formData.requesting_unit, setFormData]);

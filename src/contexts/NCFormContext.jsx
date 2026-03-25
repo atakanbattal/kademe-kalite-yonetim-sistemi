@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
-    import { defaultEightDSteps } from '@/hooks/useNCForm';
+    import { defaultEightDSteps, ncOrganizationalUnitFromPersonnel } from '@/hooks/useNCForm';
     import { addMonths } from 'date-fns';
 
     export const NCFormContext = createContext();
@@ -260,7 +260,7 @@ import React, { createContext, useState, useContext, useCallback } from 'react';
                 priority: 'Orta',
                 department: '',
                 responsible_person: '',
-                requesting_unit: profile?.department || '',
+                requesting_unit: ncOrganizationalUnitFromPersonnel(profile) || '',
                 requesting_person: profile?.full_name || '',
                 opening_date: toISODateString(today),
                 df_opened_at: today.toISOString(),
