@@ -549,15 +549,16 @@ const ExternalDocumentsModule = () => {
             />
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto">
-                    <DialogHeader>
+                <DialogContent className="flex max-h-[min(92vh,calc(100dvh-1rem))] min-h-0 w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+                    <DialogHeader className="shrink-0 space-y-1.5 px-4 pb-2 pt-4 text-left sm:px-6 sm:pt-6">
                         <DialogTitle>{editing ? 'Dış Dokümanı Düzenle' : 'Dış Kaynaklı Doküman Ekle'}</DialogTitle>
                         <DialogDescription>
                             Kategoriye göre kaynak alanları doldurun; müşteri ve tedarikçi için arama yaparak seçim
                             yapabilirsiniz.
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain px-4 pb-2 [-webkit-overflow-scrolling:touch] sm:px-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Kategori</Label>
@@ -747,8 +748,9 @@ const ExternalDocumentsModule = () => {
                                 )}
                             </div>
                         </div>
+                        </div>
 
-                        <DialogFooter>
+                        <DialogFooter className="shrink-0 gap-2 border-t border-border bg-background px-4 py-4 sm:px-6">
                             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                                 İptal
                             </Button>
