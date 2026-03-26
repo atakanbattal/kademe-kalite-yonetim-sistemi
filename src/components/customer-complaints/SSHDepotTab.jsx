@@ -10,6 +10,7 @@ import {
     Plus,
     Save,
     Search,
+    Trash2,
     Warehouse,
 } from 'lucide-react';
 
@@ -20,6 +21,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
@@ -382,6 +393,24 @@ const SSHDepotTab = ({ onDepotChanged }) => {
             part_revision_id: part.activeRevision?.id || '',
         });
         setStockDialogOpen(true);
+    };
+
+    const [deleteTarget, setDeleteTarget] = useState(null);
+
+    const handleDeletePart = async () => {
+        if (!deleteTarget) return;
+        try {
+            await supabase.from('after_sales_part_stock_movements').delete().eq('part_master_id', deleteTarget.id);
+            await supabase.from('after_sales_part_revisions').delete().eq('part_master_id', deleteTarget.id);
+            const { error } = await supabase.from('after_sales_part_master').delete().eq('id', deleteTarget.id);
+            if (error) throw error;
+            toast({ title: 'Silindi', description: `${deleteTarget.part_name || deleteTarget.part_code} parça kartı silindi.` });
+            setDeleteTarget(null);
+            loadDepot();
+            onDepotChanged?.();
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Hata', description: `Silme hatası: ${err.message}` });
+        }
     };
 
     const findExistingPartByCode = useCallback(
@@ -860,6 +889,10 @@ const SSHDepotTab = ({ onDepotChanged }) => {
                                                         <GitBranch className="mr-2 h-4 w-4" />
                                                         Revize Et
                                                     </Button>
+                                                    <Button size="sm" variant="destructive" className="min-w-[80px]" onClick={() => setDeleteTarget(part)}>
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Sil
+                                                    </Button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1130,6 +1163,23 @@ const SSHDepotTab = ({ onDepotChanged }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Parça Kartını Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            <strong>{deleteTarget?.part_name || deleteTarget?.part_code}</strong> parça kartı ve tüm ilişkili revizyonlar ile stok hareketleri kalıcı olarak silinecektir. Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeletePart} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Sil
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

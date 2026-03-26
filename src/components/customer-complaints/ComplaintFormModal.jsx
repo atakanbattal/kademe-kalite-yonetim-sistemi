@@ -243,7 +243,7 @@ const BooleanSelect = ({ label, value, onChange }) => (
     </div>
 );
 
-const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => {
+const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess, helpDeskPrefill }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const { customers, customerComplaints } = useData();
@@ -259,10 +259,38 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
 
     useEffect(() => {
         if (!open) return;
-        setFormData(prepareFormState(existingComplaint));
-        setFaultParts(getFaultPartsFromComplaint(existingComplaint).length > 0 ? getFaultPartsFromComplaint(existingComplaint) : [EMPTY_FAULT_PART]);
+        if (existingComplaint) {
+            setFormData(prepareFormState(existingComplaint));
+            setFaultParts(getFaultPartsFromComplaint(existingComplaint).length > 0 ? getFaultPartsFromComplaint(existingComplaint) : [EMPTY_FAULT_PART]);
+        } else if (helpDeskPrefill) {
+            setFormData({
+                ...INITIAL_FORM,
+                customer_id: helpDeskPrefill.customer_id || '',
+                description: `[Help Desk] ${helpDeskPrefill.subject || ''}\n${helpDeskPrefill.description || ''}`.trim(),
+                case_type: helpDeskPrefill.category === 'Garanti Talebi' ? 'Garanti Talebi'
+                    : helpDeskPrefill.category === 'Servis Talebi' ? 'Servis Talebi'
+                    : helpDeskPrefill.category === 'Teknik Destek' ? 'Teknik Destek'
+                    : helpDeskPrefill.category === 'Yedek Parça' ? 'Yedek Parça Talebi'
+                    : helpDeskPrefill.category === 'Bakım Talebi' ? 'Bakım Talebi'
+                    : 'Müşteri Şikayeti',
+                severity: helpDeskPrefill.priority === 'Acil' ? 'Kritik'
+                    : helpDeskPrefill.priority === 'Yüksek' ? 'Yüksek'
+                    : 'Orta',
+                vehicle_category: helpDeskPrefill.vehicle_category || '',
+                vehicle_model_code: helpDeskPrefill.vehicle_model_code || '',
+                vehicle_serial_number: helpDeskPrefill.vehicle_serial_number || '',
+                vehicle_chassis_number: helpDeskPrefill.vehicle_chassis_number || '',
+                vehicle_plate_number: helpDeskPrefill.vehicle_plate_number || '',
+                chassis_brand: helpDeskPrefill.chassis_brand || '',
+                chassis_model: helpDeskPrefill.chassis_model || '',
+            });
+            setFaultParts([EMPTY_FAULT_PART]);
+        } else {
+            setFormData(prepareFormState(null));
+            setFaultParts([EMPTY_FAULT_PART]);
+        }
         setSelectedRegistryId('');
-    }, [existingComplaint, open]);
+    }, [existingComplaint, helpDeskPrefill, open]);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -273,7 +301,7 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
             const [registryResult, bomResult, bomItemsResult] = await Promise.all([
                 supabase
                     .from('after_sales_vehicle_registry')
-                    .select('id, customer_id, vehicle_serial_number, vehicle_chassis_number, vehicle_category, vehicle_model_code, vehicle_model_name, chassis_brand, chassis_model, delivery_date, production_date, warranty_document_no')
+                    .select('id, customer_id, vehicle_serial_number, vehicle_chassis_number, vehicle_plate_number, vehicle_category, vehicle_model_code, vehicle_model_name, chassis_brand, chassis_model, delivery_date, production_date, warranty_document_no, warranty_status, warranty_start_date, warranty_end_date')
                     .order('delivery_date', { ascending: false }),
                 supabase
                     .from('after_sales_product_boms')
@@ -364,9 +392,13 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
             chassis_model: registryRecord.chassis_model || prev.chassis_model,
             vehicle_serial_number: registryRecord.vehicle_serial_number || prev.vehicle_serial_number,
             vehicle_chassis_number: registryRecord.vehicle_chassis_number || prev.vehicle_chassis_number,
+            vehicle_plate_number: registryRecord.vehicle_plate_number || prev.vehicle_plate_number,
             delivery_date: formatDateInput(registryRecord.delivery_date) || prev.delivery_date,
             production_date: formatDateInput(registryRecord.production_date) || prev.production_date,
             warranty_document_no: registryRecord.warranty_document_no || prev.warranty_document_no,
+            warranty_status: registryRecord.warranty_status || prev.warranty_status,
+            warranty_start_date: formatDateInput(registryRecord.warranty_start_date) || prev.warranty_start_date,
+            warranty_end_date: formatDateInput(registryRecord.warranty_end_date) || prev.warranty_end_date,
         }));
     }, []);
 
@@ -388,8 +420,34 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
         setFormData((prev) => ({ ...prev, [id]: value }));
     };
 
-    const handleSelectChange = (field, value) => {
+    const generateWarrantyDocNo = useCallback(async () => {
+        try {
+            const year = new Date().getFullYear();
+            const { count, error } = await supabase
+                .from('customer_complaints')
+                .select('id', { count: 'exact', head: true })
+                .like('warranty_document_no', `GB-${year}-%`);
+            if (error) throw error;
+            const nextSeq = (count || 0) + 1;
+            return `GB-${year}-${String(nextSeq).padStart(4, '0')}`;
+        } catch {
+            const ts = Date.now().toString(36).toUpperCase();
+            return `GB-${new Date().getFullYear()}-${ts}`;
+        }
+    }, []);
+
+    const handleSelectChange = async (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
+        if (field === 'warranty_status' && value === 'Garanti İçinde') {
+            setFormData((prev) => {
+                if (!prev.warranty_document_no) {
+                    generateWarrantyDocNo().then((docNo) => {
+                        setFormData((p) => p.warranty_document_no ? p : { ...p, warranty_document_no: docNo });
+                    });
+                }
+                return prev;
+            });
+        }
     };
 
     const handleComplaintSourceChange = (value) => {
@@ -1551,7 +1609,10 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess }) => 
                                         </div>
                                         <div>
                                             <Label htmlFor="warranty_document_no">Garanti Belge No</Label>
-                                            <Input id="warranty_document_no" value={formData.warranty_document_no} onChange={handleInputChange} placeholder="Belge numarası" />
+                                            <Input id="warranty_document_no" value={formData.warranty_document_no} onChange={handleInputChange} placeholder="Otomatik atanır veya manuel girin" />
+                                            {formData.warranty_status === 'Garanti İçinde' && !formData.warranty_document_no && (
+                                                <p className="mt-1 text-xs text-muted-foreground">Numara otomatik atanıyor...</p>
+                                            )}
                                         </div>
                                         <div>
                                             <Label htmlFor="warranty_start_date">Garanti Başlangıç</Label>

@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { normalizeTurkishForSearch, sanitizeFileName } from '@/lib/utils';
 import {
     CHASSIS_BRAND_OPTIONS,
+    DOCUMENT_GROUP_OPTIONS,
     VEHICLE_CATEGORY_OPTIONS,
     VEHICLE_FILE_TYPES,
     formatBooleanLabel,
@@ -72,7 +73,7 @@ const EMPTY_DOCUMENT_FORM = {
     chassis_brand: '',
     chassis_model: '',
     document_type: 'Araç Kimlik Dosyası',
-    document_group: '',
+    document_group: 'Araç Kimlik Kartı',
     revision_no: '',
     document_description: '',
 };
@@ -205,23 +206,6 @@ const VehicleArchiveCenterTab = () => {
         [documents, searchTerm]
     );
 
-    const filteredModelDocs = useMemo(
-        () =>
-            documents.filter((doc) => doc.scope_type === 'model').filter((doc) => {
-                const normalizedSearch = normalizeTurkishForSearch(searchTerm);
-                if (!normalizedSearch) return true;
-                return [
-                    doc.document_name,
-                    doc.document_type,
-                    doc.vehicle_category,
-                    doc.vehicle_model_code,
-                    doc.chassis_brand,
-                    doc.chassis_model,
-                ].some((value) => normalizeTurkishForSearch(value).includes(normalizedSearch));
-            }),
-        [documents, searchTerm]
-    );
-
     const handleVehicleInput = (field, value) => {
         setVehicleForm((prev) => ({ ...prev, [field]: value }));
     };
@@ -235,8 +219,12 @@ const VehicleArchiveCenterTab = () => {
         setVehicleDialogOpen(true);
     };
 
-    const openDocumentDialog = (scopeType) => {
-        setDocumentForm({ ...EMPTY_DOCUMENT_FORM, scope_type: scopeType });
+    const openDocumentDialog = () => {
+        setDocumentForm({
+            ...EMPTY_DOCUMENT_FORM,
+            document_type: 'Araç Kimlik Dosyası',
+            document_group: EMPTY_DOCUMENT_FORM.document_group,
+        });
         setSelectedFiles([]);
         setDocumentDialogOpen(true);
     };
@@ -301,33 +289,22 @@ const VehicleArchiveCenterTab = () => {
             return;
         }
 
-        if (documentForm.scope_type === 'vehicle' && !documentForm.vehicle_registry_id && !documentForm.vehicle_serial_number) {
+        if (!documentForm.vehicle_registry_id && !documentForm.vehicle_serial_number) {
             toast({
                 variant: 'destructive',
                 title: 'Eksik Bilgi',
-                description: 'Araç bazlı doküman için araç kartı veya seri numarası girin.',
-            });
-            return;
-        }
-
-        if (documentForm.scope_type === 'model' && (!documentForm.vehicle_category || !documentForm.vehicle_model_code)) {
-            toast({
-                variant: 'destructive',
-                title: 'Eksik Bilgi',
-                description: 'Model bazlı doküman için kategori ve model zorunludur.',
+                description: 'Araç dokümanı için araç kartı veya seri numarası girin.',
             });
             return;
         }
 
         setIsSubmitting(true);
         try {
-            const scopePrefix = documentForm.scope_type === 'model'
-                ? sanitizeFileName(`${documentForm.vehicle_category}-${documentForm.vehicle_model_code}`)
-                : sanitizeFileName(documentForm.vehicle_serial_number || 'vehicle');
+            const scopePrefix = sanitizeFileName(documentForm.vehicle_serial_number || 'vehicle');
 
             for (const file of selectedFiles) {
                 const sanitizedFileName = sanitizeFileName(file.name);
-                const filePath = `archive/${documentForm.scope_type}/${scopePrefix}/${Date.now()}-${sanitizedFileName}`;
+                const filePath = `archive/vehicle/${scopePrefix}/${Date.now()}-${sanitizedFileName}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('after_sales_files')
@@ -342,10 +319,10 @@ const VehicleArchiveCenterTab = () => {
                 const { error: insertError } = await supabase
                     .from('after_sales_vehicle_files')
                     .insert({
-                        scope_type: documentForm.scope_type,
+                        scope_type: 'vehicle',
                         vehicle_registry_id: documentForm.vehicle_registry_id || null,
                         customer_id: documentForm.customer_id || null,
-                        vehicle_serial_number: documentForm.scope_type === 'vehicle' ? documentForm.vehicle_serial_number || null : null,
+                        vehicle_serial_number: documentForm.vehicle_serial_number || null,
                         vehicle_category: documentForm.vehicle_category || null,
                         vehicle_model_code: documentForm.vehicle_model_code || null,
                         chassis_brand: documentForm.chassis_brand || null,
@@ -444,14 +421,11 @@ const VehicleArchiveCenterTab = () => {
                                 <div>
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <Badge variant="outline">{doc.document_type}</Badge>
-                                        {doc.scope_type === 'model' && <Badge variant="secondary">Model Bazlı</Badge>}
-                                        {doc.scope_type !== 'model' && <Badge variant="secondary">Araç Bazlı</Badge>}
+                                        <Badge variant="secondary">Araç</Badge>
                                     </div>
                                     <CardTitle className="text-base mt-2">{doc.document_name}</CardTitle>
                                     <CardDescription className="mt-1">
-                                        {doc.scope_type === 'model'
-                                            ? `${doc.vehicle_category || '-'} • ${doc.vehicle_model_code || '-'}`
-                                            : `${doc.vehicle_serial_number || '-'} • ${getCustomerDisplayName(doc.customer)}`}
+                                        {`${doc.vehicle_serial_number || '-'} • ${getCustomerDisplayName(doc.customer)}`}
                                     </CardDescription>
                                 </div>
                                 <div className="rounded-lg bg-muted/60 p-2">
@@ -505,16 +479,12 @@ const VehicleArchiveCenterTab = () => {
                 <div>
                     <h3 className="text-lg font-semibold">Araç Ana Arşivi</h3>
                     <p className="text-sm text-muted-foreground">
-                        Sevk edilen tüm araçların kimlik kartı, fabrika bulguları, araç bazlı dosyaları ve model doküman kütüphanesi.
+                        Fabrika ve saha dokümanları araç kartı ve araç dokümanı ile; kimlik ve sicil evrakları bu akıştan yüklenir.
                     </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => openDocumentDialog('model')}>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Model Dokümanı
-                    </Button>
-                    <Button variant="outline" onClick={() => openDocumentDialog('vehicle')}>
+                    <Button variant="outline" onClick={() => openDocumentDialog()}>
                         <Upload className="w-4 h-4 mr-2" />
                         Araç Dokümanı
                     </Button>
@@ -546,10 +516,9 @@ const VehicleArchiveCenterTab = () => {
             )}
 
             <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="registry">Araç Kartları</TabsTrigger>
                     <TabsTrigger value="vehicle-docs">Araç Dokümanları</TabsTrigger>
-                    <TabsTrigger value="model-docs">Model Dokümanları</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="registry" className="mt-6">
@@ -652,10 +621,6 @@ const VehicleArchiveCenterTab = () => {
 
                 <TabsContent value="vehicle-docs" className="mt-6">
                     {renderDocumentList(filteredVehicleDocs, 'Henüz araç bazlı doküman yüklenmemiş.')}
-                </TabsContent>
-
-                <TabsContent value="model-docs" className="mt-6">
-                    {renderDocumentList(filteredModelDocs, 'Henüz model bazlı doküman yüklenmemiş.')}
                 </TabsContent>
             </Tabs>
 
@@ -826,116 +791,41 @@ const VehicleArchiveCenterTab = () => {
             <Dialog open={documentDialogOpen} onOpenChange={setDocumentDialogOpen}>
                 <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>
-                            {documentForm.scope_type === 'model' ? 'Model Dokümanı Yükle' : 'Araç Dokümanı Yükle'}
-                        </DialogTitle>
+                        <DialogTitle>Araç Dokümanı Yükle</DialogTitle>
                     </DialogHeader>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {documentForm.scope_type === 'vehicle' ? (
-                            <>
-                                <div>
-                                    <Label>Araç Kartı</Label>
-                                    <SearchableSelectDialog
-                                        options={registryOptions}
-                                        value={documentForm.vehicle_registry_id}
-                                        onChange={(value) => {
-                                            const registry = vehicles.find((item) => item.id === value);
-                                            setDocumentForm((prev) => ({
-                                                ...prev,
-                                                vehicle_registry_id: value,
-                                                customer_id: registry?.customer_id || '',
-                                                vehicle_serial_number: registry?.vehicle_serial_number || '',
-                                                vehicle_category: registry?.vehicle_category || '',
-                                                vehicle_model_code: registry?.vehicle_model_code || '',
-                                                chassis_brand: registry?.chassis_brand || '',
-                                                chassis_model: registry?.chassis_model || '',
-                                            }));
-                                        }}
-                                        triggerPlaceholder="Araç kartı seçin..."
-                                        dialogTitle="Araç Kartı Seç"
-                                        searchPlaceholder="Araç ara..."
-                                        notFoundText="Araç bulunamadı."
-                                        allowClear
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="vehicle_serial_number_doc">Seri No</Label>
-                                    <Input id="vehicle_serial_number_doc" value={documentForm.vehicle_serial_number} onChange={(event) => handleDocumentInput('vehicle_serial_number', event.target.value)} />
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div>
-                                    <Label>Araç Kategorisi</Label>
-                                    <Select value={documentForm.vehicle_category || 'none'} onValueChange={(value) => handleDocumentInput('vehicle_category', value === 'none' ? '' : value)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Kategori seçin" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Belirtilmedi</SelectItem>
-                                            {VEHICLE_CATEGORY_OPTIONS.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                    {option}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label>Model Kodu</Label>
-                                    <Select value={documentForm.vehicle_model_code || 'none'} onValueChange={(value) => handleDocumentInput('vehicle_model_code', value === 'none' ? '' : value)} disabled={!documentForm.vehicle_category}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Önce kategori seçin" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Belirtilmedi</SelectItem>
-                                            {getVehicleModelsForCategory(documentForm.vehicle_category).map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                    {option}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                {requiresChassisSelection(documentForm.vehicle_category) && (
-                                    <>
-                                        <div>
-                                            <Label>Şase Sağlayıcısı</Label>
-                                            <Select value={documentForm.chassis_brand || 'none'} onValueChange={(value) => handleDocumentInput('chassis_brand', value === 'none' ? '' : value)}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Şase markası seçin" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">Belirtilmedi</SelectItem>
-                                                    {CHASSIS_BRAND_OPTIONS.map((option) => (
-                                                        <SelectItem key={option} value={option}>
-                                                            {option}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div>
-                                            <Label>Şase Modeli</Label>
-                                            <Select value={documentForm.chassis_model || 'none'} onValueChange={(value) => handleDocumentInput('chassis_model', value === 'none' ? '' : value)} disabled={!documentForm.chassis_brand}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Önce şase markası seçin" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">Belirtilmedi</SelectItem>
-                                                    {getChassisModelsForBrand(documentForm.chassis_brand).map((option) => (
-                                                        <SelectItem key={option} value={option}>
-                                                            {option}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </>
-                                )}
-                            </>
-                        )}
+                        <>
+                            <div>
+                                <Label>Araç Kartı</Label>
+                                <SearchableSelectDialog
+                                    options={registryOptions}
+                                    value={documentForm.vehicle_registry_id}
+                                    onChange={(value) => {
+                                        const registry = vehicles.find((item) => item.id === value);
+                                        setDocumentForm((prev) => ({
+                                            ...prev,
+                                            vehicle_registry_id: value,
+                                            customer_id: registry?.customer_id || '',
+                                            vehicle_serial_number: registry?.vehicle_serial_number || '',
+                                            vehicle_category: registry?.vehicle_category || '',
+                                            vehicle_model_code: registry?.vehicle_model_code || '',
+                                            chassis_brand: registry?.chassis_brand || '',
+                                            chassis_model: registry?.chassis_model || '',
+                                        }));
+                                    }}
+                                    triggerPlaceholder="Araç kartı seçin..."
+                                    dialogTitle="Araç Kartı Seç"
+                                    searchPlaceholder="Araç ara..."
+                                    notFoundText="Araç bulunamadı."
+                                    allowClear
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="vehicle_serial_number_doc">Seri No</Label>
+                                <Input id="vehicle_serial_number_doc" value={documentForm.vehicle_serial_number} onChange={(event) => handleDocumentInput('vehicle_serial_number', event.target.value)} />
+                            </div>
+                        </>
 
                         <div>
                             <Label>Doküman Tipi</Label>
@@ -954,7 +844,18 @@ const VehicleArchiveCenterTab = () => {
                         </div>
                         <div>
                             <Label htmlFor="document_group">Doküman Grubu</Label>
-                            <Input id="document_group" value={documentForm.document_group} onChange={(event) => handleDocumentInput('document_group', event.target.value)} placeholder="Garanti, katalog, kontrol formu..." />
+                            <Select value={documentForm.document_group} onValueChange={(value) => handleDocumentInput('document_group', value)}>
+                                <SelectTrigger id="document_group">
+                                    <SelectValue placeholder="Grup seçin" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {DOCUMENT_GROUP_OPTIONS.map((option) => (
+                                        <SelectItem key={option} value={option}>
+                                            {option}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div>
                             <Label htmlFor="revision_no_doc">Revizyon No</Label>

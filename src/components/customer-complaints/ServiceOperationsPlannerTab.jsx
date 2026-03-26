@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
     Boxes,
-    CalendarClock,
     CarTaxiFront,
     CheckCircle2,
     Clock3,
@@ -117,7 +116,7 @@ const getMissingColumnName = (error) => {
     return null;
 };
 
-const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
+const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations' }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const { customerComplaints, personnel } = useData();
@@ -131,7 +130,6 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
     const [formData, setFormData] = useState(EMPTY_FORM);
     const [dialogMode, setDialogMode] = useState('plan');
     const [operationViewTab, setOperationViewTab] = useState('planned');
-    const [plannerPanelTab, setPlannerPanelTab] = useState('operations');
     const [personnelPanelTab, setPersonnelPanelTab] = useState('assignments');
     const [depotParts, setDepotParts] = useState([]);
     const [partRevisions, setPartRevisions] = useState([]);
@@ -208,9 +206,9 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
         } catch (error) {
             console.error('After sales depot inventory load error:', error);
             if (['42P01', 'PGRST205'].includes(error.code)) {
-                setInventoryLoadError('SSH depo tabloları henüz kurulmamış. Stok ve termin uyarıları migrasyon sonrası aktif olacaktır.');
+                setInventoryLoadError('Satış Sonrası Hizmetler depo tabloları henüz kurulmamış. Stok ve termin uyarıları migrasyon sonrası aktif olacaktır.');
             } else {
-                setInventoryLoadError(error.message || 'SSH depo verileri yüklenemedi.');
+                setInventoryLoadError(error.message || 'Satış Sonrası Hizmetler depo verileri yüklenemedi.');
             }
             setDepotParts([]);
             setPartRevisions([]);
@@ -301,7 +299,11 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
     const sshPersonnel = useMemo(
         () =>
             (personnel || []).filter(
-                (person) => person.is_active && person.department?.toLowerCase().includes('ssh')
+                (person) => {
+                    if (!person.is_active) return false;
+                    const dept = person.department?.toLowerCase() || '';
+                    return dept.includes('satış sonrası') || dept.includes('satis sonrasi') || dept.includes('ssh');
+                }
             ),
         [personnel]
     );
@@ -453,7 +455,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                 peopleMap.set(operation.assigned_person_id, {
                     id: operation.assigned_person_id,
                     full_name: operation.assigned_person?.full_name || 'İsimsiz Personel',
-                    department: 'SSH',
+                    department: 'Satış Sonrası Hizmetler',
                 });
             }
         });
@@ -1071,7 +1073,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                     <div className="mt-1 font-medium">{operation.travel_km || 0} km • {formatMoney(operation.travel_cost)}</div>
                 </div>
                 <div className="rounded-lg bg-muted/30 px-3 py-3 text-sm">
-                    <div className="text-muted-foreground">SSH Hizmeti</div>
+                    <div className="text-muted-foreground">Satış Sonrası Hizmetler</div>
                     <div className="mt-1 font-medium">{operation.assigned_person ? 1 : 0} personel • {operation.labor_hours || 0} saat</div>
                 </div>
                 <div className="rounded-lg bg-muted/30 px-3 py-3 text-sm">
@@ -1111,19 +1113,25 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
         </div>
     );
 
+    const isOperationsPanel = panel === 'operations';
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h3 className="text-lg font-semibold">Operasyon Planlama</h3>
+                    <h3 className="text-lg font-semibold">{isOperationsPanel ? 'Operasyon Planlama' : 'Personel'}</h3>
                     <p className="text-sm text-muted-foreground">
-                        Personel yönlendirme, şehir planlama, saha maliyetleri ve kullanılan parçaları vaka bazında yönetin.
+                        {isOperationsPanel
+                            ? 'Planlanan, devam eden ve sonuçlanan saha operasyonlarını ve maliyetleri vaka bazında yönetin.'
+                            : 'Satış Sonrası personel atamaları, plan panosu ve performansı izleyin.'}
                     </p>
                 </div>
-                <Button onClick={openCreateDialog}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Yeni Operasyon
-                </Button>
+                {isOperationsPanel && (
+                    <Button onClick={openCreateDialog}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Yeni Operasyon
+                    </Button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1144,7 +1152,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                         <div className="text-sm text-muted-foreground">Personel ve Tamamlanan</div>
                         <div className="mt-2 text-3xl font-bold text-emerald-600">{availablePersonnelCount}</div>
                         <div className="mt-2 text-xs text-muted-foreground">
-                            Müsait SSH • Bu ay tamamlanan {completedThisMonth}
+                            Müsait personel • Bu ay tamamlanan {completedThisMonth}
                         </div>
                     </CardContent>
                 </Card>
@@ -1152,23 +1160,16 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Operasyon Panelleri</CardTitle>
-                    <CardDescription>İşleri ve personel tarafını sade bir akışta yönetin.</CardDescription>
+                    <CardTitle>{isOperationsPanel ? 'Operasyon Panelleri' : 'Personel Panelleri'}</CardTitle>
+                    <CardDescription>
+                        {isOperationsPanel
+                            ? 'Planlanan, devam eden ve sonuçlanan operasyonları görüntüleyin.'
+                            : 'Atamalar, plan panosu ve performans metrikleri.'}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Tabs value={plannerPanelTab} onValueChange={setPlannerPanelTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-1 md:grid-cols-2">
-                            <TabsTrigger value="operations">
-                                <CalendarClock className="w-4 h-4 mr-2" />
-                                Operasyonlar
-                            </TabsTrigger>
-                            <TabsTrigger value="personnel">
-                                <User className="w-4 h-4 mr-2" />
-                                Personel
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="operations" className="mt-6 space-y-4">
+                    {isOperationsPanel ? (
+                        <div className="space-y-4">
                             {loadError && (
                                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                     {loadError}
@@ -1207,10 +1208,21 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                                     </TabsContent>
                                 </Tabs>
                             )}
-                        </TabsContent>
-
-                        <TabsContent value="personnel" className="mt-6 space-y-4">
-                            <Tabs value={personnelPanelTab} onValueChange={setPersonnelPanelTab} className="w-full">
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {loadError && (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                    {loadError}
+                                </div>
+                            )}
+                            {loading ? (
+                                <div className="py-10 text-muted-foreground flex items-center gap-2">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Veriler yükleniyor...
+                                </div>
+                            ) : (
+                                <Tabs value={personnelPanelTab} onValueChange={setPersonnelPanelTab} className="w-full">
                                 <TabsList className="grid w-full grid-cols-1 md:grid-cols-3">
                                     <TabsTrigger value="assignments">
                                         <User className="mr-2 h-4 w-4" />
@@ -1228,7 +1240,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
 
                                 <TabsContent value="assignments" className="mt-4">
                                     <div className="mb-4 text-sm text-muted-foreground">
-                                        {availablePersonnelCount} SSH personeli şu an boşta görünüyor.
+                                        {availablePersonnelCount} Satış Sonrası Hizmetler personeli şu an boşta görünüyor.
                                     </div>
                                     <div className="space-y-3">
                                         {activeAssignments.length === 0 ? (
@@ -1314,12 +1326,12 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                                             <CardContent className="pt-6">
                                                 <div className="text-sm text-muted-foreground">Toplam Görev</div>
                                                 <div className="mt-2 text-3xl font-bold">{personnelPerformanceSummary.totalAssignments}</div>
-                                                <div className="mt-2 text-xs text-muted-foreground">SSH personellerine açılan toplam iş</div>
+                                                <div className="mt-2 text-xs text-muted-foreground">Satış Sonrası Hizmetler personellerine açılan toplam iş</div>
                                             </CardContent>
                                         </Card>
                                         <Card>
                                             <CardContent className="pt-6">
-                                                <div className="text-sm text-muted-foreground">Toplam SSH Saati</div>
+                                                <div className="text-sm text-muted-foreground">Toplam Hizmet Saati</div>
                                                 <div className="mt-2 text-3xl font-bold text-blue-600">{formatNumber(personnelPerformanceSummary.totalHours)}</div>
                                                 <div className="mt-2 text-xs text-muted-foreground">Tamamlanan operasyonlardan hesaplandı</div>
                                             </CardContent>
@@ -1390,7 +1402,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                                                                 <tr key={row.id} className="align-top transition-colors hover:bg-muted/5">
                                                                     <td className="border-b px-6 py-4.5 text-sm">
                                                                         <div className="font-semibold text-foreground">{row.full_name}</div>
-                                                                        <div className="mt-1 text-xs text-muted-foreground">{row.department || 'SSH'}</div>
+                                                                        <div className="mt-1 text-xs text-muted-foreground">{row.department || 'Satış Sonrası Hizmetler'}</div>
                                                                         <div className="mt-2 text-xs text-muted-foreground">
                                                                             Son iş: {row.lastCompletedTitle ? truncateLabel(row.lastCompletedTitle, 48) : '-'}
                                                                         </div>
@@ -1423,8 +1435,9 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                                     </Card>
                                 </TabsContent>
                             </Tabs>
-                        </TabsContent>
-                    </Tabs>
+                            )}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -1440,7 +1453,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {personnelOptions.length === 0 && (
                                 <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                    Operasyon ataması için Ayarlar tarafında birimi `SSH` olan aktif personel bulunamadı.
+                                    Operasyon ataması için Ayarlar tarafında birimi «Satış Sonrası Hizmetler» olan aktif personel bulunamadı.
                                 </div>
                             )}
 
@@ -1482,15 +1495,15 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                                 />
                             </div>
                             <div>
-                                <Label>Atanan Personel (SSH)</Label>
+                                <Label>Atanan Personel (Satış Sonrası Hizmetler)</Label>
                                 <SearchableSelectDialog
                                     options={personnelOptions}
                                     value={formData.assigned_person_id}
                                     onChange={(value) => handleInputChange('assigned_person_id', value)}
-                                    triggerPlaceholder="SSH personeli seçin..."
+                                    triggerPlaceholder="Satış Sonrası Hizmetler personeli seçin..."
                                     dialogTitle="Personel Seç"
                                     searchPlaceholder="Personel ara..."
-                                    notFoundText="SSH biriminde personel bulunamadı."
+                                    notFoundText="Satış Sonrası Hizmetler biriminde personel bulunamadı."
                                 />
                             </div>
 
@@ -1654,7 +1667,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                                             <div className="font-medium mt-1">{formData.planned_start_date || '-'} / {formData.planned_end_date || '-'}</div>
                                         </div>
                                         <div className="rounded-lg bg-background p-3">
-                                            <div className="text-muted-foreground">SSH Personeli</div>
+                                            <div className="text-muted-foreground">Satış Sonrası Hizmetler Personeli</div>
                                             <div className="font-medium mt-1">{servicePersonnelCount} kişi</div>
                                         </div>
                                         <div className="rounded-lg bg-background p-3">
@@ -1737,7 +1750,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged }) => {
                                                         value={part.part_id}
                                                         onChange={(value) => handlePartSelection(index, value)}
                                                         triggerPlaceholder="Parça kodu veya adı ile seçin..."
-                                                        dialogTitle="SSH Depodan Parça Seç"
+                                                        dialogTitle="Satış Sonrası Hizmetler Deposundan Parça Seç"
                                                         searchPlaceholder="Parça kodu veya adı ara..."
                                                         notFoundText="Eşleşen parça bulunamadı."
                                                         allowClear

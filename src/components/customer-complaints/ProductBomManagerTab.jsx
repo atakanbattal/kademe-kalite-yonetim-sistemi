@@ -18,6 +18,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
@@ -714,15 +724,15 @@ const ProductBomManagerTab = () => {
         }
     };
 
-    const handleDelete = async (bomId) => {
-        const confirmed = window.confirm('Bu ürün ağacını silmek istediğinize emin misiniz?');
-        if (!confirmed) return;
+    const [deleteBomTarget, setDeleteBomTarget] = useState(null);
 
+    const executeDeleteBom = async () => {
+        if (!deleteBomTarget) return;
         try {
             const { error } = await supabase
                 .from('after_sales_product_boms')
                 .delete()
-                .eq('id', bomId);
+                .eq('id', deleteBomTarget);
 
             if (error) throw error;
 
@@ -730,6 +740,7 @@ const ProductBomManagerTab = () => {
                 title: 'Başarılı',
                 description: 'Ürün ağacı silindi.',
             });
+            setDeleteBomTarget(null);
             loadData();
         } catch (error) {
             console.error('After sales BOM delete error:', error);
@@ -890,7 +901,7 @@ const ProductBomManagerTab = () => {
                                                     <GitBranch className="mr-2 h-4 w-4" />
                                                     Revize Et
                                                 </Button>
-                                                <Button variant="destructive" size="sm" onClick={() => handleDelete(bom.id)}>
+                                                <Button variant="destructive" size="sm" onClick={() => setDeleteBomTarget(bom.id)}>
                                                     <Trash2 className="mr-2 h-4 w-4" />
                                                     Sil
                                                 </Button>
@@ -1250,6 +1261,23 @@ const ProductBomManagerTab = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!deleteBomTarget} onOpenChange={(open) => { if (!open) setDeleteBomTarget(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Ürün Ağacını Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bu ürün ağacı ve tüm kalem bilgileri kalıcı olarak silinecektir. Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction onClick={executeDeleteBom} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Sil
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

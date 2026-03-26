@@ -10,10 +10,11 @@ import {
     Filter,
     Globe,
     GitBranch,
+    Headphones,
     PackageOpen,
-    Plus,
     Repeat,
     Search,
+    User,
     Wrench,
 } from 'lucide-react';
 
@@ -34,6 +35,7 @@ import AfterSalesMethodTrackingTab from '@/components/customer-complaints/AfterS
 import VehicleFileArchiveTab from '@/components/customer-complaints/VehicleFileArchiveTab';
 import ProductBomManagerTab from '@/components/customer-complaints/ProductBomManagerTab';
 import SSHDepotTab from '@/components/customer-complaints/SSHDepotTab';
+import HelpDeskTab from '@/components/customer-complaints/HelpDeskTab';
 import { supabase } from '@/lib/customSupabaseClient';
 import { normalizeTurkishForSearch } from '@/lib/utils';
 import {
@@ -474,6 +476,7 @@ const CustomerComplaintsModule = () => {
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
     const [editingComplaint, setEditingComplaint] = useState(null);
     const [viewingComplaint, setViewingComplaint] = useState(null);
+    const [helpDeskPrefill, setHelpDeskPrefill] = useState(null);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
@@ -482,7 +485,7 @@ const CustomerComplaintsModule = () => {
     const [filterCaseType, setFilterCaseType] = useState('all');
     const [filterDateStart, setFilterDateStart] = useState('');
     const [filterDateEnd, setFilterDateEnd] = useState('');
-    const [activeTab, setActiveTab] = useState('list');
+    const [activeTab, setActiveTab] = useState('helpdesk');
     const [resourceTab, setResourceTab] = useState('archive');
     const [linkedMethodsByComplaint, setLinkedMethodsByComplaint] = useState({});
 
@@ -738,13 +741,6 @@ const CustomerComplaintsModule = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
         >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
-                <Button onClick={() => openFormModal()} size="lg">
-                    <Plus className="w-5 h-5 mr-2" />
-                    Yeni Vaka
-                </Button>
-            </div>
-
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard title="Toplam Vaka" value={stats.total} icon={PackageOpen} color="blue" helper="Toplam kayıt" />
                 <StatCard title="Açık Vaka" value={stats.open} icon={AlertCircle} color="amber" helper="Aktif takip" />
@@ -753,7 +749,11 @@ const CustomerComplaintsModule = () => {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 gap-2 lg:grid-cols-6">
+                <TabsList className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                    <TabsTrigger value="helpdesk">
+                        <Headphones className="w-4 h-4 mr-2" />
+                        Help Desk
+                    </TabsTrigger>
                     <TabsTrigger value="list">
                         <PackageOpen className="w-4 h-4 mr-2" />
                         Vakalar
@@ -761,6 +761,10 @@ const CustomerComplaintsModule = () => {
                     <TabsTrigger value="operations">
                         <Wrench className="w-4 h-4 mr-2" />
                         Operasyon
+                    </TabsTrigger>
+                    <TabsTrigger value="personnel">
+                        <User className="w-4 h-4 mr-2" />
+                        Personel
                     </TabsTrigger>
                     <TabsTrigger value="sla">
                         <Clock className="w-4 h-4 mr-2" />
@@ -801,6 +805,15 @@ const CustomerComplaintsModule = () => {
                     />
                 )}
 
+                <TabsContent value="helpdesk" className="mt-6">
+                    <HelpDeskTab
+                        onConvertToCase={(helpDeskRecord) => {
+                            setHelpDeskPrefill(helpDeskRecord);
+                            openFormModal(null);
+                        }}
+                    />
+                </TabsContent>
+
                 <TabsContent value="list" className="space-y-6 mt-6">
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                         <ActionInsightCard
@@ -836,7 +849,11 @@ const CustomerComplaintsModule = () => {
                 </TabsContent>
 
                 <TabsContent value="operations" className="mt-6">
-                    <ServiceOperationsPlannerTab onOperationsChanged={refreshData} />
+                    <ServiceOperationsPlannerTab panel="operations" onOperationsChanged={refreshData} />
+                </TabsContent>
+
+                <TabsContent value="personnel" className="mt-6">
+                    <ServiceOperationsPlannerTab panel="personnel" onOperationsChanged={refreshData} />
                 </TabsContent>
 
                 <TabsContent value="sla" className="mt-6">
@@ -873,7 +890,7 @@ const CustomerComplaintsModule = () => {
                             </TabsTrigger>
                             <TabsTrigger value="depot">
                                 <PackageOpen className="mr-2 h-4 w-4" />
-                                SSH Depo
+                                Satış Sonrası Depo
                             </TabsTrigger>
                         </TabsList>
 
@@ -895,9 +912,21 @@ const CustomerComplaintsModule = () => {
             {isFormModalOpen && (
                 <ComplaintFormModal
                     open={isFormModalOpen}
-                    setOpen={setFormModalOpen}
+                    setOpen={(open) => {
+                        setFormModalOpen(open);
+                        if (!open) setHelpDeskPrefill(null);
+                    }}
                     existingComplaint={editingComplaint}
-                    onSuccess={handleFormSuccess}
+                    onSuccess={async () => {
+                        if (helpDeskPrefill?.id) {
+                            await supabase.from('after_sales_help_desk')
+                                .update({ status: 'Vakaya Dönüştürüldü' })
+                                .eq('id', helpDeskPrefill.id);
+                        }
+                        setHelpDeskPrefill(null);
+                        handleFormSuccess();
+                    }}
+                    helpDeskPrefill={helpDeskPrefill}
                 />
             )}
 

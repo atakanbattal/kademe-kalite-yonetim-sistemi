@@ -415,7 +415,7 @@ const Dashboard = ({ setActiveModule, onOpenNCView }) => {
                 {kpi.trend != null && <TrendBadge value={kpi.trend} invert={kpi.trendInvert} />}
               </div>
               <div className="mt-2">
-                <p className="text-2xl font-bold tabular-nums">{loading ? <Skeleton className="h-7 w-12" /> : kpi.value}</p>
+                <span className="block text-2xl font-bold tabular-nums">{loading ? <Skeleton className="h-7 w-12" /> : kpi.value}</span>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{kpi.title}</p>
               </div>
               {kpi.spark && !loading && (

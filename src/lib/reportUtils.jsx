@@ -281,8 +281,12 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 const getReportTitle = (record, type) => {
 	if (!record) return 'Rapor';
 	switch (type) {
-		case 'supplier_audit':
-			return `Tedarikçi Denetim Raporu-${record.supplier?.name || 'Bilinmiyor'}`;
+		case 'supplier_audit': {
+			const _saSupplierName = record.supplier?.name || 'Bilinmiyor';
+			const _saAuditDate = record.audit_date ? new Date(record.audit_date).toLocaleDateString('tr-TR') : '';
+			const _saAuditNo = record.id ? String(record.id).slice(0, 8).toUpperCase() : '';
+			return `Tedarikçi Denetim Raporu-${_saSupplierName}${_saAuditDate ? `-${_saAuditDate}` : ''}${_saAuditNo ? `-${_saAuditNo}` : ''}`;
+		}
 		case 'internal_audit':
 			return `İç Tetkik Raporu-${record.report_number || 'Bilinmiyor'}`;
 		case 'sheet_metal_entry':
@@ -377,6 +381,8 @@ const getReportTitle = (record, type) => {
 				: 'Doküman Listesi Raporu';
 		case 'fixture_list':
 			return record.title || 'Fikstür Liste Raporu';
+		case 'process_control_plans':
+			return `Kontrol Planı-${record.part_code || ''}${record.part_name ? `-${record.part_name}` : ''}` || 'Kontrol Planı';
 		default:
 			// Eğer record'da title varsa onu kullan, yoksa genel başlık
 			return record?.title ? `${record.title} Raporu` : 'Detaylı Rapor';
@@ -5826,7 +5832,7 @@ const generateGenericReportHtml = async (record, type) => {
 					.replace(/</g, '&lt;')
 					.replace(/"/g, '&quot;');
 				const sectionNum = record.history && record.history.length > 0 ? '3' : '2';
-				html += `<div class="section"><h2 class="section-title blue">${sectionNum}. ÜRÜN EKLERİ (GÖRSEL / PDF)</h2><div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;">`;
+				html += `<div class="section"><h2 class="section-title blue">${sectionNum}. ÜRÜN EKLERİ (GÖRSEL / PDF)</h2><div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;margin-top:10px;">`;
 				for (const att of qAtts) {
 					let url = att.public_url || '';
 					if (!url && att.path) {
@@ -5837,9 +5843,9 @@ const generateGenericReportHtml = async (record, type) => {
 						(att.mime_type && String(att.mime_type).startsWith('image/')) ||
 						/\.(jpe?g|png|gif|webp|bmp)$/i.test(att.name || '');
 					if (isImg && url) {
-						html += `<div style="flex:0 0 auto;max-width:220px;"><img src="${url}" alt="" style="max-width:200px;max-height:180px;border:1px solid #e5e7eb;border-radius:4px;object-fit:cover;" crossorigin="anonymous" /><div style="font-size:10px;margin-top:6px;color:#4b5563;">${esc(att.name)}</div></div>`;
+						html += `<div style="flex:0 0 auto;max-width:300px;text-align:center;"><img src="${url}" alt="" style="max-width:280px;max-height:260px;border:1px solid #d1d5db;border-radius:6px;object-fit:contain;background:#f9fafb;" crossorigin="anonymous" /><div style="font-size:10px;margin-top:6px;color:#4b5563;font-weight:500;">${esc(att.name)}</div></div>`;
 					} else if (url) {
-						html += `<div style="margin:6px 0;"><a href="${url}" target="_blank" rel="noopener noreferrer">${esc(att.name || 'PDF / dosya')}</a></div>`;
+						html += `<div style="margin:6px 0;"><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">${esc(att.name || 'PDF / dosya')}</a></div>`;
 					} else {
 						html += `<div style="font-size:11px;color:#6b7280;">${esc(att.name || 'Dosya')} (URL yok)</div>`;
 					}

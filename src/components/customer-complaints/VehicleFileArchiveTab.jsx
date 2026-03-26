@@ -6,7 +6,6 @@ import {
     Eye,
     File,
     FileText,
-    FolderKanban,
     Image,
     Loader2,
     Pencil,
@@ -15,7 +14,6 @@ import {
     ShieldCheck,
     Trash2,
     Upload,
-    Wrench,
 } from 'lucide-react';
 
 import { supabase } from '@/lib/customSupabaseClient';
@@ -25,24 +23,37 @@ import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { normalizeTurkishForSearch, sanitizeFileName } from '@/lib/utils';
 import {
     CHASSIS_BRAND_OPTIONS,
-    DOCUMENT_GROUP_OPTIONS,
+    REGISTRY_VEHICLE_FILE_DEFAULTS,
     VEHICLE_CATEGORY_OPTIONS,
     VEHICLE_FILE_TYPES,
+    computeNextWarrantyDocumentNo,
     getAfterSalesCaseNumber,
     getChassisModelsForBrand,
     getCustomerDisplayName,
     getVehicleModelsForCategory,
+    getWarrantyStatusVariant,
     requiresChassisSelection,
+    WARRANTY_STATUS_OPTIONS,
 } from '@/components/customer-complaints/afterSalesConfig';
 
 const EMPTY_REGISTRY_FORM = {
@@ -59,14 +70,12 @@ const EMPTY_REGISTRY_FORM = {
     engine_serial_number: '',
     delivery_date: '',
     production_date: '',
+    vehicle_plate_number: '',
     warranty_document_no: '',
+    warranty_status: '',
+    warranty_start_date: '',
+    warranty_end_date: '',
     notes: '',
-};
-
-const EMPTY_REGISTRY_FILE_META = {
-    document_type: 'Logbook',
-    document_group: 'Logbook ve Saha Defteri',
-    document_description: '',
 };
 
 const EMPTY_UPLOAD_FORM = {
@@ -129,12 +138,27 @@ const VehicleFileArchiveTab = () => {
     const [registryForm, setRegistryForm] = useState(EMPTY_REGISTRY_FORM);
     const [isSavingRegistry, setIsSavingRegistry] = useState(false);
     const [registrySelectedFiles, setRegistrySelectedFiles] = useState([]);
-    const [registryFileMeta, setRegistryFileMeta] = useState(EMPTY_REGISTRY_FILE_META);
 
-    const [isUploadOpen, setUploadOpen] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [uploadForm, setUploadForm] = useState(EMPTY_UPLOAD_FORM);
     const [isUploading, setIsUploading] = useState(false);
+
+    const generateNextWarrantyDocumentNo = useCallback(async () => {
+        try {
+            const year = new Date().getFullYear();
+            const prefix = `GB-${year}-`;
+            const [reg, comp] = await Promise.all([
+                supabase.from('after_sales_vehicle_registry').select('warranty_document_no').like('warranty_document_no', `${prefix}%`),
+                supabase.from('customer_complaints').select('warranty_document_no').like('warranty_document_no', `${prefix}%`),
+            ]);
+            if (reg.error) throw reg.error;
+            if (comp.error) throw comp.error;
+            const vals = [...(reg.data || []), ...(comp.data || [])].map((r) => r.warranty_document_no);
+            return computeNextWarrantyDocumentNo(year, vals);
+        } catch {
+            return `GB-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+        }
+    }, []);
 
     const loadRegistryRecords = useCallback(async () => {
         try {
@@ -192,7 +216,7 @@ const VehicleFileArchiveTab = () => {
 
                 if (fallbackError) throw fallbackError;
                 setFiles((data || []).map((item) => ({ ...item, scope_type: item.scope_type || 'vehicle' })));
-                setFilesError(error.code === '42703' ? 'Model dokümanı ve araç sicili bağlantıları için ikinci migrasyon bekleniyor. Mevcut araç dosyaları yine de görüntülenebilir.' : null);
+                setFilesError(error.code === '42703' ? 'Araç sicili bağlantıları için migrasyon bekleniyor. Mevcut araç dosyaları yine de görüntülenebilir.' : null);
             } catch (fallbackError) {
                 console.error('Vehicle archive fallback load error:', fallbackError);
                 setFiles([]);
@@ -244,20 +268,11 @@ const VehicleFileArchiveTab = () => {
         [customers]
     );
 
-    const caseOptions = useMemo(
-        () =>
-            (customerComplaints || []).map((record) => ({
-                value: record.id,
-                label: `${getAfterSalesCaseNumber(record)} - ${truncateLabel(record.title || '-', 72)}`,
-            })),
-        [customerComplaints]
-    );
-
     const registryOptions = useMemo(
         () =>
             registryRecords.map((record) => ({
                 value: record.id,
-                label: `${record.vehicle_serial_number || '-'} • ${record.vehicle_model_code || record.vehicle_model_name || '-'} • ${getCustomerDisplayName(record.customer)}`,
+                label: `${record.vehicle_serial_number || '-'}${record.vehicle_plate_number ? ` • ${record.vehicle_plate_number}` : ''} • ${record.vehicle_model_code || record.vehicle_model_name || '-'} • ${getCustomerDisplayName(record.customer)}`,
             })),
         [registryRecords]
     );
@@ -273,6 +288,7 @@ const VehicleFileArchiveTab = () => {
             return [
                 record.vehicle_serial_number,
                 record.vehicle_chassis_number,
+                record.vehicle_plate_number,
                 record.vehicle_category,
                 record.vehicle_model_code,
                 record.vehicle_model_name,
@@ -282,10 +298,30 @@ const VehicleFileArchiveTab = () => {
                 record.engine_model,
                 record.engine_serial_number,
                 record.notes,
+                record.warranty_status,
+                record.warranty_document_no,
                 getCustomerDisplayName(record.customer),
             ].some((value) => normalizeTurkishForSearch(value).includes(normalizedSearch));
         });
     }, [registryRecords, searchTerm, customerFilter, categoryFilter]);
+
+    const registryTableMeta = useMemo(() => {
+        const meta = new Map();
+        for (const record of filteredRegistryRecords) {
+            const relatedComplaintCount = (customerComplaints || []).filter(
+                (complaint) =>
+                    (record.vehicle_serial_number && complaint.vehicle_serial_number === record.vehicle_serial_number) ||
+                    (record.vehicle_chassis_number && complaint.vehicle_chassis_number === record.vehicle_chassis_number)
+            ).length;
+            const relatedDocumentCount = files.filter(
+                (file) =>
+                    file.vehicle_registry_id === record.id ||
+                    (record.vehicle_serial_number && file.vehicle_serial_number === record.vehicle_serial_number)
+            ).length;
+            meta.set(record.id, { relatedComplaintCount, relatedDocumentCount });
+        }
+        return meta;
+    }, [filteredRegistryRecords, customerComplaints, files]);
 
     const filteredFiles = useMemo(() => {
         const normalizedSearch = normalizeTurkishForSearch(searchTerm);
@@ -320,16 +356,10 @@ const VehicleFileArchiveTab = () => {
         [filteredFiles]
     );
 
-    const modelDocuments = useMemo(
-        () => filteredFiles.filter((record) => record.scope_type === 'model'),
-        [filteredFiles]
-    );
-
     const stats = useMemo(() => ({
         totalVehicles: registryRecords.length,
         linkedVehicleDocs: files.filter((record) => (record.scope_type || 'vehicle') !== 'model' && record.vehicle_registry_id).length,
         totalVehicleDocs: files.filter((record) => (record.scope_type || 'vehicle') !== 'model').length,
-        totalModelDocs: files.filter((record) => record.scope_type === 'model').length,
         logbooks: files.filter((record) => record.document_type === 'Logbook').length,
     }), [registryRecords, files]);
 
@@ -347,6 +377,7 @@ const VehicleFileArchiveTab = () => {
                     customer_id: selectedRegistry.customer_id || prev.customer_id,
                     vehicle_serial_number: selectedRegistry.vehicle_serial_number || '',
                     vehicle_chassis_number: selectedRegistry.vehicle_chassis_number || '',
+                    vehicle_plate_number: selectedRegistry.vehicle_plate_number || '',
                     vehicle_model: selectedRegistry.vehicle_model_name || selectedRegistry.vehicle_model_code || '',
                     vehicle_category: selectedRegistry.vehicle_category || '',
                     vehicle_model_code: selectedRegistry.vehicle_model_code || '',
@@ -361,11 +392,15 @@ const VehicleFileArchiveTab = () => {
         setUploadForm((prev) => ({ ...prev, [field]: value }));
     };
 
-    const openNewRegistryDialog = () => {
+    const openNewRegistryDialog = async () => {
         setEditingRegistry(null);
-        setRegistryForm(EMPTY_REGISTRY_FORM);
+        setRegistryForm({
+            ...EMPTY_REGISTRY_FORM,
+            warranty_document_no: await generateNextWarrantyDocumentNo(),
+        });
         setRegistrySelectedFiles([]);
-        setRegistryFileMeta(EMPTY_REGISTRY_FILE_META);
+        setUploadForm({ ...EMPTY_UPLOAD_FORM });
+        setSelectedFiles([]);
         setRegistryDialogOpen(true);
     };
 
@@ -385,43 +420,17 @@ const VehicleFileArchiveTab = () => {
             engine_serial_number: record.engine_serial_number || '',
             delivery_date: record.delivery_date || '',
             production_date: record.production_date || '',
+            vehicle_plate_number: record.vehicle_plate_number || '',
             warranty_document_no: record.warranty_document_no || '',
+            warranty_status: record.warranty_status || '',
+            warranty_start_date: record.warranty_start_date || '',
+            warranty_end_date: record.warranty_end_date || '',
             notes: record.notes || '',
         });
         setRegistrySelectedFiles([]);
-        setRegistryFileMeta(EMPTY_REGISTRY_FILE_META);
-        setRegistryDialogOpen(true);
-    };
-
-    const openUploadDialog = (scopeType = 'vehicle', registryRecord = null) => {
-        if (registryRecord) {
-            setUploadForm({
-                ...EMPTY_UPLOAD_FORM,
-                scope_type: scopeType,
-                customer_id: registryRecord.customer_id || '',
-                vehicle_registry_id: registryRecord.id || '',
-                vehicle_serial_number: registryRecord.vehicle_serial_number || '',
-                vehicle_chassis_number: registryRecord.vehicle_chassis_number || '',
-                vehicle_model: registryRecord.vehicle_model_name || registryRecord.vehicle_model_code || '',
-                vehicle_category: registryRecord.vehicle_category || '',
-                vehicle_model_code: registryRecord.vehicle_model_code || '',
-                chassis_brand: registryRecord.chassis_brand || '',
-                chassis_model: registryRecord.chassis_model || '',
-                delivery_date: registryRecord.delivery_date || '',
-                document_type: scopeType === 'model' ? 'Kullanıcı Kitapçığı' : 'Araç Kimlik Dosyası',
-                document_group: scopeType === 'model' ? 'Kullanıcı Kitapçıkları ve Kataloglar' : 'Araç Kimlik Kartı',
-            });
-        } else {
-            setUploadForm({
-                ...EMPTY_UPLOAD_FORM,
-                scope_type: scopeType,
-                document_type: scopeType === 'model' ? 'Kullanıcı Kitapçığı' : 'Araç Kimlik Dosyası',
-                document_group: scopeType === 'model' ? 'Kullanıcı Kitapçıkları ve Kataloglar' : 'Araç Kimlik Kartı',
-            });
-        }
-
+        setUploadForm({ ...EMPTY_UPLOAD_FORM });
         setSelectedFiles([]);
-        setUploadOpen(true);
+        setRegistryDialogOpen(true);
     };
 
     const uploadArchiveFiles = useCallback(async ({ filesToUpload, metadata, scopePath }) => {
@@ -471,6 +480,7 @@ const VehicleFileArchiveTab = () => {
                 customer_id: registryForm.customer_id || null,
                 vehicle_serial_number: registryForm.vehicle_serial_number?.trim() || null,
                 vehicle_chassis_number: registryForm.vehicle_chassis_number?.trim() || null,
+                vehicle_plate_number: registryForm.vehicle_plate_number?.trim() || null,
                 vehicle_model_name: registryForm.vehicle_model_name?.trim() || null,
                 chassis_brand: registryForm.chassis_brand || null,
                 chassis_model: registryForm.chassis_model || null,
@@ -480,6 +490,9 @@ const VehicleFileArchiveTab = () => {
                 delivery_date: registryForm.delivery_date || null,
                 production_date: registryForm.production_date || null,
                 warranty_document_no: registryForm.warranty_document_no?.trim() || null,
+                warranty_status: registryForm.warranty_status?.trim() || null,
+                warranty_start_date: registryForm.warranty_start_date || null,
+                warranty_end_date: registryForm.warranty_end_date || null,
                 notes: registryForm.notes?.trim() || null,
                 created_by: user?.id || null,
             };
@@ -517,16 +530,16 @@ const VehicleFileArchiveTab = () => {
                         vehicle_registry_id: savedRegistry.id,
                         vehicle_serial_number: savedRegistry.vehicle_serial_number || null,
                         vehicle_chassis_number: savedRegistry.vehicle_chassis_number || null,
-                        vehicle_plate_number: null,
+                        vehicle_plate_number: savedRegistry.vehicle_plate_number || null,
                         vehicle_model: savedRegistry.vehicle_model_name || savedRegistry.vehicle_model_code || null,
                         delivery_date: savedRegistry.delivery_date || null,
                         vehicle_category: savedRegistry.vehicle_category || null,
                         vehicle_model_code: savedRegistry.vehicle_model_code || null,
                         chassis_brand: savedRegistry.chassis_brand || null,
                         chassis_model: savedRegistry.chassis_model || null,
-                        document_type: registryFileMeta.document_type,
-                        document_group: registryFileMeta.document_group,
-                        document_description: registryFileMeta.document_description?.trim() || null,
+                        document_type: REGISTRY_VEHICLE_FILE_DEFAULTS.document_type,
+                        document_group: REGISTRY_VEHICLE_FILE_DEFAULTS.document_group,
+                        document_description: null,
                     },
                     scopePath: `vehicles/${sanitizeFileName(savedRegistry.vehicle_serial_number || savedRegistry.id)}`,
                 });
@@ -540,7 +553,6 @@ const VehicleFileArchiveTab = () => {
             setRegistryDialogOpen(false);
             setRegistryForm(EMPTY_REGISTRY_FORM);
             setRegistrySelectedFiles([]);
-            setRegistryFileMeta(EMPTY_REGISTRY_FILE_META);
             setEditingRegistry(null);
             loadAll();
         } catch (error) {
@@ -553,23 +565,14 @@ const VehicleFileArchiveTab = () => {
         } finally {
             setIsSavingRegistry(false);
         }
-    }, [editingRegistry, loadAll, registryFileMeta, registryForm, registrySelectedFiles, toast, uploadArchiveFiles, user?.id]);
+    }, [editingRegistry, loadAll, registryForm, registrySelectedFiles, toast, uploadArchiveFiles, user?.id]);
 
     const handleUpload = async () => {
-        if (uploadForm.scope_type === 'vehicle' && !uploadForm.vehicle_serial_number?.trim() && !uploadForm.vehicle_registry_id) {
+        if (!uploadForm.vehicle_registry_id) {
             toast({
                 variant: 'destructive',
                 title: 'Eksik Bilgi',
-                description: 'Araç dosyası için seri numarası veya araç sicil kaydı gereklidir.',
-            });
-            return;
-        }
-
-        if (uploadForm.scope_type === 'model' && (!uploadForm.vehicle_category || !uploadForm.vehicle_model_code)) {
-            toast({
-                variant: 'destructive',
-                title: 'Eksik Bilgi',
-                description: 'Model bazlı dokümanlar için araç kategorisi ve model kodu zorunludur.',
+                description: 'Önce araç sicil kaydını seçin.',
             });
             return;
         }
@@ -600,13 +603,13 @@ const VehicleFileArchiveTab = () => {
                 vehicle_model_code: uploadForm.vehicle_model_code || null,
                 chassis_brand: uploadForm.chassis_brand || null,
                 chassis_model: uploadForm.chassis_model || null,
-                revision_no: uploadForm.revision_no?.trim() || null,
+                revision_no: null,
+                document_type: REGISTRY_VEHICLE_FILE_DEFAULTS.document_type,
+                document_group: REGISTRY_VEHICLE_FILE_DEFAULTS.document_group,
                 document_description: uploadForm.document_description?.trim() || null,
             };
 
-            const scopePath = uploadForm.scope_type === 'model'
-                ? `models/${sanitizeFileName(uploadForm.vehicle_category || 'genel')}/${sanitizeFileName(uploadForm.vehicle_model_code || 'model')}`
-                : `vehicles/${sanitizeFileName(uploadForm.vehicle_serial_number || uploadForm.vehicle_registry_id || 'genel')}`;
+            const scopePath = `vehicles/${sanitizeFileName(uploadForm.vehicle_serial_number || uploadForm.vehicle_registry_id || 'genel')}`;
 
             for (const file of selectedFiles) {
                 const filePath = `${scopePath}/${Date.now()}-${sanitizeFileName(file.name)}`;
@@ -642,8 +645,8 @@ const VehicleFileArchiveTab = () => {
 
             setUploadForm(EMPTY_UPLOAD_FORM);
             setSelectedFiles([]);
-            setUploadOpen(false);
-            loadFiles();
+            setRegistryDialogOpen(false);
+            loadAll();
         } catch (error) {
             console.error('Vehicle archive upload error:', error);
             toast({
@@ -655,6 +658,8 @@ const VehicleFileArchiveTab = () => {
             setIsUploading(false);
         }
     };
+
+    const [deleteConfirm, setDeleteConfirm] = useState({ open: false, type: null, target: null });
 
     const handleDelete = async (record) => {
         try {
@@ -686,6 +691,39 @@ const VehicleFileArchiveTab = () => {
         }
     };
 
+    const confirmDeleteFile = (record) => {
+        setDeleteConfirm({ open: true, type: 'file', target: record });
+    };
+
+    const handleDeleteRegistry = async (registryRecord) => {
+        try {
+            const linkedFiles = files.filter((f) => f.vehicle_registry_id === registryRecord.id);
+            for (const f of linkedFiles) {
+                await supabase.storage.from('after_sales_files').remove([f.file_path]);
+                await supabase.from('after_sales_vehicle_files').delete().eq('id', f.id);
+            }
+            const { error } = await supabase.from('after_sales_vehicle_registry').delete().eq('id', registryRecord.id);
+            if (error) throw error;
+            toast({ title: 'Silindi', description: 'Araç sicil kaydı ve bağlı dosyalar silindi.' });
+            loadAll();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Silme Hatası', description: error.message || 'Araç sicil kaydı silinemedi.' });
+        }
+    };
+
+    const confirmDeleteRegistry = (record) => {
+        setDeleteConfirm({ open: true, type: 'registry', target: record });
+    };
+
+    const executeDeleteConfirm = async () => {
+        if (deleteConfirm.type === 'file') {
+            await handleDelete(deleteConfirm.target);
+        } else if (deleteConfirm.type === 'registry') {
+            await handleDeleteRegistry(deleteConfirm.target);
+        }
+        setDeleteConfirm({ open: false, type: null, target: null });
+    };
+
     const openFile = async (record, download = false) => {
         try {
             const { data, error } = await supabase.storage
@@ -714,6 +752,147 @@ const VehicleFileArchiveTab = () => {
         }
     };
 
+    const selectedUploadRegistry = useMemo(
+        () => registryRecords.find((r) => r.id === uploadForm.vehicle_registry_id),
+        [registryRecords, uploadForm.vehicle_registry_id]
+    );
+
+    const registryFormContent = (
+        <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="xl:col-span-2">
+                    <Label>Müşteri</Label>
+                    <SearchableSelectDialog
+                        options={customerOptions}
+                        value={registryForm.customer_id}
+                        onChange={(value) => handleRegistryInputChange('customer_id', value)}
+                        triggerPlaceholder="Müşteri seçin..."
+                        dialogTitle="Müşteri Seç"
+                        searchPlaceholder="Müşteri ara..."
+                        notFoundText="Müşteri bulunamadı."
+                        allowClear
+                    />
+                </div>
+                <div>
+                    <Label>Araç Kategorisi</Label>
+                    <Select value={registryForm.vehicle_category || 'none'} onValueChange={(value) => handleRegistryInputChange('vehicle_category', value === 'none' ? '' : value)}>
+                        <SelectTrigger><SelectValue placeholder="Kategori seçin" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">Belirtilmedi</SelectItem>
+                            {VEHICLE_CATEGORY_OPTIONS.map((option) => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <Label>Model Kodu</Label>
+                    <Select value={registryForm.vehicle_model_code || 'none'} onValueChange={(value) => handleRegistryInputChange('vehicle_model_code', value === 'none' ? '' : value)} disabled={!registryForm.vehicle_category}>
+                        <SelectTrigger><SelectValue placeholder="Önce kategori seçin" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">Belirtilmedi</SelectItem>
+                            {getVehicleModelsForCategory(registryForm.vehicle_category).map((option) => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div><Label htmlFor="vehicle_serial_number">Seri No</Label><Input id="vehicle_serial_number" value={registryForm.vehicle_serial_number} onChange={(event) => handleRegistryInputChange('vehicle_serial_number', event.target.value)} /></div>
+                <div><Label htmlFor="vehicle_chassis_number">Şasi No</Label><Input id="vehicle_chassis_number" value={registryForm.vehicle_chassis_number} onChange={(event) => handleRegistryInputChange('vehicle_chassis_number', event.target.value)} /></div>
+                <div><Label htmlFor="vehicle_plate_number">Plaka</Label><Input id="vehicle_plate_number" value={registryForm.vehicle_plate_number} onChange={(event) => handleRegistryInputChange('vehicle_plate_number', event.target.value)} placeholder="Örn. 34 ABC 123" /></div>
+                <div>
+                    <Label htmlFor="warranty_document_no">Garanti Belge No</Label>
+                    {editingRegistry ? (
+                        <Input id="warranty_document_no" value={registryForm.warranty_document_no} onChange={(event) => handleRegistryInputChange('warranty_document_no', event.target.value)} />
+                    ) : (
+                        <>
+                            <Input id="warranty_document_no" readOnly value={registryForm.warranty_document_no} className="bg-muted" />
+                            <p className="text-xs text-muted-foreground mt-1">GB-YYYY-#### sırası otomatik; vaka kayıtlarıyla aynı numaralandırma.</p>
+                        </>
+                    )}
+                </div>
+
+                {requiresChassisSelection(registryForm.vehicle_category) && (
+                    <>
+                        <div>
+                            <Label>Şase Sağlayıcısı</Label>
+                            <Select value={registryForm.chassis_brand || 'none'} onValueChange={(value) => handleRegistryInputChange('chassis_brand', value === 'none' ? '' : value)}>
+                                <SelectTrigger><SelectValue placeholder="Şase markası seçin" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Belirtilmedi</SelectItem>
+                                    {CHASSIS_BRAND_OPTIONS.map((option) => (
+                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Şase Modeli</Label>
+                            <Select value={registryForm.chassis_model || 'none'} onValueChange={(value) => handleRegistryInputChange('chassis_model', value === 'none' ? '' : value)} disabled={!registryForm.chassis_brand}>
+                                <SelectTrigger><SelectValue placeholder="Önce şase markası seçin" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Belirtilmedi</SelectItem>
+                                    {getChassisModelsForBrand(registryForm.chassis_brand).map((option) => (
+                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </>
+                )}
+
+                <div><Label htmlFor="engine_brand">Motor Markası</Label><Input id="engine_brand" value={registryForm.engine_brand} onChange={(event) => handleRegistryInputChange('engine_brand', event.target.value)} /></div>
+                <div><Label htmlFor="engine_model">Motor Modeli</Label><Input id="engine_model" value={registryForm.engine_model} onChange={(event) => handleRegistryInputChange('engine_model', event.target.value)} /></div>
+                <div><Label htmlFor="engine_serial_number">Motor Seri No</Label><Input id="engine_serial_number" value={registryForm.engine_serial_number} onChange={(event) => handleRegistryInputChange('engine_serial_number', event.target.value)} /></div>
+                <div><Label htmlFor="production_date">Üretim Tarihi</Label><Input id="production_date" type="date" value={registryForm.production_date} onChange={(event) => handleRegistryInputChange('production_date', event.target.value)} /></div>
+                <div><Label htmlFor="delivery_date">Teslim Tarihi</Label><Input id="delivery_date" type="date" value={registryForm.delivery_date} onChange={(event) => handleRegistryInputChange('delivery_date', event.target.value)} /></div>
+
+                <div>
+                    <Label>Garanti durumu</Label>
+                    <Select value={registryForm.warranty_status || 'none'} onValueChange={(value) => handleRegistryInputChange('warranty_status', value === 'none' ? '' : value)}>
+                        <SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">Belirtilmedi</SelectItem>
+                            {WARRANTY_STATUS_OPTIONS.map((option) => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div><Label htmlFor="warranty_start_date">Garanti başlangıç</Label><Input id="warranty_start_date" type="date" value={registryForm.warranty_start_date} onChange={(event) => handleRegistryInputChange('warranty_start_date', event.target.value)} /></div>
+                <div><Label htmlFor="warranty_end_date">Garanti bitiş</Label><Input id="warranty_end_date" type="date" value={registryForm.warranty_end_date} onChange={(event) => handleRegistryInputChange('warranty_end_date', event.target.value)} /></div>
+            </div>
+
+            <div>
+                <Label htmlFor="notes">Ek Notlar</Label>
+                <Textarea id="notes" rows={4} value={registryForm.notes} onChange={(event) => handleRegistryInputChange('notes', event.target.value)} placeholder="Araç kimlik kartına eklemek istediğiniz diğer bilgiler..." />
+            </div>
+
+            <div className="rounded-xl border border-border p-4 space-y-2">
+                <p className="text-sm font-medium">PDF (isteğe bağlı)</p>
+                <p className="text-xs text-muted-foreground">Kayıtla birlikte yüklenir; ek seçim gerekmez.</p>
+                <Input
+                    id="registry_files"
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    multiple
+                    onChange={(event) => setRegistrySelectedFiles(Array.from(event.target.files || []))}
+                />
+                {registrySelectedFiles.length > 0 && (
+                    <div className="space-y-1 text-sm text-muted-foreground pt-1">
+                        {registrySelectedFiles.map((file) => (
+                            <div key={`${file.name}-${file.size}`} className="flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                <span>{file.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
     if (loading) {
         return (
             <Card>
@@ -731,26 +910,21 @@ const VehicleFileArchiveTab = () => {
                 <div>
                     <h3 className="text-lg font-semibold">Araç Arşivi ve Doküman Merkezi</h3>
                     <p className="text-sm text-muted-foreground">
-                        Fabrikadan sevk edilen tüm araçların kimlik kartlarını, logbook taramalarını, garanti evraklarını ve model bazlı kullanıcı dokümanlarını tek merkezde yönetin.
+                        Araç kimliği, logbook ve sicile özel tüm evrakları <span className="font-medium text-foreground">Araç Sicili</span> kayıtları üzerinden yükleyip takip edin.
                     </p>
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-                    <Button variant="outline" className="h-11 px-5" onClick={() => openUploadDialog('model')}>
-                        <FolderKanban className="w-4 h-4 mr-2" />
-                        Model Dokümanı Yükle
-                    </Button>
                     <Button className="h-11 px-5" onClick={openNewRegistryDialog}>
                         <Plus className="w-4 h-4 mr-2" />
-                        Araç Sicili ve Dosya Ekle
+                        Sicil ve Dosya
                     </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">Sevk Edilen Araç</div><div className="text-3xl font-bold mt-2">{stats.totalVehicles}</div></CardContent></Card>
                 <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">Sicile Bağlı Dosya</div><div className="text-3xl font-bold mt-2 text-amber-600">{stats.linkedVehicleDocs}</div></CardContent></Card>
                 <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">Araç Dosyaları</div><div className="text-3xl font-bold mt-2 text-blue-600">{stats.totalVehicleDocs}</div></CardContent></Card>
-                <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">Model Dokümanları</div><div className="text-3xl font-bold mt-2 text-emerald-600">{stats.totalModelDocs}</div></CardContent></Card>
                 <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">Logbook Taraması</div><div className="text-3xl font-bold mt-2 text-violet-600">{stats.logbooks}</div></CardContent></Card>
             </div>
 
@@ -806,23 +980,17 @@ const VehicleFileArchiveTab = () => {
                 </Card>
             )}
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-1 md:grid-cols-3">
-                    <TabsTrigger value="registry">
-                        <CarFront className="w-4 h-4 mr-2" />
-                        Araç Sicili
-                    </TabsTrigger>
-                    <TabsTrigger value="vehicle-files">
-                        <Archive className="w-4 h-4 mr-2" />
-                        Araç Dosyaları
-                    </TabsTrigger>
-                    <TabsTrigger value="model-docs">
-                        <FolderKanban className="w-4 h-4 mr-2" />
-                        Model Dokümanları
-                    </TabsTrigger>
-                </TabsList>
+            <div className="flex items-center gap-2 flex-wrap mb-4">
+                <Badge variant={activeTab === 'registry' ? 'default' : 'outline'} className="cursor-pointer px-3 py-1.5 text-sm" onClick={() => setActiveTab('registry')}>
+                    <CarFront className="w-3.5 h-3.5 mr-1.5" /> Araç Sicili ({filteredRegistryRecords.length})
+                </Badge>
+                <Badge variant={activeTab === 'vehicle-files' ? 'default' : 'outline'} className="cursor-pointer px-3 py-1.5 text-sm" onClick={() => setActiveTab('vehicle-files')}>
+                    <Archive className="w-3.5 h-3.5 mr-1.5" /> Araç Dosyaları ({vehicleFiles.length})
+                </Badge>
+            </div>
 
-                <TabsContent value="registry" className="space-y-4 mt-6">
+            {activeTab === 'registry' && (
+                <div className="space-y-4">
                     {filteredRegistryRecords.length === 0 ? (
                         <Card>
                             <CardContent className="py-12 text-center text-muted-foreground">
@@ -830,74 +998,147 @@ const VehicleFileArchiveTab = () => {
                             </CardContent>
                         </Card>
                     ) : (
-                        filteredRegistryRecords.map((record) => {
-                            const relatedComplaintCount = customerComplaints.filter((complaint) =>
-                                (record.vehicle_serial_number && complaint.vehicle_serial_number === record.vehicle_serial_number) ||
-                                (record.vehicle_chassis_number && complaint.vehicle_chassis_number === record.vehicle_chassis_number)
-                            ).length;
-                            const relatedDocumentCount = files.filter((file) =>
-                                file.vehicle_registry_id === record.id ||
-                                (record.vehicle_serial_number && file.vehicle_serial_number === record.vehicle_serial_number)
-                            ).length;
-
-                            return (
-                                <Card key={record.id} className="border-muted/70">
-                                    <CardHeader>
-                                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <Badge variant="outline">{record.vehicle_category}</Badge>
-                                                    <Badge variant="secondary">{record.vehicle_model_code}</Badge>
-                                                    {record.chassis_brand && <Badge variant="outline">{record.chassis_brand}</Badge>}
-                                                </div>
-                                                <CardTitle>{record.vehicle_model_name || record.vehicle_model_code}</CardTitle>
-                                                <CardDescription>
-                                                    {getCustomerDisplayName(record.customer)}{record.customer?.customer_code ? ` • ${record.customer.customer_code}` : ''}
-                                                </CardDescription>
-                                            </div>
-
-                                            <div className="flex flex-wrap gap-2">
-                                                <Button size="sm" variant="outline" onClick={() => openEditRegistryDialog(record)}>
-                                                    <Pencil className="w-4 h-4 mr-2" />
-                                                    Sicili ve Dosyaları Yönet
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-sm">
-                                            <div className="rounded-lg border p-3"><div className="text-muted-foreground">Seri No</div><div className="font-medium mt-1">{record.vehicle_serial_number || '-'}</div></div>
-                                            <div className="rounded-lg border p-3"><div className="text-muted-foreground">Şasi No</div><div className="font-medium mt-1">{record.vehicle_chassis_number || '-'}</div></div>
-                                            <div className="rounded-lg border p-3"><div className="text-muted-foreground">Şase Sağlayıcısı</div><div className="font-medium mt-1">{record.chassis_brand || '-'}{record.chassis_model ? ` • ${record.chassis_model}` : ''}</div></div>
-                                            <div className="rounded-lg border p-3"><div className="text-muted-foreground">Motor</div><div className="font-medium mt-1">{record.engine_brand || '-'}{record.engine_model ? ` • ${record.engine_model}` : ''}</div></div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-sm">
-                                            <div className="rounded-lg bg-muted/40 p-3"><div className="text-muted-foreground">Motor Seri No</div><div className="font-medium mt-1">{record.engine_serial_number || '-'}</div></div>
-                                            <div className="rounded-lg bg-muted/40 p-3"><div className="text-muted-foreground">Teslim Tarihi</div><div className="font-medium mt-1">{formatDate(record.delivery_date)}</div></div>
-                                            <div className="rounded-lg bg-muted/40 p-3"><div className="text-muted-foreground">Üretim Tarihi</div><div className="font-medium mt-1">{formatDate(record.production_date)}</div></div>
-                                            <div className="rounded-lg bg-muted/40 p-3"><div className="text-muted-foreground">Bağlı Vaka</div><div className="font-medium mt-1">{relatedComplaintCount}</div></div>
-                                        </div>
-
-                                        {(record.warranty_document_no || record.notes) && (
-                                            <div className="text-sm text-muted-foreground space-y-1">
-                                                {record.warranty_document_no && <div>Garanti Belge No: {record.warranty_document_no}</div>}
-                                                {record.notes && <div className="mt-1 whitespace-pre-wrap">{record.notes}</div>}
-                                            </div>
-                                        )}
-
-                                        <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                                            Bu araç için arşivde <span className="font-semibold text-foreground">{relatedDocumentCount}</span> dosya bulunuyor. Logbook, araç kimlik kartı ve servis dokümanlarını doğrudan bu sicile bağlayabilirsin.
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })
+                        <Card className="overflow-hidden border-muted/60 shadow-sm">
+                            <CardContent className="p-0">
+                                <Table className="min-w-[1200px]">
+                                    <TableHeader>
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableHead className="min-w-[140px]">Araç</TableHead>
+                                            <TableHead className="min-w-[120px]">Müşteri</TableHead>
+                                            <TableHead className="min-w-[100px] whitespace-nowrap">Seri no</TableHead>
+                                            <TableHead className="min-w-[100px]">Şasi</TableHead>
+                                            <TableHead className="min-w-[88px] font-semibold text-foreground">Plaka</TableHead>
+                                            <TableHead className="min-w-[120px]">Motor</TableHead>
+                                            <TableHead className="min-w-[88px] whitespace-nowrap">Teslim</TableHead>
+                                            <TableHead className="min-w-[100px]">Garanti no</TableHead>
+                                            <TableHead className="min-w-[110px]">Garanti durumu</TableHead>
+                                            <TableHead className="min-w-[92px] whitespace-nowrap">Bitiş</TableHead>
+                                            <TableHead className="w-14 text-center">Dosya</TableHead>
+                                            <TableHead className="w-12 text-center">Vaka</TableHead>
+                                            <TableHead className="w-[84px] text-right pr-3">İşlem</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredRegistryRecords.map((record) => {
+                                            const { relatedComplaintCount, relatedDocumentCount } =
+                                                registryTableMeta.get(record.id) || { relatedComplaintCount: 0, relatedDocumentCount: 0 };
+                                            const motorLabel = [record.engine_brand, record.engine_model].filter(Boolean).join(' · ') || '—';
+                                            const customerLabel = getCustomerDisplayName(record.customer);
+                                            const endRaw = record.warranty_end_date ? new Date(record.warranty_end_date) : null;
+                                            const warrantyExpired =
+                                                endRaw &&
+                                                !Number.isNaN(endRaw.getTime()) &&
+                                                endRaw < new Date(new Date().toDateString());
+                                            return (
+                                                <TableRow key={record.id} className="group">
+                                                    <TableCell>
+                                                        <div className="font-medium leading-tight">{record.vehicle_model_name || record.vehicle_model_code || '—'}</div>
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {record.vehicle_category && (
+                                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                                                                    {record.vehicle_category}
+                                                                </Badge>
+                                                            )}
+                                                            {record.vehicle_model_code && (
+                                                                <span className="text-[11px] text-muted-foreground">{record.vehicle_model_code}</span>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="line-clamp-2 text-muted-foreground" title={customerLabel}>
+                                                            {customerLabel}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="font-mono text-[11px] sm:text-xs tabular-nums">
+                                                        {record.vehicle_serial_number || '—'}
+                                                    </TableCell>
+                                                    <TableCell className="font-mono text-[11px] sm:text-xs max-w-[120px] truncate" title={record.vehicle_chassis_number || ''}>
+                                                        {record.vehicle_chassis_number || '—'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="font-medium tabular-nums tracking-wide">
+                                                            {record.vehicle_plate_number || '—'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="max-w-[180px]">
+                                                        <span className="line-clamp-2 text-muted-foreground text-xs" title={motorLabel}>
+                                                            {motorLabel}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground whitespace-nowrap text-xs">
+                                                        {formatDate(record.delivery_date)}
+                                                    </TableCell>
+                                                    <TableCell className="font-mono text-[11px] max-w-[120px]">
+                                                        <span className="line-clamp-1 block" title={record.warranty_document_no || ''}>
+                                                            {record.warranty_document_no || '—'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {record.warranty_status ? (
+                                                            <Badge variant={getWarrantyStatusVariant(record.warranty_status)} className="text-[10px] font-normal whitespace-nowrap">
+                                                                {record.warranty_status}
+                                                            </Badge>
+                                                        ) : (
+                                                            <span className="text-muted-foreground text-xs">—</span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="whitespace-nowrap text-xs">
+                                                        {record.warranty_end_date ? (
+                                                            <span
+                                                                className={warrantyExpired ? 'text-destructive font-medium tabular-nums' : 'text-muted-foreground tabular-nums'}
+                                                                title={warrantyExpired ? 'Garanti bitiş tarihi geçmiş' : undefined}
+                                                            >
+                                                                {formatDate(record.warranty_end_date)}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground">—</span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Badge variant="secondary" className="tabular-nums font-normal text-xs">
+                                                            {relatedDocumentCount}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-center text-muted-foreground tabular-nums text-xs">
+                                                        {relatedComplaintCount}
+                                                    </TableCell>
+                                                    <TableCell className="text-right p-1.5 sm:p-2">
+                                                        <div className="flex items-center justify-end gap-0.5">
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                                                                title="Sicil ve dosyalar"
+                                                                onClick={() => openEditRegistryDialog(record)}
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                                                title="Sicili sil"
+                                                                onClick={() => confirmDeleteRegistry(record)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
                     )}
-                </TabsContent>
+                </div>
+            )}
 
-                <TabsContent value="vehicle-files" className="space-y-4 mt-6">
+            {activeTab === 'vehicle-files' && (
+                <div className="space-y-4">
                     <Card>
                         <CardContent className="pt-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -972,425 +1213,136 @@ const VehicleFileArchiveTab = () => {
                                         <div className="flex flex-wrap gap-2">
                                             <Button size="sm" variant="outline" onClick={() => openFile(record, false)}><Eye className="w-4 h-4 mr-2" />Görüntüle</Button>
                                             <Button size="sm" variant="outline" onClick={() => openFile(record, true)}><Download className="w-4 h-4 mr-2" />İndir</Button>
-                                            <Button size="sm" variant="destructive" onClick={() => handleDelete(record)}><Trash2 className="w-4 h-4 mr-2" />Sil</Button>
+                                            <Button size="sm" variant="destructive" onClick={() => confirmDeleteFile(record)}><Trash2 className="w-4 h-4 mr-2" />Sil</Button>
                                         </div>
                                     </CardContent>
                                 </Card>
                             ))}
                         </div>
                     )}
-                </TabsContent>
+                </div>
+            )}
 
-                <TabsContent value="model-docs" className="space-y-4 mt-6">
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Select value={documentTypeFilter} onValueChange={setDocumentTypeFilter}>
-                                    <SelectTrigger><SelectValue placeholder="Tüm Doküman Tipleri" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tüm Doküman Tipleri</SelectItem>
-                                        {VEHICLE_FILE_TYPES.map((type) => (
-                                            <SelectItem key={type} value={type}>{type}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Button className="justify-self-start md:justify-self-end" onClick={() => openUploadDialog('model')}>
-                                    <FolderKanban className="w-4 h-4 mr-2" />
-                                    Model Dokümanı Yükle
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {modelDocuments.length === 0 ? (
-                        <Card><CardContent className="py-12 text-center text-muted-foreground">{files.filter((record) => record.scope_type === 'model').length === 0 ? 'Henüz model bazlı doküman eklenmemiş.' : 'Filtreye uyan model dokümanı bulunamadı.'}</CardContent></Card>
-                    ) : (
-                        <div className="space-y-4">
-                            {modelDocuments.map((record) => (
-                                <Card key={record.id}>
-                                    <CardHeader className="pb-3">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <Badge variant="outline">{record.vehicle_category || '-'}</Badge>
-                                                    <Badge variant="secondary">{record.vehicle_model_code || '-'}</Badge>
-                                                    {record.document_group && <Badge variant="outline">{record.document_group}</Badge>}
-                                                </div>
-                                                <CardTitle className="text-base mt-2">{record.document_name}</CardTitle>
-                                                <CardDescription>
-                                                    {record.document_type}
-                                                    {record.chassis_brand ? ` • ${record.chassis_brand}` : ''}
-                                                    {record.chassis_model ? ` / ${record.chassis_model}` : ''}
-                                                </CardDescription>
-                                            </div>
-                                            <div className="p-2 rounded-lg bg-muted/60">
-                                                {getFileIcon(record.file_type)}
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-
-                                    <CardContent className="space-y-4">
-                                        {record.document_description && (
-                                            <div className="text-sm text-muted-foreground whitespace-pre-wrap">{record.document_description}</div>
-                                        )}
-
-                                        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                                            <span>{new Date(record.upload_date || record.created_at).toLocaleString('tr-TR')}</span>
-                                            {record.revision_no && <span>Revizyon: {record.revision_no}</span>}
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-2">
-                                            <Button size="sm" variant="outline" onClick={() => openFile(record, false)}><Eye className="w-4 h-4 mr-2" />Görüntüle</Button>
-                                            <Button size="sm" variant="outline" onClick={() => openFile(record, true)}><Download className="w-4 h-4 mr-2" />İndir</Button>
-                                            <Button size="sm" variant="destructive" onClick={() => handleDelete(record)}><Trash2 className="w-4 h-4 mr-2" />Sil</Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    )}
-                </TabsContent>
-            </Tabs>
-
-            <Dialog open={isRegistryDialogOpen} onOpenChange={setRegistryDialogOpen}>
+            <Dialog
+                open={isRegistryDialogOpen}
+                onOpenChange={(open) => {
+                    setRegistryDialogOpen(open);
+                    if (!open) {
+                        setEditingRegistry(null);
+                    }
+                }}
+            >
                 <DialogContent className="sm:max-w-6xl w-[96vw] max-h-[95vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>{editingRegistry ? 'Araç Sicili ve Dosyalarını Yönet' : 'Yeni Araç Sicili ve Dosya Oluştur'}</DialogTitle>
+                        <DialogTitle>{editingRegistry ? 'Araç Sicili ve Dosyalarını Yönet' : 'Sicil ve Dosya'}</DialogTitle>
                     </DialogHeader>
 
-                    <div className="space-y-5">
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            <div className="xl:col-span-2">
-                                <Label>Müşteri</Label>
+                    {editingRegistry ? (
+                        registryFormContent
+                    ) : (
+                        <div className="space-y-6">
+                            <div>
+                                <Label>Kayıtlı sicil</Label>
                                 <SearchableSelectDialog
-                                    options={customerOptions}
-                                    value={registryForm.customer_id}
-                                    onChange={(value) => handleRegistryInputChange('customer_id', value)}
-                                    triggerPlaceholder="Müşteri seçin..."
-                                    dialogTitle="Müşteri Seç"
-                                    searchPlaceholder="Müşteri ara..."
-                                    notFoundText="Müşteri bulunamadı."
+                                    options={registryOptions}
+                                    value={uploadForm.vehicle_registry_id}
+                                    onChange={(value) => handleUploadInputChange('vehicle_registry_id', value)}
+                                    triggerPlaceholder="Seçin veya boş bırakın…"
+                                    dialogTitle="Araç Sicili Seç"
+                                    searchPlaceholder="Seri no, plaka veya model ile ara…"
+                                    notFoundText="Araç bulunamadı."
                                     allowClear
                                 />
-                            </div>
-                            <div>
-                                <Label>Araç Kategorisi</Label>
-                                <Select value={registryForm.vehicle_category || 'none'} onValueChange={(value) => handleRegistryInputChange('vehicle_category', value === 'none' ? '' : value)}>
-                                    <SelectTrigger><SelectValue placeholder="Kategori seçin" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">Belirtilmedi</SelectItem>
-                                        {VEHICLE_CATEGORY_OPTIONS.map((option) => (
-                                            <SelectItem key={option} value={option}>{option}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label>Model Kodu</Label>
-                                <Select value={registryForm.vehicle_model_code || 'none'} onValueChange={(value) => handleRegistryInputChange('vehicle_model_code', value === 'none' ? '' : value)} disabled={!registryForm.vehicle_category}>
-                                    <SelectTrigger><SelectValue placeholder="Önce kategori seçin" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">Belirtilmedi</SelectItem>
-                                        {getVehicleModelsForCategory(registryForm.vehicle_category).map((option) => (
-                                            <SelectItem key={option} value={option}>{option}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <p className="text-xs text-muted-foreground mt-1.5">
+                                    PDF yüklemek için sicil seçin; yeni sicil oluşturmak için boş bırakın.
+                                </p>
                             </div>
 
-                            <div><Label htmlFor="vehicle_serial_number">Seri No</Label><Input id="vehicle_serial_number" value={registryForm.vehicle_serial_number} onChange={(event) => handleRegistryInputChange('vehicle_serial_number', event.target.value)} /></div>
-                            <div><Label htmlFor="vehicle_chassis_number">Şasi No</Label><Input id="vehicle_chassis_number" value={registryForm.vehicle_chassis_number} onChange={(event) => handleRegistryInputChange('vehicle_chassis_number', event.target.value)} /></div>
-                            <div><Label htmlFor="warranty_document_no">Garanti Belge No</Label><Input id="warranty_document_no" value={registryForm.warranty_document_no} onChange={(event) => handleRegistryInputChange('warranty_document_no', event.target.value)} /></div>
-
-                            {requiresChassisSelection(registryForm.vehicle_category) && (
-                                <>
-                                    <div>
-                                        <Label>Şase Sağlayıcısı</Label>
-                                        <Select value={registryForm.chassis_brand || 'none'} onValueChange={(value) => handleRegistryInputChange('chassis_brand', value === 'none' ? '' : value)}>
-                                            <SelectTrigger><SelectValue placeholder="Şase markası seçin" /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">Belirtilmedi</SelectItem>
-                                                {CHASSIS_BRAND_OPTIONS.map((option) => (
-                                                    <SelectItem key={option} value={option}>{option}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label>Şase Modeli</Label>
-                                        <Select value={registryForm.chassis_model || 'none'} onValueChange={(value) => handleRegistryInputChange('chassis_model', value === 'none' ? '' : value)} disabled={!registryForm.chassis_brand}>
-                                            <SelectTrigger><SelectValue placeholder="Önce şase markası seçin" /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">Belirtilmedi</SelectItem>
-                                                {getChassisModelsForBrand(registryForm.chassis_brand).map((option) => (
-                                                    <SelectItem key={option} value={option}>{option}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </>
-                            )}
-
-                            <div><Label htmlFor="engine_brand">Motor Markası</Label><Input id="engine_brand" value={registryForm.engine_brand} onChange={(event) => handleRegistryInputChange('engine_brand', event.target.value)} /></div>
-                            <div><Label htmlFor="engine_model">Motor Modeli</Label><Input id="engine_model" value={registryForm.engine_model} onChange={(event) => handleRegistryInputChange('engine_model', event.target.value)} /></div>
-                            <div><Label htmlFor="engine_serial_number">Motor Seri No</Label><Input id="engine_serial_number" value={registryForm.engine_serial_number} onChange={(event) => handleRegistryInputChange('engine_serial_number', event.target.value)} /></div>
-                            <div><Label htmlFor="production_date">Üretim Tarihi</Label><Input id="production_date" type="date" value={registryForm.production_date} onChange={(event) => handleRegistryInputChange('production_date', event.target.value)} /></div>
-                            <div><Label htmlFor="delivery_date">Teslim Tarihi</Label><Input id="delivery_date" type="date" value={registryForm.delivery_date} onChange={(event) => handleRegistryInputChange('delivery_date', event.target.value)} /></div>
-                        </div>
-
-                        <div>
-                            <Label htmlFor="notes">Ek Notlar</Label>
-                            <Textarea id="notes" rows={4} value={registryForm.notes} onChange={(event) => handleRegistryInputChange('notes', event.target.value)} placeholder="Araç kimlik kartına eklemek istediğiniz diğer bilgiler..." />
-                        </div>
-
-                        <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 space-y-4">
-                            <div>
-                                <div className="font-medium">Yeni Sicille Birlikte Dosya Ekle</div>
-                                <div className="text-sm text-muted-foreground mt-1">
-                                    Logbook, araç kimlik dosyası veya garanti belgesini araç sicili kaydolurken aynı anda yükleyebilirsin.
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                <div>
-                                    <Label>Doküman Tipi</Label>
-                                    <Select value={registryFileMeta.document_type} onValueChange={(value) => setRegistryFileMeta((prev) => ({ ...prev, document_type: value }))}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {VEHICLE_FILE_TYPES.map((type) => (
-                                                <SelectItem key={type} value={type}>{type}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label>Doküman Grubu</Label>
-                                    <Select value={registryFileMeta.document_group} onValueChange={(value) => setRegistryFileMeta((prev) => ({ ...prev, document_group: value }))}>
-                                        <SelectTrigger className="h-auto min-h-11"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {DOCUMENT_GROUP_OPTIONS.map((group) => (
-                                                <SelectItem key={group} value={group}>{group}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label htmlFor="registry_files">Dosyalar</Label>
-                                    <Input id="registry_files" type="file" multiple onChange={(event) => setRegistrySelectedFiles(Array.from(event.target.files || []))} />
-                                </div>
-                            </div>
-
-                            <div>
-                                <Label htmlFor="registry_document_description">Dosya Açıklaması</Label>
-                                <Textarea id="registry_document_description" rows={3} value={registryFileMeta.document_description} onChange={(event) => setRegistryFileMeta((prev) => ({ ...prev, document_description: event.target.value }))} placeholder="Örn. sevk logbook taraması, araç kimlik kartı, garanti teslim belgesi..." />
-                            </div>
-
-                            {registrySelectedFiles.length > 0 && (
-                                <div className="space-y-1 text-sm text-muted-foreground">
-                                    {registrySelectedFiles.map((file) => (
-                                        <div key={`${file.name}-${file.size}`} className="flex items-center gap-2">
-                                            <FileText className="w-4 h-4" />
-                                            <span>{file.name}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setRegistryDialogOpen(false)} disabled={isSavingRegistry}>İptal</Button>
-                        <Button onClick={handleSaveRegistry} disabled={isSavingRegistry}>
-                            {isSavingRegistry ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Kaydediliyor...</> : 'Kaydet'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isUploadOpen} onOpenChange={setUploadOpen}>
-                <DialogContent className="sm:max-w-6xl w-[96vw] max-h-[95vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>{uploadForm.scope_type === 'model' ? 'Model Dokümanı Yükle' : 'Araç Dosyası Yükle'}</DialogTitle>
-                    </DialogHeader>
-
-                    <div className="space-y-5">
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            <div>
-                                <Label>Doküman Kapsamı</Label>
-                                <Select value={uploadForm.scope_type} onValueChange={(value) => handleUploadInputChange('scope_type', value)}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="vehicle">Araç Dosyası</SelectItem>
-                                        <SelectItem value="model">Model Bazlı Doküman</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label>Doküman Tipi</Label>
-                                <Select value={uploadForm.document_type} onValueChange={(value) => handleUploadInputChange('document_type', value)}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        {VEHICLE_FILE_TYPES.map((type) => (
-                                            <SelectItem key={type} value={type}>{type}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label>Doküman Grubu</Label>
-                                <Select value={uploadForm.document_group} onValueChange={(value) => handleUploadInputChange('document_group', value)}>
-                                    <SelectTrigger className="h-auto min-h-11"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        {DOCUMENT_GROUP_OPTIONS.map((group) => (
-                                            <SelectItem key={group} value={group}>{group}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label htmlFor="revision_no">Revizyon No</Label>
-                                <Input id="revision_no" value={uploadForm.revision_no} onChange={(event) => handleUploadInputChange('revision_no', event.target.value)} />
-                            </div>
-
-                            {uploadForm.scope_type === 'vehicle' ? (
-                                <>
-                                    <div className="xl:col-span-2">
-                                        <Label>Araç Sicil Kaydı</Label>
-                                        <SearchableSelectDialog
-                                            options={registryOptions}
-                                            value={uploadForm.vehicle_registry_id}
-                                            onChange={(value) => handleUploadInputChange('vehicle_registry_id', value)}
-                                            triggerPlaceholder="Araç sicil kaydı seçin..."
-                                            dialogTitle="Araç Sicili Seç"
-                                            searchPlaceholder="Seri no veya model ile ara..."
-                                            notFoundText="Araç bulunamadı."
-                                            allowClear
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label>Müşteri</Label>
-                                        <SearchableSelectDialog
-                                            options={customerOptions}
-                                            value={uploadForm.customer_id}
-                                            onChange={(value) => handleUploadInputChange('customer_id', value)}
-                                            triggerPlaceholder="Müşteri seçin..."
-                                            dialogTitle="Müşteri Seç"
-                                            searchPlaceholder="Müşteri ara..."
-                                            notFoundText="Müşteri bulunamadı."
-                                            allowClear
-                                        />
-                                    </div>
-                                    <div className="xl:col-span-3">
-                                        <Label>İlişkili Vaka</Label>
-                                        <SearchableSelectDialog
-                                            options={caseOptions}
-                                            value={uploadForm.related_complaint_id}
-                                            onChange={(value) => handleUploadInputChange('related_complaint_id', value)}
-                                            triggerPlaceholder="Vaka seçin..."
-                                            dialogTitle="Vaka Seç"
-                                            searchPlaceholder="Vaka ara..."
-                                            notFoundText="Vaka bulunamadı."
-                                            allowClear
-                                        />
-                                    </div>
-
-                                    <div><Label htmlFor="vehicle_serial_number">Seri No *</Label><Input id="vehicle_serial_number" value={uploadForm.vehicle_serial_number} onChange={(event) => handleUploadInputChange('vehicle_serial_number', event.target.value)} /></div>
-                                    <div><Label htmlFor="vehicle_chassis_number">Şasi No</Label><Input id="vehicle_chassis_number" value={uploadForm.vehicle_chassis_number} onChange={(event) => handleUploadInputChange('vehicle_chassis_number', event.target.value)} /></div>
-                                    <div><Label htmlFor="vehicle_model">Araç / Model</Label><Input id="vehicle_model" value={uploadForm.vehicle_model} onChange={(event) => handleUploadInputChange('vehicle_model', event.target.value)} /></div>
-                                    <div><Label htmlFor="vehicle_plate_number">Plaka</Label><Input id="vehicle_plate_number" value={uploadForm.vehicle_plate_number} onChange={(event) => handleUploadInputChange('vehicle_plate_number', event.target.value)} /></div>
-                                    <div><Label htmlFor="delivery_date">Teslim Tarihi</Label><Input id="delivery_date" type="date" value={uploadForm.delivery_date} onChange={(event) => handleUploadInputChange('delivery_date', event.target.value)} /></div>
-                                </>
+                            {!uploadForm.vehicle_registry_id ? (
+                                registryFormContent
                             ) : (
-                                <>
-                                    <div>
-                                        <Label>Araç Kategorisi</Label>
-                                        <Select value={uploadForm.vehicle_category || 'none'} onValueChange={(value) => handleUploadInputChange('vehicle_category', value === 'none' ? '' : value)}>
-                                            <SelectTrigger><SelectValue placeholder="Kategori seçin" /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">Belirtilmedi</SelectItem>
-                                                {VEHICLE_CATEGORY_OPTIONS.map((option) => (
-                                                    <SelectItem key={option} value={option}>{option}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label>Model Kodu</Label>
-                                        <Select value={uploadForm.vehicle_model_code || 'none'} onValueChange={(value) => handleUploadInputChange('vehicle_model_code', value === 'none' ? '' : value)} disabled={!uploadForm.vehicle_category}>
-                                            <SelectTrigger><SelectValue placeholder="Önce kategori seçin" /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">Belirtilmedi</SelectItem>
-                                                {getVehicleModelsForCategory(uploadForm.vehicle_category).map((option) => (
-                                                    <SelectItem key={option} value={option}>{option}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    {requiresChassisSelection(uploadForm.vehicle_category) && (
-                                        <>
+                                <div className="space-y-4">
+                                    {selectedUploadRegistry && (
+                                        <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground space-y-1.5">
                                             <div>
-                                                <Label>Şase Sağlayıcısı</Label>
-                                                <Select value={uploadForm.chassis_brand || 'none'} onValueChange={(value) => handleUploadInputChange('chassis_brand', value === 'none' ? '' : value)}>
-                                                    <SelectTrigger><SelectValue placeholder="Şase markası seçin" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">Belirtilmedi</SelectItem>
-                                                        {CHASSIS_BRAND_OPTIONS.map((option) => (
-                                                            <SelectItem key={option} value={option}>{option}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                <span className="font-semibold text-foreground">{selectedUploadRegistry.warranty_document_no || '—'}</span>
+                                                {' · '}
+                                                {selectedUploadRegistry.vehicle_serial_number || '—'}
+                                                {selectedUploadRegistry.vehicle_plate_number ? ` · ${selectedUploadRegistry.vehicle_plate_number}` : ''}
+                                                {' · '}
+                                                {selectedUploadRegistry.vehicle_model_code || selectedUploadRegistry.vehicle_model_name || '—'}
                                             </div>
-                                            <div>
-                                                <Label>Şase Modeli</Label>
-                                                <Select value={uploadForm.chassis_model || 'none'} onValueChange={(value) => handleUploadInputChange('chassis_model', value === 'none' ? '' : value)} disabled={!uploadForm.chassis_brand}>
-                                                    <SelectTrigger><SelectValue placeholder="Önce şase markası seçin" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">Belirtilmedi</SelectItem>
-                                                        {getChassisModelsForBrand(uploadForm.chassis_brand).map((option) => (
-                                                            <SelectItem key={option} value={option}>{option}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </>
-                                    )}
-                                </>
-                            )}
-                        </div>
-
-                        <div>
-                            <Label htmlFor="document_description">Açıklama</Label>
-                            <Textarea id="document_description" rows={4} value={uploadForm.document_description} onChange={(event) => handleUploadInputChange('document_description', event.target.value)} placeholder="Doküman içeriği, kapsamı ve kullanım amacı..." />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="vehicle_files">Dosyalar</Label>
-                            <Input id="vehicle_files" type="file" multiple onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
-                            {selectedFiles.length > 0 && (
-                                <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                                    {selectedFiles.map((file) => (
-                                        <div key={`${file.name}-${file.size}`} className="flex items-center gap-2">
-                                            <Wrench className="w-4 h-4" />
-                                            <span>{file.name}</span>
+                                            {(selectedUploadRegistry.warranty_status || selectedUploadRegistry.warranty_end_date) && (
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    {selectedUploadRegistry.warranty_status && (
+                                                        <Badge variant={getWarrantyStatusVariant(selectedUploadRegistry.warranty_status)} className="text-[10px] font-normal">
+                                                            {selectedUploadRegistry.warranty_status}
+                                                        </Badge>
+                                                    )}
+                                                    {selectedUploadRegistry.warranty_end_date && (
+                                                        <span className="text-xs">
+                                                            Bitiş: <span className="font-medium text-foreground tabular-nums">{formatDate(selectedUploadRegistry.warranty_end_date)}</span>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                    ))}
+                                    )}
+                                    <div>
+                                        <Label htmlFor="add_pdf">PDF</Label>
+                                        <Input id="add_pdf" type="file" accept="application/pdf,.pdf" multiple onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))} />
+                                        {selectedFiles.length > 0 && (
+                                            <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                                {selectedFiles.map((file) => (
+                                                    <div key={`${file.name}-${file.size}`}>{file.name}</div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="add_pdf_note">Kısa açıklama (isteğe bağlı)</Label>
+                                        <Input id="add_pdf_note" value={uploadForm.document_description} onChange={(e) => handleUploadInputChange('document_description', e.target.value)} placeholder="İsteğe bağlı not" />
+                                    </div>
                                 </div>
                             )}
                         </div>
-                    </div>
+                    )}
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setUploadOpen(false)} disabled={isUploading}>İptal</Button>
-                        <Button onClick={handleUpload} disabled={isUploading}>
-                            {isUploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Yükleniyor...</> : <><Upload className="w-4 h-4 mr-2" />Arşive Ekle</>}
-                        </Button>
+                        <Button variant="outline" onClick={() => setRegistryDialogOpen(false)} disabled={isSavingRegistry || isUploading}>İptal</Button>
+                        {editingRegistry || !uploadForm.vehicle_registry_id ? (
+                            <Button onClick={handleSaveRegistry} disabled={isSavingRegistry}>
+                                {isSavingRegistry ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Kaydediliyor...</> : 'Kaydet'}
+                            </Button>
+                        ) : (
+                            <Button onClick={handleUpload} disabled={isUploading}>
+                                {isUploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Yükleniyor...</> : <><Upload className="w-4 h-4 mr-2" />PDF Yükle</>}
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={deleteConfirm.open} onOpenChange={(open) => { if (!open) setDeleteConfirm({ open: false, type: null, target: null }); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {deleteConfirm.type === 'registry' ? 'Araç Sicil Kaydını Sil' : 'Dosyayı Sil'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deleteConfirm.type === 'registry'
+                                ? <>Bu araç sicil kaydı ve bağlı tüm dosyalar kalıcı olarak silinecektir. Bu işlem geri alınamaz.</>
+                                : <><strong>{deleteConfirm.target?.document_name}</strong> dosyası kalıcı olarak silinecektir.</>}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction onClick={executeDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Sil
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

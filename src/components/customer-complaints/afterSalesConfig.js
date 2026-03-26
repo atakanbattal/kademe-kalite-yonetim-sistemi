@@ -89,6 +89,28 @@ export const VEHICLE_FILE_TYPES = [
     'Diğer',
 ];
 
+/** Sicille birlikte veya hızlı PDF yüklemesinde kullanılan varsayılan evrak sınıflandırması */
+export const REGISTRY_VEHICLE_FILE_DEFAULTS = {
+    document_type: 'Garanti Belgesi',
+    document_group: 'Garanti ve Teslim Belgeleri',
+};
+
+/**
+ * GB-YYYY-#### formatında bir sonraki garanti belge numarası (aynı yıl içindeki mevcut numaralardan).
+ */
+export function computeNextWarrantyDocumentNo(year, existingValues) {
+    const prefix = `GB-${year}-`;
+    let max = 0;
+    for (const raw of existingValues) {
+        if (!raw || typeof raw !== 'string') continue;
+        const m = raw.trim().match(/^GB-(\d{4})-(\d+)$/i);
+        if (m && Number(m[1]) === year) {
+            max = Math.max(max, parseInt(m[2], 10) || 0);
+        }
+    }
+    return `${prefix}${String(max + 1).padStart(4, '0')}`;
+}
+
 export const DOCUMENT_GROUP_OPTIONS = [
     'Araç Kimlik Kartı',
     'Fabrika Kontrol Kayıtları',

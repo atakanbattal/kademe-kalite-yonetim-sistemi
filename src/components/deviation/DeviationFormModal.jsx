@@ -19,6 +19,7 @@ import { cn, sanitizeFileName, getAttachmentDisplayName } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { MultiSelect } from '@/components/ui/multi-select';
 import SourceRecordSelector from './SourceRecordSelector';
 import { buildSourceRecordDescription, DEVIATION_SOURCE_MODULE_OPTIONS } from './sourceRecordUtils';
 import { useData } from '@/contexts/DataContext';
@@ -993,16 +994,12 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     <div className="grid md:grid-cols-3 gap-4">
                          <div className="space-y-2">
                             <Label htmlFor="vehicle_type">Araç Tipi</Label>
-                            <Select onValueChange={(value) => handleSelectChange('vehicle_type', value)} value={formData.vehicle_type || ''}>
-                                <SelectTrigger><SelectValue placeholder="Araç tipi seçin..." /></SelectTrigger>
-                                <SelectContent>
-                                    {vehicleTypes.length > 0 ? (
-                                        vehicleTypes.map(vt => <SelectItem key={vt} value={vt}>{vt}</SelectItem>)
-                                    ) : (
-                                        <SelectItem value="no_vehicle_type_available" disabled>Araç tipi bulunamadı</SelectItem>
-                                    )}
-                                </SelectContent>
-                            </Select>
+                            <MultiSelect
+                                options={vehicleTypes.map(vt => ({ value: vt, label: vt }))}
+                                value={(formData.vehicle_type || '').split(',').map(s => s.trim()).filter(Boolean)}
+                                onChange={(selectedArray) => handleSelectChange('vehicle_type', selectedArray.join(', '))}
+                                placeholder="Araç tipi seçin..."
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="part_code">Sapma İstenilen Parça Kodu</Label>

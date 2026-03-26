@@ -10,6 +10,7 @@ import { openPrintableReport } from '@/lib/reportUtils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { isPast, differenceInDays } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
     const { toast } = useToast();
@@ -541,36 +542,44 @@ const AuditDetail = ({ auditId, onBack, onOpenNCForm }) => {
                             </div>
                         </div>
                         
-                        {/* Kanıt Dokümanları */}
+                        {/* Kanıt Dokümanları - Drag & Drop */}
                         <div className="mt-4 pt-4 border-t border-border">
-                            <div className="flex items-center justify-between mb-3">
-                                <Label className="text-sm font-medium">Kanıt Dokümanları</Label>
-                                <div className="relative">
-                                    <Input
-                                        type="file"
-                                        multiple
-                                        accept="*/*"
-                                        className="hidden"
-                                        id={`file-input-${q.id}`}
-                                        onChange={(e) => {
-                                            const files = Array.from(e.target.files || []);
-                                            if (files.length > 0) {
-                                                handleFileUpload(q.id, files);
-                                            }
-                                            e.target.value = '';
-                                        }}
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => document.getElementById(`file-input-${q.id}`)?.click()}
-                                        disabled={uploadingFiles[q.id]}
-                                    >
-                                        <UploadCloud className="w-4 h-4 mr-2" />
-                                        {uploadingFiles[q.id] ? 'Yükleniyor...' : 'Dosya Ekle'}
-                                    </Button>
-                                </div>
+                            <Label className="text-sm font-medium mb-3 block">Kanıt Dokümanları</Label>
+                            <div
+                                className={cn(
+                                    'border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer text-center mb-3',
+                                    uploadingFiles[q.id] ? 'opacity-60 pointer-events-none' : '',
+                                    'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50',
+                                )}
+                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add('border-primary', 'bg-primary/5'); e.currentTarget.classList.remove('border-muted-foreground/25'); }}
+                                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove('border-primary', 'bg-primary/5'); e.currentTarget.classList.add('border-muted-foreground/25'); }}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    e.currentTarget.classList.remove('border-primary', 'bg-primary/5');
+                                    e.currentTarget.classList.add('border-muted-foreground/25');
+                                    const files = Array.from(e.dataTransfer.files || []);
+                                    if (files.length > 0) handleFileUpload(q.id, files);
+                                }}
+                                onClick={() => document.getElementById(`file-input-${q.id}`)?.click()}
+                            >
+                                <Input
+                                    type="file"
+                                    multiple
+                                    accept="*/*"
+                                    className="hidden"
+                                    id={`file-input-${q.id}`}
+                                    onChange={(e) => {
+                                        const files = Array.from(e.target.files || []);
+                                        if (files.length > 0) handleFileUpload(q.id, files);
+                                        e.target.value = '';
+                                    }}
+                                />
+                                <UploadCloud className="w-6 h-6 mx-auto text-muted-foreground mb-1.5" />
+                                <p className="text-sm text-muted-foreground font-medium">
+                                    {uploadingFiles[q.id] ? 'Yükleniyor...' : 'Dosyaları sürükleyip bırakın veya tıklayarak seçin'}
+                                </p>
+                                <p className="text-xs text-muted-foreground/70 mt-0.5">Tüm dosya tipleri kabul edilir</p>
                             </div>
                             {q.attachments && q.attachments.length > 0 ? (
                                 <div className="flex flex-wrap gap-3">

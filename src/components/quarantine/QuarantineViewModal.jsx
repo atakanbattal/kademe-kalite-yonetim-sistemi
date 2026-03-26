@@ -6,20 +6,21 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useToast } from '@/components/ui/use-toast';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-    import { FileText, History, Paperclip } from 'lucide-react';
+    import { FileText, History, Paperclip, Image as ImageIcon, ExternalLink } from 'lucide-react';
     import { openPrintableReport } from '@/lib/reportUtils';
     import { normalizeQuarantineAttachments } from '@/lib/quarantineAttachments';
 
     const DetailItem = ({ label, value }) => (
-        <div className="grid grid-cols-3 gap-2 py-2 border-b border-border">
-            <Label className="font-semibold text-muted-foreground col-span-1">{label}</Label>
-            <p className="text-foreground col-span-2 break-words">{value || '-'}</p>
+        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-border/60">
+            <Label className="font-semibold text-muted-foreground col-span-1 text-sm">{label}</Label>
+            <p className="text-foreground col-span-2 break-words text-sm">{value || '-'}</p>
         </div>
     );
 
     const QuarantineViewModal = ({ isOpen, setIsOpen, record }) => {
         const [history, setHistory] = useState([]);
         const [loadingHistory, setLoadingHistory] = useState(true);
+        const [resolvedUrls, setResolvedUrls] = useState({});
         const { toast } = useToast();
 
         const fetchHistory = useCallback(async () => {
@@ -39,7 +40,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             setLoadingHistory(false);
         }, [record, toast]);
 
-        // Başlangıç miktarını hesapla (initial_quantity varsa onu kullan, yoksa hesapla)
         const initialQuantity = useMemo(() => {
             if (record?.initial_quantity) {
                 return record.initial_quantity;
@@ -51,13 +51,19 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
         const attachmentList = useMemo(() => normalizeQuarantineAttachments(record?.attachments), [record?.attachments]);
 
-        const getAttachmentPublicUrl = useCallback((att) => {
-            if (att.public_url) return att.public_url;
-            if (att.path) {
-                return supabase.storage.from('quarantine_documents').getPublicUrl(att.path).data.publicUrl;
+        useEffect(() => {
+            if (!isOpen || attachmentList.length === 0) {
+                setResolvedUrls({});
+                return;
             }
-            return null;
-        }, []);
+            const urls = {};
+            for (const att of attachmentList) {
+                if (!att.path) continue;
+                const pub = supabase.storage.from('quarantine_documents').getPublicUrl(att.path);
+                urls[att.path] = pub.data?.publicUrl || att.public_url || null;
+            }
+            setResolvedUrls(urls);
+        }, [isOpen, attachmentList]);
 
         useEffect(() => {
             if (isOpen) {
@@ -65,15 +71,23 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             }
         }, [isOpen, fetchHistory]);
 
-    const handleDownloadPDF = async (e) => {
+    const handleDownloadPDF = (e) => {
         if (e) {
             e.preventDefault();
             e.stopPropagation();
         }
-        // İşlem geçmişini de rapor için ekle
+        const resolvedAttachments = attachmentList.map((att) => {
+            const url = resolvedUrls[att.path] || att.public_url;
+            if (!url && att.path) {
+                const pub = supabase.storage.from('quarantine_documents').getPublicUrl(att.path);
+                return { ...att, public_url: pub.data?.publicUrl || null };
+            }
+            return { ...att, public_url: url };
+        });
         const recordWithHistory = {
             ...record,
-            history: history
+            history: history,
+            attachments: resolvedAttachments,
         };
         openPrintableReport(recordWithHistory, 'quarantine', true);
     };
@@ -120,33 +134,51 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                                             <DetailItem label="Son Karar" value={`${record.decision}${record.decision_date ? ` (${new Date(record.decision_date).toLocaleDateString('tr-TR')})` : ''}`} />
                                         )}
                                         {attachmentList.length > 0 && (
-                                            <div className="pt-4 mt-2 border-t border-border">
-                                                <Label className="font-semibold text-muted-foreground text-sm mb-3 block">Ürün görselleri ve ekler</Label>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            <div className="pt-4 mt-3 border-t border-border/60">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <ImageIcon className="w-4 h-4 text-primary" />
+                                                    <Label className="font-semibold text-foreground text-sm">Ürün Görselleri ve Ekler</Label>
+                                                </div>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                                     {attachmentList.map((att, idx) => {
-                                                        const url = getAttachmentPublicUrl(att);
+                                                        const url = resolvedUrls[att.path] || att.public_url || null;
                                                         const isImg =
                                                             (att.mime_type && att.mime_type.startsWith('image/')) ||
                                                             /\.(jpe?g|png|gif|webp|bmp)$/i.test(att.name || '');
                                                         return (
-                                                            <div key={att.path || idx} className="rounded-lg border border-border bg-muted/20 overflow-hidden">
+                                                            <div key={att.path || idx} className="group rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                                                                 {isImg && url ? (
                                                                     <a href={url} target="_blank" rel="noopener noreferrer" className="block">
-                                                                        <img src={url} alt={att.name || ''} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
-                                                                        <p className="text-[10px] p-2 truncate text-muted-foreground">{att.name}</p>
+                                                                        <div className="relative aspect-[4/3] bg-muted">
+                                                                            <img
+                                                                                src={url}
+                                                                                alt={att.name || ''}
+                                                                                className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                                                                                loading="lazy"
+                                                                            />
+                                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                                                <ExternalLink className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="px-2.5 py-2 border-t border-border/40">
+                                                                            <p className="text-[11px] truncate text-muted-foreground font-medium">{att.name}</p>
+                                                                        </div>
                                                                     </a>
                                                                 ) : url ? (
                                                                     <a
                                                                         href={url}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="flex items-center gap-2 p-3 text-sm text-primary hover:underline"
+                                                                        className="flex items-center gap-2.5 p-3.5 text-sm text-primary hover:bg-primary/5 transition-colors"
                                                                     >
-                                                                        <FileText className="w-4 h-4 shrink-0" />
-                                                                        <span className="truncate">{att.name || 'PDF / dosya'}</span>
+                                                                        <FileText className="w-5 h-5 shrink-0" />
+                                                                        <span className="truncate font-medium">{att.name || 'PDF / dosya'}</span>
                                                                     </a>
                                                                 ) : (
-                                                                    <p className="p-3 text-xs text-muted-foreground truncate">{att.name}</p>
+                                                                    <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+                                                                        <FileText className="w-4 h-4 shrink-0" />
+                                                                        <span className="truncate">{att.name}</span>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         );
