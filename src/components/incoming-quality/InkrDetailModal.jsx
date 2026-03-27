@@ -117,18 +117,21 @@ const InkrDetailModal = ({
                 let inspectionRows = [];
                 const partCode = (report.part_code || '').trim();
                 if (partCode) {
-                    const { data: inspections } = await supabase
+                    // Sadece en ilk muayene kaydını al (INKR tarihine karşılık gelen sertifika)
+                    const { data: firstInspection } = await supabase
                         .from('incoming_inspections')
-                        .select('id')
-                        .eq('part_code', partCode);
+                        .select('id, inspection_date')
+                        .eq('part_code', partCode)
+                        .order('inspection_date', { ascending: true })
+                        .limit(1)
+                        .maybeSingle();
 
-                    const inspIds = (inspections || []).map((i) => i.id);
-                    if (inspIds.length > 0) {
+                    if (firstInspection?.id) {
                         const { data: inspAtt, error: inspErr } = await supabase
                             .from('incoming_inspection_attachments')
                             .select('*')
-                            .in('inspection_id', inspIds)
-                            .order('created_at', { ascending: false });
+                            .eq('inspection_id', firstInspection.id)
+                            .order('created_at', { ascending: true });
 
                         if (!inspErr && inspAtt) {
                             inspectionRows = inspAtt.map((a) => {
@@ -148,6 +151,7 @@ const InkrDetailModal = ({
                                     _bucket: 'incoming_control',
                                     _key: `inspection-${a.id}`,
                                     uploaded_at: a.created_at || a.uploaded_at,
+                                    _inspectionDate: firstInspection.inspection_date,
                                 };
                             });
                         }
@@ -483,9 +487,12 @@ const InkrDetailModal = ({
                                                     <div>
                                                         <div className="flex flex-wrap items-center gap-2">
                                                             <p className="font-medium text-sm">{attachment.file_name}</p>
-                                                            {attachment._source === 'inspection' && (
-                                                                <Badge variant="outline" className="text-[10px]">Muayene kaydı</Badge>
-                                                            )}
+                                            {attachment._source === 'inspection' && (
+                                                <Badge variant="outline" className="text-[10px]">
+                                                    İlk muayene sertifikası
+                                                    {attachment._inspectionDate ? ` • ${new Date(attachment._inspectionDate).toLocaleDateString('tr-TR')}` : ''}
+                                                </Badge>
+                                            )}
                                                             {attachment._source === 'inkr' && (
                                                                 <Badge variant="secondary" className="text-[10px]">INKR</Badge>
                                                             )}

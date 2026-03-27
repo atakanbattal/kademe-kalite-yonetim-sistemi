@@ -957,6 +957,8 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
     );
 };
 
+const PARTS_PAGE_SIZE = 50;
+
 const InkrManagement = ({ onViewPdf }) => {
     const { toast } = useToast();
     const { loading: globalLoading, refreshData } = useData();
@@ -965,12 +967,14 @@ const InkrManagement = ({ onViewPdf }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [allParts, setAllParts] = useState([]);
+    /** Muayene kayıtlarından gelen benzersiz parça listesi (inkrReports'tan bağımsız) */
+    const [inspectionParts, setInspectionParts] = useState([]);
     const [partsLoading, setPartsLoading] = useState(true);
     const [inkrStatusFilter, setInkrStatusFilter] = useState('all');
     const [inkrReports, setInkrReports] = useState([]);
     const [inkrReportsLoading, setInkrReportsLoading] = useState(true);
     const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
 
     const handleEdit = (report) => {
         setSelectedReport(report);
@@ -1038,64 +1042,22 @@ const InkrManagement = ({ onViewPdf }) => {
         }
     };
 
+    const normalizePartCode = useCallback((code) => (code ? code.toString().trim().toLowerCase() : ''), []);
+
+    /** INKR raporlarını çek — inkrReports state'ini set et */
     useEffect(() => {
         const fetchInkrReports = async () => {
             setInkrReportsLoading(true);
             try {
-                // Supabase varsayılan 1000 limit - tüm raporları almak için pagination
-                let allReports = [];
-                let page = 0;
-                const PAGE_SIZE = 1000;
-                let hasMore = true;
+                const { data, error } = await supabase
+                    .from('inkr_reports')
+                    .select('*, supplier:supplier_id(name)')
+                    .order('report_date', { ascending: false })
+                    .order('updated_at', { ascending: false })
+                    .limit(5000);
 
-                while (hasMore) {
-                    const from = page * PAGE_SIZE;
-                    const to = from + PAGE_SIZE - 1;
-
-                    const { data, error } = await supabase
-                        .from('inkr_reports')
-                        .select('*, supplier:supplier_id(name)')
-                        .order('report_date', { ascending: false })
-                        .order('updated_at', { ascending: false })
-                        .range(from, to);
-
-                    if (error) throw error;
-
-                    if (data && data.length > 0) {
-                        allReports = allReports.concat(data);
-                    }
-
-                    if (!data || data.length < PAGE_SIZE) {
-                        hasMore = false;
-                    } else {
-                        page++;
-                    }
-                }
-
-                // report_date'e göre sırala (en yeni en üstte)
-                allReports.sort((a, b) => {
-                    const getDateValue = (report) => {
-                        const dateStr = report.report_date || report.updated_at || report.created_at;
-                        if (!dateStr) return null;
-                        const date = new Date(dateStr);
-                        return isNaN(date.getTime()) ? null : date.getTime();
-                    };
-
-                    const dateA = getDateValue(a);
-                    const dateB = getDateValue(b);
-
-                    if (dateA && dateB) {
-                        return dateB - dateA;
-                    } else if (dateA && !dateB) {
-                        return -1;
-                    } else if (!dateA && dateB) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
-                });
-
-                setInkrReports(allReports);
+                if (error) throw error;
+                setInkrReports(data || []);
             } catch (error) {
                 console.error('INKR raporları alınamadı:', error);
                 toast({ variant: 'destructive', title: 'Hata', description: `INKR raporları alınamadı: ${error.message}` });
@@ -1108,191 +1070,105 @@ const InkrManagement = ({ onViewPdf }) => {
         fetchInkrReports();
     }, [toast]);
 
+    /** Muayene kayıtlarından benzersiz parça kodlarını çek — inkrReports'tan bağımsız */
     useEffect(() => {
-        const fetchAllParts = async () => {
+        const fetchInspectionParts = async () => {
             setPartsLoading(true);
             try {
-                // Supabase varsayılan 1000 kayıt limiti var - tüm verileri almak için pagination yapıyoruz
-                let allInspections = [];
-                let page = 0;
-                const PAGE_SIZE = 1000;
-                let hasMore = true;
+                const { data: inspections, error } = await supabase
+                    .from('incoming_inspections_with_supplier')
+                    .select('part_code, part_name')
+                    .not('part_code', 'is', null)
+                    .not('part_code', 'eq', '')
+                    .order('part_code')
+                    .limit(5000);
 
-                while (hasMore) {
-                    const from = page * PAGE_SIZE;
-                    const to = from + PAGE_SIZE - 1;
+                if (error) throw error;
 
-                    const { data: inspections, error: inspectionsError } = await supabase
-                        .from('incoming_inspections_with_supplier')
-                        .select('part_code, part_name')
-                        .not('part_code', 'is', null)
-                        .not('part_code', 'eq', '')
-                        .order('part_code')
-                        .range(from, to);
-
-                    if (inspectionsError) throw inspectionsError;
-
-                    if (inspections && inspections.length > 0) {
-                        allInspections = allInspections.concat(inspections);
-                    }
-
-                    if (!inspections || inspections.length < PAGE_SIZE) {
-                        hasMore = false;
-                    } else {
-                        page++;
-                    }
-                }
-
-                console.log('📥 InkrManagement - Toplam inspection kaydı çekildi:', allInspections.length);
-
-                // Part code'u normalize et (trim ve lowercase) - karşılaştırma için
-                const normalizePartCode = (code) => code ? code.toString().trim().toLowerCase() : '';
-
-                // Benzersiz parça kodlarını normalize ederek topla
-                const uniquePartsMap = new Map();
-                (allInspections || []).forEach(inspection => {
-                    if (inspection.part_code) {
-                        const normalizedCode = normalizePartCode(inspection.part_code);
-                        if (normalizedCode && !uniquePartsMap.has(normalizedCode)) {
-                            uniquePartsMap.set(normalizedCode, {
-                                part_code: inspection.part_code.trim(), // Orijinal kodu sakla (sadece trim)
-                                part_name: inspection.part_name || '-',
-                            });
-                        }
+                const uniqueMap = new Map();
+                (inspections || []).forEach((row) => {
+                    if (!row.part_code) return;
+                    const key = row.part_code.trim().toLowerCase();
+                    if (!uniqueMap.has(key)) {
+                        uniqueMap.set(key, { part_code: row.part_code.trim(), part_name: row.part_name || '-' });
                     }
                 });
-
-                // INKR map'i normalize edilmiş part_code'larla oluştur
-                const inkrMap = new Map();
-                (inkrReports || []).forEach(r => {
-                    if (r.part_code) {
-                        inkrMap.set(normalizePartCode(r.part_code), r);
-                    }
-                });
-
-                const partsWithInkrStatus = Array.from(uniquePartsMap.values()).map(part => {
-                    const normalizedPartCode = normalizePartCode(part.part_code);
-                    const inkrReport = inkrMap.get(normalizedPartCode);
-                    return {
-                        ...part,
-                        hasInkr: !!inkrReport,
-                        inkrReport: inkrReport || null,
-                    };
-                });
-
-                // INKR'da olup inspection'da olmayan parça kodlarını da ekle
-                const existingNormalizedCodes = new Set(
-                    Array.from(uniquePartsMap.values()).map(p => normalizePartCode(p.part_code))
-                );
-
-                (inkrReports || []).forEach(inkrReport => {
-                    const normalizedInkrPartCode = normalizePartCode(inkrReport.part_code);
-                    if (inkrReport.part_code && !existingNormalizedCodes.has(normalizedInkrPartCode)) {
-                        partsWithInkrStatus.push({
-                            part_code: inkrReport.part_code,
-                            part_name: inkrReport.part_name || '-',
-                            hasInkr: true,
-                            inkrReport: inkrReport,
-                        });
-                        existingNormalizedCodes.add(normalizedInkrPartCode);
-                    }
-                });
-
-                // Debug: INKR durumu özeti
-                const withInkr = partsWithInkrStatus.filter(p => p.hasInkr).length;
-                const withoutInkr = partsWithInkrStatus.filter(p => !p.hasInkr).length;
-                console.log('📋 INKR Yönetimi - Parça Listesi:', {
-                    toplam: partsWithInkrStatus.length,
-                    inkrMevcut: withInkr,
-                    inkrEksik: withoutInkr,
-                    ornekEksikler: partsWithInkrStatus.filter(p => !p.hasInkr).slice(0, 5).map(p => p.part_code)
-                });
-
-                // Tarihe göre sıralama (en yeni en üstte) - allParts için
-                partsWithInkrStatus.sort((a, b) => {
-                    const getDateValue = (part) => {
-                        if (!part.inkrReport) return null;
-                        // report_date en önemli (INKR raporunun asıl tarihi), sonra updated_at, sonra created_at
-                        const dateStr = part.inkrReport.report_date || part.inkrReport.updated_at || part.inkrReport.created_at;
-                        if (!dateStr) return null;
-                        // DATE formatını (YYYY-MM-DD) ve TIMESTAMPTZ formatını destekle
-                        const date = new Date(dateStr);
-                        return isNaN(date.getTime()) ? null : date.getTime();
-                    };
-
-                    const dateA = getDateValue(a);
-                    const dateB = getDateValue(b);
-
-                    if (dateA && dateB) {
-                        return dateB - dateA; // En yeni tarih en üstte
-                    } else if (dateA && !dateB) {
-                        return -1; // INKR raporu olanlar önce
-                    } else if (!dateA && dateB) {
-                        return 1; // INKR raporu olmayanlar sonra
-                    } else {
-                        // İkisi de INKR raporu yoksa part_code'a göre alfabetik
-                        return a.part_code.localeCompare(b.part_code);
-                    }
-                });
-
-                setAllParts(partsWithInkrStatus);
+                setInspectionParts(Array.from(uniqueMap.values()));
             } catch (error) {
                 console.error('Parça listesi alınamadı:', error);
                 toast({ variant: 'destructive', title: 'Hata', description: 'Parça listesi alınamadı.' });
-                setAllParts([]);
+                setInspectionParts([]);
             } finally {
                 setPartsLoading(false);
             }
         };
 
-        if (!inkrReportsLoading) {
-            fetchAllParts();
-        }
-    }, [inkrReports, inkrReportsLoading, toast]);
+        fetchInspectionParts();
+    }, [toast]);
+
+    /** inkrReports veya inspectionParts değiştiğinde birleştir — DB isteği yok */
+    const allParts = useMemo(() => {
+        const inkrMap = new Map();
+        inkrReports.forEach((r) => {
+            if (r.part_code) inkrMap.set(normalizePartCode(r.part_code), r);
+        });
+
+        const partsWithStatus = inspectionParts.map((part) => {
+            const inkrReport = inkrMap.get(normalizePartCode(part.part_code)) || null;
+            return { ...part, hasInkr: !!inkrReport, inkrReport };
+        });
+
+        const existingCodes = new Set(inspectionParts.map((p) => normalizePartCode(p.part_code)));
+        inkrReports.forEach((r) => {
+            if (r.part_code && !existingCodes.has(normalizePartCode(r.part_code))) {
+                partsWithStatus.push({
+                    part_code: r.part_code,
+                    part_name: r.part_name || '-',
+                    hasInkr: true,
+                    inkrReport: r,
+                });
+                existingCodes.add(normalizePartCode(r.part_code));
+            }
+        });
+
+        partsWithStatus.sort((a, b) => {
+            const toMs = (p) => {
+                if (!p.inkrReport) return null;
+                const d = new Date(p.inkrReport.report_date || p.inkrReport.updated_at || p.inkrReport.created_at || 0);
+                return isNaN(d.getTime()) ? null : d.getTime();
+            };
+            const ta = toMs(a);
+            const tb = toMs(b);
+            if (ta && tb) return tb - ta;
+            if (ta) return -1;
+            if (tb) return 1;
+            return a.part_code.localeCompare(b.part_code);
+        });
+
+        return partsWithStatus;
+    }, [inkrReports, inspectionParts, normalizePartCode]);
+
+    // Filtre değiştiğinde sayfayı sıfırla
+    useEffect(() => { setCurrentPage(1); }, [searchTerm, inkrStatusFilter]);
 
     const filteredParts = useMemo(() => {
+        // allParts zaten sıralı — sadece filtrele, tekrar sıralama
         let filtered = allParts;
 
         if (searchTerm) {
-            const normalizedSearch = searchTerm.toLowerCase();
-            filtered = filtered.filter(part =>
-                part.part_code.toLowerCase().includes(normalizedSearch) ||
-                (part.part_name && part.part_name.toLowerCase().includes(normalizedSearch))
+            const q = searchTerm.toLowerCase();
+            filtered = filtered.filter(
+                (part) =>
+                    part.part_code.toLowerCase().includes(q) ||
+                    (part.part_name && part.part_name.toLowerCase().includes(q))
             );
         }
 
         if (inkrStatusFilter === 'Mevcut') {
-            filtered = filtered.filter(part => part.hasInkr);
+            filtered = filtered.filter((part) => part.hasInkr);
         } else if (inkrStatusFilter === 'Mevcut Değil') {
-            filtered = filtered.filter(part => !part.hasInkr);
+            filtered = filtered.filter((part) => !part.hasInkr);
         }
-
-        // En son tarih en üstte olacak şekilde sırala
-        filtered.sort((a, b) => {
-            const getDateValue = (part) => {
-                if (!part.inkrReport) return null;
-                // report_date en önemli (INKR raporunun asıl tarihi), sonra updated_at, sonra created_at
-                const dateStr = part.inkrReport.report_date || part.inkrReport.updated_at || part.inkrReport.created_at;
-                if (!dateStr) return null;
-                // DATE formatını (YYYY-MM-DD) ve TIMESTAMPTZ formatını destekle
-                const date = new Date(dateStr);
-                return isNaN(date.getTime()) ? null : date.getTime();
-            };
-
-            const dateA = getDateValue(a);
-            const dateB = getDateValue(b);
-
-            if (dateA && dateB) {
-                return dateB - dateA; // En yeni tarih en üstte
-            } else if (dateA && !dateB) {
-                return -1; // INKR raporu olanlar önce
-            } else if (!dateA && dateB) {
-                return 1; // INKR raporu olmayanlar sonra
-            } else {
-                // İkisi de INKR raporu yoksa part_code'a göre alfabetik
-                return a.part_code.localeCompare(b.part_code);
-            }
-        });
 
         return filtered;
     }, [allParts, searchTerm, inkrStatusFilter]);
@@ -1357,20 +1233,18 @@ const InkrManagement = ({ onViewPdf }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {partsLoading || inkrReportsLoading || globalLoading ? (
+                        {partsLoading || inkrReportsLoading ? (
                             <tr><td colSpan="7" className="text-center py-8">Yükleniyor...</td></tr>
                         ) : filteredParts.length === 0 ? (
                             <tr><td colSpan="7" className="text-center py-8">Parça bulunamadı.</td></tr>
                         ) : (
-                            filteredParts.map((part, index) => (
+                            filteredParts
+                                .slice((currentPage - 1) * PARTS_PAGE_SIZE, currentPage * PARTS_PAGE_SIZE)
+                                .map((part) => (
                                 <tr
                                     key={part.part_code}
                                     onClick={() => part.inkrReport && handleViewRecord(part.inkrReport)}
                                     className={`transition-colors ${part.inkrReport ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-                                    style={{
-                                        opacity: 0,
-                                        animation: `fadeIn 0.3s ease-in forwards ${index * 0.05}s`
-                                    }}
                                 >
                                     <td className="font-medium text-foreground">{part.part_code}</td>
                                     <td className="text-foreground">{part.part_name}</td>
@@ -1414,6 +1288,33 @@ const InkrManagement = ({ onViewPdf }) => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination */}
+            {!partsLoading && !inkrReportsLoading && filteredParts.length > PARTS_PAGE_SIZE && (
+                <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+                    <span>
+                        {((currentPage - 1) * PARTS_PAGE_SIZE) + 1}–{Math.min(currentPage * PARTS_PAGE_SIZE, filteredParts.length)} / {filteredParts.length} kayıt
+                    </span>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage((p) => p - 1)}
+                        >
+                            ‹ Önceki
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage * PARTS_PAGE_SIZE >= filteredParts.length}
+                            onClick={() => setCurrentPage((p) => p + 1)}
+                        >
+                            Sonraki ›
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
