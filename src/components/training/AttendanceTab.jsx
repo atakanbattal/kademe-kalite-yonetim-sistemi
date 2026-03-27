@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
     import { Badge } from '@/components/ui/badge';
-    import { Input } from '@/components/ui/input';
     import { Loader2, Search } from 'lucide-react';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
     import { Button } from '@/components/ui/button';
@@ -24,13 +23,23 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         };
 
         return (
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="p-0 h-auto">{getStatusBadge(participant.status)}</Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-auto p-0"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {getStatusBadge(participant.status)}
+                    </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent align="start">
                     {statuses.map(status => (
-                        <DropdownMenuItem key={status} onSelect={() => onUpdate(participant.id, status)}>
+                        <DropdownMenuItem
+                            key={status}
+                            onSelect={() => onUpdate(participant.id, status)}
+                        >
                             {status}
                         </DropdownMenuItem>
                     ))}
@@ -43,6 +52,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         const [groupedParticipants, setGroupedParticipants] = useState({});
         const [loading, setLoading] = useState(true);
         const [searchTerm, setSearchTerm] = useState('');
+        const [openAccordionItems, setOpenAccordionItems] = useState([]);
         const { toast } = useToast();
 
         const fetchData = useCallback(async () => {
@@ -53,7 +63,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     id,
                     status,
                     personnel:personnel_id (full_name),
-                    training:training_id (id, title, scheduled_date)
+                    training:training_id (id, title, training_code, scheduled_date)
                 `);
 
             if (participantsError) {
@@ -69,6 +79,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                     if (!acc[trainingId]) {
                         acc[trainingId] = {
                             trainingTitle: participant.training.title,
+                            trainingCode: participant.training.training_code || '',
                             participants: []
                         };
                     }
@@ -88,10 +99,25 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             const { error } = await supabase.from('training_participants').update({ status }).eq('id', participantId);
             if (error) {
                 toast({ variant: 'destructive', title: 'Hata', description: 'Durum güncellenemedi.' });
-            } else {
-                toast({ title: 'Başarılı', description: 'Katılım durumu güncellendi.' });
-                fetchData();
+                return;
             }
+            setGroupedParticipants((prev) => {
+                const next = { ...prev };
+                for (const tid of Object.keys(next)) {
+                    const group = next[tid];
+                    const has = group.participants.some((p) => p.id === participantId);
+                    if (!has) continue;
+                    next[tid] = {
+                        ...group,
+                        participants: group.participants.map((p) =>
+                            p.id === participantId ? { ...p, status } : p
+                        ),
+                    };
+                    break;
+                }
+                return next;
+            });
+            toast({ title: 'Başarılı', description: 'Katılım durumu güncellendi.' });
         };
 
         const filteredGroupedParticipants = useMemo(() => {
@@ -118,6 +144,19 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
             return filtered;
         }, [groupedParticipants, searchTerm]);
 
+        const sortedTrainingIds = useMemo(() => {
+            const ids = Object.keys(filteredGroupedParticipants);
+            return ids.slice().sort((a, b) => {
+                const ga = filteredGroupedParticipants[a];
+                const gb = filteredGroupedParticipants[b];
+                const ca = (ga?.trainingCode || '').toString();
+                const cb = (gb?.trainingCode || '').toString();
+                const cmp = ca.localeCompare(cb, 'tr', { numeric: true, sensitivity: 'base' });
+                if (cmp !== 0) return cmp;
+                return (ga?.trainingTitle || '').localeCompare(gb?.trainingTitle || '', 'tr');
+            });
+        }, [filteredGroupedParticipants]);
+
         if (loading) {
             return (
                 <div className="flex items-center justify-center h-64">
@@ -128,9 +167,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
         return (
             <div className="p-4 bg-card rounded-lg shadow-sm">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">Katılım Takibi</h2>
-                     <div className="search-box w-full max-w-sm">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h2 className="text-xl font-bold shrink-0">Katılım Takibi</h2>
+                     <div className="search-box w-full max-w-sm sm:max-w-md">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                         <input
                             type="text"
@@ -141,9 +180,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                         />
                     </div>
                 </div>
-                 <Accordion type="multiple" className="w-full">
-                    {Object.keys(filteredGroupedParticipants).length > 0 ? (
-                        Object.keys(filteredGroupedParticipants).map(trainingId => {
+                 <Accordion
+                    type="multiple"
+                    className="w-full"
+                    value={openAccordionItems}
+                    onValueChange={setOpenAccordionItems}
+                >
+                    {sortedTrainingIds.length > 0 ? (
+                        sortedTrainingIds.map(trainingId => {
                              const group = filteredGroupedParticipants[trainingId];
                              return (
                                 <AccordionItem value={trainingId} key={trainingId}>

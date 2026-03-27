@@ -10,6 +10,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Plus, Trash2, AlertCircle, AlertTriangle, FileText, ExternalLink, HelpCircle, ClipboardCheck } from 'lucide-react';
     import { useDropzone } from 'react-dropzone';
     import { sanitizeFileName } from '@/lib/utils';
+import { copyIncomingInspectionFilesToInkr } from '@/lib/incomingInkrAttachmentSync';
     import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
     import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
     import { v4 as uuidv4 } from 'uuid';
@@ -871,6 +872,34 @@ setShowRiskyStockAlert(false);
                 try {
                     const attachmentsToInsert = await Promise.all(attachmentPromises);
                     await supabase.from('incoming_inspection_attachments').insert(attachmentsToInsert);
+
+                    const partCodeForInkr = String(dataToSubmit.part_code || inspectionRecord.part_code || '').trim();
+                    if (partCodeForInkr) {
+                        const { data: inkrRow, error: inkrLookupError } = await supabase
+                            .from('inkr_reports')
+                            .select('id')
+                            .eq('part_code', partCodeForInkr)
+                            .order('created_at', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+                        if (!inkrLookupError && inkrRow?.id) {
+                            const filesForInkr = newAttachments.map((file, idx) => ({
+                                file,
+                                file_name: attachmentsToInsert[idx]?.file_name || file.name,
+                            }));
+                            const { errors: inkrSyncErrors } = await copyIncomingInspectionFilesToInkr(supabase, {
+                                inkrReportId: inkrRow.id,
+                                files: filesForInkr,
+                            });
+                            if (inkrSyncErrors.length > 0) {
+                                toast({
+                                    variant: 'destructive',
+                                    title: 'INKR eşlemesi kısmen başarısız',
+                                    description: inkrSyncErrors.slice(0, 3).join(' · '),
+                                });
+                            }
+                        }
+                    }
                 } catch (uploadError) { toast({ variant: 'destructive', title: 'Hata', description: uploadError.message }); setIsSubmitting(false); return; }
             }
 

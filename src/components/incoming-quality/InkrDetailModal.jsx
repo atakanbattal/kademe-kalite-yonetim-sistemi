@@ -72,43 +72,100 @@ const InkrDetailModal = ({
 
     useEffect(() => {
         const fetchInspectionInfo = async () => {
-            if (report?.part_code) {
+            const pc = (report?.part_code || '').trim();
+            if (pc) {
                 try {
                     const { data, error } = await supabase
                         .from('incoming_inspections')
                         .select('delivery_note_number, inspection_date, record_no, quantity_received, quantity_rejected, quantity_conditional, decision')
-                        .eq('part_code', report.part_code)
+                        .eq('part_code', pc)
                         .order('inspection_date', { ascending: false })
                         .limit(1)
                         .maybeSingle();
                     
                     if (!error && data) {
                         setInspectionInfo(data);
+                    } else {
+                        setInspectionInfo(null);
                     }
                 } catch (err) {
                     console.error('İrsaliye bilgileri alınamadı:', err);
+                    setInspectionInfo(null);
                 }
+            } else {
+                setInspectionInfo(null);
             }
         };
 
         const fetchAttachments = async () => {
-            if (report?.id) {
-                setLoadingAttachments(true);
-                try {
-                    const { data, error } = await supabase
-                        .from('inkr_attachments')
-                        .select('*')
-                        .eq('inkr_report_id', report.id)
-                        .order('uploaded_at', { ascending: false });
-                    
-                    if (!error && data) {
-                        setAttachments(data);
+            if (!report?.id) return;
+            setLoadingAttachments(true);
+            try {
+                const { data: inkrData, error: inkrError } = await supabase
+                    .from('inkr_attachments')
+                    .select('*')
+                    .eq('inkr_report_id', report.id)
+                    .order('uploaded_at', { ascending: false });
+
+                const inkrRows = (!inkrError && inkrData ? inkrData : []).map((a) => ({
+                    ...a,
+                    _source: 'inkr',
+                    _bucket: 'inkr_attachments',
+                    _key: `inkr-${a.id}`,
+                }));
+
+                let inspectionRows = [];
+                const partCode = (report.part_code || '').trim();
+                if (partCode) {
+                    const { data: inspections } = await supabase
+                        .from('incoming_inspections')
+                        .select('id')
+                        .eq('part_code', partCode);
+
+                    const inspIds = (inspections || []).map((i) => i.id);
+                    if (inspIds.length > 0) {
+                        const { data: inspAtt, error: inspErr } = await supabase
+                            .from('incoming_inspection_attachments')
+                            .select('*')
+                            .in('inspection_id', inspIds)
+                            .order('created_at', { ascending: false });
+
+                        if (!inspErr && inspAtt) {
+                            inspectionRows = inspAtt.map((a) => {
+                                const name = (a.file_name || '').toLowerCase();
+                                let inferredType = a.file_type;
+                                if (!inferredType) {
+                                    if (name.endsWith('.pdf')) inferredType = 'application/pdf';
+                                    else if (name.endsWith('.png')) inferredType = 'image/png';
+                                    else if (name.endsWith('.gif')) inferredType = 'image/gif';
+                                    else if (name.endsWith('.webp')) inferredType = 'image/webp';
+                                    else if (name.match(/\.(jpe?g)$/)) inferredType = 'image/jpeg';
+                                }
+                                return {
+                                    ...a,
+                                    file_type: inferredType,
+                                    _source: 'inspection',
+                                    _bucket: 'incoming_control',
+                                    _key: `inspection-${a.id}`,
+                                    uploaded_at: a.created_at || a.uploaded_at,
+                                };
+                            });
+                        }
                     }
-                } catch (err) {
-                    console.error('Ek dosyalar alınamadı:', err);
                 }
-                setLoadingAttachments(false);
+
+                const merged = [...inkrRows, ...inspectionRows].sort((a, b) => {
+                    const ta = new Date(a.uploaded_at || a.created_at || 0).getTime();
+                    const tb = new Date(b.uploaded_at || b.created_at || 0).getTime();
+                    return tb - ta;
+                });
+
+                setAttachments(merged);
+            } catch (err) {
+                console.error('Ek dosyalar alınamadı:', err);
+                setAttachments([]);
             }
+            setLoadingAttachments(false);
         };
 
         if (isOpen && report) {
@@ -124,16 +181,17 @@ const InkrDetailModal = ({
     };
 
     const handleViewAttachment = async (attachment) => {
+        const bucket = attachment._bucket || 'inkr_attachments';
         try {
-            const { data, error } = await supabase.storage
-                .from('inkr_attachments')
-                .createSignedUrl(attachment.file_path, 3600);
-            
-            if (error) throw error;
-            
             if (attachment.file_type === 'application/pdf' && onViewPdf) {
-                onViewPdf(attachment.file_path);
-            } else if (attachment.file_type?.startsWith('image/')) {
+                onViewPdf(attachment.file_path, bucket);
+                return;
+            }
+            const { data, error } = await supabase.storage.from(bucket).createSignedUrl(attachment.file_path, 3600);
+
+            if (error) throw error;
+
+            if (attachment.file_type?.startsWith('image/')) {
                 window.open(data.signedUrl, '_blank');
             } else {
                 window.open(data.signedUrl, '_blank');
@@ -148,10 +206,9 @@ const InkrDetailModal = ({
     };
 
     const handleDownloadAttachment = async (attachment) => {
+        const bucket = attachment._bucket || 'inkr_attachments';
         try {
-            const { data, error } = await supabase.storage
-                .from('inkr_attachments')
-                .download(attachment.file_path);
+            const { data, error } = await supabase.storage.from(bucket).download(attachment.file_path);
             
             if (error) throw error;
             
@@ -418,13 +475,21 @@ const InkrDetailModal = ({
                                     <div className="space-y-2">
                                         {attachments.map((attachment) => (
                                             <div 
-                                                key={attachment.id} 
+                                                key={attachment._key || attachment.id} 
                                                 className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
                                             >
                                                 <div className="flex items-center gap-3">
                                                     {getFileIcon(attachment.file_type)}
                                                     <div>
-                                                        <p className="font-medium text-sm">{attachment.file_name}</p>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <p className="font-medium text-sm">{attachment.file_name}</p>
+                                                            {attachment._source === 'inspection' && (
+                                                                <Badge variant="outline" className="text-[10px]">Muayene kaydı</Badge>
+                                                            )}
+                                                            {attachment._source === 'inkr' && (
+                                                                <Badge variant="secondary" className="text-[10px]">INKR</Badge>
+                                                            )}
+                                                        </div>
                                                         <p className="text-xs text-muted-foreground">
                                                             {formatFileSize(attachment.file_size)} • {attachment.uploaded_at ? format(new Date(attachment.uploaded_at), 'dd.MM.yyyy HH:mm') : '-'}
                                                         </p>

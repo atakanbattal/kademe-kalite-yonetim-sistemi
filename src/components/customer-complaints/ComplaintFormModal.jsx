@@ -7,6 +7,7 @@ import {
     Hash,
     Package,
     Plus,
+    UserPlus,
     ShieldCheck,
     Trash2,
     Users,
@@ -23,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ModernModalLayout } from '@/components/shared/ModernModalLayout';
+import { CustomerFormModal } from '@/components/cost-settings/CustomerFormModal';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
@@ -246,7 +248,7 @@ const BooleanSelect = ({ label, value, onChange }) => (
 const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess, helpDeskPrefill }) => {
     const { toast } = useToast();
     const { user } = useAuth();
-    const { customers, customerComplaints } = useData();
+    const { customers, customerComplaints, refreshCustomers } = useData();
     const isEditMode = Boolean(existingComplaint);
 
     const [formData, setFormData] = useState(INITIAL_FORM);
@@ -256,6 +258,7 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess, helpD
     const [bomRevisions, setBomRevisions] = useState([]);
     const [bomItems, setBomItems] = useState([]);
     const [faultParts, setFaultParts] = useState([EMPTY_FAULT_PART]);
+    const [customerFormOpen, setCustomerFormOpen] = useState(false);
 
     useEffect(() => {
         if (!open) return;
@@ -963,6 +966,7 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess, helpD
     );
 
     return (
+        <>
         <ModernModalLayout
             open={open}
             onOpenChange={setOpen}
@@ -1007,8 +1011,21 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess, helpD
 
                     <TabsContent value="basic" className="space-y-4 mt-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                                <Label>Müşteri *</Label>
+                            <div className="md:col-span-2 space-y-2">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                    <Label className="sm:mb-2">Müşteri *</Label>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="shrink-0 gap-1"
+                                        title="Ayarlar > Müşteri sekmesi ile aynı form"
+                                        onClick={() => setCustomerFormOpen(true)}
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        Yeni müşteri
+                                    </Button>
+                                </div>
                                 <SearchableSelectDialog
                                     options={customerOptions}
                                     value={formData.customer_id}
@@ -1702,6 +1719,19 @@ const ComplaintFormModal = ({ open, setOpen, existingComplaint, onSuccess, helpD
                 </Tabs>
             </form>
         </ModernModalLayout>
+        <CustomerFormModal
+            open={customerFormOpen}
+            setOpen={setCustomerFormOpen}
+            existingCustomer={null}
+            onSuccess={async ({ customer }) => {
+                await refreshCustomers();
+                if (customer?.id) {
+                    setFormData((prev) => ({ ...prev, customer_id: customer.id }));
+                }
+                setCustomerFormOpen(false);
+            }}
+        />
+        </>
     );
 };
 

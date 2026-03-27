@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
+    Award,
     Boxes,
     CarTaxiFront,
     CheckCircle2,
@@ -29,7 +30,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelectDialog } from '@/components/ui/searchable-select-dialog';
+import { normalizeTurkishForSearch } from '@/lib/utils';
 import { getAfterSalesCaseNumber, getCustomerDisplayName, getFaultPartSummaryLabel, getFaultPartsFromComplaint } from '@/components/customer-complaints/afterSalesConfig';
+
+/** Departman / yönetim / ünite / ünvan alanlarında SSH ekibine işaret eden metin (Türkçe normalize) */
+const matchesAfterSalesServicesTeam = (person) => {
+    const blob = normalizeTurkishForSearch(
+        [person.department, person.management_department, person.unit?.unit_name, person.job_title].filter(Boolean).join(' ')
+    ).toLowerCase();
+    return (
+        blob.includes('satis sonrasi') ||
+        blob.includes('ssh') ||
+        blob.includes('after sales') ||
+        blob.includes('aftersales') ||
+        blob.includes('saha servis') ||
+        blob.includes('uzaktan destek') ||
+        blob.includes('musteri hizmet')
+    );
+};
 
 const OPERATION_TYPES = [
     'Saha Servisi',
@@ -100,6 +118,12 @@ const calculateServiceHours = (startDate, endDate) => {
     const end = new Date(endDate);
     const diffDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
     return diffDays * 8;
+};
+
+/** Sıralama ve “en yoğun / ayın personeli” kartlarında beyaz yaka personeli hariç tutulur */
+const isWhiteCollarPerson = (person) => {
+    const t = normalizeTurkishForSearch(String(person?.collar_type || '')).toLowerCase();
+    return t.includes('beyaz');
 };
 
 const getMissingColumnName = (error) => {
@@ -281,11 +305,17 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
 
     useEffect(() => {
         loadOperations();
-    }, [loadOperations]);
+    }, [loadOperations, customerComplaints]);
 
     useEffect(() => {
         loadDepotInventory();
     }, [loadDepotInventory]);
+
+    /** Silinmiş vakaya bağlı yetim operasyonları panellerde gösterme */
+    const linkedOperations = useMemo(
+        () => operations.filter((op) => op.complaint?.id),
+        [operations]
+    );
 
     const complaintOptions = useMemo(
         () =>
@@ -296,17 +326,18 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
         [customerComplaints]
     );
 
-    const sshPersonnel = useMemo(
-        () =>
-            (personnel || []).filter(
-                (person) => {
-                    if (!person.is_active) return false;
-                    const dept = person.department?.toLowerCase() || '';
-                    return dept.includes('satış sonrası') || dept.includes('satis sonrasi') || dept.includes('ssh');
-                }
-            ),
-        [personnel]
-    );
+    /** Aktif personel: SSH ekibi anahtar kelimeleriyle eşleşenler + bu modülde vakaya bağlı operasyona atanmış olanlar (birleşik liste) */
+    const sshPersonnel = useMemo(() => {
+        const activeList = (personnel || []).filter((p) => p.is_active);
+        const assignedIds = new Set(linkedOperations.map((op) => op.assigned_person_id).filter(Boolean));
+        const byId = new Map();
+        activeList.forEach((p) => {
+            if (matchesAfterSalesServicesTeam(p) || assignedIds.has(p.id)) {
+                byId.set(p.id, p);
+            }
+        });
+        return Array.from(byId.values()).sort((a, b) => a.full_name.localeCompare(b.full_name, 'tr'));
+    }, [personnel, linkedOperations]);
 
     const personnelOptions = useMemo(
         () =>
@@ -385,20 +416,20 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
     );
 
     const activeAssignments = useMemo(
-        () => operations.filter((operation) => !['Tamamlandı', 'İptal'].includes(operation.status)),
-        [operations]
+        () => linkedOperations.filter((operation) => !['Tamamlandı', 'İptal'].includes(operation.status)),
+        [linkedOperations]
     );
     const plannedOperations = useMemo(
-        () => operations.filter((operation) => PLANNED_OPERATION_STATUSES.includes(operation.status)),
-        [operations]
+        () => linkedOperations.filter((operation) => PLANNED_OPERATION_STATUSES.includes(operation.status)),
+        [linkedOperations]
     );
     const continuingOperations = useMemo(
-        () => operations.filter((operation) => ACTIVE_OPERATION_STATUSES.includes(operation.status)),
-        [operations]
+        () => linkedOperations.filter((operation) => ACTIVE_OPERATION_STATUSES.includes(operation.status)),
+        [linkedOperations]
     );
     const completedOperations = useMemo(
-        () => operations.filter((operation) => COMPLETED_OPERATION_STATUSES.includes(operation.status)),
-        [operations]
+        () => linkedOperations.filter((operation) => COMPLETED_OPERATION_STATUSES.includes(operation.status)),
+        [linkedOperations]
     );
 
     const availablePersonnelCount = useMemo(() => {
@@ -408,18 +439,18 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
 
     const completedThisMonth = useMemo(() => {
         const now = new Date();
-        return operations.filter((operation) => {
+        return linkedOperations.filter((operation) => {
             if (!operation.actual_end_date) return false;
             const completedAt = new Date(operation.actual_end_date);
             return completedAt.getFullYear() === now.getFullYear() && completedAt.getMonth() === now.getMonth();
         }).length;
-    }, [operations]);
+    }, [linkedOperations]);
 
     const personnelBoard = useMemo(() => {
         return sshPersonnel
             .map((person) => {
                 const activeOperation = activeAssignments.find((operation) => operation.assigned_person_id === person.id);
-                const latestCompletedOperation = operations
+                const latestCompletedOperation = linkedOperations
                     .filter((operation) => operation.assigned_person_id === person.id && operation.actual_end_date)
                     .sort((left, right) => new Date(right.actual_end_date) - new Date(left.actual_end_date))[0];
 
@@ -436,7 +467,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                 if (!left.activeOperation && right.activeOperation) return 1;
                 return left.full_name.localeCompare(right.full_name, 'tr');
             });
-    }, [activeAssignments, operations, sshPersonnel]);
+    }, [activeAssignments, linkedOperations, sshPersonnel]);
 
     const performancePeople = useMemo(() => {
         const peopleMap = new Map();
@@ -446,28 +477,45 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                 id: person.id,
                 full_name: person.full_name,
                 department: person.department,
+                collar_type: person.collar_type,
             });
         });
 
-        operations.forEach((operation) => {
+        linkedOperations.forEach((operation) => {
             if (!operation.assigned_person_id) return;
             if (!peopleMap.has(operation.assigned_person_id)) {
+                const fromPersonnel = personnel?.find((p) => p.id === operation.assigned_person_id);
                 peopleMap.set(operation.assigned_person_id, {
                     id: operation.assigned_person_id,
                     full_name: operation.assigned_person?.full_name || 'İsimsiz Personel',
-                    department: 'Satış Sonrası Hizmetler',
+                    department: fromPersonnel?.department || 'Satış Sonrası Hizmetler',
+                    collar_type: fromPersonnel?.collar_type,
                 });
             }
         });
 
         return Array.from(peopleMap.values());
-    }, [operations, sshPersonnel]);
+    }, [linkedOperations, personnel, sshPersonnel]);
 
     const personnelPerformanceRows = useMemo(() => {
         return performancePeople
             .map((person) => {
-                const personOperations = operations.filter((operation) => operation.assigned_person_id === person.id);
+                const personOperations = linkedOperations.filter((operation) => operation.assigned_person_id === person.id);
                 const completed = personOperations.filter((operation) => operation.status === 'Tamamlandı');
+                const now = new Date();
+                const monthY = now.getFullYear();
+                const monthM = now.getMonth();
+                const monthCompleted = completed.filter((operation) => {
+                    if (!operation.actual_end_date) return false;
+                    const d = new Date(operation.actual_end_date);
+                    return d.getFullYear() === monthY && d.getMonth() === monthM;
+                });
+                const monthCompletedCount = monthCompleted.length;
+                const monthTotalHours = monthCompleted.reduce((sum, operation) => {
+                    const actualHours =
+                        Number(operation.labor_hours || 0) || calculateServiceHours(operation.actual_start_date, operation.actual_end_date);
+                    return sum + actualHours;
+                }, 0);
                 const active = personOperations.filter((operation) => ACTIVE_OPERATION_STATUSES.includes(operation.status));
                 const planned = personOperations.filter((operation) => PLANNED_OPERATION_STATUSES.includes(operation.status));
                 const cancelled = personOperations.filter((operation) => operation.status === 'İptal');
@@ -520,6 +568,8 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                     onTimeRate: completed.length > 0 ? (onTimeCount / completed.length) * 100 : 0,
                     lastCompletedAt: lastCompletedOperation?.actual_end_date || '',
                     lastCompletedTitle: lastCompletedOperation?.operation_title || '',
+                    monthCompletedCount,
+                    monthTotalHours,
                 };
             })
             .sort((left, right) => {
@@ -527,19 +577,66 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                 if (right.totalHours !== left.totalHours) return right.totalHours - left.totalHours;
                 return left.full_name.localeCompare(right.full_name, 'tr');
             });
-    }, [operations, performancePeople]);
+    }, [linkedOperations, performancePeople]);
 
     const personnelPerformanceSummary = useMemo(() => {
         const totalHours = personnelPerformanceRows.reduce((sum, row) => sum + row.totalHours, 0);
         const totalAssignments = personnelPerformanceRows.reduce((sum, row) => sum + row.totalAssignments, 0);
         const totalCompleted = personnelPerformanceRows.reduce((sum, row) => sum + row.completedCount, 0);
         const totalOnTime = personnelPerformanceRows.reduce((sum, row) => sum + row.onTimeCount, 0);
-        const topAssignment = personnelPerformanceRows
-            .slice()
-            .sort((left, right) => right.totalAssignments - left.totalAssignments)[0];
-        const topHours = personnelPerformanceRows
-            .slice()
-            .sort((left, right) => right.totalHours - left.totalHours)[0];
+
+        const rowsField = personnelPerformanceRows.filter((row) => !isWhiteCollarPerson(row));
+
+        const sortedByWorkload = [...rowsField].sort((a, b) => {
+            if (b.totalAssignments !== a.totalAssignments) return b.totalAssignments - a.totalAssignments;
+            return b.totalHours - a.totalHours;
+        });
+        const bestWorkload = sortedByWorkload[0];
+        const allWorkloadZero =
+            rowsField.length > 0 && rowsField.every((row) => row.totalAssignments === 0 && row.totalHours === 0);
+        const workloadTied =
+            bestWorkload &&
+            sortedByWorkload.filter(
+                (row) =>
+                    row.totalAssignments === bestWorkload.totalAssignments && row.totalHours === bestWorkload.totalHours
+            ).length > 1;
+        const topAssignment =
+            !bestWorkload || allWorkloadZero || workloadTied ? null : bestWorkload;
+
+        const sortedByMonth = [...rowsField].sort((a, b) => {
+            if (b.monthCompletedCount !== a.monthCompletedCount) return b.monthCompletedCount - a.monthCompletedCount;
+            return b.monthTotalHours - a.monthTotalHours;
+        });
+        const bestMonth = sortedByMonth[0];
+        const allMonthZero =
+            rowsField.length > 0 && rowsField.every((row) => row.monthCompletedCount === 0 && row.monthTotalHours === 0);
+        const monthTied =
+            bestMonth &&
+            sortedByMonth.filter(
+                (row) =>
+                    row.monthCompletedCount === bestMonth.monthCompletedCount &&
+                    row.monthTotalHours === bestMonth.monthTotalHours
+            ).length > 1;
+        const employeeOfMonth =
+            !bestMonth || allMonthZero || monthTied ? null : bestMonth;
+
+        const topAssignmentSubtext = (() => {
+            if (rowsField.length === 0) return 'Beyaz yaka hariç aday yok';
+            if (!topAssignment) {
+                if (allWorkloadZero) return 'Henüz ayrım yok (tümü 0)';
+                return 'Eşit skor — tek seçim yok';
+            }
+            return `${topAssignment.totalAssignments} görev`;
+        })();
+
+        const employeeOfMonthSubtext = (() => {
+            if (rowsField.length === 0) return 'Beyaz yaka hariç aday yok';
+            if (!employeeOfMonth) {
+                if (allMonthZero) return 'Bu ay henüz ayrım yok';
+                return 'Eşit skor — tek seçim yok';
+            }
+            return `${employeeOfMonth.monthCompletedCount} tamamlanan • ${formatNumber(employeeOfMonth.monthTotalHours)} saat`;
+        })();
 
         return {
             totalHours,
@@ -547,7 +644,9 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
             totalCompleted,
             onTimeRate: totalCompleted > 0 ? (totalOnTime / totalCompleted) * 100 : 0,
             topAssignment,
-            topHours,
+            topAssignmentSubtext,
+            employeeOfMonth,
+            employeeOfMonthSubtext,
         };
     }, [personnelPerformanceRows]);
 
@@ -1138,7 +1237,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                 <Card>
                     <CardContent className="pt-6">
                         <div className="text-sm text-muted-foreground">Toplam Operasyon</div>
-                        <div className="text-3xl font-bold mt-2">{operations.length}</div>
+                        <div className="text-3xl font-bold mt-2">{linkedOperations.length}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -1149,10 +1248,10 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                 </Card>
                 <Card>
                     <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground">Personel ve Tamamlanan</div>
+                        <div className="text-sm text-muted-foreground">Müsait personel</div>
                         <div className="mt-2 text-3xl font-bold text-emerald-600">{availablePersonnelCount}</div>
                         <div className="mt-2 text-xs text-muted-foreground">
-                            Müsait personel • Bu ay tamamlanan {completedThisMonth}
+                            Şu an görevde olmayan SSH personeli • Bu ay tamamlanan operasyon: {completedThisMonth}
                         </div>
                     </CardContent>
                 </Card>
@@ -1265,8 +1364,15 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                                 </TabsContent>
 
                                 <TabsContent value="board" className="mt-4">
-                                    <div className="mb-4 text-sm text-muted-foreground">
-                                        Personelin şu an nerede olduğu, hangi işe atandığı ve en son ne zaman işi bitirdiği görünür.
+                                    <div className="mb-4 space-y-1 text-sm text-muted-foreground">
+                                        <p>
+                                            Liste, departmandaki tüm SSH personelini gösterir (iş kaydı değil). Müsait olanlar yeşil rozetlidir.
+                                        </p>
+                                        {linkedOperations.length === 0 && (
+                                            <p className="text-amber-800 dark:text-amber-200">
+                                                Vakaya bağlı operasyon yok; aktif saha ataması da yok.
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="space-y-3">
                                         {personnelBoard.length === 0 ? (
@@ -1299,9 +1405,9 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                                                                 </div>
                                                             </div>
                                                             <div className="rounded-lg bg-muted/40 p-3">
-                                                                <div className="text-muted-foreground">İş Bitiş</div>
+                                                                <div className="text-muted-foreground">Aktif iş plan bitişi</div>
                                                                 <div className="mt-1 font-medium">
-                                                                    {person.activeOperation ? formatDate(person.activeOperation.planned_end_date) : formatDate(person.latestCompletedOperation?.actual_end_date)}
+                                                                    {person.activeOperation ? formatDate(person.activeOperation.planned_end_date) : '—'}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1321,7 +1427,7 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                                 </TabsContent>
 
                                 <TabsContent value="performance" className="mt-4 space-y-4">
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
                                         <Card>
                                             <CardContent className="pt-6">
                                                 <div className="text-sm text-muted-foreground">Toplam Görev</div>
@@ -1347,13 +1453,25 @@ const ServiceOperationsPlannerTab = ({ onOperationsChanged, panel = 'operations'
                                             <CardContent className="pt-6">
                                                 <div className="text-sm text-muted-foreground">En Yoğun Personel</div>
                                                 <div className="mt-2 text-xl font-bold">
-                                                    {personnelPerformanceSummary.topAssignment?.full_name || '-'}
+                                                    {personnelPerformanceSummary.topAssignment?.full_name || '—'}
+                                                </div>
+                                                <div className="mt-2 text-xs text-muted-foreground">{personnelPerformanceSummary.topAssignmentSubtext}</div>
+                                                <div className="mt-1 text-xs text-muted-foreground">Beyaz yaka hariç, görev ve saat</div>
+                                            </CardContent>
+                                        </Card>
+                                        <Card>
+                                            <CardContent className="pt-6">
+                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                    <Award className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                                                    Ayın Personeli
+                                                </div>
+                                                <div className="mt-2 text-xl font-bold">
+                                                    {personnelPerformanceSummary.employeeOfMonth?.full_name || '—'}
                                                 </div>
                                                 <div className="mt-2 text-xs text-muted-foreground">
-                                                    {personnelPerformanceSummary.topAssignment
-                                                        ? `${personnelPerformanceSummary.topAssignment.totalAssignments} görev`
-                                                        : 'Henüz görev kaydı yok'}
+                                                    {personnelPerformanceSummary.employeeOfMonthSubtext}
                                                 </div>
+                                                <div className="mt-1 text-xs text-muted-foreground">Bu ay tamamlanan (beyaz yaka hariç)</div>
                                             </CardContent>
                                         </Card>
                                     </div>

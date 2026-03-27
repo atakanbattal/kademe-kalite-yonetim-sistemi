@@ -28,6 +28,8 @@ import {
     CheckCircle2,
     Link2,
     Loader2,
+    FileText,
+    Download,
 } from 'lucide-react';
 import { format, subDays, addDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -81,6 +83,58 @@ const IncomingInspectionDetailModal = ({
     const [linkingDeviationId, setLinkingDeviationId] = useState(null);
     const [hasStockRiskControl, setHasStockRiskControl] = useState(false);
     const [stockRiskControlInfo, setStockRiskControlInfo] = useState(null);
+    const [inspectionAttachments, setInspectionAttachments] = useState([]);
+    const [loadingAttachments, setLoadingAttachments] = useState(false);
+
+    useEffect(() => {
+        const loadAttachments = async () => {
+            if (!isOpen || !enrichedInspection?.id) {
+                setInspectionAttachments([]);
+                return;
+            }
+            setLoadingAttachments(true);
+            try {
+                const { data, error } = await supabase
+                    .from('incoming_inspection_attachments')
+                    .select('*')
+                    .eq('inspection_id', enrichedInspection.id)
+                    .order('created_at', { ascending: false });
+                if (error) throw error;
+                setInspectionAttachments(data || []);
+            } catch (e) {
+                console.error('Muayene ekleri yüklenemedi:', e);
+                setInspectionAttachments([]);
+            } finally {
+                setLoadingAttachments(false);
+            }
+        };
+        loadAttachments();
+    }, [isOpen, enrichedInspection?.id]);
+
+    const handleViewInspectionAttachment = async (att) => {
+        try {
+            const { data, error } = await supabase.storage.from('incoming_control').createSignedUrl(att.file_path, 3600);
+            if (error) throw error;
+            window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Dosya açılamadı', description: err.message });
+        }
+    };
+
+    const handleDownloadInspectionAttachment = async (att) => {
+        try {
+            const { data, error } = await supabase.storage.from('incoming_control').download(att.file_path);
+            if (error) throw error;
+            const url = URL.createObjectURL(data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = att.file_name || 'dosya';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'İndirilemedi', description: err.message });
+        }
+    };
 
     // Check for risky stock when modal opens or inspection data changes
     useEffect(() => {
@@ -874,9 +928,15 @@ const IncomingInspectionDetailModal = ({
                 </header>
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
                     <Tabs defaultValue="main" className="w-full pb-4">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
                         <TabsTrigger value="main">Temel Bilgiler</TabsTrigger>
                         <TabsTrigger value="details">Muayene Detayları</TabsTrigger>
+                        <TabsTrigger value="attachments">
+                            Sertifika / Ekler
+                            {inspectionAttachments.length > 0 && (
+                                <Badge variant="secondary" className="ml-1 text-[10px]">{inspectionAttachments.length}</Badge>
+                            )}
+                        </TabsTrigger>
                         <TabsTrigger value="report">Rapor</TabsTrigger>
                     </TabsList>
 
@@ -1094,9 +1154,7 @@ const IncomingInspectionDetailModal = ({
                                                             className="border-b hover:bg-gray-50"
                                                         >
                                                             <td className="p-2 border-r font-semibold">
-                                                                {
-                                                                    result.feature
-                                                                }
+                                                                {result.characteristic_name || result.feature || '-'}
                                                             </td>
                                                             <td className="p-2 border-r text-xs">
                                                                 {
@@ -1161,6 +1219,53 @@ const IncomingInspectionDetailModal = ({
                                 </CardContent>
                             </Card>
                         ) : null}
+                    </TabsContent>
+
+                    <TabsContent value="attachments" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <FileText className="h-5 w-5" />
+                                    Yüklenen sertifikalar ve ekler
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {loadingAttachments ? (
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Ekler yükleniyor…
+                                    </div>
+                                ) : inspectionAttachments.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground py-4">
+                                        Bu muayene kaydına henüz PDF veya sertifika eklenmemiş. Kaydı düzenlerken &quot;Sertifika ve Ekler&quot; bölümünden dosya yükleyebilirsiniz.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {inspectionAttachments.map((att) => (
+                                            <div
+                                                key={att.id}
+                                                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm"
+                                            >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                                                    <span className="font-medium truncate" title={att.file_name}>{att.file_name}</span>
+                                                </div>
+                                                <div className="flex gap-2 shrink-0">
+                                                    <Button type="button" size="sm" variant="outline" onClick={() => handleViewInspectionAttachment(att)}>
+                                                        <Eye className="h-4 w-4 mr-1" />
+                                                        Görüntüle
+                                                    </Button>
+                                                    <Button type="button" size="sm" variant="secondary" onClick={() => handleDownloadInspectionAttachment(att)}>
+                                                        <Download className="h-4 w-4 mr-1" />
+                                                        İndir
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     {/* TAB 3: RAPOR */}

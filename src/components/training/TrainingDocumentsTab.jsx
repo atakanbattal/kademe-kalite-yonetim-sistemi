@@ -9,6 +9,13 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { sanitizeFileName } from '@/lib/utils';
     import { v4 as uuidv4 } from 'uuid';
 
+    const sortTrainingsByCode = (rows) =>
+        (rows || []).slice().sort((a, b) => {
+            const ca = (a.training_code || '').toString();
+            const cb = (b.training_code || '').toString();
+            return ca.localeCompare(cb, 'tr', { numeric: true, sensitivity: 'base' });
+        });
+
     const TrainingDocumentsTab = ({ onOpenPdfViewer, preselectTrainingId, onPreselectConsumed }) => {
         const { toast } = useToast();
         const [trainings, setTrainings] = useState([]);
@@ -19,8 +26,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         useEffect(() => {
             const fetchTrainings = async () => {
-                const { data, error } = await supabase.from('trainings').select('id, title, training_code').order('title');
-                if (!error) setTrainings(data);
+                const { data, error } = await supabase.from('trainings').select('id, title, training_code');
+                if (!error) setTrainings(sortTrainingsByCode(data));
             };
             fetchTrainings();
         }, []);
@@ -28,8 +35,8 @@ import React, { useState, useEffect, useCallback } from 'react';
         useEffect(() => {
             if (!preselectTrainingId) return;
             const run = async () => {
-                const { data, error } = await supabase.from('trainings').select('id, title, training_code').order('title');
-                if (!error && data) setTrainings(data);
+                const { data, error } = await supabase.from('trainings').select('id, title, training_code');
+                if (!error && data) setTrainings(sortTrainingsByCode(data));
                 setSelectedTrainingId(preselectTrainingId);
                 onPreselectConsumed?.();
             };

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileDown, X, History, RotateCcw, AlertTriangle } from 'lucide-react';
+import { FileDown, X, History, RotateCcw, AlertTriangle, Eye, Download, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
@@ -141,6 +141,36 @@ const ControlPlanDetailModal = ({
         return '-';
     };
 
+    const handleViewPlanFile = async () => {
+        if (!plan?.file_path) {
+            toast({ variant: 'destructive', title: 'Dosya yok', description: 'Bu plana bağlı dosya bulunamadı.' });
+            return;
+        }
+        try {
+            const { data, error } = await supabase.storage.from('incoming_control').createSignedUrl(plan.file_path, 3600);
+            if (error) throw error;
+            window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Açılamadı', description: e.message });
+        }
+    };
+
+    const handleDownloadPlanFile = async () => {
+        if (!plan?.file_path) return;
+        try {
+            const { data, error } = await supabase.storage.from('incoming_control').download(plan.file_path);
+            if (error) throw error;
+            const url = URL.createObjectURL(data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = plan.file_name || 'kontrol-plani';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'İndirilemedi', description: e.message });
+        }
+    };
+
     const handleGenerateReport = () => {
         // Process control modülündeki gibi senkron çalış
         try {
@@ -244,6 +274,25 @@ const ControlPlanDetailModal = ({
                                         <p className="font-medium">{(plan.items || []).length} adet</p>
                                     </div>
                                 </div>
+                                {plan.file_path && (
+                                    <div className="mt-4 rounded-lg border bg-muted/40 p-4 space-y-2">
+                                        <div className="flex items-center gap-2 text-sm font-medium">
+                                            <FileText className="h-4 w-4" />
+                                            Yüklenen kontrol planı dosyası
+                                        </div>
+                                        <p className="text-sm text-muted-foreground break-all">{plan.file_name || plan.file_path}</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button type="button" size="sm" variant="outline" onClick={handleViewPlanFile}>
+                                                <Eye className="h-4 w-4 mr-1" />
+                                                Görüntüle
+                                            </Button>
+                                            <Button type="button" size="sm" variant="secondary" onClick={handleDownloadPlanFile}>
+                                                <Download className="h-4 w-4 mr-1" />
+                                                İndir
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>

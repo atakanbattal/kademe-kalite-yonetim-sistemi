@@ -182,12 +182,12 @@ const AfterSalesFilters = ({
             <CardContent className="pt-0">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-[1.35fr_0.95fr_0.95fr]">
                     <div>
-                        <div className="flex h-11 items-center gap-3 rounded-xl border bg-background px-4">
-                            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="relative flex h-11 items-center rounded-xl border bg-background">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <input
                                 value={searchTerm}
                                 onChange={(event) => setSearchTerm(event.target.value)}
-                                className="h-full w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                                className="h-full w-full bg-transparent pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground"
                                 placeholder="Müşteri, araç, parça..."
                             />
                         </div>
@@ -471,7 +471,7 @@ const AfterSalesCaseList = ({
 };
 
 const CustomerComplaintsModule = () => {
-    const { customerComplaints, customers, loading, refreshData } = useData();
+    const { customerComplaints, customers, loading, refreshCustomerComplaints, refreshCustomers } = useData();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
     const [editingComplaint, setEditingComplaint] = useState(null);
@@ -715,10 +715,14 @@ const CustomerComplaintsModule = () => {
         setDetailModalOpen(false);
     }, []);
 
-    const handleFormSuccess = useCallback(() => {
-        refreshData();
+    const refreshComplaintsModule = useCallback(async () => {
+        await Promise.all([refreshCustomerComplaints(), refreshCustomers()]);
+    }, [refreshCustomerComplaints, refreshCustomers]);
+
+    const handleFormSuccess = useCallback(async () => {
+        await refreshComplaintsModule();
         closeFormModal();
-    }, [refreshData, closeFormModal]);
+    }, [refreshComplaintsModule, closeFormModal]);
 
     const handleEditFromDetail = useCallback((complaint) => {
         closeDetailModal();
@@ -849,11 +853,11 @@ const CustomerComplaintsModule = () => {
                 </TabsContent>
 
                 <TabsContent value="operations" className="mt-6">
-                    <ServiceOperationsPlannerTab panel="operations" onOperationsChanged={refreshData} />
+                    <ServiceOperationsPlannerTab panel="operations" onOperationsChanged={refreshComplaintsModule} />
                 </TabsContent>
 
                 <TabsContent value="personnel" className="mt-6">
-                    <ServiceOperationsPlannerTab panel="personnel" onOperationsChanged={refreshData} />
+                    <ServiceOperationsPlannerTab panel="personnel" onOperationsChanged={refreshComplaintsModule} />
                 </TabsContent>
 
                 <TabsContent value="sla" className="mt-6">
@@ -865,7 +869,7 @@ const CustomerComplaintsModule = () => {
                         complaints={filteredComplaints}
                         customers={customers}
                         periodLabel={periodLabel}
-                        onRefresh={refreshData}
+                        onRefresh={refreshComplaintsModule}
                     />
                 </TabsContent>
 
@@ -873,7 +877,7 @@ const CustomerComplaintsModule = () => {
                     <AfterSalesMethodTrackingTab
                         complaints={filteredComplaints}
                         customers={customers}
-                        onRefresh={refreshData}
+                        onRefresh={refreshComplaintsModule}
                     />
                 </TabsContent>
 
@@ -903,7 +907,7 @@ const CustomerComplaintsModule = () => {
                         </TabsContent>
 
                         <TabsContent value="depot" className="mt-6">
-                            <SSHDepotTab onDepotChanged={refreshData} />
+                            <SSHDepotTab onDepotChanged={refreshComplaintsModule} />
                         </TabsContent>
                     </Tabs>
                 </TabsContent>
@@ -936,7 +940,7 @@ const CustomerComplaintsModule = () => {
                     setOpen={setDetailModalOpen}
                     complaint={viewingComplaint}
                     onEdit={handleEditFromDetail}
-                    onRefresh={refreshData}
+                    onRefresh={refreshComplaintsModule}
                 />
             )}
         </motion.div>

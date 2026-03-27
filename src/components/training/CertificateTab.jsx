@@ -293,10 +293,10 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
         return (
             <div className="p-4 bg-card rounded-lg shadow-sm">
-                <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
-                    <h2 className="text-xl font-bold">Sertifika Yönetimi</h2>
-                    <div className="flex items-center gap-2 flex-grow sm:flex-grow-0">
-                        <div className="search-box w-full max-w-sm">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <h2 className="text-xl font-bold shrink-0">Sertifika Yönetimi</h2>
+                    <div className="flex w-full min-w-0 flex-col gap-2 sm:max-w-none sm:flex-1 sm:flex-row sm:items-center sm:justify-end">
+                        <div className="search-box w-full min-w-0 sm:max-w-sm sm:flex-1">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                             <input
                                 type="text"
@@ -306,7 +306,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
                                 className="search-input"
                             />
                         </div>
-                        <ManualCertificateModal onCertificateGenerated={fetchEligibleParticipants} />
+                        <div className="shrink-0 sm:flex-none">
+                            <ManualCertificateModal onCertificateGenerated={fetchEligibleParticipants} />
+                        </div>
                     </div>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">

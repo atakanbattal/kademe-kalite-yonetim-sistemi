@@ -813,7 +813,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                     <ControlPlanManagement onViewPdf={(path) => handleViewPdf(path, 'incoming_control')} />
                 </TabsContent>
                 <TabsContent value="inkr">
-                    <InkrManagement onViewPdf={(path) => handleViewPdf(path, 'incoming_control')} />
+                    <InkrManagement onViewPdf={(path, bucket = 'inkr_attachments') => handleViewPdf(path, bucket)} />
                 </TabsContent>
                  <TabsContent value="stock-risk">
                     <StockRiskControlList />

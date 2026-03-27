@@ -990,6 +990,19 @@ export const DataProvider = ({ children }) => {
         }
     }, [session]);
 
+    const refreshCustomers = useCallback(async () => {
+        if (!session) return;
+        try {
+            const { data: custData, error } = await supabase.from('customers').select('*').order('name');
+            if (!error) {
+                setData(prev => ({ ...prev, customers: custData || [] }));
+                console.log('✅ Customers refreshed:', custData?.length || 0);
+            }
+        } catch (error) {
+            console.error('❌ Customers refresh error:', error);
+        }
+    }, [session]);
+
     const refreshTasks = useCallback(async () => {
         if (!session) return;
         try {
@@ -1020,6 +1033,7 @@ export const DataProvider = ({ children }) => {
         refreshEquipment,
         refreshIncomingInspections,
         refreshCustomerComplaints,
+        refreshCustomers,
         refreshTasks,
         logAudit,
     }), [
@@ -1027,6 +1041,7 @@ export const DataProvider = ({ children }) => {
         refreshProducedVehicles, refreshQualityCosts, refreshKpis, refreshAutoKpis,
         refreshSuppliers, refreshNonConformities, refreshDeviations,
         refreshEquipments, refreshEquipment, refreshIncomingInspections, refreshCustomerComplaints,
+        refreshCustomers,
         refreshTasks, logAudit,
     ]);
 

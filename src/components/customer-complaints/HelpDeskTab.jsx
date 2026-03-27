@@ -10,6 +10,7 @@ import {
     Plus,
     Search,
     Trash2,
+    UserPlus,
     X,
 } from 'lucide-react';
 
@@ -43,6 +44,7 @@ import {
     getChassisModelsForBrand,
     requiresChassisSelection,
 } from '@/components/customer-complaints/afterSalesConfig';
+import { CustomerFormModal } from '@/components/cost-settings/CustomerFormModal';
 
 const PRIORITY_OPTIONS = ['Düşük', 'Normal', 'Yüksek', 'Acil'];
 const STATUS_OPTIONS = ['Açık', 'Beklemede', 'Çözüldü', 'Vakaya Dönüştürüldü'];
@@ -85,7 +87,7 @@ const INITIAL_FORM = {
 const HelpDeskTab = ({ onConvertToCase }) => {
     const { toast } = useToast();
     const { user } = useAuth();
-    const { customers } = useData();
+    const { customers, refreshCustomers } = useData();
 
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -98,6 +100,7 @@ const HelpDeskTab = ({ onConvertToCase }) => {
     const [editingId, setEditingId] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [customerFormOpen, setCustomerFormOpen] = useState(false);
 
     const loadRecords = useCallback(async () => {
         setLoading(true);
@@ -216,8 +219,14 @@ const HelpDeskTab = ({ onConvertToCase }) => {
         }
     };
 
-    const customerOptions = useMemo(() =>
-        (customers || []).map((c) => ({ value: c.id, label: c.name })).sort((a, b) => a.label.localeCompare(b.label, 'tr')),
+    const customerOptions = useMemo(
+        () =>
+            (customers || [])
+                .map((c) => ({
+                    value: c.id,
+                    label: c.name || c.customer_name || '—',
+                }))
+                .sort((a, b) => a.label.localeCompare(b.label, 'tr')),
         [customers]
     );
 
@@ -252,13 +261,16 @@ const HelpDeskTab = ({ onConvertToCase }) => {
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 flex-1 max-w-md">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <div className="relative flex-1 min-w-0">
+                        <Search
+                            className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden
+                        />
                         <Input
                             placeholder="Kayıt ara..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9"
+                            className="pl-10 pr-2.5 sm:pl-10 sm:pr-3"
                         />
                     </div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -365,8 +377,21 @@ const HelpDeskTab = ({ onConvertToCase }) => {
                             <Textarea value={formData.description} onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))} rows={3} />
                         </div>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div>
-                                <Label>Müşteri</Label>
+                            <div className="space-y-2">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                    <Label className="sm:mb-2">Müşteri</Label>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="shrink-0 gap-1"
+                                        title="Ayarlar > Müşteri sekmesi ile aynı form"
+                                        onClick={() => setCustomerFormOpen(true)}
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        Yeni müşteri
+                                    </Button>
+                                </div>
                                 <Select value={formData.customer_id || '__none__'} onValueChange={(v) => setFormData((p) => ({ ...p, customer_id: v === '__none__' ? '' : v }))}>
                                     <SelectTrigger><SelectValue placeholder="Müşteri seçin" /></SelectTrigger>
                                     <SelectContent>
@@ -512,6 +537,19 @@ const HelpDeskTab = ({ onConvertToCase }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <CustomerFormModal
+                open={customerFormOpen}
+                setOpen={setCustomerFormOpen}
+                existingCustomer={null}
+                onSuccess={async ({ customer }) => {
+                    await refreshCustomers();
+                    if (customer?.id) {
+                        setFormData((prev) => ({ ...prev, customer_id: customer.id }));
+                    }
+                    setCustomerFormOpen(false);
+                }}
+            />
 
             <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
                 <AlertDialogContent>
