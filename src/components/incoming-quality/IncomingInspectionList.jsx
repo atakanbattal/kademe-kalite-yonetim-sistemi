@@ -363,4 +363,4 @@ import React from 'react';
         );
     };
 
-    export default IncomingInspectionList;
+    export default React.memo(IncomingInspectionList);

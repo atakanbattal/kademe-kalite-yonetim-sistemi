@@ -331,8 +331,10 @@ const getReportTitle = (record, type) => {
 			return record.title || 'Uygunsuzluk Yönetimi Liste Raporu';
 		case 'kaizen':
 			return `Kaizen Raporu-${record.kaizen_no || 'Bilinmiyor'}`;
-		case 'quarantine':
-			return `Karantina Raporu-${record.lot_no || 'Bilinmiyor'}`;
+		case 'quarantine': {
+			const qParts = [record.part_code, record.part_name, record.status].filter(Boolean);
+			return qParts.length > 0 ? `Karantina Raporu-${qParts.join('-')}` : `Karantina Raporu-${record.lot_no || record.id || 'Rapor'}`;
+		}
 		case 'quarantine_list':
 			return 'Genel Karantina Raporu';
 		case 'wps':
@@ -366,7 +368,7 @@ const getReportTitle = (record, type) => {
 		case 'quality_cost_list':
 			return record.unit ? `${record.unit} Birimi-Kalite Maliyetleri Raporu` : 'Kalite Maliyetleri Raporu';
 		case 'quality_cost_executive_summary':
-			return 'Kalite Maliyeti Yönetici Özeti Raporu';
+			return record.unit ? `${record.unit} Birimi-Kalite Maliyeti Yönetici Özeti Raporu` : 'Kalite Maliyeti Yönetici Özeti Raporu';
 		case 'quality_cost_detail':
 			return 'Kalite Maliyeti Detay Raporu';
 		case 'incoming_quality_executive_summary':
@@ -2797,7 +2799,7 @@ const generateListReportHtml = (record, type) => {
 		headers = [];
 		rowsHtml = '';
 	} else if (type === 'quality_cost_executive_summary') {
-		title = 'Kalite Maliyeti Yönetici Özeti Raporu';
+		title = record.unit ? `${record.unit} Birimi-Kalite Maliyeti Yönetici Özeti Raporu` : 'Kalite Maliyeti Yönetici Özeti Raporu';
 
 		// Veri kontrolü - eğer veri yoksa hata mesajı göster
 		if (!record || typeof record !== 'object') {
@@ -2809,9 +2811,12 @@ const generateListReportHtml = (record, type) => {
 			const formatPercent = (value) => (value || 0).toFixed(2);
 			const formatDateLocal = (dateStr) => formatDateHelper(dateStr, 'dd.MM.yyyy');
 
-			const periodInfo = record.periodStart && record.periodEnd
-				? `${record.periodStart} - ${record.periodEnd}`
-				: record.period || 'Tüm Zamanlar';
+			const periodInfo = [
+				record.unit ? `Birim: ${record.unit}` : null,
+				record.periodStart && record.periodEnd
+					? `${record.periodStart} - ${record.periodEnd}`
+					: record.period || 'Tüm Zamanlar',
+			].filter(Boolean).join(' | ');
 
 			// Birim bazlı toplamlar - payı olan TÜM birimler (allUnits varsa)
 			const unitsForDisplay = (record.allUnits && record.allUnits.length > 0) ? record.allUnits : (record.topUnits || []);
@@ -4051,7 +4056,7 @@ const generateListReportHtml = (record, type) => {
 			: type === 'supplier_quality_executive_summary'
 				? `TEDARIKCI-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
 				: type === 'quality_cost_executive_summary'
-					? `MALIYET-YONETICI-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
+					? `MALIYET-YONETICI${record.unit ? `-${record.unit.replace(/\s+/g, '_').toUpperCase()}` : ''}-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
 					: type === 'quality_cost_detail'
 						? `MALIYET-DETAY-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`
 						: `RAPOR-${formatDate(new Date()).replace(/\./g, '')}-${Date.now().toString().slice(-6)}`;

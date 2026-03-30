@@ -16,10 +16,12 @@ import A3QualityBoardReport from '@/pages/A3QualityBoardReport';
 
 import AuthProtected from '@/components/auth/AuthProtected';
 import MainLayout from '@/components/layout/MainLayout';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 function App() {
     return (
         <HelmetProvider>
+            <ErrorBoundary>
             <AuthProvider>
                 <DataProvider>
                     <NCFormProvider>
@@ -40,6 +42,7 @@ function App() {
                 </DataProvider>
                 <Toaster />
             </AuthProvider>
+            </ErrorBoundary>
         </HelmetProvider>
     );
 }

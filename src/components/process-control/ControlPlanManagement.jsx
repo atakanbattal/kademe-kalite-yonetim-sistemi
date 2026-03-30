@@ -25,7 +25,8 @@ import ControlPlanDetailModal from './ControlPlanDetailModal';
 const NON_DIMENSIONAL_EQUIPMENT_LABELS = [
     "Geçer/Geçmez Mastar", "Karşı Parça ile Deneme", 
     "Fonksiyonel Test", "Manuel Kontrol", "Pürüzlülük Ölçüm Cihazı", 
-    "Sertlik Test Cihazı", "Vida Diş Ölçer (Pitch Gauge)", "Gözle Kontrol"
+    "Sertlik Test Cihazı", "Vida Diş Ölçer (Pitch Gauge)", "Gözle Kontrol",
+    "Şablon"
 ];
 
 const ISO_2768_1_TOLERANCES = {
@@ -303,7 +304,7 @@ const ControlPlanItem = ({ item, index, onUpdate, characteristics, equipment, st
 
 const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refreshEquipment }) => {
     const { toast } = useToast();
-    const { characteristics, equipment: measurementEquipment, standards, products, productCategories } = useData();
+    const { characteristics, equipment: measurementEquipment, standards, products, productCategories, refreshEquipment: refreshMeasurementEquipment } = useData();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -331,6 +332,10 @@ const ControlPlanManagement = ({ equipment, plans, loading, refreshPlans, refres
 
     // Sadece araç tiplerini göster (products'tan)
     const equipmentOptions = vehicleTypeOptions;
+
+    useEffect(() => {
+        refreshMeasurementEquipment?.();
+    }, [refreshMeasurementEquipment]);
 
     const initialItemState = { 
         id: uuidv4(), 

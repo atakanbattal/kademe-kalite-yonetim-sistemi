@@ -57,3 +57,48 @@ export function buildControlPlanNormalizedKeySet(plans) {
   }
   return set;
 }
+
+/**
+ * PostgREST URL uzunluğu / 400 Bad Request sınırını aşmamak için in / not.in listelerini parçalar.
+ * not.in için: her parça üzerinde ayrı filter AND ile birleşir → birleşik kümenin dışı.
+ * in için: parçalar .or() ile birleşir → birleşik küme içinde.
+ */
+const POSTGREST_PART_CODE_IN_CHUNK_SIZE = 40;
+
+function chunkTrimmedPartCodes(trimmedCodes) {
+  const chunks = [];
+  for (let i = 0; i < trimmedCodes.length; i += POSTGREST_PART_CODE_IN_CHUNK_SIZE) {
+    chunks.push(trimmedCodes.slice(i, i + POSTGREST_PART_CODE_IN_CHUNK_SIZE));
+  }
+  return chunks;
+}
+
+/** Supabase sorgu zincirine part_code IN (çok değer, OR parçaları). */
+export function applyPartCodeInFilterChunks(query, trimmedPartCodes) {
+  const chunks = chunkTrimmedPartCodes(trimmedPartCodes);
+  if (chunks.length === 0) {
+    return query.eq('id', '00000000-0000-0000-0000-000000000000');
+  }
+  if (chunks.length === 1) {
+    const inList = formatPartCodesForPostgrestInFilter(chunks[0]);
+    return inList ? query.filter('part_code', 'in', inList) : query.eq('id', '00000000-0000-0000-0000-000000000000');
+  }
+  const orParts = chunks
+    .map((chunk) => {
+      const inList = formatPartCodesForPostgrestInFilter(chunk);
+      return inList ? `part_code.in.${inList}` : null;
+    })
+    .filter(Boolean);
+  return orParts.length ? query.or(orParts.join(',')) : query.eq('id', '00000000-0000-0000-0000-000000000000');
+}
+
+/** Supabase sorgu zincirine part_code NOT IN (çok değer, AND parçaları). */
+export function applyPartCodeNotInFilterChunks(query, trimmedPartCodes) {
+  const chunks = chunkTrimmedPartCodes(trimmedPartCodes);
+  let q = query;
+  for (const chunk of chunks) {
+    const inList = formatPartCodesForPostgrestInFilter(chunk);
+    if (inList) q = q.filter('part_code', 'not.in', inList);
+  }
+  return q;
+}

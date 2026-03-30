@@ -623,16 +623,19 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
             topVehicleTypes,
             topSuppliers,
             monthlyData,
-            reportDate: formatDate(new Date())
+            reportDate: formatDate(new Date()),
+            unit: unitFilter !== 'all' ? unitFilter : null,
         };
 
         openPrintableReport(reportData, 'quality_cost_executive_summary', true);
 
         toast({
             title: 'Başarılı',
-            description: 'Yönetici özeti raporu oluşturuldu.',
+            description: unitFilter !== 'all' 
+                ? `${unitFilter} birimi için yönetici özeti raporu oluşturuldu.`
+                : 'Yönetici özeti raporu oluşturuldu.',
         });
-    }, [filteredCosts, dateRange, toast]);
+    }, [filteredCosts, dateRange, unitFilter, toast]);
 
     const handleSelectReportType = useCallback((reportType) => {
         setIsReportSelectionModalOpen(false);

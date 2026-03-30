@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import { motion } from 'framer-motion';
-    import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+    import { Search, Plus, MoreHorizontal, AlertOctagon, Trash2, Eye, Edit, GitBranch, ExternalLink, FileText, ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { Button } from '@/components/ui/button';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
     import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+    import { Label } from '@/components/ui/label';
+    import { DateRangePicker } from '@/components/ui/date-range-picker';
+    import { Badge } from '@/components/ui/badge';
     import QuarantineFormModal from '@/components/quarantine/QuarantineFormModal';
     import QuarantineDecisionModal from '@/components/quarantine/QuarantineDecisionModal';
     import CreateNCFromQuarantineModal from '@/components/quarantine/CreateNCFromQuarantineModal';
@@ -15,6 +20,17 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
     import QuarantineReportFilterModal from '@/components/quarantine/QuarantineReportFilterModal';
     import { useData } from '@/contexts/DataContext';
     import { openPrintableReport } from '@/lib/reportUtils';
+
+    const QUARANTINE_STATUSES = [
+      'Karantinada',
+      'Yeniden İşlem',
+      'Hurda',
+      'Onay Bekliyor',
+      'İade',
+      'Serbest Bırakıldı',
+      'Sapma Onaylı',
+      'Tamamlandı',
+    ];
 
     const QuarantineModule = ({ onOpenNCForm, onOpenNCView }) => {
       const { toast } = useToast();
@@ -28,15 +44,40 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       const [isReportFilterOpen, setIsReportFilterOpen] = useState(false);
       const [selectedRecord, setSelectedRecord] = useState(null);
       const [searchTerm, setSearchTerm] = useState('');
-      const [formMode, setFormMode] = useState('new'); // 'new', 'edit', 'view'
+      const [formMode, setFormMode] = useState('new');
       const [sortConfig, setSortConfig] = useState({ key: 'quarantine_date', direction: 'desc' });
+
+      const [statusFilter, setStatusFilter] = useState('all');
+      const [dateRange, setDateRange] = useState(null);
+      const [departmentFilter, setDepartmentFilter] = useState('all');
+
+      const uniqueDepartments = useMemo(() => {
+        const deps = new Set();
+        quarantineRecords.forEach(r => {
+          if (r.source_department) deps.add(r.source_department);
+        });
+        return [...deps].sort();
+      }, [quarantineRecords]);
+
+      const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (statusFilter !== 'all') count++;
+        if (dateRange) count++;
+        if (departmentFilter !== 'all') count++;
+        return count;
+      }, [statusFilter, dateRange, departmentFilter]);
+
+      const handleClearFilters = () => {
+        setStatusFilter('all');
+        setDateRange(null);
+        setDepartmentFilter('all');
+      };
 
       useEffect(() => {
         let filtered = [...quarantineRecords];
         
         if (searchTerm) {
             const lowercasedFilter = searchTerm.toLowerCase();
-            // Kapsamlı arama: parça kodu, adı, lot no, uygunsuzluk numarası
             filtered = filtered.filter(record => 
                 record.part_code?.toLowerCase().includes(lowercasedFilter) ||
                 record.part_name?.toLowerCase().includes(lowercasedFilter) ||
@@ -49,7 +90,23 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
             );
         }
 
-        // Sıralama
+        if (statusFilter !== 'all') {
+          filtered = filtered.filter(r => r.status === statusFilter);
+        }
+
+        if (dateRange && dateRange.from) {
+          filtered = filtered.filter(r => {
+            const d = new Date(r.quarantine_date);
+            if (dateRange.from && d < dateRange.from) return false;
+            if (dateRange.to && d > new Date(dateRange.to.getTime() + 86400000 - 1)) return false;
+            return true;
+          });
+        }
+
+        if (departmentFilter !== 'all') {
+          filtered = filtered.filter(r => r.source_department === departmentFilter);
+        }
+
         filtered.sort((a, b) => {
             let aVal, bVal;
             
@@ -90,7 +147,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
         });
 
         setRecords(filtered);
-      }, [searchTerm, quarantineRecords, sortConfig]);
+      }, [searchTerm, quarantineRecords, sortConfig, statusFilter, dateRange, departmentFilter]);
       
       const handleDeleteRecord = async (recordId) => {
         const { error } = await supabase.from('quarantine_records').delete().eq('id', recordId);
@@ -134,7 +191,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
       };
 
       const handleGenerateReportFromSelection = (selectedRecords) => {
-        // Sadece gerekli alanları seç (resim URL'leri ve gereksiz alanları çıkar)
         const lightweightRecords = selectedRecords.map(r => ({
           id: r.id,
           quarantine_date: r.quarantine_date,
@@ -150,7 +206,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           requesting_person_name: r.requesting_person_name,
           status: r.status,
           notes: r.notes,
-          description: r.description, // Açıklama - PDF'de gösterilecek
+          description: r.description,
         }));
         
         const reportData = {
@@ -159,7 +215,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
           id: `quarantine-active-${new Date().toISOString()}`
         };
         
-        // quarantine_list için useUrlParams=true (liste verilerini URL'de gönder)
         openPrintableReport(reportData, 'quarantine_list', true);
       };
 
@@ -254,7 +309,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
             <TabsContent value="list">
           <div className="dashboard-widget">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
                 <div className="search-box w-full max-w-sm">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
                   <input 
@@ -264,6 +319,65 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="relative">
+                        <Filter className="mr-2 h-4 w-4" />
+                        Filtrele
+                        {activeFilterCount > 0 && (
+                          <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px]">
+                            {activeFilterCount}
+                          </Badge>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Durum</Label>
+                          <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Tümü" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Tümü</SelectItem>
+                              {QUARANTINE_STATUSES.map(s => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Sebep Olan Birim</Label>
+                          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Tümü" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Tümü</SelectItem>
+                              {uniqueDepartments.map(d => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Tarih Aralığı</Label>
+                          <DateRangePicker
+                            date={dateRange}
+                            onDateChange={(range) => setDateRange(range || null)}
+                          />
+                        </div>
+                        <Button onClick={handleClearFilters} variant="outline" className="w-full">
+                          <X className="mr-2 h-4 w-4" />
+                          Filtreleri Temizle
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">{records.length} kayıt</span>
                 </div>
             </div>
             <div className="overflow-x-auto">
@@ -361,7 +475,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
                               variant="link" 
                               className="p-0 h-auto" 
                               onClick={() => {
-                                // non_conformity objesi yoksa, sadece ID ile açmaya çalış
                                 if (onOpenNCView && item.non_conformity_id) {
                                   onOpenNCView({ id: item.non_conformity_id, nc_number: item.nc_number });
                                 }

@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { fetchProducedVehiclesMerged } from '@/lib/fetchProducedVehiclesMerged';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -153,7 +154,7 @@ export const DataProvider = ({ children }) => {
 
         // ORTA ÖNCELİKLİ TABLOLAR (İkinci dalga)
         const mediumPromises = {
-            producedVehicles: supabase.from('quality_inspections').select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)').limit(500),
+            producedVehicles: (async () => fetchProducedVehiclesMerged({ limit: 250 }))(),
             nonConformities: supabase.from('non_conformities').select('*, supplier:supplier_id(name)'),
             nonconformityRecords: supabase.from('nonconformity_records').select('*').order('detection_date', { ascending: false }).limit(500),
             deviations: supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)'),
@@ -192,6 +193,29 @@ export const DataProvider = ({ children }) => {
             })(),
             kpis: supabase.from('kpis').select('*'),
             materialCostSettings: supabase.from('material_costs').select('*'),
+            /** Girdi kalite: KPI ve liste eşlemesi için tüm planlar (PostgREST 1000 limiti yok) */
+            incomingControlPlans: (async () => {
+                try {
+                    const pageSize = 1000;
+                    const all = [];
+                    let from = 0;
+                    for (;;) {
+                        const { data, error } = await supabase
+                            .from('incoming_control_plans')
+                            .select('part_code, is_current')
+                            .order('part_code', { ascending: true })
+                            .range(from, from + pageSize - 1);
+                        if (error) return { data: [], error };
+                        if (!data?.length) break;
+                        all.push(...data);
+                        if (data.length < pageSize) break;
+                        from += pageSize;
+                    }
+                    return { data: all, error: null };
+                } catch (e) {
+                    return { data: [], error: e };
+                }
+            })(),
         };
 
         // AĞIR TABLOLAR (Üçüncü dalga - limit ile)
@@ -266,16 +290,16 @@ export const DataProvider = ({ children }) => {
                 .select('*,audits!audit_id(report_number),non_conformities!fk_source_finding(id,nc_number,status,due_at,due_date)'),
             quarantineRecords: supabase.from('quarantine_records_api').select('*').order('quarantine_date', { ascending: false }).limit(500),
             incomingInspections: supabase.from('incoming_inspections_with_supplier').select('*').limit(500),
-            incomingControlPlans: (async () => {
+            processControlPlans: (async () => {
                 try {
                     const pageSize = 1000;
                     const all = [];
                     let from = 0;
                     for (;;) {
                         const { data, error } = await supabase
-                            .from('incoming_control_plans')
-                            .select('part_code, is_current')
-                            .order('part_code', { ascending: true })
+                            .from('process_control_plans')
+                            .select('id')
+                            .eq('is_active', true)
                             .range(from, from + pageSize - 1);
                         if (error) return { data: [], error };
                         if (!data?.length) break;
@@ -284,14 +308,6 @@ export const DataProvider = ({ children }) => {
                         from += pageSize;
                     }
                     return { data: all, error: null };
-                } catch (e) {
-                    return { data: [], error: e };
-                }
-            })(),
-            processControlPlans: (async () => {
-                try {
-                    const { data, error } = await supabase.from('process_control_plans').select('id').eq('is_active', true);
-                    return error ? { data: [], error } : { data: data || [], error: null };
                 } catch (e) {
                     return { data: [], error: null };
                 }
@@ -304,7 +320,28 @@ export const DataProvider = ({ children }) => {
                     controlled_inspection:incoming_inspections!stock_risk_controls_controlled_inspection_id_fkey(id, record_no, part_code, part_name, delivery_note_number),
                     controlled_by:profiles!stock_risk_controls_controlled_by_id_fkey(id, full_name)
                 `).order('created_at', { ascending: false }).limit(200),
-            inkrReports: supabase.from('inkr_reports').select('*, supplier:supplier_id(name)').order('created_at', { ascending: false }),
+            inkrReports: (async () => {
+                try {
+                    const pageSize = 1000;
+                    const all = [];
+                    let from = 0;
+                    for (;;) {
+                        const { data, error } = await supabase
+                            .from('inkr_reports')
+                            .select('*, supplier:supplier_id(name)')
+                            .order('id', { ascending: true })
+                            .range(from, from + pageSize - 1);
+                        if (error) return { data: [], error };
+                        if (!data?.length) break;
+                        all.push(...data);
+                        if (data.length < pageSize) break;
+                        from += pageSize;
+                    }
+                    return { data: all, error: null };
+                } catch (e) {
+                    return { data: [], error: e };
+                }
+            })(),
             customerComplaints: supabase.from('customer_complaints').select('*, customer:customer_id(name, customer_name, customer_code), responsible_person:responsible_personnel_id(full_name), assigned_to:assigned_to_id(full_name), responsible_department:responsible_department_id(unit_name)').order('complaint_date', { ascending: false }).limit(500),
             complaintAnalyses: supabase.from('complaint_analyses').select('*'),
             complaintActions: supabase.from('complaint_actions').select('*, responsible_person:responsible_person_id(full_name), responsible_department:responsible_department_id(unit_name)'),
@@ -335,24 +372,25 @@ export const DataProvider = ({ children }) => {
 
             criticalResults.forEach((result, index) => {
                 const key = criticalKeys[index];
-                if (result.status === 'fulfilled' && !result.value.error) {
+                const val = result.status === 'fulfilled' ? result.value : null;
+                if (result.status === 'fulfilled' && val && !val.error) {
                     // Transform karakteristikleri, ekipmanları ve standartları
-                    if (key === 'characteristics' && result.value.data) {
-                        newState[key] = result.value.data.map(c => ({ value: c.id, label: c.name, type: c.type, sampling_rate: c.sampling_rate }));
-                    } else if (key === 'equipment' && result.value.data) {
-                        newState[key] = result.value.data.map(e => ({ value: e.id, label: e.name }));
-                    } else if (key === 'standards' && result.value.data) {
-                        newState[key] = result.value.data.map(s => ({ value: s.id, label: s.name || s.code, id: s.id, name: s.name, code: s.code }));
-                    } else if (key === 'products' && result.value.data) {
+                    if (key === 'characteristics' && val.data) {
+                        newState[key] = val.data.map(c => ({ value: c.id, label: c.name, type: c.type, sampling_rate: c.sampling_rate }));
+                    } else if (key === 'equipment' && val.data) {
+                        newState[key] = val.data.map(e => ({ value: e.id, label: e.name }));
+                    } else if (key === 'standards' && val.data) {
+                        newState[key] = val.data.map(s => ({ value: s.id, label: s.name || s.code, id: s.id, name: s.name, code: s.code }));
+                    } else if (key === 'products' && val.data) {
                         // Products'ı kategoriye göre grupla ve transform et
-                        newState[key] = result.value.data.map(p => ({
+                        newState[key] = val.data.map(p => ({
                             ...p,
                             value: p.id,
                             label: p.product_name,
                             category_code: p.product_categories?.category_code
                         }));
                     } else {
-                        newState[key] = result.value.data || [];
+                        newState[key] = val.data || [];
                     }
                 } else {
                     const error = result.reason || result.value?.error;
@@ -380,10 +418,11 @@ export const DataProvider = ({ children }) => {
 
             mediumResults.forEach((result, index) => {
                 const key = mediumKeys[index];
-                if (result.status === 'fulfilled' && !result.value.error) {
-                    newState[key] = result.value.data || [];
+                const val = result.status === 'fulfilled' ? result.value : null;
+                if (result.status === 'fulfilled' && val && !val.error) {
+                    newState[key] = val.data || [];
                 } else {
-                    const error = result.reason || result.value?.error;
+                    const error = result.reason || val?.error;
                     console.warn(`⚠️ ${key} fetch failed:`, error);
                     if (key === 'qualityCosts') {
                         console.error('❌ Quality Costs Fetch Error Details:', {
@@ -412,7 +451,7 @@ export const DataProvider = ({ children }) => {
                     // Documents için özel kontrol - async fonksiyon { data, error } döndürüyor
                     if (key === 'documents') {
                         const documentsResult = result.value;
-                        if (!documentsResult.error && documentsResult.data) {
+                        if (documentsResult && !documentsResult.error && documentsResult.data) {
                             newState[key] = documentsResult.data || [];
                             console.log('📚 Documents fetch başarılı:', documentsResult.data?.length || 0, 'doküman');
                             if (documentsResult.data && documentsResult.data.length > 0) {
@@ -430,11 +469,11 @@ export const DataProvider = ({ children }) => {
                             newState[key] = [];
                         }
                     } else {
-                        // Diğer tablolar için normal kontrol
-                        if (!result.value.error) {
-                            newState[key] = result.value.data || [];
+                        const hv = result.value;
+                        if (hv && !hv.error) {
+                            newState[key] = hv.data || [];
                         } else {
-                            console.error(`❌ ${key} fetch failed:`, result.value.error);
+                            console.error(`❌ ${key} fetch failed:`, hv?.error);
                             newState[key] = [];
                         }
                     }
@@ -460,17 +499,20 @@ export const DataProvider = ({ children }) => {
                     // auditLogs için özel kontrol (async fonksiyon { data, error } döndürüyor)
                     if (key === 'auditLogs') {
                         const auditLogsResult = result.value;
-                        if (!auditLogsResult.error && auditLogsResult.data) {
+                        if (auditLogsResult && !auditLogsResult.error && auditLogsResult.data) {
                             newState[key] = auditLogsResult.data || [];
                         } else {
                             console.warn(`⚠️ ${key} fetch failed:`, auditLogsResult.error);
                             newState[key] = [];
                         }
-                    } else if (!result.value.error) {
-                        newState[key] = result.value.data || [];
                     } else {
-                        console.warn(`⚠️ ${key} fetch failed:`, result.value.error);
-                        newState[key] = [];
+                        const lv = result.value;
+                        if (lv && !lv.error) {
+                            newState[key] = lv.data || [];
+                        } else {
+                            console.warn(`⚠️ ${key} fetch failed:`, lv?.error);
+                            newState[key] = [];
+                        }
                     }
                 } else {
                     console.warn(`⚠️ ${key} fetch failed:`, result.reason || result.value?.error);
@@ -626,10 +668,7 @@ export const DataProvider = ({ children }) => {
     const refreshProducedVehicles = useCallback(async () => {
         if (!session) return;
         try {
-            const { data, error } = await supabase
-                .from('quality_inspections')
-                .select('*, quality_inspection_history(*), quality_inspection_faults(*, fault_category:fault_categories(name)), vehicle_timeline_events(*)')
-                .limit(500);
+            const { data, error } = await fetchProducedVehiclesMerged({ limit: 500 });
 
             if (error) {
                 console.error('❌ Produced vehicles refresh failed:', error);

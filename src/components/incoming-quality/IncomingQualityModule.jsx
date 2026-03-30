@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -10,38 +10,54 @@ import { FileText, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import IncomingInspectionList from '@/components/incoming-quality/IncomingInspectionList';
-import IncomingInspectionFormModal from '@/components/incoming-quality/IncomingInspectionFormModal';
 import IncomingQualityDashboard from '@/components/incoming-quality/IncomingQualityDashboard';
-import ControlPlanManagement from '@/components/incoming-quality/ControlPlanManagement';
-import InkrManagement from '@/components/incoming-quality/InkrManagement';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { useData } from '@/contexts/DataContext';
-import IncomingInspectionDecisionModal from '@/components/incoming-quality/IncomingInspectionDecisionModal';
 import PdfViewerModal from '@/components/document/PdfViewerModal';
-import SheetMetalManagement from '@/components/incoming-quality/SheetMetalManagement';
-import StockRiskControlList from '@/components/incoming-quality/StockRiskControlList';
-import StockRiskControlModal from '@/components/incoming-quality/StockRiskControlModal';
-import ControlPlanDetailModal from '@/components/incoming-quality/ControlPlanDetailModal';
-import InkrDetailModal from '@/components/incoming-quality/InkrDetailModal';
-import StockRiskDetailModal from '@/components/incoming-quality/StockRiskDetailModal';
 import {
   normalizeIncomingPartCode,
-  formatPartCodesForPostgrestInFilter,
-  uniqueTrimmedPartCodesFromPlans,
   buildControlPlanNormalizedKeySet,
 } from '@/lib/incomingQualityPartCodes';
 
+const ControlPlanManagement = lazy(() => import('@/components/incoming-quality/ControlPlanManagement'));
+const InkrManagement = lazy(() => import('@/components/incoming-quality/InkrManagement'));
+const SheetMetalManagement = lazy(() => import('@/components/incoming-quality/SheetMetalManagement'));
+const StockRiskControlList = lazy(() => import('@/components/incoming-quality/StockRiskControlList'));
+const IncomingInspectionFormModal = lazy(() => import('@/components/incoming-quality/IncomingInspectionFormModal'));
+const IncomingInspectionDecisionModal = lazy(() => import('@/components/incoming-quality/IncomingInspectionDecisionModal'));
+const StockRiskControlModal = lazy(() => import('@/components/incoming-quality/StockRiskControlModal'));
+const ControlPlanDetailModal = lazy(() => import('@/components/incoming-quality/ControlPlanDetailModal'));
+const InkrDetailModal = lazy(() => import('@/components/incoming-quality/InkrDetailModal'));
+const StockRiskDetailModal = lazy(() => import('@/components/incoming-quality/StockRiskDetailModal'));
+
 const PAGE_SIZE = 20;
 const DASHBOARD_FETCH_LIMIT = 1000;
+
+const TabFallback = () => (
+    <div className="flex items-center justify-center py-12 text-muted-foreground">Yükleniyor...</div>
+);
 
 const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const { toast } = useToast();
     const { suppliers, incomingControlPlans, inkrReports, refreshData: globalRefresh, refreshEquipment, characteristics, equipment } = useData();
 
-    /** Dashboard / liste ile uyum: yalnızca geçerli (veya legacy null) kontrol planları */
     const activeIncomingControlPlans = useMemo(
         () => (incomingControlPlans || []).filter((p) => p.is_current !== false),
         [incomingControlPlans]
+    );
+
+    const controlPlansRef = useRef(activeIncomingControlPlans);
+    const inkrReportsRef = useRef(inkrReports);
+    useEffect(() => { controlPlansRef.current = activeIncomingControlPlans; }, [activeIncomingControlPlans]);
+    useEffect(() => { inkrReportsRef.current = inkrReports; }, [inkrReports]);
+
+    const controlPlanKeys = useMemo(
+        () => buildControlPlanNormalizedKeySet(activeIncomingControlPlans),
+        [activeIncomingControlPlans]
+    );
+    const inkrKeys = useMemo(
+        () => buildControlPlanNormalizedKeySet(inkrReports),
+        [inkrReports]
     );
 
     useEffect(() => {
@@ -51,10 +67,13 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [inspections, setInspections] = useState([]);
     const [dashboardData, setDashboardData] = useState(null);
     const [inkrMissingCount, setInkrMissingCount] = useState(0);
+    const [controlPlanMissingCount, setControlPlanMissingCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
+    const [activeTab, setActiveTab] = useState('inspections');
+    const mountedTabsRef = useRef(new Set(['inspections']));
 
     const [isFormOpen, setFormOpen] = useState(false);
     const [isDecisionModalOpen, setDecisionModalOpen] = useState(false);
@@ -73,36 +92,53 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const [filters, setFilters] = useState({
         searchTerm: '',
-        dateRange: null, // Başlangıçta null olarak ayarlandı (tüm zamanlar)
+        dateRange: null,
         decision: 'all',
         supplier: 'all',
         controlPlanStatus: 'all',
         inkrStatus: 'all',
     });
 
+    const searchDebounceRef = useRef(null);
+    const [debouncedFilters, setDebouncedFilters] = useState(filters);
+
+    useEffect(() => {
+        const hasSearchChange = filters.searchTerm !== debouncedFilters.searchTerm;
+        const otherFiltersChanged =
+            filters.dateRange !== debouncedFilters.dateRange ||
+            filters.decision !== debouncedFilters.decision ||
+            filters.supplier !== debouncedFilters.supplier ||
+            filters.controlPlanStatus !== debouncedFilters.controlPlanStatus ||
+            filters.inkrStatus !== debouncedFilters.inkrStatus;
+
+        if (otherFiltersChanged) {
+            clearTimeout(searchDebounceRef.current);
+            setDebouncedFilters(filters);
+            return;
+        }
+
+        if (hasSearchChange) {
+            clearTimeout(searchDebounceRef.current);
+            searchDebounceRef.current = setTimeout(() => {
+                setDebouncedFilters(filters);
+            }, 400);
+            return () => clearTimeout(searchDebounceRef.current);
+        }
+    }, [filters]);
+
+    const hasClientSideFilter = useCallback((currentFilters) => {
+        return currentFilters.controlPlanStatus !== 'all' || currentFilters.inkrStatus !== 'all';
+    }, []);
+
     const buildFilterQuery = useCallback((query, currentFilters) => {
         if (currentFilters.searchTerm && currentFilters.searchTerm.trim()) {
             const searchTerm = currentFilters.searchTerm.trim();
-            // Kapsamlı arama: sadece view'de mevcut olduğunu bildiğimiz kolonlar
-            // View kolonları: id, record_no, inspection_date, part_code, part_name, supplier_id, supplier_name, decision, quantity_received, quantity_rejected, vb.
             try {
-                // Supabase .or() syntax: column1.ilike.%value%,column2.ilike.%value%
-                // EquipmentModule.jsx'teki gibi % karakterlerini direkt string içinde kullan
-                // searchTerm değişkeni sadece değer olmalı, % karakterleri .or() içinde eklenmeli
                 query = query.or(`part_name.ilike.%${searchTerm}%,part_code.ilike.%${searchTerm}%,record_no.ilike.%${searchTerm}%,supplier_name.ilike.%${searchTerm}%`);
             } catch (error) {
-                console.error('❌ Search query oluşturma hatası:', error);
-                console.error('❌ Hata detayları:', {
-                    message: error.message,
-                    code: error.code,
-                    details: error.details,
-                    hint: error.hint,
-                    searchTerm: searchTerm
-                });
-                // Hata durumunda arama yapmadan devam et
+                console.error('Search query oluşturma hatası:', error);
             }
         }
-        // Tarih filtresi: null ise tüm zamanlar, from/to varsa filtre uygula
         if (currentFilters.dateRange && currentFilters.dateRange.from) {
             query = query.gte('inspection_date', currentFilters.dateRange.from.toISOString());
         }
@@ -115,41 +151,32 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         if (currentFilters.supplier !== 'all' && currentFilters.supplier) {
             query = query.eq('supplier_id', currentFilters.supplier);
         }
+        return query;
+    }, []);
+
+    const applyClientSideStatusFilter = useCallback((rows, currentFilters) => {
+        let result = rows;
         if (currentFilters.controlPlanStatus !== 'all') {
-            const partCodesWithPlan = uniqueTrimmedPartCodesFromPlans(activeIncomingControlPlans);
-            const inList = formatPartCodesForPostgrestInFilter(partCodesWithPlan);
-            if (currentFilters.controlPlanStatus === 'Mevcut') {
-                if (inList) {
-                    // Tire / özel karakter içeren parça kodları için tırnaklı PostgREST listesi (.in() yeterince tırnaklamıyor)
-                    query = query.filter('part_code', 'in', inList);
-                } else {
-                    query = query.eq('id', '00000000-0000-0000-0000-000000000000');
-                }
-            } else if (currentFilters.controlPlanStatus === 'Mevcut Değil') {
-                if (inList) {
-                    query = query.filter('part_code', 'not.in', inList);
-                }
-            }
+            result = result.filter((r) => r.control_plan_status === currentFilters.controlPlanStatus);
         }
         if (currentFilters.inkrStatus !== 'all') {
-            const partCodesWithInkr = uniqueTrimmedPartCodesFromPlans(inkrReports);
-            const inkrInList = formatPartCodesForPostgrestInFilter(partCodesWithInkr);
-            if (currentFilters.inkrStatus === 'Mevcut') {
-                if (inkrInList) {
-                    query = query.filter('part_code', 'in', inkrInList);
-                } else {
-                    query = query.eq('id', '00000000-0000-0000-0000-000000000000');
-                }
-            } else if (currentFilters.inkrStatus === 'Mevcut Değil') {
-                if (inkrInList) {
-                    query = query.filter('part_code', 'not.in', inkrInList);
-                }
-            }
+            result = result.filter((r) => r.inkr_status === currentFilters.inkrStatus);
         }
-        return query;
-    }, [activeIncomingControlPlans, inkrReports]);
+        return result;
+    }, []);
 
-    const fetchDashboardData = useCallback(async (currentFilters) => {
+    const addStatuses = useCallback((rows) => {
+        const cpKeys = controlPlanKeys;
+        const irKeys = inkrKeys;
+        return rows.map((inspection) => ({
+            ...inspection,
+            supplier_name: inspection.supplier_name || '-',
+            control_plan_status: cpKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
+            inkr_status: irKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
+        }));
+    }, [controlPlanKeys, inkrKeys]);
+
+    const fetchDashboardAndKpis = useCallback(async (currentFilters) => {
         setDashboardLoading(true);
         try {
             let allInspections = [];
@@ -178,15 +205,43 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 }
             }
 
-            const controlPlanKeys = buildControlPlanNormalizedKeySet(activeIncomingControlPlans);
-            const inkrKeys = buildControlPlanNormalizedKeySet(inkrReports);
-            const inspectionsWithPlanStatus = allInspections.map(inspection => ({
+            const cpKeys = controlPlanKeys;
+            const irKeys = inkrKeys;
+
+            let inspectionsWithPlanStatus = allInspections.map(inspection => ({
                 ...inspection,
-                control_plan_status: controlPlanKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
-                inkr_status: inkrKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
+                control_plan_status: cpKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
+                inkr_status: irKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
             }));
 
+            inspectionsWithPlanStatus = applyClientSideStatusFilter(inspectionsWithPlanStatus, currentFilters);
+
             setDashboardData(inspectionsWithPlanStatus);
+
+            const isDefaultFilters = currentFilters.decision === 'all' &&
+                currentFilters.supplier === 'all' &&
+                currentFilters.controlPlanStatus === 'all' &&
+                currentFilters.inkrStatus === 'all' &&
+                !currentFilters.dateRange &&
+                !currentFilters.searchTerm?.trim();
+
+            if (isDefaultFilters) {
+                const uniquePartCodes = new Set();
+                allInspections.forEach((i) => {
+                    const n = normalizeIncomingPartCode(i.part_code);
+                    if (n) uniquePartCodes.add(n);
+                });
+
+                let missingPlan = 0;
+                let missingInkr = 0;
+                uniquePartCodes.forEach((pc) => {
+                    if (!cpKeys.has(pc)) missingPlan++;
+                    if (!irKeys.has(pc)) missingInkr++;
+                });
+
+                setControlPlanMissingCount(missingPlan);
+                setInkrMissingCount(missingInkr);
+            }
 
         } catch (error) {
             if (error.code !== 'PGRST116') {
@@ -196,136 +251,135 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         } finally {
             setDashboardLoading(false);
         }
-    }, [toast, buildFilterQuery, activeIncomingControlPlans, inkrReports]);
+    }, [toast, buildFilterQuery, applyClientSideStatusFilter, controlPlanKeys, inkrKeys]);
 
     const fetchInspections = useCallback(async (page, currentFilters) => {
         setLoading(true);
-        const from = page * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
-
-        // incoming_inspections_with_supplier view kullanarak supplier_name'e direkt erişim sağla
-        let query = supabase
-            .from('incoming_inspections_with_supplier')
-            .select('*', { count: 'exact' })
-            .range(from, to)
-            .order('inspection_date', { ascending: false })
-            .order('created_at', { ascending: false });
-
-        query = buildFilterQuery(query, currentFilters);
-
-        const { data, error, count } = await query;
-
-        if (error) {
+        try {
+            if (hasClientSideFilter(currentFilters)) {
+                const CHUNK = 1000;
+                let all = [];
+                let from = 0;
+                for (;;) {
+                    let q = supabase
+                        .from('incoming_inspections_with_supplier')
+                        .select('*')
+                        .order('inspection_date', { ascending: false })
+                        .order('created_at', { ascending: false })
+                        .range(from, from + CHUNK - 1);
+                    q = buildFilterQuery(q, currentFilters);
+                    const { data, error } = await q;
+                    if (error) throw error;
+                    if (data?.length) all.push(...data);
+                    if (!data?.length || data.length < CHUNK) break;
+                    from += CHUNK;
+                }
+                let enriched = addStatuses(all);
+                enriched = applyClientSideStatusFilter(enriched, currentFilters);
+                setTotalCount(enriched.length);
+                const start = page * PAGE_SIZE;
+                setInspections(enriched.slice(start, start + PAGE_SIZE));
+            } else {
+                const from = page * PAGE_SIZE;
+                const to = from + PAGE_SIZE - 1;
+                let query = supabase
+                    .from('incoming_inspections_with_supplier')
+                    .select('*', { count: 'exact' })
+                    .range(from, to)
+                    .order('inspection_date', { ascending: false })
+                    .order('created_at', { ascending: false });
+                query = buildFilterQuery(query, currentFilters);
+                const { data, error, count } = await query;
+                if (error) throw error;
+                setInspections(addStatuses(data || []));
+                setTotalCount(count || 0);
+            }
+        } catch (error) {
             if (error.code !== 'PGRST116') {
                 toast({ variant: 'destructive', title: 'Hata', description: `Muayene kayıtları alınamadı: ${error.message}` });
             }
             setInspections([]);
-        } else {
-            const controlPlanKeys = buildControlPlanNormalizedKeySet(activeIncomingControlPlans);
-            const inkrKeys = buildControlPlanNormalizedKeySet(inkrReports);
-            const dataWithPlanStatus = data.map(inspection => ({
-                ...inspection,
-                supplier_name: inspection.supplier_name || '-',
-                control_plan_status: controlPlanKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
-                inkr_status: inkrKeys.has(normalizeIncomingPartCode(inspection.part_code)) ? 'Mevcut' : 'Mevcut Değil',
-            }));
-            setInspections(dataWithPlanStatus);
-            setTotalCount(count || 0);
+            setTotalCount(0);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, [toast, buildFilterQuery, activeIncomingControlPlans, inkrReports]);
+    }, [toast, buildFilterQuery, hasClientSideFilter, applyClientSideStatusFilter, addStatuses]);
+
+    const fetchAbortRef = useRef(0);
 
     useEffect(() => {
-        fetchInspections(currentPage, filters);
-        fetchDashboardData(filters);
-    }, [currentPage, filters, fetchInspections, fetchDashboardData]);
-
-    // INKR eksik sayısını tüm parça kodları üzerinden hesapla (filtresiz)
-    // ÖNEMLİ: DataContext'teki inkrReports Supabase 1000 kayıt limiti nedeniyle eksik olabilir.
-    // InkrManagement ile aynı mantıkta, pagination ile TÜM verileri doğrudan çekiyoruz.
-    useEffect(() => {
-        const calculateInkrMissing = async () => {
-            try {
-                const PAGE_SIZE = 1000;
-                const normalizePartCode = (code) => code ? code.toString().trim().toLowerCase() : '';
-
-                // 1. Tüm inspection kayıtlarından benzersiz parça kodlarını al (pagination)
-                let allInspections = [];
-                let page = 0;
-                let hasMore = true;
-                while (hasMore) {
-                    const from = page * PAGE_SIZE;
-                    const to = from + PAGE_SIZE - 1;
-                    const { data: inspections, error } = await supabase
-                        .from('incoming_inspections_with_supplier')
-                        .select('part_code')
-                        .not('part_code', 'is', null)
-                        .not('part_code', 'eq', '')
-                        .order('id', { ascending: true })
-                        .range(from, to);
-
-                    if (error) {
-                        console.error('INKR hesaplama hatası:', error);
-                        return;
-                    }
-                    if (inspections?.length) allInspections = allInspections.concat(inspections);
-                    if (!inspections || inspections.length < PAGE_SIZE) hasMore = false;
-                    else page++;
-                }
-
-                const uniquePartCodes = new Set();
-                (allInspections || []).forEach(i => {
-                    if (i.part_code) {
-                        const n = normalizePartCode(i.part_code);
-                        if (n) uniquePartCodes.add(n);
-                    }
-                });
-
-                // 2. Tüm INKR raporlarından parça kodlarını al (pagination - DataContext limiti yok)
-                let allInkrReports = [];
-                page = 0;
-                hasMore = true;
-                while (hasMore) {
-                    const from = page * PAGE_SIZE;
-                    const to = from + PAGE_SIZE - 1;
-                    const { data: reports, error } = await supabase
-                        .from('inkr_reports')
-                        .select('part_code')
-                        .order('id', { ascending: true })
-                        .range(from, to);
-
-                    if (error) {
-                        console.error('INKR hesaplama hatası:', error);
-                        return;
-                    }
-                    if (reports?.length) allInkrReports = allInkrReports.concat(reports);
-                    if (!reports || reports.length < PAGE_SIZE) hasMore = false;
-                    else page++;
-                }
-
-                const inkrPartCodes = new Set(
-                    (allInkrReports || [])
-                        .map(r => normalizePartCode(r.part_code))
-                        .filter(pc => pc !== '')
-                );
-
-                const missingCount = Array.from(uniquePartCodes).filter(pc => !inkrPartCodes.has(pc)).length;
-                setInkrMissingCount(missingCount);
-            } catch (err) {
-                console.error('INKR hesaplama hatası:', err);
-            }
+        const fetchId = ++fetchAbortRef.current;
+        const run = async () => {
+            await Promise.all([
+                fetchInspections(currentPage, debouncedFilters),
+                fetchDashboardAndKpis(debouncedFilters),
+            ]);
         };
+        if (fetchAbortRef.current === fetchId) {
+            run();
+        }
+    }, [currentPage, debouncedFilters, fetchInspections, fetchDashboardAndKpis]);
 
-        calculateInkrMissing();
-    }, [inkrReports]); // inkrReports sadece yenileme tetikleyicisi; hesaplama pagination ile yapılıyor
+    const refreshIncomingQualityKpis = useCallback(async () => {
+        const cpKeys = controlPlanKeys;
+        const irKeys = inkrKeys;
 
-    const handleSuccess = () => {
+        try {
+            const KPAGE = 1000;
+            let allInspections = [];
+            let pg = 0;
+            let more = true;
+            while (more) {
+                const from = pg * KPAGE;
+                const to = from + KPAGE - 1;
+                const { data, error } = await supabase
+                    .from('incoming_inspections_with_supplier')
+                    .select('part_code')
+                    .not('part_code', 'is', null)
+                    .not('part_code', 'eq', '')
+                    .order('id', { ascending: true })
+                    .range(from, to);
+                if (error) { console.error('KPI hesaplama hatası:', error); return; }
+                if (data?.length) allInspections = allInspections.concat(data);
+                if (!data || data.length < KPAGE) more = false;
+                else pg++;
+            }
+
+            const uniquePartCodes = new Set();
+            allInspections.forEach((i) => {
+                const n = normalizeIncomingPartCode(i.part_code);
+                if (n) uniquePartCodes.add(n);
+            });
+
+            let missingPlan = 0;
+            let missingInkr = 0;
+            uniquePartCodes.forEach((pc) => {
+                if (!cpKeys.has(pc)) missingPlan++;
+                if (!irKeys.has(pc)) missingInkr++;
+            });
+
+            setControlPlanMissingCount(missingPlan);
+            setInkrMissingCount(missingInkr);
+        } catch (err) {
+            console.error('Girdi kalite KPI hesaplama:', err);
+        }
+    }, [controlPlanKeys, inkrKeys]);
+
+    const kpiInitRef = useRef(false);
+    useEffect(() => {
+        if (!kpiInitRef.current && controlPlanKeys.size > 0) {
+            kpiInitRef.current = true;
+            refreshIncomingQualityKpis();
+        }
+    }, [controlPlanKeys, refreshIncomingQualityKpis]);
+
+    const handleSuccess = useCallback(() => {
         setFormOpen(false);
         setSelectedInspection(null);
-        fetchInspections(currentPage, filters);
-        fetchDashboardData(filters);
-        globalRefresh();
-    };
+        fetchInspections(currentPage, debouncedFilters);
+        fetchDashboardAndKpis(debouncedFilters);
+        refreshIncomingQualityKpis();
+    }, [currentPage, debouncedFilters, fetchInspections, fetchDashboardAndKpis, refreshIncomingQualityKpis]);
 
     const fetchFullInspectionData = async (inspectionId) => {
         const { data, error } = await supabase
@@ -367,7 +421,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     };
 
     const handleDownloadPDF = (record, type) => {
-        // incoming_inspection için URL parametreleriyle veri gönder (imza alanları, ölçümler, vs)
         if (type === 'incoming_inspection') {
             openPrintableReport(record, type, true);
         } else {
@@ -399,14 +452,11 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         setCurrentPage(newPage);
     };
 
-    // Filtrelenmiş muayene verilerini al
     const filteredInspections = useMemo(() => {
         return dashboardData || [];
     }, [dashboardData]);
 
-    // Tarih aralığı bilgisi
     const dateRange = useMemo(() => {
-        // dateRange null ise veya from/to yoksa tüm zamanlar
         if (!filters.dateRange || !filters.dateRange.from || !filters.dateRange.to) {
             return { label: 'Tüm Zamanlar', startDate: null, endDate: null };
         }
@@ -444,9 +494,8 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         const formatDate = (dateInput) => {
             if (!dateInput) return '-';
             try {
-                // Date objesi ise direkt kullan, string ise Date'e çevir
                 const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
-                if (isNaN(dateObj.getTime())) return '-'; // Geçersiz tarih kontrolü
+                if (isNaN(dateObj.getTime())) return '-';
                 return format(dateObj, 'dd.MM.yyyy', { locale: tr });
             } catch {
                 return '-';
@@ -454,13 +503,9 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         };
 
         try {
-            // Tüm muayene kayıtlarını detaylı olarak çek
-            // Geçersiz ID'leri filtrele ve URL sınırlarını aşmamak için batch olarak çek
             const inspectionIds = filteredInspections
                 .map(i => i.id)
                 .filter(id => id && typeof id === 'string' && id.length > 0);
-            
-            console.log('📊 Rapor oluşturuluyor, muayene sayısı:', inspectionIds.length);
             
             if (inspectionIds.length === 0) {
                 toast({
@@ -471,7 +516,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 return;
             }
             
-            // Çok fazla ID varsa batch olarak çek (URL sınırlarını aşmamak için)
             let fullInspections = [];
             const BATCH_SIZE = 100;
             
@@ -482,32 +526,19 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                     .select('*, supplier:suppliers(id, name)')
                     .in('id', batchIds);
                 
-                if (batchError) {
-                    console.error('❌ Batch fetch hatası:', batchError);
-                    throw batchError;
-                }
-                
-                if (batchData) {
-                    fullInspections = [...fullInspections, ...batchData];
-                }
+                if (batchError) throw batchError;
+                if (batchData) fullInspections = [...fullInspections, ...batchData];
             }
-            
-            console.log('✅ Detaylı muayene verileri çekildi:', fullInspections.length);
 
-            // Raporda bulunan tedarikçileri belirle
             const reportSupplierIds = [...new Set(fullInspections
                 .map(inv => inv.supplier?.id || inv.supplier_id)
                 .filter(Boolean))];
-            
-            console.log('📊 Rapordaki tedarikçi ID\'leri:', reportSupplierIds);
 
-            // DF/8D kayıtlarını çek - sadece rapordaki tedarikçilere ait ve tarih aralığında olanlar
             let deviationsQuery = supabase
                 .from('non_conformities')
                 .select('*, supplier:suppliers(id, name)')
                 .not('supplier_id', 'is', null);
             
-            // Tarih filtresi uygula (seçilen dönem için)
             if (dateRange.startDate) {
                 deviationsQuery = deviationsQuery.gte('created_at', dateRange.startDate.toISOString());
             }
@@ -515,27 +546,22 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 deviationsQuery = deviationsQuery.lte('created_at', dateRange.endDate.toISOString());
             }
             
-            // Sadece rapordaki tedarikçilerin DF'lerini çek
             if (reportSupplierIds.length > 0) {
                 deviationsQuery = deviationsQuery.in('supplier_id', reportSupplierIds);
             }
 
             const { data: deviations, error: devError } = await deviationsQuery;
-
-            console.log('📊 DF/8D kayıtları çekildi (filtrelenmiş):', deviations?.length || 0);
             
             if (devError) {
-                console.error('❌ DF kayıtları çekilirken hata:', devError);
+                console.error('DF kayıtları çekilirken hata:', devError);
             }
 
-            // Tedarikçi bazlı DF sayıları - tedarikçi adını normalize et
             const dfBySupplier = {};
-            const dfBySupplierNormalized = {}; // Normalize edilmiş isimler için
+            const dfBySupplierNormalized = {};
             
             (deviations || []).forEach(dev => {
                 if (dev.supplier_id && dev.supplier?.name) {
                     const supplierName = dev.supplier.name;
-                    // Normalize edilmiş isim (küçük harf, trim, fazla boşlukları temizle)
                     const normalizedName = supplierName.toLowerCase().trim().replace(/\s+/g, ' ');
                     
                     if (!dfBySupplier[supplierName]) {
@@ -543,7 +569,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                     }
                     dfBySupplier[supplierName].count += 1;
                     
-                    // Normalize edilmiş isim için de kaydet
                     if (!dfBySupplierNormalized[normalizedName]) {
                         dfBySupplierNormalized[normalizedName] = { count: 0, originalName: supplierName };
                     }
@@ -551,15 +576,10 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 }
             });
             
-            console.log('📊 Tedarikçi bazlı DF sayıları:', dfBySupplier);
-            
-            // DF sayısını bulmak için helper fonksiyon (normalize edilmiş eşleştirme)
             const getDfCount = (supplierName) => {
-                // Önce tam eşleşme dene
                 if (dfBySupplier[supplierName]) {
                     return dfBySupplier[supplierName].count;
                 }
-                // Normalize edilmiş eşleşme dene
                 const normalizedName = supplierName.toLowerCase().trim().replace(/\s+/g, ' ');
                 if (dfBySupplierNormalized[normalizedName]) {
                     return dfBySupplierNormalized[normalizedName].count;
@@ -567,14 +587,12 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 return 0;
             };
 
-            // Genel istatistikler
             const totalInspections = filteredInspections.length;
             const totalProductsInspected = filteredInspections.reduce((sum, inv) => sum + (inv.quantity_received || 0), 0);
             const totalProductsRejected = filteredInspections.reduce((sum, inv) => sum + (inv.quantity_rejected || 0), 0);
             const totalProductsConditional = filteredInspections.reduce((sum, inv) => sum + (inv.quantity_conditional || 0), 0);
             const totalProductsAccepted = totalProductsInspected - totalProductsRejected - totalProductsConditional;
 
-            // Karar bazlı analiz
             const decisions = {
                 'Kabul': { count: 0, quantity: 0 },
                 'Şartlı Kabul': { count: 0, quantity: 0 },
@@ -590,12 +608,10 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 }
             });
 
-            // Tedarikçi bazlı analiz
             const bySupplier = {};
             filteredInspections.forEach(inv => {
                 const supplierName = inv.supplier_name || 'Belirtilmemiş';
                 if (!bySupplier[supplierName]) {
-                    // getDfCount fonksiyonunu kullanarak normalize edilmiş eşleştirme yap
                     const dfCount = getDfCount(supplierName);
                     bySupplier[supplierName] = {
                         count: 0,
@@ -631,7 +647,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 .sort((a, b) => b.totalRejected - a.totalRejected)
                 .slice(0, 10);
 
-            // Parça bazlı analiz
             const byPart = {};
             filteredInspections.forEach(inv => {
                 const partCode = inv.part_code || 'Belirtilmemiş';
@@ -664,13 +679,12 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 .sort((a, b) => b.totalRejected - a.totalRejected)
                 .slice(0, 10);
 
-            // Aylık trend analizi
             const monthlyTrends = {};
             filteredInspections.forEach(inv => {
-                if (!inv.inspection_date) return; // Geçersiz tarih kontrolü
+                if (!inv.inspection_date) return;
                 try {
                     const inspectionDate = new Date(inv.inspection_date);
-                    if (isNaN(inspectionDate.getTime())) return; // Geçersiz tarih kontrolü
+                    if (isNaN(inspectionDate.getTime())) return;
                     const monthKey = format(inspectionDate, 'yyyy-MM', { locale: tr });
                     if (!monthlyTrends[monthKey]) {
                         monthlyTrends[monthKey] = {
@@ -684,8 +698,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                     monthlyTrends[monthKey].totalReceived += inv.quantity_received || 0;
                     monthlyTrends[monthKey].totalRejected += inv.quantity_rejected || 0;
                     monthlyTrends[monthKey].totalConditional += inv.quantity_conditional || 0;
-                } catch (error) {
-                    console.warn('Geçersiz tarih:', inv.inspection_date, error);
+                } catch {
                     return;
                 }
             });
@@ -701,11 +714,10 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                     rejectionRate: data.totalReceived > 0 ? ((data.totalRejected / data.totalReceived) * 100) : 0
                 }))
                 .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
-                .slice(-12); // Son 12 ay
+                .slice(-12);
 
-            // Ret veren tedarikçiler
             const rejectedSuppliers = Object.entries(bySupplier)
-                .filter(([name, data]) => data.totalRejected > 0)
+                .filter(([, data]) => data.totalRejected > 0)
                 .map(([name, data]) => ({
                     name,
                     rejectionCount: data.decisions['Ret'] || 0,
@@ -715,7 +727,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 .sort((a, b) => b.totalRejected - a.totalRejected)
                 .slice(0, 10);
 
-            // Rapor verisi
             const reportData = {
                 id: `incoming-quality-executive-${Date.now()}`,
                 period: dateRange.label || 'Tüm Zamanlar',
@@ -760,6 +771,15 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
     }, [handleGenerateExecutiveReport]);
 
+    const handleTabChange = useCallback((value) => {
+        setActiveTab(value);
+        mountedTabsRef.current.add(value);
+    }, []);
+
+    const shouldRenderTab = useCallback((tabName) => {
+        return mountedTabsRef.current.has(tabName);
+    }, []);
+
     return (
         <div className="space-y-6">
             <Helmet>
@@ -767,9 +787,9 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 <meta name="description" content="Gelen malzeme kalite kontrol süreçlerini yönetin." />
             </Helmet>
 
-            <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} />
+            <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} controlPlanMissingCount={controlPlanMissingCount} />
 
-            <Tabs defaultValue="inspections" className="w-full">
+            <Tabs defaultValue="inspections" className="w-full" onValueChange={handleTabChange}>
                 <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="inspections">Muayene Kayıtları</TabsTrigger>
                     <TabsTrigger value="sheet-metal">Sac Malzemeler</TabsTrigger>
@@ -790,8 +810,8 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         onDownloadPDF={(record) => handleDownloadPDF(record, 'incoming_inspection')}
                         onGenerateReport={handleOpenReportModal}
                         refreshData={() => {
-                            fetchInspections(currentPage, filters);
-                            fetchDashboardData(filters);
+                            fetchInspections(currentPage, debouncedFilters);
+                            fetchDashboardAndKpis(debouncedFilters);
                         }}
                         suppliers={suppliers}
                         filters={filters}
@@ -803,54 +823,76 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                         onOpenStockRiskModal={handleOpenStockRiskModal}
                     />
                 </TabsContent>
-                 <TabsContent value="sheet-metal">
-                    <SheetMetalManagement 
-                        onDownloadPDF={(record) => handleDownloadPDF(record, 'sheet_metal_entry')} 
-                        onViewPdf={handleViewPdf}
-                    />
+                <TabsContent value="sheet-metal">
+                    {shouldRenderTab('sheet-metal') && (
+                        <Suspense fallback={<TabFallback />}>
+                            <SheetMetalManagement 
+                                onDownloadPDF={(record) => handleDownloadPDF(record, 'sheet_metal_entry')} 
+                                onViewPdf={handleViewPdf}
+                            />
+                        </Suspense>
+                    )}
                 </TabsContent>
                 <TabsContent value="control-plans">
-                    <ControlPlanManagement onViewPdf={(path) => handleViewPdf(path, 'incoming_control')} />
+                    {shouldRenderTab('control-plans') && (
+                        <Suspense fallback={<TabFallback />}>
+                            <ControlPlanManagement onViewPdf={(path) => handleViewPdf(path, 'incoming_control')} />
+                        </Suspense>
+                    )}
                 </TabsContent>
                 <TabsContent value="inkr">
-                    <InkrManagement onViewPdf={(path, bucket = 'inkr_attachments') => handleViewPdf(path, bucket)} />
+                    {shouldRenderTab('inkr') && (
+                        <Suspense fallback={<TabFallback />}>
+                            <InkrManagement onViewPdf={(path, bucket = 'inkr_attachments') => handleViewPdf(path, bucket)} />
+                        </Suspense>
+                    )}
                 </TabsContent>
-                 <TabsContent value="stock-risk">
-                    <StockRiskControlList />
+                <TabsContent value="stock-risk">
+                    {shouldRenderTab('stock-risk') && (
+                        <Suspense fallback={<TabFallback />}>
+                            <StockRiskControlList />
+                        </Suspense>
+                    )}
                 </TabsContent>
             </Tabs>
 
             {isFormOpen && (
-                <IncomingInspectionFormModal
-                    isOpen={isFormOpen}
-                    setIsOpen={setFormOpen}
-                    refreshData={handleSuccess}
-                    existingInspection={selectedInspection}
-                    isViewMode={isViewMode}
-                    onOpenStockRiskModal={handleOpenStockRiskModal}
-                />
+                <Suspense fallback={null}>
+                    <IncomingInspectionFormModal
+                        isOpen={isFormOpen}
+                        setIsOpen={setFormOpen}
+                        refreshData={handleSuccess}
+                        existingInspection={selectedInspection}
+                        isViewMode={isViewMode}
+                        onOpenStockRiskModal={handleOpenStockRiskModal}
+                    />
+                </Suspense>
             )}
             
             {stockRiskModalOpen && (
-                <StockRiskControlModal
-                    isOpen={stockRiskModalOpen}
-                    setIsOpen={setStockRiskModalOpen}
-                    stockRiskData={stockRiskData}
-                    refreshData={handleSuccess}
-                />
+                <Suspense fallback={null}>
+                    <StockRiskControlModal
+                        isOpen={stockRiskModalOpen}
+                        setIsOpen={setStockRiskModalOpen}
+                        stockRiskData={stockRiskData}
+                        refreshData={handleSuccess}
+                    />
+                </Suspense>
             )}
 
             {isDecisionModalOpen && (
-                <IncomingInspectionDecisionModal
-                    isOpen={isDecisionModalOpen}
-                    setIsOpen={setDecisionModalOpen}
-                    inspection={selectedInspection}
-                    refreshData={() => {
-                        fetchInspections(currentPage, filters);
-                        fetchDashboardData(filters);
-                    }}
-                    onOpenNCForm={onOpenNCForm}
-                />
+                <Suspense fallback={null}>
+                    <IncomingInspectionDecisionModal
+                        isOpen={isDecisionModalOpen}
+                        setIsOpen={setDecisionModalOpen}
+                        inspection={selectedInspection}
+                        refreshData={() => {
+                            fetchInspections(currentPage, debouncedFilters);
+                            fetchDashboardAndKpis(debouncedFilters);
+                        }}
+                        onOpenNCForm={onOpenNCForm}
+                    />
+                </Suspense>
             )}
 
             <PdfViewerModal
@@ -860,7 +902,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 title={pdfViewerState.title}
             />
 
-            {/* Rapor Seçim Modalı */}
             <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
                     <DialogHeader>

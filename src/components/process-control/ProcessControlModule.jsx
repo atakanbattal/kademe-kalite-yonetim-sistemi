@@ -35,20 +35,29 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const fetchPlans = useCallback(async () => {
         try {
-            const { data, error } = await supabase
-                .from('process_control_plans')
-                .select('*, process_control_equipment(equipment_code, equipment_name)')
-                .order('updated_at', { ascending: false });
-            
-            if (error) {
-                if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    console.warn('process_control_plans tablosu henüz oluşturulmamış');
-                    setPlans([]);
-                    return;
+            const PAGE = 1000;
+            let all = [];
+            let from = 0;
+            for (;;) {
+                const { data, error } = await supabase
+                    .from('process_control_plans')
+                    .select('*, process_control_equipment(equipment_code, equipment_name)')
+                    .order('updated_at', { ascending: false })
+                    .range(from, from + PAGE - 1);
+                
+                if (error) {
+                    if (error.code === '42P01' || error.message.includes('does not exist')) {
+                        console.warn('process_control_plans tablosu henüz oluşturulmamış');
+                        setPlans([]);
+                        return;
+                    }
+                    throw error;
                 }
-                throw error;
+                if (data?.length) all.push(...data);
+                if (!data?.length || data.length < PAGE) break;
+                from += PAGE;
             }
-            setPlans(data || []);
+            setPlans(all);
         } catch (err) {
             console.error('Kontrol planı yükleme hatası:', err);
             setPlans([]);
