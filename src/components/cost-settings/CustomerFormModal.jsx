@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const CUSTOMER_TYPES = [
+export const CUSTOMER_TYPES = [
     'OEM',
     'Tier 1',
     'Tier 2',

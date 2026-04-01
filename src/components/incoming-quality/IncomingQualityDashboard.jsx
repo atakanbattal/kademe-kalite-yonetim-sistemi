@@ -65,8 +65,8 @@ import React from 'react';
                     <StatCard icon={ListChecks} title="Toplam Kontrol" value={stats.totalInspections} loading={loading} onClick={() => onCardClick({ decision: 'all', controlPlanStatus: 'all', inkrStatus: 'all' })} />
                     <StatCard icon={AlertTriangle} title="Ret" value={stats.rejectedCount} loading={loading} color="text-destructive" onClick={() => onCardClick({ decision: 'Ret' })} />
                     <StatCard icon={FileWarning} title="Şartlı Kabul" value={stats.conditionalAcceptance} loading={loading} color="text-yellow-500" onClick={() => onCardClick({ decision: 'Şartlı Kabul' })} />
-                    <StatCard icon={CheckCircle} title="Kontrol Planı Eksik" value={stats.missingControlPlans} loading={loading} color={stats.missingControlPlans > 0 ? "text-destructive" : "text-green-500"} onClick={() => onCardClick({ controlPlanStatus: 'Mevcut Değil' })} />
-                    <StatCard icon={FileWarning} title="INKR Eksik" value={stats.missingInkr} loading={loading} color={stats.missingInkr > 0 ? "text-destructive" : "text-green-500"} onClick={() => onCardClick({ inkrStatus: 'Mevcut Değil' })} />
+                    <StatCard icon={CheckCircle} title="Kontrol Planı Eksik" subtitle="Benzersiz Parça" value={stats.missingControlPlans} loading={loading} color={stats.missingControlPlans > 0 ? "text-destructive" : "text-green-500"} onClick={() => onCardClick({ controlPlanStatus: 'Mevcut Değil' })} />
+                    <StatCard icon={FileWarning} title="INKR Eksik" subtitle="Benzersiz Parça" value={stats.missingInkr} loading={loading} color={stats.missingInkr > 0 ? "text-destructive" : "text-green-500"} onClick={() => onCardClick({ inkrStatus: 'Mevcut Değil', _switchTab: 'inkr' })} />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card className="dashboard-widget">

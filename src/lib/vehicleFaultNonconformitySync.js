@@ -1,6 +1,6 @@
 import { withRetryOnDeadlock } from './supabaseRetry';
 
-export const LOCKED_NONCONFORMITY_STATUSES = new Set(['DF Açıldı', '8D Açıldı']);
+export const LOCKED_NONCONFORMITY_STATUSES = new Set(['DF Açıldı', '8D Açıldı', 'Kapatıldı']);
 
 const AUTO_RECORD_NOTE = [
     'Bu kayıt, aynı araç ve kategori için Üretilen Araçlar modülünden otomatik toplanır.',

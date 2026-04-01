@@ -218,31 +218,6 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             setDashboardData(inspectionsWithPlanStatus);
 
-            const isDefaultFilters = currentFilters.decision === 'all' &&
-                currentFilters.supplier === 'all' &&
-                currentFilters.controlPlanStatus === 'all' &&
-                currentFilters.inkrStatus === 'all' &&
-                !currentFilters.dateRange &&
-                !currentFilters.searchTerm?.trim();
-
-            if (isDefaultFilters) {
-                const uniquePartCodes = new Set();
-                allInspections.forEach((i) => {
-                    const n = normalizeIncomingPartCode(i.part_code);
-                    if (n) uniquePartCodes.add(n);
-                });
-
-                let missingPlan = 0;
-                let missingInkr = 0;
-                uniquePartCodes.forEach((pc) => {
-                    if (!cpKeys.has(pc)) missingPlan++;
-                    if (!irKeys.has(pc)) missingInkr++;
-                });
-
-                setControlPlanMissingCount(missingPlan);
-                setInkrMissingCount(missingInkr);
-            }
-
         } catch (error) {
             if (error.code !== 'PGRST116') {
                 toast({ variant: 'destructive', title: 'Hata', description: `Dashboard verileri alınamadı: ${error.message}` });
@@ -365,13 +340,11 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
     }, [controlPlanKeys, inkrKeys]);
 
-    const kpiInitRef = useRef(false);
     useEffect(() => {
-        if (!kpiInitRef.current && controlPlanKeys.size > 0) {
-            kpiInitRef.current = true;
+        if (controlPlanKeys.size > 0 || inkrKeys.size > 0) {
             refreshIncomingQualityKpis();
         }
-    }, [controlPlanKeys, refreshIncomingQualityKpis]);
+    }, [controlPlanKeys, inkrKeys, refreshIncomingQualityKpis]);
 
     const handleSuccess = useCallback(() => {
         setFormOpen(false);
@@ -437,13 +410,28 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
     };
 
+    const [inkrInitialFilter, setInkrInitialFilter] = useState(null);
+
     const handleCardClick = (filter) => {
+        const { _switchTab, ...rest } = filter;
+        if (_switchTab) {
+            setActiveTab(_switchTab);
+            mountedTabsRef.current.add(_switchTab);
+            if (_switchTab === 'inkr' && rest.inkrStatus) {
+                setInkrInitialFilter(rest.inkrStatus);
+            }
+            return;
+        }
+        if (activeTab !== 'inspections') {
+            setActiveTab('inspections');
+            mountedTabsRef.current.add('inspections');
+        }
         setFilters(prev => ({
             ...prev,
             decision: 'all',
             controlPlanStatus: 'all',
             inkrStatus: 'all',
-            ...filter
+            ...rest
         }));
         setCurrentPage(0);
     };
@@ -789,7 +777,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} controlPlanMissingCount={controlPlanMissingCount} />
 
-            <Tabs defaultValue="inspections" className="w-full" onValueChange={handleTabChange}>
+            <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
                 <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="inspections">Muayene Kayıtları</TabsTrigger>
                     <TabsTrigger value="sheet-metal">Sac Malzemeler</TabsTrigger>
@@ -843,7 +831,11 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 <TabsContent value="inkr">
                     {shouldRenderTab('inkr') && (
                         <Suspense fallback={<TabFallback />}>
-                            <InkrManagement onViewPdf={(path, bucket = 'inkr_attachments') => handleViewPdf(path, bucket)} />
+                            <InkrManagement
+                                onViewPdf={(path, bucket = 'inkr_attachments') => handleViewPdf(path, bucket)}
+                                initialStatusFilter={inkrInitialFilter}
+                                onInitialFilterConsumed={() => setInkrInitialFilter(null)}
+                            />
                         </Suspense>
                     )}
                 </TabsContent>

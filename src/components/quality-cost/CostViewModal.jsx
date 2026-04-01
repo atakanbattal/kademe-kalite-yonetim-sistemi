@@ -268,6 +268,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                                 {isUnitView ? (
                                     <>
                                         <InfoCard icon={Building2} label="Birim (Kaynak)" value={selectedLineItem.responsible_type === 'supplier' ? (selectedLineItem.responsible_supplier_name || cost.supplier?.name || 'Tedarikçi') : (selectedLineItem.responsible_unit || '-')} />
+                                        {cost.reporting_unit && <InfoCard icon={Building2} label="Raporlayan Birim" value={cost.reporting_unit} />}
                                         {cost.vehicle_type && <InfoCard icon={Car} label="Araç Türü" value={cost.vehicle_type} />}
                                         {(selectedLineItem.part_code || selectedLineItem.part_name) && (
                                             <InfoCard icon={Package} label="Parça" value={[selectedLineItem.part_code, selectedLineItem.part_name].filter(Boolean).join(' - ')} />
@@ -293,6 +294,7 @@ export const CostViewModal = ({ isOpen, setOpen, cost, selectedLineItem, onRefre
                                         ) : !hasLineItems && cost.unit ? (
                                             <InfoCard icon={Building2} label="Birim (Kaynak)" value={cost.unit} />
                                         ) : null}
+                                        {cost.reporting_unit && <InfoCard icon={Building2} label="Raporlayan Birim" value={cost.reporting_unit} />}
                                         {cost.vehicle_type && <InfoCard icon={Car} label="Araç Türü" value={cost.vehicle_type} />}
                                         {!hasLineItems && cost.part_code && <InfoCard icon={Package} label="Parça Kodu" value={cost.part_code} />}
                                         {!hasLineItems && cost.part_name && <InfoCard icon={Package} label="Parça Adı" value={cost.part_name} />}

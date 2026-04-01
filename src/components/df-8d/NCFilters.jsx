@@ -20,7 +20,7 @@ const NCFilters = ({ filters, setFilters, suppliers = [] }) => {
                 .order('unit_name');
 
             if (!costError && costSettingsData) {
-                const departmentNames = costSettingsData.map(d => d.unit_name).filter(Boolean);
+                const departmentNames = [...new Set(costSettingsData.map(d => d.unit_name).filter(Boolean))].sort();
                 setDepartments(['all', ...departmentNames]);
             } else {
                 // Fallback: personnel tablosundan al

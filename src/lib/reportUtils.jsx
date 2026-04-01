@@ -300,8 +300,6 @@ const getReportTitle = (record, type) => {
 		case 'deviation_list':
 			return record.title || 'Sapma Yönetimi Liste Raporu';
 		case 'nonconformity': {
-			// Yazdır / PDF farkındalığı: <title> ve iframe document.title kayıt no + başlık içermeli
-			// (aksi halde tarayıcı "KADEME A.Ş." gibi ilk görünen metni önerilen dosya adı yapabiliyor)
 			const typeStr =
 				record.type === 'MDI' ? 'MDI' :
 				record.type === '8D' ? '8D' :
@@ -311,6 +309,7 @@ const getReportTitle = (record, type) => {
 			const fallbackId = record.id ? `Kayıt-${String(record.id).slice(0, 36)}` : '';
 			const numberPart = docNo || fallbackId || 'NumaraYok';
 			const titlePart = safeReportTitleSegment(record.title || '', 100);
+			const deptPart = safeReportTitleSegment(record.department || '', 60);
 
 			if (record.is_supplier_nc || record.department === 'Tedarikçi' || record.supplier_id) {
 				const supplierName =
@@ -322,8 +321,8 @@ const getReportTitle = (record, type) => {
 				if (titlePart) return `${typeStr} ${numberPart} - ${sup} - ${titlePart}`;
 				return `${typeStr} ${numberPart} - ${sup}`;
 			}
-			if (titlePart) return `${typeStr} ${numberPart} - ${titlePart}`;
-			return `${typeStr} ${numberPart}`;
+			const segments = [typeStr, numberPart, deptPart, titlePart].filter(Boolean);
+			return segments.join(' - ');
 		}
 		case 'nonconformity_record':
 			return `Uygunsuzluk Yönetimi Raporu-${record.record_number || 'Bilinmiyor'}`;
@@ -2266,7 +2265,7 @@ const generateListReportHtml = (record, type) => {
 		`;
 	} else if (type === 'quality_cost_list') {
 		title = record.unit ? `${record.unit} Birimi-Kalite Maliyetleri Raporu` : 'Kalite Maliyetleri Raporu';
-		headers = ['Tarih', 'Maliyet Türü', 'Parça', 'Araç Tipi', 'Miktar', 'Tutar', 'Açıklama', 'Birim/Müşteri'];
+		headers = ['Tarih', 'Maliyet Türü', 'Parça', 'Araç Tipi', 'Miktar', 'Tutar', 'Açıklama', 'Birim/Müşteri', 'Raporlayan'];
 
 		rowsHtml = record.items.map(item => {
 			const amountFormatted = typeof item.amount === 'number'
@@ -2301,7 +2300,7 @@ const generateListReportHtml = (record, type) => {
 				}).join('');
 				allocationRowHtml = `
 				<tr style="background-color:#f8fafc; border-top:none;">
-					<td colspan="8" style="padding:4px 12px 8px; border-top:none;">
+					<td colspan="9" style="padding:4px 12px 8px; border-top:none;">
 						<span style="font-size:0.75em; font-weight:600; color:#6366f1; text-transform:uppercase; letter-spacing:0.5px; margin-right:8px;">Birim Dağılımı:</span>${allocCells}
 					</td>
 				</tr>`;
@@ -2309,14 +2308,15 @@ const generateListReportHtml = (record, type) => {
 
 			return `
 				<tr>
-					<td style="width: 8%; white-space: nowrap;">${item.cost_date}</td>
-					<td style="width: 14%;"><strong>${item.cost_type}</strong>${supplierBadge ? '<br>' + supplierBadge : ''}</td>
-					<td style="width: 14%;">${partInfo}</td>
-					<td style="width: 9%; font-size: 0.85em;">${item.vehicle_type}</td>
-					<td style="width: 7%; text-align: center; white-space: nowrap;">${quantityText}</td>
-					<td style="width: 10%; text-align: right; font-weight: 600; color: #dc2626;">${amountFormatted}</td>
-					<td style="width: 30%; font-size: 0.85em;"><div style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${descSafe}</div></td>
+					<td style="width: 7%; white-space: nowrap;">${item.cost_date}</td>
+					<td style="width: 12%;"><strong>${item.cost_type}</strong>${supplierBadge ? '<br>' + supplierBadge : ''}</td>
+					<td style="width: 12%;">${partInfo}</td>
+					<td style="width: 8%; font-size: 0.85em;">${item.vehicle_type}</td>
+					<td style="width: 6%; text-align: center; white-space: nowrap;">${quantityText}</td>
+					<td style="width: 9%; text-align: right; font-weight: 600; color: #dc2626;">${amountFormatted}</td>
+					<td style="width: 26%; font-size: 0.85em;"><div style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.3;">${descSafe}</div></td>
 					<td style="width: 8%; font-size: 0.85em;">${unitOrCustomer}</td>
+					<td style="width: 8%; font-size: 0.85em;">${item.reporting_unit || '-'}</td>
 				</tr>
 				${allocationRowHtml}
 			`;
@@ -2649,6 +2649,7 @@ const generateListReportHtml = (record, type) => {
 		// Genel bilgiler tablosu
 		const generalInfoRows = [];
 		if (record.invoice_number) generalInfoRows.push(`<tr><td style="font-weight: 600; width: 30%;">Fatura/Referans No</td><td>${record.invoice_number}</td></tr>`);
+		if (record.reporting_unit) generalInfoRows.push(`<tr><td style="font-weight: 600; width: 30%;">Raporlayan Birim</td><td style="color: #7c3aed; font-weight: 600;">${record.reporting_unit}</td></tr>`);
 		if (record.unit) generalInfoRows.push(`<tr><td style="font-weight: 600; width: 30%;">Birim (Kaynak)</td><td>${record.unit}</td></tr>`);
 		if (record.vehicle_type) generalInfoRows.push(`<tr><td style="font-weight: 600;">Araç Türü</td><td>${record.vehicle_type}</td></tr>`);
 		if (record.part_code) generalInfoRows.push(`<tr><td style="font-weight: 600;">Parça Kodu</td><td>${record.part_code}</td></tr>`);

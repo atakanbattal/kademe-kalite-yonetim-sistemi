@@ -251,6 +251,7 @@ const BUCKET_NAME = 'quality_costs';
             is_reflected_to_supplier: false,
             invoice_number: '',
             customer_name: '',
+            reporting_unit: '',
         }), []);
 
         // Müşteri listesi
@@ -1125,7 +1126,7 @@ const BUCKET_NAME = 'quality_costs';
                                         <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Genel Bilgiler</h2>
                                         <div className="h-px flex-1 bg-border" />
                                     </div>
-                                    <div className="grid grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-4 gap-4">
                                         <div className="space-y-1.5">
                                             <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Maliyet Türü <span className="text-destructive">*</span></label>
                                             <SearchableSelect value={formData.cost_type || ''} onValueChange={(v) => handleSelectChange('cost_type', v)} placeholder="Seçiniz..." items={COST_TYPES} searchPlaceholder="Maliyet türü ara..." />
@@ -1137,6 +1138,10 @@ const BUCKET_NAME = 'quality_costs';
                                         <div className="space-y-1.5">
                                             <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tarih <span className="text-destructive">*</span></label>
                                             <Input id="cost_date" type="date" value={formData.cost_date || ''} onChange={handleInputChange} required className="h-[38px]" />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Raporlayan Birim</label>
+                                            <SearchableSelect value={formData.reporting_unit || ''} onValueChange={(v) => handleSelectChange('reporting_unit', v)} placeholder="Birim seçin..." items={departments} searchPlaceholder="Birim ara..." />
                                         </div>
                                     </div>
                                     {/* Dış Hata Maliyeti seçildiğinde müşteri adı alanı */}

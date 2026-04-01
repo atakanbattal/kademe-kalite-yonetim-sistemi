@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-import { CustomerFormModal } from '@/components/cost-settings/CustomerFormModal';
+import { CustomerFormModal, CUSTOMER_TYPES } from '@/components/cost-settings/CustomerFormModal';
 
 
 const CustomerDetailCard = ({ customer, onEdit, onClose }) => {

@@ -959,7 +959,7 @@ const InkrFormModal = ({ isOpen, setIsOpen, existingReport, refreshReports, onRe
 
 const PARTS_PAGE_SIZE = 50;
 
-const InkrManagement = ({ onViewPdf }) => {
+const InkrManagement = ({ onViewPdf, initialStatusFilter, onInitialFilterConsumed }) => {
     const { toast } = useToast();
     const { loading: globalLoading, refreshData } = useData();
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -975,6 +975,14 @@ const InkrManagement = ({ onViewPdf }) => {
     const [inkrReportsLoading, setInkrReportsLoading] = useState(true);
     const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        if (initialStatusFilter) {
+            setInkrStatusFilter(initialStatusFilter);
+            setCurrentPage(1);
+            onInitialFilterConsumed?.();
+        }
+    }, [initialStatusFilter, onInitialFilterConsumed]);
 
     const handleEdit = (report) => {
         setSelectedReport(report);
@@ -1044,20 +1052,34 @@ const InkrManagement = ({ onViewPdf }) => {
 
     const normalizePartCode = useCallback((code) => (code ? code.toString().trim().toLowerCase() : ''), []);
 
-    /** INKR raporlarını çek — inkrReports state'ini set et */
+    /** INKR raporlarını çek — inkrReports state'ini set et (pagination ile tüm kayıtlar) */
     useEffect(() => {
         const fetchInkrReports = async () => {
             setInkrReportsLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('inkr_reports')
-                    .select('*, supplier:supplier_id(name)')
-                    .order('report_date', { ascending: false })
-                    .order('updated_at', { ascending: false })
-                    .limit(5000);
-
-                if (error) throw error;
-                setInkrReports(data || []);
+                const PAGE_SIZE = 1000;
+                const all = [];
+                let from = 0;
+                for (;;) {
+                    const { data, error } = await supabase
+                        .from('inkr_reports')
+                        .select('*, supplier:supplier_id(name)')
+                        .order('id', { ascending: true })
+                        .range(from, from + PAGE_SIZE - 1);
+                    if (error) throw error;
+                    if (!data?.length) break;
+                    all.push(...data);
+                    if (data.length < PAGE_SIZE) break;
+                    from += PAGE_SIZE;
+                }
+                all.sort((a, b) => {
+                    const getDateValue = (r) => {
+                        const d = new Date(r.report_date || r.updated_at || r.created_at || 0);
+                        return isNaN(d.getTime()) ? 0 : d.getTime();
+                    };
+                    return getDateValue(b) - getDateValue(a);
+                });
+                setInkrReports(all);
             } catch (error) {
                 console.error('INKR raporları alınamadı:', error);
                 toast({ variant: 'destructive', title: 'Hata', description: `INKR raporları alınamadı: ${error.message}` });
@@ -1070,23 +1092,31 @@ const InkrManagement = ({ onViewPdf }) => {
         fetchInkrReports();
     }, [toast]);
 
-    /** Muayene kayıtlarından benzersiz parça kodlarını çek — inkrReports'tan bağımsız */
+    /** Muayene kayıtlarından benzersiz parça kodlarını çek — inkrReports'tan bağımsız (pagination ile) */
     useEffect(() => {
         const fetchInspectionParts = async () => {
             setPartsLoading(true);
             try {
-                const { data: inspections, error } = await supabase
-                    .from('incoming_inspections_with_supplier')
-                    .select('part_code, part_name')
-                    .not('part_code', 'is', null)
-                    .not('part_code', 'eq', '')
-                    .order('part_code')
-                    .limit(5000);
-
-                if (error) throw error;
+                const PAGE_SIZE = 1000;
+                let allInspections = [];
+                let from = 0;
+                for (;;) {
+                    const { data, error } = await supabase
+                        .from('incoming_inspections_with_supplier')
+                        .select('part_code, part_name')
+                        .not('part_code', 'is', null)
+                        .not('part_code', 'eq', '')
+                        .order('id', { ascending: true })
+                        .range(from, from + PAGE_SIZE - 1);
+                    if (error) throw error;
+                    if (!data?.length) break;
+                    allInspections = allInspections.concat(data);
+                    if (data.length < PAGE_SIZE) break;
+                    from += PAGE_SIZE;
+                }
 
                 const uniqueMap = new Map();
-                (inspections || []).forEach((row) => {
+                allInspections.forEach((row) => {
                     if (!row.part_code) return;
                     const key = row.part_code.trim().toLowerCase();
                     if (!uniqueMap.has(key)) {
