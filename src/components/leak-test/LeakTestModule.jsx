@@ -34,23 +34,38 @@ const LeakTestModule = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('leak_test_records')
-                .select(`
-                    *,
-                    vehicle_type:vehicle_type_id(id, product_code, product_name),
-                    tested_by:tested_by_personnel_id(id, full_name, department),
-                    welded_by:welded_by_personnel_id(id, full_name, department),
-                    supplier:supplier_id(id, name)
-                `)
-                .order('test_date', { ascending: false })
-                .order('test_start_time', { ascending: false })
-                .order('created_at', { ascending: false });
+            const PAGE = 1000;
+            const allRows = [];
+            let from = 0;
+            for (;;) {
+                const { data, error } = await supabase
+                    .from('leak_test_records')
+                    .select(`
+                        id, record_number, test_date, test_start_time, test_duration_minutes,
+                        test_result, leak_count, tank_type, notes, part_code,
+                        vehicle_serial_number, vehicle_type_id, vehicle_type_label,
+                        tested_by_personnel_id, tested_by_name,
+                        welded_by_personnel_id, welded_by_name,
+                        supplier_id, supplier_name, welding_at_supplier,
+                        created_at, created_by, updated_at,
+                        vehicle_type:vehicle_type_id(id, product_code, product_name),
+                        tested_by:tested_by_personnel_id(id, full_name, department),
+                        welded_by:welded_by_personnel_id(id, full_name, department),
+                        supplier:supplier_id(id, name)
+                    `)
+                    .order('test_date', { ascending: false })
+                    .order('test_start_time', { ascending: false })
+                    .order('created_at', { ascending: false })
+                    .range(from, from + PAGE - 1);
 
-            if (error) throw error;
+                if (error) throw error;
+                if (data?.length) allRows.push(...data);
+                if (!data?.length || data.length < PAGE) break;
+                from += PAGE;
+            }
 
             setSchemaReady(true);
-            setRecords(data || []);
+            setRecords(allRows);
         } catch (error) {
             if (isMissingLeakTestTableError(error)) {
                 setSchemaReady(false);

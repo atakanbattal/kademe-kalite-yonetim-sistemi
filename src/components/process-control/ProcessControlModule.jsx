@@ -66,21 +66,30 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const fetchInkrReports = useCallback(async () => {
         try {
-            const { data, error } = await supabase
-                .from('process_inkr_reports')
-                .select('*')
-                .order('updated_at', { ascending: false });
+            const PAGE = 1000;
+            const all = [];
+            let from = 0;
+            for (;;) {
+                const { data, error } = await supabase
+                    .from('process_inkr_reports')
+                    .select('*')
+                    .order('updated_at', { ascending: false })
+                    .range(from, from + PAGE - 1);
 
-            if (error) {
-                if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    console.warn('process_inkr_reports tablosu henüz oluşturulmamış');
-                    setInkrReports([]);
-                    return;
+                if (error) {
+                    if (error.code === '42P01' || error.message.includes('does not exist')) {
+                        console.warn('process_inkr_reports tablosu henüz oluşturulmamış');
+                        setInkrReports([]);
+                        return;
+                    }
+                    throw error;
                 }
-                throw error;
+                if (data?.length) all.push(...data);
+                if (!data?.length || data.length < PAGE) break;
+                from += PAGE;
             }
 
-            setInkrReports(data || []);
+            setInkrReports(all);
         } catch (err) {
             console.error('INKR yükleme hatası:', err);
             setInkrReports([]);
@@ -89,21 +98,30 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
 
     const fetchInspections = useCallback(async () => {
         try {
-            const { data, error } = await supabase
-                .from('process_inspections')
-                .select('*')
-                .order('inspection_date', { ascending: false });
+            const PAGE = 1000;
+            const all = [];
+            let from = 0;
+            for (;;) {
+                const { data, error } = await supabase
+                    .from('process_inspections')
+                    .select('*')
+                    .order('inspection_date', { ascending: false })
+                    .range(from, from + PAGE - 1);
 
-            if (error) {
-                if (error.code === '42P01' || error.message.includes('does not exist')) {
-                    console.warn('process_inspections tablosu henüz oluşturulmamış');
-                    setInspections([]);
-                    return;
+                if (error) {
+                    if (error.code === '42P01' || error.message.includes('does not exist')) {
+                        console.warn('process_inspections tablosu henüz oluşturulmamış');
+                        setInspections([]);
+                        return;
+                    }
+                    throw error;
                 }
-                throw error;
+                if (data?.length) all.push(...data);
+                if (!data?.length || data.length < PAGE) break;
+                from += PAGE;
             }
 
-            setInspections(data || []);
+            setInspections(all);
         } catch (err) {
             console.error('Muayene kayıtları yükleme hatası:', err);
             setInspections([]);

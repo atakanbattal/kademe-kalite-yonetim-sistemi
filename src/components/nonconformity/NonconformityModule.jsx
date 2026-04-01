@@ -87,6 +87,23 @@ const INITIAL_CONVERT_DIALOG = {
   selectedType: null,
 };
 
+const NC_RECORD_COLUMNS = 'id, record_number, source_nc_id, status, part_code, part_name, vehicle_type, vehicle_identifier, description, category, severity, quantity, detection_date, detection_area, detected_by, responsible_person, department, shift, action_taken, notes, created_at';
+
+const SYNC_SESSION_KEY = 'nc_backfill_done';
+const SYNC_THROTTLE_MS = 10 * 60 * 1000; // 10 dakika
+
+const isSyncNeeded = () => {
+  try {
+    const last = sessionStorage.getItem(SYNC_SESSION_KEY);
+    if (!last) return true;
+    return Date.now() - Number(last) > SYNC_THROTTLE_MS;
+  } catch { return true; }
+};
+
+const markSyncDone = () => {
+  try { sessionStorage.setItem(SYNC_SESSION_KEY, String(Date.now())); } catch {}
+};
+
 const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const { toast } = useToast();
   const { user, profile, loading: authLoading } = useAuth();
@@ -113,13 +130,22 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: allRows, error } = await supabase
-        .from('nonconformity_records')
-        .select('*')
-        .order('record_number', { ascending: false });
-      if (error) throw error;
+      const PAGE = 1000;
+      const allRows = [];
+      let from = 0;
+      for (;;) {
+        const { data, error } = await supabase
+          .from('nonconformity_records')
+          .select(NC_RECORD_COLUMNS)
+          .order('record_number', { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (data?.length) allRows.push(...data);
+        if (!data?.length || data.length < PAGE) break;
+        from += PAGE;
+      }
 
-      const rows = allRows || [];
+      const rows = allRows;
       const ncIds = [...new Set(rows.map((r) => r.source_nc_id).filter(Boolean))];
       let ncMap = {};
       if (ncIds.length > 0) {
@@ -163,6 +189,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     if (syncDoneRef.current || authLoading || !user) return;
     syncDoneRef.current = true;
 
+    if (!isSyncNeeded()) return;
+
     let isCancelled = false;
     const runAllSyncs = async () => {
       let needsRefresh = false;
@@ -196,14 +224,16 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
         }
       } catch (e) { console.error('Sızdırmazlık sync hatası:', e); }
 
+      markSyncDone();
+
       if (!isCancelled && needsRefresh) {
         await fetchRecords();
         toast({ title: 'Senkronizasyon Tamamlandı', description: toastMsgs.join(' | ') });
       }
     };
 
-    void runAllSyncs();
-    return () => { isCancelled = true; };
+    const timerId = setTimeout(() => { void runAllSyncs(); }, 100);
+    return () => { isCancelled = true; clearTimeout(timerId); };
   }, [authLoading, fetchRecords, profile?.full_name, toast, user]);
 
   const { partCodeAnalysisData, categoryAnalysisData } = useMemo(() => {

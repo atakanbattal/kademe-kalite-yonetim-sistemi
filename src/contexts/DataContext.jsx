@@ -156,7 +156,7 @@ export const DataProvider = ({ children }) => {
         const mediumPromises = {
             producedVehicles: (async () => fetchProducedVehiclesMerged({ limit: 250 }))(),
             nonConformities: supabase.from('non_conformities').select('*, supplier:supplier_id(name)'),
-            nonconformityRecords: supabase.from('nonconformity_records').select('*').order('detection_date', { ascending: false }).limit(500),
+            nonconformityRecords: supabase.from('nonconformity_records').select('id, record_number, source_nc_id, status, part_code, part_name, vehicle_type, vehicle_identifier, description, category, severity, quantity, detection_date, detection_area, detected_by, responsible_person, department, created_at').order('detection_date', { ascending: false }).limit(500),
             deviations: supabase.from('deviations').select('*, deviation_approvals(*), deviation_attachments(*), deviation_vehicles(*)'),
             kaizenEntries: supabase.from('kaizen_entries').select('*, proposer:proposer_id(full_name), responsible_person:responsible_person_id(full_name), approver:approver_id(full_name), department:department_id(unit_name, cost_per_minute), supplier:supplier_id(name)'),
             tasks: supabase.from('tasks').select('*, owner:owner_id(full_name, email), project:project_id(id, name, color), assignees:task_assignees(personnel(id, full_name, email, avatar_url)), tags:task_tag_relations(task_tags(id, name, color)), checklist:task_checklists(*)'),
