@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FileText, BarChart3 } from 'lucide-react';
+import { FileText, BarChart3, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import IncomingInspectionList from '@/components/incoming-quality/IncomingInspectionList';
@@ -18,6 +18,7 @@ import {
   normalizeIncomingPartCode,
   buildControlPlanNormalizedKeySet,
 } from '@/lib/incomingQualityPartCodes';
+import IncomingQualityFolderDownloadModal from '@/components/incoming-quality/IncomingQualityFolderDownloadModal';
 
 const ControlPlanManagement = lazy(() => import('@/components/incoming-quality/ControlPlanManagement'));
 const InkrManagement = lazy(() => import('@/components/incoming-quality/InkrManagement'));
@@ -89,6 +90,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [selectedInspection, setSelectedInspection] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [isReportSelectionModalOpen, setIsReportSelectionModalOpen] = useState(false);
+    const [isFolderDownloadOpen, setIsFolderDownloadOpen] = useState(false);
 
     const [filters, setFilters] = useState({
         searchTerm: '',
@@ -777,6 +779,13 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
 
             <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} controlPlanMissingCount={controlPlanMissingCount} />
 
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                <Button type="button" variant="outline" className="gap-2 sm:self-end" onClick={() => setIsFolderDownloadOpen(true)}>
+                    <Download className="h-4 w-4" />
+                    Klasör İndir
+                </Button>
+            </div>
+
             <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
                 <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="inspections">Muayene Kayıtları</TabsTrigger>
@@ -893,6 +902,8 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 pdfUrl={pdfViewerState.url}
                 title={pdfViewerState.title}
             />
+
+            <IncomingQualityFolderDownloadModal isOpen={isFolderDownloadOpen} setIsOpen={setIsFolderDownloadOpen} />
 
             <Dialog open={isReportSelectionModalOpen} onOpenChange={setIsReportSelectionModalOpen}>
                 <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-y-auto p-6">
