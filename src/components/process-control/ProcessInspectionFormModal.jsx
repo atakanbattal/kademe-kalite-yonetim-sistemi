@@ -18,7 +18,8 @@ import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { getProcessInkrDisplayNumber } from './processInkrUtils';
 import { buildMeasurementBundle } from './processInspectionUtils';
-import { syncProcessInspectionNonconformity } from '@/lib/processInspectionNonconformitySync';
+import { syncProcessInspectionNonconformity, syncProcessInspectionDefectNonconformities } from '@/lib/processInspectionNonconformitySync';
+import { buildCategoryOptions } from '@/lib/defectCategories';
 import {
     AlertCircle,
     AlertTriangle,
@@ -215,6 +216,8 @@ const ProcessInspectionFormModal = ({
         const conditional = Number(formData.quantity_conditional) || 0;
         return rejected + conditional > produced;
     }, [formData.quantity_conditional, formData.quantity_produced, formData.quantity_rejected]);
+
+    const defectCategoryOptions = useMemo(() => buildCategoryOptions(), []);
 
     const operatorOptions = useMemo(() => {
         const activePersonnel = Array.isArray(personnel)
@@ -765,6 +768,16 @@ const ProcessInspectionFormModal = ({
                     results,
                     userId: user?.id || null,
                 });
+
+                await syncProcessInspectionDefectNonconformities({
+                    supabase,
+                    inspection: {
+                        id: inspectionId,
+                        ...payload,
+                    },
+                    defects: validDefects,
+                    userId: user?.id || null,
+                });
             } catch (syncError) {
                 console.error('Proses muayene uygunsuzluk senkronu başarısız:', syncError);
                 nonconformitySyncWarning = syncError.message;
@@ -1191,15 +1204,25 @@ const ProcessInspectionFormModal = ({
                                                         <Label className="text-xs uppercase tracking-wide text-muted-foreground">
                                                             Hata Tipi
                                                         </Label>
-                                                        <Input
-                                                            value={defect.defect_type || ''}
-                                                            onChange={(event) =>
-                                                                handleDefectChange(index, 'defect_type', event.target.value)
-                                                            }
-                                                            placeholder="Örn: Ölçü Dışı, Kaynak Hatası"
-                                                            disabled={isViewMode}
-                                                            className="mt-2 bg-background"
-                                                        />
+                                                        {isViewMode ? (
+                                                            <div className="mt-2 flex h-10 items-center rounded-md border bg-muted/50 px-3 text-sm">
+                                                                {defect.defect_type || '-'}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="mt-2">
+                                                                <SearchableSelectDialog
+                                                                    options={defectCategoryOptions}
+                                                                    value={defect.defect_type || ''}
+                                                                    onChange={(value) =>
+                                                                        handleDefectChange(index, 'defect_type', value)
+                                                                    }
+                                                                    triggerPlaceholder="Hata tipi seçin..."
+                                                                    dialogTitle="Hata Tipi Seçin"
+                                                                    searchPlaceholder="Hata tipi ara..."
+                                                                    notFoundText="Hata tipi bulunamadı."
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     <div>

@@ -3,11 +3,15 @@ import {
     Building2,
     CalendarDays,
     Clock3,
+    Copy,
     Droplets,
     FileText,
     Hash,
+    Layers,
     Package,
+    Plus,
     ShieldCheck,
+    Trash2,
     User,
     Wrench,
 } from 'lucide-react';
@@ -17,6 +21,7 @@ import { syncLeakTestNonconformity } from '@/lib/leakTestNonconformitySync';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -65,6 +70,16 @@ const isTankTypeConstraintError = (error) => (
     && String(error.message || '').includes('leak_test_records_tank_type_check')
 );
 
+const createDefaultItem = () => ({
+    _key: crypto.randomUUID(),
+    vehicle_type_id: '',
+    vehicle_serial_number: '',
+    part_code: '',
+    tank_type: '',
+    test_result: 'Kabul',
+    leak_count: 0,
+});
+
 const createDefaultFormData = () => {
     const now = new Date();
     return {
@@ -101,6 +116,145 @@ const LeadingIconField = ({ icon: Icon, children }) => (
     </div>
 );
 
+const BatchItemRow = ({
+    item,
+    index,
+    vehicleTypeOptions,
+    tankTypeOptions,
+    isViewMode,
+    onChange,
+    onRemove,
+    onDuplicate,
+    canRemove,
+}) => {
+    const handleResultChange = (value) => {
+        onChange(index, {
+            test_result: value,
+            leak_count: value === 'Kabul' ? 0 : Math.max(1, Number(item.leak_count) || 0),
+        });
+    };
+
+    const handleLeakCountChange = (value) => {
+        const parsed = value === '' ? '' : Math.max(0, parseInt(value, 10) || 0);
+        onChange(index, {
+            leak_count: parsed,
+            test_result: Number(parsed) > 0 ? 'Kaçak Var' : 'Kabul',
+        });
+    };
+
+    const resultBadge = item.test_result === 'Kaçak Var'
+        ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800'
+        : 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800';
+
+    return (
+        <div className="group relative rounded-xl border bg-card transition-shadow hover:shadow-sm">
+            <div className="flex items-center justify-between border-b bg-muted/30 px-4 py-2">
+                <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                        {index + 1}
+                    </span>
+                    <Badge variant="outline" className={`text-[10px] ${resultBadge}`}>
+                        {item.test_result || 'Kabul'}
+                    </Badge>
+                </div>
+                {!isViewMode && (
+                    <div className="flex items-center gap-0.5">
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDuplicate(index)} title="Kopyala">
+                            <Copy className="h-3 w-3" />
+                        </Button>
+                        {canRemove && (
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => onRemove(index)} title="Sil">
+                                <Trash2 className="h-3 w-3" />
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 p-4 md:grid-cols-4">
+                <div className="col-span-2 space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Araç Tipi *</Label>
+                    {isViewMode ? (
+                        <Input value={vehicleTypeOptions.find((v) => v.value === item.vehicle_type_id)?.label || '-'} readOnly className="bg-muted/30 h-9 text-sm" />
+                    ) : (
+                        <SearchableSelectDialog
+                            options={vehicleTypeOptions}
+                            value={item.vehicle_type_id}
+                            onChange={(value) => onChange(index, { vehicle_type_id: value })}
+                            triggerPlaceholder="Araç tipi seçin..."
+                            dialogTitle="Araç Tipi Seç"
+                            searchPlaceholder="Ara..."
+                            notFoundText="Bulunamadı."
+                        />
+                    )}
+                </div>
+
+                <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Sızd. Parçası *</Label>
+                    <Select value={item.tank_type} onValueChange={(value) => onChange(index, { tank_type: value })} disabled={isViewMode}>
+                        <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Seçin" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {tankTypeOptions.map((opt) => (
+                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Araç Seri No</Label>
+                    <Input
+                        value={item.vehicle_serial_number || ''}
+                        onChange={(e) => onChange(index, { vehicle_serial_number: e.target.value })}
+                        placeholder="ARC-2026-..."
+                        disabled={isViewMode}
+                        className="h-9 text-sm"
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Parça Kodu</Label>
+                    <Input
+                        value={item.part_code || ''}
+                        onChange={(e) => onChange(index, { part_code: e.target.value })}
+                        placeholder="ABC-12345"
+                        disabled={isViewMode}
+                        className="h-9 text-sm"
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Sonuç *</Label>
+                    <Select value={item.test_result} onValueChange={handleResultChange} disabled={isViewMode}>
+                        <SelectTrigger className="h-9 text-sm">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {TEST_RESULT_OPTIONS.map((opt) => (
+                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Kaçak Adet</Label>
+                    <Input
+                        type="number"
+                        min="0"
+                        value={item.leak_count}
+                        onChange={(e) => handleLeakCountChange(e.target.value)}
+                        disabled={isViewMode}
+                        className="h-9 text-sm"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const LeakTestFormModal = ({
     isOpen,
     setIsOpen,
@@ -113,8 +267,10 @@ const LeakTestFormModal = ({
 
     const isEditMode = !!record && !isViewMode;
     const hasExistingRecord = !!record;
+    const isBatchMode = !hasExistingRecord && !isViewMode;
 
     const [formData, setFormData] = useState(createDefaultFormData());
+    const [batchItems, setBatchItems] = useState(() => [createDefaultItem()]);
     const [vehicleTypes, setVehicleTypes] = useState([]);
     const [personnel, setPersonnel] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
@@ -147,25 +303,17 @@ const LeakTestFormModal = ({
         notes: sourceRecord?.notes || '',
     }), []);
 
-    /**
-     * Seçilen test tarihine göre akıllı kayıt numarası üret.
-     * O yıl içinde, seçilen tarih dahil ve öncesindeki kayıt sayısını hesaplar;
-     * bu pozisyon +1 kayıt numarasına karşılık gelir.
-     * Böylece geçmişe yönelik kayıtlar da tarih sırasına uygun numara alır.
-     */
     const fetchNextRecordNumberForDate = useCallback(async (testDate) => {
         const dateObj = testDate ? new Date(testDate) : new Date();
         const year = dateObj.getFullYear();
         const yearSuffix = String(year).slice(-2);
         const prefix = `SZK-${yearSuffix}-`;
 
-        // Yıl başı ve seçilen tarihin bir gün sonrası (seçilen gün dahil)
         const yearStart = `${year}-01-01`;
         const dayAfter = new Date(dateObj);
         dayAfter.setDate(dayAfter.getDate() + 1);
         const dayAfterStr = dayAfter.toISOString().split('T')[0];
 
-        // Seçilen tarihe kadar (o gün dahil) bu yılda kaç kayıt var?
         const { count, error } = await supabase
             .from('leak_test_records')
             .select('id', { count: 'exact', head: true })
@@ -232,7 +380,6 @@ const LeakTestFormModal = ({
 
     useEffect(() => {
         if (!isOpen) return;
-
         fetchSetupData();
     }, [fetchSetupData, isOpen]);
 
@@ -245,6 +392,7 @@ const LeakTestFormModal = ({
             if (hasExistingRecord && record) {
                 if (isMounted) {
                     setFormData(createFormDataFromRecord(record));
+                    setBatchItems([createDefaultItem()]);
                 }
                 return;
             }
@@ -258,10 +406,12 @@ const LeakTestFormModal = ({
                     ...defaultData,
                     record_number: nextRecordNumber,
                 });
+                setBatchItems([createDefaultItem()]);
             } catch (error) {
                 if (!isMounted) return;
 
                 setFormData(createDefaultFormData());
+                setBatchItems([createDefaultItem()]);
                 toast({
                     variant: 'destructive',
                     title: 'Kayıt numarası üretilemedi',
@@ -376,7 +526,6 @@ const LeakTestFormModal = ({
                     applyTankTypeMode('legacy');
                     return;
                 }
-
                 throw error;
             }
 
@@ -401,7 +550,6 @@ const LeakTestFormModal = ({
 
     useEffect(() => {
         if (!isOpen) return;
-
         detectTankTypeSupport();
     }, [detectTankTypeSupport, isOpen]);
 
@@ -414,14 +562,8 @@ const LeakTestFormModal = ({
             ...prev,
             welding_at_supplier: checked,
             ...(checked
-                ? {
-                    welded_by_personnel_id: '',
-                    welded_by_name: '',
-                }
-                : {
-                    supplier_id: '',
-                    supplier_name: '',
-                }),
+                ? { welded_by_personnel_id: '', welded_by_name: '' }
+                : { supplier_id: '', supplier_name: '' }),
         }));
     };
 
@@ -434,20 +576,15 @@ const LeakTestFormModal = ({
         }));
     };
 
-    /**
-     * Test tarihi değiştiğinde kayıt numarasını o tarihe göre yeniden hesapla.
-     * Sadece yeni kayıt eklerken aktif; düzenleme modunda kayıt no değişmez.
-     */
     const handleDateChange = useCallback(async (newDate) => {
         handleInputChange('test_date', newDate);
 
-        if (hasExistingRecord) return; // Düzenleme modunda kayıt no'ya dokunma
+        if (hasExistingRecord) return;
 
         try {
             const newRecordNumber = await fetchNextRecordNumberForDate(newDate);
             setFormData((prev) => ({ ...prev, test_date: newDate, record_number: newRecordNumber }));
         } catch {
-            // Hata olursa sadece tarihi güncelle, kayıt no'yu dokunma
             setFormData((prev) => ({ ...prev, test_date: newDate }));
         }
     }, [fetchNextRecordNumberForDate, hasExistingRecord]);
@@ -456,15 +593,12 @@ const LeakTestFormModal = ({
         setFormData((prev) => ({
             ...prev,
             test_result: value,
-            leak_count: value === 'Kabul'
-                ? 0
-                : Math.max(1, Number(prev.leak_count) || 0),
+            leak_count: value === 'Kabul' ? 0 : Math.max(1, Number(prev.leak_count) || 0),
         }));
     };
 
     const handleLeakCountChange = (value) => {
         const parsedValue = value === '' ? '' : Math.max(0, parseInt(value, 10) || 0);
-
         setFormData((prev) => ({
             ...prev,
             leak_count: parsedValue,
@@ -472,73 +606,123 @@ const LeakTestFormModal = ({
         }));
     };
 
+    // --- Batch item handlers ---
+    const handleBatchItemChange = useCallback((index, changes) => {
+        setBatchItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...changes } : item)));
+    }, []);
+
+    const addBatchItem = useCallback(() => {
+        setBatchItems((prev) => {
+            const last = prev[prev.length - 1];
+            return [...prev, {
+                ...createDefaultItem(),
+                vehicle_type_id: last?.vehicle_type_id || '',
+            }];
+        });
+    }, []);
+
+    const removeBatchItem = useCallback((index) => {
+        setBatchItems((prev) => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
+    }, []);
+
+    const duplicateBatchItem = useCallback((index) => {
+        setBatchItems((prev) => {
+            const source = prev[index];
+            if (!source) return prev;
+            const copy = { ...source, _key: crypto.randomUUID() };
+            const next = [...prev];
+            next.splice(index + 1, 0, copy);
+            return next;
+        });
+    }, []);
+
     const validateForm = () => {
+        if (isBatchMode) {
+            if (!formData.test_date || !formData.test_start_time) {
+                toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Test tarihi ve başlama saati zorunludur.' });
+                return false;
+            }
+            if (!Number(formData.test_duration_minutes) || Number(formData.test_duration_minutes) <= 0) {
+                toast({ variant: 'destructive', title: 'Geçersiz süre', description: 'Test süresi sıfırdan büyük olmalıdır.' });
+                return false;
+            }
+            if (!formData.tested_by_personnel_id) {
+                toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Testi yapan personel seçilmelidir.' });
+                return false;
+            }
+            if (formData.welding_at_supplier) {
+                if (!formData.supplier_id || !String(formData.supplier_name || '').trim()) {
+                    toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Tedarikçi seçilmelidir.' });
+                    return false;
+                }
+            } else if (!formData.welded_by_personnel_id) {
+                toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Ürünü kaynatan personel seçilmelidir.' });
+                return false;
+            }
+
+            for (let i = 0; i < batchItems.length; i++) {
+                const item = batchItems[i];
+                if (!item.vehicle_type_id) {
+                    toast({ variant: 'destructive', title: 'Eksik bilgi', description: `Satır ${i + 1}: Araç tipi seçilmeli.` });
+                    return false;
+                }
+                if (!item.tank_type) {
+                    toast({ variant: 'destructive', title: 'Eksik bilgi', description: `Satır ${i + 1}: Sızdırmazlık parçası seçilmeli.` });
+                    return false;
+                }
+                if (!availableTankTypeOptions.includes(item.tank_type)) {
+                    toast({ variant: 'destructive', title: 'Geçersiz parça', description: `Satır ${i + 1}: Geçersiz sızdırmazlık parçası.` });
+                    return false;
+                }
+                if (item.test_result === 'Kaçak Var' && (!Number(item.leak_count) || Number(item.leak_count) <= 0)) {
+                    toast({ variant: 'destructive', title: 'Eksik bilgi', description: `Satır ${i + 1}: Kaçaklı sonuç için kaçak adedi girilmelidir.` });
+                    return false;
+                }
+            }
+            return true;
+        }
+
         if (!formData.record_number) {
             toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Kayıt numarası oluşturulamadı.' });
             return false;
         }
-
         if (!formData.vehicle_type_id) {
             toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Lütfen araç tipini seçin.' });
             return false;
         }
-
         if (!formData.tank_type) {
             toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Lütfen sızdırmazlık parçasını seçin.' });
             return false;
         }
-
         if (!availableTankTypeOptions.includes(formData.tank_type)) {
-            toast({
-                variant: 'destructive',
-                title: 'Geçersiz sızdırmazlık parçası',
-                description: 'Sunucuda aktif olmayan bir sızdırmazlık parçası seçildi. Lütfen listeden geçerli bir seçim yapın.',
-            });
+            toast({ variant: 'destructive', title: 'Geçersiz parça', description: 'Geçersiz sızdırmazlık parçası.' });
             return false;
         }
-
         if (!formData.test_date || !formData.test_start_time) {
             toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Test tarihi ve başlama saati zorunludur.' });
             return false;
         }
-
         if (!Number(formData.test_duration_minutes) || Number(formData.test_duration_minutes) <= 0) {
             toast({ variant: 'destructive', title: 'Geçersiz süre', description: 'Test süresi sıfırdan büyük olmalıdır.' });
             return false;
         }
-
         if (formData.test_result === 'Kaçak Var' && (!Number(formData.leak_count) || Number(formData.leak_count) <= 0)) {
             toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Kaçaklı sonuç için kaçak adedi girilmelidir.' });
             return false;
         }
-
         if (!formData.tested_by_personnel_id) {
-            toast({
-                variant: 'destructive',
-                title: 'Eksik bilgi',
-                description: 'Testi yapan personel seçilmelidir.',
-            });
+            toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Testi yapan personel seçilmelidir.' });
             return false;
         }
-
         if (formData.welding_at_supplier) {
             if (!formData.supplier_id || !String(formData.supplier_name || '').trim()) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Eksik bilgi',
-                    description: 'Kaynak tedarikçide yapıldı seçiliyken tedarikçi seçilmelidir.',
-                });
+                toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Tedarikçi seçilmelidir.' });
                 return false;
             }
         } else if (!formData.welded_by_personnel_id) {
-            toast({
-                variant: 'destructive',
-                title: 'Eksik bilgi',
-                description: 'Ürünü kaynatan personel seçilmelidir (veya kaynağı tedarikçide yapıldı seçeneğini açın).',
-            });
+            toast({ variant: 'destructive', title: 'Eksik bilgi', description: 'Ürünü kaynatan personel seçilmelidir.' });
             return false;
         }
-
         return true;
     };
 
@@ -551,11 +735,7 @@ const LeakTestFormModal = ({
         }
 
         if (isSetupMissing) {
-            toast({
-                variant: 'destructive',
-                title: 'Kurulum eksik',
-                description: 'Araç tipi veya personel listesi eksik olduğu için kayıt oluşturulamıyor.',
-            });
+            toast({ variant: 'destructive', title: 'Kurulum eksik', description: 'Araç tipi veya personel listesi eksik.' });
             return;
         }
 
@@ -563,6 +743,83 @@ const LeakTestFormModal = ({
 
         setIsSubmitting(true);
         try {
+            const atSupplier = !!formData.welding_at_supplier;
+
+            const commonPayload = {
+                test_date: formData.test_date,
+                test_start_time: formData.test_start_time,
+                test_duration_minutes: Number(formData.test_duration_minutes),
+                tested_by_personnel_id: formData.tested_by_personnel_id || null,
+                tested_by_name: previewTesterName || null,
+                welded_by_personnel_id: atSupplier ? null : (formData.welded_by_personnel_id || null),
+                welded_by_name: atSupplier ? null : (previewWelderName || null),
+                welding_at_supplier: atSupplier,
+                supplier_id: atSupplier ? (formData.supplier_id || null) : null,
+                supplier_name: atSupplier ? (String(formData.supplier_name || '').trim() || null) : null,
+                notes: formData.notes?.trim() || null,
+                updated_at: new Date().toISOString(),
+            };
+
+            if (isBatchMode) {
+                const savedRows = [];
+                let ncWarnings = [];
+
+                for (const item of batchItems) {
+                    const { data: rpcNum, error: rpcError } = await supabase.rpc('next_leak_test_record_number', {
+                        p_test_date: formData.test_date,
+                    });
+                    if (rpcError) throw rpcError;
+                    if (!rpcNum) throw new Error('Kayıt numarası alınamadı.');
+
+                    const vehicleProduct = vehicleTypes.find((v) => v.id === item.vehicle_type_id);
+                    const vehicleLabel = vehicleProduct ? buildVehicleTypeLabel(vehicleProduct) : '';
+
+                    const payload = {
+                        ...commonPayload,
+                        record_number: rpcNum,
+                        vehicle_type_id: item.vehicle_type_id || null,
+                        vehicle_type_label: vehicleLabel || null,
+                        vehicle_serial_number: item.vehicle_serial_number?.trim() || null,
+                        part_code: item.part_code?.trim() || null,
+                        tank_type: item.tank_type,
+                        test_result: item.test_result,
+                        leak_count: item.test_result === 'Kaçak Var' ? Number(item.leak_count) : 0,
+                        created_by: user?.id || null,
+                    };
+
+                    const { data, error } = await supabase
+                        .from('leak_test_records')
+                        .insert([payload])
+                        .select('*')
+                        .single();
+
+                    if (error) throw error;
+                    savedRows.push(data);
+                }
+
+                for (const row of savedRows) {
+                    try {
+                        await syncLeakTestNonconformity({ supabase, leakTestRecord: row, userId: user?.id || null });
+                    } catch (syncError) {
+                        ncWarnings.push(`${row.record_number}: ${syncError.message}`);
+                    }
+                }
+
+                const ncWarnText = ncWarnings.length > 0
+                    ? ` (Uygunsuzluk senkronu uyarıları: ${ncWarnings.join('; ')})`
+                    : '';
+
+                toast({
+                    title: 'Toplu kayıt tamamlandı',
+                    description: `${savedRows.length} adet sızdırmazlık kaydı oluşturuldu.${ncWarnText}`,
+                });
+
+                setIsOpen(false);
+                onSuccess?.();
+                return;
+            }
+
+            // Single record (edit mode)
             let recordNumber = formData.record_number;
             if (!isEditMode) {
                 const { data: rpcNum, error: rpcError } = await supabase.rpc('next_leak_test_record_number', {
@@ -573,28 +830,16 @@ const LeakTestFormModal = ({
                 recordNumber = rpcNum;
             }
 
-            const atSupplier = !!formData.welding_at_supplier;
             const payload = {
+                ...commonPayload,
                 record_number: recordNumber,
                 vehicle_type_id: formData.vehicle_type_id || null,
                 vehicle_type_label: previewVehicleLabel || null,
                 vehicle_serial_number: formData.vehicle_serial_number?.trim() || null,
                 part_code: formData.part_code?.trim() || null,
                 tank_type: formData.tank_type,
-                test_date: formData.test_date,
-                test_start_time: formData.test_start_time,
-                test_duration_minutes: Number(formData.test_duration_minutes),
                 test_result: formData.test_result,
                 leak_count: formData.test_result === 'Kaçak Var' ? Number(formData.leak_count) : 0,
-                tested_by_personnel_id: formData.tested_by_personnel_id || null,
-                tested_by_name: previewTesterName || null,
-                welded_by_personnel_id: atSupplier ? null : (formData.welded_by_personnel_id || null),
-                welded_by_name: atSupplier ? null : (previewWelderName || null),
-                welding_at_supplier: atSupplier,
-                supplier_id: atSupplier ? (formData.supplier_id || null) : null,
-                supplier_name: atSupplier ? (String(formData.supplier_name || '').trim() || null) : null,
-                notes: formData.notes?.trim() || null,
-                updated_at: new Date().toISOString(),
             };
 
             let savedRow = null;
@@ -610,42 +855,27 @@ const LeakTestFormModal = ({
                 if (error) throw error;
                 savedRow = data;
 
-                toast({
-                    title: 'Kayıt güncellendi',
-                    description: `${payload.record_number} başarıyla güncellendi.`,
-                });
+                toast({ title: 'Kayıt güncellendi', description: `${payload.record_number} başarıyla güncellendi.` });
             } else {
                 const { data, error } = await supabase
                     .from('leak_test_records')
-                    .insert([{
-                        ...payload,
-                        created_by: user?.id || null,
-                    }])
+                    .insert([{ ...payload, created_by: user?.id || null }])
                     .select('*')
                     .single();
 
                 if (error) throw error;
                 savedRow = data;
 
-                toast({
-                    title: 'Kayıt oluşturuldu',
-                    description: `${payload.record_number} başarıyla kaydedildi.`,
-                });
+                toast({ title: 'Kayıt oluşturuldu', description: `${payload.record_number} başarıyla kaydedildi.` });
             }
 
             try {
-                await syncLeakTestNonconformity({
-                    supabase,
-                    leakTestRecord: savedRow,
-                    userId: user?.id || null,
-                });
+                await syncLeakTestNonconformity({ supabase, leakTestRecord: savedRow, userId: user?.id || null });
             } catch (syncError) {
                 toast({
                     variant: 'destructive',
                     title: 'Uygunsuzluk senkronu',
-                    description:
-                        syncError?.message
-                        || 'Kayıt kaydedildi ancak uygunsuzluk modülüne aktarım sırasında hata oluştu.',
+                    description: syncError?.message || 'Kayıt kaydedildi ancak uygunsuzluk aktarımında hata oluştu.',
                 });
             }
 
@@ -657,7 +887,7 @@ const LeakTestFormModal = ({
                 toast({
                     variant: 'destructive',
                     title: 'Sızdırmazlık parçası desteklenmiyor',
-                    description: 'Sunucuda yeni tank/parça tipleri henüz aktif değil. Şimdilik Yağ Tankı, Su Tankı, Mazot Tankı veya Fıskiye seçeneklerinden birini kullanın.',
+                    description: 'Sunucuda yeni tank/parça tipleri henüz aktif değil.',
                 });
                 return;
             }
@@ -674,28 +904,45 @@ const LeakTestFormModal = ({
 
     if (!isOpen) return null;
 
+    const batchSummary = isBatchMode ? {
+        total: batchItems.length,
+        accepted: batchItems.filter((i) => i.test_result === 'Kabul').length,
+        leaked: batchItems.filter((i) => i.test_result === 'Kaçak Var').length,
+    } : null;
+
     const rightPanel = (
-        <div className="p-5 space-y-4">
-            <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-cyan-50 p-4">
-                <div className="flex items-center justify-between gap-3">
+        <div className="p-4 space-y-3">
+            <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-cyan-50 p-3">
+                <div className="flex items-center justify-between gap-2">
                     <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">Kayıt Özeti</p>
-                        <p className="mt-1 text-xl font-bold text-slate-900">{formData.record_number || '-'}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sky-700">Kayıt Özeti</p>
+                        {isBatchMode ? (
+                            <p className="mt-0.5 text-lg font-bold text-slate-900">{batchSummary.total} test satırı</p>
+                        ) : (
+                            <p className="mt-0.5 text-lg font-bold text-slate-900">{formData.record_number || '-'}</p>
+                        )}
                     </div>
-                    <Badge variant={previewResultVariant}>{formData.test_result || '-'}</Badge>
+                    {isBatchMode ? (
+                        <div className="flex gap-1">
+                            <Badge variant="success">{batchSummary.accepted}</Badge>
+                            {batchSummary.leaked > 0 && <Badge variant="destructive">{batchSummary.leaked}</Badge>}
+                        </div>
+                    ) : (
+                        <Badge variant={previewResultVariant}>{formData.test_result || '-'}</Badge>
+                    )}
                 </div>
-                <p className="mt-3 text-sm text-slate-700">{previewVehicleLabel || '-'}</p>
-                <p className="mt-1 text-xs text-slate-500">{formData.tank_type || 'Sızdırmazlık parçası seçilmedi'}</p>
-                {formData.part_code?.trim() ? (
-                    <p className="mt-1 text-xs font-medium text-slate-600">Parça kodu: {formData.part_code.trim()}</p>
-                ) : null}
+                {!isBatchMode && (
+                    <>
+                        <p className="mt-2 text-sm text-slate-700">{previewVehicleLabel || '-'}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{formData.tank_type || 'Sızdırmazlık parçası seçilmedi'}</p>
+                        {formData.part_code?.trim() ? (
+                            <p className="mt-0.5 text-xs font-medium text-slate-600">Parça kodu: {formData.part_code.trim()}</p>
+                        ) : null}
+                    </>
+                )}
             </div>
 
-            <div className="rounded-xl border bg-background p-4 space-y-3">
-                <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Araç Seri No</p>
-                    <p className="text-sm font-medium text-foreground">{formData.vehicle_serial_number || '-'}</p>
-                </div>
+            <div className="rounded-lg border bg-background p-3 space-y-2.5">
                 <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Test Tarihi</p>
                     <p className="text-sm font-medium text-foreground">{formatTestDate(formData.test_date)}</p>
@@ -710,15 +957,23 @@ const LeakTestFormModal = ({
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Test Süresi</p>
                     <p className="text-sm font-medium text-foreground">{formatDuration(formData.test_duration_minutes)}</p>
                 </div>
-                <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Kaçak Adedi</p>
-                    <p className={`text-sm font-semibold ${formData.test_result === 'Kaçak Var' ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {formData.test_result === 'Kaçak Var' ? `${formData.leak_count || 0} adet` : 'Kaçak yok'}
-                    </p>
-                </div>
+                {!isBatchMode && (
+                    <>
+                        <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Araç Seri No</p>
+                            <p className="text-sm font-medium text-foreground">{formData.vehicle_serial_number || '-'}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Kaçak Adedi</p>
+                            <p className={`text-sm font-semibold ${formData.test_result === 'Kaçak Var' ? 'text-red-600' : 'text-emerald-600'}`}>
+                                {formData.test_result === 'Kaçak Var' ? `${formData.leak_count || 0} adet` : 'Kaçak yok'}
+                            </p>
+                        </div>
+                    </>
+                )}
             </div>
 
-            <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+            <div className="rounded-lg border bg-muted/20 p-3 space-y-2.5">
                 <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Testi Yapan</p>
                     <p className="text-sm font-medium text-foreground">{previewTesterName}</p>
@@ -732,9 +987,9 @@ const LeakTestFormModal = ({
             </div>
 
             {formData.notes && (
-                <div className="rounded-xl border bg-background p-4">
+                <div className="rounded-lg border bg-background p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Notlar</p>
-                    <p className="mt-2 text-sm leading-relaxed text-foreground">{formData.notes}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-foreground">{formData.notes}</p>
                 </div>
             )}
         </div>
@@ -753,18 +1008,23 @@ const LeakTestFormModal = ({
             }
             subtitle="Girdi ve Üretim Kalite"
             icon={<Droplets className="h-5 w-5 text-white" />}
-            badge={isViewMode ? null : isEditMode ? 'Düzenleme' : 'Yeni'}
+            badge={isViewMode ? null : isEditMode ? 'Düzenleme' : isBatchMode ? `${batchItems.length} satır` : 'Yeni'}
             onCancel={() => setIsOpen(false)}
             onSubmit={isViewMode ? () => setIsOpen(false) : handleSubmit}
             isSubmitting={isSubmitting}
-            submitLabel={isViewMode ? 'Kapat' : isEditMode ? 'Güncelle' : 'Kaydet'}
+            submitLabel={
+                isViewMode ? 'Kapat'
+                    : isEditMode ? 'Güncelle'
+                        : isBatchMode ? `${batchItems.length} Kayıt Oluştur`
+                            : 'Kaydet'
+            }
             cancelLabel={isViewMode ? 'Geri' : 'İptal'}
             formId="leak-test-form"
             footerDate={formData.test_date}
             rightPanel={rightPanel}
             maxWidth="sm:max-w-7xl"
         >
-            <form id="leak-test-form" onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form id="leak-test-form" onSubmit={handleSubmit} className="p-5 space-y-5">
                 {isSetupMissing && !setupLoading && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         Formun tam çalışması için <strong>Ayarlar &gt; Personel</strong> bölümünde aktif personel ve
@@ -772,19 +1032,22 @@ const LeakTestFormModal = ({
                     </div>
                 )}
 
+                {/* Common: date, time, duration */}
                 <section>
                     <ModalSectionHeader>Kayıt Bilgisi</ModalSectionHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                        <ModalField label="Kayıt No" required>
-                            <LeadingIconField icon={FileText}>
-                                <Input
-                                    value={formData.record_number}
-                                    readOnly
-                                    className="bg-muted/30"
-                                    style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
-                                />
-                            </LeadingIconField>
-                        </ModalField>
+                    <div className={`grid grid-cols-1 gap-4 ${isBatchMode ? 'md:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-4'}`}>
+                        {!isBatchMode && (
+                            <ModalField label="Kayıt No" required>
+                                <LeadingIconField icon={FileText}>
+                                    <Input
+                                        value={formData.record_number}
+                                        readOnly
+                                        className="bg-muted/30"
+                                        style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
+                                    />
+                                </LeadingIconField>
+                            </ModalField>
+                        )}
 
                         <ModalField label="Test Tarihi" required>
                             <LeadingIconField icon={CalendarDays}>
@@ -826,113 +1089,131 @@ const LeakTestFormModal = ({
                     </div>
                 </section>
 
-                <section>
-                    <ModalSectionHeader>Ürün ve Sonuç</ModalSectionHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                        <div className="space-y-1.5 md:col-span-2">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                                Araç Tipi <span className="text-destructive">*</span>
-                            </Label>
-                            {isViewMode ? (
-                                <Input value={previewVehicleLabel || '-'} readOnly className="bg-muted/30" />
-                            ) : (
-                                <SearchableSelectDialog
-                                    options={vehicleTypeOptions}
-                                    value={formData.vehicle_type_id}
-                                    onChange={(value) => handleInputChange('vehicle_type_id', value)}
-                                    triggerPlaceholder={setupLoading ? 'Araç tipleri yükleniyor...' : 'Araç tipi seçin...'}
-                                    dialogTitle="Araç Tipi Seç"
-                                    searchPlaceholder="Araç tipi ara..."
-                                    notFoundText="Araç tipi bulunamadı."
-                                />
-                            )}
+                {/* Batch mode: item rows */}
+                {isBatchMode ? (
+                    <section>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <Layers className="h-4 w-4 text-primary" />
+                                <h3 className="text-sm font-semibold">Test Satırları</h3>
+                                <span className="text-[10px] text-muted-foreground">
+                                    (her satır ayrı kayıt oluşturur)
+                                </span>
+                            </div>
+                            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addBatchItem}>
+                                <Plus className="mr-1 h-3 w-3" />
+                                Satır Ekle
+                            </Button>
                         </div>
 
-                        <ModalField label="Sızdırmazlık Parçası" required>
-                            <Select
-                                value={formData.tank_type}
-                                onValueChange={(value) => handleInputChange('tank_type', value)}
-                                disabled={isViewMode}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sızdırmazlık parçası seçin" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableTankTypeOptions.map((option) => (
-                                        <SelectItem key={option} value={option}>
-                                            {option}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </ModalField>
-
-                        <ModalField label="Parça kodu">
-                            <LeadingIconField icon={Package}>
-                                <Input
-                                    value={formData.part_code}
-                                    onChange={(event) => handleInputChange('part_code', event.target.value)}
-                                    style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
-                                    placeholder="Örn: ABC-12345"
-                                    disabled={isViewMode}
+                        <div className="space-y-2">
+                            {batchItems.map((item, index) => (
+                                <BatchItemRow
+                                    key={item._key}
+                                    item={item}
+                                    index={index}
+                                    vehicleTypeOptions={vehicleTypeOptions}
+                                    tankTypeOptions={availableTankTypeOptions}
+                                    isViewMode={isViewMode}
+                                    onChange={handleBatchItemChange}
+                                    onRemove={removeBatchItem}
+                                    onDuplicate={duplicateBatchItem}
+                                    canRemove={batchItems.length > 1}
                                 />
-                            </LeadingIconField>
-                            <p className="text-[11px] text-muted-foreground leading-snug">
-                                Uygunsuzluk yönetiminde parça kodu olarak kullanılır. Boş bırakılırsa SZK kayıt numarası yazılır.
-                            </p>
-                        </ModalField>
-
-                        <ModalField label="Araç Seri Numarası">
-                            <LeadingIconField icon={Hash}>
-                                <Input
-                                    value={formData.vehicle_serial_number}
-                                    onChange={(event) => handleInputChange('vehicle_serial_number', event.target.value)}
-                                    style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
-                                    placeholder="Örn: ARC-2026-0148"
-                                    disabled={isViewMode}
-                                />
-                            </LeadingIconField>
-                        </ModalField>
-
-                        <ModalField label="Test Sonucu" required>
-                            <Select
-                                value={formData.test_result}
-                                onValueChange={handleResultChange}
-                                disabled={isViewMode}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sonuç seçin" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {TEST_RESULT_OPTIONS.map((option) => (
-                                        <SelectItem key={option} value={option}>
-                                            {option}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </ModalField>
-
-                        <ModalField label="Kaçak Adedi">
-                            <Input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={formData.leak_count}
-                                onChange={(event) => handleLeakCountChange(event.target.value)}
-                                disabled={isViewMode}
-                            />
-                        </ModalField>
-                    </div>
-
-                    {isLegacyTankTypeMode && (
-                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                            Sunucuda genişletilmiş sızdırmazlık parçası listesi henüz aktif değil.
-                            Bu nedenle form şimdilik veritabanının kabul ettiği mevcut seçeneklerle çalışıyor.
+                            ))}
                         </div>
-                    )}
-                </section>
+                    </section>
+                ) : (
+                    /* Single record mode: vehicle/tank/result fields inline */
+                    <section>
+                        <ModalSectionHeader>Ürün ve Sonuç</ModalSectionHeader>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                            <div className="space-y-1.5 md:col-span-2">
+                                <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                                    Araç Tipi <span className="text-destructive">*</span>
+                                </Label>
+                                {isViewMode ? (
+                                    <Input value={previewVehicleLabel || '-'} readOnly className="bg-muted/30" />
+                                ) : (
+                                    <SearchableSelectDialog
+                                        options={vehicleTypeOptions}
+                                        value={formData.vehicle_type_id}
+                                        onChange={(value) => handleInputChange('vehicle_type_id', value)}
+                                        triggerPlaceholder={setupLoading ? 'Araç tipleri yükleniyor...' : 'Araç tipi seçin...'}
+                                        dialogTitle="Araç Tipi Seç"
+                                        searchPlaceholder="Araç tipi ara..."
+                                        notFoundText="Araç tipi bulunamadı."
+                                    />
+                                )}
+                            </div>
 
+                            <ModalField label="Sızdırmazlık Parçası" required>
+                                <Select value={formData.tank_type} onValueChange={(value) => handleInputChange('tank_type', value)} disabled={isViewMode}>
+                                    <SelectTrigger><SelectValue placeholder="Parça seçin" /></SelectTrigger>
+                                    <SelectContent>
+                                        {availableTankTypeOptions.map((opt) => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </ModalField>
+
+                            <ModalField label="Parça kodu">
+                                <LeadingIconField icon={Package}>
+                                    <Input
+                                        value={formData.part_code}
+                                        onChange={(event) => handleInputChange('part_code', event.target.value)}
+                                        style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
+                                        placeholder="Örn: ABC-12345"
+                                        disabled={isViewMode}
+                                    />
+                                </LeadingIconField>
+                            </ModalField>
+
+                            <ModalField label="Araç Seri Numarası">
+                                <LeadingIconField icon={Hash}>
+                                    <Input
+                                        value={formData.vehicle_serial_number}
+                                        onChange={(event) => handleInputChange('vehicle_serial_number', event.target.value)}
+                                        style={{ paddingLeft: LEADING_ICON_INPUT_PADDING }}
+                                        placeholder="Örn: ARC-2026-0148"
+                                        disabled={isViewMode}
+                                    />
+                                </LeadingIconField>
+                            </ModalField>
+
+                            <ModalField label="Test Sonucu" required>
+                                <Select value={formData.test_result} onValueChange={handleResultChange} disabled={isViewMode}>
+                                    <SelectTrigger><SelectValue placeholder="Sonuç seçin" /></SelectTrigger>
+                                    <SelectContent>
+                                        {TEST_RESULT_OPTIONS.map((opt) => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </ModalField>
+
+                            <ModalField label="Kaçak Adedi">
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={formData.leak_count}
+                                    onChange={(event) => handleLeakCountChange(event.target.value)}
+                                    disabled={isViewMode}
+                                />
+                            </ModalField>
+                        </div>
+
+                        {isLegacyTankTypeMode && (
+                            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                Sunucuda genişletilmiş sızdırmazlık parçası listesi henüz aktif değil.
+                            </div>
+                        )}
+                    </section>
+                )}
+
+                {/* Welding source */}
                 <section>
                     <ModalSectionHeader>Kaynak ortamı</ModalSectionHeader>
                     <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
@@ -944,7 +1225,6 @@ const LeakTestFormModal = ({
                                 </div>
                                 <p className="text-xs text-muted-foreground max-w-xl">
                                     Ürün kaynağı fabrika dışında (tedarikçi tesisinde) yapıldıysa bu seçeneği açın ve tedarikçiyi seçin.
-                                    Testi yapan personel yine sizden seçilir.
                                 </p>
                             </div>
                             <Switch
@@ -977,6 +1257,7 @@ const LeakTestFormModal = ({
                     </div>
                 </section>
 
+                {/* Personnel */}
                 <section>
                     <ModalSectionHeader>Sorumlular</ModalSectionHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1022,6 +1303,7 @@ const LeakTestFormModal = ({
                     </div>
                 </section>
 
+                {/* Notes */}
                 <section>
                     <ModalSectionHeader>Ek Not</ModalSectionHeader>
                     <ModalField label="Açıklama">
@@ -1029,52 +1311,28 @@ const LeakTestFormModal = ({
                             value={formData.notes}
                             onChange={(event) => handleInputChange('notes', event.target.value)}
                             disabled={isViewMode}
-                            rows={4}
-                            placeholder="Teste ilişkin ek bilgi, gözlem veya aksiyon notunu buraya yazabilirsiniz."
+                            rows={3}
+                            placeholder="Teste ilişkin ek bilgi, gözlem veya aksiyon notunu yazabilirsiniz."
                         />
                     </ModalField>
                 </section>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="rounded-xl border bg-muted/20 p-4">
-                        <div className="mb-2 flex items-center gap-2 text-primary">
-                            <Package className="h-4 w-4" />
-                            <p className="text-xs font-semibold uppercase tracking-wider">Araç</p>
-                        </div>
-                        <p className="text-sm font-medium text-foreground">{previewVehicleLabel || '-'}</p>
+                {isBatchMode && isLegacyTankTypeMode && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        Sunucuda genişletilmiş sızdırmazlık parçası listesi henüz aktif değil.
                     </div>
+                )}
 
-                    <div className="rounded-xl border bg-muted/20 p-4">
-                        <div className="mb-2 flex items-center gap-2 text-primary">
-                            <User className="h-4 w-4" />
-                            <p className="text-xs font-semibold uppercase tracking-wider">Test Personeli</p>
-                        </div>
-                        <p className="text-sm font-medium text-foreground">{previewTesterName}</p>
-                    </div>
-
-                    <div className="rounded-xl border bg-muted/20 p-4">
-                        <div className="mb-2 flex items-center gap-2 text-primary">
-                            <Wrench className="h-4 w-4" />
-                            <p className="text-xs font-semibold uppercase tracking-wider">
-                                {formData.welding_at_supplier ? 'Tedarikçi kaynağı' : 'Kaynak personeli'}
-                            </p>
-                        </div>
-                        <p className="text-sm font-medium text-foreground">{previewWelderOrSupplier}</p>
-                    </div>
-                </div>
-
-                <div className="rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    <div className="flex items-start gap-3">
-                        <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-600 shrink-0" />
-                        <div>
-                            <p className="font-medium text-slate-900">Akıllı sonuç yönetimi</p>
-                            <p className="mt-1 text-slate-600">
-                                Sonuç <strong>Kabul</strong> seçildiğinde kaçak adedi otomatik olarak <strong>0</strong> olur.
-                                Kaçak adedi <strong>0</strong>'dan büyük girildiğinde sonuç otomatik olarak <strong>Kaçak Var</strong> durumuna geçer.
-                            </p>
+                {!isBatchMode && (
+                    <div className="rounded-lg border bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                            <span>
+                                Sonuç <strong>Kabul</strong> → kaçak adedi 0 olur. Kaçak adedi &gt; 0 → sonuç <strong>Kaçak Var</strong> olur.
+                            </span>
                         </div>
                     </div>
-                </div>
+                )}
             </form>
         </ModernModalLayout>
     );

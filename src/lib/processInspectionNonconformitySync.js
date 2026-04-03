@@ -363,8 +363,205 @@ export const syncProcessInspectionNonconformity = async ({
     });
 };
 
+// ---------------------------------------------------------------------------
+// Defect-based nonconformity sync
+// ---------------------------------------------------------------------------
+
+const DEFECT_AUTO_NOTE_TITLE =
+    'Bu kayıt proses muayene kaydındaki tespit edilen hatalardan otomatik oluşturuldu.';
+const DEFECT_PRESERVED_NOTE =
+    'Kaynak muayene kaydında bu hata tipi artık mevcut değil ancak açılmış DF/8D süreci korundu.';
+const DEFECT_TYPE_LABEL = 'Hata Tipi:';
+
+const getDefectSourceKey = (inspection, defectType) =>
+    `${getSourceReference(inspection)} | ${DEFECT_TYPE_LABEL} ${defectType}`;
+
+const extractDefectSourceKey = (record) => {
+    const sourceText = `${record?.notes || ''}\n${record?.description || ''}`;
+    const matched = sourceText.match(
+        /Muayene Kayıt No:\s*([^\n\r|]+)\s*\|\s*Hata Tipi:\s*([^\n\r]+)/i
+    );
+    if (!matched) return null;
+    return `${SOURCE_REFERENCE_LABEL} ${matched[1].trim()} | ${DEFECT_TYPE_LABEL} ${matched[2].trim()}`;
+};
+
+const getDefectAutoNotes = ({ inspection, defect }) =>
+    [
+        DEFECT_AUTO_NOTE_TITLE,
+        getDefectSourceKey(inspection, defect.defect_type),
+        defect.description ? `Açıklama: ${defect.description}` : null,
+        `Adet: ${Number(defect.defect_count) || 1}`,
+        inspection?.operator_name ? `Operatör: ${inspection.operator_name}` : null,
+    ]
+        .filter(Boolean)
+        .join('\n');
+
+const getDefectPreservedNotes = (inspection, defectType) =>
+    [DEFECT_AUTO_NOTE_TITLE, getDefectSourceKey(inspection, defectType), DEFECT_PRESERVED_NOTE]
+        .filter(Boolean)
+        .join('\n');
+
+const getDefectSeverity = (defectCount) => {
+    const count = Number(defectCount) || 1;
+    if (count >= 10) return 'Kritik';
+    if (count >= 5) return 'Yüksek';
+    return 'Orta';
+};
+
+const buildDefectPayload = ({ inspection, defect }) => ({
+    part_code: inspection?.part_code || null,
+    part_name: inspection?.part_name || inspection?.part_code || null,
+    description: [
+        `${defect.defect_type} tespit edildi.`,
+        getDefectSourceKey(inspection, defect.defect_type),
+        defect.description ? `Açıklama: ${defect.description}` : null,
+        `Adet: ${Number(defect.defect_count) || 1}`,
+        inspection?.operator_name ? `Operatör: ${inspection.operator_name}` : null,
+    ]
+        .filter(Boolean)
+        .join('\n'),
+    category: defect.defect_type,
+    detection_area: PROCESS_DETECTION_AREA,
+    detection_date: inspection?.inspection_date
+        ? new Date(inspection.inspection_date).toISOString()
+        : new Date().toISOString(),
+    detected_by: inspection?.operator_name || 'Proses Kontrol Muayenesi',
+    severity: getDefectSeverity(defect.defect_count),
+    quantity: Number(defect.defect_count) || 1,
+    department: null,
+    action_taken: null,
+    notes: getDefectAutoNotes({ inspection, defect }),
+});
+
+const fetchExistingDefectRecords = async (supabase, inspection) => {
+    const { data, error } = await supabase
+        .from('nonconformity_records')
+        .select(RECORD_SELECT)
+        .eq('detection_area', PROCESS_DETECTION_AREA)
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const sourceRef = getSourceReference(inspection);
+    return (data || []).filter((record) => {
+        const key = extractDefectSourceKey(record);
+        return key && key.startsWith(sourceRef);
+    });
+};
+
+const reconcileDefects = async ({ supabase, inspection, defects, existingRecords, userId }) => {
+    const validDefects = (defects || []).filter((d) => d.defect_type?.trim());
+
+    const defectKeySet = new Set(
+        validDefects.map((d) => getDefectSourceKey(inspection, d.defect_type))
+    );
+
+    const recordsByKey = new Map();
+    (existingRecords || []).forEach((record) => {
+        const key = extractDefectSourceKey(record);
+        if (!key) return;
+        if (!recordsByKey.has(key)) recordsByKey.set(key, []);
+        recordsByKey.get(key).push(record);
+    });
+
+    const stats = { created: 0, updated: 0, deleted: 0, preserved: 0 };
+
+    for (const [key, records] of recordsByKey.entries()) {
+        if (defectKeySet.has(key)) continue;
+
+        const sorted = sortRecordsForPrimarySelection(records);
+        const primary = sorted[0];
+        const duplicates = sorted.slice(1);
+
+        if (duplicates.length > 0) {
+            await deleteRecordsByIds(supabase, duplicates.map((r) => r.id));
+            stats.deleted += duplicates.length;
+        }
+
+        if (LOCKED_NONCONFORMITY_STATUSES.has(primary.status)) {
+            const defectType = key.split(`${DEFECT_TYPE_LABEL} `)[1] || '';
+            await supabase
+                .from('nonconformity_records')
+                .update({ notes: getDefectPreservedNotes(inspection, defectType) })
+                .eq('id', primary.id);
+            stats.preserved += 1;
+        } else {
+            await deleteRecordsByIds(supabase, [primary.id]);
+            stats.deleted += 1;
+        }
+    }
+
+    for (const defect of validDefects) {
+        const key = getDefectSourceKey(inspection, defect.defect_type);
+        const existing = recordsByKey.get(key) || [];
+        const sorted = sortRecordsForPrimarySelection(existing);
+        const primary = sorted[0] || null;
+        const duplicates = sorted.slice(1);
+
+        if (duplicates.length > 0) {
+            await deleteRecordsByIds(supabase, duplicates.map((r) => r.id));
+            stats.deleted += duplicates.length;
+        }
+
+        const payload = buildDefectPayload({ inspection, defect });
+        const nextStatus = LOCKED_NONCONFORMITY_STATUSES.has(primary?.status)
+            ? primary.status
+            : 'Açık';
+
+        if (!primary) {
+            const recordNumber = await getNextNonconformityRecordNumber(supabase);
+            const { error } = await supabase
+                .from('nonconformity_records')
+                .insert({
+                    ...payload,
+                    status: nextStatus,
+                    record_number: recordNumber,
+                    created_by: userId || null,
+                });
+            if (error) throw error;
+            stats.created += 1;
+            continue;
+        }
+
+        if (needsUpdate(primary, payload, nextStatus)) {
+            const { error } = await supabase
+                .from('nonconformity_records')
+                .update({
+                    part_code: payload.part_code,
+                    part_name: payload.part_name,
+                    description: payload.description,
+                    category: payload.category,
+                    detection_area: payload.detection_area,
+                    detection_date: payload.detection_date,
+                    detected_by: payload.detected_by,
+                    severity: payload.severity,
+                    quantity: payload.quantity,
+                    department: payload.department,
+                    action_taken: payload.action_taken,
+                    notes: payload.notes,
+                    status: nextStatus,
+                })
+                .eq('id', primary.id);
+            if (error) throw error;
+            stats.updated += 1;
+        }
+    }
+
+    return stats;
+};
+
+export const syncProcessInspectionDefectNonconformities = async ({
+    supabase,
+    inspection,
+    defects,
+    userId,
+}) => {
+    const existingRecords = await fetchExistingDefectRecords(supabase, inspection);
+    return reconcileDefects({ supabase, inspection, defects, existingRecords, userId });
+};
+
 export const backfillProcessInspectionNonconformities = async ({ supabase, userId }) => {
-    const [inspections, results, existingRecords] = await Promise.all([
+    const [inspections, results, allDefects, existingRecords] = await Promise.all([
         fetchAllRows((from, to) =>
             supabase
                 .from('process_inspections')
@@ -375,6 +572,13 @@ export const backfillProcessInspectionNonconformities = async ({ supabase, userI
         fetchAllRows((from, to) =>
             supabase
                 .from('process_inspection_results')
+                .select('*')
+                .order('id', { ascending: true })
+                .range(from, to)
+        ),
+        fetchAllRows((from, to) =>
+            supabase
+                .from('process_inspection_defects')
                 .select('*')
                 .order('id', { ascending: true })
                 .range(from, to)
@@ -401,40 +605,85 @@ export const backfillProcessInspectionNonconformities = async ({ supabase, userI
         resultsByInspection.get(inspectionId).push(normalizeMeasurementRow(row));
     });
 
-    const recordsBySource = new Map();
+    const defectsByInspection = new Map();
+    (allDefects || []).forEach((row) => {
+        const inspectionId = row.inspection_id;
+        if (!inspectionId) return;
+
+        if (!defectsByInspection.has(inspectionId)) {
+            defectsByInspection.set(inspectionId, []);
+        }
+
+        defectsByInspection.get(inspectionId).push(row);
+    });
+
+    const measurementRecordsBySource = new Map();
+    const defectRecordsBySource = new Map();
+
     (existingRecords || []).forEach((record) => {
+        const defectKey = extractDefectSourceKey(record);
+        if (defectKey) {
+            const baseRef = defectKey.split(' | ')[0];
+            if (!defectRecordsBySource.has(baseRef)) {
+                defectRecordsBySource.set(baseRef, []);
+            }
+            defectRecordsBySource.get(baseRef).push(record);
+            return;
+        }
+
         const sourceReference = extractSourceReference(record);
         if (!sourceReference) return;
 
-        if (!recordsBySource.has(sourceReference)) {
-            recordsBySource.set(sourceReference, []);
+        if (!measurementRecordsBySource.has(sourceReference)) {
+            measurementRecordsBySource.set(sourceReference, []);
         }
 
-        recordsBySource.get(sourceReference).push(record);
+        measurementRecordsBySource.get(sourceReference).push(record);
     });
 
     const stats = {
         created: 0,
         updated: 0,
         deletedDuplicates: 0,
+        defectsCreated: 0,
+        defectsUpdated: 0,
+        defectsDeleted: 0,
     };
 
     for (const inspection of inspections || []) {
         const sourceReference = getSourceReference(inspection);
+
         const failedMeasurements = getFailedMeasurements(resultsByInspection.get(inspection.id) || []);
-        const result = await withRetryOnDeadlock(() =>
+        const measurementResult = await withRetryOnDeadlock(() =>
             reconcileInspection({
                 supabase,
                 inspection,
                 failedMeasurements,
-                existingRecords: recordsBySource.get(sourceReference) || [],
+                existingRecords: measurementRecordsBySource.get(sourceReference) || [],
                 userId,
             })
         );
 
-        if (result.mode === 'created') stats.created += 1;
-        if (result.mode === 'updated') stats.updated += 1;
-        stats.deletedDuplicates += result.deletedDuplicates || 0;
+        if (measurementResult.mode === 'created') stats.created += 1;
+        if (measurementResult.mode === 'updated') stats.updated += 1;
+        stats.deletedDuplicates += measurementResult.deletedDuplicates || 0;
+
+        const inspectionDefects = defectsByInspection.get(inspection.id) || [];
+        if (inspectionDefects.length > 0 || defectRecordsBySource.has(sourceReference)) {
+            const defectResult = await withRetryOnDeadlock(() =>
+                reconcileDefects({
+                    supabase,
+                    inspection,
+                    defects: inspectionDefects,
+                    existingRecords: defectRecordsBySource.get(sourceReference) || [],
+                    userId,
+                })
+            );
+
+            stats.defectsCreated += defectResult.created || 0;
+            stats.defectsUpdated += defectResult.updated || 0;
+            stats.defectsDeleted += defectResult.deleted || 0;
+        }
     }
 
     return stats;
