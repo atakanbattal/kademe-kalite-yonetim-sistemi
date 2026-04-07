@@ -188,7 +188,7 @@ const SupplierQualityModule = ({ onOpenNCForm, onOpenNCView, onOpenPdfViewer }) 
       const approvedSuppliers = allSuppliers.filter(s => s.status === 'Onaylı').length;
       const alternativeSuppliers = allSuppliers.filter(s => s.status === 'Alternatif').length;
       const suspendedSuppliers = allSuppliers.filter(s => s.status === 'Askıya Alınmış').length;
-      const rejectedSuppliers = allSuppliers.filter(s => s.status === 'Red').length;
+      const rejectedSuppliers = allSuppliers.filter(s => s.status === 'Red' || s.status === 'Ret').length;
 
       // Uygunsuzluk analizi
       const totalNCs = allNCs.filter(nc => nc.supplier_id).length;

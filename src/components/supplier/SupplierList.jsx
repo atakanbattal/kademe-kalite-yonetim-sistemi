@@ -90,7 +90,8 @@ import React, { useState, useEffect, useMemo } from 'react';
             switch (status) {
                 case 'Onaylı': return <Badge className="bg-green-600 hover:bg-green-700 text-white">Onaylı</Badge>;
                 case 'Askıya Alınmış': return <Badge variant="destructive">Askıya Alınmış</Badge>;
-                case 'Red': return <Badge className="bg-red-600 hover:bg-red-700 text-white">Reddedildi</Badge>;
+                case 'Ret':
+                case 'Red': return <Badge className="bg-red-600 hover:bg-red-700 text-white">Ret</Badge>;
                 case 'Alternatif': return <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Alternatif</Badge>;
                 default: return <Badge variant="outline">{status}</Badge>;
             }

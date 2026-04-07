@@ -133,7 +133,7 @@ const loadSourceRecords = async (sourceType, sourceId = null) => {
             }
 
             return query
-                .in('decision', ['Şartlı Kabul', 'Red'])
+                .in('decision', ['Şartlı Kabul', 'Ret'])
                 .order('inspection_date', { ascending: false })
                 .limit(100);
         }
@@ -361,7 +361,7 @@ const getRecordStatusBadge = (record, sourceType) => {
 
     switch (sourceType) {
         case 'incoming_inspection':
-            return getBadge(record.decision, record.decision === 'Red' ? 'destructive' : 'warning', AlertTriangle);
+            return getBadge(record.decision, record.decision === 'Ret' ? 'destructive' : 'warning', AlertTriangle);
         case 'process_inspection':
             return getBadge(record.decision || 'Şartlı Kabul', 'warning', ClipboardCheck);
         case 'quarantine':

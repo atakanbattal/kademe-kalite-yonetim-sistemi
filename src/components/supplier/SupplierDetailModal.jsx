@@ -145,7 +145,8 @@ const SupplierDetailModal = ({ isOpen, setIsOpen, supplier, onEdit, onSetGrade, 
         switch (status) {
             case 'Onaylı': return <Badge className="bg-green-600 text-white">{status}</Badge>;
             case 'Askıya Alınmış': return <Badge variant="destructive">{status}</Badge>;
-            case 'Red': return <Badge className="bg-red-700 text-white">{status}</Badge>;
+            case 'Ret':
+            case 'Red': return <Badge className="bg-red-700 text-white">Ret</Badge>;
             case 'Alternatif': return <Badge className="bg-blue-500 text-white">{status}</Badge>;
             default: return <Badge variant="outline">{status}</Badge>;
         }

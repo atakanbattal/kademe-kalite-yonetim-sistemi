@@ -3,10 +3,13 @@ import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
     subMonths, startOfYear, endOfYear, format, differenceInDays,
-    parseISO, isValid, startOfDay, endOfDay, addDays
+    parseISO, isValid, startOfDay, endOfDay, addDays, startOfMonth, endOfMonth,
+    eachMonthOfInterval,
 } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { calculateInspectionDuration, calculateReworkDuration } from '@/lib/vehicleCostCalculator';
+import { fetchExecutiveReportSupplement } from '@/lib/fetchExecutiveReportSupplement';
+import { isNCOverdue } from '@/lib/statusUtils';
 
 const inDateRange = (dateStr, startDate, endDate) => {
     if (!dateStr) return false;
@@ -86,39 +89,251 @@ const getQuarantineReasonText = (record) => (
 );
 
 const INTERNAL_FAILURE_COST_TYPES = [
-    'Hurda Maliyeti',
-    'Yeniden İşlem Maliyeti',
-    'Fire Maliyeti',
-    'Final Hataları Maliyeti',
-    'İç Hata Maliyeti',
-    'Tedarikçi Hata Maliyeti',
+    'Hurda Maliyeti', 'Yeniden İşlem Maliyeti', 'Fire Maliyeti',
+    'İç Kalite Kontrol Maliyeti', 'Final Hataları Maliyeti',
+    'İç Hata Maliyeti', 'İç Hata Maliyetleri', 'İç Hata',
+    'Hurda', 'Yeniden İşlem', 'Tedarikçi Hata Maliyeti',
 ];
 
 const EXTERNAL_FAILURE_COST_TYPES = [
-    'Garanti Maliyeti',
-    'İade Maliyeti',
-    'Şikayet Maliyeti',
-    'Dış Hata Maliyeti',
-    'Müşteri Reklaması',
+    'Garanti Maliyeti', 'İade Maliyeti', 'Şikayet Maliyeti',
+    'Dış Hata Maliyeti', 'Dış Hata Maliyetleri', 'Dış Hata',
+    'Müşteri Şikayeti', 'Müşteri Reklaması',
+    'Geri Çağırma Maliyeti', 'Müşteri Kaybı Maliyeti',
 ];
 
 const APPRAISAL_COST_TYPES = [
-    'İç Kalite Kontrol Maliyeti',
-    'Değerlendirme Maliyeti',
-    'Kontrol Maliyeti',
+    'İç Kalite Kontrol Maliyeti', 'Değerlendirme Maliyeti',
+    'Değerlendirme Maliyetleri', 'Kontrol Maliyeti',
+    'Kontrol', 'Test', 'Muayene',
 ];
 
 const PREVENTION_COST_TYPES = [
-    'Önleme Maliyeti',
-    'Eğitim Maliyeti',
+    'Önleme Maliyeti', 'Önleme Maliyetleri', 'Önleme',
+    'Eğitim Maliyeti', 'Eğitim', 'Kalite Planlama',
 ];
 
 const getCostCategory = (costType, isSupplierCost = false) => {
-    if (isSupplierCost || INTERNAL_FAILURE_COST_TYPES.includes(costType)) return 'internalFailure';
-    if (EXTERNAL_FAILURE_COST_TYPES.includes(costType)) return 'externalFailure';
-    if (APPRAISAL_COST_TYPES.includes(costType)) return 'appraisal';
-    if (PREVENTION_COST_TYPES.includes(costType)) return 'prevention';
-    return 'appraisal';
+    if (!costType) return isSupplierCost ? 'internalFailure' : 'internalFailure';
+    if (EXTERNAL_FAILURE_COST_TYPES.some(t => costType.includes(t))) return 'externalFailure';
+    if (isSupplierCost || INTERNAL_FAILURE_COST_TYPES.some(t => costType.includes(t))) return 'internalFailure';
+    if (APPRAISAL_COST_TYPES.some(t => costType.includes(t))) return 'appraisal';
+    if (PREVENTION_COST_TYPES.some(t => costType.includes(t))) return 'prevention';
+    return 'internalFailure';
+};
+
+// ── Birim ismi normalizasyonu ─────────────────────────────────────────────────
+const DEPARTMENT_ALIASES = {
+    'Depo': 'Depo Şefliği',
+    'Depo / Lojistik': 'Depo Şefliği',
+    'Depo Müdürlüğü': 'Depo Şefliği',
+    'Lojistik': 'Depo Şefliği',
+    'Lojistik Operasyon Yöneticiliği': 'Depo Şefliği',
+    'Kalite Kontrol Ve Güvence': 'Kalite Müdürlüğü',
+    'Kalite Kontrol': 'Kalite Müdürlüğü',
+    'Kalite Güvence': 'Kalite Müdürlüğü',
+    'Genel Müdürlük': 'Kademe Genel Müdürlüğü',
+    'İnsan Kaynakları': 'İnsan Kaynakları Müdürlüğü',
+    'Üretim Müdürlüğü (üst Yapı)': 'Üretim Müdürlüğü (Üst Yapı)',
+    'Üretim Müdürlüğü (Üst yapı)': 'Üretim Müdürlüğü (Üst Yapı)',
+    'üretim müdürlüğü (üst yapı)': 'Üretim Müdürlüğü (Üst Yapı)',
+    'ÜRETIM MÜDÜRLÜĞÜ (ÜST YAPI)': 'Üretim Müdürlüğü (Üst Yapı)',
+    'Üretim Müdürlüğü': 'Üretim Müdürlüğü',
+    'ÜRETIM MÜDÜRLÜĞÜ': 'Üretim Müdürlüğü',
+    'Ar-Ge Direktörlüğü': 'Ar-Ge Direktörlüğü',
+    'AR-GE DİREKTÖRLÜĞÜ': 'Ar-Ge Direktörlüğü',
+    'Kalite Kontrol Müdürlüğü': 'Kalite Müdürlüğü',
+    'KALİTE KONTROL MÜDÜRLÜĞÜ': 'Kalite Müdürlüğü',
+    'Satış Sonrası Hizmetler Şefliği': 'Satış Sonrası Hizmetler',
+    'Satış Sonrası Hizmetler': 'Satış Sonrası Hizmetler',
+    'Ar-Ge': 'Ar-Ge Direktörlüğü',
+    'Üretim Planlama': 'Üretim Planlama Müdürlüğü',
+    'Kalite': 'Kalite Müdürlüğü',
+    'Kalite Birimi': 'Kalite Müdürlüğü',
+    'İnsan Kaynakları ve Eğitim Müdürlüğü': 'İnsan Kaynakları Müdürlüğü',
+    'İK Müdürlüğü': 'İnsan Kaynakları Müdürlüğü',
+    // ASCII / yanlış yazılmış birim adları (veri kaynağı Türkçe karakter içermiyorsa)
+    'Kalite Mudurlugu': 'Kalite Müdürlüğü',
+    'Uretim Planlama Mudurlugu': 'Üretim Planlama Müdürlüğü',
+    'Insan Kaynaklari Mudurlugu': 'İnsan Kaynakları Müdürlüğü',
+    'Insan Kaynaklari': 'İnsan Kaynakları Müdürlüğü',
+    'Depo Sefligi': 'Depo Şefliği',
+};
+
+/** Birleştirici nokta vb. (Kali̇te vs Kalite) farklarını giderir */
+const stripCombiningMarks = (s) =>
+    String(s)
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '')
+        .normalize('NFC');
+
+/** Türkçe küçük harf + slug; görünür aynı birimleri tek anahtarda toplar */
+const DEPARTMENT_SLUG_TO_CANONICAL = {
+    'kalite müdürlüğü': 'Kalite Müdürlüğü',
+    'depo şefliği': 'Depo Şefliği',
+    'insan kaynakları müdürlüğü': 'İnsan Kaynakları Müdürlüğü',
+    'insan kaynakları': 'İnsan Kaynakları Müdürlüğü',
+    'insan kaynaklari müdürlüğü': 'İnsan Kaynakları Müdürlüğü',
+    'insan kaynaklari': 'İnsan Kaynakları Müdürlüğü',
+    'insan kaynaklari mudurlugu': 'İnsan Kaynakları Müdürlüğü',
+    'kalite mudurlugu': 'Kalite Müdürlüğü',
+    'uretim planlama mudurlugu': 'Üretim Planlama Müdürlüğü',
+    'depo sefligi': 'Depo Şefliği',
+    'i̇nsan kaynakları müdürlüğü': 'İnsan Kaynakları Müdürlüğü',
+    'i̇nsan kaynakları': 'İnsan Kaynakları Müdürlüğü',
+};
+
+/** Aynı görünen birim adlarını (Unicode NFD/NFC, fazla boşluk) tek anahtarda toplar */
+const normalizeDepartment = (dept) => {
+    if (!dept || dept === 'Belirtilmemiş') return 'Belirtilmemiş';
+    let trimmed = String(dept).trim().replace(/\s+/g, ' ');
+    trimmed = stripCombiningMarks(trimmed).normalize('NFKC');
+    const slug = trimmed.toLocaleLowerCase('tr-TR');
+    if (DEPARTMENT_SLUG_TO_CANONICAL[slug]) return DEPARTMENT_SLUG_TO_CANONICAL[slug];
+    if (DEPARTMENT_ALIASES[trimmed]) return DEPARTMENT_ALIASES[trimmed];
+    for (const [key, value] of Object.entries(DEPARTMENT_ALIASES)) {
+        const k = stripCombiningMarks(key).normalize('NFKC');
+        if (k.toLocaleLowerCase('tr-TR') === slug) return value;
+    }
+    // Son çare: "Mudurlugu" / "Sefligi" ASCII kalıpları (slug'da i/ı farkı)
+    const slugAscii = slug.replace(/ı/g, 'i');
+    if (slugAscii.endsWith(' mudurlugu')) {
+        const base = slug.slice(0, -' mudurlugu'.length);
+        const trySlug = `${base} müdürlüğü`;
+        if (DEPARTMENT_SLUG_TO_CANONICAL[trySlug]) return DEPARTMENT_SLUG_TO_CANONICAL[trySlug];
+        if (base === 'kalite') return 'Kalite Müdürlüğü';
+        if (base === 'uretim planlama') return 'Üretim Planlama Müdürlüğü';
+        if (base === 'insan kaynaklari' || base === 'insan kaynakları') return 'İnsan Kaynakları Müdürlüğü';
+    }
+    if (slugAscii === 'depo sefligi' || slug === 'depo şefliği') return 'Depo Şefliği';
+    return trimmed.normalize('NFC');
+};
+
+const consolidateDeptPerfDf8d = (raw) => {
+    const merged = {};
+    Object.entries(raw || {}).forEach(([k, v]) => {
+        const key = normalizeDepartment(k);
+        if (!merged[key]) {
+            merged[key] = {
+                open: 0, closed: 0, overdue: 0, inProgress: 0, rejected: 0,
+                totalClosureDays: 0, closedCount: 0, records: [],
+            };
+        }
+        const t = merged[key];
+        t.open += v.open; t.closed += v.closed; t.overdue += v.overdue;
+        t.inProgress += v.inProgress; t.rejected += v.rejected;
+        t.totalClosureDays += v.totalClosureDays; t.closedCount += v.closedCount;
+        t.records.push(...(v.records || []));
+    });
+    return merged;
+};
+
+const consolidateRequesterContribDf8d = (raw) => {
+    const merged = {};
+    Object.entries(raw || {}).forEach(([k, v]) => {
+        const key = normalizeDepartment(k);
+        if (!merged[key]) {
+            merged[key] = {
+                total: 0, DF: 0, '8D': 0, MDI: 0, open: 0, closed: 0,
+                inProgress: 0, rejected: 0, records: [],
+            };
+        }
+        const t = merged[key];
+        t.total += v.total; t.DF += v.DF; t['8D'] += v['8D']; t.MDI += v.MDI;
+        t.open += v.open; t.closed += v.closed; t.inProgress += v.inProgress; t.rejected += v.rejected;
+        t.records.push(...(v.records || []));
+    });
+    return merged;
+};
+
+/** Tablo satırlarında kalan yinelenen birim adlarını (Unicode vb.) tek satırda toplar */
+const mergeDf8dResponsibleRows = (rows) => {
+    const map = new Map();
+    for (const r of rows) {
+        const key = normalizeDepartment(r.unit);
+        if (!map.has(key)) {
+            map.set(key, {
+                unit: key,
+                total: 0,
+                open: 0,
+                closed: 0,
+                inProgress: 0,
+                rejected: 0,
+                overdue: 0,
+                sumClosureDaysWeighted: 0,
+                closureForAvg: 0,
+            });
+        }
+        const t = map.get(key);
+        t.total += r.total;
+        t.open += r.open;
+        t.closed += r.closed;
+        t.inProgress += r.inProgress;
+        t.rejected += r.rejected;
+        t.overdue += r.overdue;
+        const avg = parseFloat(String(r.avgClosureTime).replace(',', '.'));
+        if (!Number.isNaN(avg) && r.closed > 0) {
+            t.sumClosureDaysWeighted += avg * r.closed;
+            t.closureForAvg += r.closed;
+        }
+    }
+    return Array.from(map.values())
+        .map((t) => {
+            const pipeline = t.open + t.closed;
+            const closurePct = pipeline > 0 ? ((t.closed / pipeline) * 100).toFixed(1) : '—';
+            const avgClosureTime = t.closureForAvg > 0 ? (t.sumClosureDaysWeighted / t.closureForAvg).toFixed(1) : '—';
+            return {
+                unit: t.unit,
+                total: t.total,
+                open: t.open,
+                closed: t.closed,
+                inProgress: t.inProgress,
+                rejected: t.rejected,
+                overdue: t.overdue,
+                avgClosureTime,
+                closurePct,
+            };
+        })
+        .sort((a, b) => b.total - a.total);
+};
+
+const mergeDf8dRequesterRows = (rows, totalDf8dRequests) => {
+    const map = new Map();
+    for (const r of rows) {
+        const key = normalizeDepartment(r.unit);
+        if (!map.has(key)) {
+            map.set(key, {
+                unit: key,
+                total: 0,
+                DF: 0,
+                '8D': 0,
+                MDI: 0,
+                open: 0,
+                closed: 0,
+                inProgress: 0,
+                rejected: 0,
+            });
+        }
+        const t = map.get(key);
+        t.total += r.total;
+        t.DF += r.DF;
+        t['8D'] += r['8D'];
+        t.MDI += r.MDI;
+        t.open += r.open;
+        t.closed += r.closed;
+        t.inProgress += r.inProgress;
+        t.rejected += r.rejected;
+    }
+    return Array.from(map.values())
+        .map((t) => {
+            const pctNum = totalDf8dRequests > 0 ? (t.total / totalDf8dRequests) * 100 : 0;
+            return {
+                ...t,
+                contribution: totalDf8dRequests > 0 ? `${pctNum.toFixed(1)}%` : '0%',
+                contributionPct: pctNum,
+            };
+        })
+        .sort((a, b) => b.total - a.total);
 };
 
 const getCostSourceLabel = (cost) => {
@@ -148,7 +363,8 @@ const getCostSourceLabel = (cost) => {
     }
 };
 
-const useA3ReportData = (period = 'last3months') => {
+const useA3ReportData = (period = 'last3months', options = {}) => {
+    const { executiveReport = false, calendarYear, calendarMonth } = options;
     const ctx = useData();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -156,7 +372,22 @@ const useA3ReportData = (period = 'last3months') => {
 
     const { startDate, endDate, periodLabel } = useMemo(() => {
         const now = new Date();
-        let start, end = endOfDay(now), label = '';
+        let start;
+        let end = endOfDay(now);
+        let label = '';
+
+        if (period === 'month' && calendarYear != null && calendarMonth != null) {
+            const y = Number(calendarYear);
+            const mo = Number(calendarMonth);
+            if (Number.isFinite(y) && Number.isFinite(mo) && mo >= 1 && mo <= 12) {
+                const d = new Date(y, mo - 1, 1);
+                start = startOfDay(startOfMonth(d));
+                end = endOfDay(endOfMonth(d));
+                label = format(d, 'MMMM yyyy', { locale: tr });
+                return { startDate: start, endDate: end, periodLabel: label };
+            }
+        }
+
         switch (period) {
             case 'last1month':  start = startOfDay(subMonths(now, 1));  label = 'Son 1 Ay';  break;
             case 'last3months': start = startOfDay(subMonths(now, 3));  label = 'Son 3 Ay';  break;
@@ -165,7 +396,7 @@ const useA3ReportData = (period = 'last3months') => {
             default:            start = startOfDay(subMonths(now, 12)); label = 'Son 12 Ay'; break;
         }
         return { startDate: start, endDate: end, periodLabel: label };
-    }, [period]);
+    }, [period, calendarYear, calendarMonth]);
 
     const processData = useCallback(async () => {
         if (ctx.loading) return;
@@ -173,15 +404,28 @@ const useA3ReportData = (period = 'last3months') => {
         setError(null);
 
         try {
+            let supplement = null;
+            if (executiveReport) {
+                try {
+                    supplement = await fetchExecutiveReportSupplement({ startDate, endDate });
+                } catch (supErr) {
+                    console.warn('fetchExecutiveReportSupplement failed:', supErr);
+                }
+            }
+
+            const XL = executiveReport ? 24 : 8;
+            const XL2 = executiveReport ? 22 : 12;
+            const XL3 = executiveReport ? 25 : 10;
+
             const raw = {
-                nonConformities: ctx.nonConformities || [],
-                nonconformityRecords: ctx.nonconformityRecords || [],
+                nonConformities: (supplement?.nonConformities ?? ctx.nonConformities) || [],
+                nonconformityRecords: (supplement?.nonconformityRecords ?? ctx.nonconformityRecords) || [],
                 qualityCosts: ctx.qualityCosts || [],
-                quarantineRecords: ctx.quarantineRecords || [],
-                incomingInspections: ctx.incomingInspections || [],
-                producedVehicles: ctx.producedVehicles || [],
+                quarantineRecords: (supplement?.quarantineRecords ?? ctx.quarantineRecords) || [],
+                incomingInspections: (supplement?.incomingInspections ?? ctx.incomingInspections) || [],
+                producedVehicles: (supplement?.producedVehicles ?? ctx.producedVehicles) || [],
                 productionDepartments: ctx.productionDepartments || [],
-                customerComplaints: ctx.customerComplaints || [],
+                customerComplaints: (supplement?.customerComplaints ?? ctx.customerComplaints) || [],
                 kaizenEntries: ctx.kaizenEntries || [],
                 deviations: ctx.deviations || [],
                 equipments: ctx.equipments || [],
@@ -192,13 +436,20 @@ const useA3ReportData = (period = 'last3months') => {
                 documents: ctx.documents || [],
                 kpis: ctx.kpis || [],
                 suppliers: ctx.suppliers || [],
-                supplierNonConformities: ctx.supplierNonConformities || [],
+                supplierNonConformities: (supplement?.supplierNonConformities ?? ctx.supplierNonConformities) || [],
                 incomingControlPlans: ctx.incomingControlPlans || [],
                 processControlPlans: ctx.processControlPlans || [],
-                trainings: ctx.trainings || [],
+                trainings: (() => {
+                    if (executiveReport && supplement && Array.isArray(supplement.trainingsRaw)) {
+                        return supplement.trainingsRaw.filter((t) =>
+                            inDateRange(t.start_date || t.end_date || t.created_at, startDate, endDate)
+                        );
+                    }
+                    return ctx.trainings || [];
+                })(),
                 complaintAnalyses: ctx.complaintAnalyses || [],
                 complaintActions: ctx.complaintActions || [],
-                stockRiskControls: ctx.stockRiskControls || [],
+                stockRiskControls: (supplement?.stockRiskControls ?? ctx.stockRiskControls) || [],
                 inkrReports: ctx.inkrReports || [],
             };
 
@@ -246,9 +497,11 @@ const useA3ReportData = (period = 'last3months') => {
                 console.warn('⚠️ A3 report fixtures fetch skipped:', fixtureError);
             }
 
-            const ncData = raw.nonConformities.filter(n =>
-                inDateRange(n.created_at, startDate, endDate)
-            );
+            /** Dönem: DF/8D açılışı (yoksa oluşturma tarihi) — icra ve A3 ile tutarlı */
+            const ncData = raw.nonConformities.filter((n) => {
+                const openAt = n.df_opened_at || n.created_at;
+                return inDateRange(openAt, startDate, endDate);
+            });
             const ncRecordsData = (raw.nonconformityRecords || []).filter(r =>
                 inDateRange(r.detection_date || r.created_at, startDate, endDate)
             );
@@ -304,10 +557,10 @@ const useA3ReportData = (period = 'last3months') => {
             const ncTopCategories = Object.entries(ncCategoryCounts)
                 .map(([name, value]) => ({ name, value }))
                 .sort((a, b) => b.value - a.value)
-                .slice(0, 8);
+                .slice(0, XL);
             const ncTopParts = Object.values(ncPartCounts)
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 8);
+                .slice(0, XL);
             const ncResponsibleLoad = Object.values(ncResponsibleCounts)
                 .map(item => ({
                     ...item,
@@ -318,11 +571,11 @@ const useA3ReportData = (period = 'last3months') => {
                     if (b.total !== a.total) return b.total - a.total;
                     return a.name.localeCompare(b.name, 'tr');
                 })
-                .slice(0, 8);
+                .slice(0, XL);
             const ncSuggestedItems = ncRecordsData
                 .filter(r => r.status === 'DF Önerildi' || r.status === '8D Önerildi')
                 .sort((a, b) => new Date(b.detection_date || b.created_at || 0) - new Date(a.detection_date || a.created_at || 0))
-                .slice(0, 10)
+                .slice(0, XL3)
                 .map(r => ({
                     type: r.status === '8D Önerildi' ? '8D' : 'DF',
                     recordNumber: r.record_number || '—',
@@ -337,7 +590,7 @@ const useA3ReportData = (period = 'last3months') => {
                 }));
             const ncRecordsRecent = ncRecordsData
                 .sort((a, b) => new Date(b.detection_date || b.created_at || 0) - new Date(a.detection_date || a.created_at || 0))
-                .slice(0, 15)
+                .slice(0, executiveReport ? 32 : 15)
                 .map(r => ({
                     kayitNo: r.record_number || '—',
                     tarih: r.detection_date || r.created_at,
@@ -360,6 +613,10 @@ const useA3ReportData = (period = 'last3months') => {
             );
             const vehicleData = raw.producedVehicles.filter(v =>
                 inDateRange(v.created_at, startDate, endDate)
+            );
+            const twelveMonthsAgoForTrend = startOfDay(subMonths(endDate, 12));
+            const vehiclesFor12mTrend = (raw.producedVehicles || []).filter((v) =>
+                inDateRange(v.created_at, twelveMonthsAgoForTrend, endDate)
             );
             const complaintData = raw.customerComplaints.filter(c =>
                 inDateRange(c.complaint_date || c.created_at, startDate, endDate)
@@ -415,9 +672,17 @@ const useA3ReportData = (period = 'last3months') => {
             const open8D  = ncData.filter(n => n.type === '8D' && n.status !== 'Kapatıldı').length;
             const closedNc = ncData.filter(n => n.status === 'Kapatıldı').length;
 
-            const closedWithDates = ncData.filter(n => n.status === 'Kapatıldı' && n.closed_at && n.created_at);
+            const closedWithDates = ncData.filter((n) => {
+                if (n.status !== 'Kapatıldı' || !n.closed_at || !isValid(parseISO(n.closed_at))) return false;
+                const opened = parseISO(n.df_opened_at || n.created_at);
+                return isValid(opened);
+            });
             const avgClosureDays = closedWithDates.length > 0
-                ? Math.round(closedWithDates.reduce((sum, n) => sum + differenceInDays(parseISO(n.closed_at), parseISO(n.created_at)), 0) / closedWithDates.length)
+                ? Math.round(closedWithDates.reduce((sum, n) => {
+                    const o = parseISO(n.df_opened_at || n.created_at);
+                    const c = parseISO(n.closed_at);
+                    return sum + (isValid(o) && isValid(c) ? Math.max(0, differenceInDays(c, o)) : 0);
+                }, 0) / closedWithDates.length)
                 : 0;
 
             const totalCost    = costData.reduce((s, c) => s + (c.amount || 0), 0);
@@ -489,7 +754,7 @@ const useA3ReportData = (period = 'last3months') => {
                 }))
                 .filter(doc => doc.daysRemaining >= 0 && parseISO(doc.tarih) <= nextThirtyDays)
                 .sort((a, b) => a.daysRemaining - b.daysRemaining)
-                .slice(0, 8);
+                .slice(0, XL);
             const expiredDocs = documentData
                 .filter(doc => doc.valid_until && isValid(parseISO(doc.valid_until)) && parseISO(doc.valid_until) < today)
                 .map(doc => ({
@@ -499,17 +764,17 @@ const useA3ReportData = (period = 'last3months') => {
                     daysOverdue: differenceInDays(today, parseISO(doc.valid_until)),
                 }))
                 .sort((a, b) => b.daysOverdue - a.daysOverdue)
-                .slice(0, 8);
+                .slice(0, XL);
 
             const ncByDept = {};
             ncData.forEach(nc => {
-                const dept = nc.department || nc.requesting_unit || 'Belirtilmemiş';
+                const dept = normalizeDepartment(nc.department || nc.requesting_unit || 'Belirtilmemiş');
                 if (!ncByDept[dept]) ncByDept[dept] = { name: dept, acik: 0, kapali: 0, toplam: 0 };
                 ncByDept[dept].toplam++;
                 if (nc.status === 'Kapatıldı') ncByDept[dept].kapali++;
                 else ncByDept[dept].acik++;
             });
-            const ncByDeptArr = Object.values(ncByDept).sort((a, b) => b.toplam - a.toplam).slice(0, 12);
+            const ncByDeptArr = Object.values(ncByDept).sort((a, b) => b.toplam - a.toplam).slice(0, XL2);
 
             const ncByType = {};
             ncData.forEach(nc => {
@@ -522,9 +787,10 @@ const useA3ReportData = (period = 'last3months') => {
 
             const ncMonthly = {};
             ncData.forEach(nc => {
-                if (!nc.created_at || !isValid(parseISO(nc.created_at))) return;
-                const month = format(parseISO(nc.created_at), 'MMM yy', { locale: tr });
-                if (!ncMonthly[month]) ncMonthly[month] = { name: month, acilan: 0, kapilan: 0, sort: parseISO(nc.created_at).getTime() };
+                const openRef = nc.df_opened_at || nc.created_at;
+                if (!openRef || !isValid(parseISO(openRef))) return;
+                const month = format(parseISO(openRef), 'MMM yy', { locale: tr });
+                if (!ncMonthly[month]) ncMonthly[month] = { name: month, acilan: 0, kapilan: 0, sort: parseISO(openRef).getTime() };
                 ncMonthly[month].acilan++;
                 if (nc.status === 'Kapatıldı' && nc.closed_at && isValid(parseISO(nc.closed_at))) {
                     const cm = format(parseISO(nc.closed_at), 'MMM yy', { locale: tr });
@@ -540,7 +806,7 @@ const useA3ReportData = (period = 'last3months') => {
             costData.forEach(c => {
                 const type = c.cost_type || 'Belirtilmemiş';
                 costByType[type] = (costByType[type] || 0) + (c.amount || 0);
-                const unit = c.unit || c.responsible_unit || 'Belirtilmemiş';
+                const unit = normalizeDepartment(c.unit || c.responsible_unit || 'Belirtilmemiş');
                 costByUnit[unit] = (costByUnit[unit] || 0) + (c.amount || 0);
                 costRecordCountByUnit[unit] = (costRecordCountByUnit[unit] || 0) + 1;
             });
@@ -642,7 +908,7 @@ const useA3ReportData = (period = 'last3months') => {
             ].filter(item => item.value > 0);
             const costSourceArr = Object.values(costSourceMap)
                 .sort((a, b) => b.value - a.value)
-                .slice(0, 10);
+                .slice(0, XL3);
             const costComponentArr = [
                 { name: 'Faturalı Kalemler', value: costComponentTotals.invoice },
                 { name: 'Ortak Giderler', value: costComponentTotals.shared },
@@ -651,7 +917,7 @@ const useA3ReportData = (period = 'last3months') => {
             ].filter(item => item.value > 0);
             const topCostDrivers = costDrivers
                 .sort((a, b) => b.amount - a.amount)
-                .slice(0, 10)
+                .slice(0, XL3)
                 .map((item, index) => ({
                     ...item,
                     rank: index + 1,
@@ -660,11 +926,11 @@ const useA3ReportData = (period = 'last3months') => {
             const costByVehicleTypeArr = Object.entries(costVehicleTypeMap)
                 .map(([name, value]) => ({ name, value }))
                 .sort((a, b) => b.value - a.value)
-                .slice(0, 8);
+                .slice(0, XL);
             const costByCustomerArr = Object.entries(customerCostMap)
                 .map(([name, value]) => ({ name, value }))
                 .sort((a, b) => b.value - a.value)
-                .slice(0, 6);
+                .slice(0, executiveReport ? 14 : 6);
 
             const gradeDistribution = { A: 0, B: 0, C: 0, D: 0, 'N/A': 0 };
             supplierData.forEach(supplier => {
@@ -692,7 +958,7 @@ const useA3ReportData = (period = 'last3months') => {
             const topSuppliersNC = Object.values(supplierNcByKey)
                 .map(item => ({ name: item.name.slice(0, 22), count: item.open + item.closed, open: item.open }))
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 8);
+                .slice(0, XL);
 
             const rejectedBySupplier = {};
             incomingData
@@ -706,7 +972,45 @@ const useA3ReportData = (period = 'last3months') => {
             const topRejectedSuppliers = Object.values(rejectedBySupplier)
                 .map(item => ({ name: item.name.slice(0, 22), count: item.count }))
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 8);
+                .slice(0, XL);
+
+            const incomingSupplierBreakdown = {};
+            incomingData.forEach((i) => {
+                const key = i.supplier_id || i.supplier_name || 'Belirtilmemiş';
+                const name = supplierIdToName.get(i.supplier_id) || i.supplier_name || 'Belirtilmemiş';
+                if (!incomingSupplierBreakdown[key]) {
+                    incomingSupplierBreakdown[key] = {
+                        name,
+                        inspections: 0,
+                        qtyReceived: 0,
+                        qtyRejected: 0,
+                        acceptedCount: 0,
+                        conditionalCount: 0,
+                        rejectedCount: 0,
+                        pendingCount: 0,
+                    };
+                }
+                const row = incomingSupplierBreakdown[key];
+                row.inspections += 1;
+                row.qtyReceived += Number(i.quantity_received || i.total_quantity) || 0;
+                row.qtyRejected += Number(i.quantity_rejected) || 0;
+                if (i.decision === 'Kabul') row.acceptedCount += 1;
+                else if (i.decision === 'Şartlı Kabul') row.conditionalCount += 1;
+                else if (i.decision === 'Ret') row.rejectedCount += 1;
+                else row.pendingCount += 1;
+            });
+            const incomingSupplierBreakdownArr = Object.values(incomingSupplierBreakdown)
+                .sort((a, b) => b.qtyRejected - a.qtyRejected || b.inspections - a.inspections)
+                .slice(0, executiveReport ? 36 : 18);
+
+            const supplierRestrictedList = (allSuppliers || [])
+                .filter(s => ['Ret', 'Red', 'Askıya Alınmış', 'Değerlendirilmemiş', 'Pasif', 'Çalışılmaz'].includes(s.status))
+                .map(s => ({
+                    name: s.name || '—',
+                    status: s.status === 'Red' ? 'Ret' : (s.status || '—'),
+                    city: s.city || '—',
+                }))
+                .sort((a, b) => String(a.name).localeCompare(String(b.name), 'tr'));
 
             let totalInspectedParts = 0;
             let totalDefectiveParts = 0;
@@ -740,7 +1044,7 @@ const useA3ReportData = (period = 'last3months') => {
                 }))
                 .filter(item => item.inspected > 0)
                 .sort((a, b) => b.ppm - a.ppm)
-                .slice(0, 8);
+                .slice(0, XL);
             const overallSupplierPpm = totalInspectedParts > 0
                 ? Math.round((totalDefectiveParts / totalInspectedParts) * 1000000)
                 : 0;
@@ -795,18 +1099,33 @@ const useA3ReportData = (period = 'last3months') => {
                     vehicleTypeFaultsMap[vehicleType].faultCount += quantity;
                 });
             });
+            const processPassThroughByDept = {};
+            vehicleData.forEach((vehicle) => {
+                (vehicle.vehicle_timeline_events || []).forEach((e) => {
+                    if (e.event_type !== 'control_start') return;
+                    const processName =
+                        e.department?.name ||
+                        productionDepartmentMap.get(e.department_id) ||
+                        e.department_name ||
+                        null;
+                    if (!processName) return;
+                    if (!processPassThroughByDept[processName]) processPassThroughByDept[processName] = new Set();
+                    processPassThroughByDept[processName].add(vehicle.id);
+                });
+            });
             const faultByCategoryArr = Object.values(faultByCategory)
                 .map(item => ({ name: item.name, count: item.count, aracSayisi: item.vehicleSet.size }))
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 15);
+                .slice(0, executiveReport ? 24 : 15);
             const processFaultsArr = Object.values(processFaultsMap)
                 .map(item => ({
                     name: item.name,
                     count: item.count,
                     vehicleCount: item.vehicleSet.size,
+                    vehiclesThroughProcess: (processPassThroughByDept[item.name] && processPassThroughByDept[item.name].size) || totalVehicles,
                 }))
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 8);
+                .slice(0, XL);
 
             const vehicleMonthly = {};
             vehicleData.forEach(vehicle => {
@@ -848,7 +1167,7 @@ const useA3ReportData = (period = 'last3months') => {
                 })
                 .filter(vehicle => vehicle.totalFaults > 0)
                 .sort((a, b) => b.totalFaults - a.totalFaults)
-                .slice(0, 10);
+                .slice(0, XL3);
             const totalVehicleFaults = faultByCategoryArr.reduce((sum, item) => sum + (item.count || 0), 0);
             const dpu = totalVehicles > 0 ? roundTo(totalVehicleFaults / totalVehicles, 2) : 0;
             const recurringFaultCount = Object.values(faultByCategory).reduce((sum, item) => (
@@ -864,57 +1183,60 @@ const useA3ReportData = (period = 'last3months') => {
                 .filter(item => item.toplam > 0)
                 .sort((a, b) => b.dpu - a.dpu || a.passRate - b.passRate)[0] || null;
 
-            const rootCauseMap = {};
-            const registerRootCause = (causeText, department, sourceLabel) => {
-                const normalizedCause = String(causeText || '').trim();
-                if (!normalizedCause || normalizedCause === 'Belirtilmemiş' || normalizedCause === '-') return;
+            let rootCausePareto = [];
+            if (!executiveReport) {
+                const rootCauseMap = {};
+                const registerRootCause = (causeText, department, sourceLabel) => {
+                    const normalizedCause = String(causeText || '').trim();
+                    if (!normalizedCause || normalizedCause === 'Belirtilmemiş' || normalizedCause === '-') return;
 
-                if (!rootCauseMap[normalizedCause]) {
-                    rootCauseMap[normalizedCause] = {
-                        name: normalizedCause,
-                        count: 0,
-                        departmentSet: new Set(),
-                        sourceSet: new Set(),
-                    };
-                }
+                    if (!rootCauseMap[normalizedCause]) {
+                        rootCauseMap[normalizedCause] = {
+                            name: normalizedCause,
+                            count: 0,
+                            departmentSet: new Set(),
+                            sourceSet: new Set(),
+                        };
+                    }
 
-                rootCauseMap[normalizedCause].count += 1;
-                if (department) rootCauseMap[normalizedCause].departmentSet.add(department);
-                if (sourceLabel) rootCauseMap[normalizedCause].sourceSet.add(sourceLabel);
-            };
+                    rootCauseMap[normalizedCause].count += 1;
+                    if (department) rootCauseMap[normalizedCause].departmentSet.add(department);
+                    if (sourceLabel) rootCauseMap[normalizedCause].sourceSet.add(sourceLabel);
+                };
 
-            ncData.forEach(record => {
-                const department = record.department || record.requesting_unit || record.responsible_unit;
-                registerRootCause(record?.five_why_analysis?.rootCause || record?.five_why_analysis?.why5, department, '5 Neden');
-                registerRootCause(record?.fta_analysis?.rootCauses || record?.fta_analysis?.summary, department, 'FTA');
-                registerRootCause(record?.eight_d_steps?.D4?.description || record?.eight_d_steps?.d4?.description, department, '8D D4');
-                registerRootCause(record?.root_cause, department, 'DF/8D');
-                registerRootCause(record?.rejection_reason, department, 'Ret Gerekçesi');
-            });
-            complaintAnalysesData.forEach(record => {
-                const department = complaintData.find(item => item.id === record.complaint_id)?.responsible_department?.unit_name || 'Müşteri Şikayeti';
-                registerRootCause(record?.root_cause, department, 'Şikayet Analizi');
-            });
-            const totalRootCauseCount = Object.values(rootCauseMap).reduce((sum, item) => sum + item.count, 0);
-            let cumulativeRootCauseCount = 0;
-            const rootCausePareto = Object.values(rootCauseMap)
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 8)
-                .map(item => {
-                    cumulativeRootCauseCount += item.count;
-                    return {
-                        name: item.name,
-                        count: item.count,
-                        share: totalRootCauseCount > 0 ? Math.round((item.count / totalRootCauseCount) * 100) : 0,
-                        cumulativeShare: totalRootCauseCount > 0 ? Math.round((cumulativeRootCauseCount / totalRootCauseCount) * 100) : 0,
-                        departmentCount: item.departmentSet.size,
-                        sources: Array.from(item.sourceSet).join(', '),
-                    };
+                ncData.forEach(record => {
+                    const department = record.department || record.requesting_unit || record.responsible_unit;
+                    registerRootCause(record?.five_why_analysis?.rootCause || record?.five_why_analysis?.why5, department, '5 Neden');
+                    registerRootCause(record?.fta_analysis?.rootCauses || record?.fta_analysis?.summary, department, 'FTA');
+                    registerRootCause(record?.eight_d_steps?.D4?.description || record?.eight_d_steps?.d4?.description, department, '8D D4');
+                    registerRootCause(record?.root_cause, department, 'DF/8D');
+                    registerRootCause(record?.rejection_reason, department, 'Ret Gerekçesi');
                 });
+                complaintAnalysesData.forEach(record => {
+                    const department = complaintData.find(item => item.id === record.complaint_id)?.responsible_department?.unit_name || 'Müşteri Şikayeti';
+                    registerRootCause(record?.root_cause, department, 'Şikayet Analizi');
+                });
+                const totalRootCauseCount = Object.values(rootCauseMap).reduce((sum, item) => sum + item.count, 0);
+                let cumulativeRootCauseCount = 0;
+                rootCausePareto = Object.values(rootCauseMap)
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, XL)
+                    .map(item => {
+                        cumulativeRootCauseCount += item.count;
+                        return {
+                            name: item.name,
+                            count: item.count,
+                            share: totalRootCauseCount > 0 ? Math.round((item.count / totalRootCauseCount) * 100) : 0,
+                            cumulativeShare: totalRootCauseCount > 0 ? Math.round((cumulativeRootCauseCount / totalRootCauseCount) * 100) : 0,
+                            departmentCount: item.departmentSet.size,
+                            sources: Array.from(item.sourceSet).join(', '),
+                        };
+                    });
+            }
 
             const unitIssueCountMap = {};
             ncRecordsData.forEach(record => {
-                const unit = record.department || record.detection_area || 'Belirtilmemiş';
+                const unit = normalizeDepartment(record.department || record.detection_area || 'Belirtilmemiş');
                 unitIssueCountMap[unit] = (unitIssueCountMap[unit] || 0) + (Number(record.quantity) || 1);
             });
             Object.values(processFaultsMap).forEach(item => {
@@ -929,7 +1251,7 @@ const useA3ReportData = (period = 'last3months') => {
                     costPerIssue: (unitIssueCountMap[name] || 0) > 0 ? value / unitIssueCountMap[name] : null,
                 }))
                 .sort((a, b) => b.value - a.value)
-                .slice(0, 12);
+                .slice(0, XL2);
 
             const copqByVehicleTypeArr = Object.values(vehicleTypeFaultsMap)
                 .map(item => {
@@ -945,7 +1267,7 @@ const useA3ReportData = (period = 'last3months') => {
                 })
                 .filter(item => item.vehicleCount > 0 || item.cost > 0)
                 .sort((a, b) => b.cost - a.cost || b.faultCount - a.faultCount)
-                .slice(0, 8);
+                .slice(0, XL);
 
             const complaintByStatus = {};
             complaintData.forEach(c => { const st = c.status || 'Açık'; complaintByStatus[st] = (complaintByStatus[st] || 0) + 1; });
@@ -976,7 +1298,7 @@ const useA3ReportData = (period = 'last3months') => {
             const deptStats = {};
             ncData.forEach(nc => {
                 if (nc.status === 'Reddedildi') return;
-                const dept = nc.requesting_unit || nc.department || 'Belirtilmemiş';
+                const dept = normalizeDepartment(nc.requesting_unit || nc.department || 'Belirtilmemiş');
                 if (!deptStats[dept]) deptStats[dept] = { name: dept, toplam: 0, acik: 0, kapali: 0 };
                 deptStats[dept].toplam++;
                 if (nc.status === 'Kapatıldı') deptStats[dept].kapali++;
@@ -985,7 +1307,145 @@ const useA3ReportData = (period = 'last3months') => {
             const qualityWallArr = Object.values(deptStats)
                 .filter(d => d.toplam > 0)
                 .map(d => ({ ...d, kapatmaOrani: ((d.kapali / d.toplam) * 100).toFixed(0) }))
-                .sort((a, b) => b.toplam - a.toplam).slice(0, 12);
+                .sort((a, b) => b.toplam - a.toplam).slice(0, XL2);
+
+            const allDeptNames = (productionDepartments || [])
+                .map((d) => normalizeDepartment(d.unit_name))
+                .filter((u) => u && u !== 'Belirtilmemiş')
+                .sort();
+            let deptPerfDf8d = {};
+            let requesterContribDf8d = {};
+            ncData.forEach((rec) => {
+                const isClosed = rec.status === 'Kapatıldı';
+                const isRejected = rec.status === 'Reddedildi';
+                const isOpen = !isClosed && !isRejected;
+                const isOverdue = isNCOverdue(rec, today);
+                const responsibleDept = normalizeDepartment(rec.department || 'Belirtilmemiş');
+                if (!deptPerfDf8d[responsibleDept]) {
+                    deptPerfDf8d[responsibleDept] = {
+                        open: 0,
+                        closed: 0,
+                        overdue: 0,
+                        inProgress: 0,
+                        rejected: 0,
+                        totalClosureDays: 0,
+                        closedCount: 0,
+                        records: [],
+                    };
+                }
+                deptPerfDf8d[responsibleDept].records.push(rec);
+                if (rec.status === 'İşlemde') deptPerfDf8d[responsibleDept].inProgress++;
+                if (isRejected) deptPerfDf8d[responsibleDept].rejected++;
+                if (isOpen) {
+                    deptPerfDf8d[responsibleDept].open++;
+                    if (isOverdue) deptPerfDf8d[responsibleDept].overdue++;
+                }
+                if (isClosed) {
+                    deptPerfDf8d[responsibleDept].closed++;
+                    const openedAt = rec.df_opened_at ? parseISO(rec.df_opened_at) : null;
+                    const closedAt = rec.closed_at ? parseISO(rec.closed_at) : null;
+                    if (openedAt && isValid(openedAt) && closedAt && isValid(closedAt)) {
+                        const closureDays = differenceInDays(closedAt, openedAt);
+                        if (closureDays >= 0) {
+                            deptPerfDf8d[responsibleDept].totalClosureDays += closureDays;
+                            deptPerfDf8d[responsibleDept].closedCount++;
+                        }
+                    }
+                }
+                const requesterUnit = normalizeDepartment(rec.requesting_unit || 'Belirtilmemiş');
+                if (!requesterContribDf8d[requesterUnit]) {
+                    requesterContribDf8d[requesterUnit] = {
+                        total: 0,
+                        DF: 0,
+                        '8D': 0,
+                        MDI: 0,
+                        open: 0,
+                        closed: 0,
+                        inProgress: 0,
+                        rejected: 0,
+                        records: [],
+                    };
+                }
+                const rq = requesterContribDf8d[requesterUnit];
+                rq.records.push(rec);
+                rq.total++;
+                if (['DF', '8D', 'MDI'].includes(rec.type)) rq[rec.type]++;
+                if (rec.status === 'İşlemde') rq.inProgress++;
+                if (isOpen) rq.open++;
+                if (isClosed) rq.closed++;
+                if (isRejected) rq.rejected++;
+            });
+            deptPerfDf8d = consolidateDeptPerfDf8d(deptPerfDf8d);
+            requesterContribDf8d = consolidateRequesterContribDf8d(requesterContribDf8d);
+            let df8dResponsiblePerformance = Object.entries(deptPerfDf8d).map(([name, data]) => {
+                const total = data.records.length;
+                const pipeline = data.open + data.closed;
+                const closurePct = pipeline > 0 ? ((data.closed / pipeline) * 100).toFixed(1) : '—';
+                return {
+                    unit: name,
+                    total,
+                    open: data.open,
+                    closed: data.closed,
+                    inProgress: data.inProgress,
+                    rejected: data.rejected,
+                    overdue: data.overdue,
+                    avgClosureTime: data.closedCount > 0 ? (data.totalClosureDays / data.closedCount).toFixed(1) : '—',
+                    closurePct,
+                };
+            }).sort((a, b) => b.total - a.total);
+            df8dResponsiblePerformance = mergeDf8dResponsibleRows(df8dResponsiblePerformance);
+            const totalDf8dRequests = ncData.length;
+            const allUnitsSet = new Set(allDeptNames);
+            Object.keys(requesterContribDf8d).forEach((unit) => {
+                const u = normalizeDepartment(unit);
+                if (u && u !== 'Belirtilmemiş') allUnitsSet.add(u);
+            });
+            const allUnitsSorted = Array.from(allUnitsSet).sort((a, b) => a.localeCompare(b, 'tr'));
+            let df8dRequesterContribution = allUnitsSorted.map((dept) => {
+                const data = requesterContribDf8d[dept] || {
+                    total: 0,
+                    DF: 0,
+                    '8D': 0,
+                    MDI: 0,
+                    open: 0,
+                    closed: 0,
+                    inProgress: 0,
+                    rejected: 0,
+                    records: [],
+                };
+                const pctNum = totalDf8dRequests > 0 ? (data.total / totalDf8dRequests) * 100 : 0;
+                return {
+                    unit: dept,
+                    total: data.total,
+                    DF: data.DF,
+                    '8D': data['8D'],
+                    MDI: data.MDI,
+                    open: data.open,
+                    closed: data.closed,
+                    inProgress: data.inProgress,
+                    rejected: data.rejected,
+                    contribution: totalDf8dRequests > 0 ? `${pctNum.toFixed(1)}%` : '0%',
+                    contributionPct: pctNum,
+                };
+            }).sort((a, b) => b.total - a.total);
+            if (requesterContribDf8d['Belirtilmemiş']) {
+                const data = requesterContribDf8d['Belirtilmemiş'];
+                const pctNum = totalDf8dRequests > 0 ? (data.total / totalDf8dRequests) * 100 : 0;
+                df8dRequesterContribution.push({
+                    unit: 'Belirtilmemiş',
+                    total: data.total,
+                    DF: data.DF,
+                    '8D': data['8D'],
+                    MDI: data.MDI,
+                    open: data.open,
+                    closed: data.closed,
+                    inProgress: data.inProgress,
+                    rejected: data.rejected,
+                    contribution: totalDf8dRequests > 0 ? `${pctNum.toFixed(1)}%` : '0%',
+                    contributionPct: pctNum,
+                });
+            }
+            df8dRequesterContribution = mergeDf8dRequesterRows(df8dRequesterContribution, totalDf8dRequests);
 
             const overdueNC = (raw.nonConformities || [])
                 .filter(nc => nc.status !== 'Kapatıldı' && nc.status !== 'Reddedildi' && !nc.supplier_id && (nc.due_at || nc.target_close_date))
@@ -1014,7 +1474,7 @@ const useA3ReportData = (period = 'last3months') => {
                     if (b.gecikme) return 1;
                     return new Date(b.created_at) - new Date(a.created_at);
                 });
-            const openNC = openNCAll.slice(0, 20);
+            const openNC = openNCAll.slice(0, executiveReport ? 45 : 20);
 
             const activeQuarantine = (raw.quarantineRecords || [])
                 .filter(q => q.status === 'Karantinada')
@@ -1037,26 +1497,26 @@ const useA3ReportData = (period = 'last3months') => {
 
             const kaizenByDept = {};
             kaizenData.forEach(k => {
-                const dept = k.department?.unit_name || 'Belirtilmemiş';
+                const dept = normalizeDepartment(k.department?.unit_name || 'Belirtilmemiş');
                 if (!kaizenByDept[dept]) kaizenByDept[dept] = { name: dept.slice(0, 20), tamamlanan: 0, devamEden: 0 };
                 if (k.status === 'Tamamlandı') kaizenByDept[dept].tamamlanan++;
                 else kaizenByDept[dept].devamEden++;
             });
-            const kaizenByDeptArr = Object.values(kaizenByDept).sort((a, b) => (b.tamamlanan + b.devamEden) - (a.tamamlanan + a.devamEden)).slice(0, 8);
+            const kaizenByDeptArr = Object.values(kaizenByDept).sort((a, b) => (b.tamamlanan + b.devamEden) - (a.tamamlanan + a.devamEden)).slice(0, XL);
 
             const deviationByStatus = {};
             const deviationByUnit = {};
             deviationData.forEach(d => {
                 const st = d.status || 'Açık';
                 deviationByStatus[st] = (deviationByStatus[st] || 0) + 1;
-                const unit = d.requesting_unit || 'Belirtilmemiş';
+                const unit = normalizeDepartment(d.requesting_unit || 'Belirtilmemiş');
                 deviationByUnit[unit] = (deviationByUnit[unit] || 0) + 1;
             });
             const deviationByStatusArr = Object.entries(deviationByStatus).map(([name, value]) => ({ name, value }));
-            const deviationByUnitArr = Object.entries(deviationByUnit).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
+            const deviationByUnitArr = Object.entries(deviationByUnit).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, XL3);
             const deviationDetails = deviationData
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-                .slice(0, 8)
+                .slice(0, XL)
                 .map(item => ({
                     requestNo: item.request_no || '—',
                     createdAt: item.created_at,
@@ -1070,29 +1530,35 @@ const useA3ReportData = (period = 'last3months') => {
                     description: item.description || item.deviation_reason || '—',
                 }));
 
-            const finalFaultCostMonthly = {};
-            costData
-                .filter(cost =>
-                    cost.source_type === 'produced_vehicle_final_faults' ||
-                    cost.cost_type === 'Final Hataları Maliyeti'
+            // Final hata maliyeti — son 12 takvim ayı (dönemden bağımsız; kontrol/yeniden işlem trendi ile uyumlu)
+            const finalFaultChartStart = startOfMonth(subMonths(endDate, 11));
+            const finalFaultChartEnd = endDate;
+            const finalFaultCostByMonth = {};
+            (raw.qualityCosts || [])
+                .filter(
+                    cost =>
+                        (cost.source_type === 'produced_vehicle_final_faults' ||
+                            cost.cost_type === 'Final Hataları Maliyeti') &&
+                        inDateRange(cost.cost_date || cost.created_at, finalFaultChartStart, finalFaultChartEnd)
                 )
                 .forEach(cost => {
                     const dateStr = cost.cost_date || cost.created_at;
                     if (!dateStr || !isValid(parseISO(dateStr))) return;
-
                     const month = format(parseISO(dateStr), 'MMM yy', { locale: tr });
-                    if (!finalFaultCostMonthly[month]) {
-                        finalFaultCostMonthly[month] = {
-                            name: month,
-                            toplam: 0,
-                            sort: parseISO(dateStr).getTime(),
-                        };
-                    }
-                    finalFaultCostMonthly[month].toplam += toNumber(cost.amount);
+                    finalFaultCostByMonth[month] = (finalFaultCostByMonth[month] || 0) + toNumber(cost.amount);
                 });
-            const finalFaultCostMonthlyArr = Object.values(finalFaultCostMonthly)
-                .sort((a, b) => a.sort - b.sort)
-                .slice(-6);
+            const finalFaultMonthSlots = eachMonthOfInterval({
+                start: finalFaultChartStart,
+                end: endOfMonth(endDate),
+            });
+            const finalFaultCostMonthlyArr = finalFaultMonthSlots.map((d) => {
+                const key = format(d, 'MMM yy', { locale: tr });
+                return {
+                    name: key,
+                    toplam: finalFaultCostByMonth[key] || 0,
+                    sort: d.getTime(),
+                };
+            });
 
             const fixtureToday = startOfDay(new Date());
             const fixtureDueSoonLimit = addDays(fixtureToday, 30);
@@ -1105,7 +1571,7 @@ const useA3ReportData = (period = 'last3months') => {
                 const status = fixture.status || 'Belirtilmemiş';
                 fixtureStatusCounts[status] = (fixtureStatusCounts[status] || 0) + 1;
 
-                const department = fixture.responsible_department || 'Belirtilmemiş';
+                const department = normalizeDepartment(fixture.responsible_department || 'Belirtilmemiş');
                 fixtureDepartmentCounts[department] = (fixtureDepartmentCounts[department] || 0) + 1;
 
                 (fixture.fixture_verifications || []).forEach(verification => {
@@ -1222,14 +1688,14 @@ const useA3ReportData = (period = 'last3months') => {
                 })
                 .filter(Boolean)
                 .sort((a, b) => b.priority - a.priority)
-                .slice(0, 10);
+                .slice(0, XL3);
             const fixtureRecentVerifications = fixtureVerificationEvents
                 .sort((a, b) => new Date(b.verificationDate || 0) - new Date(a.verificationDate || 0))
-                .slice(0, 8);
+                .slice(0, XL);
             const fixtureRecentNonconformities = fixtureNonconformityEvents
                 .filter(item => !['Tamamlandı', 'Hurdaya Ayrıldı'].includes(item.status))
                 .sort((a, b) => new Date(b.detectionDate || 0) - new Date(a.detectionDate || 0))
-                .slice(0, 8);
+                .slice(0, XL);
             const fixtureVerificationQueue = fixtureRows
                 .map(fixture => {
                     const nextDate = fixture.next_verification_date && isValid(parseISO(fixture.next_verification_date))
@@ -1273,11 +1739,11 @@ const useA3ReportData = (period = 'last3months') => {
             const fixtureByDepartment = Object.entries(fixtureDepartmentCounts)
                 .map(([name, value]) => ({ name, value }))
                 .sort((a, b) => b.value - a.value)
-                .slice(0, 8);
+                .slice(0, XL);
 
             const personnelByDept = {};
-            personnelData.forEach(p => { const d = p.department || 'Belirtilmemiş'; personnelByDept[d] = (personnelByDept[d] || 0) + 1; });
-            const personnelByDeptArr = Object.entries(personnelByDept).map(([name, value]) => ({ name: name.slice(0, 20), value })).sort((a, b) => b.value - a.value).slice(0, 8);
+            personnelData.forEach(p => { const d = normalizeDepartment(p.department || 'Belirtilmemiş'); personnelByDept[d] = (personnelByDept[d] || 0) + 1; });
+            const personnelByDeptArr = Object.entries(personnelByDept).map(([name, value]) => ({ name: name.slice(0, 20), value })).sort((a, b) => b.value - a.value).slice(0, XL);
 
             const latestKpiMap = new Map();
             [...kpiRecordData]
@@ -1316,7 +1782,7 @@ const useA3ReportData = (period = 'last3months') => {
                     if (rank[a.status] !== rank[b.status]) return rank[a.status] - rank[b.status];
                     return Math.abs(b.target - b.current) - Math.abs(a.target - a.current);
                 })
-                .slice(0, 8);
+                .slice(0, XL);
 
             // Kalitenin yaptıkları metrikleri
             const incomingPlans = raw.incomingControlPlans || [];
@@ -1344,6 +1810,43 @@ const useA3ReportData = (period = 'last3months') => {
             const avgReworkTimeMin = vehiclesWithRework > 0 ? Math.round(totalReworkMin / vehiclesWithRework) : 0;
             const fmtDuration = (min) => min >= 60 ? `${Math.floor(min / 60)}sa ${min % 60}dk` : `${min} dk`;
 
+            const controlReworkByMonth = {};
+            vehiclesFor12mTrend.forEach(v => {
+                if (!v.created_at || !isValid(parseISO(v.created_at))) return;
+                const month = format(parseISO(v.created_at), 'MMM yy', { locale: tr });
+                const t = parseISO(v.created_at).getTime();
+                if (!controlReworkByMonth[month]) {
+                    controlReworkByMonth[month] = { name: month, sort: t, sumCtrl: 0, sumRework: 0, nCtrl: 0, nRework: 0 };
+                }
+                const events = v.vehicle_timeline_events || [];
+                const ctrl = calculateInspectionDuration(events);
+                const rework = calculateReworkDuration(events);
+                if (ctrl > 0) {
+                    controlReworkByMonth[month].sumCtrl += ctrl;
+                    controlReworkByMonth[month].nCtrl += 1;
+                }
+                if (rework > 0) {
+                    controlReworkByMonth[month].sumRework += rework;
+                    controlReworkByMonth[month].nRework += 1;
+                }
+            });
+            const controlReworkMonthly = Object.values(controlReworkByMonth)
+                .sort((a, b) => a.sort - b.sort)
+                .slice(-12)
+                .map(m => {
+                    const avgControlMin = m.nCtrl > 0 ? Math.round(m.sumCtrl / m.nCtrl) : 0;
+                    const avgReworkMin = m.nRework > 0 ? Math.round(m.sumRework / m.nRework) : 0;
+                    return {
+                        name: m.name,
+                        avgControlMin,
+                        avgReworkMin,
+                        avgControlHr: roundTo(avgControlMin / 60, 1),
+                        avgReworkHr: roundTo(avgReworkMin / 60, 1),
+                        vehiclesWithControl: m.nCtrl,
+                        vehiclesWithRework: m.nRework,
+                    };
+                });
+
             const auditIdToDept = new Map();
             (raw.audits || []).forEach(a => {
                 const dept = a.department?.unit_name || 'Belirtilmemiş';
@@ -1359,7 +1862,7 @@ const useA3ReportData = (period = 'last3months') => {
             const auditFindingsByDeptArr = Object.entries(auditFindingsByDept)
                 .map(([name, value]) => ({ name, value }))
                 .sort((a, b) => b.value - a.value)
-                .slice(0, 10);
+                .slice(0, XL3);
 
             const stockRiskData = (raw.stockRiskControls || []).filter(s =>
                 inDateRange(s.created_at, startDate, endDate)
@@ -1372,7 +1875,7 @@ const useA3ReportData = (period = 'last3months') => {
             const stockRiskOpen = stockRiskData.filter(s => s.status && s.status !== 'Tamamlandı').length;
             const stockRiskRecent = [...stockRiskData]
                 .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-                .slice(0, 10)
+                .slice(0, XL3)
                 .map(s => ({
                     partCode: s.part_code || '—',
                     partName: s.part_name || '—',
@@ -1393,7 +1896,7 @@ const useA3ReportData = (period = 'last3months') => {
             const inkrPending = inkrData.filter(r => (r.status || 'Beklemede') === 'Beklemede').length;
             const inkrRecent = [...inkrData]
                 .sort((a, b) => new Date(b.report_date || b.created_at || 0) - new Date(a.report_date || a.created_at || 0))
-                .slice(0, 10)
+                .slice(0, XL3)
                 .map(r => ({
                     partCode: r.part_code || '—',
                     partName: r.part_name || '—',
@@ -1424,6 +1927,90 @@ const useA3ReportData = (period = 'last3months') => {
                 { label: 'Şikayet Aksiyonu', value: complaintActionsData.length, severity: complaintActionsData.length > 0 ? 'warning' : 'good' },
                 { label: 'Geciken Şikayet Aksiyonu', value: overdueComplaintActions.length, severity: overdueComplaintActions.length > 0 ? 'bad' : 'good' },
             ];
+
+            const executiveProcessQuality =
+                executiveReport && supplement
+                    ? (() => {
+                        const pi = supplement.processInspections || [];
+                        const lt = supplement.leakTestRecords || [];
+                        const fb = supplement.fanBalanceRecords || [];
+                        const pir = supplement.processInkrReports || [];
+                        const pcp = supplement.processControlPlans || [];
+                        const leakByResult = {};
+                        lt.forEach((r) => {
+                            const k = r.test_result || '—';
+                            leakByResult[k] = (leakByResult[k] || 0) + 1;
+                        });
+                        const leakAccepted = lt.filter((r) => r.test_result === 'Kabul').length;
+                        const leakFailed = lt.filter((r) => r.test_result === 'Kaçak Var').length;
+                        const leakSuccessRatePct =
+                            lt.length > 0 ? roundTo((leakAccepted / lt.length) * 100, 1) : null;
+                        const isBalancePass = (r) =>
+                            r.overall_result === 'PASS' ||
+                            (r.left_plane_result === 'PASS' && r.right_plane_result === 'PASS');
+                        const balancePass = fb.filter(isBalancePass).length;
+                        return {
+                            processInspections: {
+                                total: pi.length,
+                                byDecision: Object.entries(
+                                    pi.reduce((acc, x) => {
+                                        const d = x.decision || '—';
+                                        acc[d] = (acc[d] || 0) + 1;
+                                        return acc;
+                                    }, {})
+                                ).map(([name, value]) => ({ name, value })),
+                                recent: pi.slice(0, 14).map((x) => ({
+                                    recordNo: x.record_no || '—',
+                                    date: x.inspection_date,
+                                    part: [x.part_code, x.part_name].filter(Boolean).join(' · ') || '—',
+                                    decision: x.decision || '—',
+                                })),
+                            },
+                            processControlPlans: {
+                                total: pcp.length,
+                                activeCount: pcp.filter((p) => p.is_active !== false).length,
+                            },
+                            processInkr: {
+                                total: pir.length,
+                                recent: pir.slice(0, 10).map((r) => ({
+                                    recordNo: r.inkr_number || '—',
+                                    status: r.status || '—',
+                                    part: [r.part_code, r.part_name].filter(Boolean).join(' · ') || '—',
+                                })),
+                            },
+                            leakTest: {
+                                total: lt.length,
+                                acceptedCount: leakAccepted,
+                                failCount: leakFailed,
+                                successRatePct: leakSuccessRatePct,
+                                byResult: Object.entries(leakByResult)
+                                    .map(([name, value]) => ({ name, value }))
+                                    .sort((a, b) => b.value - a.value),
+                                recent: lt.slice(0, 12).map((r) => ({
+                                    recordNo: r.record_number || '—',
+                                    date: r.test_date,
+                                    result: r.test_result || '—',
+                                    part: r.part_code || '—',
+                                    leaks: r.leak_count,
+                                })),
+                            },
+                            dynamicBalance: {
+                                total: fb.length,
+                                passCount: balancePass,
+                                failCount: Math.max(0, fb.length - balancePass),
+                                recent: fb.slice(0, 12).map((r) => ({
+                                    serial: r.serial_number || '—',
+                                    date: r.test_date || r.created_at,
+                                    pass: isBalancePass(r),
+                                    product:
+                                        r.fan_products?.product_code ||
+                                        r.fan_products?.product_name ||
+                                        '—',
+                                })),
+                            },
+                        };
+                    })()
+                    : null;
 
             setData({
                 meta: { periodLabel, generatedAt: new Date().toISOString(), totalPersonnel: personnelData.length },
@@ -1465,6 +2052,7 @@ const useA3ReportData = (period = 'last3months') => {
                     byResult: { Kabul: acceptedIncoming, 'Şartlı Kabul': conditionalIncoming, Ret: rejectedIncoming, Beklemede: pendingIncoming },
                     topRejectedSuppliers,
                     monthly: incomingMonthlyArr,
+                    supplierBreakdown: incomingSupplierBreakdownArr,
                 },
                 suppliers: {
                     approvedCount: approvedSuppliers.length,
@@ -1479,6 +2067,7 @@ const useA3ReportData = (period = 'last3months') => {
                     overallPPM: overallSupplierPpm,
                     totalInspectedParts,
                     totalDefectiveParts,
+                    restrictedList: supplierRestrictedList,
                 },
                 vehicles: {
                     faultByCategory: faultByCategoryArr,
@@ -1534,7 +2123,7 @@ const useA3ReportData = (period = 'last3months') => {
                     openedItems: ncRecordsData
                         .filter(r => r.status === 'DF Açıldı' || r.status === '8D Açıldı')
                         .sort((a, b) => new Date(b.detection_date || b.created_at || 0) - new Date(a.detection_date || a.created_at || 0))
-                        .slice(0, 10)
+                        .slice(0, XL3)
                         .map(r => ({
                             type: r.status === '8D Açıldı' ? '8D' : 'DF',
                             recordNumber: r.record_number || '—',
@@ -1575,16 +2164,18 @@ const useA3ReportData = (period = 'last3months') => {
                     upcomingVerifications: fixtureUpcomingVerifications,
                 },
                 qualityWall: qualityWallArr,
-                overdueNC: overdueNC.slice(0, 8),
+                df8dResponsiblePerformance,
+                df8dRequesterContribution,
+                overdueNC: overdueNC.slice(0, XL),
                 openNC,
                 openNCTotal: openNCAll.length,
                 openNCGeciken: openNCAll.filter(n => n.gecikme).length,
                 activeQuarantine,
-                overdueCalibrations: overdueCalibrations.slice(0, 8),
+                overdueCalibrations: overdueCalibrations.slice(0, XL),
                 personnelByDept: personnelByDeptArr,
                 governance: {
                     summary: governanceSummary,
-                    overdueTasks: overdueTaskList.slice(0, 8),
+                    overdueTasks: overdueTaskList.slice(0, XL),
                     expiringDocs,
                     expiredDocs,
                     kpiWatch: kpiWatchList,
@@ -1606,10 +2197,13 @@ const useA3ReportData = (period = 'last3months') => {
                     totalControlPlans: totalIncomingControlPlans + totalProcessControlPlans,
                     avgControlTimeMin,
                     avgReworkTimeMin,
+                    avgControlHr: roundTo(avgControlTimeMin / 60, 1),
+                    avgReworkHr: roundTo(avgReworkTimeMin / 60, 1),
                     avgControlTimeFormatted: fmtDuration(avgControlTimeMin),
                     avgReworkTimeFormatted: fmtDuration(avgReworkTimeMin),
                     vehiclesWithControl,
                     vehiclesWithRework,
+                    controlReworkMonthly,
                     completedInternalAudits: completedAudits,
                     auditFindingsByDept: auditFindingsByDeptArr,
                     supplierAuditsCompleted: supplierAuditDetails.length,
@@ -1631,6 +2225,7 @@ const useA3ReportData = (period = 'last3months') => {
                     byStatus: Object.entries(inkrByStatus).map(([name, value]) => ({ name, value })),
                     recent: inkrRecent,
                 },
+                executiveProcessQuality,
             });
         } catch (err) {
             setError('A3 Rapor verileri işlenirken hata: ' + (err.message || String(err)));
@@ -1645,7 +2240,7 @@ const useA3ReportData = (period = 'last3months') => {
         ctx.suppliers, ctx.supplierNonConformities, ctx.complaintAnalyses, ctx.complaintActions,
         ctx.incomingControlPlans, ctx.processControlPlans, ctx.trainings,
         ctx.stockRiskControls, ctx.inkrReports,
-        startDate, endDate
+        startDate, endDate, executiveReport, calendarYear, calendarMonth,
     ]);
 
     useEffect(() => {

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
-import { subMonths, startOfYear, endOfYear, format, differenceInDays, parseISO, isValid, addDays, startOfMonth } from 'date-fns';
+import { subMonths, startOfYear, endOfYear, endOfMonth, format, differenceInDays, parseISO, isValid, addDays, startOfMonth } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { isNCOverdue } from '@/lib/statusUtils';
 
-const useReportData = (period) => {
+const useReportData = (period, options = {}) => {
+    const { calendarYear, calendarMonth } = options;
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -12,10 +13,28 @@ const useReportData = (period) => {
 
     const calculateDateRange = useCallback(() => {
         const now = new Date();
-        let startDate, endDate = now;
+        let startDate;
+        let endDate = now;
         let label = '';
 
+        if (period === 'month' && calendarYear != null && calendarMonth != null) {
+            const y = Number(calendarYear);
+            const mo = Number(calendarMonth);
+            if (Number.isFinite(y) && Number.isFinite(mo) && mo >= 1 && mo <= 12) {
+                const d = new Date(y, mo - 1, 1);
+                startDate = startOfMonth(d);
+                endDate = endOfMonth(d);
+                label = format(d, 'MMMM yyyy', { locale: tr });
+                setPeriodLabel(label);
+                return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+            }
+        }
+
         switch (period) {
+            case 'last1month':
+                startDate = subMonths(now, 1);
+                label = 'Son 1 Ay';
+                break;
             case 'last3months':
                 startDate = subMonths(now, 3);
                 label = 'Son 3 Ay';
@@ -37,7 +56,7 @@ const useReportData = (period) => {
         }
         setPeriodLabel(label);
         return { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
-    }, [period]);
+    }, [period, calendarYear, calendarMonth]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);

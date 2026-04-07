@@ -274,7 +274,7 @@ import React, { useState, useEffect } from 'react';
                                             <SelectItem value="Değerlendirilmemiş">Değerlendirilmemiş</SelectItem>
                                             <SelectItem value="Onaylı">Onaylı</SelectItem>
                                             <SelectItem value="Askıya Alınmış">Askıya Alınmış</SelectItem>
-                                            <SelectItem value="Red">Red</SelectItem>
+                                            <SelectItem value="Ret">Ret</SelectItem>
                                             <SelectItem value="Alternatif">Alternatif</SelectItem>
                                         </SelectContent>
                                     </Select>

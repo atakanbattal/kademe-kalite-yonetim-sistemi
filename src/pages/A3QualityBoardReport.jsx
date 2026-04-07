@@ -119,8 +119,13 @@ const CompactStatCard = ({ label, value, color = C.navy, sub, bg = '#f8fafc' }) 
     </div>
 );
 
-const MiniTable = ({ headers, rows, emptyMsg = 'Veri yok', fontSize = 10 }) => (
-    <table className="report-mini-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize }}>
+const MiniTable = ({ headers, rows, emptyMsg = 'Veri yok', fontSize = 10, colWidths }) => (
+    <table className="report-mini-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize, tableLayout: colWidths ? 'fixed' : 'auto' }}>
+        {colWidths && (
+            <colgroup>
+                {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+            </colgroup>
+        )}
         <thead>
             <tr>
                 {headers.map((h, i) => (
@@ -138,7 +143,7 @@ const MiniTable = ({ headers, rows, emptyMsg = 'Veri yok', fontSize = 10 }) => (
             ) : rows.map((row, ri) => (
                 <tr key={ri} style={{ background: ri % 2 === 0 ? 'white' : '#f8fafc' }}>
                     {row.map((cell, ci) => (
-                        <td key={ci} style={{ border: '1px solid #e2e8f0', padding: '3px 6px', verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{cell}</td>
+                        <td key={ci} style={{ border: '1px solid #e2e8f0', padding: '3px 6px', verticalAlign: 'top', wordBreak: 'break-word', overflowWrap: 'anywhere', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cell}</td>
                     ))}
                 </tr>
             ))}
@@ -194,7 +199,7 @@ const SectionBlock = ({ children }) => (
     </div>
 );
 
-const ChunkedTablePanels = ({ title, color = C.navy, headers, rows, emptyMsg = 'Veri yok', fontSize = 10, chunkSize = 10, intro }) => {
+const ChunkedTablePanels = ({ title, color = C.navy, headers, rows, emptyMsg = 'Veri yok', fontSize = 10, chunkSize = 10, intro, colWidths }) => {
     const chunks = chunkItems(rows, chunkSize);
 
     return chunks.map((chunk, index) => (
@@ -210,6 +215,7 @@ const ChunkedTablePanels = ({ title, color = C.navy, headers, rows, emptyMsg = '
                     rows={chunk}
                     emptyMsg={emptyMsg}
                     fontSize={fontSize}
+                    colWidths={colWidths}
                 />
             </Panel>
         </Row>
@@ -219,12 +225,18 @@ const ChunkedTablePanels = ({ title, color = C.navy, headers, rows, emptyMsg = '
 // ── Ana Bileşen ───────────────────────────────────────────────────────────────
 const A3QualityBoardReport = () => {
     const wrapRef = useRef(null);
+    const applyBreaksRef = useRef(() => {});
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { session } = useAuth();
     const period = searchParams.get('period') || 'last3months';
+    const yearParam = searchParams.get('year');
+    const monthParam = searchParams.get('month');
     const shouldAutoPrint = searchParams.get('autoprint') === 'true';
-    const { data, loading, error, periodLabel } = useA3ReportData(period);
+    const { data, loading, error, periodLabel } = useA3ReportData(period, {
+        calendarYear: yearParam != null && yearParam !== '' ? Number(yearParam) : undefined,
+        calendarMonth: monthParam != null && monthParam !== '' ? Number(monthParam) : undefined,
+    });
 
     useEffect(() => { if (!session) navigate('/login'); }, [session, navigate]);
     useEffect(() => {
@@ -320,9 +332,19 @@ const A3QualityBoardReport = () => {
         };
 
         const applyBreaks = () => {
+            if (!wrapRef.current) return;
             const blocks = getFlowBlocks();
-            blocks.forEach((block) => block.classList.remove('report-break-before'));
+            blocks.forEach((block) => {
+                block.classList.remove('report-break-before', 'report-allow-break-inside');
+            });
             resetFillState(blocks);
+
+            blocks.forEach((block) => {
+                const h = getBlockHeight(block);
+                if (h > printableHeightPx - 2) {
+                    block.classList.add('report-allow-break-inside');
+                }
+            });
 
             const pages = [];
             let currentPage = { blocks: [], usedHeight: 0 };
@@ -350,18 +372,59 @@ const A3QualityBoardReport = () => {
                 const remainingHeight = printableHeightPx - page.usedHeight;
                 const hasAnotherPageAfter = pageIndex < pages.length - 1;
 
+                if (lastBlock.classList.contains('report-allow-break-inside')) {
+                    return;
+                }
                 if (hasAnotherPageAfter || remainingHeight > printableHeightPx * 0.22) {
                     fillRemainingPageSpace(lastBlock, remainingHeight);
                 }
             });
         };
 
+        applyBreaksRef.current = applyBreaks;
+
+        const scheduleBreaks = () => {
+            window.requestAnimationFrame(() => {
+                applyBreaks();
+            });
+        };
+
+        const onBeforePrint = () => {
+            scheduleBreaks();
+            window.setTimeout(() => {
+                applyBreaks();
+                window.requestAnimationFrame(() => applyBreaks());
+            }, 50);
+        };
+
+        const onAfterPrint = () => {
+            scheduleBreaks();
+        };
+
+        let resizeDebounce;
+        const onResizeDebounced = () => {
+            clearTimeout(resizeDebounce);
+            resizeDebounce = setTimeout(() => applyBreaks(), 120);
+        };
+
         const rafId = window.requestAnimationFrame(applyBreaks);
-        window.addEventListener('resize', applyBreaks);
+        window.addEventListener('resize', onResizeDebounced);
+        window.addEventListener('beforeprint', onBeforePrint);
+        window.addEventListener('afterprint', onAfterPrint);
+
+        let resizeObserver;
+        if (typeof ResizeObserver !== 'undefined') {
+            resizeObserver = new ResizeObserver(onResizeDebounced);
+            resizeObserver.observe(container);
+        }
 
         return () => {
             window.cancelAnimationFrame(rafId);
-            window.removeEventListener('resize', applyBreaks);
+            clearTimeout(resizeDebounce);
+            window.removeEventListener('resize', onResizeDebounced);
+            window.removeEventListener('beforeprint', onBeforePrint);
+            window.removeEventListener('afterprint', onAfterPrint);
+            resizeObserver?.disconnect();
         };
     }, [data, loading, error]);
 
@@ -477,18 +540,24 @@ const A3QualityBoardReport = () => {
             .wrap{max-width:1200px;margin:24px auto;padding:24px;box-shadow:0 6px 24px rgba(0,0,0,.15);border-radius:8px;}
         }
         @media print{
+            html,body{height:auto!important;min-height:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
             body{background:white!important;}
-            .wrap{padding:4mm;margin:0;max-width:100%;}
-            @page{size:A3 landscape;margin:5mm;}
+            .wrap{padding:4mm;margin:0;max-width:100%;width:100%;box-sizing:border-box;}
+            /* A3 yatay: 420×297 mm; kenar boşlukları JS ile uyumlu (sayfa kırılımı hesabı) */
+            @page{size:420mm 297mm;margin:5mm;}
             .report-panel,.wrap .report-panel{page-break-inside:avoid;break-inside:avoid;}
+            .report-panel.report-allow-break-inside,.wrap .report-panel.report-allow-break-inside{
+                page-break-inside:auto!important;break-inside:auto!important;
+            }
+            .report-mini-table{page-break-inside:auto;break-inside:auto;}
             .report-mini-table tr{page-break-inside:avoid;break-inside:avoid;}
             .report-row{display:block!important;page-break-inside:auto;break-inside:auto;gap:8px!important;margin-bottom:10px!important;}
             .report-row.report-kpi-grid{display:grid!important;}
             .report-row > .report-panel + .report-panel{margin-top:10px!important;}
-            .report-section-header{page-break-after:avoid;break-after:avoid-page;}
-            .report-section-block{page-break-inside:avoid;break-inside:avoid-page;}
-            .report-break-before{page-break-before:always;break-before:page;}
-            .report-page-hero{padding:10px 14px!important;margin-bottom:10px!important;}
+            .report-section-header{page-break-after:avoid;break-after:avoid;}
+            .report-section-block{page-break-inside:avoid;break-inside:avoid;}
+            .report-break-before{page-break-before:always!important;break-before:page!important;}
+            .report-page-hero{padding:10px 14px!important;margin-bottom:10px!important;page-break-after:avoid;break-after:avoid;}
             .report-kpi-card{min-height:72px!important;padding:9px 10px!important;}
             .report-kpi-card-label{font-size:10px!important;}
             .report-kpi-card-value{font-size:22px!important;}
@@ -497,6 +566,7 @@ const A3QualityBoardReport = () => {
             .report-panel-body{padding:8px 10px!important;}
             .report-section-header{padding:7px 12px!important;margin:4px 0 8px!important;}
             .recharts-responsive-container{max-height:none!important;}
+            .recharts-wrapper svg{overflow:visible!important;}
             .report-mini-table{font-size:9px!important;}
             .report-mini-table th,.report-mini-table td{padding:3px 5px!important;}
         }
@@ -569,10 +639,30 @@ const A3QualityBoardReport = () => {
                     </Panel>
 
                     {/* Maliyet Dağılımı + Birim Bazlı Maliyet */}
-                    <Panel title="Kalite Maliyeti Dağılımı" color={C.orange}>
+                    <Panel title="Kalite Maliyeti Dağılımı (COPQ)" color={C.orange}>
                         {costByType.length === 0
                             ? <div style={{textAlign:'center',color:C.slate,padding:30,fontSize:11}}>Maliyet kaydı yok.</div>
                             : <>
+                                {/* Kategori Özet Kartları */}
+                                {costBurden?.byCategory?.length > 0 && (
+                                    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
+                                        {[
+                                            {label:'İç Hata Maliyetleri', key:'İç Hata', color:C.red, bg:'#fef2f2'},
+                                            {label:'Dış Hata Maliyetleri', key:'Dış Hata', color:C.orange, bg:'#fff7ed'},
+                                            {label:'Değerlendirme Maliyetleri', key:'Değerlendirme', color:C.blue, bg:'#eff6ff'},
+                                            {label:'Önleme Maliyetleri', key:'Önleme', color:C.green, bg:'#f0fdf4'},
+                                        ].map(cat => {
+                                            const val = costBurden.byCategory.find(c => c.name === cat.key)?.value || 0;
+                                            return (
+                                                <div key={cat.key} style={{background:cat.bg,borderLeft:`4px solid ${cat.color}`,borderRadius:5,padding:'8px 10px'}}>
+                                                    <div style={{fontSize:9,color:C.gray,fontWeight:500}}>{cat.label}</div>
+                                                    <div style={{fontSize:18,fontWeight:800,color:cat.color,marginTop:4}}>{fmtCurrency(val)}</div>
+                                                    <div style={{fontSize:9,color:C.slate,marginTop:2}}>{kpis.totalCost > 0 ? fmtPct((val/kpis.totalCost)*100,1) : '%0'}</div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                                 <div style={{display:'grid',gridTemplateColumns:'minmax(280px, 0.95fr) minmax(360px, 1.05fr)',gap:18,alignItems:'start'}}>
                                     <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:240}}>
                                         <ResponsiveContainer width="100%" height={240}>
@@ -597,7 +687,7 @@ const A3QualityBoardReport = () => {
                                         </ResponsiveContainer>
                                     </div>
                                     <div>
-                                        <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:6}}>Maliyet Bileşenleri</div>
+                                        <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:6}}>Maliyet Türleri Detay</div>
                                         {costByType.map((c,i)=>(
                                             <StatRow key={i} label={safeText(c.name)} value={fmtCurrency(c.value)} color={COST_COLORS[c.name]||CHART_COLORS[i]}/>
                                         ))}
@@ -1120,33 +1210,34 @@ const A3QualityBoardReport = () => {
                             <ChunkedTablePanels
                                 title="DF ve 8D Önerilen Maddeler"
                                 color={C.teal}
-                                headers={['Öneri','Kayıt No','Parça','Açıklama','Alan','Ciddiyet','Adet','Sorumlu']}
+                                headers={['Tür','Kayıt No','Parça','Açıklama','Alan','Ciddiyet','Adet','Sorumlu']}
+                                colWidths={['5%','10%','14%','33%','12%','8%','5%','13%']}
                                 rows={(nonconformityModule.suggestedItems || []).map((item) => [
                                     <span style={{
                                         display:'inline-flex',
                                         alignItems:'center',
                                         justifyContent:'center',
-                                        minWidth:34,
-                                        padding:'2px 8px',
+                                        minWidth:28,
+                                        padding:'2px 6px',
                                         borderRadius:999,
-                                        fontSize:10,
+                                        fontSize:9,
                                         fontWeight:800,
                                         color:'white',
                                         background:item.type === '8D' ? C.purple : C.indigo,
                                     }}>{item.type}</span>,
-                                    <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.recordNumber}</span>,
-                                    <span style={{fontSize:10}}>
-                                        <strong>{trunc(safeText(item.partCode),16)}</strong>
-                                        {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(item.partName),24)}</span>}
+                                    <span style={{fontSize:9,fontWeight:700,fontFamily:'monospace'}}>{trunc(safeText(item.recordNumber),14)}</span>,
+                                    <span style={{fontSize:9}}>
+                                        <strong>{trunc(safeText(item.partCode),14)}</strong>
+                                        {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate,fontSize:8}}>{trunc(safeText(item.partName),18)}</span>}
                                     </span>,
-                                    <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.description),44)}</span>,
-                                    <span style={{fontSize:10}}>{trunc(safeText(item.area),16)}</span>,
-                                    <span style={{fontSize:10,fontWeight:700,color:item.severity === 'Kritik' ? C.red : item.severity === 'Yüksek' ? C.orange : C.gray}}>{item.severity}</span>,
-                                    <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.quantity)}</span>,
-                                    <span style={{fontSize:10}}>{trunc(safeText(item.responsible),18)}</span>,
+                                    <span style={{fontSize:9,lineHeight:1.35}}>{trunc(safeText(item.description),80)}</span>,
+                                    <span style={{fontSize:9}}>{trunc(safeText(item.area),14)}</span>,
+                                    <span style={{fontSize:9,fontWeight:700,color:item.severity === 'Kritik' ? C.red : item.severity === 'Yüksek' ? C.orange : C.gray}}>{trunc(safeText(item.severity),8)}</span>,
+                                    <span style={{fontSize:9,fontWeight:700}}>{fmtNum(item.quantity)}</span>,
+                                    <span style={{fontSize:9}}>{trunc(safeText(item.responsible),14)}</span>,
                                 ])}
                                 emptyMsg="Bu dönemde önerilmiş DF / 8D kaydı yok."
-                                fontSize={10}
+                                fontSize={9}
                                 chunkSize={7}
                             />
 
@@ -1154,32 +1245,33 @@ const A3QualityBoardReport = () => {
                                 title="DF ve 8D Açılan Maddeler"
                                 color={C.green}
                                 headers={['Tür','Kayıt No','Parça','Açıklama','Alan','Ciddiyet','Adet','Sorumlu']}
+                                colWidths={['5%','10%','14%','33%','12%','8%','5%','13%']}
                                 rows={(nonconformityModule.openedItems || []).map((item) => [
                                     <span style={{
                                         display:'inline-flex',
                                         alignItems:'center',
                                         justifyContent:'center',
-                                        minWidth:34,
-                                        padding:'2px 8px',
+                                        minWidth:28,
+                                        padding:'2px 6px',
                                         borderRadius:999,
-                                        fontSize:10,
+                                        fontSize:9,
                                         fontWeight:800,
                                         color:'white',
                                         background:item.type === '8D' ? C.purple : C.green,
                                     }}>{item.type}</span>,
-                                    <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{item.recordNumber}</span>,
-                                    <span style={{fontSize:10}}>
-                                        <strong>{safeText(item.partCode)}</strong>
-                                        {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate}}>{safeText(item.partName)}</span>}
+                                    <span style={{fontSize:9,fontWeight:700,fontFamily:'monospace'}}>{trunc(safeText(item.recordNumber),14)}</span>,
+                                    <span style={{fontSize:9}}>
+                                        <strong>{trunc(safeText(item.partCode),14)}</strong>
+                                        {item.partName && item.partName !== '—' && <span style={{display:'block',color:C.slate,fontSize:8}}>{trunc(safeText(item.partName),18)}</span>}
                                     </span>,
-                                    <span style={{fontSize:10,lineHeight:1.35}}>{safeText(item.description)}</span>,
-                                    <span style={{fontSize:10}}>{safeText(item.area)}</span>,
-                                    <span style={{fontSize:10,fontWeight:700,color:item.severity === 'Kritik' ? C.red : item.severity === 'Yüksek' ? C.orange : C.gray}}>{item.severity}</span>,
-                                    <span style={{fontSize:10,fontWeight:700}}>{fmtNum(item.quantity)}</span>,
-                                    <span style={{fontSize:10}}>{safeText(item.responsible)}</span>,
+                                    <span style={{fontSize:9,lineHeight:1.35}}>{trunc(safeText(item.description),80)}</span>,
+                                    <span style={{fontSize:9}}>{trunc(safeText(item.area),14)}</span>,
+                                    <span style={{fontSize:9,fontWeight:700,color:item.severity === 'Kritik' ? C.red : item.severity === 'Yüksek' ? C.orange : C.gray}}>{trunc(safeText(item.severity),8)}</span>,
+                                    <span style={{fontSize:9,fontWeight:700}}>{fmtNum(item.quantity)}</span>,
+                                    <span style={{fontSize:9}}>{trunc(safeText(item.responsible),14)}</span>,
                                 ])}
                                 emptyMsg="Bu dönemde açılmış DF / 8D kaydı yok."
-                                fontSize={10}
+                                fontSize={9}
                                 chunkSize={7}
                             />
 
@@ -1258,46 +1350,26 @@ const A3QualityBoardReport = () => {
                             <ChunkedTablePanels
                                 title="Uygunsuzluk Modülü — Son Kayıtlar"
                                 color={C.teal}
-                                headers={['Tarih','Kayıt No','Parça','Açıklama','Kategori','Alan','Ciddiyet','Durum','Sorumlu','Adet']}
+                                headers={['Tarih','Kayıt No','Parça','Açıklama','Kategori','Ciddiyet','Durum','Adet']}
+                                colWidths={['8%','10%','14%','30%','14%','8%','10%','6%']}
                                 rows={(nonconformityModule.recentRecords || []).map((r) => [
-                                    r.tarih ? format(parseISO(r.tarih),'dd.MM.yyyy',{locale:tr}) : '—',
-                                    <span style={{fontSize:10,fontWeight:700,fontFamily:'monospace'}}>{r.kayitNo || '—'}</span>,
-                                    <span style={{fontSize:10}}>
-                                        <strong>{trunc(safeText(r.parca),18)}</strong>
-                                        {r.parcaAdi && r.parcaAdi !== '—' && <span style={{display:'block',color:C.slate}}>{trunc(safeText(r.parcaAdi),28)}</span>}
+                                    <span style={{fontSize:9}}>{r.tarih ? format(parseISO(r.tarih),'dd.MM.yy',{locale:tr}) : '—'}</span>,
+                                    <span style={{fontSize:9,fontWeight:700,fontFamily:'monospace'}}>{trunc(safeText(r.kayitNo),12) || '—'}</span>,
+                                    <span style={{fontSize:9}}>
+                                        <strong>{trunc(safeText(r.parca),14)}</strong>
+                                        {r.parcaAdi && r.parcaAdi !== '—' && <span style={{display:'block',color:C.slate,fontSize:8}}>{trunc(safeText(r.parcaAdi),18)}</span>}
                                     </span>,
-                                    <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(r.aciklama),64)}</span>,
-                                    <span style={{fontSize:10}}>{trunc(safeText(r.kategori),18)}</span>,
-                                    <span style={{fontSize:10}}>{trunc(safeText(r.alan),18)}</span>,
-                                    <span style={{fontSize:10,fontWeight:700,color:r.onem === 'Kritik' ? C.red : r.onem === 'Yüksek' ? C.orange : C.gray}}>{r.onem}</span>,
-                                    <span style={{fontSize:10,fontWeight:700}}>{trunc(safeText(r.durum),16)}</span>,
-                                    <span style={{fontSize:10}}>{trunc(safeText(r.sorumlu),18)}</span>,
-                                    <span style={{fontSize:10,fontWeight:700}}>{fmtNum(r.adet)}</span>,
+                                    <span style={{fontSize:9,lineHeight:1.35}}>{trunc(safeText(r.aciklama),60)}</span>,
+                                    <span style={{fontSize:9}}>{trunc(safeText(r.kategori),14)}</span>,
+                                    <span style={{fontSize:9,fontWeight:700,color:r.onem === 'Kritik' ? C.red : r.onem === 'Yüksek' ? C.orange : C.gray}}>{trunc(safeText(r.onem),8)}</span>,
+                                    <span style={{fontSize:9,fontWeight:700}}>{trunc(safeText(r.durum),12)}</span>,
+                                    <span style={{fontSize:9,fontWeight:700}}>{fmtNum(r.adet)}</span>,
                                 ])}
                                 emptyMsg="Kayıt yok"
-                                fontSize={10}
-                                chunkSize={6}
+                                fontSize={9}
+                                chunkSize={7}
                             />
 
-                            {(nonconformityModule.rootCausePareto || []).length > 0 && (
-                                <ChunkedTablePanels
-                                    title="Kök Neden Pareto Analizi"
-                                    color={C.indigo}
-                                    headers={['Kök Neden','Kaynak','Adet','Pay','Kümülatif Pay','Etkilenen Birim']}
-                                    rows={(nonconformityModule.rootCausePareto || []).map((item) => [
-                                        <span style={{fontSize:10,lineHeight:1.35}}>{trunc(safeText(item.name),42)}</span>,
-                                        <span style={{fontSize:10}}>{trunc(safeText(item.sources),20)}</span>,
-                                        <span style={{fontSize:10,fontWeight:700,color:C.indigo}}>{fmtNum(item.count)}</span>,
-                                        <span style={{fontSize:10}}>{fmtPct(item.share)}</span>,
-                                        <span style={{fontSize:10,fontWeight:700,color:item.cumulativeShare >= 80 ? C.red : C.orange}}>{fmtPct(item.cumulativeShare)}</span>,
-                                        <span style={{fontSize:10}}>{fmtNum(item.departmentCount)}</span>,
-                                    ])}
-                                    emptyMsg="Kök neden verisi yok."
-                                    fontSize={10}
-                                    chunkSize={8}
-                                    intro="5 Neden, FTA, 8D D4 ve şikayet analizlerine yazılmış gerçek kök nedenler birleştirilerek sıralanır. Aynı neden tekrar ettikçe öncelik yükselir."
-                                />
-                            )}
                         </>
                     )}
 

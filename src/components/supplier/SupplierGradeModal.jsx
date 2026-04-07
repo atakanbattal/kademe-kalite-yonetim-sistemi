@@ -46,7 +46,7 @@ const gradeOptions = [
         color: 'bg-red-500 hover:bg-red-600', 
         icon: AlertOctagon,
         criteria: 'Ciddi performans sorunları, alternatif aranmalı',
-        resultStatus: 'Red',
+        resultStatus: 'Ret',
         statusColor: 'text-red-600'
     },
 ];
@@ -94,7 +94,7 @@ const SupplierGradeModal = ({ isOpen, setIsOpen, supplier, refreshSuppliers }) =
                 case 'C':
                     return supplier.status; // C sınıfı: mevcut durum korunur, otomatik Askıya Alınmış atanmaz
                 case 'D':
-                    return 'Red'; // D sınıfı iş birliği sonlandırılacak
+                    return 'Ret'; // D sınıfı iş birliği sonlandırılacak
                 default:
                     return supplier.status; // Değişiklik yok
             }

@@ -28,6 +28,7 @@ const STATUS_CONFIG = {
     'Koşullu Onaylı': { variant: 'default', className: 'bg-yellow-500 text-white' },
     'Askıya Alınmış': { variant: 'default', className: 'bg-orange-500 text-white' },
     'Red': { variant: 'destructive', className: '' },
+    'Ret': { variant: 'destructive', className: '' },
     
     // Kalite durumları
     'Uygun': { variant: 'default', className: 'bg-green-600 text-white' },
@@ -101,7 +102,8 @@ const StatusBadge = ({
         );
     }
 
-    const config = STATUS_CONFIG[status] || { variant: 'outline', className: '' };
+    const lookupStatus = status === 'Red' ? 'Ret' : status;
+    const config = STATUS_CONFIG[lookupStatus] || STATUS_CONFIG[status] || { variant: 'outline', className: '' };
 
     return (
         <Badge
@@ -114,7 +116,7 @@ const StatusBadge = ({
             )}
         >
             {icon && <span className="mr-1">{icon}</span>}
-            {status}
+            {lookupStatus}
         </Badge>
     );
 };

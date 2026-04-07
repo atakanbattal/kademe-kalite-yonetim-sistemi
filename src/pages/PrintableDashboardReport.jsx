@@ -27,7 +27,12 @@ const PrintableDashboardReport = () => {
     const navigate = useNavigate();
     const { session } = useAuth();
     const period = searchParams.get('period') || 'last12months';
-    const { data, loading, error, periodLabel } = useReportData(period);
+    const yearParam = searchParams.get('year');
+    const monthParam = searchParams.get('month');
+    const { data, loading, error, periodLabel } = useReportData(period, {
+        calendarYear: yearParam != null && yearParam !== '' ? Number(yearParam) : undefined,
+        calendarMonth: monthParam != null && monthParam !== '' ? Number(monthParam) : undefined,
+    });
 
     useEffect(() => {
         if (!session) {
@@ -720,8 +725,8 @@ const PrintableDashboardReport = () => {
                                         <tr key={idx}>
                                             <td className="col-title">{risk.risk_type || '-'}</td>
                                             <td className="col-dept text-wrap">{risk.risk_name || '-'}</td>
-                                            <td className="col-days">{risk.probability || '-'}/5</td>
-                                            <td className="col-days">{risk.impact || '-'}/5</td>
+                                            <td className="col-days">{`${risk.probability ?? '-'}/5`}</td>
+                                            <td className="col-days">{`${risk.impact ?? '-'}/5`}</td>
                                             <td className="col-status">{risk.risk_score || '-'}</td>
                                             <td className="col-status">{riskLevel}</td>
                                         </tr>

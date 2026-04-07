@@ -13,6 +13,7 @@ import PrintableReport from '@/pages/PrintableReport';
 import PrintableDashboardReport from '@/pages/PrintableDashboardReport';
 import PrintableInternalAuditDashboard from '@/pages/PrintableInternalAuditDashboard';
 import A3QualityBoardReport from '@/pages/A3QualityBoardReport';
+import ExecutivePresentation from '@/pages/ExecutivePresentation';
 
 import AuthProtected from '@/components/auth/AuthProtected';
 import MainLayout from '@/components/layout/MainLayout';
@@ -31,6 +32,7 @@ function App() {
                             <Route path="/print/report/:type/:id" element={<AuthProtected><PrintableReport /></AuthProtected>} />
                             <Route path="/print/dashboard-report" element={<AuthProtected><PrintableDashboardReport /></AuthProtected>} />
                             <Route path="/print/a3-quality-board" element={<AuthProtected><A3QualityBoardReport /></AuthProtected>} />
+                            <Route path="/print/executive-presentation" element={<AuthProtected><ExecutivePresentation /></AuthProtected>} />
                             <Route path="/print/internal-audit-dashboard" element={<AuthProtected><PrintableInternalAuditDashboard /></AuthProtected>} />
                             <Route path="/*" element={
                                 <AuthProtected>
