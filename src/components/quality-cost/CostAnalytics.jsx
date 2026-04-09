@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { PIE_COLORS } from './constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown, Wallet, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Calendar, ArrowRightLeft } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -88,7 +89,7 @@ const renderTop5Chart = (title, data, onBarClick) => (
     </Card>
 );
 
-const CostAnalytics = ({ costs, loading, onBarClick }) => {
+const CostAnalytics = ({ costs, loading, onBarClick, copqYearTotals, copqYearlyInsight, onYearCOPQClick }) => {
     const [trendChartType, setTrendChartType] = useState('area'); // area, line, bar
 
     const analyticsData = useMemo(() => {
@@ -243,6 +244,117 @@ const CostAnalytics = ({ costs, loading, onBarClick }) => {
                     onClick={() => onBarClick('Dış Hata Maliyetleri', analyticsData.externalCosts)}
                 />
             </motion.div>
+
+            {copqYearTotals && copqYearlyInsight?.current && copqYearlyInsight?.previous && (
+                <motion.div
+                    className="rounded-2xl border border-border/60 bg-gradient-to-b from-muted/30 via-background to-background p-4 sm:p-5 shadow-sm"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35 }}
+                >
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                <ArrowRightLeft className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground tracking-tight">Yıllık COPQ karşılaştırması</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Önceki tam yıl ile güncel yıl (yıl içi) — detay ve kıyas için karta tıklayın
+                                </p>
+                            </div>
+                        </div>
+                        {(() => {
+                            const p = copqYearTotals.totalPrevious;
+                            const c = copqYearTotals.totalCurrent;
+                            const yoy = p > 0 ? ((c - p) / p) * 100 : c > 0 ? 100 : 0;
+                            const up = yoy > 0.05;
+                            const down = yoy < -0.05;
+                            return (
+                                <div
+                                    className={cn(
+                                        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium tabular-nums border',
+                                        up && 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300',
+                                        down && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+                                        !up && !down && 'border-border/80 bg-muted/40 text-muted-foreground'
+                                    )}
+                                >
+                                    {up ? (
+                                        <TrendingUp className="h-3.5 w-3.5 shrink-0" />
+                                    ) : down ? (
+                                        <TrendingDown className="h-3.5 w-3.5 shrink-0" />
+                                    ) : null}
+                                    <span>
+                                        Güncel yıl / önceki yıl: {yoy > 0 ? '+' : ''}
+                                        {yoy.toFixed(1)}%
+                                    </span>
+                                </div>
+                            );
+                        })()}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                        <button
+                            type="button"
+                            onClick={() => onYearCOPQClick?.(copqYearTotals.previousYear)}
+                            className={cn(
+                                'group text-left rounded-xl border border-border/70 bg-card/80 hover:bg-accent/25',
+                                'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                'p-4 shadow-sm'
+                            )}
+                        >
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Tam yıl · {copqYearTotals.previousYear}
+                            </p>
+                            <p className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums text-foreground">
+                                {formatCurrency(copqYearTotals.totalPrevious)}
+                            </p>
+                            <div className="mt-3 pt-3 border-t border-border/60 space-y-1 text-[11px] text-muted-foreground">
+                                <p>
+                                    <span className="text-foreground/90 font-medium">{copqYearlyInsight.previous.count}</span>{' '}
+                                    kayıt · aylık ort.{' '}
+                                    <span className="tabular-nums text-foreground/90 font-medium">
+                                        {formatCurrency(
+                                            typeof copqYearlyInsight.previousMonthlyAvg === 'number'
+                                                ? copqYearlyInsight.previousMonthlyAvg
+                                                : (copqYearlyInsight.previous?.total || 0) / 12
+                                        )}
+                                    </span>
+                                </p>
+                                <p>
+                                    İç {copqYearlyInsight.previous.internalShare.toFixed(1)}% · dış{' '}
+                                    {copqYearlyInsight.previous.externalShare.toFixed(1)}%
+                                </p>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onYearCOPQClick?.(copqYearTotals.currentYear)}
+                            className={cn(
+                                'group text-left rounded-xl border border-primary/25 bg-gradient-to-br from-primary/[0.07] to-transparent',
+                                'hover:from-primary/[0.11] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                'p-4 shadow-sm ring-1 ring-inset ring-primary/10'
+                            )}
+                        >
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                                Yıl içi · {copqYearTotals.currentYear}
+                            </p>
+                            <p className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums text-foreground">
+                                {formatCurrency(copqYearTotals.totalCurrent)}
+                            </p>
+                            <div className="mt-3 pt-3 border-t border-primary/15 space-y-1 text-[11px] text-muted-foreground">
+                                <p>
+                                    <span className="text-foreground/90 font-medium">{copqYearlyInsight.current.count}</span>{' '}
+                                    kayıt · iç {copqYearlyInsight.current.internalShare.toFixed(1)}% · dış{' '}
+                                    {copqYearlyInsight.current.externalShare.toFixed(1)}%
+                                </p>
+                                <p className="text-[10px] leading-snug opacity-90">
+                                    Modalda {copqYearTotals.currentYear} ile {copqYearTotals.currentYear - 1} aynı dönem kıyası
+                                </p>
+                            </div>
+                        </button>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Yeni Aylık Trend Grafiği - Zoom/Pan Özellikli */}
             <motion.div

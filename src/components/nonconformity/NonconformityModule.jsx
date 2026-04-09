@@ -112,6 +112,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
+  const [detectionDateFrom, setDetectionDateFrom] = useState('');
+  const [detectionDateTo, setDetectionDateTo] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'record_number', direction: 'desc' });
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -396,6 +398,24 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     if (statusFilter !== 'all') filtered = filtered.filter(r => r.status === statusFilter);
     if (severityFilter !== 'all') filtered = filtered.filter(r => r.severity === severityFilter);
 
+    if (detectionDateFrom || detectionDateTo) {
+      const fromTs = detectionDateFrom
+        ? (() => { const d = new Date(detectionDateFrom); d.setHours(0, 0, 0, 0); return d.getTime(); })()
+        : null;
+      const toTs = detectionDateTo
+        ? (() => { const d = new Date(detectionDateTo); d.setHours(23, 59, 59, 999); return d.getTime(); })()
+        : null;
+      filtered = filtered.filter((r) => {
+        const raw = r.detection_date || r.created_at;
+        if (!raw) return false;
+        const t = new Date(raw).getTime();
+        if (Number.isNaN(t)) return false;
+        if (fromTs != null && t < fromTs) return false;
+        if (toTs != null && t > toTs) return false;
+        return true;
+      });
+    }
+
     filtered.sort((a, b) => {
       let aVal, bVal;
       switch (sortConfig.key) {
@@ -421,7 +441,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     });
 
     return filtered;
-  }, [getDisplayRecordNumber, records, searchTerm, statusFilter, severityFilter, sortConfig]);
+  }, [getDisplayRecordNumber, records, searchTerm, statusFilter, severityFilter, detectionDateFrom, detectionDateTo, sortConfig]);
 
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -983,6 +1003,23 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 <SelectItem value="Kritik">Kritik</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+              <Input
+                type="date"
+                className="w-full sm:w-40"
+                value={detectionDateFrom}
+                onChange={(e) => { setDetectionDateFrom(e.target.value); setVisibleCount(PAGE_SIZE); }}
+                title="Tespit tarihi başlangıç"
+              />
+              <span className="hidden sm:inline text-muted-foreground text-xs">—</span>
+              <Input
+                type="date"
+                className="w-full sm:w-40"
+                value={detectionDateTo}
+                onChange={(e) => { setDetectionDateTo(e.target.value); setVisibleCount(PAGE_SIZE); }}
+                title="Tespit tarihi bitiş"
+              />
+            </div>
             <Button variant="outline" size="icon" onClick={() => { fetchRecords(); fetchSettings(); }}>
               <RefreshCw className="h-4 w-4" />
             </Button>

@@ -68,6 +68,8 @@ const DOCUMENT_TYPE_MAPPING = {
     'Diğer': ['Diğer', 'Diger']
 };
 
+const CERTIFICATE_CATEGORY_TABS = new Set(['Kalite Sertifikaları', 'Personel Sertifikaları']);
+
 const DEPARTMENT_FILTERABLE_CATEGORIES = new Set([
     'Tümü', 'Prosedürler', 'Talimatlar', 'Formlar', 'El Kitapları', 'Şemalar',
     'Görev Tanımları', 'Süreçler', 'Planlar', 'Listeler', 'Şartnameler',
@@ -350,6 +352,12 @@ const DocumentModule = () => {
     };
 
     const currentCategory = DOCUMENT_CATEGORIES.find(c => c.value === activeTab);
+    const showCertExpiryColumn = CERTIFICATE_CATEGORY_TABS.has(activeTab);
+    const documentTableColSpan =
+        7
+        + (activeTab === 'Personel Sertifikaları' ? 1 : 0)
+        + (DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) ? 1 : 0)
+        + (showCertExpiryColumn ? 1 : 0);
 
     // Tab değiştiğinde birim filtresini sıfırla
     useEffect(() => {
@@ -500,15 +508,16 @@ const DocumentModule = () => {
                                         <th>Versiyon</th>
                                         <th>Yayın Tarihi</th>
                                         <th>Revizyon Tarihi</th>
+                                        {showCertExpiryColumn && <th>Bitiş tarihi</th>}
                                         <th>Geçerlilik Durumu</th>
                                         <th className="px-4 py-2 text-center whitespace-nowrap z-20 border-l border-border shadow-[2px_0_4px_rgba(0,0,0,0.1)]">İşlemler</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {loading ? (
-                                        <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '9' : DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) ? '9' : '8'} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
+                                        <tr><td colSpan={documentTableColSpan} className="text-center py-8 text-muted-foreground">Yükleniyor...</td></tr>
                                     ) : filteredDocuments.length === 0 ? (
-                                        <tr><td colSpan={activeTab === 'Personel Sertifikaları' ? '9' : DEPARTMENT_FILTERABLE_CATEGORIES.has(activeTab) ? '9' : '8'} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
+                                        <tr><td colSpan={documentTableColSpan} className="text-center py-8 text-muted-foreground">{activeTab === 'Tümü' ? 'Doküman bulunmuyor.' : 'Bu kategoride doküman bulunmuyor.'}</td></tr>
                                     ) : (
                                         filteredDocuments.map((doc) => {
                                             // filteredDocuments içinde zaten revision tek bir obje olarak set edilmiş
@@ -556,6 +565,20 @@ const DocumentModule = () => {
                                                             }
                                                         })() : '-'}
                                                     </td>
+                                                    {showCertExpiryColumn && (
+                                                        <td className="text-muted-foreground whitespace-nowrap">
+                                                            {doc.valid_until
+                                                                ? (() => {
+                                                                    try {
+                                                                        const d = new Date(doc.valid_until);
+                                                                        return isNaN(d.getTime()) ? '-' : format(d, 'dd.MM.yyyy', { locale: tr });
+                                                                    } catch {
+                                                                        return '-';
+                                                                    }
+                                                                })()
+                                                                : 'Süresiz'}
+                                                        </td>
+                                                    )}
                                                     <td><ValidityStatus validUntil={doc.valid_until} /></td>
                                                     <td className="flex items-center gap-2 flex-wrap">
                                                         <Button variant="ghost" size="sm" onClick={() => handleViewPdf(revision, doc.title, doc.document_type)} disabled={!hasFile}><Eye className="w-4 h-4 mr-1" /> Görüntüle</Button>

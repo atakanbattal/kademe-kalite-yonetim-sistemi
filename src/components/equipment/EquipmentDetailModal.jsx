@@ -5,7 +5,9 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Box, X } from 'lucide-react';
+import { Plus, Box, X, FileText, Upload } from 'lucide-react';
+import { openPrintableReport } from '@/lib/reportUtils';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import CalibrationHistory from '@/components/equipment/CalibrationHistory';
 import AssignmentHistory from '@/components/equipment/AssignmentHistory';
 import CalibrationModal from '@/components/equipment/CalibrationModal';
@@ -17,9 +19,11 @@ const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh, refresh
     // refreshData veya onRefresh kullanılabilir
     const handleRefresh = refreshData || onRefresh;
     const { toast } = useToast();
+    const { profile } = useAuth();
     const [isCalibrationModalOpen, setCalibrationModalOpen] = useState(false);
     const [isAssignModalOpen, setAssignModalOpen] = useState(false);
     const [isScrapModalOpen, setIsScrapModalOpen] = useState(false);
+    const [isScrapDocumentModalOpen, setIsScrapDocumentModalOpen] = useState(false);
     const [personnelList, setPersonnelList] = useState([]);
     const [selectedCalibration, setSelectedCalibration] = useState(null);
     const [pdfViewerState, setPdfViewerState] = useState({ isOpen: false, url: null, title: '' });
@@ -220,6 +224,41 @@ const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh, refresh
         }
     };
 
+    const handleOpenScrapCertificatePdf = async (filePath, titleLabel) => {
+        if (!filePath) {
+            toast({ variant: "destructive", title: "Hata", description: "Dosya yolu bulunamadı." });
+            return;
+        }
+        let normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+        if (normalizedPath.startsWith('public/')) normalizedPath = normalizedPath.replace('public/', '');
+        const attempts = [
+            ['calibration_certificates', normalizedPath],
+            ['calibration_certificates', `scrap/${normalizedPath.split('/').pop()}`],
+            ['equipment_documents', normalizedPath],
+        ];
+        for (const [bucket, path] of attempts) {
+            const { data, error } = await supabase.storage.from(bucket).download(path);
+            if (!error && data) {
+                const blob = new Blob([data], { type: 'application/pdf' });
+                const blobUrl = window.URL.createObjectURL(blob);
+                setPdfViewerState({ isOpen: true, url: blobUrl, title: titleLabel || 'Hurda tutanağı' });
+                return;
+            }
+        }
+        toast({ variant: "destructive", title: "Hata", description: "Tutanağı açmak için dosya bulunamadı." });
+    };
+
+    const handleGenerateScrapCertificate = () => {
+        openPrintableReport(
+            {
+                ...equipment,
+                scrap_prepared_by_name: profile?.full_name || '',
+            },
+            'equipment_scrap_certificate',
+            true
+        );
+    };
+
     return (
         <>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -250,17 +289,35 @@ const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh, refresh
                                 <>
                                     <div><p className="text-sm text-muted-foreground">Hurdaya Ayırma Tarihi</p><p className="font-semibold text-destructive">{new Date(equipment.scrap_date).toLocaleDateString('tr-TR')}</p></div>
                                     <div className="col-span-2"><p className="text-sm text-muted-foreground">Hurdaya Ayırma Sebebi</p><p className="font-semibold">{equipment.scrap_reason || '-'}</p></div>
-                                    {equipment.scrap_document_path && (
-                                        <div className="col-span-full">
+                                    <div className="col-span-full flex flex-wrap gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={handleGenerateScrapCertificate}
+                                        >
+                                            <FileText className="h-4 w-4 mr-2" />
+                                            Tutanak PDF oluştur
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setIsScrapDocumentModalOpen(true)}
+                                        >
+                                            <Upload className="h-4 w-4 mr-2" />
+                                            İmzalı tutanak yükle
+                                        </Button>
+                                        {equipment.scrap_document_path && (
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => handleOpenPdfViewer(equipment.scrap_document_path, 'Hurdaya Ayırma Tutanağı')}
+                                                onClick={() => handleOpenScrapCertificatePdf(equipment.scrap_document_path, 'Hurdaya Ayırma Tutanağı')}
                                             >
-                                                Hurdaya Ayırma Tutanağını Görüntüle
+                                                Tutanağı görüntüle
                                             </Button>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </>
                             )}
                             <div className="col-span-full"><p className="text-sm text-muted-foreground">Açıklama</p><p className="font-semibold">{equipment.description || '-'}</p></div>
@@ -343,8 +400,22 @@ const EquipmentDetailModal = ({ isOpen, setIsOpen, equipment, onRefresh, refresh
                     isOpen={isScrapModalOpen}
                     setIsOpen={setIsScrapModalOpen}
                     equipment={equipment}
+                    mode="full"
                     onSuccess={() => {
                         setIsScrapModalOpen(false);
+                        if (handleRefresh) handleRefresh();
+                    }}
+                />
+            )}
+
+            {isScrapDocumentModalOpen && (
+                <ScrapEquipmentModal
+                    isOpen={isScrapDocumentModalOpen}
+                    setIsOpen={setIsScrapDocumentModalOpen}
+                    equipment={equipment}
+                    mode="documentOnly"
+                    onSuccess={() => {
+                        setIsScrapDocumentModalOpen(false);
                         if (handleRefresh) handleRefresh();
                     }}
                 />

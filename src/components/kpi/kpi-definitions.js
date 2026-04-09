@@ -7,7 +7,7 @@ export const KPI_UNIT_OPTIONS = [
     { value: 'gün', label: 'gün' },
     { value: 'puan', label: 'puan' },
     { value: 'TRY', label: 'TRY' },
-    { value: 'TRY/Araç', label: 'TRY/Araç' },
+    { value: 'TRY/Araç', label: 'TRY / araç' },
     { value: 'Kg', label: 'Kg' },
     { value: 'saat', label: 'saat' },
 ];

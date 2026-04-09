@@ -16,12 +16,15 @@ export const VEHICLE_METRIC_ORDER = [
     'rejection_count_per_vehicle',
 ];
 
+/** Araç başı metriklerde tutarlı gösterim: boşluk + küçük "araç" */
+export const PER_VEHICLE_UNIT_SUFFIX = ' / araç';
+
 export const VEHICLE_METRIC_DEFINITIONS = {
     scrap_cost_per_vehicle: {
         key: 'scrap_cost_per_vehicle',
         label: 'Hurda Maliyeti',
         shortLabel: 'Hurda',
-        unit: 'TRY/Araç',
+        unit: 'TRY / araç',
         contributionUnit: 'TRY',
         chartUnit: 'TRY',
         chartKey: 'scrapCostPerVehicle',
@@ -34,7 +37,7 @@ export const VEHICLE_METRIC_DEFINITIONS = {
         key: 'rework_cost_per_vehicle',
         label: 'Yeniden İşlem Maliyeti',
         shortLabel: 'Y. İşlem',
-        unit: 'TRY/Araç',
+        unit: 'TRY / araç',
         contributionUnit: 'TRY',
         chartUnit: 'TRY',
         chartKey: 'reworkPerVehicle',
@@ -47,7 +50,7 @@ export const VEHICLE_METRIC_DEFINITIONS = {
         key: 'scrap_kg_per_vehicle',
         label: 'Hurda Ağırlığı',
         shortLabel: 'Hurda Kg',
-        unit: 'Kg/Araç',
+        unit: 'kg / araç',
         contributionUnit: 'Kg',
         chartUnit: 'Kg',
         chartKey: 'scrapPerVehicle',
@@ -60,7 +63,7 @@ export const VEHICLE_METRIC_DEFINITIONS = {
         key: 'waste_kg_per_vehicle',
         label: 'Fire Ağırlığı',
         shortLabel: 'Fire Kg',
-        unit: 'Kg/Araç',
+        unit: 'kg / araç',
         contributionUnit: 'Kg',
         chartUnit: 'Kg',
         chartKey: 'wastePerVehicle',
@@ -73,7 +76,7 @@ export const VEHICLE_METRIC_DEFINITIONS = {
         key: 'rejection_count_per_vehicle',
         label: 'Ret Adedi',
         shortLabel: 'Ret',
-        unit: 'Adet/Araç',
+        unit: 'adet / araç',
         contributionUnit: 'Adet',
         chartUnit: 'Adet',
         chartKey: 'rejectionPerVehicle',
@@ -101,7 +104,8 @@ export const formatVehicleMetricValue = (value, metricKey, { perVehicle = true }
     if (!definition) return '-';
 
     if (definition.isCurrency) {
-        return perVehicle ? currencyFormatter.format(value || 0) : currencyFormatter.format(value || 0);
+        const base = currencyFormatter.format(value || 0);
+        return perVehicle ? `${base}${PER_VEHICLE_UNIT_SUFFIX}` : base;
     }
 
     const suffix = perVehicle ? definition.unit : definition.contributionUnit;

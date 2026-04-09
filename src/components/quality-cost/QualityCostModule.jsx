@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { openPrintableReport } from '@/lib/reportUtils';
+import { filterCostsByYear, summarizeCostRows } from '@/lib/qualityCostAnalysis';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Building2, BarChart3 } from 'lucide-react';
 
@@ -79,7 +80,13 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [selectedLineItem, setSelectedLineItem] = useState(null);
     const [dateRange, setDateRange] = useState({ key: 'all', startDate: null, endDate: null, label: 'Tüm Zamanlar' });
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
-    const [detailModalContent, setDetailModalContent] = useState({ title: '', costs: [] });
+    const [detailModalContent, setDetailModalContent] = useState({
+        title: '',
+        costs: [],
+        yearContext: null,
+        vehicleContext: null,
+        dateRange: null,
+    });
     const [searchTerm, setSearchTerm] = useState('');
     const [unitFilter, setUnitFilter] = useState('all');
     const [sourceFilter, setSourceFilter] = useState('all');
@@ -92,6 +99,11 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     const [sortConfig, setSortConfig] = useState({ key: 'cost_date', direction: 'desc' });
     const [displayLimit, setDisplayLimit] = useState(100); // Tabloda gösterilecek kayıt limiti
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+    const [vehicleTargetsRefreshKey, setVehicleTargetsRefreshKey] = useState(0);
+
+    const handleVehicleTargetsApplied = useCallback(() => {
+        setVehicleTargetsRefreshKey((k) => k + 1);
+    }, []);
 
     const hasNCAccess = useMemo(() => {
         return profile?.role === 'admin';
@@ -191,6 +203,35 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
 
         return costs;
     }, [qualityCosts, dateRange, unitFilter, sourceFilter, costCategoryFilter, searchTerm, sortConfig]);
+
+    const copqYearTotals = useMemo(() => {
+        const cy = new Date().getFullYear();
+        const py = cy - 1;
+        let totalCurrent = 0;
+        let totalPrevious = 0;
+        for (const c of qualityCosts || []) {
+            if (!c?.cost_date) continue;
+            const y = new Date(c.cost_date).getFullYear();
+            const amt = parseFloat(c.amount) || 0;
+            if (y === cy) totalCurrent += amt;
+            if (y === py) totalPrevious += amt;
+        }
+        return { currentYear: cy, previousYear: py, totalCurrent, totalPrevious };
+    }, [qualityCosts]);
+
+    const copqYearlyInsight = useMemo(() => {
+        const cy = new Date().getFullYear();
+        const py = cy - 1;
+        const sCurrent = summarizeCostRows(filterCostsByYear(qualityCosts, cy));
+        const sPrevious = summarizeCostRows(filterCostsByYear(qualityCosts, py));
+        return {
+            currentYear: cy,
+            previousYear: py,
+            current: sCurrent,
+            previous: sPrevious,
+            previousMonthlyAvg: sPrevious.total / 12,
+        };
+    }, [qualityCosts]);
 
     // Kalem bazlı genişletme; ortak maliyet tutarı kalemlere oranlanır (ayrı satır yok)
     const expandedRows = useMemo(() => {
@@ -347,9 +388,45 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
     };
 
     const handleOpenDrillDownModal = useCallback((title, costs) => {
-        setDetailModalContent({ title, costs });
+        setDetailModalContent({
+            title,
+            costs: costs || [],
+            yearContext: null,
+            vehicleContext: null,
+            dateRange: null,
+        });
         setDetailModalOpen(true);
     }, []);
+
+    const handleYearCOPQDrillDown = useCallback(
+        (year) => {
+            const rows = filterCostsByYear(qualityCosts, year);
+            setDetailModalContent({
+                title: `${year} COPQ – yıl içi tüm kayıtlar`,
+                costs: rows,
+                yearContext: year,
+                vehicleContext: null,
+                dateRange: null,
+            });
+            setDetailModalOpen(true);
+        },
+        [qualityCosts]
+    );
+
+    const handleVehicleCOPQDrillDown = useCallback(
+        (vehicleType) => {
+            const rows = filteredCosts.filter((c) => c.vehicle_type === vehicleType);
+            setDetailModalContent({
+                title: `${vehicleType} — Araç tipi performans ve COPQ`,
+                costs: rows,
+                yearContext: null,
+                vehicleContext: vehicleType,
+                dateRange,
+            });
+            setDetailModalOpen(true);
+        },
+        [filteredCosts, dateRange]
+    );
 
     const uniqueUnits = useMemo(() => {
         const units = new Set();
@@ -809,9 +886,16 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 onClose={() => setDetailModalOpen(false)}
                 data={{
                     title: detailModalContent.title,
-                    costs: detailModalContent.costs
+                    costs: detailModalContent.costs,
+                    yearContext: detailModalContent.yearContext,
+                    vehicleContext: detailModalContent.vehicleContext,
+                    dateRange: detailModalContent.dateRange,
                 }}
                 allCosts={qualityCosts}
+                onVehicleTargetsApplied={handleVehicleTargetsApplied}
+                onCreateNC={handleCreateNC}
+                onOpenNCView={onOpenNCView}
+                hasNCAccess={hasNCAccess}
             />
             <UnitReportModal
                 isOpen={isReportModalOpen}
@@ -950,7 +1034,14 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     <TabsTrigger value="details" className="text-xs">Detaylı Analiz</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="mt-6">
-                    <CostAnalytics costs={filteredCosts} loading={loading} onBarClick={handleOpenDrillDownModal} />
+                    <CostAnalytics
+                        costs={filteredCosts}
+                        loading={loading}
+                        onBarClick={handleOpenDrillDownModal}
+                        copqYearTotals={copqYearTotals}
+                        copqYearlyInsight={copqYearlyInsight}
+                        onYearCOPQClick={handleYearCOPQDrillDown}
+                    />
                 </TabsContent>
                 <TabsContent value="records" className="mt-6">
                     <div className="dashboard-widget">
@@ -1149,7 +1240,7 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                     </div>
                 </TabsContent>
                 <TabsContent value="forecast" className="mt-6">
-                    <CostForecaster costs={filteredCosts} />
+                    <CostForecaster costs={filteredCosts} copqYearTotals={copqYearTotals} />
                 </TabsContent>
                 <TabsContent value="copq" className="mt-6 space-y-6">
                     <COPQCalculator
@@ -1179,12 +1270,14 @@ const QualityCostModule = ({ onOpenNCForm, onOpenNCView }) => {
                 </TabsContent>
                 <TabsContent value="details" className="mt-6">
                     <VehicleCostBreakdown
+                        key={vehicleTargetsRefreshKey}
                         costs={filteredCosts}
                         loading={loading}
                         dateRange={dateRange}
                         onCreateNC={handleCreateNC}
                         onOpenNCView={onOpenNCView}
                         hasNCAccess={hasNCAccess}
+                        onVehicleCOPQClick={handleVehicleCOPQDrillDown}
                     />
                 </TabsContent>
             </Tabs>

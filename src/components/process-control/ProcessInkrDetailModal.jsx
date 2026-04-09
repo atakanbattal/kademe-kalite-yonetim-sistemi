@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
 import {
     CalendarDays,
     CheckCircle2,
@@ -31,6 +29,7 @@ import {
     fetchProcessInkrAttachmentsForReport,
     getProcessInkrDisplayNumber,
 } from './processInkrUtils';
+import { formatInspectionDateTime } from '@/lib/dateDisplay';
 
 const DetailStatCard = ({ icon: Icon, label, value, helper, tone = 'slate' }) => {
     const toneClasses = {
@@ -122,16 +121,6 @@ const getDecisionBadge = (decision) => {
         return <Badge className="border-transparent bg-rose-100 text-rose-700">Ret</Badge>;
     }
     return <Badge variant="secondary">Bekliyor</Badge>;
-};
-
-const formatDateTime = (value) => {
-    if (!value) return '-';
-
-    try {
-        return format(new Date(value), 'dd MMMM yyyy HH:mm', { locale: tr });
-    } catch {
-        return '-';
-    }
 };
 
 const formatFileSize = (bytes) => {
@@ -387,7 +376,7 @@ const ProcessInkrDetailModal = ({
                                     </span>
                                     <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
                                         <CalendarDays className="h-4 w-4" />
-                                        {formatDateTime(report.report_date || report.created_at)}
+                                        {formatInspectionDateTime(report.report_date || report.created_at)}
                                     </span>
                                     {report.vehicle_type ? (
                                         <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
@@ -447,7 +436,7 @@ const ProcessInkrDetailModal = ({
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                     <p className="text-xs font-semibold tracking-[0.08em] text-slate-500">Rapor Tarihi</p>
                                     <p className="mt-2 text-base font-semibold text-slate-900">
-                                        {formatDateTime(report.report_date || report.created_at)}
+                                        {formatInspectionDateTime(report.report_date || report.created_at)}
                                     </p>
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -609,7 +598,7 @@ const ProcessInkrDetailModal = ({
                                                     <p className="font-medium text-slate-900">{attachment.file_name}</p>
                                                     <p className="mt-1 text-sm text-slate-500">
                                                         {formatFileSize(attachment.file_size)} •{' '}
-                                                        {formatDateTime(attachment.uploaded_at)}
+                                                        {formatInspectionDateTime(attachment.uploaded_at)}
                                                     </p>
                                                 </div>
                                             </div>

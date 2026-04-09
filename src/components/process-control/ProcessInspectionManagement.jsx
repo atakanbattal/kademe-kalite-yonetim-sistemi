@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatInspectionDateOnly } from '@/lib/dateDisplay';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ProcessInspectionFormModal from './ProcessInspectionFormModal';
 import ProcessInspectionDetailModal from './ProcessInspectionDetailModal';
@@ -222,7 +222,11 @@ const ProcessInspectionManagement = () => {
                             inspections.map((inspection) => (
                                 <TableRow key={inspection.id} className="hover:bg-muted/30 transition-colors">
                                     <TableCell className="font-medium">{inspection.record_no}</TableCell>
-                                    <TableCell>{format(new Date(inspection.inspection_date), 'dd.MM.yyyy HH:mm')}</TableCell>
+                                    <TableCell>
+                                        {inspection.inspection_date
+                                            ? formatInspectionDateOnly(inspection.inspection_date)
+                                            : '-'}
+                                    </TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className="font-medium text-sm">{inspection.part_code}</span>

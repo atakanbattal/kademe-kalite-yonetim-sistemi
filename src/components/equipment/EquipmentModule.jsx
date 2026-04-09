@@ -333,19 +333,10 @@ const EquipmentModule = ({ onOpenPdfViewer }) => {
             />
 
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <p className="text-muted-foreground mt-1 max-w-3xl">
-                        Ölçüm cihazları, kalibrasyon ve zimmet takibi. Üstteki özet, kayıtlı tüm ekipman üzerinden
-                        hesaplanır; aşağıdaki liste arama ve filtreyle sınırlanır. Soru işaretinden göstergelerin tanımına
-                        ulaşabilirsiniz.
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button onClick={() => handleOpenForm()}>
-                        <Plus className="w-4 h-4 mr-2" /> Yeni Ekipman Ekle
-                    </Button>
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
+                <Button onClick={() => handleOpenForm()}>
+                    <Plus className="w-4 h-4 mr-2" /> Yeni Ekipman Ekle
+                </Button>
             </div>
 
             <EquipmentDashboard allEquipments={allEquipments} loading={loading} />

@@ -44,7 +44,7 @@ const PrintableReport = () => {
                         });
 
                         // Liste tipleri için localStorage'dan veri okunduysa direkt kullan
-                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'quality_cost_executive_summary' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
+                        if (type.endsWith('_list') || type === 'document_list' || type === 'equipment_list' || type === 'kpi_list' || type === 'leak_test_list' || type === 'process_inspection_list' || type === 'quality_cost_executive_summary' || type === 'incoming_quality_executive_summary' || type === 'produced_vehicles_executive_summary' || type === 'supplier_quality_executive_summary') {
                             // Liste tipleri için ek işlem gerekmez, veri zaten hazır
                             console.log(`✅ Liste tipi (${type}) verisi localStorage'dan okundu`);
                         }

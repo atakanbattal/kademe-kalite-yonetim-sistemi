@@ -447,6 +447,57 @@ const PrintableInternalAuditDashboard = () => {
                     </div>
                 </ReportSection>
 
+                <ReportSection title="Tetkik Listesi (Durum)">
+                    {audits.length > 0 ? (
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '14%' }}>Rapor No</th>
+                                    <th style={{ width: '18%' }}>Birim</th>
+                                    <th style={{ width: '14%' }}>Durum</th>
+                                    <th style={{ width: '12%' }}>Tetkik Tarihi</th>
+                                    <th style={{ width: '42%' }}>Başlık</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[...audits]
+                                    .sort((a, b) => {
+                                        const da = a.audit_date ? new Date(a.audit_date).getTime() : 0;
+                                        const db = b.audit_date ? new Date(b.audit_date).getTime() : 0;
+                                        return db - da;
+                                    })
+                                    .map((audit) => {
+                                        const st = audit.status || 'Belirtilmemiş';
+                                        const statusClass =
+                                            st === 'Tamamlandı' ? 'status-completed' :
+                                            st === 'Planlandı' ? 'status-planned' :
+                                            st === 'Devam ediyor' || st === 'Devam Ediyor' ? 'status-in-progress' :
+                                            'status-open';
+                                        const dept = audit.department?.unit_name || 'Belirtilmemiş';
+                                        const ad = audit.audit_date && isValid(parseISO(String(audit.audit_date).slice(0, 10)))
+                                            ? format(parseISO(String(audit.audit_date).slice(0, 10)), 'dd.MM.yyyy', { locale: tr })
+                                            : '-';
+                                        return (
+                                            <tr key={audit.id}>
+                                                <td style={{ fontWeight: 600 }}>{audit.report_number || '-'}</td>
+                                                <td>{dept}</td>
+                                                <td>
+                                                    <span className={`status-badge ${statusClass}`}>{st}</span>
+                                                </td>
+                                                <td>{ad}</td>
+                                                <td>{audit.title || '-'}</td>
+                                            </tr>
+                                        );
+                                    })}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p style={{ textAlign: 'center', color: '#888', padding: '40px' }}>
+                            Tetkik kaydı bulunmuyor.
+                        </p>
+                    )}
+                </ReportSection>
+
                 <ReportSection title="Tetkik Türlerine Göre Analiz">
                     {analytics.auditTypesData.length > 0 ? (
                         <table className="data-table">

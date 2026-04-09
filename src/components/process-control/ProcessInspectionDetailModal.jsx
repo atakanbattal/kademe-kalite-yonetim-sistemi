@@ -25,6 +25,7 @@ import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { openPrintableReport } from '@/lib/reportUtils';
 import { buildMeasurementBundle } from './processInspectionUtils';
+import { formatInspectionDateTime, formatInspectionDateOnly } from '@/lib/dateDisplay';
 
 const getResultDecisionFlag = (row) => {
     if (typeof row?.result === 'boolean') return row.result;
@@ -113,16 +114,6 @@ const getRowStatusBadge = (row) => {
         return <Badge className="border-transparent bg-rose-100 text-rose-700">Uygun Değil</Badge>;
     }
     return <Badge variant="secondary">Bekliyor</Badge>;
-};
-
-const formatInspectionDate = (value) => {
-    if (!value) return '-';
-
-    try {
-        return format(new Date(value), 'dd MMMM yyyy HH:mm', { locale: tr });
-    } catch {
-        return '-';
-    }
 };
 
 const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
@@ -285,14 +276,17 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
 
     if (!inspection) return null;
 
+    const inspectionDayLabel = inspection.inspection_date
+        ? formatInspectionDateOnly(inspection.inspection_date)
+        : formatInspectionDateTime(inspection.created_at);
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-6xl w-[98vw] sm:w-[96vw] max-h-[96vh] overflow-hidden p-0 flex flex-col" hideCloseButton>
                 <DialogHeader className="sr-only">
                     <DialogTitle>Proses Muayene Raporu: {inspection.record_no}</DialogTitle>
                     <DialogDescription>
-                        {formatInspectionDate(inspection.inspection_date || inspection.created_at)} tarihli muayene
-                        kaydının detayları
+                        {inspectionDayLabel} tarihli muayene kaydının detayları
                     </DialogDescription>
                 </DialogHeader>
 
@@ -330,7 +324,7 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                                         </span>
                                         <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
                                             <CalendarDays className="h-4 w-4" />
-                                            {formatInspectionDate(inspection.inspection_date || inspection.created_at)}
+                                            {inspectionDayLabel}
                                         </span>
                                     </div>
                                 </div>
@@ -377,8 +371,8 @@ const ProcessInspectionDetailModal = ({ isOpen, setIsOpen, inspection }) => {
                             <InspectionStatCard
                                 icon={CalendarDays}
                                 label="Muayene Tarihi"
-                                value={formatInspectionDate(inspection.inspection_date || inspection.created_at)}
-                                helper={inspection.created_at ? `Kayıt: ${formatInspectionDate(inspection.created_at)}` : null}
+                                value={inspectionDayLabel}
+                                helper={inspection.created_at ? `Kayıt: ${formatInspectionDateTime(inspection.created_at)}` : null}
                             />
                             <InspectionStatCard
                                 icon={Gauge}

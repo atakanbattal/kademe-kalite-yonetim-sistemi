@@ -5,7 +5,10 @@ import { Brain, TrendingUp, AlertCircle } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
-const CostForecaster = ({ costs }) => {
+const formatTry = (value) =>
+    (typeof value === 'number' ? value : 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+
+const CostForecaster = ({ costs, copqYearTotals }) => {
     const predictionData = useMemo(() => {
         if (!costs || costs.length < 3) return null;
 
@@ -117,7 +120,22 @@ const CostForecaster = ({ costs }) => {
                             AI Maliyet Öngörüsü
                         </CardTitle>
                         <CardDescription>
-                            Lineer regresyon modeli ile gelecek 3 ayın maliyet tahmini.
+                            Son 6 ayın gerçekleşen COPQ trendi (mavi) ile gelecek 3 ayın projeksiyonu (mor kesik).
+                            {copqYearTotals && (
+                                <>
+                                    {' '}
+                                    {copqYearTotals.previousYear} yılı toplam gerçekleşen:{' '}
+                                    <strong>{formatTry(copqYearTotals.totalPrevious)}</strong>
+                                    {copqYearTotals.totalCurrent > 0 ? (
+                                        <>
+                                            {' '}
+                                            · {copqYearTotals.currentYear} yıl içi:{' '}
+                                            <strong>{formatTry(copqYearTotals.totalCurrent)}</strong>
+                                        </>
+                                    ) : null}
+                                    .
+                                </>
+                            )}
                         </CardDescription>
                     </div>
                     <div className="text-right">
@@ -156,7 +174,7 @@ const CostForecaster = ({ costs }) => {
                             <Line
                                 type="monotone"
                                 dataKey="actual"
-                                name="Gerçekleşen"
+                                name="Gerçekleşen (son 6 ay)"
                                 stroke="#2563eb"
                                 strokeWidth={3}
                                 dot={{ r: 4, fill: "#2563eb" }}
@@ -166,7 +184,7 @@ const CostForecaster = ({ costs }) => {
                             <Line
                                 type="monotone"
                                 dataKey="predicted"
-                                name="AI Tahmini"
+                                name="Projeksiyon (gelecek 3 ay)"
                                 stroke="#9333ea"
                                 strokeWidth={3}
                                 strokeDasharray="5 5"

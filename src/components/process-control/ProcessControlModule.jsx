@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import { openPrintableReport } from '@/lib/reportUtils';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProcessControlDashboard from './ProcessControlDashboard';
@@ -9,7 +11,7 @@ import ControlPlanManagement from './ControlPlanManagement';
 import ProcessInkrManagement from './ProcessInkrManagement';
 import ProcessInspectionManagement from './ProcessInspectionManagement';
 import ProcessControlFolderDownloadModal from './ProcessControlFolderDownloadModal';
-import { Download } from 'lucide-react';
+import { Download, FileSpreadsheet, Presentation } from 'lucide-react';
 import { enrichProcessInkrReports } from './processInkrUtils';
 
 const PROCESS_CONTROL_TABS = [
@@ -141,6 +143,28 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
         loadData();
     }, [fetchPlans, fetchInkrReports, fetchInspections]);
 
+    const handleProcessInspectionListReport = useCallback(() => {
+        if (!inspections.length) {
+            toast({ variant: 'destructive', title: 'Rapor', description: 'Yazdırılacak muayene kaydı yok.' });
+            return;
+        }
+        openPrintableReport(
+            {
+                id: `process-inspection-list-${Date.now()}`,
+                title: 'Proses Muayene Listesi Raporu',
+                items: inspections.map((i) => ({
+                    record_no: i.record_no,
+                    part_code: i.part_code,
+                    inspection_date: i.inspection_date,
+                    decision: i.decision,
+                    operator_name: i.operator_name,
+                })),
+            },
+            'process_inspection_list',
+            true
+        );
+    }, [inspections, toast]);
+
     return (
         <>
             <Helmet>
@@ -153,10 +177,22 @@ const ProcessControlModule = ({ onOpenNCForm, onOpenNCView }) => {
                             Kontrol planları, ilk numune raporları ve proses muayene kayıtlarını yönetin.
                         </p>
                     </div>
-                    <Button onClick={() => setIsFolderDownloadOpen(true)} className="sm:self-start">
-                        <Download className="mr-2 h-4 w-4" />
-                        Klasör İndir
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2 sm:self-start">
+                        <Button variant="outline" size="sm" onClick={handleProcessInspectionListReport} disabled={loading || !inspections.length}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Rapor Al
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <Link to="/print/executive-presentation" target="_blank" rel="noopener noreferrer">
+                                <Presentation className="mr-2 h-4 w-4" />
+                                Yönetici özeti
+                            </Link>
+                        </Button>
+                        <Button onClick={() => setIsFolderDownloadOpen(true)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Klasör İndir
+                        </Button>
+                    </div>
                 </div>
 
                 <ProcessControlFolderDownloadModal

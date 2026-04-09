@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Upload, X } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
-const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
+const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess, mode = 'full' }) => {
     const { toast } = useToast();
     const { profile } = useAuth();
     const [scrapReason, setScrapReason] = useState('');
@@ -17,6 +17,15 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
     const [scrapDocument, setScrapDocument] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isDocumentOnly = mode === 'documentOnly';
+
+    useEffect(() => {
+        if (!isOpen) {
+            setScrapReason('');
+            setScrapDate(new Date().toISOString().split('T')[0]);
+            setScrapDocument(null);
+        }
+    }, [isOpen]);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -45,7 +54,61 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
         setScrapDocument(null);
     };
 
+    const uploadScrapPdf = async () => {
+        const fileName = `scrap_${equipment.id}_${Date.now()}.pdf`;
+        let uploadData, uploadError;
+        ({ data: uploadData, error: uploadError } = await supabase.storage
+            .from('equipment_documents')
+            .upload(fileName, scrapDocument, {
+                contentType: 'application/pdf',
+                upsert: false
+            }));
+
+        if (uploadError && (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found'))) {
+            ({ data: uploadData, error: uploadError } = await supabase.storage
+                .from('calibration_certificates')
+                .upload(`scrap/${fileName}`, scrapDocument, {
+                    contentType: 'application/pdf',
+                    upsert: false
+                }));
+        }
+
+        if (uploadError) {
+            throw new Error(`PDF yükleme hatası: ${uploadError.message}`);
+        }
+        return uploadData.path;
+    };
+
     const handleSubmit = async () => {
+        if (isDocumentOnly) {
+            if (!scrapDocument) {
+                toast({ variant: 'destructive', title: 'Hata', description: 'Lütfen imzalı PDF dosyasını seçiniz.' });
+                return;
+            }
+            setIsSubmitting(true);
+            setIsUploading(true);
+            try {
+                const documentPath = await uploadScrapPdf();
+                setIsUploading(false);
+                const { error: updateError } = await supabase
+                    .from('equipments')
+                    .update({ scrap_document_path: documentPath })
+                    .eq('id', equipment.id);
+                if (updateError) throw updateError;
+                toast({ title: 'Başarılı', description: 'Tutanağın yüklendi.' });
+                setScrapDocument(null);
+                setIsOpen(false);
+                onSuccess();
+            } catch (error) {
+                console.error(error);
+                toast({ variant: 'destructive', title: 'Hata', description: error.message });
+            } finally {
+                setIsSubmitting(false);
+                setIsUploading(false);
+            }
+            return;
+        }
+
         if (!scrapReason.trim()) {
             toast({
                 variant: 'destructive',
@@ -59,38 +122,12 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
         try {
             let documentPath = null;
 
-            // PDF yükleme
             if (scrapDocument) {
                 setIsUploading(true);
-                const fileName = `scrap_${equipment.id}_${Date.now()}.pdf`;
-                // Önce equipment_documents bucket'ını dene, yoksa documents bucket'ını kullan
-                let uploadData, uploadError;
-                ({ data: uploadData, error: uploadError } = await supabase.storage
-                    .from('equipment_documents')
-                    .upload(fileName, scrapDocument, {
-                        contentType: 'application/pdf',
-                        upsert: false
-                    }));
-                
-                // Eğer bucket yoksa calibration_certificates bucket'ını kullan (mevcut bucket)
-                if (uploadError && (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found'))) {
-                    ({ data: uploadData, error: uploadError } = await supabase.storage
-                        .from('calibration_certificates')
-                        .upload(`scrap/${fileName}`, scrapDocument, {
-                            contentType: 'application/pdf',
-                            upsert: false
-                        }));
-                }
-
-                if (uploadError) {
-                    throw new Error(`PDF yükleme hatası: ${uploadError.message}`);
-                }
-
-                documentPath = uploadData.path;
+                documentPath = await uploadScrapPdf();
                 setIsUploading(false);
             }
 
-            // Ekipmanı hurdaya ayır
             const { error: updateError } = await supabase
                 .from('equipments')
                 .update({
@@ -116,7 +153,6 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
                 console.error('Zimmet kapatma hatası:', closeAssignError);
             }
 
-            // Aktif kalibrasyon kayıtlarını pasif yap (silme, sadece pasif yap)
             const { error: calibrationError } = await supabase
                 .from('equipment_calibrations')
                 .update({ is_active: false })
@@ -125,7 +161,6 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
 
             if (calibrationError) {
                 console.error('Kalibrasyon güncelleme hatası:', calibrationError);
-                // Kritik değil, devam et
             }
 
             toast({
@@ -134,7 +169,6 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
                     'Ekipman hurdaya ayrıldı; aktif zimmetler kapatıldı ve kalibrasyon kayıtları pasifleştirildi.',
             });
 
-            // Formu temizle
             setScrapReason('');
             setScrapDate(new Date().toISOString().split('T')[0]);
             setScrapDocument(null);
@@ -164,17 +198,19 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className={isDocumentOnly ? 'sm:max-w-lg' : 'sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0'}>
                 <DialogHeader>
-                    <DialogTitle>Ekipmanı Hurdaya Ayır</DialogTitle>
+                    <DialogTitle>{isDocumentOnly ? 'İmzalı hurda tutanağını yükle' : 'Ekipmanı Hurdaya Ayır'}</DialogTitle>
                     <DialogDescription>
-                        {equipment?.name} ({equipment?.serial_number}) ekipmanını hurdaya ayırıyorsunuz.
-                        Bu işlem geri alınamaz ve ekipman kalibrasyondan düşecektir.
+                        {isDocumentOnly
+                            ? `${equipment?.name} (${equipment?.serial_number}) için imzalı PDF tutanağını seçin. Önce uygulamadan oluşturduğunuz şablonu yazdırıp imzaladıktan sonra buradan yükleyebilirsiniz.`
+                            : `${equipment?.name} (${equipment?.serial_number}) ekipmanını hurdaya ayırıyorsunuz. Bu işlem geri alınamaz ve ekipman kalibrasyondan düşecektir.`}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
-                    {/* Hurdaya Ayırma Tarihi */}
+                    {!isDocumentOnly && (
+                    <>
                     <div className="space-y-2">
                         <Label htmlFor="scrapDate">Hurdaya Ayırma Tarihi *</Label>
                         <Input
@@ -186,7 +222,6 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
                         />
                     </div>
 
-                    {/* Sebep */}
                     <div className="space-y-2">
                         <Label htmlFor="scrapReason">Hurdaya Ayırma Sebebi *</Label>
                         <Textarea
@@ -198,10 +233,11 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
                             required
                         />
                     </div>
+                    </>
+                    )}
 
-                    {/* PDF Yükleme */}
                     <div className="space-y-2">
-                        <Label htmlFor="scrapDocument">Hurdaya Ayırma Tutanağı (PDF)</Label>
+                        <Label htmlFor="scrapDocument">{isDocumentOnly ? 'İmzalı tutanak (PDF) *' : 'Hurdaya Ayırma Tutanağı (PDF)'}</Label>
                         <div className="flex items-center gap-2">
                             <Input
                                 id="scrapDocument"
@@ -237,13 +273,14 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
                         </p>
                     </div>
 
-                    {/* Uyarı */}
+                    {!isDocumentOnly && (
                     <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                        <p className="text-sm text-destructive font-semibold">⚠️ Uyarı</p>
+                        <p className="text-sm text-destructive font-semibold">Uyarı</p>
                         <p className="text-xs text-destructive/80 mt-1">
-                            Bu işlem sonrasında ekipman "Hurdaya Ayrıldı" durumuna geçecek ve tüm aktif kalibrasyon kayıtları pasif hale getirilecektir.
+                            Bu işlem sonrasında ekipman &quot;Hurdaya Ayrıldı&quot; durumuna geçecek ve tüm aktif kalibrasyon kayıtları pasif hale getirilecektir.
                         </p>
                     </div>
+                    )}
                 </div>
 
                 <DialogFooter>
@@ -256,10 +293,10 @@ const ScrapEquipmentModal = ({ isOpen, setIsOpen, equipment, onSuccess }) => {
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={isSubmitting || isUploading || !scrapReason.trim()}
-                        variant="destructive"
+                        disabled={isSubmitting || isUploading || (!isDocumentOnly && !scrapReason.trim()) || (isDocumentOnly && !scrapDocument)}
+                        variant={isDocumentOnly ? 'default' : 'destructive'}
                     >
-                        {isUploading ? 'Yükleniyor...' : isSubmitting ? 'İşleniyor...' : 'Hurdaya Ayır'}
+                        {isUploading ? 'Yükleniyor...' : isSubmitting ? 'İşleniyor...' : isDocumentOnly ? 'Yükle' : 'Hurdaya Ayır'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

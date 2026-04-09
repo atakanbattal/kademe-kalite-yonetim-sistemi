@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { BarChart3, Droplets, List, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BarChart3, Droplets, FileSpreadsheet, List, Plus, Presentation } from 'lucide-react';
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import { openPrintableReport } from '@/lib/reportUtils';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -112,6 +114,32 @@ const LeakTestModule = () => {
         fetchData();
     }, [fetchData]);
 
+    const handleLeakTestListReport = useCallback(() => {
+        if (!records.length) {
+            toast({ variant: 'destructive', title: 'Rapor', description: 'Listelenecek sızdırmazlık kaydı yok.' });
+            return;
+        }
+        openPrintableReport(
+            {
+                id: `leak-test-list-${Date.now()}`,
+                title: 'Sızdırmazlık Test Listesi Raporu',
+                items: records.map((r) => ({
+                    record_number: r.record_number,
+                    test_date: r.test_date,
+                    test_result: r.test_result,
+                    part_code: r.part_code,
+                    vehicle_serial_number: r.vehicle_serial_number,
+                    tank_type: r.tank_type,
+                    leak_count: r.leak_count,
+                    tested_by_name: r.tested_by_name,
+                    welded_by_name: r.welded_by_name,
+                })),
+            },
+            'leak_test_list',
+            true
+        );
+    }, [records, toast]);
+
     if (!schemaReady) {
         return (
             <div className="space-y-6">
@@ -146,10 +174,22 @@ const LeakTestModule = () => {
                         </p>
                     </div>
 
-                    <Button onClick={handleAddNew}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Yeni Kayıt
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={handleLeakTestListReport} disabled={loading || !records.length}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Rapor Al
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <Link to="/print/executive-presentation" target="_blank" rel="noopener noreferrer">
+                                <Presentation className="mr-2 h-4 w-4" />
+                                Yönetici özeti
+                            </Link>
+                        </Button>
+                        <Button onClick={handleAddNew}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Yeni Kayıt
+                        </Button>
+                    </div>
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

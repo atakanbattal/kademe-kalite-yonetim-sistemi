@@ -50,6 +50,9 @@ const DialogContent = React.forwardRef(({ className, children, hideCloseButton =
       )}
       {...props}
     >
+      <DialogPrimitive.Description className="sr-only">
+        Kademe Kalite Yönetim Sistemi iletişim penceresi
+      </DialogPrimitive.Description>
       {children}
       {!hideCloseButton && (
         <DialogPrimitive.Close className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none touch-manipulation z-10">

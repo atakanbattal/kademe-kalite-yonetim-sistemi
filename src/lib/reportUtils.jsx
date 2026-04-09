@@ -262,7 +262,7 @@ const openPrintableReport = async (record, type, useUrlParams = false) => {
 			console.error("Error storing report data:", error);
 
 			// Fallback: Liste tipleri için hata, diğerleri için database fetch
-			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list', 'fixture_list'].includes(type);
+			const isListTypeFallback = ['quarantine_list', 'deviation_list', 'incoming_inspection_list', 'document_list', 'nonconformity_record_list', 'fixture_list', 'leak_test_list', 'process_inspection_list', 'kpi_list'].includes(type);
 			if (isListTypeFallback) {
 				alert(`Rapor oluşturulurken hata: ${error.message}`);
 				return;
@@ -340,6 +340,8 @@ const getReportTitle = (record, type) => {
 			return `Kaynak Prosedür Şartnamesi (WPS)-${record.wps_no || 'Bilinmiyor'}`;
 		case 'equipment':
 			return `Ekipman Raporu-${record.serial_number || 'Bilinmiyor'}`;
+		case 'equipment_scrap_certificate':
+			return `Hurda Tutanağı-${record.serial_number || record.name || 'Bilinmiyor'}`;
 		case 'equipment_list':
 			return 'Ekipman ve Kalibrasyon Listesi Raporu';
 		case 'certificate':
@@ -380,6 +382,12 @@ const getReportTitle = (record, type) => {
 			return record.categoryName
 				? `${record.categoryName} Listesi`
 				: 'Doküman Listesi Raporu';
+		case 'kpi_list':
+			return record.title || 'KPI Listesi Raporu';
+		case 'leak_test_list':
+			return record.title || 'Sızdırmazlık Test Listesi Raporu';
+		case 'process_inspection_list':
+			return record.title || 'Proses Muayene Listesi Raporu';
 		case 'fixture_list':
 			return record.title || 'Fikstür Liste Raporu';
 		case 'process_control_plans':
@@ -404,6 +412,7 @@ const getFormNumber = (type) => {
 		wps: 'FR-KAL-028',
 		internal_audit: 'FR-KAL-029',
 		equipment: 'FR-KAL-030',
+		equipment_scrap_certificate: 'FR-KAL-030-H',
 		certificate: 'FR-EGT-001',
 		exam_paper: 'FR-EGT-002',
 		polyvalence_matrix: 'FR-EGT-003',
@@ -411,6 +420,9 @@ const getFormNumber = (type) => {
 		dynamic_balance: 'FR-KAL-031',
 		nonconformity_record: 'FR-KAL-032',
 		nonconformity_record_list: 'FR-KAL-032-A',
+		kpi_list: 'FR-KPI-001',
+		leak_test_list: 'FR-KAL-033',
+		process_inspection_list: 'FR-KAL-034',
 	};
 	return formNumbers[type] || 'FR-GEN-000';
 };
@@ -1966,6 +1978,94 @@ const generateListReportHtml = (record, type) => {
 			${calStatusSummary ? `<p><strong>Kalibrasyon Durumu:</strong> ${calStatusSummary}</p>` : ''}
 			${record.filterInfo ? `<p><strong>Filtre:</strong> ${record.filterInfo}</p>` : ''}
 		`;
+	} else if (type === 'kpi_list') {
+		title = record.title || 'KPI Listesi Raporu';
+		headers = ['KPI Adı', 'Kategori', 'Hedef', 'Güncel Değer', 'Birim', 'Veri Kaynağı', 'Otomatik'];
+		rowsHtml = (record.items || []).map((k) => {
+			const cur = k.current_value != null && k.current_value !== '' ? String(k.current_value) : '—';
+			const tgt = k.target_value != null && k.target_value !== '' ? String(k.target_value) : '—';
+			const unit = k.unit || '—';
+			const auto = k.is_auto ? 'Evet' : 'Hayır';
+			return `
+				<tr>
+					<td style="font-weight: 600;">${escapeHtml(k.name || '-')}</td>
+					<td>${escapeHtml(k.category || 'default')}</td>
+					<td style="text-align: right;">${escapeHtml(tgt)}</td>
+					<td style="text-align: right;">${escapeHtml(cur)}</td>
+					<td>${escapeHtml(unit)}</td>
+					<td style="font-size: 0.85em;">${escapeHtml(k.data_source || '-')}</td>
+					<td style="text-align: center;">${auto}</td>
+				</tr>
+			`;
+		}).join('');
+		summaryHtml = `
+			<p><strong>Toplam KPI:</strong> ${totalCount}</p>
+			${record.filterInfo ? `<p><strong>Filtre:</strong> ${escapeHtml(record.filterInfo)}</p>` : ''}
+		`;
+	} else if (type === 'leak_test_list') {
+		title = record.title || 'Sızdırmazlık Test Listesi Raporu';
+		headers = ['Kayıt No', 'Test Tarihi', 'Sonuç', 'Parça Kodu', 'Şasi/Seri', 'Tank', 'Sızıntı', 'Test Eden', 'Kaynak Eden'];
+		rowsHtml = (record.items || []).map((r) => `
+			<tr>
+				<td style="font-weight: 600;">${escapeHtml(r.record_number)}</td>
+				<td>${escapeHtml(formatDate(r.test_date))}</td>
+				<td>${escapeHtml(r.test_result || '-')}</td>
+				<td>${escapeHtml(r.part_code || '-')}</td>
+				<td>${escapeHtml(r.vehicle_serial_number || '-')}</td>
+				<td>${escapeHtml(r.tank_type || '-')}</td>
+				<td style="text-align: center;">${r.leak_count != null ? escapeHtml(String(r.leak_count)) : '-'}</td>
+				<td>${escapeHtml(r.tested_by_name || '-')}</td>
+				<td>${escapeHtml(r.welded_by_name || '-')}</td>
+			</tr>
+		`).join('');
+		const leakItems = record.items || [];
+		const leakN = leakItems.length;
+		const leakPass = leakItems.filter((r) => {
+			const s = String(r.test_result || '').toLowerCase();
+			return s.includes('geçti') || s.includes('uygun') || s.includes('ok') || s.includes('başarı') || s.includes('basari');
+		}).length;
+		const leakFail = leakItems.filter((r) => {
+			const s = String(r.test_result || '').toLowerCase();
+			return s.includes('geçmedi') || s.includes('uygunsuz') || s.includes('red') || s.includes('fail');
+		}).length;
+		const leakAmbiguous = Math.max(0, leakN - leakPass - leakFail);
+		const leakPassRate = leakN > 0 ? ((leakPass / leakN) * 100).toFixed(1) : '0';
+		summaryHtml = `
+			<p><strong>Toplam kayıt:</strong> ${totalCount}</p>
+			<p><strong>Tahmini geçen / uygun sonuç:</strong> ${leakPass} (${leakPassRate}%)</p>
+			<p><strong>Tahmini geçmeyen / uygunsuz:</strong> ${leakFail}</p>
+			${leakAmbiguous > 0 ? `<p><strong>Sonuç metni eşleşmeyen:</strong> ${leakAmbiguous} (test_result alanını standartlaştırın)</p>` : ''}
+			${record.filterInfo ? `<p><strong>Filtre:</strong> ${escapeHtml(record.filterInfo)}</p>` : ''}
+		`;
+	} else if (type === 'process_inspection_list') {
+		title = record.title || 'Proses Muayene Listesi Raporu';
+		headers = ['Kayıt No', 'Parça Kodu', 'Muayene Tarihi', 'Karar', 'Operatör'];
+		rowsHtml = (record.items || []).map((r) => `
+			<tr>
+				<td style="font-weight: 600;">${escapeHtml(r.record_no || '-')}</td>
+				<td>${escapeHtml(r.part_code || '-')}</td>
+				<td>${escapeHtml(formatDate(r.inspection_date))}</td>
+				<td>${escapeHtml(r.decision || '-')}</td>
+				<td>${escapeHtml(r.operator_name || '-')}</td>
+			</tr>
+		`).join('');
+		const piItems = record.items || [];
+		const piN = piItems.length;
+		const piKabul = piItems.filter((r) => {
+			const d = String(r.decision || '');
+			return d.includes('Kabul') && !d.includes('Şart');
+		}).length;
+		const piSartli = piItems.filter((r) => String(r.decision || '').includes('Şart')).length;
+		const piRet = piItems.filter((r) => String(r.decision || '').includes('Ret')).length;
+		const piOther = Math.max(0, piN - piKabul - piSartli - piRet);
+		const piKabulRate = piN > 0 ? ((piKabul / piN) * 100).toFixed(1) : '0';
+		const piRetRate = piN > 0 ? ((piRet / piN) * 100).toFixed(1) : '0';
+		summaryHtml = `
+			<p><strong>Toplam muayene:</strong> ${totalCount}</p>
+			<p><strong>Kabul:</strong> ${piKabul} (${piKabulRate}%) · <strong>Şartlı kabul:</strong> ${piSartli} · <strong>Ret:</strong> ${piRet} (${piRetRate}%)</p>
+			${piOther > 0 ? `<p><strong>Diğer karar:</strong> ${piOther}</p>` : ''}
+			${record.filterInfo ? `<p><strong>Filtre:</strong> ${escapeHtml(record.filterInfo)}</p>` : ''}
+		`;
 	} else if (type === 'fixture_list') {
 		title = record.title || 'Fikstür Liste Raporu';
 		headers = ['Görsel', 'Fikstür No', 'Parça Bilgisi', 'Bölüm', 'Sınıf', 'Durum', 'Son Doğrulama', 'Sonraki Doğrulama'];
@@ -3302,7 +3402,7 @@ const generateListReportHtml = (record, type) => {
 								<th style="width: 15%; padding: 12px; text-align: center;">Araç Sayısı</th>
 								<th style="width: 15%; padding: 12px; text-align: center;">Toplam Hata</th>
 								<th style="width: 15%; padding: 12px; text-align: center;">Aktif Hata</th>
-								<th style="width: 15%; padding: 12px; text-align: right;">Ortalama Hata/Araç</th>
+								<th style="width: 15%; padding: 12px; text-align: right;">Ortalama Hata / araç</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -4310,6 +4410,8 @@ const generateGenericReportHtml = async (record, type) => {
 			case 'supplier_audit': return `TDA-${format(new Date(record.planned_date || record.actual_date || new Date()), 'yyyy-MM')}-${record.id.substring(0, 4)}`;
 			case 'internal_audit': return record.report_number || '-';
 			case 'equipment': return record.serial_number || '-';
+			case 'equipment_scrap_certificate':
+				return record.serial_number ? `HT-${record.serial_number}` : (record.id ? `HT-${String(record.id).slice(0, 8).toUpperCase()}` : '-');
 			case 'inkr_management':
 				// INKR numarası varsa onu kullan
 				if (record.inkr_number && record.inkr_number.startsWith('INKR-')) {
@@ -4339,12 +4441,16 @@ const generateGenericReportHtml = async (record, type) => {
 			case 'supplier_audit': return 'Tedarikçi Denetim Raporu';
 			case 'internal_audit': return 'İç Tetkik Raporu';
 			case 'equipment': return 'Ekipman Kalibrasyon Raporu';
+			case 'equipment_scrap_certificate': return 'Ekipman Hurda Ayırma Tutanağı';
 			case 'inkr_management': return 'INKR Raporu';
 			default: return 'Rapor';
 		}
 	};
 
 	const getPublicationDate = () => {
+		if (type === 'equipment_scrap_certificate' && record.scrap_date) {
+			return formatDate(record.scrap_date);
+		}
 		return formatDate(record.created_at || record.opening_date || record.df_opened_at || record.quarantine_date || record.inspection_date || record.entry_date || record.audit_date || record.planned_date);
 	};
 
@@ -5398,12 +5504,19 @@ const generateGenericReportHtml = async (record, type) => {
 				break;
 			}
 			case 'internal_audit': {
+				const st = record.status || '-';
+				const draftNote =
+					record.status && record.status !== 'Tamamlandı'
+						? `<tr><td colspan="2" style="background:#fef3c7;padding:10px;border-radius:4px;border-left:4px solid #f59e0b;font-size:11px;">Bu tetkik henüz tamamlanmamıştır; özet sayımları geçici bilgidir. Cevaplanmamış sorular raporda «Bekliyor» olarak gösterilir.</td></tr>`
+						: '';
 				return `
+						<tr><td>Tetkik Durumu</td><td><strong>${st}</strong></td></tr>
 						<tr><td>İç Tetkik Standartı</td><td>${record.audit_standard ? `${record.audit_standard.code}-${record.audit_standard.name}` : '-'}</td></tr>
 						<tr><td>Tetkik Başlığı</td><td>${record.title || '-'}</td></tr>
 						<tr><td>Denetlenen Birim</td><td>${record.department?.unit_name || '-'}</td></tr>
 						<tr><td>Tetkik Tarihi</td><td>${formatDate(record.audit_date)}</td></tr>
 						<tr><td>Tetkikçi</td><td>${record.auditor_name || '-'}</td></tr>
+						${draftNote}
 					`;
 				break;
 			}
@@ -5415,6 +5528,25 @@ const generateGenericReportHtml = async (record, type) => {
 						<tr><td>Sorumlu Birim</td><td>${record.responsible_unit}</td></tr>
 						<tr><td>Son Kalibrasyon</td><td>${latestCalibration ? formatDate(latestCalibration.calibration_date) : '-'}</td></tr>
 						<tr><td>Sonraki Kalibrasyon</td><td>${latestCalibration ? formatDate(latestCalibration.next_calibration_date) : '-'}</td></tr>
+					`;
+				break;
+			}
+			case 'equipment_scrap_certificate': {
+				const esc = (s) => String(s ?? '-')
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;');
+				const reason = esc(record.scrap_reason || record.scrapReason || '-');
+				return `
+						<tr><td>Ekipman Adı</td><td>${esc(record.name)}</td></tr>
+						<tr><td>Seri Numarası</td><td>${esc(record.serial_number)}</td></tr>
+						<tr><td>Marka / Model</td><td>${esc(record.brand_model || '-')}</td></tr>
+						<tr><td>Sorumlu Birim</td><td>${esc(record.responsible_unit || '-')}</td></tr>
+						<tr><td>Konum</td><td>${esc(record.location || '-')}</td></tr>
+						<tr><td>Hurda Ayırma Tarihi</td><td>${formatDate(record.scrap_date)}</td></tr>
+						<tr><td>Hurda Ayırma Sebebi</td><td><pre style="white-space: pre-wrap; margin:0; font-family: inherit;">${reason}</pre></td></tr>
+						<tr><td>Tutanağı Hazırlayan</td><td>${esc(record.scrap_prepared_by_name || '-')}</td></tr>
 					`;
 				break;
 			}
@@ -6207,9 +6339,16 @@ const generateGenericReportHtml = async (record, type) => {
 
 					categoryResults.forEach((result) => {
 						const answerValue = result.answer;
+						const isPendingEmpty =
+							type === 'internal_audit' &&
+							(answerValue == null || String(answerValue).trim() === '');
+						const displayAnswer = isPendingEmpty ? 'Bekliyor' : answerValue || '-';
 						let answerColor = '#6b7280';
 						let answerBg = '#f3f4f6';
-						if (answerValue === 'Evet' || answerValue === 'Uygun') {
+						if (isPendingEmpty) {
+							answerColor = '#6b7280';
+							answerBg = '#e5e7eb';
+						} else if (answerValue === 'Evet' || answerValue === 'Uygun') {
 							answerColor = '#16a34a';
 							answerBg = '#d1fae5';
 						} else if (answerValue === 'Hayır' || answerValue === 'Uygunsuz') {
@@ -6229,7 +6368,7 @@ const generateGenericReportHtml = async (record, type) => {
 								<td style="line-height: 1.5;">${result.question_text || '-'}</td>
 								<td style="text-align: center;">
 									<span style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.9em; background-color: ${answerBg}; color: ${answerColor};">
-										${answerValue || '-'}
+										${displayAnswer}
 									</span>
 								</td>
 								<td><pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; line-height: 1.4; font-size: 9px; background-color: #fafafa; padding: 8px; border-radius: 4px; border-left: 3px solid ${answerColor};">${result.notes || 'Not bulunmuyor.'}</pre></td>
@@ -6255,11 +6394,13 @@ const generateGenericReportHtml = async (record, type) => {
 				// İç tetkik için cevaplar: 'Uygun', 'Uygunsuz', 'Gözlem', 'Kısmen Uygun', 'Uygulanamaz'
 				// Tedarikçi tetkik için cevaplar: 'Evet', 'Hayır', 'Kısmen', 'Uygulanamaz'
 				let yesCount, noCount, partialCount, naCount;
+				let pendingCount = 0;
 				if (type === 'internal_audit') {
 					yesCount = resultsArray.filter(r => r.answer === 'Uygun').length;
 					noCount = resultsArray.filter(r => r.answer === 'Uygunsuz').length;
 					partialCount = resultsArray.filter(r => r.answer === 'Gözlem' || r.answer === 'Kısmen Uygun' || r.answer === 'Kısmen').length;
 					naCount = resultsArray.filter(r => r.answer === 'Uygulanamaz').length;
+					pendingCount = resultsArray.filter(r => r.answer == null || String(r.answer).trim() === '').length;
 				} else {
 					yesCount = resultsArray.filter(r => r.answer === 'Evet' || r.answer === 'Uygun').length;
 					noCount = resultsArray.filter(r => r.answer === 'Hayır' || r.answer === 'Uygunsuz').length;
@@ -6267,9 +6408,10 @@ const generateGenericReportHtml = async (record, type) => {
 					naCount = resultsArray.filter(r => r.answer === 'Uygulanamaz').length;
 				}
 
+				const summaryCols = type === 'internal_audit' ? 6 : 5;
 				html += `<div style = "margin-top: 20px; padding: 15px; background-color: #eff6ff; border-radius: 8px; border: 2px solid #3b82f6;" >
 					<h4 style="margin: 0 0 10px 0; color: #1e40af; font-size: 1.1em;">Denetim Özeti</h4>
-					<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center;">
+					<div style="display: grid; grid-template-columns: repeat(${summaryCols}, 1fr); gap: 10px; text-align: center;">
 						<div style="padding: 10px; background: white; border-radius: 6px;">
 							<div style="font-size: 1.5em; font-weight: 700; color: #2563eb;">${totalQuestions}</div>
 							<div style="font-size: 0.85em; color: #6b7280;">Toplam Soru</div>
@@ -6290,6 +6432,11 @@ const generateGenericReportHtml = async (record, type) => {
 							<div style="font-size: 1.5em; font-weight: 700; color: #6b7280;">${naCount}</div>
 							<div style="font-size: 0.85em; color: #374151;">Uygulanamaz</div>
 						</div>
+						${type === 'internal_audit' ? `
+						<div style="padding: 10px; background: #f3f4f6; border-radius: 6px;">
+							<div style="font-size: 1.5em; font-weight: 700; color: #6b7280;">${pendingCount}</div>
+							<div style="font-size: 0.85em; color: #374151;">Cevaplanmadı</div>
+						</div>` : ''}
 					</div>
 				</div> `;
 
@@ -6459,7 +6606,23 @@ const generateGenericReportHtml = async (record, type) => {
 						<p class="name">${generalManager || '&nbsp;'}</p>
 					</div>
 				`;
-		})() : `
+		})() : type === 'equipment_scrap_certificate' ? `
+					<div class="signature-box">
+						<p class="role">HAZIRLAYAN</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">KALİTE KONTROL</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+					<div class="signature-box">
+						<p class="role">ONAYLAYAN</p>
+						<div class="signature-line"></div>
+						<p class="name">&nbsp;</p>
+					</div>
+				` : `
 					<div class="signature-box">
 						<p class="role">HAZIRLAYAN</p>
 						<div class="signature-line"></div>
@@ -6529,7 +6692,7 @@ const generatePrintableReportHtml = async (record, type) => {
 	</div>
 </div>
 `;
-	} else if (type === 'document_list' || type === 'equipment_list' || type === 'deviation_list' || type === 'nonconformity_record_list' || type === 'fixture_list') {
+	} else if (type === 'document_list' || type === 'equipment_list' || type === 'deviation_list' || type === 'nonconformity_record_list' || type === 'fixture_list' || type === 'kpi_list' || type === 'leak_test_list' || type === 'process_inspection_list') {
 		reportContentHtml = generateListReportHtml(record, type);
 		if (type === 'fixture_list') {
 			cssOverrides = `

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, RefreshCw, Search, CheckCircle2, AlertCircle,
-    TrendingUp, BarChart3, Target, Zap, Clock
+    TrendingUp, BarChart3, Target, Zap, Clock, FileSpreadsheet, Presentation,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import { useData } from '@/contexts/DataContext';
 import { KPI_CATEGORIES } from '@/components/kpi/kpi-definitions';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { openPrintableReport } from '@/lib/reportUtils';
 
 // =====================================================
 // Summary Card - üst istatistik kartları
@@ -117,6 +119,35 @@ const KPIModule = ({ onOpenNCForm }) => {
         setDetailModalOpen(true);
     };
 
+    const handleKpiListReport = useCallback(() => {
+        if (filteredKpis.length === 0) {
+            toast({ variant: 'destructive', title: 'Rapor', description: 'Listelenecek KPI bulunmuyor.' });
+            return;
+        }
+        const filterParts = [
+            activeCategory !== 'all' ? `Kategori: ${activeCategory}` : '',
+            searchTerm.trim() ? `Arama: ${searchTerm.trim()}` : '',
+        ].filter(Boolean);
+        openPrintableReport(
+            {
+                id: `kpi-list-${Date.now()}`,
+                title: 'KPI Listesi Raporu',
+                items: filteredKpis.map((k) => ({
+                    name: k.name,
+                    category: k.category,
+                    target_value: k.target_value,
+                    current_value: k.current_value,
+                    unit: k.unit,
+                    data_source: k.data_source,
+                    is_auto: k.is_auto,
+                })),
+                filterInfo: filterParts.length ? filterParts.join(' · ') : undefined,
+            },
+            'kpi_list',
+            true
+        );
+    }, [filteredKpis, activeCategory, searchTerm, toast]);
+
     const handleManualRefresh = useCallback(async () => {
         setIsRefreshing(true);
         setIsSyncing(true);
@@ -173,10 +204,18 @@ const KPIModule = ({ onOpenNCForm }) => {
                         ) : null}
                     </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     <Button variant="outline" size="sm" onClick={handleManualRefresh} disabled={isRefreshing}>
                         <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                         {isRefreshing ? 'Güncelleniyor…' : 'Tümünü Yenile'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleKpiListReport} disabled={loading || filteredKpis.length === 0}>
+                        <FileSpreadsheet className="w-4 h-4 mr-2" /> Rapor Al
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                        <Link to="/print/executive-presentation" target="_blank" rel="noopener noreferrer">
+                            <Presentation className="w-4 h-4 mr-2" /> Yönetici özeti
+                        </Link>
                     </Button>
                     <Button size="sm" onClick={() => setAddModalOpen(true)}>
                         <Plus className="w-4 h-4 mr-2" /> Yeni KPI
