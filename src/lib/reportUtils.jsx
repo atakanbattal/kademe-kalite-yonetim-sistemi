@@ -3,6 +3,7 @@ import { tr } from 'date-fns/locale';
 import { supabase } from '@/lib/customSupabaseClient';
 import { toCamelCase, getAttachmentDisplayName } from './utils';
 import { normalizeQuarantineAttachments } from './quarantineAttachments';
+import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
 
 // Global formatter helpers
 const formatDateHelper = (dateStr, style = 'dd.MM.yyyy') => dateStr ? format(new Date(dateStr), style, { locale: tr }) : '-';
@@ -5558,6 +5559,7 @@ const generateGenericReportHtml = async (record, type) => {
 						<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Sıra</th>
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Karakteristik</th>
+							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Ölçüm sıklığı</th>
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Ölçüm Ekipmanı</th>
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Standart</th>
 							<th style="border: 1px solid #d1d5db; padding: 8px; text-align: center;">Nominal Değer</th>
@@ -5595,6 +5597,7 @@ const generateGenericReportHtml = async (record, type) => {
 										${characteristicType}
 										${toleranceInfo}
 									</td>
+									<td style="border: 1px solid #d1d5db; padding: 8px; text-align: center; font-weight: 600; white-space: nowrap;">${getMeasurementFrequencyLabel(item.characteristic_type)}</td>
 									<td style="border: 1px solid #d1d5db; padding: 8px;">${equipmentName}</td>
 									<td style="border: 1px solid #d1d5db; padding: 8px;">
 										<div>${standardName}</div>
@@ -5628,9 +5631,10 @@ const generateGenericReportHtml = async (record, type) => {
 					? `<table class="details-table" style="width: 100%; margin-top: 10px; border-collapse: collapse; table-layout: fixed;">
 					<colgroup>
 						<col style="width: 35px;">
-						<col style="width: 17%;">
-						<col style="width: 17%;">
-						<col style="width: 18%;">
+						<col style="width: 14%;">
+						<col style="width: 9%;">
+						<col style="width: 14%;">
+						<col style="width: 14%;">
 						<col style="width: 7%;">
 						<col style="width: 9%;">
 						<col style="width: 9%;">
@@ -5641,6 +5645,7 @@ const generateGenericReportHtml = async (record, type) => {
 						<tr style="background-color: #f3f4f6; border: 1px solid #d1d5db;">
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 600;">Sıra</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Karakteristik</th>
+							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 8px; font-weight: 600;">Sıklık</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Ölçüm Ekipmanı</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: left; font-size: 9px; font-weight: 600;">Standart</th>
 							<th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-size: 8px; font-weight: 600;">Sac kal. (mm)</th>
@@ -5678,6 +5683,7 @@ const generateGenericReportHtml = async (record, type) => {
 							standardName = safeText(item.standard_id);
 						}
 						const standardInfo = item.tolerance_class ? `<div style="font-size: 0.8em; color: #6b7280; margin-top: 2px; word-wrap: break-word; line-height: 1.3; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">Tolerans Sınıfı: ${safeText(item.tolerance_class)}</div>` : '';
+						const frequencyLabel = safeText(getMeasurementFrequencyLabel(item.characteristic_type));
 
 						return `
 								<tr style="border-bottom: 1px solid #d1d5db;">
@@ -5687,6 +5693,7 @@ const generateGenericReportHtml = async (record, type) => {
 										${characteristicType}
 										${toleranceInfo}
 									</td>
+									<td style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; font-weight: 600; font-size: 9px; white-space: nowrap; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${frequencyLabel}</td>
 									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-size: 9px; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">${equipmentName}</td>
 									<td style="border: 1px solid #d1d5db; padding: 6px 4px; word-wrap: break-word; overflow-wrap: break-word; font-size: 9px; line-height: 1.3; font-family: 'Noto Sans Turkish', 'Noto Sans', 'Roboto', 'Arial Unicode MS', sans-serif;">
 										<div style="word-wrap: break-word; overflow-wrap: break-word;">${standardName}</div>

@@ -12,6 +12,7 @@ import { tr } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
 import { useData } from '@/contexts/DataContext';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getMeasurementFrequencyLabel } from '@/lib/controlPlanMeasurementFrequency';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const ControlPlanDetailModal = ({
@@ -311,6 +312,7 @@ const ControlPlanDetailModal = ({
                                                 <tr className="bg-muted">
                                                     <th className="border p-2 text-left">#</th>
                                                     <th className="border p-2 text-left">Karakteristik</th>
+                                                    <th className="border p-2 text-center whitespace-nowrap">Ölçüm sıklığı</th>
                                                     <th className="border p-2 text-left">Ölçüm Ekipmanı</th>
                                                     <th className="border p-2 text-left">Standart</th>
                                                     <th className="border p-2 text-center">Nominal</th>
@@ -332,6 +334,9 @@ const ControlPlanDetailModal = ({
                                                                     </Badge>
                                                                 )}
                                                             </div>
+                                                        </td>
+                                                        <td className="border p-2 text-center font-medium whitespace-nowrap">
+                                                            {getMeasurementFrequencyLabel(item.characteristic_type)}
                                                         </td>
                                                         <td className="border p-2">{getEquipmentName(item.equipment_id)}</td>
                                                         <td className="border p-2">
