@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
     X, Edit, Trash2, TrendingUp, FileText, User, Calendar,
@@ -9,13 +9,19 @@ import {
 import BenchmarkDocumentUpload from './BenchmarkDocumentUpload';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { generateBenchmarkComparisonReportHtml } from '@/lib/benchmarkComparisonReportHtml';
+import { fetchBenchmarkComparisonReportPayload } from '@/lib/benchmarkComparisonReportData';
+import { approveBenchmarkWithSignedPdf } from '@/lib/benchmarkApprovalUpload';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import BenchmarkComparison from './BenchmarkComparison';
 
 const BenchmarkDetail = ({
     isOpen,
@@ -23,9 +29,10 @@ const BenchmarkDetail = ({
     benchmark,
     onEdit,
     onDelete,
-    onCompare,
-    onRefresh
+    onRefresh,
+    personnel = [],
 }) => {
+    const { user } = useAuth();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState([]);
@@ -33,6 +40,10 @@ const BenchmarkDetail = ({
     const [activityLog, setActivityLog] = useState([]);
     const [approvals, setApprovals] = useState([]);
     const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+    const [signedPdfUploading, setSignedPdfUploading] = useState(false);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [approveUploading, setApproveUploading] = useState(false);
+    const approveDocInputRef = useRef(null);
 
     useEffect(() => {
         if (benchmark?.id) {
@@ -189,537 +200,214 @@ const BenchmarkDetail = ({
         });
     };
 
-    const handleGenerateReport = () => {
-        const htmlContent = generatePrintableReport();
-        const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const printWindow = window.open(url, '_blank');
-        
-        if (!printWindow) {
+    const signedApprovalPdfUrl = benchmark?.approval_signed_pdf_path
+        ? supabase.storage.from('documents').getPublicUrl(benchmark.approval_signed_pdf_path).data.publicUrl
+        : null;
+
+    const handleSignedApprovalPdf = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !benchmark?.id) return;
+        if (file.type !== 'application/pdf') {
             toast({
                 variant: 'destructive',
-                title: 'Hata',
-                description: 'Rapor penceresi açılamadı. Pop-up engelleyiciyi kontrol edin.'
+                title: 'Geçersiz dosya',
+                description: 'Yalnızca PDF yükleyebilirsiniz.'
             });
+            e.target.value = '';
             return;
         }
-        
-        if (printWindow) {
-            printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+        setSignedPdfUploading(true);
+        try {
+            const safeName = `${Date.now()}-${file.name.replace(/[^\w.\-]/g, '_')}`;
+            const filePath = `${benchmark.id}/${safeName}`;
+            const storagePath = `benchmark-documents/${filePath}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('documents')
+                .upload(storagePath, file, { contentType: 'application/pdf', upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            const { error: updateError } = await supabase
+                .from('benchmarks')
+                .update({
+                    approval_signed_pdf_path: storagePath,
+                    approval_signed_pdf_name: file.name,
+                })
+                .eq('id', benchmark.id);
+
+            if (updateError) throw updateError;
+
+            toast({ title: 'Yüklendi', description: 'İmzalı onay PDF’i kaydedildi.' });
+            onRefresh?.();
+            fetchDetails();
+        } catch (err) {
+            console.error(err);
+            toast({
+                variant: 'destructive',
+                title: 'Yükleme hatası',
+                description: err.message || 'Dosya yüklenemedi.'
+            });
+        } finally {
+            setSignedPdfUploading(false);
+            e.target.value = '';
         }
     };
 
-    const generatePrintableReport = () => {
-        const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('tr-TR') : '-';
-
-        const getStatusBadge = (status) => {
-            let bgColor, textColor;
-            switch (status) {
-                case 'Taslak': bgColor = '#e5e7eb'; textColor = '#4b5563'; break;
-                case 'Devam Ediyor': bgColor = '#dbeafe'; textColor = '#1e40af'; break;
-                case 'Analiz Aşamasında': bgColor = '#e9d5ff'; textColor = '#7c3aed'; break;
-                case 'Onay Bekliyor': bgColor = '#fde047'; textColor = '#713f12'; break;
-                case 'Tamamlandı': bgColor = '#86efac'; textColor = '#15803d'; break;
-                case 'İptal': bgColor = '#fca5a5'; textColor = '#b91c1c'; break;
-                default: bgColor = '#e5e7eb'; textColor = '#4b5563'; break;
-            }
-            return `<span style="background-color: ${bgColor}; color: ${textColor}; padding: 4px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600;">${status}</span>`;
-        };
-
-        const getPriorityBadge = (priority) => {
-            let bgColor, textColor;
-            switch (priority) {
-                case 'Kritik': bgColor = '#fca5a5'; textColor = '#b91c1c'; break;
-                case 'Yüksek': bgColor = '#fdba74'; textColor = '#c2410c'; break;
-                case 'Normal': bgColor = '#93c5fd'; textColor = '#1e40af'; break;
-                case 'Düşük': bgColor = '#d1d5db'; textColor = '#4b5563'; break;
-                default: bgColor = '#d1d5db'; textColor = '#4b5563'; break;
-            }
-            return `<span style="background-color: ${bgColor}; color: ${textColor}; padding: 4px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600;">${priority}</span>`;
-        };
-
-        // Alternatifler için detaylı HTML
-        const alternativesHtml = items.length > 0 ? `
-            <div class="section">
-                <h2 class="section-title">Karşılaştırılan Alternatifler (${items.length})</h2>
-                <div class="section-content">
-                ${items.map((item, index) => `
-                    <div class="step-section">
-                        <h3 class="step-title">${index + 1}. ${item.item_name}${item.item_code ? ` (${item.item_code})` : ''}</h3>
-                        <div class="step-content">
-                            ${item.description ? `<p><strong>Açıklama:</strong> ${item.description}</p>` : ''}
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;">
-                                ${item.unit_price ? `<p><strong>Birim Fiyat:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: item.currency || 'TRY' }).format(item.unit_price)}</p>` : ''}
-                                ${item.total_cost_of_ownership ? `<p><strong>TCO:</strong> ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: item.currency || 'TRY' }).format(item.total_cost_of_ownership)}</p>` : ''}
-                                ${item.roi_percentage ? `<p><strong>ROI:</strong> ${item.roi_percentage}%</p>` : ''}
-                                ${item.quality_score ? `<p><strong>Kalite Skoru:</strong> ${item.quality_score}/100</p>` : ''}
-                                ${item.performance_score ? `<p><strong>Performans Skoru:</strong> ${item.performance_score}/100</p>` : ''}
-                                ${item.reliability_score ? `<p><strong>Güvenilirlik Skoru:</strong> ${item.reliability_score}/100</p>` : ''}
-                                ${item.delivery_time_days ? `<p><strong>Teslimat Süresi:</strong> ${item.delivery_time_days} gün</p>` : ''}
-                                ${item.after_sales_service_score ? `<p><strong>Satış Sonrası Hizmet:</strong> ${item.after_sales_service_score}/100</p>` : ''}
-                                ${item.risk_level ? `<p><strong>Risk Seviyesi:</strong> ${item.risk_level}</p>` : ''}
-                            </div>
-                            ${(item.manufacturer || item.model_number || item.category || item.origin) ? `
-                                <div class="step-description">
-                                    ${item.manufacturer ? `<p><strong>Üretici:</strong> ${item.manufacturer}</p>` : ''}
-                                    ${item.model_number ? `<p><strong>Model/Seri No:</strong> ${item.model_number}</p>` : ''}
-                                    ${item.category ? `<p><strong>Kategori:</strong> ${item.category}</p>` : ''}
-                                    ${item.origin ? `<p><strong>Menşei:</strong> ${item.origin}</p>` : ''}
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `).join('')}
-                </div>
-            </div>
-        ` : '';
-
-        // Dokümanlar için HTML
-        const documentsHtml = documents.length > 0 ? `
-            <div class="section">
-                <h2 class="section-title">Ekli Dokümanlar (${documents.length})</h2>
-                <div class="section-content">
-                <div class="info-grid">
-                    ${documents.slice(0, 10).map(doc => `
-                        <div class="info-item">
-                            <span class="label">${doc.document_title || 'Doküman'}</span>
-                            <span class="value">${doc.document_type || '-'} | ${doc.document_date ? formatDate(doc.document_date) : '-'}</span>
-                        </div>
-                    `).join('')}
-                </div>
-                </div>
-            </div>
-        ` : '';
-
-        const htmlContent = `
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>Benchmark Raporu - ${benchmark.benchmark_number || benchmark.title}</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
-        
-        * {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            color: #1f2937;
-            margin: 0;
-            padding: 0;
-            background-color: #f8fafc;
-            line-height: 1.6;
-        }
-        .page {
-            background-color: white;
-            width: 210mm;
-            min-height: 297mm;
-            margin: 20px auto;
-            padding: 0;
-            box-sizing: border-box;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        .page::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 8mm;
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            z-index: 1;
-        }
-        .page-content {
-            padding: 25mm 20mm 20mm 20mm;
-            position: relative;
-            z-index: 2;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 3px solid #1e40af;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-            position: relative;
-        }
-        .header-left {
-            flex: 1;
-        }
-        .header-logo {
-            height: 50px;
-            margin-bottom: 10px;
-        }
-        .header h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 28px;
-            font-weight: 700;
-            color: #1e40af;
-            margin: 0 0 5px 0;
-            letter-spacing: -0.5px;
-        }
-        .header p {
-            font-size: 13px;
-            color: #64748b;
-            margin: 0;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
-        .header-right {
-            text-align: right;
-        }
-        .report-number {
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 5px;
-        }
-        .report-date {
-            font-size: 11px;
-            color: #64748b;
-        }
-        .report-title-section {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            border-left: 5px solid #1e40af;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        .report-title h2 {
-            font-size: 24px;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 0 0 8px 0;
-            letter-spacing: -0.3px;
-        }
-        .report-title p {
-            font-size: 15px;
-            color: #475569;
-            margin: 0;
-            font-weight: 500;
-        }
-        .badge-container {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .section {
-            margin-bottom: 35px;
-            page-break-inside: avoid;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #0f172a;
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px 8px 0 0;
-            margin: 0 0 0 0;
-            letter-spacing: -0.2px;
-        }
-        .section-content {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-top: none;
-            padding: 20px;
-            border-radius: 0 0 8px 8px;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 18px;
-        }
-        .info-item {
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            border-radius: 10px;
-            padding: 16px;
-            border: 1px solid #e2e8f0;
-            transition: all 0.2s;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        .info-item:hover {
-            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.1);
-            transform: translateY(-2px);
-        }
-        .info-item .label {
-            display: block;
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 6px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .info-item .value {
-            font-size: 15px;
-            font-weight: 600;
-            color: #0f172a;
-        }
-        .full-width {
-           grid-column: 1 / -1;
-        }
-        .problem-description {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-size: 14px;
-            line-height: 1.8;
-            color: #334155;
-        }
-
-        .step-section {
-            margin-bottom: 20px;
-            background: #ffffff;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        .step-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1e40af;
-            margin: 0 0 12px 0;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        .step-content {
-            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-            border-left: 4px solid #3b82f6;
-            padding: 18px;
-            border-radius: 0 8px 8px 0;
-        }
-        .step-content p { 
-            margin: 0 0 10px 0; 
-            font-size: 13px; 
-            color: #475569;
-            line-height: 1.7;
-        }
-        .step-content p:last-child { margin-bottom: 0; }
-        .step-content strong {
-            color: #1e40af;
-            font-weight: 600;
-        }
-        .step-description {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px dashed #cbd5e1;
-        }
-        .image-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 12px;
-        }
-        .attachment-image {
-            width: 100%;
-            height: auto;
-            border-radius: 8px;
-            border: 2px solid #e2e8f0;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-        .footer {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            padding: 15px 20mm;
-            border-top: 2px solid #e2e8f0;
-            text-align: center;
-            font-size: 11px;
-            color: #64748b;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .footer-left {
-            text-align: left;
-        }
-        .footer-right {
-            text-align: right;
-        }
-        .footer-center {
-            flex: 1;
-            text-align: center;
-        }
-        .page-number {
-            font-weight: 600;
-            color: #1e40af;
-        }
-        @media print {
-            /* Print için renkleri koru */
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important;
-            }
-            
-            body { background-color: white !important; margin: 0; padding: 0; }
-            .page { margin: 0; box-shadow: none; border: none; }
-            .page::before { display: none; }
-            @page {
-                size: A4;
-                margin: 12mm;
-            }
-            .section { page-break-inside: avoid; break-inside: avoid; }
-            .section-title { page-break-after: avoid; break-after: avoid; }
-            .info-grid { page-break-inside: avoid; break-inside: avoid; }
-            .info-item { page-break-inside: avoid; break-inside: avoid; }
-            .footer {
-                position: fixed;
-                bottom: 0;
-                page-break-inside: avoid;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="page">
-        <div class="page-content">
-        <div class="header">
-            <div class="header-left">
-                <h1>KADEME A.Ş.</h1>
-                <p>Kalite Yönetim Sistemi</p>
-            </div>
-            <div class="header-right">
-                <div class="report-number">Rapor No: ${benchmark.benchmark_number || 'N/A'}</div>
-                <div class="report-date">${formatDate(new Date().toISOString())}</div>
-            </div>
-        </div>
-        <div class="report-title-section">
-            <div class="report-title">
-                <h2>Benchmark Raporu</h2>
-                <p>${benchmark.title || '-'}</p>
-            </div>
-            <div>
-                ${getStatusBadge(benchmark.status)}
-                ${getPriorityBadge(benchmark.priority)}
-            </div>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title">Genel Bilgiler</h2>
-            <div class="section-content">
-            <div class="info-grid">
-                <div class="info-item"><span class="label">Benchmark Numarası</span><span class="value">${benchmark.benchmark_number || '-'}</span></div>
-                <div class="info-item"><span class="label">Durum</span><span class="value">${benchmark.status || '-'}</span></div>
-                <div class="info-item"><span class="label">Öncelik</span><span class="value">${benchmark.priority || '-'}</span></div>
-                ${benchmark.category ? `<div class="info-item"><span class="label">Kategori</span><span class="value">${benchmark.category.name || '-'}</span></div>` : ''}
-                ${benchmark.start_date ? `<div class="info-item"><span class="label">Başlangıç Tarihi</span><span class="value">${formatDate(benchmark.start_date)}</span></div>` : ''}
-                ${benchmark.target_completion_date ? `<div class="info-item"><span class="label">Hedef Tamamlanma</span><span class="value">${formatDate(benchmark.target_completion_date)}</span></div>` : ''}
-                ${benchmark.owner ? `<div class="info-item"><span class="label">Sorumlu Kişi</span><span class="value">${benchmark.owner.full_name || benchmark.owner.name || '-'}</span></div>` : ''}
-                ${benchmark.department ? `<div class="info-item"><span class="label">Departman</span><span class="value">${benchmark.department.unit_name || '-'}</span></div>` : ''}
-                ${benchmark.estimated_budget ? `<div class="info-item"><span class="label">Tahmini Bütçe</span><span class="value">${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: benchmark.currency || 'TRY' }).format(benchmark.estimated_budget)}</span></div>` : ''}
-            </div>
-            </div>
-        </div>
-
-        ${benchmark.description ? `
-        <div class="section">
-            <h2 class="section-title">Açıklama</h2>
-            <div class="section-content">
-            <div class="info-item full-width">
-                <p class="problem-description">${benchmark.description.replace(/\n/g, '<br>')}</p>
-            </div>
-            </div>
-        </div>
-        ` : ''}
-
-        ${benchmark.objective ? `
-        <div class="section">
-            <h2 class="section-title">Amaç</h2>
-            <div class="section-content">
-            <div class="info-item full-width">
-                <p class="problem-description">${benchmark.objective.replace(/\n/g, '<br>')}</p>
-            </div>
-            </div>
-        </div>
-        ` : ''}
-
-        ${benchmark.scope ? `
-        <div class="section">
-            <h2 class="section-title">Kapsam</h2>
-            <div class="section-content">
-            <div class="info-item full-width">
-                <p class="problem-description">${benchmark.scope.replace(/\n/g, '<br>')}</p>
-            </div>
-            </div>
-        </div>
-        ` : ''}
-
-        ${alternativesHtml}
-
-        ${documentsHtml}
-        
-        </div>
-        <div class="footer">
-            <div class="footer-left">
-                <div>KADEME A.Ş.</div>
-                <div style="font-size: 10px; margin-top: 2px;">Kalite Yönetim Sistemi</div>
-            </div>
-            <div class="footer-center">
-                Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
-            </div>
-            <div class="footer-right">
-                <div class="page-number">Sayfa <span id="pageNum">1</span></div>
-                <div style="font-size: 10px; margin-top: 2px;">${formatDate(new Date().toISOString())}</div>
-            </div>
-        </div>
-    </div>
-    <script>
-        const images = document.querySelectorAll('.attachment-image');
-        const promises = Array.from(images).map(img => {
-            return new Promise((resolve) => {
-                if (img.complete) {
-                    resolve();
-                } else {
-                    img.onload = resolve;
-                    img.onerror = resolve; // Resolve on error too, to not block printing
-                }
+    const handleRemoveSignedApprovalPdf = async () => {
+        if (!benchmark?.id || !benchmark.approval_signed_pdf_path) return;
+        if (!confirm('İmzalı onay PDF’ini kaldırmak istiyor musunuz?')) return;
+        setSignedPdfUploading(true);
+        try {
+            await supabase.storage.from('documents').remove([benchmark.approval_signed_pdf_path]);
+            const { error } = await supabase
+                .from('benchmarks')
+                .update({ approval_signed_pdf_path: null, approval_signed_pdf_name: null })
+                .eq('id', benchmark.id);
+            if (error) throw error;
+            toast({ title: 'Kaldırıldı' });
+            onRefresh?.();
+            fetchDetails();
+        } catch (err) {
+            console.error(err);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: err.message || 'Kaldırılamadı.'
             });
-        });
+        } finally {
+            setSignedPdfUploading(false);
+        }
+    };
 
-        Promise.all(promises).then(() => {
-            setTimeout(() => {
-                window.print();
-            }, 500); // Increased delay to ensure rendering
-        });
-    </script>
-</body>
-</html>
-        `;
+    const handleGenerateReport = async () => {
+        if (!benchmark?.id) return;
 
-        return htmlContent;
+        setReportLoading(true);
+        try {
+            const payload = await fetchBenchmarkComparisonReportPayload(supabase, benchmark.id);
+            const htmlContent = await generateBenchmarkComparisonReportHtml({
+                benchmark,
+                ...payload,
+            });
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const printWindow = window.open(url, '_blank');
+
+            if (!printWindow) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor penceresi açılamadı. Pop-up engelleyiciyi kontrol edin.',
+                });
+                URL.revokeObjectURL(url);
+                return;
+            }
+
+            printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+        } catch (error) {
+            console.error(error);
+            toast({
+                variant: 'destructive',
+                title: 'Rapor oluşturulamadı',
+                description: error.message || 'Bilinmeyen hata',
+            });
+        } finally {
+            setReportLoading(false);
+        }
+    };
+
+    const handleApproveWithDocument = async (e) => {
+        const file = e.target.files?.[0];
+        if (e.target) e.target.value = '';
+        if (!file || !benchmark?.id) return;
+
+        const approverId = personnel.find((p) => p.email === user?.email)?.id;
+        if (!approverId) {
+            toast({
+                variant: 'destructive',
+                title: 'Onay verilemedi',
+                description: 'Oturum e-postanızla eşleşen personel kaydı bulunamadı.',
+            });
+            return;
+        }
+
+        setApproveUploading(true);
+        try {
+            await approveBenchmarkWithSignedPdf({
+                benchmarkId: benchmark.id,
+                file,
+                approverId,
+            });
+            toast({
+                title: 'Onaylandı',
+                description: 'Onay dokümanı kaydedildi ve kayıt onaylandı.',
+            });
+            onRefresh?.();
+            fetchDetails();
+        } catch (err) {
+            console.error(err);
+            toast({
+                variant: 'destructive',
+                title: 'Onay hatası',
+                description: err.message || 'İşlem tamamlanamadı.',
+            });
+        } finally {
+            setApproveUploading(false);
+        }
     };
 
     if (!benchmark) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0" hideCloseButton>
-                <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-white/20 p-2.5 rounded-lg"><TrendingUp className="h-5 w-5 text-white" /></div>
-                        <div>
-                            <h1 className="text-lg font-bold tracking-tight">{benchmark.title}</h1>
-                            <p className="text-[11px] text-blue-100 uppercase tracking-[0.15em] font-medium">{benchmark.benchmark_number} • Öncelik: {benchmark.priority}</p>
+            <DialogContent
+                className="!fixed !inset-0 !left-0 !top-0 z-50 !m-0 flex h-[100dvh] !max-h-[100dvh] w-full !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none border-0 p-0 shadow-xl sm:!max-h-[100dvh]"
+                hideCloseButton
+            >
+                <header className="bg-gradient-to-r from-primary to-blue-700 px-4 py-4 sm:px-6 sm:py-5 flex flex-wrap items-center justify-between gap-3 text-white shrink-0">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                        <div className="bg-white/20 p-2.5 rounded-lg shrink-0"><TrendingUp className="h-5 w-5 text-white" /></div>
+                        <div className="min-w-0">
+                            <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">{benchmark.title}</h1>
+                            <p className="text-[10px] sm:text-[11px] text-blue-100 font-medium leading-snug">
+                                <span className="uppercase tracking-wide">Form No:</span>{' '}
+                                <span className="font-mono">{benchmark.benchmark_number}</span>
+                                <span className="text-blue-200/90"> · Öncelik: {benchmark.priority}</span>
+                            </p>
                         </div>
-                        <span className="px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{benchmark.status}</span>
+                        <span className="shrink-0 px-3 py-1 bg-white/20 border border-white/30 text-white/90 text-[10px] font-bold rounded-full uppercase tracking-wider">{benchmark.status}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={handleGenerateReport}>
-                            <Printer className="h-4 w-4 mr-2" /> Rapor
+                    <div className="flex shrink-0 items-center gap-2 flex-wrap justify-end">
+                        <input
+                            ref={approveDocInputRef}
+                            type="file"
+                            className="hidden"
+                            accept="application/pdf,.pdf"
+                            onChange={handleApproveWithDocument}
+                        />
+                        <Button size="sm" variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={handleGenerateReport} disabled={reportLoading}>
+                            <Printer className="h-4 w-4 mr-2" /> {reportLoading ? 'Rapor…' : 'Rapor'}
                         </Button>
-                        <Button size="sm" variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20" onClick={() => onEdit(benchmark)}>
+                        {benchmark.approval_status !== 'Onaylandı' && (
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                className="bg-emerald-600/90 border border-emerald-400/50 text-white hover:bg-emerald-600"
+                                disabled={approveUploading}
+                                onClick={() => approveDocInputRef.current?.click()}
+                            >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                {approveUploading ? 'Yükleniyor…' : 'Onayla'}
+                            </Button>
+                        )}
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                            onClick={() => onEdit(benchmark, { fromDetail: true })}
+                        >
                             <Edit className="h-4 w-4 mr-2" /> Düzenle
-                        </Button>
-                        <Button size="sm" className="bg-white/20 border border-white/30 text-white hover:bg-white/30" onClick={() => { if (onCompare) { onCompare(benchmark); onClose(); } }}>
-                            <TrendingUp className="h-4 w-4 mr-2" /> Karşılaştır
                         </Button>
                         <Button size="icon" variant="ghost" className="bg-white/20 hover:bg-white/30 text-white rounded-xl shrink-0" onClick={onClose}>
                             <X className="h-4 w-4" />
@@ -727,26 +415,62 @@ const BenchmarkDetail = ({
                         </Button>
                     </div>
                 </header>
-                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-4 pb-6">
-                    <Tabs defaultValue="overview" className="w-full">
-                        <TabsList className="grid w-full grid-cols-5">
-                            <TabsTrigger value="overview">Genel Bakış</TabsTrigger>
-                            <TabsTrigger value="items">
+                <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
+                    <Tabs defaultValue="comparison" className="flex min-h-0 min-w-0 w-full flex-1 flex-col">
+                        <TabsList className="!inline-flex !h-auto w-full min-w-0 flex-wrap items-stretch justify-start gap-1.5 rounded-lg border bg-muted/40 p-1.5 sm:p-2 overflow-x-visible overflow-y-visible">
+                            <TabsTrigger
+                                value="comparison"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
+                                Karşılaştırma
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="overview"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
+                                Genel bakış
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="items"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
                                 Alternatifler ({items.length})
                             </TabsTrigger>
-                            <TabsTrigger value="documents">
+                            <TabsTrigger
+                                value="documents"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
                                 Dokümanlar ({documents.length})
                             </TabsTrigger>
-                            <TabsTrigger value="approvals">
+                            <TabsTrigger
+                                value="approvals"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
                                 Onaylar ({approvals.length})
                             </TabsTrigger>
-                            <TabsTrigger value="activity">
+                            <TabsTrigger
+                                value="activity"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
                                 Geçmiş ({activityLog.length})
                             </TabsTrigger>
                         </TabsList>
 
+                        <TabsContent value="comparison" className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden">
+                            <BenchmarkComparison
+                                embedded
+                                benchmark={benchmark}
+                                isOpen
+                                onClose={() => {}}
+                                onRefresh={() => {
+                                    onRefresh?.();
+                                    fetchDetails();
+                                }}
+                            />
+                        </TabsContent>
+
                         {/* Genel Bakış */}
-                        <TabsContent value="overview" className="space-y-4 mt-4">
+                        <TabsContent value="overview" className="mt-4 flex-1 min-h-0 space-y-4 overflow-y-auto overflow-x-hidden data-[state=inactive]:hidden">
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Temel Bilgiler</CardTitle>
@@ -905,7 +629,7 @@ const BenchmarkDetail = ({
                                             <div className="mt-3 text-sm">
                                                 <p>
                                                     <span className="font-medium">Onaylayan:</span>{' '}
-                                                    {benchmark.approved_by_person.name}
+                                                    {benchmark.approved_by_person.full_name}
                                                 </p>
                                                 <p>
                                                     <span className="font-medium">Onay Tarihi:</span>{' '}
@@ -921,13 +645,57 @@ const BenchmarkDetail = ({
                                                 <p className="text-sm">{benchmark.approval_notes}</p>
                                             </div>
                                         )}
+
+                                        {benchmark.approval_status === 'Onaylandı' && (
+                                            <div className="mt-4 rounded-lg border bg-muted/30 p-4 space-y-3">
+                                                <p className="text-sm font-medium">İmzalı onay PDF&apos;i</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Onay için imzalanmış rapor PDF&apos;ini buraya yükleyin (max. 10 MB).
+                                                </p>
+                                                {signedApprovalPdfUrl && benchmark.approval_signed_pdf_path && (
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Button variant="outline" size="sm" asChild>
+                                                            <a
+                                                                href={signedApprovalPdfUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                <FileText className="mr-2 h-4 w-4" />
+                                                                {benchmark.approval_signed_pdf_name || 'PDF aç'}
+                                                            </a>
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            disabled={signedPdfUploading}
+                                                            onClick={handleRemoveSignedApprovalPdf}
+                                                        >
+                                                            Kaldır
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <Input
+                                                        type="file"
+                                                        accept="application/pdf,.pdf"
+                                                        disabled={signedPdfUploading}
+                                                        onChange={handleSignedApprovalPdf}
+                                                        className="max-w-md cursor-pointer"
+                                                    />
+                                                    {signedPdfUploading && (
+                                                        <span className="text-xs text-muted-foreground">Yükleniyor…</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
                             )}
                         </TabsContent>
 
                         {/* Alternatifler */}
-                        <TabsContent value="items" className="mt-4">
+                        <TabsContent value="items" className="mt-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden data-[state=inactive]:hidden">
                             <div className="space-y-4">
                                 {items.length === 0 ? (
                                     <Card>
@@ -952,11 +720,6 @@ const BenchmarkDetail = ({
                                                             )}
                                                             {item.item_name}
                                                         </CardTitle>
-                                                        {item.item_code && (
-                                                            <p className="text-sm text-muted-foreground mt-1">
-                                                                Kod: {item.item_code}
-                                                            </p>
-                                                        )}
                                                     </div>
                                                     <div className="flex gap-2">
                                                         {item.is_recommended && (
@@ -979,16 +742,10 @@ const BenchmarkDetail = ({
                                                 )}
                                                 
                                                 {/* Temel Bilgiler */}
-                                                {(item.manufacturer || item.model_number || item.category || item.origin) && (
+                                                {(item.model_number || item.category || item.origin) && (
                                                     <div className="mb-3 pb-3 border-b">
                                                         <h4 className="text-sm font-semibold mb-2">Temel Bilgiler</h4>
                                                         <div className="grid gap-2 md:grid-cols-2 text-sm">
-                                                            {item.manufacturer && (
-                                                                <div>
-                                                                    <p className="text-muted-foreground">Üretici</p>
-                                                                    <p className="font-medium">{item.manufacturer}</p>
-                                                                </div>
-                                                            )}
                                                             {item.model_number && (
                                                                 <div>
                                                                     <p className="text-muted-foreground">Model/Seri No</p>
@@ -1194,7 +951,7 @@ const BenchmarkDetail = ({
                         </TabsContent>
 
                         {/* Dokümanlar */}
-                        <TabsContent value="documents" className="mt-4">
+                        <TabsContent value="documents" className="mt-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden data-[state=inactive]:hidden">
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-lg font-semibold">
@@ -1328,7 +1085,7 @@ const BenchmarkDetail = ({
                         </TabsContent>
 
                         {/* Onaylar */}
-                        <TabsContent value="approvals" className="mt-4">
+                        <TabsContent value="approvals" className="mt-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden data-[state=inactive]:hidden">
                             <div className="space-y-3">
                                 {approvals.length === 0 ? (
                                     <Card>
@@ -1372,7 +1129,7 @@ const BenchmarkDetail = ({
                         </TabsContent>
 
                         {/* Aktivite Geçmişi */}
-                        <TabsContent value="activity" className="mt-4">
+                        <TabsContent value="activity" className="mt-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden data-[state=inactive]:hidden">
                             <div className="space-y-3">
                                 {activityLog.length === 0 ? (
                                     <Card>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
     X, Plus, Trash2, Save, Download, TrendingUp, Award,
-    ThumbsUp, ThumbsDown, BarChart3, PieChart, FileText,
+    ThumbsUp, ThumbsDown, BarChart3, PieChart, FileText, Target,
     Edit, Check, AlertCircle, Loader2, Eye
 } from 'lucide-react';
 import {
@@ -18,7 +19,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -44,6 +44,22 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Info, HelpCircle } from 'lucide-react';
+import { computeBenchmarkItemScores } from '@/lib/benchmarkScoring';
+import { fetchBenchmarkComparisonReportPayload } from '@/lib/benchmarkComparisonReportData';
+import { buildAutoProsConsInserts, replaceAutoProsConsInSupabase } from '@/lib/benchmarkAutoProsCons';
+import { generateBenchmarkComparisonReportHtml } from '@/lib/benchmarkComparisonReportHtml';
+import {
+    BenchmarkOverviewHero,
+    BenchmarkRankingBars,
+    BenchmarkCriteriaRadar,
+} from '@/components/benchmark/BenchmarkComparisonVisuals';
+
+const CRITERION_CATEGORY_OPTIONS = [
+    'Maliyet', 'Kalite', 'Teknik', 'Operasyonel', 'Çevresel', 'Hizmet', 'Finansal', 'Teslimat', 'Pazar', 'Diğer',
+];
+const MEASUREMENT_UNIT_OPTIONS = [
+    'Puan', 'TRY', 'USD', 'EUR', 'Gün', 'Ay', 'Saat', 'Adet', '%', 'kg', 'm', 'Diğer',
+];
 
 // Helper component for Label with Tooltip
 const LabelWithTooltip = ({ children, tooltip, required = false }) => (
@@ -66,11 +82,17 @@ const LabelWithTooltip = ({ children, tooltip, required = false }) => (
     </div>
 );
 
-const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
+const BenchmarkComparison = ({
+    isOpen,
+    onClose,
+    benchmark,
+    onRefresh,
+    embedded = false,
+}) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('items');
+    const [activeTab, setActiveTab] = useState('overview');
     const [selectedItemDetail, setSelectedItemDetail] = useState(null);
 
     // Data states
@@ -87,24 +109,24 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
     const [editingProsCons, setEditingProsCons] = useState(null);
 
     useEffect(() => {
-        console.log('BenchmarkComparison useEffect:', { benchmark, isOpen, benchmarkId: benchmark?.id });
-        if (benchmark?.id && isOpen) {
+        if (benchmark?.id && (embedded || isOpen)) {
             fetchComparisonData();
-        } else if (!isOpen) {
-            // Modal kapandığında state'leri temizle
-            console.log('BenchmarkComparison: Modal kapandı, state temizleniyor');
+        } else if (!embedded && !isOpen) {
             setItems([]);
             setCriteria([]);
             setScores({});
             setProsConsData({});
             setLoading(false);
+            setActiveTab('overview');
+            setSelectedItemDetail(null);
+            setEditingCriterion(null);
+            setNewCriterion(null);
+            setNewItem(null);
         }
-    }, [benchmark?.id, isOpen]);
+    }, [benchmark?.id, isOpen, embedded]);
 
     const fetchComparisonData = useCallback(async () => {
-        console.log('fetchComparisonData called', { benchmarkId: benchmark?.id });
         if (!benchmark?.id) {
-            console.log('fetchComparisonData: No benchmark ID, returning');
             return;
         }
 
@@ -114,7 +136,6 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         let criteriaData = [];
         
         try {
-            console.log('fetchComparisonData: Starting data fetch');
             // Önce items ve criteria'yı çek
             const [itemsRes, criteriaRes] = await Promise.all([
                 supabase
@@ -133,11 +154,11 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             if (criteriaRes.error) throw criteriaRes.error;
 
             itemsData = itemsRes.data || [];
-            criteriaData = criteriaRes.data || [];
-            
-            console.log('fetchComparisonData: Items loaded', { count: itemsData.length, items: itemsData });
-            console.log('fetchComparisonData: Criteria loaded', { count: criteriaData.length, criteria: criteriaData });
-            
+            criteriaData = (criteriaRes.data || []).map((row) => ({
+                ...row,
+                include_in_matrix: row.include_in_matrix !== false,
+            }));
+
             setItems(itemsData);
             setCriteria(criteriaData);
 
@@ -191,6 +212,27 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             });
             setScores(scoresMap);
 
+            // Otomatik avantaj/dezavantaj (kriter skorlarına göre), ardından güncel listeyi çek
+            if (itemIds.length > 0 && criteriaData.length > 0) {
+                try {
+                    const inserts = buildAutoProsConsInserts({
+                        items: itemsData,
+                        criteria: criteriaData,
+                        scores: scoresMap,
+                    }).map((row) => ({ ...row, created_by: user?.id }));
+                    await replaceAutoProsConsInSupabase(supabase, { itemIds, inserts });
+                    const prosRefresh = await supabase
+                        .from('benchmark_pros_cons')
+                        .select('*')
+                        .in('benchmark_item_id', itemIds);
+                    if (!prosRefresh.error && prosRefresh.data) {
+                        prosConsData = prosRefresh.data;
+                    }
+                } catch (syncErr) {
+                    console.warn('Otomatik avantaj/dezavantaj senkronu atlandı:', syncErr);
+                }
+            }
+
             // Organize pros/cons by item
             const prosConsMap = {};
             prosConsData.forEach(pc => {
@@ -204,13 +246,6 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 }
             });
             setProsConsData(prosConsMap);
-            
-            console.log('fetchComparisonData: Data loaded successfully', {
-                itemsCount: itemsData.length,
-                criteriaCount: criteriaData.length,
-                scoresCount: Object.keys(scoresMap).length,
-                prosConsCount: Object.keys(prosConsMap).length
-            });
         } catch (error) {
             console.error('Karşılaştırma verileri yüklenirken kritik hata:', error);
             console.error('Error details:', {
@@ -228,16 +263,12 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 // Items veya criteria yüklenmişse, onları koru
                 if (itemsLoaded) {
                     setItems(itemsData);
-                    console.log('Items korunuyor:', itemsData.length);
                 }
                 if (criteriaLoaded) {
                     setCriteria(criteriaData);
-                    console.log('Criteria korunuyor:', criteriaData.length);
                 }
-                // Sadece scores ve prosCons'u temizle
                 setScores({});
                 setProsConsData({});
-                console.log('Items ve criteria korunuyor, sadece scores ve prosCons temizlendi');
             } else {
                 // Hiçbir veri yüklenmemişse, state'leri temizle
                 setItems([]);
@@ -253,198 +284,46 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             });
         } finally {
             setLoading(false);
-            console.log('fetchComparisonData: Finished');
         }
-    }, [benchmark?.id, toast]);
+    }, [benchmark?.id, toast, user?.id]);
 
-    // Calculate total weighted score for each item
-    const itemScores = useMemo(() => {
-        const result = {};
-        if (!items || items.length === 0) return result;
-        
-        // Otomatik skorlama fonksiyonu - itemScores içinde tanımlanıyor circular dependency'yi önlemek için
-        const calculateAutoScoreLocal = (item) => {
-            if (!item || !items || items.length === 0) return 0;
-            
-            let totalScore = 0;
-            let maxScore = 0;
-            const weights = {
-                unit_price: 15, total_cost_of_ownership: 20, roi_percentage: 15, maintenance_cost: 10,
-                quality_score: 25, performance_score: 20, reliability_score: 20,
-                after_sales_service_score: 15, technical_support_score: 15, warranty_period_months: 10, documentation_quality_score: 10,
-                delivery_time_days: 15, lead_time_days: 15, implementation_time_days: 10, training_required_hours: 10,
-                energy_efficiency_score: 10, environmental_impact_score: 10,
-                ease_of_use_score: 15, scalability_score: 15, compatibility_score: 15, innovation_score: 10,
-                market_reputation_score: 15, customer_references_count: 10
-            };
+    const matrixCriteria = useMemo(
+        () => criteria.filter((c) => c.include_in_matrix !== false),
+        [criteria]
+    );
 
-            if (item.unit_price) {
-                const allPrices = items.map(i => i.unit_price).filter(p => p);
-                if (allPrices.length > 0) {
-                    const maxPrice = Math.max(...allPrices);
-                    const minPrice = Math.min(...allPrices);
-                    if (maxPrice > minPrice) {
-                        const priceScore = 100 - ((item.unit_price - minPrice) / (maxPrice - minPrice)) * 100;
-                        totalScore += (priceScore * weights.unit_price) / 100;
-                    } else {
-                        totalScore += weights.unit_price;
-                    }
-                }
-                maxScore += weights.unit_price;
-            }
+    const itemScores = useMemo(
+        () => computeBenchmarkItemScores(items, criteria, scores),
+        [items, criteria, scores]
+    );
 
-            if (item.total_cost_of_ownership) {
-                const allTCOs = items.map(i => i.total_cost_of_ownership).filter(t => t);
-                if (allTCOs.length > 0) {
-                    const maxTCO = Math.max(...allTCOs);
-                    const minTCO = Math.min(...allTCOs);
-                    if (maxTCO > minTCO) {
-                        const tcoScore = 100 - ((item.total_cost_of_ownership - minTCO) / (maxTCO - minTCO)) * 100;
-                        totalScore += (tcoScore * weights.total_cost_of_ownership) / 100;
-                    } else {
-                        totalScore += weights.total_cost_of_ownership;
-                    }
-                }
-                maxScore += weights.total_cost_of_ownership;
-            }
-
-            if (item.roi_percentage) {
-                totalScore += (Math.min(item.roi_percentage, 100) * weights.roi_percentage) / 100;
-                maxScore += weights.roi_percentage;
-            }
-
-            if (item.maintenance_cost) {
-                const allMaintenance = items.map(i => i.maintenance_cost).filter(m => m);
-                if (allMaintenance.length > 0) {
-                    const maxMaintenance = Math.max(...allMaintenance);
-                    const minMaintenance = Math.min(...allMaintenance);
-                    if (maxMaintenance > minMaintenance) {
-                        const maintenanceScore = 100 - ((item.maintenance_cost - minMaintenance) / (maxMaintenance - minMaintenance)) * 100;
-                        totalScore += (maintenanceScore * weights.maintenance_cost) / 100;
-                    } else {
-                        totalScore += weights.maintenance_cost;
-                    }
-                }
-                maxScore += weights.maintenance_cost;
-            }
-
-            const directScores = ['quality_score', 'performance_score', 'reliability_score', 'after_sales_service_score', 'technical_support_score', 'documentation_quality_score', 'energy_efficiency_score', 'environmental_impact_score', 'ease_of_use_score', 'scalability_score', 'compatibility_score', 'innovation_score', 'market_reputation_score'];
-            directScores.forEach(scoreKey => {
-                if (item[scoreKey] !== null && item[scoreKey] !== undefined) {
-                    totalScore += (item[scoreKey] * weights[scoreKey]) / 100;
-                    maxScore += weights[scoreKey];
-                }
-            });
-
-            if (item.warranty_period_months) {
-                const warrantyScore = Math.min((item.warranty_period_months / 60) * 100, 100);
-                totalScore += (warrantyScore * weights.warranty_period_months) / 100;
-                maxScore += weights.warranty_period_months;
-            }
-
-            const deliveryDays = item.delivery_time_days || item.lead_time_days;
-            if (deliveryDays) {
-                const allDelivery = items.map(i => i.delivery_time_days || i.lead_time_days).filter(d => d);
-                if (allDelivery.length > 0) {
-                    const maxDelivery = Math.max(...allDelivery);
-                    const minDelivery = Math.min(...allDelivery);
-                    if (maxDelivery > minDelivery) {
-                        const deliveryScore = 100 - ((deliveryDays - minDelivery) / (maxDelivery - minDelivery)) * 100;
-                        totalScore += (deliveryScore * weights.delivery_time_days) / 100;
-                    } else {
-                        totalScore += weights.delivery_time_days;
-                    }
-                }
-                maxScore += weights.delivery_time_days;
-            }
-
-            if (item.implementation_time_days) {
-                const allImplementation = items.map(i => i.implementation_time_days).filter(i => i);
-                if (allImplementation.length > 0) {
-                    const maxImpl = Math.max(...allImplementation);
-                    const minImpl = Math.min(...allImplementation);
-                    if (maxImpl > minImpl) {
-                        const implScore = 100 - ((item.implementation_time_days - minImpl) / (maxImpl - minImpl)) * 100;
-                        totalScore += (implScore * weights.implementation_time_days) / 100;
-                    } else {
-                        totalScore += weights.implementation_time_days;
-                    }
-                }
-                maxScore += weights.implementation_time_days;
-            }
-
-            if (item.training_required_hours) {
-                const allTraining = items.map(i => i.training_required_hours).filter(t => t);
-                if (allTraining.length > 0) {
-                    const maxTraining = Math.max(...allTraining);
-                    const minTraining = Math.min(...allTraining);
-                    if (maxTraining > minTraining) {
-                        const trainingScore = 100 - ((item.training_required_hours - minTraining) / (maxTraining - minTraining)) * 100;
-                        totalScore += (trainingScore * weights.training_required_hours) / 100;
-                    } else {
-                        totalScore += weights.training_required_hours;
-                    }
-                }
-                maxScore += weights.training_required_hours;
-            }
-
-            if (item.customer_references_count) {
-                const refScore = Math.min((item.customer_references_count / 50) * 100, 100);
-                totalScore += (refScore * weights.customer_references_count) / 100;
-                maxScore += weights.customer_references_count;
-            }
-
-            if (item.risk_level) {
-                const riskScores = { 'Düşük': 100, 'Orta': 70, 'Yüksek': 40, 'Kritik': 10 };
-                const riskScore = riskScores[item.risk_level] || 50;
-                totalScore += (riskScore * 10) / 100;
-                maxScore += 10;
-            }
-
-            return maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
-        };
-        
-        items.forEach(item => {
-            let totalScore = 0;
-            let totalWeight = 0;
-            
-            // Önce kullanıcı tanımlı kriterlerden skor al
-            criteria.forEach(criterion => {
-                const key = `${item.id}_${criterion.id}`;
-                const score = scores[key];
-                if (score && score.weighted_score) {
-                    totalScore += score.weighted_score;
-                    totalWeight += criterion.weight || 0;
-                }
-            });
-
-            // Eğer kullanıcı tanımlı kriter yoksa veya eksikse, otomatik skorlama kullan
-            if (totalWeight === 0 || criteria.length === 0) {
-                const autoScore = calculateAutoScoreLocal(item);
-                result[item.id] = {
-                    total: autoScore,
-                    average: autoScore,
-                    isAutoCalculated: true
-                };
-            } else {
-                result[item.id] = {
-                    total: totalScore,
-                    average: totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0,
-                    isAutoCalculated: false
-                };
-            }
+    const itemsSortedByScore = useMemo(() => {
+        if (!items?.length) return [];
+        return [...items].sort((a, b) => {
+            const sa = itemScores[a.id]?.average ?? 0;
+            const sb = itemScores[b.id]?.average ?? 0;
+            return sb - sa;
         });
-        return result;
-    }, [items, criteria, scores]);
+    }, [items, itemScores]);
+
+    const winner = useMemo(() => {
+        if (!itemsSortedByScore.length) return null;
+        const top = itemsSortedByScore[0];
+        const s = itemScores[top.id]?.average;
+        if (s == null || Number.isNaN(s)) return null;
+        return { item: top, score: s };
+    }, [itemsSortedByScore, itemScores]);
+
+    const radarCompareItems = useMemo(() => itemsSortedByScore.slice(0, 5), [itemsSortedByScore]);
+
+    const showRadar = matrixCriteria.length >= 2 && radarCompareItems.length >= 2;
 
     // Handlers for Items
     const handleAddItem = () => {
         setNewItem({
             item_name: '',
-            item_code: '',
             description: '',
             supplier_id: '',
-            manufacturer: '',
             model_number: '',
             // Maliyet Bilgileri
             unit_price: '',
@@ -513,8 +392,6 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         }
 
         try {
-            console.log('handleSaveNewItem: Kaydetme başlıyor', { benchmarkId: benchmark.id, newItem });
-            
             // Tüm sayısal değerleri parse et
             const parseDecimal = (val) => {
                 if (val === null || val === undefined || val === '') return null;
@@ -530,10 +407,8 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             const insertData = {
                 benchmark_id: benchmark.id,
                 item_name: newItem.item_name.trim(),
-                item_code: newItem.item_code?.trim() || null,
                 description: newItem.description?.trim() || null,
                 supplier_id: newItem.supplier_id?.trim() || null,
-                manufacturer: newItem.manufacturer?.trim() || null,
                 model_number: newItem.model_number?.trim() || null,
                 // Maliyet Bilgileri
                 unit_price: parseDecimal(newItem.unit_price),
@@ -581,8 +456,6 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 standards_compliance_score: parseDecimal(newItem.standards_compliance_score)
             };
 
-            console.log('handleSaveNewItem: Insert data', insertData);
-
             const { data, error } = await supabase
                 .from('benchmark_items')
                 .insert(insertData)
@@ -593,8 +466,6 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 console.error('handleSaveNewItem: Database error', error);
                 throw error;
             }
-
-            console.log('handleSaveNewItem: Kayıt başarılı', data);
 
             // Verileri yeniden yükle
             await fetchComparisonData();
@@ -648,6 +519,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
 
     // Handlers for Criteria
     const handleAddCriterion = () => {
+        setEditingCriterion(null);
         setNewCriterion({
             criterion_name: '',
             description: '',
@@ -656,6 +528,99 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             measurement_unit: '',
             scoring_method: 'Numerical'
         });
+    };
+
+    const handleStartEditCriterion = (criterion) => {
+        setNewCriterion(null);
+        setEditingCriterion({
+            id: criterion.id,
+            criterion_name: criterion.criterion_name || '',
+            description: criterion.description || '',
+            category: criterion.category || '',
+            weight: String(criterion.weight ?? 1),
+            measurement_unit: criterion.measurement_unit || '',
+            scoring_method: criterion.scoring_method || 'Numerical',
+        });
+    };
+
+    const handleSaveEditCriterion = async () => {
+        if (!editingCriterion?.criterion_name?.trim()) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Kriter adı zorunludur.',
+            });
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('benchmark_criteria')
+                .update({
+                    criterion_name: editingCriterion.criterion_name.trim(),
+                    description: editingCriterion.description?.trim() || null,
+                    category: editingCriterion.category?.trim() || null,
+                    measurement_unit: editingCriterion.measurement_unit?.trim() || null,
+                    weight: parseFloat(editingCriterion.weight) || 1,
+                    scoring_method: editingCriterion.scoring_method || 'Numerical',
+                })
+                .eq('id', editingCriterion.id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            setCriteria((prev) => prev.map((c) => (c.id === data.id ? data : c)));
+            setEditingCriterion(null);
+            toast({
+                title: 'Güncellendi',
+                description: 'Kriter kaydedildi.',
+            });
+            onRefresh?.();
+        } catch (error) {
+            console.error('Kriter güncellenirken hata:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Kriter güncellenemedi.',
+            });
+        }
+    };
+
+    const handleDeleteCriterion = async (criterionId) => {
+        if (!confirm('Bu kriter silinsin mi? Matristeki bu kritere ait puanlar da silinir.')) {
+            return;
+        }
+
+        try {
+            const { error } = await supabase.from('benchmark_criteria').delete().eq('id', criterionId);
+
+            if (error) throw error;
+
+            setCriteria((prev) => prev.filter((c) => c.id !== criterionId));
+            setScores((prev) => {
+                const next = { ...prev };
+                Object.keys(next).forEach((k) => {
+                    if (k.endsWith(`_${criterionId}`)) delete next[k];
+                });
+                return next;
+            });
+            if (editingCriterion?.id === criterionId) {
+                setEditingCriterion(null);
+            }
+            toast({
+                title: 'Silindi',
+                description: 'Kriter kaldırıldı.',
+            });
+            onRefresh?.();
+        } catch (error) {
+            console.error('Kriter silinirken hata:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Kriter silinemedi.',
+            });
+        }
     };
 
     const handleSaveNewCriterion = async () => {
@@ -673,8 +638,14 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                 .from('benchmark_criteria')
                 .insert({
                     benchmark_id: benchmark.id,
-                    ...newCriterion,
-                    weight: parseFloat(newCriterion.weight) || 1
+                    criterion_name: newCriterion.criterion_name.trim(),
+                    description: newCriterion.description?.trim() || null,
+                    category: newCriterion.category?.trim() || null,
+                    measurement_unit: newCriterion.measurement_unit?.trim() || null,
+                    weight: parseFloat(newCriterion.weight) || 1,
+                    scoring_method: newCriterion.scoring_method || 'Numerical',
+                    order_index: criteria.length,
+                    include_in_matrix: true,
                 })
                 .select()
                 .single();
@@ -769,6 +740,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                     benchmark_item_id: itemId,
                     type: type,
                     description: description.trim(),
+                    source: 'manual',
                     created_by: user?.id
                 })
                 .select()
@@ -841,7 +813,7 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         }
     };
 
-    const handleDownloadReport = () => {
+    const handleDownloadReport = async () => {
         if (!benchmark) {
             toast({
                 variant: 'destructive',
@@ -850,579 +822,50 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
             });
             return;
         }
-        
-        const htmlContent = generateComparisonReport();
-        const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const printWindow = window.open(url, '_blank');
-        
-        if (!printWindow) {
+
+        try {
+            const payload = await fetchBenchmarkComparisonReportPayload(supabase, benchmark.id);
+            const htmlContent = await generateBenchmarkComparisonReportHtml({
+                benchmark,
+                ...payload,
+            });
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const printWindow = window.open(url, '_blank');
+
+            if (!printWindow) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Hata',
+                    description: 'Rapor penceresi açılamadı. Pop-up engelleyiciyi kontrol edin.'
+                });
+                URL.revokeObjectURL(url);
+                return;
+            }
+
+            printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
+        } catch (e) {
+            console.error(e);
             toast({
                 variant: 'destructive',
                 title: 'Hata',
-                description: 'Rapor penceresi açılamadı. Pop-up engelleyiciyi kontrol edin.'
+                description: 'Rapor oluşturulamadı.'
             });
-            return;
-        }
-        
-        if (printWindow) {
-            printWindow.addEventListener('afterprint', () => URL.revokeObjectURL(url));
         }
     };
 
-    const generateComparisonReport = () => {
-        if (!benchmark) return '';
-        
-        const sortedItems = [...items].sort((a, b) => {
-            const scoreA = itemScores[a.id]?.average || 0;
-            const scoreB = itemScores[b.id]?.average || 0;
-            return scoreB - scoreA;
-        });
-
-        // Kriter kategorilerine göre grupla
-        const getCriterionCategory = (item, key) => {
-            if (['unit_price', 'total_cost_of_ownership', 'roi_percentage', 'maintenance_cost'].includes(key)) return 'Maliyet';
-            if (['quality_score', 'performance_score', 'reliability_score'].includes(key)) return 'Kalite';
-            if (['after_sales_service_score', 'technical_support_score', 'warranty_period_months', 'documentation_quality_score'].includes(key)) return 'Hizmet';
-            if (['delivery_time_days', 'lead_time_days', 'implementation_time_days', 'training_required_hours'].includes(key)) return 'Operasyonel';
-            if (['energy_efficiency_score', 'environmental_impact_score'].includes(key)) return 'Çevresel';
-            if (['ease_of_use_score', 'scalability_score', 'compatibility_score', 'innovation_score'].includes(key)) return 'Teknik';
-            if (['market_reputation_score', 'customer_references_count', 'risk_level'].includes(key)) return 'Pazar';
-            return 'Diğer';
-        };
-
-        const formatValue = (item, key) => {
-            const value = item[key];
-            if (value === null || value === undefined || value === '') return '-';
-            if (key.includes('score') && typeof value === 'number') return `${value.toFixed(1)}/100`;
-            if (key.includes('price') || key.includes('cost') || key.includes('ownership')) {
-                return new Intl.NumberFormat('tr-TR', {
-                    style: 'currency',
-                    currency: item.currency || 'TRY'
-                }).format(value);
-            }
-            if (key.includes('percentage') || key.includes('roi')) return `${value}%`;
-            if (key.includes('days') || key.includes('hours') || key.includes('months') || key.includes('count')) return `${value} ${key.includes('days') ? 'gün' : key.includes('hours') ? 'saat' : key.includes('months') ? 'ay' : 'adet'}`;
-            return value.toString();
-        };
-
-        const creationDate = new Date().toLocaleDateString('tr-TR', { 
-            day: '2-digit', 
-            month: '2-digit', 
-            year: 'numeric' 
-        });
-        const preparedBy = "Atakan BATTAL";
-
-        return `
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>Benchmark Karşılaştırma Raporu - ${benchmark?.title || 'Benchmark'}</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
-        
-        * {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            color: #1f2937;
-            margin: 0;
-            padding: 0;
-            background-color: #f8fafc;
-            line-height: 1.6;
-        }
-        .page {
-            background-color: white;
-            width: 210mm;
-            min-height: 297mm;
-            margin: 20px auto;
-            padding: 0;
-            box-sizing: border-box;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        .page::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 8mm;
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            z-index: 1;
-        }
-        .page-content {
-            padding: 25mm 20mm 20mm 20mm;
-            position: relative;
-            z-index: 2;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 3px solid #1e40af;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-            position: relative;
-        }
-        .header-left {
-            flex: 1;
-        }
-        .header h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 28px;
-            font-weight: 700;
-            color: #1e40af;
-            margin: 0 0 5px 0;
-            letter-spacing: -0.5px;
-        }
-        .header p {
-            font-size: 13px;
-            color: #64748b;
-            margin: 0;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
-        .header-right {
-            text-align: right;
-        }
-        .report-number {
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 5px;
-        }
-        .report-date {
-            font-size: 11px;
-            color: #64748b;
-        }
-        .report-title-section {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            border-left: 5px solid #1e40af;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        .report-title h2 {
-            font-size: 24px;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 0 0 8px 0;
-            letter-spacing: -0.3px;
-        }
-        .report-title p {
-            font-size: 15px;
-            color: #475569;
-            margin: 0;
-            font-weight: 500;
-        }
-
-        .section {
-            margin-bottom: 35px;
-            page-break-inside: avoid;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #0f172a;
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px 8px 0 0;
-            margin: 0 0 0 0;
-            letter-spacing: -0.2px;
-        }
-        .section-content {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-top: none;
-            padding: 20px;
-            border-radius: 0 0 8px 8px;
-        }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 10px; 
-            font-size: 11px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        th, td { 
-            border: 1px solid #e2e8f0; 
-            padding: 10px 12px; 
-            text-align: left; 
-        }
-        th { 
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            color: white;
-            font-weight: 600; 
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        td {
-            background: #ffffff;
-        }
-        tr:nth-child(even) td {
-            background: #f8fafc;
-        }
-        .rank-1 { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important; font-weight: 600; }
-        .rank-2 { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important; font-weight: 600; }
-        .rank-3 { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%) !important; font-weight: 600; }
-        .score-high { color: #059669; font-weight: bold; }
-        .score-medium { color: #d97706; font-weight: bold; }
-        .score-low { color: #dc2626; font-weight: bold; }
-        .pros-cons-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
-            margin-bottom: 20px;
-        }
-        .pros-box {
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            border-left: 4px solid #22c55e;
-            padding: 16px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(34, 197, 94, 0.1);
-        }
-        .cons-box {
-            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-            border-left: 4px solid #ef4444;
-            padding: 16px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.1);
-        }
-        .pros-box h4 {
-            color: #15803d;
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            font-weight: 700;
-        }
-        .cons-box h4 {
-            color: #dc2626;
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            font-weight: 700;
-        }
-        .pros-box ul, .cons-box ul {
-            margin: 0;
-            padding-left: 20px;
-            font-size: 12px;
-            line-height: 1.8;
-        }
-        .pros-box li, .cons-box li {
-            margin-bottom: 6px;
-        }
-        .footer {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            padding: 15px 20mm;
-            border-top: 2px solid #e2e8f0;
-            text-align: center;
-            font-size: 11px;
-            color: #64748b;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .footer-left {
-            text-align: left;
-        }
-        .footer-right {
-            text-align: right;
-        }
-        .footer-center {
-            flex: 1;
-            text-align: center;
-        }
-        .page-number {
-            font-weight: 600;
-            color: #1e40af;
-        }
-        @media print {
-            /* Print için renkleri koru */
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important;
-            }
-            
-            body { background-color: white !important; margin: 0; padding: 0; }
-            .page { margin: 0; box-shadow: none; border: none; }
-            .page::before { display: none; }
-            @page {
-                size: A4;
-                margin: 12mm;
-            }
-            .section { page-break-inside: avoid; break-inside: avoid; }
-            .section-title { page-break-after: avoid; break-after: avoid; }
-            table { page-break-inside: auto; }
-            table thead { display: table-header-group; }
-            table tbody tr { page-break-inside: avoid; break-inside: avoid; }
-            .footer {
-                position: fixed;
-                bottom: 0;
-                page-break-inside: avoid;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="page">
-        <div class="page-content">
-        <div class="header">
-            <div class="header-left">
-                <h1>KADEME A.Ş.</h1>
-                <p>Kalite Yönetim Sistemi</p>
-            </div>
-            <div class="header-right">
-                <div class="report-number">Rapor No: ${benchmark?.benchmark_number || 'N/A'}</div>
-                <div class="report-date">${creationDate}</div>
-            </div>
-        </div>
-        <div class="report-title-section">
-            <div class="report-title">
-                <h2>Benchmark Karşılaştırma Raporu</h2>
-                <p>${benchmark?.title || '-'}</p>
-            </div>
-        </div>
-
-    <div class="section">
-        <div class="section-title">Genel Sıralama</div>
-        <div class="section-content">
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 50px;">Sıra</th>
-                    <th>Alternatif</th>
-                    <th>Açıklama</th>
-                    <th style="width: 120px; text-align: center;">Toplam Skor</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${sortedItems.map((item, index) => {
-                    const avgScore = itemScores[item.id]?.average || 0;
-                    const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
-                    const scoreClass = avgScore >= 80 ? 'score-high' : avgScore >= 60 ? 'score-medium' : 'score-low';
-                    return `
-                    <tr class="${rankClass}">
-                        <td style="text-align: center; font-size: 18px; font-weight: bold;">${index + 1}</td>
-                        <td><strong>${item.item_name}</strong>${item.item_code ? `<br><small>${item.item_code}</small>` : ''}</td>
-                        <td>${item.description || '-'}</td>
-                        <td style="text-align: center;" class="${scoreClass}">${avgScore.toFixed(1)}</td>
-                    </tr>
-                    `;
-                }).join('')}
-            </tbody>
-        </table>
-        </div>
-    </div>
-
-    ${criteria.length > 0 ? `
-    <div class="section">
-        <div class="section-title">Detaylı Karşılaştırma Matrisi</div>
-        <div class="section-content">
-        <table>
-            <thead>
-                <tr>
-                    <th>Alternatif</th>
-                    ${criteria.map(c => `<th style="text-align: center;">${c.criterion_name}<br><small>(${c.weight}%)</small></th>`).join('')}
-                    <th style="text-align: center; background: #dbeafe;">Toplam</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${sortedItems.map(item => {
-                    const criteriaScores = criteria.map(criterion => {
-                        const key = `${item.id}_${criterion.id}`;
-                        const score = scores[key];
-                        const normalized = score?.normalized_score || 0;
-                        return `<td style="text-align: center;">${normalized.toFixed(1)}</td>`;
-                    }).join('');
-                    
-                    return `
-                    <tr>
-                        <td><strong>${item.item_name}</strong></td>
-                        ${criteriaScores}
-                        <td style="text-align: center; background: #dbeafe; font-weight: bold;">
-                            ${(itemScores[item.id]?.average || 0).toFixed(1)}
-                        </td>
-                    </tr>
-                    `;
-                }).join('')}
-            </tbody>
-        </table>
-        </div>
-    </div>
-    ` : ''}
-
-    ${Object.keys(prosConsData).length > 0 ? `
-    <div class="section">
-        <div class="section-title">Avantaj & Dezavantaj Analizi</div>
-        <div class="section-content">
-        ${sortedItems.map(item => {
-            const itemData = prosConsData[item.id];
-            if (!itemData || (itemData.pros.length === 0 && itemData.cons.length === 0)) return '';
-            return `
-            <div style="margin-bottom: 20px; border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; background: #f9fafb;">
-                <h3 style="margin: 0 0 12px 0; color: #1e40af; font-size: 14px; font-weight: 600;">${item.item_name}</h3>
-                <div class="pros-cons-container">
-                    <div class="pros-box">
-                        <h4>✓ Avantajlar</h4>
-                        <ul>
-                            ${(itemData.pros || []).length > 0 
-                                ? (itemData.pros || []).map(pro => `<li>${pro.description || '-'}</li>`).join('')
-                                : '<li>Avantaj belirtilmemiş</li>'
-                            }
-                        </ul>
-                    </div>
-                    <div class="cons-box">
-                        <h4>✗ Dezavantajlar</h4>
-                        <ul>
-                            ${(itemData.cons || []).length > 0 
-                                ? (itemData.cons || []).map(con => `<li>${con.description || '-'}</li>`).join('')
-                                : '<li>Dezavantaj belirtilmemiş</li>'
-                            }
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            `;
-        }).join('')}
-        </div>
-    </div>
-    ` : ''}
-
-    <div class="section">
-        <div class="section-title">Detaylı Kriter Karşılaştırması</div>
-        <div class="section-content">
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 200px;">Kriter</th>
-                    ${sortedItems.map(item => `<th style="text-align: center;">${item.item_name}</th>`).join('')}
-                </tr>
-            </thead>
-            <tbody>
-                ${['unit_price', 'total_cost_of_ownership', 'roi_percentage', 'quality_score', 'performance_score', 'reliability_score', 'after_sales_service_score', 'technical_support_score', 'warranty_period_months', 'delivery_time_days', 'lead_time_days', 'implementation_time_days', 'energy_efficiency_score', 'environmental_impact_score', 'ease_of_use_score', 'scalability_score', 'compatibility_score', 'innovation_score', 'market_reputation_score', 'customer_references_count', 'risk_level'].map(key => {
-                    const criterionNames = {
-                        'unit_price': 'Birim Fiyat',
-                        'total_cost_of_ownership': 'Toplam Sahiplik Maliyeti (TCO)',
-                        'roi_percentage': 'Yatırım Getirisi (ROI)',
-                        'quality_score': 'Kalite Skoru',
-                        'performance_score': 'Performans Skoru',
-                        'reliability_score': 'Güvenilirlik Skoru',
-                        'after_sales_service_score': 'Satış Sonrası Hizmet',
-                        'technical_support_score': 'Teknik Destek',
-                        'warranty_period_months': 'Garanti Süresi',
-                        'delivery_time_days': 'Teslimat Süresi',
-                        'lead_time_days': 'Tedarik Süresi',
-                        'implementation_time_days': 'Uygulama Süresi',
-                        'energy_efficiency_score': 'Enerji Verimliliği',
-                        'environmental_impact_score': 'Çevresel Etki',
-                        'ease_of_use_score': 'Kullanılabilirlik',
-                        'scalability_score': 'Ölçeklenebilirlik',
-                        'compatibility_score': 'Uyumluluk',
-                        'innovation_score': 'İnovasyon',
-                        'market_reputation_score': 'Pazar İtibarı',
-                        'customer_references_count': 'Müşteri Referans Sayısı',
-                        'risk_level': 'Risk Seviyesi'
-                    };
-                    
-                    const hasValue = sortedItems.some(item => item[key] !== null && item[key] !== undefined && item[key] !== '');
-                    if (!hasValue) return '';
-                    
-                    return `
-                    <tr>
-                        <td style="font-weight: 600;">${criterionNames[key] || key}</td>
-                        ${sortedItems.map(item => {
-                            const value = formatValue(item, key);
-                            const bestValue = sortedItems.reduce((best, current) => {
-                                const currentVal = current[key];
-                                const bestVal = best[key];
-                                if (currentVal === null || currentVal === undefined || currentVal === '') return best;
-                                if (bestVal === null || bestVal === undefined || bestVal === '') return current;
-                                
-                                // Fiyat ve süre için en düşük değer en iyi
-                                if (key.includes('price') || key.includes('cost') || key.includes('days') || key.includes('hours')) {
-                                    return currentVal < bestVal ? current : best;
-                                }
-                                // Skorlar ve yüzdeler için en yüksek değer en iyi
-                                if (key.includes('score') || key.includes('percentage') || key.includes('count') || key.includes('months')) {
-                                    return currentVal > bestVal ? current : best;
-                                }
-                                return best;
-                            }, sortedItems[0]);
-                            const isBest = bestValue && item[key] === bestValue[key] && item[key] !== null && item[key] !== undefined && item[key] !== '';
-                            return `<td style="text-align: center; ${isBest ? 'background: #dbeafe; font-weight: bold;' : ''}">${value}</td>`;
-                        }).join('')}
-                    </tr>
-                    `;
-                }).filter(row => row !== '').join('')}
-            </tbody>
-        </table>
-        </div>
-    </div>
-
-        </div>
-        <div class="footer">
-            <div class="footer-left">
-                <div>KADEME A.Ş.</div>
-                <div style="font-size: 10px; margin-top: 2px;">Kalite Yönetim Sistemi</div>
-            </div>
-            <div class="footer-center">
-                Bu rapor, Kalite Yönetim Sistemi tarafından otomatik olarak oluşturulmuştur.
-            </div>
-            <div class="footer-right">
-                <div class="page-number">Sayfa <span id="pageNum">1</span></div>
-                <div style="font-size: 10px; margin-top: 2px;">${creationDate}</div>
-            </div>
-        </div>
-    </div>
-    <script>
-        const images = document.querySelectorAll('.attachment-image');
-        const promises = Array.from(images).map(img => {
-            return new Promise((resolve) => {
-                if (img.complete) {
-                    resolve();
-                } else {
-                    img.onload = resolve;
-                    img.onerror = resolve; // Resolve on error too, to not block printing
-                }
-            });
-        });
-
-        Promise.all(promises).then(() => {
-            setTimeout(() => {
-                window.print();
-            }, 500); // Increased delay to ensure rendering
-        });
-    </script>
-</body>
-</html>
-        `;
-    };
-
-    console.log('BenchmarkComparison render:', { benchmark, isOpen, loading, itemsCount: items?.length, criteriaCount: criteria?.length, benchmarkId: benchmark?.id });
-
-    // Eğer modal açık değilse hiçbir şey render etme
-    if (!isOpen) {
-        console.log('BenchmarkComparison: Modal kapalı, returning null');
+    if (!embedded && !isOpen) {
         return null;
     }
 
-    // Eğer benchmark yoksa bile modal'ı göster ama içeriği loading olarak göster
     if (!benchmark) {
-        console.log('BenchmarkComparison: Benchmark yok, loading gösteriliyor');
+        if (embedded) return null;
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogContent
+                    hideCloseButton
+                    className="!fixed !inset-0 !left-0 !top-0 z-[60] !m-0 flex h-[100dvh] !max-h-[100dvh] w-full !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none border-0 p-0 shadow-xl sm:!max-h-[100dvh]"
+                >
                     <DialogHeader>
                         <DialogTitle className="text-2xl">
                             <TrendingUp className="inline-block mr-2 h-6 w-6" />
@@ -1440,12 +883,14 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         );
     }
 
-    // Benchmark var ama id yoksa da loading göster
     if (!benchmark.id) {
-        console.log('BenchmarkComparison: Benchmark ID yok, loading gösteriliyor');
+        if (embedded) return null;
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogContent
+                    hideCloseButton
+                    className="!fixed !inset-0 !left-0 !top-0 z-[60] !m-0 flex h-[100dvh] !max-h-[100dvh] w-full !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none border-0 p-0 shadow-xl sm:!max-h-[100dvh]"
+                >
                     <DialogHeader>
                         <DialogTitle className="text-2xl">
                             <TrendingUp className="inline-block mr-2 h-6 w-6" />
@@ -1463,57 +908,152 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
         );
     }
 
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader>
-                    <div className="flex items-center justify-between">
-                        <DialogTitle className="text-2xl">
-                            <TrendingUp className="inline-block mr-2 h-6 w-6" />
-                            Benchmark Karşılaştırma
-                        </DialogTitle>
-                        <Button size="sm" variant="outline" onClick={handleDownloadReport} disabled={!benchmark}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Rapor İndir
-                        </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        {benchmark?.title || 'Yükleniyor...'}
-                    </p>
-                </DialogHeader>
-
+    const inner = (
+                <>
                 {loading ? (
-                    <div className="flex items-center justify-center h-[calc(95vh-120px)]">
+                    <div
+                        className={cn(
+                            embedded
+                                ? 'flex justify-center py-16'
+                                : 'flex items-center justify-center h-[calc(95vh-140px)]'
+                        )}
+                    >
                         <div className="text-center">
                             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-                            <p className="text-sm text-muted-foreground">Veriler yükleniyor...</p>
+                            {!embedded && (
+                                <p className="text-sm text-muted-foreground">Veriler yükleniyor...</p>
+                            )}
                         </div>
                     </div>
                 ) : (
-                    <ScrollArea className="h-[calc(95vh-120px)]">
+                    <div
+                        className={cn(
+                            embedded
+                                ? 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain'
+                                : 'h-[calc(95vh-140px)] min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain'
+                        )}
+                    >
+                        <div
+                            className={cn(
+                                embedded ? 'min-w-0 pt-1 pb-2' : 'px-6 pt-4 pb-6 min-w-0'
+                            )}
+                        >
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
-                            <TabsTrigger value="items">
+                        <TabsList className="!inline-flex !h-auto w-full min-w-0 flex-wrap items-stretch justify-start gap-1.5 rounded-lg border bg-muted/50 p-1.5 sm:p-2 overflow-x-visible overflow-y-visible">
+                            <TabsTrigger
+                                value="overview"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
+                                Özet
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="items"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
                                 Alternatifler ({items?.length || 0})
                             </TabsTrigger>
-                            <TabsTrigger value="criteria">
+                            <TabsTrigger
+                                value="criteria"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
                                 Kriterler ({criteria?.length || 0})
                             </TabsTrigger>
-                            <TabsTrigger value="matrix">
-                                Karşılaştırma Matrisi
+                            <TabsTrigger
+                                value="matrix"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
+                                Matris (puan)
                             </TabsTrigger>
-                            <TabsTrigger value="analysis">
-                                Analiz & Sonuçlar
+                            <TabsTrigger
+                                value="analysis"
+                                className="shrink-0 flex-none rounded-md px-3 py-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                            >
+                                Avantaj / dezavantaj
                             </TabsTrigger>
                         </TabsList>
+                        <p className="text-xs text-muted-foreground mt-2">
+                            Akış: <strong className="text-foreground">Kriterler</strong> →{' '}
+                            <strong className="text-foreground">Matris</strong> ile puan girin; grafikler Özet sekmesindedir.
+                        </p>
+
+                        {/* Özet — grafikler */}
+                        <TabsContent value="overview" className="space-y-6 mt-4">
+                            <BenchmarkOverviewHero
+                                winner={winner}
+                                itemCount={items?.length ?? 0}
+                                criteriaCount={criteria?.length ?? 0}
+                                hasRadar={showRadar}
+                            />
+                            <div className="grid gap-6 xl:grid-cols-2">
+                                <Card className="overflow-hidden shadow-sm">
+                                    <CardHeader className="border-b bg-muted/30 py-4">
+                                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                            <BarChart3 className="h-4 w-4 text-primary" />
+                                            Skor sıralaması
+                                        </CardTitle>
+                                        <p className="text-sm text-muted-foreground font-normal mt-1">
+                                            Ağırlıklı toplam skor (yüksek daha iyi). En fazla 14 alternatif gösterilir.
+                                        </p>
+                                    </CardHeader>
+                                    <CardContent className="pt-4">
+                                        <div className="w-full min-w-0 self-start text-left [&_.recharts-responsive-container]:!mx-0 [&_.recharts-wrapper]:!mx-0">
+                                            <BenchmarkRankingBars
+                                                itemsSortedByScore={itemsSortedByScore}
+                                                itemScores={itemScores}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card className="overflow-hidden shadow-sm">
+                                    <CardHeader className="border-b bg-muted/30 py-4">
+                                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                            <Target className="h-4 w-4 text-primary" />
+                                            Kriter profili (radar)
+                                        </CardTitle>
+                                        <p className="text-sm text-muted-foreground font-normal mt-1">
+                                            Her eksen bir kriter; değerler 0–100 normalize puandır. En fazla 5 alternatif, 12 kriter.
+                                        </p>
+                                    </CardHeader>
+                                    <CardContent className="pt-4">
+                                        {showRadar ? (
+                                            <BenchmarkCriteriaRadar
+                                                radarItems={radarCompareItems}
+                                                criteria={matrixCriteria}
+                                                scores={scores}
+                                            />
+                                        ) : (
+                                            <div className="flex h-[280px] items-center justify-center rounded-lg border border-dashed bg-muted/20 px-4 text-center text-sm text-muted-foreground">
+                                                Radar için en az <strong className="mx-1 text-foreground">2 kriter</strong> ve{' '}
+                                                <strong className="mx-1 text-foreground">2 alternatif</strong> gerekir. Kayıtta otomatik
+                                                kriter üretimi kullanıldıysa burada görünür; yoksa Kriterler sekmesinden ekleyin.
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            {criteria.length > 0 && items.length > 0 && (
+                                <Card className="border-dashed bg-muted/20">
+                                    <CardContent className="py-4 text-sm text-muted-foreground">
+                                        <strong className="text-foreground">Nasıl okunur?</strong> Çubuk grafik genel skoru özetler;
+                                        radar aynı kriterlerde alternatiflerin profilini üst üste gösterir. Matris sekmesinde hücre
+                                        hücre düzenleme yapabilirsiniz.
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </TabsContent>
 
                         {/* Alternatifler */}
                         <TabsContent value="items" className="space-y-4 mt-4">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-semibold">Karşılaştırılan Alternatifler</h3>
+                            <div className="flex flex-wrap justify-between items-start gap-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold tracking-tight">Alternatifler</h3>
+                                    <p className="text-sm text-muted-foreground mt-0.5">
+                                        Genel skora göre sıralı. Satırdaki göz ile tüm alanları açın.
+                                    </p>
+                                </div>
                                 <Button size="sm" onClick={handleAddItem}>
                                     <Plus className="mr-2 h-4 w-4" />
-                                    Alternatif Ekle
+                                    Alternatif ekle
                                 </Button>
                             </div>
 
@@ -1524,12 +1064,22 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                     </CardHeader>
                                     <CardContent>
                                         <Tabs defaultValue="basic" className="w-full">
-                                            <TabsList className="grid w-full grid-cols-5">
-                                                <TabsTrigger value="basic">Temel</TabsTrigger>
-                                                <TabsTrigger value="cost">Maliyet</TabsTrigger>
-                                                <TabsTrigger value="quality">Kalite</TabsTrigger>
-                                                <TabsTrigger value="service">Hizmet</TabsTrigger>
-                                                <TabsTrigger value="other">Diğer</TabsTrigger>
+                                            <TabsList className="!inline-flex !h-auto w-full min-w-0 flex-wrap items-stretch justify-start gap-1.5 rounded-md bg-muted p-1.5">
+                                                <TabsTrigger value="basic" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                                    Temel
+                                                </TabsTrigger>
+                                                <TabsTrigger value="cost" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                                    Maliyet
+                                                </TabsTrigger>
+                                                <TabsTrigger value="quality" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                                    Kalite
+                                                </TabsTrigger>
+                                                <TabsTrigger value="service" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                                    Hizmet
+                                                </TabsTrigger>
+                                                <TabsTrigger value="other" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                                    Diğer
+                                                </TabsTrigger>
                                             </TabsList>
 
                                             {/* Temel Bilgiler */}
@@ -1540,50 +1090,26 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                     </p>
                                                 </div>
                                                 
-                                                <div className="grid gap-3 md:grid-cols-2">
-                                                    <div>
-                                                        <LabelWithTooltip tooltip="Karşılaştırma için benzersiz bir isim verin" required>
-                                                            Alternatif Adı
-                                                        </LabelWithTooltip>
-                                                        <Input
-                                                            value={newItem.item_name}
-                                                            onChange={(e) => setNewItem({...newItem, item_name: e.target.value})}
-                                                            placeholder="Örn: Alternatif A, Ürün X, Tedarikçi Y"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <LabelWithTooltip tooltip="Ürün, parça veya hizmet için kullanılan kod/numara">
-                                                            Kod/Referans No
-                                                        </LabelWithTooltip>
-                                                        <Input
-                                                            value={newItem.item_code}
-                                                            onChange={(e) => setNewItem({...newItem, item_code: e.target.value})}
-                                                            placeholder="Ürün/Parça kodu"
-                                                        />
-                                                    </div>
+                                                <div>
+                                                    <LabelWithTooltip tooltip="Karşılaştırma için benzersiz bir isim verin" required>
+                                                        Alternatif adı
+                                                    </LabelWithTooltip>
+                                                    <Input
+                                                        value={newItem.item_name}
+                                                        onChange={(e) => setNewItem({...newItem, item_name: e.target.value})}
+                                                        placeholder="Örn: Çözüm A, tedarikçi teklifi"
+                                                    />
                                                 </div>
-                                                
-                                                <div className="grid gap-3 md:grid-cols-2">
-                                                    <div>
-                                                        <LabelWithTooltip tooltip="Ürünü üreten veya hizmeti sağlayan firma adı">
-                                                            Üretici/Tedarikçi
-                                                        </LabelWithTooltip>
-                                                        <Input
-                                                            value={newItem.manufacturer}
-                                                            onChange={(e) => setNewItem({...newItem, manufacturer: e.target.value})}
-                                                            placeholder="Üretici firma adı"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <LabelWithTooltip tooltip="Ürün model numarası, seri numarası veya versiyon bilgisi">
-                                                            Model/Seri No
-                                                        </LabelWithTooltip>
-                                                        <Input
-                                                            value={newItem.model_number}
-                                                            onChange={(e) => setNewItem({...newItem, model_number: e.target.value})}
-                                                            placeholder="Model numarası"
-                                                        />
-                                                    </div>
+
+                                                <div>
+                                                    <LabelWithTooltip tooltip="Model, seri veya versiyon bilgisi">
+                                                        Model / seri no
+                                                    </LabelWithTooltip>
+                                                    <Input
+                                                        value={newItem.model_number}
+                                                        onChange={(e) => setNewItem({...newItem, model_number: e.target.value})}
+                                                        placeholder="İsteğe bağlı"
+                                                    />
                                                 </div>
                                                 
                                                 <div>
@@ -2147,180 +1673,120 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                 </Card>
                             )}
 
-                            <div className="grid gap-4 md:grid-cols-2">
-                                {items && items.length > 0 ? items.map((item) => (
-                                    <Card key={item.id}>
-                                        <CardHeader>
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <CardTitle className="flex items-center gap-2">
-                                                        {item.item_name}
-                                                        {item.is_recommended && (
-                                                            <Award className="h-4 w-4 text-yellow-500" />
-                                                        )}
-                                                    </CardTitle>
-                                                    {item.item_code && (
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {item.item_code}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <div className="flex gap-1">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => setSelectedItemDetail(item)}
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => handleDeleteItem(item.id)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4 text-red-500" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent>
-                                            {item.description && (
-                                                <p className="text-sm mb-3">{item.description}</p>
-                                            )}
-                                            <div className="space-y-2 text-sm">
-                                                {/* Maliyet Bilgileri */}
-                                                {item.unit_price && (
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">Birim Fiyat:</span>
-                                                        <span className="font-medium">
-                                                            {new Intl.NumberFormat('tr-TR', {
-                                                                style: 'currency',
-                                                                currency: item.currency || 'TRY'
-                                                            }).format(item.unit_price)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {item.total_cost_of_ownership && (
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">TCO:</span>
-                                                        <span className="font-medium">
-                                                            {new Intl.NumberFormat('tr-TR', {
-                                                                style: 'currency',
-                                                                currency: item.currency || 'TRY'
-                                                            }).format(item.total_cost_of_ownership)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {item.roi_percentage && (
-                                                    <div className="flex justify-between">
-                                                        <span className="text-muted-foreground">ROI:</span>
-                                                        <Badge variant="outline">{item.roi_percentage}%</Badge>
-                                                    </div>
-                                                )}
-                                                
-                                                {/* Teslimat ve Süre */}
-                                                {(item.delivery_time_days || item.lead_time_days) && (
-                                                    <div className="flex justify-between pt-2 border-t">
-                                                        <span className="text-muted-foreground">Teslimat:</span>
-                                                        <span className="font-medium">
-                                                            {item.delivery_time_days || item.lead_time_days} gün
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                
-                                                {/* Kalite Skorları */}
-                                                <div className="pt-2 border-t space-y-1">
-                                                    {item.quality_score && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-muted-foreground">Kalite:</span>
-                                                            <Badge variant="outline">{item.quality_score}/100</Badge>
-                                                        </div>
-                                                    )}
-                                                    {item.performance_score && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-muted-foreground">Performans:</span>
-                                                            <Badge variant="outline">{item.performance_score}/100</Badge>
-                                                        </div>
-                                                    )}
-                                                    {item.reliability_score && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-muted-foreground">Güvenilirlik:</span>
-                                                            <Badge variant="outline">{item.reliability_score}/100</Badge>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                
-                                                {/* Hizmet Skorları */}
-                                                {(item.after_sales_service_score || item.technical_support_score) && (
-                                                    <div className="pt-2 border-t space-y-1">
-                                                        {item.after_sales_service_score && (
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Satış Sonrası:</span>
-                                                                <Badge variant="outline">{item.after_sales_service_score}/100</Badge>
+                            {itemsSortedByScore.length > 0 ? (
+                                <div className="rounded-lg border bg-card overflow-hidden shadow-sm">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-muted/60 hover:bg-muted/60 border-b">
+                                                <TableHead className="w-11 text-center font-semibold">#</TableHead>
+                                                <TableHead className="min-w-[200px] font-semibold">Alternatif</TableHead>
+                                                <TableHead className="text-right whitespace-nowrap font-semibold">Birim fiyat</TableHead>
+                                                <TableHead className="text-center whitespace-nowrap font-semibold">Kalite</TableHead>
+                                                <TableHead className="text-center whitespace-nowrap font-semibold">Teslimat</TableHead>
+                                                <TableHead className="text-right whitespace-nowrap font-semibold">Toplam skor</TableHead>
+                                                <TableHead className="w-[100px] text-right font-semibold">İşlem</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {itemsSortedByScore.map((item, idx) => (
+                                                <TableRow
+                                                    key={item.id}
+                                                    className={idx === 0 ? 'bg-primary/[0.06]' : ''}
+                                                >
+                                                    <TableCell className="text-center text-muted-foreground tabular-nums font-medium">
+                                                        {idx + 1}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-start gap-2">
+                                                            {item.is_recommended && (
+                                                                <Award className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" aria-hidden />
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <div className="font-semibold leading-tight">{item.item_name}</div>
+                                                                {item.model_number && (
+                                                                    <div className="text-xs text-muted-foreground mt-0.5">{item.model_number}</div>
+                                                                )}
+                                                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                    {item.is_current_solution && (
+                                                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                                                                            Mevcut
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        )}
-                                                        {item.technical_support_score && (
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Teknik Destek:</span>
-                                                                <Badge variant="outline">{item.technical_support_score}/100</Badge>
-                                                            </div>
-                                                        )}
-                                                        {item.warranty_period_months && (
-                                                            <div className="flex justify-between">
-                                                                <span className="text-muted-foreground">Garanti:</span>
-                                                                <span className="font-medium">{item.warranty_period_months} ay</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                
-                                                {/* Risk ve Diğer */}
-                                                {item.risk_level && (
-                                                    <div className="flex justify-between pt-2 border-t">
-                                                        <span className="text-muted-foreground">Risk:</span>
-                                                        <Badge 
-                                                            variant={
-                                                                item.risk_level === 'Düşük' ? 'default' :
-                                                                item.risk_level === 'Orta' ? 'secondary' :
-                                                                item.risk_level === 'Yüksek' ? 'destructive' : 'destructive'
-                                                            }
-                                                        >
-                                                            {item.risk_level}
-                                                        </Badge>
-                                                    </div>
-                                                )}
-                                                
-                                                {/* Toplam Skor */}
-                                                {itemScores[item.id] && (
-                                                    <div className="flex justify-between pt-2 border-t mt-2">
-                                                        <span className="font-semibold">Toplam Skor:</span>
-                                                        <Badge className="bg-primary text-lg px-3 py-1">
-                                                            {itemScores[item.id].average.toFixed(1)}
-                                                        </Badge>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )) : (
-                                    <div className="col-span-2">
-                                        <Card className="p-6 text-center">
-                                            <p className="text-muted-foreground">
-                                                Henüz alternatif eklenmemiş. Yeni alternatif eklemek için yukarıdaki butona tıklayın.
-                                            </p>
-                                        </Card>
-                                    </div>
-                                )}
-                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-sm tabular-nums">
+                                                        {item.unit_price != null && item.unit_price !== ''
+                                                            ? new Intl.NumberFormat('tr-TR', {
+                                                                  style: 'currency',
+                                                                  currency: item.currency || 'TRY',
+                                                              }).format(item.unit_price)
+                                                            : '—'}
+                                                    </TableCell>
+                                                    <TableCell className="text-center text-sm tabular-nums">
+                                                        {item.quality_score != null && item.quality_score !== '' ? item.quality_score : '—'}
+                                                    </TableCell>
+                                                    <TableCell className="text-center text-sm tabular-nums">
+                                                        {item.delivery_time_days ?? item.lead_time_days ?? '—'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <span className="inline-flex font-mono text-sm font-semibold tabular-nums px-2 py-1 rounded-md bg-muted">
+                                                            {itemScores[item.id]?.average != null
+                                                                ? itemScores[item.id].average.toFixed(1)
+                                                                : '—'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end gap-0.5">
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8"
+                                                                onClick={() => setSelectedItemDetail(item)}
+                                                                title="Detay"
+                                                            >
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                                onClick={() => handleDeleteItem(item.id)}
+                                                                title="Sil"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            ) : (
+                                <Card className="border-dashed">
+                                    <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                                        Henüz alternatif yok. Yukarıdan ekleyin.
+                                    </CardContent>
+                                </Card>
+                            )}
                         </TabsContent>
 
                         {/* Kriterler */}
                         <TabsContent value="criteria" className="space-y-4 mt-4">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-semibold">Değerlendirme Kriterleri</h3>
+                            <div className="flex flex-wrap justify-between items-start gap-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold tracking-tight">Kriterler</h3>
+                                    <p className="text-sm text-muted-foreground mt-0.5">
+                                        Manuel kriter ekleyebilir veya alternatif verilerinden otomatik üretilenleri matriste kullanabilirsiniz.
+                                    </p>
+                                </div>
                                 <Button size="sm" onClick={handleAddCriterion}>
                                     <Plus className="mr-2 h-4 w-4" />
-                                    Kriter Ekle
+                                    Kriter ekle
                                 </Button>
                             </div>
 
@@ -2341,11 +1807,24 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                             </div>
                                             <div>
                                                 <Label>Kategori</Label>
-                                                <Input
-                                                    value={newCriterion.category}
-                                                    onChange={(e) => setNewCriterion({...newCriterion, category: e.target.value})}
-                                                    placeholder="Örn: Finansal"
-                                                />
+                                                <Select
+                                                    value={newCriterion.category || '__none__'}
+                                                    onValueChange={(v) =>
+                                                        setNewCriterion({ ...newCriterion, category: v === '__none__' ? '' : v })
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Seçin" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="__none__">—</SelectItem>
+                                                        {CRITERION_CATEGORY_OPTIONS.map((c) => (
+                                                            <SelectItem key={c} value={c}>
+                                                                {c}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
                                         <div>
@@ -2367,12 +1846,28 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                 />
                                             </div>
                                             <div>
-                                                <Label>Ölçüm Birimi</Label>
-                                                <Input
-                                                    value={newCriterion.measurement_unit}
-                                                    onChange={(e) => setNewCriterion({...newCriterion, measurement_unit: e.target.value})}
-                                                    placeholder="TRY, Gün, Puan vb."
-                                                />
+                                                <Label>Ölçüm birimi</Label>
+                                                <Select
+                                                    value={newCriterion.measurement_unit || '__none__'}
+                                                    onValueChange={(v) =>
+                                                        setNewCriterion({
+                                                            ...newCriterion,
+                                                            measurement_unit: v === '__none__' ? '' : v,
+                                                        })
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Seçin" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="__none__">—</SelectItem>
+                                                        {MEASUREMENT_UNIT_OPTIONS.map((u) => (
+                                                            <SelectItem key={u} value={u}>
+                                                                {u}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
@@ -2388,13 +1883,124 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                 </Card>
                             )}
 
+                            {editingCriterion && (
+                                <Card className="border-2 border-amber-500/60">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Kriteri düzenle</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                            <div>
+                                                <Label>Kriter adı *</Label>
+                                                <Input
+                                                    value={editingCriterion.criterion_name}
+                                                    onChange={(e) =>
+                                                        setEditingCriterion({
+                                                            ...editingCriterion,
+                                                            criterion_name: e.target.value,
+                                                        })
+                                                    }
+                                                    placeholder="Örn: Maliyet"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Kategori</Label>
+                                                <Select
+                                                    value={editingCriterion.category || '__none__'}
+                                                    onValueChange={(v) =>
+                                                        setEditingCriterion({
+                                                            ...editingCriterion,
+                                                            category: v === '__none__' ? '' : v,
+                                                        })
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Seçin" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="__none__">—</SelectItem>
+                                                        {CRITERION_CATEGORY_OPTIONS.map((c) => (
+                                                            <SelectItem key={c} value={c}>
+                                                                {c}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <Label>Açıklama</Label>
+                                            <Textarea
+                                                value={editingCriterion.description}
+                                                onChange={(e) =>
+                                                    setEditingCriterion({
+                                                        ...editingCriterion,
+                                                        description: e.target.value,
+                                                    })
+                                                }
+                                                rows={2}
+                                            />
+                                        </div>
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                            <div>
+                                                <Label>Ağırlık (%) *</Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={editingCriterion.weight}
+                                                    onChange={(e) =>
+                                                        setEditingCriterion({
+                                                            ...editingCriterion,
+                                                            weight: e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>Ölçüm birimi</Label>
+                                                <Select
+                                                    value={editingCriterion.measurement_unit || '__none__'}
+                                                    onValueChange={(v) =>
+                                                        setEditingCriterion({
+                                                            ...editingCriterion,
+                                                            measurement_unit: v === '__none__' ? '' : v,
+                                                        })
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Seçin" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="__none__">—</SelectItem>
+                                                        {MEASUREMENT_UNIT_OPTIONS.map((u) => (
+                                                            <SelectItem key={u} value={u}>
+                                                                {u}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button size="sm" onClick={handleSaveEditCriterion}>
+                                                <Save className="mr-2 h-4 w-4" />
+                                                Kaydet
+                                            </Button>
+                                            <Button size="sm" variant="outline" onClick={() => setEditingCriterion(null)}>
+                                                İptal
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             <div className="space-y-3">
                                 {criteria.map((criterion) => (
                                     <Card key={criterion.id}>
                                         <CardContent className="py-4">
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
                                                         <h4 className="font-semibold">{criterion.criterion_name}</h4>
                                                         <Badge variant="secondary">
                                                             Ağırlık: %{criterion.weight}
@@ -2409,6 +2015,26 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                                         </p>
                                                     )}
                                                 </div>
+                                                <div className="flex shrink-0 gap-1">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleStartEditCriterion(criterion)}
+                                                    >
+                                                        <Edit className="h-4 w-4 mr-1" />
+                                                        Düzenle
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-destructive hover:text-destructive"
+                                                        onClick={() => handleDeleteCriterion(criterion.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -2417,150 +2043,135 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                         </TabsContent>
 
                         {/* Karşılaştırma Matrisi */}
-                        <TabsContent value="matrix" className="mt-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Değerlendirme Matrisi</CardTitle>
-                                    <p className="text-sm text-muted-foreground">
-                                        Her alternatif için her kriterde 0-100 arası puan verin
-                                    </p>
-                                </CardHeader>
-                                <CardContent>
-                                    {items.length === 0 || criteria.length === 0 ? (
-                                        <div className="text-center py-8 text-muted-foreground">
-                                            <AlertCircle className="h-12 w-12 mx-auto mb-3" />
-                                            <p>
-                                                Karşılaştırma yapmak için en az 1 alternatif ve 1 kriter ekleyin.
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="overflow-x-auto">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="w-48">Alternatif</TableHead>
-                                                        {criteria.map((criterion) => (
-                                                            <TableHead key={criterion.id} className="text-center">
-                                                                <div className="flex flex-col items-center">
-                                                                    <span className="font-semibold">
-                                                                        {criterion.criterion_name}
-                                                                    </span>
-                                                                    <span className="text-xs text-muted-foreground">
-                                                                        (Ağırlık: {criterion.weight}%)
-                                                                    </span>
-                                                                </div>
-                                                            </TableHead>
-                                                        ))}
-                                                        <TableHead className="text-center">
-                                                            Toplam Skor
+                        <TabsContent value="matrix" className="mt-4 space-y-2">
+                            <div>
+                                <h3 className="text-lg font-semibold tracking-tight">Puan matrisi</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Kriter başına 0–100. Otomatik kriterlerde skorlar veriden gelir; manuel kriter eklediyseniz buradan düzenleyin.
+                                </p>
+                            </div>
+                            {items.length === 0 || matrixCriteria.length === 0 ? (
+                                <Card className="border-dashed">
+                                    <CardContent className="py-12 text-center text-muted-foreground">
+                                        <AlertCircle className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm">En az bir alternatif ve bir kriter gerekli.</p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <div className="rounded-lg border bg-card shadow-sm min-w-0">
+                                    <div className="w-full max-w-full overflow-x-auto overflow-y-auto max-h-[min(78vh,780px)] overscroll-x-contain touch-pan-x">
+                                        <Table className="min-w-max w-full">
+                                            <TableHeader>
+                                                <TableRow className="bg-muted/60 hover:bg-muted/60">
+                                                    <TableHead className="sticky left-0 z-20 min-w-[200px] bg-muted/95 backdrop-blur border-r font-semibold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
+                                                        Alternatif
+                                                    </TableHead>
+                                                    {matrixCriteria.map((criterion) => (
+                                                        <TableHead key={criterion.id} className="text-center min-w-[120px] whitespace-normal font-semibold">
+                                                            <span className="text-foreground">{criterion.criterion_name}</span>
+                                                            <span className="block text-xs font-normal text-muted-foreground mt-0.5">
+                                                                %{criterion.weight}
+                                                            </span>
                                                         </TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {items && items.length > 0 ? items.map((item) => (
-                                                        <TableRow key={item.id}>
-                                                            <TableCell className="font-medium">
-                                                                <div>
-                                                                    {item.item_name}
-                                                                    {item.is_recommended && (
-                                                                        <Award className="inline-block ml-2 h-4 w-4 text-yellow-500" />
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                            {criteria.map((criterion) => {
-                                                                const key = `${item.id}_${criterion.id}`;
-                                                                const score = scores[key];
-                                                                return (
-                                                                    <TableCell key={criterion.id} className="text-center">
-                                                                        <Input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            max="100"
-                                                                            step="0.1"
-                                                                            value={score?.normalized_score || ''}
-                                                                            onChange={(e) => handleScoreChange(
+                                                    ))}
+                                                    <TableHead className="text-center min-w-[100px] bg-muted/80 font-semibold border-l">
+                                                        Toplam
+                                                    </TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {itemsSortedByScore.map((item) => (
+                                                    <TableRow key={item.id}>
+                                                        <TableCell className="sticky left-0 z-10 border-r bg-background font-medium shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]">
+                                                            {item.item_name}
+                                                        </TableCell>
+                                                        {matrixCriteria.map((criterion) => {
+                                                            const key = `${item.id}_${criterion.id}`;
+                                                            const score = scores[key];
+                                                            return (
+                                                                <TableCell key={criterion.id} className="text-center p-2">
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        max="100"
+                                                                        step="0.1"
+                                                                        value={score?.normalized_score ?? ''}
+                                                                        onChange={(e) =>
+                                                                            handleScoreChange(
                                                                                 item.id,
                                                                                 criterion.id,
                                                                                 e.target.value
-                                                                            )}
-                                                                            className="w-20 text-center"
-                                                                        />
-                                                                    </TableCell>
-                                                                );
-                                                            })}
-                                                            <TableCell className="text-center">
-                                                                <Badge className="text-base px-3 py-1">
-                                                                    {itemScores[item.id]?.average.toFixed(1) || '0.0'}
-                                                                </Badge>
+                                                                            )
+                                                                        }
+                                                                        className="h-9 w-full min-w-[4.5rem] max-w-[6rem] mx-auto text-center tabular-nums"
+                                                                    />
+                                                                </TableCell>
+                                                            );
+                                                        })}
+                                                        <TableCell className="text-center bg-muted/30 border-l font-mono font-semibold tabular-nums">
+                                                            {itemScores[item.id]?.average != null
+                                                                ? itemScores[item.id].average.toFixed(1)
+                                                                : '—'}
                                                         </TableCell>
                                                     </TableRow>
-                                                )) : (
-                                                    <TableRow>
-                                                        <TableCell colSpan={criteria && criteria.length > 0 ? criteria.length + 2 : 3} className="text-center text-muted-foreground py-8">
-                                                            Henüz alternatif eklenmemiş.
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </div>
+                            )}
                         </TabsContent>
 
                         {/* Analiz & Sonuçlar */}
                         <TabsContent value="analysis" className="space-y-4 mt-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Genel Sıralama</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-3">
-                                        {items && items.length > 0 ? items
-                                            .sort((a, b) => {
-                                                const scoreA = itemScores[a.id]?.average || 0;
-                                                const scoreB = itemScores[b.id]?.average || 0;
-                                                return scoreB - scoreA;
-                                            })
-                                            .map((item, index) => (
-                                                <div
-                                                    key={item.id}
-                                                    className="flex items-center justify-between p-4 border rounded-lg"
-                                                >
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`text-2xl font-bold ${
-                                                            index === 0 ? 'text-yellow-500' :
-                                                            index === 1 ? 'text-gray-400' :
-                                                            index === 2 ? 'text-orange-600' :
-                                                            'text-gray-400'
-                                                        }`}>
-                                                            #{index + 1}
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-semibold">{item.item_name}</h4>
-                                                            {item.description && (
-                                                                <p className="text-sm text-muted-foreground">
-                                                                    {item.description}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="text-2xl font-bold text-primary">
-                                                            {itemScores[item.id]?.average.toFixed(1) || '0.0'}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">puan</div>
-                                                    </div>
-                                                </div>
-                                            )) : (
-                                                <p className="text-center text-muted-foreground py-8">
-                                                    Henüz alternatif eklenmemiş.
-                                                </p>
-                                            )}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            <div>
+                                <h3 className="text-lg font-semibold tracking-tight">Sıralama ve avantaj / dezavantaj</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Çubuk ve radar grafikleri için <strong className="text-foreground">Özet &amp; grafikler</strong>{' '}
+                                    sekmesini kullanın. Bu sekmede tablo ve metin notları düzenlenir.
+                                </p>
+                            </div>
+                            {itemsSortedByScore.length > 0 ? (
+                                <div className="rounded-lg border bg-card overflow-hidden shadow-sm">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-muted/60 hover:bg-muted/60">
+                                                <TableHead className="w-14 text-center font-semibold">#</TableHead>
+                                                <TableHead className="font-semibold">Alternatif</TableHead>
+                                                <TableHead className="text-right font-semibold">Skor</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {itemsSortedByScore.map((item, index) => (
+                                                <TableRow key={item.id} className={index === 0 ? 'bg-primary/5' : ''}>
+                                                    <TableCell className="text-center font-medium text-muted-foreground tabular-nums">
+                                                        {index + 1}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="font-medium">{item.item_name}</span>
+                                                        {item.description && (
+                                                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                                                                {item.description}
+                                                            </p>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-mono font-semibold tabular-nums">
+                                                        {itemScores[item.id]?.average != null
+                                                            ? itemScores[item.id].average.toFixed(1)
+                                                            : '—'}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            ) : (
+                                <Card className="border-dashed">
+                                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                                        Henüz alternatif yok.
+                                    </CardContent>
+                                </Card>
+                            )}
 
                             {/* Avantaj/Dezavantaj Analizi */}
                             <Card>
@@ -2663,42 +2274,93 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                             </Card>
                         </TabsContent>
                     </Tabs>
-                    </ScrollArea>
+                    </div>
+                    </div>
                 )}
-            </DialogContent>
-            
-            {/* Alternatif Detay Modal */}
+                </>
+    );
+
+    return (
+        <>
+            {!embedded ? (
+                <Dialog open={isOpen} onOpenChange={onClose}>
+                    <DialogContent
+                        hideCloseButton
+                        className="!fixed !inset-0 !left-0 !top-0 z-[60] !m-0 flex h-[100dvh] !max-h-[100dvh] w-full !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none border-0 p-0 shadow-xl sm:!max-h-[100dvh]"
+                    >
+                        <DialogHeader className="sr-only">
+                            <DialogTitle>Benchmark karşılaştırma</DialogTitle>
+                        </DialogHeader>
+
+                        <div className="relative bg-gradient-to-r from-primary to-blue-800 px-4 py-4 pr-3 sm:px-6 sm:py-5 text-primary-foreground shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-white/10">
+                            <div className="space-y-1 min-w-0 flex-1 pr-2">
+                                <p className="text-[10px] uppercase tracking-widest opacity-90">Benchmark karşılaştırması</p>
+                                <h2 className="text-xl font-bold tracking-tight truncate">{benchmark.title}</h2>
+                                <p className="text-xs font-mono opacity-90">{benchmark.benchmark_number}</p>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={handleDownloadReport}
+                                    disabled={!benchmark}
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Rapor indir
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-9 w-9 shrink-0 rounded-full border border-white/40 bg-white/15 text-white shadow-sm hover:bg-white/25 hover:text-white"
+                                    onClick={() => onClose?.()}
+                                    aria-label="Kapat"
+                                >
+                                    <X className="h-5 w-5" strokeWidth={2.25} />
+                                </Button>
+                            </div>
+                        </div>
+                        {inner}
+                    </DialogContent>
+                </Dialog>
+            ) : (
+                <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+                    <div className="mb-2 flex shrink-0 flex-wrap items-center justify-end gap-2 border-b pb-3">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleDownloadReport}
+                            disabled={!benchmark}
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Karşılaştırma raporu
+                        </Button>
+                    </div>
+                    {inner}
+                </div>
+            )}
+
             {selectedItemDetail && (
                 <Dialog open={!!selectedItemDetail} onOpenChange={() => setSelectedItemDetail(null)}>
-                    <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl">
-                                {selectedItemDetail.item_name}
-                                {selectedItemDetail.item_code && (
-                                    <span className="text-sm text-muted-foreground ml-2">
-                                        ({selectedItemDetail.item_code})
-                                    </span>
+                    <DialogContent className="!fixed !inset-0 !left-0 !top-0 z-[70] !m-0 flex h-[100dvh] !max-h-[100dvh] w-full !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none border-0 p-0 shadow-xl sm:!max-h-[100dvh]">
+                        <div className="shrink-0 border-b bg-muted/40 px-6 py-4">
+                            <DialogHeader className="space-y-1">
+                                <DialogTitle className="text-lg font-semibold leading-tight pr-8">
+                                    {selectedItemDetail.item_name}
+                                </DialogTitle>
+                                {selectedItemDetail.model_number && (
+                                    <p className="text-sm text-muted-foreground font-mono">{selectedItemDetail.model_number}</p>
                                 )}
-                            </DialogTitle>
-                        </DialogHeader>
-                        <ScrollArea className="h-[calc(90vh-120px)] pr-4">
+                            </DialogHeader>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-4">
                             <div className="space-y-6">
                                 {/* Temel Bilgiler */}
                                 <div>
-                                    <h3 className="text-lg font-semibold mb-3">Temel Bilgiler</h3>
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Temel</h3>
                                     <div className="grid gap-3 md:grid-cols-2">
-                                        {selectedItemDetail.manufacturer && (
-                                            <div>
-                                                <Label className="text-muted-foreground">Üretici</Label>
-                                                <p className="font-medium">{selectedItemDetail.manufacturer}</p>
-                                            </div>
-                                        )}
-                                        {selectedItemDetail.model_number && (
-                                            <div>
-                                                <Label className="text-muted-foreground">Model/Seri No</Label>
-                                                <p className="font-medium">{selectedItemDetail.model_number}</p>
-                                            </div>
-                                        )}
                                         {selectedItemDetail.category && (
                                             <div>
                                                 <Label className="text-muted-foreground">Kategori</Label>
@@ -2876,6 +2538,38 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                     </div>
                                 )}
 
+                                {/* Avantaj / Dezavantaj (otomatik + kayıtlı) */}
+                                {(prosConsData[selectedItemDetail.id]?.pros?.length > 0 ||
+                                    prosConsData[selectedItemDetail.id]?.cons?.length > 0) && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3">Avantaj ve dezavantaj</h3>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="rounded-lg border border-green-200/80 bg-green-50/80 p-4 dark:border-green-900 dark:bg-green-950/40">
+                                                <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-green-800 dark:text-green-200">
+                                                    <ThumbsUp className="h-4 w-4" />
+                                                    Avantajlar
+                                                </h4>
+                                                <ul className="list-inside list-disc space-y-1.5 text-sm text-foreground">
+                                                    {(prosConsData[selectedItemDetail.id]?.pros || []).map((pro) => (
+                                                        <li key={pro.id}>{pro.description}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div className="rounded-lg border border-red-200/80 bg-red-50/80 p-4 dark:border-red-900 dark:bg-red-950/40">
+                                                <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-800 dark:text-red-200">
+                                                    <ThumbsDown className="h-4 w-4" />
+                                                    Dezavantajlar
+                                                </h4>
+                                                <ul className="list-inside list-disc space-y-1.5 text-sm text-foreground">
+                                                    {(prosConsData[selectedItemDetail.id]?.cons || []).map((con) => (
+                                                        <li key={con.id}>{con.description}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Risk ve Diğer */}
                                 {selectedItemDetail.risk_level && (
                                     <div>
@@ -2905,11 +2599,11 @@ const BenchmarkComparison = ({ isOpen, onClose, benchmark, onRefresh }) => {
                                     </div>
                                 )}
                             </div>
-                        </ScrollArea>
+                        </div>
                     </DialogContent>
                 </Dialog>
             )}
-        </Dialog>
+        </>
     );
 };
 

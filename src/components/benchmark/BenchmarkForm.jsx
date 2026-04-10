@@ -1,5 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Loader2, Plus, Trash2, Upload, File, Search, UserPlus, BarChart3 } from 'lucide-react';
+import {
+    X,
+    Save,
+    Loader2,
+    Plus,
+    Trash2,
+    Upload,
+    File,
+    Search,
+    UserPlus,
+    BarChart3,
+    Sparkles,
+    Edit,
+    EyeOff,
+    RotateCcw,
+} from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +46,350 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    syncAutoBenchmarkCriteria,
+    listActiveComparisonsFromDraft,
+    previewRankingFromDraftAlternatives,
+} from '@/lib/benchmarkScoring';
+
+const CRITERION_CATEGORY_OPTIONS = [
+    'Maliyet', 'Kalite', 'Teknik', 'Operasyonel', 'Çevresel', 'Hizmet', 'Finansal', 'Teslimat', 'Pazar', 'Diğer',
+];
+const MEASUREMENT_UNIT_OPTIONS = [
+    'Puan', 'TRY', 'USD', 'EUR', 'Gün', 'Ay', 'Saat', 'Adet', '%', 'kg', 'm', 'Diğer',
+];
+
+const createEmptyCriterionDraft = () => ({
+    criterion_name: '',
+    description: '',
+    category: '',
+    weight: '10',
+    measurement_unit: 'Puan',
+    scoring_method: 'Numerical',
+});
+
+/**
+ * Yeni benchmark açılışında matris dolu gelsin; kullanıcı istemediği satırı silebilir.
+ * 38 satır; kategori ve ölçü birimleri çeşitlendirilmiştir. Ağırlıkları listeden düzenleyebilirsiniz.
+ */
+const DEFAULT_MANUAL_METRICS_TEMPLATE = [
+    // Kalite & uygunluk
+    { criterion_name: 'Genel kalite / uygunluk', category: 'Kalite', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Performans / kapasite', category: 'Kalite', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Güvenilirlik / arıza riski', category: 'Kalite', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Tekrarlanabilirlik / tutarlılık', category: 'Kalite', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Standart & regülasyon uyumu', category: 'Kalite', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Sertifikasyon & denetim geçmişi', category: 'Kalite', weight: 2, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    // Maliyet & finansal
+    { criterion_name: 'Birim fiyat / teklif uygunluğu', category: 'Maliyet', weight: 4, measurement_unit: 'TRY', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Toplam sahip olma maliyeti (TCO)', category: 'Maliyet', weight: 4, measurement_unit: 'TRY', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Gizli / ek maliyet riski', category: 'Maliyet', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'ROI / geri ödeme süresi', category: 'Finansal', weight: 3, measurement_unit: '%', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Ödeme vadeleri & nakit akışı', category: 'Finansal', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Kur / fiyat istikrarı', category: 'Finansal', weight: 2, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    // Teslimat & tedarik
+    { criterion_name: 'Teslimat süresi', category: 'Teslimat', weight: 4, measurement_unit: 'Gün', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Termin esnekliği / hızlandırma', category: 'Teslimat', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Stok & tedarik sürekliliği', category: 'Teslimat', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Minimum sipariş / parti büyüklüğü uyumu', category: 'Teslimat', weight: 2, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    // Teknik
+    { criterion_name: 'Teknik özellikler / şartname uyumu', category: 'Teknik', weight: 4, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Entegrasyon & arayüz kolaylığı', category: 'Teknik', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Ölçeklenebilirlik / genişleme', category: 'Teknik', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Uyumluluk (mevcut sistem / ekipman)', category: 'Teknik', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Bilgi güvenliği & erişim kontrolü', category: 'Teknik', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Dokümantasyon & veri kalitesi', category: 'Teknik', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    // Operasyonel
+    { criterion_name: 'Uygulama / devreye alma süresi', category: 'Operasyonel', weight: 4, measurement_unit: 'Gün', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Eğitim ihtiyacı (süre)', category: 'Operasyonel', weight: 3, measurement_unit: 'Saat', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Bakım kolaylığı & erişilebilirlik', category: 'Operasyonel', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'İş güvenliği / ergonomi', category: 'Operasyonel', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Kullanım kolaylığı (UX)', category: 'Operasyonel', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    // Hizmet
+    { criterion_name: 'Satış öncesi & satış sonrası destek', category: 'Hizmet', weight: 4, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Teknik destek & SLA', category: 'Hizmet', weight: 4, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Garanti süresi & kapsamı', category: 'Hizmet', weight: 3, measurement_unit: 'Ay', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Yedek parça & sarf erişimi', category: 'Hizmet', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Yerel / bölgesel servis ağı', category: 'Hizmet', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    // Çevresel
+    { criterion_name: 'Enerji verimliliği', category: 'Çevresel', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Çevresel etki / sürdürülebilirlik', category: 'Çevresel', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Atık / geri dönüşüm uyumu', category: 'Çevresel', weight: 2, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    // Pazar & risk
+    { criterion_name: 'Pazar itibarı & referanslar', category: 'Pazar', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'İnovasyon & yol haritası', category: 'Pazar', weight: 3, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+    { criterion_name: 'Genel risk (tedarik / proje)', category: 'Diğer', weight: 4, measurement_unit: 'Puan', scoring_method: 'Numerical', source: 'manual', description: '' },
+];
+
+function createDefaultManualMetricsSeed() {
+    const rows = DEFAULT_MANUAL_METRICS_TEMPLATE.map((row, idx) => ({
+        ...row,
+        id: `temp_${crypto.randomUUID()}`,
+        order_index: idx,
+        include_in_matrix: true,
+    }));
+    return normalizeMatrixWeightsTo100(rows);
+}
+
+const isTempCriterionId = (id) => id != null && String(id).startsWith('temp_');
+
+/** Matris/karşılaştırmada kullanılan metrikler */
+function criteriaInMatrix(criteria) {
+    return (criteria || []).filter((c) => c.include_in_matrix !== false);
+}
+
+/** Dahil matriklerin ağırlıklarını toplamı 100 olacak şekilde oransal normalize eder */
+function normalizeMatrixWeightsTo100(rows) {
+    const included = rows.filter((c) => c.include_in_matrix !== false);
+    if (included.length === 0) return rows;
+    const sum = included.reduce((s, c) => s + Number(c.weight || 0), 0);
+    if (sum <= 0) {
+        const eq = 100 / included.length;
+        return rows.map((c) =>
+            c.include_in_matrix === false ? c : { ...c, weight: Math.round(eq * 100) / 100 }
+        );
+    }
+    return rows.map((c) => {
+        if (c.include_in_matrix === false) return c;
+        const w = Number(c.weight || 0);
+        return { ...c, weight: Math.round(((w / sum) * 100) * 100) / 100 };
+    });
+}
+
+/** Yeni metrik eklendiğinde mevcut dahil ağırlıkları bölüştürür (toplam 100) */
+function growMatrixWithNewCriterion(prev, newCrit) {
+    const active = prev.filter((c) => c.include_in_matrix !== false);
+    const m = active.length;
+    const factor = m > 0 ? m / (m + 1) : 1;
+    const newShare = 100 / (m + 1);
+    const updated = prev.map((c) => {
+        if (c.include_in_matrix === false) return c;
+        const w = Number(c.weight || 0);
+        return { ...c, weight: Math.round(w * factor * 100) / 100 };
+    });
+    return [...updated, { ...newCrit, include_in_matrix: true, weight: Math.round(newShare * 100) / 100 }];
+}
+
+/** Karşılaştırmadan çıkar: ağırlığı kalan dahil metriklere oransal dağıtır */
+function excludeCriterionFromMatrix(criteria, id) {
+    const target = criteria.find((c) => c.id === id);
+    if (!target || target.include_in_matrix === false) return criteria;
+    const freed = Number(target.weight || 0);
+    const next = criteria.map((c) => (c.id === id ? { ...c, include_in_matrix: false } : c));
+    const active = next.filter((c) => c.include_in_matrix !== false);
+    if (active.length === 0) return next;
+    if (freed <= 0) return next;
+    const sumW = active.reduce((s, c) => s + Number(c.weight || 0), 0);
+    if (sumW <= 0) {
+        const add = freed / active.length;
+        return next.map((c) => {
+            if (c.include_in_matrix === false) return c;
+            const w = Number(c.weight || 0);
+            return { ...c, weight: Math.round((w + add) * 100) / 100 };
+        });
+    }
+    return next.map((c) => {
+        if (c.include_in_matrix === false) return c;
+        const w = Number(c.weight || 0);
+        const add = freed * (w / sumW);
+        return { ...c, weight: Math.round((w + add) * 100) / 100 };
+    });
+}
+
+/** Matrise tekrar dahil et: mevcut dahil ağırlıklardan eşit pay bölüşür */
+function includeCriterionInMatrix(criteria, id) {
+    const target = criteria.find((c) => c.id === id);
+    if (!target || target.include_in_matrix !== false) return criteria;
+    const active = criteria.filter((c) => c.include_in_matrix !== false);
+    const m = active.length;
+    const factor = m > 0 ? m / (m + 1) : 1;
+    const newShare = 100 / (m + 1);
+    return criteria.map((c) => {
+        if (c.id === id) return { ...c, include_in_matrix: true, weight: Math.round(newShare * 100) / 100 };
+        if (c.include_in_matrix === false) return c;
+        const w = Number(c.weight || 0);
+        return { ...c, weight: Math.round(w * factor * 100) / 100 };
+    });
+}
+
+async function upsertCriterionScoresForItem(supabase, itemId, alt, criteriaList, tempToReal) {
+    if (!criteriaList?.length || !itemId) return;
+    for (const crit of criteriaList) {
+        const cid = isTempCriterionId(crit.id) ? tempToReal?.[crit.id] : crit.id;
+        if (!cid) continue;
+        if (crit.include_in_matrix === false) {
+            await supabase
+                .from('benchmark_scores')
+                .delete()
+                .eq('benchmark_item_id', itemId)
+                .eq('criterion_id', cid);
+            continue;
+        }
+        const rawVal = alt.criterionScores?.[crit.id];
+        if (rawVal === '' || rawVal == null) {
+            await supabase
+                .from('benchmark_scores')
+                .delete()
+                .eq('benchmark_item_id', itemId)
+                .eq('criterion_id', cid);
+            continue;
+        }
+        const normalized = Math.min(100, Math.max(0, parseFloat(String(rawVal))));
+        if (Number.isNaN(normalized)) continue;
+        const w = Number(crit.weight) || 1;
+        const weighted = (normalized * w) / 100;
+        const { error } = await supabase.from('benchmark_scores').upsert(
+            {
+                benchmark_item_id: itemId,
+                criterion_id: cid,
+                raw_value: normalized,
+                normalized_score: normalized,
+                weighted_score: weighted,
+            },
+            { onConflict: 'benchmark_item_id,criterion_id' }
+        );
+        if (error) throw error;
+    }
+}
+
+const createEmptyAlternative = () => ({
+    item_name: '',
+    description: '',
+    supplier_id: '',
+    model_number: '',
+    unit_price: '',
+    currency: 'TRY',
+    minimum_order_quantity: '',
+    lead_time_days: '',
+    payment_terms: '',
+    total_cost_of_ownership: '',
+    roi_percentage: '',
+    quality_score: '',
+    performance_score: '',
+    reliability_score: '',
+    after_sales_service_score: '',
+    warranty_period_months: '',
+    support_availability: '',
+    technical_support_score: '',
+    delivery_time_days: '',
+    implementation_time_days: '',
+    training_required_hours: '',
+    maintenance_cost: '',
+    maintenance_frequency_months: '',
+    energy_efficiency_score: '',
+    environmental_impact_score: '',
+    ease_of_use_score: '',
+    documentation_quality_score: '',
+    scalability_score: '',
+    compatibility_score: '',
+    innovation_score: '',
+    market_reputation_score: '',
+    customer_references_count: '',
+    risk_level: '',
+    is_current_solution: false,
+    /** Metrikler sekmesindeki metrik (criterion) id → 0–100 puan (matris; benchmark_scores) */
+    criterionScores: {},
+});
+
+const numToFormStr = (v) => {
+    if (v === null || v === undefined) return '';
+    return String(v);
+};
+
+/** DB satırı → form alternatif state (düzenlemede mevcut veriyi göstermek için) */
+const mapBenchmarkItemRowToAlternative = (row) => ({
+    ...createEmptyAlternative(),
+    id: row.id,
+    item_name: row.item_name ?? '',
+    description: row.description ?? '',
+    supplier_id: row.supplier_id ?? '',
+    model_number: row.model_number ?? '',
+    unit_price: numToFormStr(row.unit_price),
+    currency: row.currency || 'TRY',
+    minimum_order_quantity: numToFormStr(row.minimum_order_quantity),
+    lead_time_days: numToFormStr(row.lead_time_days),
+    payment_terms: row.payment_terms ?? '',
+    total_cost_of_ownership: numToFormStr(row.total_cost_of_ownership),
+    roi_percentage: numToFormStr(row.roi_percentage),
+    quality_score: numToFormStr(row.quality_score),
+    performance_score: numToFormStr(row.performance_score),
+    reliability_score: numToFormStr(row.reliability_score),
+    after_sales_service_score: numToFormStr(row.after_sales_service_score),
+    warranty_period_months: numToFormStr(row.warranty_period_months),
+    support_availability: row.support_availability ?? '',
+    technical_support_score: numToFormStr(row.technical_support_score),
+    delivery_time_days: numToFormStr(row.delivery_time_days),
+    implementation_time_days: numToFormStr(row.implementation_time_days),
+    training_required_hours: numToFormStr(row.training_required_hours),
+    maintenance_cost: numToFormStr(row.maintenance_cost),
+    maintenance_frequency_months: numToFormStr(row.maintenance_frequency_months),
+    energy_efficiency_score: numToFormStr(row.energy_efficiency_score),
+    environmental_impact_score: numToFormStr(row.environmental_impact_score),
+    ease_of_use_score: numToFormStr(row.ease_of_use_score),
+    documentation_quality_score: numToFormStr(row.documentation_quality_score),
+    scalability_score: numToFormStr(row.scalability_score),
+    compatibility_score: numToFormStr(row.compatibility_score),
+    innovation_score: numToFormStr(row.innovation_score),
+    market_reputation_score: numToFormStr(row.market_reputation_score),
+    customer_references_count: numToFormStr(row.customer_references_count),
+    risk_level: row.risk_level ?? '',
+    is_current_solution: !!row.is_current_solution,
+    criterionScores: {},
+});
+
+const buildBenchmarkItemPayload = (alt) => {
+    const parseDecimal = (val) => (val !== '' && val != null ? parseFloat(val) : null);
+    const parseIntValue = (val) => (val !== '' && val != null ? parseInt(val, 10) : null);
+    const cleanSupplier =
+        alt.supplier_id && String(alt.supplier_id).trim() !== ''
+            ? alt.supplier_id
+            : null;
+    return {
+        item_name: alt.item_name,
+        description: alt.description || null,
+        supplier_id: cleanSupplier,
+        model_number: alt.model_number || null,
+        specifications: null,
+        unit_price: parseDecimal(alt.unit_price),
+        currency: alt.currency || 'TRY',
+        minimum_order_quantity: parseIntValue(alt.minimum_order_quantity),
+        lead_time_days: parseIntValue(alt.lead_time_days),
+        payment_terms: alt.payment_terms || null,
+        total_cost_of_ownership: parseDecimal(alt.total_cost_of_ownership),
+        roi_percentage: parseDecimal(alt.roi_percentage),
+        quality_score: parseDecimal(alt.quality_score),
+        performance_score: parseDecimal(alt.performance_score),
+        reliability_score: parseDecimal(alt.reliability_score),
+        after_sales_service_score: parseDecimal(alt.after_sales_service_score),
+        warranty_period_months: parseIntValue(alt.warranty_period_months),
+        support_availability: alt.support_availability || null,
+        technical_support_score: parseDecimal(alt.technical_support_score),
+        delivery_time_days: parseIntValue(alt.delivery_time_days),
+        implementation_time_days: parseIntValue(alt.implementation_time_days),
+        training_required_hours: parseIntValue(alt.training_required_hours),
+        maintenance_cost: parseDecimal(alt.maintenance_cost),
+        maintenance_frequency_months: parseIntValue(alt.maintenance_frequency_months),
+        energy_efficiency_score: parseDecimal(alt.energy_efficiency_score),
+        environmental_impact_score: parseDecimal(alt.environmental_impact_score),
+        ease_of_use_score: parseDecimal(alt.ease_of_use_score),
+        documentation_quality_score: parseDecimal(alt.documentation_quality_score),
+        scalability_score: parseDecimal(alt.scalability_score),
+        compatibility_score: parseDecimal(alt.compatibility_score),
+        innovation_score: parseDecimal(alt.innovation_score),
+        market_reputation_score: parseDecimal(alt.market_reputation_score),
+        customer_references_count: parseIntValue(alt.customer_references_count),
+        risk_level: alt.risk_level || null,
+        is_current_solution: !!alt.is_current_solution,
+    };
+};
 
 const BenchmarkForm = ({ 
     isOpen, 
@@ -55,6 +414,13 @@ const BenchmarkForm = ({
     // Alternatifler için state
     const [alternatives, setAlternatives] = useState([]);
     const [newAlternative, setNewAlternative] = useState(null);
+    const [suppliers, setSuppliers] = useState([]);
+    const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
+    const [supplierSearchValue, setSupplierSearchValue] = useState('');
+
+    const [criteria, setCriteria] = useState([]);
+    const [newCriterion, setNewCriterion] = useState(null);
+    const [editingCriterion, setEditingCriterion] = useState(null);
     
     // Form state
     const [formData, setFormData] = useState({
@@ -102,6 +468,102 @@ const BenchmarkForm = ({
             });
         }
     }, [benchmark]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        if (!benchmark?.id) {
+            setAlternatives([]);
+            setNewAlternative(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase
+                .from('benchmark_items')
+                .select('*')
+                .eq('benchmark_id', benchmark.id)
+                .order('rank_order', { ascending: true });
+            if (cancelled) return;
+            if (error) {
+                console.error(error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Alternatifler yüklenemedi',
+                    description: error.message,
+                });
+                setAlternatives([]);
+                return;
+            }
+            const rows = data || [];
+            const itemIds = rows.map((r) => r.id);
+            let scoresByItem = {};
+            if (itemIds.length > 0) {
+                const { data: scoreRows } = await supabase
+                    .from('benchmark_scores')
+                    .select('benchmark_item_id, criterion_id, normalized_score')
+                    .in('benchmark_item_id', itemIds);
+                for (const s of scoreRows || []) {
+                    if (!scoresByItem[s.benchmark_item_id]) scoresByItem[s.benchmark_item_id] = {};
+                    scoresByItem[s.benchmark_item_id][s.criterion_id] =
+                        s.normalized_score != null ? String(s.normalized_score) : '';
+                }
+            }
+            setAlternatives(
+                rows.map((row) => {
+                    const base = mapBenchmarkItemRowToAlternative(row);
+                    return {
+                        ...base,
+                        criterionScores: scoresByItem[row.id] || {},
+                    };
+                })
+            );
+            setNewAlternative(null);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, benchmark?.id]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        if (!benchmark?.id) {
+            setCriteria(createDefaultManualMetricsSeed());
+            setNewCriterion(null);
+            setEditingCriterion(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase
+                .from('benchmark_criteria')
+                .select('*')
+                .eq('benchmark_id', benchmark.id)
+                .order('order_index', { ascending: true });
+            if (cancelled) return;
+            if (error) {
+                console.error(error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Metrikler yüklenemedi',
+                    description: error.message,
+                });
+                setCriteria([]);
+                return;
+            }
+            setCriteria(
+                (data || []).map((row) => ({
+                    ...row,
+                    include_in_matrix: row.include_in_matrix !== false,
+                }))
+            );
+            setNewCriterion(null);
+            setEditingCriterion(null);
+        })();
+        return () => {
+            cancelled = true;
+        };
+        // toast bilinçli olarak dışarıda: yeni benchmarkta metrik listesinin toast ile sıfırlanmaması için
+    }, [isOpen, benchmark?.id]);
     
     // Kategorileri kontrol et ve uyar
     useEffect(() => {
@@ -118,6 +580,39 @@ const BenchmarkForm = ({
             console.log('✅ Kategoriler hazır:', categories.length);
         }
     }, [categories, isOpen, toast]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        (async () => {
+            const { data, error } = await supabase
+                .from('suppliers')
+                .select('id, name')
+                .order('name');
+            if (!error && data) setSuppliers(data);
+        })();
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || benchmark?.id) return;
+        const today = new Date().toISOString().slice(0, 10);
+        setFormData((prev) => ({
+            ...prev,
+            start_date: prev.start_date || today,
+        }));
+    }, [isOpen, benchmark?.id]);
+
+    useEffect(() => {
+        if (!isOpen || benchmark?.id || !user?.email) return;
+        const me = personnel.find(
+            (p) => p.email && p.email.toLowerCase() === user.email.toLowerCase()
+        );
+        if (me) {
+            setFormData((prev) => ({
+                ...prev,
+                owner_id: prev.owner_id || me.id,
+            }));
+        }
+    }, [isOpen, benchmark?.id, user?.email, personnel]);
 
     const fetchDepartments = async () => {
         try {
@@ -259,11 +754,224 @@ const BenchmarkForm = ({
         return personnel.filter(p => formData.team_members.includes(p.id));
     }, [personnel, formData.team_members]);
 
+    const activeComparisons = useMemo(
+        () => listActiveComparisonsFromDraft(alternatives),
+        [alternatives]
+    );
+
+    const draftRankingPreview = useMemo(
+        () => previewRankingFromDraftAlternatives(alternatives),
+        [alternatives]
+    );
+
+    const filteredSuppliers = useMemo(() => {
+        if (!supplierSearchValue) return suppliers;
+        const q = supplierSearchValue.toLowerCase();
+        return suppliers.filter((s) => s.name?.toLowerCase().includes(q));
+    }, [suppliers, supplierSearchValue]);
+
+    const selectedSupplierForAlt = useMemo(() => {
+        if (!newAlternative?.supplier_id) return null;
+        return suppliers.find((s) => s.id === newAlternative.supplier_id);
+    }, [suppliers, newAlternative?.supplier_id]);
+
+    const matrixCriteria = useMemo(() => criteriaInMatrix(criteria), [criteria]);
+
     const handleRemoveTeamMember = (personId) => {
         setFormData(prev => ({
             ...prev,
             team_members: prev.team_members.filter(id => id !== personId)
         }));
+    };
+
+    const handleOpenNewCriterion = () => {
+        setEditingCriterion(null);
+        setNewCriterion(createEmptyCriterionDraft());
+    };
+
+    const handleSaveNewCriterion = async () => {
+        if (!newCriterion?.criterion_name?.trim()) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Metrik adı zorunludur.',
+            });
+            return;
+        }
+
+        const base = {
+            criterion_name: newCriterion.criterion_name.trim(),
+            description: newCriterion.description?.trim() || null,
+            category: newCriterion.category?.trim() || null,
+            weight: parseFloat(newCriterion.weight) || 1,
+            measurement_unit: newCriterion.measurement_unit?.trim() || null,
+            scoring_method: newCriterion.scoring_method || 'Numerical',
+            source: 'manual',
+        };
+
+        try {
+            if (benchmark?.id) {
+                const { data, error } = await supabase
+                    .from('benchmark_criteria')
+                    .insert({
+                        benchmark_id: benchmark.id,
+                        ...base,
+                        order_index: criteria.length,
+                        include_in_matrix: true,
+                    })
+                    .select()
+                    .single();
+                if (error) throw error;
+                setCriteria((prev) =>
+                    growMatrixWithNewCriterion(prev, {
+                        ...data,
+                        include_in_matrix: data.include_in_matrix !== false,
+                    })
+                );
+            } else {
+                const id = `temp_${crypto.randomUUID()}`;
+                setCriteria((prev) =>
+                    growMatrixWithNewCriterion(prev, {
+                        id,
+                        ...base,
+                        order_index: criteria.length,
+                        include_in_matrix: true,
+                    })
+                );
+            }
+            setNewCriterion(null);
+            toast({ title: 'Metrik eklendi' });
+        } catch (err) {
+            console.error(err);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: err.message || 'Metrik eklenemedi.',
+            });
+        }
+    };
+
+    const handleStartEditCriterion = (row) => {
+        setNewCriterion(null);
+        setEditingCriterion({
+            id: row.id,
+            criterion_name: row.criterion_name || '',
+            description: row.description || '',
+            category: row.category || '',
+            weight: String(row.weight ?? 1),
+            measurement_unit: row.measurement_unit || '',
+            scoring_method: row.scoring_method || 'Numerical',
+        });
+    };
+
+    const handleSaveEditCriterion = async () => {
+        if (!editingCriterion?.criterion_name?.trim()) {
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: 'Metrik adı zorunludur.',
+            });
+            return;
+        }
+
+        const fields = {
+            criterion_name: editingCriterion.criterion_name.trim(),
+            description: editingCriterion.description?.trim() || null,
+            category: editingCriterion.category?.trim() || null,
+            weight: parseFloat(editingCriterion.weight) || 1,
+            measurement_unit: editingCriterion.measurement_unit?.trim() || null,
+            scoring_method: editingCriterion.scoring_method || 'Numerical',
+        };
+
+        try {
+            if (isTempCriterionId(editingCriterion.id)) {
+                setCriteria((prev) =>
+                    prev.map((c) => (c.id === editingCriterion.id ? { ...c, ...fields } : c))
+                );
+                setEditingCriterion(null);
+                toast({ title: 'Güncellendi' });
+                return;
+            }
+
+            if (!benchmark?.id) return;
+
+            const { data, error } = await supabase
+                .from('benchmark_criteria')
+                .update(fields)
+                .eq('id', editingCriterion.id)
+                .select()
+                .single();
+            if (error) throw error;
+            setCriteria((prev) =>
+                prev.map((c) =>
+                    c.id === data.id
+                        ? { ...c, ...data, include_in_matrix: data.include_in_matrix !== false }
+                        : c
+                )
+            );
+            setEditingCriterion(null);
+            toast({ title: 'Güncellendi' });
+        } catch (err) {
+            console.error(err);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: err.message || 'Metrik güncellenemedi.',
+            });
+        }
+    };
+
+    const handleDeleteCriterion = async (row) => {
+        if (
+            !confirm(
+                'Bu metrik silinsin mi? Kayıtlı matris puanları varsa ilişkili skorlar da kaldırılabilir.'
+            )
+        ) {
+            return;
+        }
+
+        try {
+            if (isTempCriterionId(row.id)) {
+                setCriteria((prev) =>
+                    normalizeMatrixWeightsTo100(prev.filter((c) => c.id !== row.id))
+                );
+                if (editingCriterion?.id === row.id) setEditingCriterion(null);
+                toast({ title: 'Metrik kaldırıldı' });
+                return;
+            }
+
+            if (!benchmark?.id) return;
+
+            const { error } = await supabase.from('benchmark_criteria').delete().eq('id', row.id);
+            if (error) throw error;
+            setCriteria((prev) => normalizeMatrixWeightsTo100(prev.filter((c) => c.id !== row.id)));
+            if (editingCriterion?.id === row.id) setEditingCriterion(null);
+            toast({ title: 'Metrik silindi' });
+        } catch (err) {
+            console.error(err);
+            toast({
+                variant: 'destructive',
+                title: 'Hata',
+                description: err.message || 'Metrik silinemedi.',
+            });
+        }
+    };
+
+    const handleMatrixExclude = (id) => {
+        setCriteria((prev) => excludeCriterionFromMatrix(prev, id));
+        toast({
+            title: 'Karşılaştırmadan çıkarıldı',
+            description:
+                'Ağırlık kalan metriklere oransal dağıtıldı. Tanım Metrikler sekmesinde duruyor; istediğinizde tekrar ekleyebilirsiniz.',
+        });
+    };
+
+    const handleMatrixInclude = (id) => {
+        setCriteria((prev) => includeCriterionInMatrix(prev, id));
+        toast({
+            title: 'Matrise eklendi',
+            description: 'Ağırlıklar yeniden paylaştırıldı.',
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -382,65 +1090,133 @@ const BenchmarkForm = ({
                 });
             }
 
-            // Alternatifleri kaydet (eğer varsa)
-            if (alternatives.length > 0 && result?.id) {
-                console.log(`📦 ${alternatives.length} alternatif kaydediliyor...`);
-                
-                for (const alt of alternatives) {
-                    try {
-                        const parseDecimal = (val) => val && val !== '' ? parseFloat(val) : null;
-                        const parseIntValue = (val) => val && val !== '' ? parseInt(val) : null;
+            /** Yeni benchmark: taslak temp_* kriterleri DB'ye yaz → benchmark_scores için id eşlemesi */
+            let tempToRealCriterionIds = {};
+            if (result?.id && !benchmark?.id && criteria.length > 0) {
+                for (let i = 0; i < criteria.length; i++) {
+                    const c = criteria[i];
+                    if (!isTempCriterionId(c.id)) continue;
+                    const { data: insertedCrit, error: critErr } = await supabase
+                        .from('benchmark_criteria')
+                        .insert({
+                            benchmark_id: result.id,
+                            criterion_name: c.criterion_name,
+                            description: c.description ?? null,
+                            category: c.category ?? null,
+                            weight: c.weight ?? 1,
+                            measurement_unit: c.measurement_unit ?? null,
+                            scoring_method: c.scoring_method || 'Numerical',
+                            order_index: i,
+                            source: 'manual',
+                            include_in_matrix: c.include_in_matrix !== false,
+                        })
+                        .select()
+                        .single();
+                    if (critErr) throw critErr;
+                    tempToRealCriterionIds[c.id] = insertedCrit.id;
+                }
+            }
 
-                        const { error: altError } = await supabase
+            /** Kayıtlı benchmark: metrik satırları (ağırlık, matrise dahil) güncelle */
+            if (result?.id && benchmark?.id && criteria.length > 0) {
+                for (let i = 0; i < criteria.length; i++) {
+                    const c = criteria[i];
+                    if (isTempCriterionId(c.id)) continue;
+                    const { error: critUpErr } = await supabase
+                        .from('benchmark_criteria')
+                        .update({
+                            criterion_name: c.criterion_name,
+                            description: c.description ?? null,
+                            category: c.category ?? null,
+                            weight: c.weight ?? 1,
+                            measurement_unit: c.measurement_unit ?? null,
+                            scoring_method: c.scoring_method || 'Numerical',
+                            order_index: i,
+                            include_in_matrix: c.include_in_matrix !== false,
+                        })
+                        .eq('id', c.id);
+                    if (critUpErr) throw critUpErr;
+                }
+            }
+
+            // Alternatifleri kaydet: mevcut kayıtta önce silinenleri ayıkla, sonra güncelle / ekle
+            if (result?.id) {
+                const editingBenchmark = !!benchmark?.id;
+
+                if (editingBenchmark) {
+                    const keptIds = alternatives.filter((a) => a.id).map((a) => a.id);
+                    if (keptIds.length > 0) {
+                        const { error: delErr } = await supabase
                             .from('benchmark_items')
-                            .insert({
-                                benchmark_id: result.id,
-                                item_name: alt.item_name,
-                                item_code: alt.item_code || null,
-                                description: alt.description || null,
-                                manufacturer: alt.manufacturer || null,
-                                model_number: alt.model_number || null,
-                                unit_price: parseDecimal(alt.unit_price),
-                                currency: alt.currency || 'TRY',
-                                minimum_order_quantity: parseIntValue(alt.minimum_order_quantity),
-                                lead_time_days: parseIntValue(alt.lead_time_days),
-                                payment_terms: alt.payment_terms || null,
-                                total_cost_of_ownership: parseDecimal(alt.total_cost_of_ownership),
-                                roi_percentage: parseDecimal(alt.roi_percentage),
-                                quality_score: parseDecimal(alt.quality_score),
-                                performance_score: parseDecimal(alt.performance_score),
-                                reliability_score: parseDecimal(alt.reliability_score),
-                                after_sales_service_score: parseDecimal(alt.after_sales_service_score),
-                                warranty_period_months: parseIntValue(alt.warranty_period_months),
-                                support_availability: alt.support_availability || null,
-                                technical_support_score: parseDecimal(alt.technical_support_score),
-                                delivery_time_days: parseIntValue(alt.delivery_time_days),
-                                implementation_time_days: parseIntValue(alt.implementation_time_days),
-                                training_required_hours: parseIntValue(alt.training_required_hours),
-                                maintenance_cost: parseDecimal(alt.maintenance_cost),
-                                maintenance_frequency_months: parseIntValue(alt.maintenance_frequency_months),
-                                energy_efficiency_score: parseDecimal(alt.energy_efficiency_score),
-                                environmental_impact_score: parseDecimal(alt.environmental_impact_score),
-                                ease_of_use_score: parseDecimal(alt.ease_of_use_score),
-                                documentation_quality_score: parseDecimal(alt.documentation_quality_score),
-                                scalability_score: parseDecimal(alt.scalability_score),
-                                compatibility_score: parseDecimal(alt.compatibility_score),
-                                innovation_score: parseDecimal(alt.innovation_score),
-                                market_reputation_score: parseDecimal(alt.market_reputation_score),
-                                customer_references_count: parseIntValue(alt.customer_references_count),
-                                risk_level: alt.risk_level || null
-                            });
-
-                        if (altError) throw altError;
-                        console.log(`✅ Alternatif kaydedildi: ${alt.item_name}`);
-                    } catch (altError) {
-                        console.error(`❌ Alternatif kaydetme hatası (${alt.item_name}):`, altError);
-                        toast({
-                            variant: 'destructive',
-                            title: 'Alternatif Kaydetme Hatası',
-                            description: `${alt.item_name} kaydedilemedi: ${altError.message}`
-                        });
+                            .delete()
+                            .eq('benchmark_id', result.id)
+                            .not('id', 'in', `(${keptIds.join(',')})`);
+                        if (delErr) throw delErr;
+                    } else {
+                        const { error: delErr } = await supabase
+                            .from('benchmark_items')
+                            .delete()
+                            .eq('benchmark_id', result.id);
+                        if (delErr) throw delErr;
                     }
+                }
+
+                if (alternatives.length > 0) {
+                    console.log(`📦 ${alternatives.length} alternatif kaydediliyor...`);
+
+                    for (const alt of alternatives) {
+                        try {
+                            const payload = buildBenchmarkItemPayload(alt);
+                            if (editingBenchmark && alt.id) {
+                                const { error: altError } = await supabase
+                                    .from('benchmark_items')
+                                    .update(payload)
+                                    .eq('id', alt.id);
+                                if (altError) throw altError;
+                                await upsertCriterionScoresForItem(
+                                    supabase,
+                                    alt.id,
+                                    alt,
+                                    criteria,
+                                    tempToRealCriterionIds
+                                );
+                                console.log(`✅ Alternatif güncellendi: ${alt.item_name}`);
+                            } else {
+                                const { data: insertedItem, error: altError } = await supabase
+                                    .from('benchmark_items')
+                                    .insert({
+                                        benchmark_id: result.id,
+                                        ...payload,
+                                    })
+                                    .select('id')
+                                    .single();
+                                if (altError) throw altError;
+                                await upsertCriterionScoresForItem(
+                                    supabase,
+                                    insertedItem.id,
+                                    alt,
+                                    criteria,
+                                    tempToRealCriterionIds
+                                );
+                                console.log(`✅ Alternatif kaydedildi: ${alt.item_name}`);
+                            }
+                        } catch (altError) {
+                            console.error(`❌ Alternatif kaydetme hatası (${alt.item_name}):`, altError);
+                            toast({
+                                variant: 'destructive',
+                                title: 'Alternatif Kaydetme Hatası',
+                                description: `${alt.item_name} kaydedilemedi: ${altError.message}`,
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (result?.id) {
+                try {
+                    await syncAutoBenchmarkCriteria(supabase, result.id);
+                } catch (syncErr) {
+                    console.warn('Otomatik kriter senkronu:', syncErr);
                 }
             }
 
@@ -506,17 +1282,23 @@ const BenchmarkForm = ({
                 });
             }
 
+            const manualCritCount =
+                !benchmark?.id ? criteria.filter((c) => isTempCriterionId(c.id)).length : 0;
+
             toast({
                 title: 'Başarılı',
                 description: benchmark?.id 
                     ? 'Benchmark başarıyla güncellendi.' 
-                    : `Yeni benchmark oluşturuldu${alternatives.length > 0 ? ` ve ${alternatives.length} alternatif eklendi` : ''}${uploadedFiles.length > 0 ? ` ve ${uploadedFiles.length} dosya yüklendi` : ''}.`
+                    : `Yeni benchmark oluşturuldu${manualCritCount > 0 ? `, ${manualCritCount} manuel metrik` : ''}${alternatives.length > 0 ? `, ${alternatives.length} alternatif` : ''}${uploadedFiles.length > 0 ? `, ${uploadedFiles.length} dosya` : ''}.`
             });
 
             // Formu temizle
             setUploadedFiles([]);
             setAlternatives([]);
             setNewAlternative(null);
+            setCriteria([]);
+            setNewCriterion(null);
+            setEditingCriterion(null);
             
             onSuccess(result);
         } catch (error) {
@@ -545,7 +1327,7 @@ const BenchmarkForm = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-7xl w-[98vw] sm:w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+            <DialogContent className="!fixed !inset-0 !left-0 !top-0 z-50 !m-0 flex h-[100dvh] !max-h-[100dvh] w-full !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden !rounded-none border-0 p-0 shadow-xl sm:!max-h-[100dvh]">
                 <DialogHeader className="sr-only"><DialogTitle>{benchmark?.id ? 'Benchmark Düzenle' : 'Yeni Benchmark Oluştur'}</DialogTitle></DialogHeader>
                 <header className="bg-gradient-to-r from-primary to-blue-700 px-6 py-5 flex items-center justify-between text-white shrink-0">
                     <div className="flex items-center gap-4">
@@ -561,11 +1343,22 @@ const BenchmarkForm = ({
                 <form id="benchmark-form" onSubmit={handleSubmit} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
                     <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-6 py-4 border-r border-border pr-4">
                         <Tabs defaultValue="basic" className="w-full">
-                            <TabsList className="grid w-full grid-cols-4">
-                                <TabsTrigger value="basic">Temel Bilgiler</TabsTrigger>
-                                <TabsTrigger value="details">Detaylar</TabsTrigger>
-                                <TabsTrigger value="team">Ekip & Tarihler</TabsTrigger>
-                                <TabsTrigger value="alternatives">Alternatifler</TabsTrigger>
+                            <TabsList className="!inline-flex !h-auto w-full min-w-0 flex-wrap items-stretch justify-start gap-1.5 rounded-md bg-muted p-1.5 sm:p-2">
+                                <TabsTrigger value="basic" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                    Temel Bilgiler
+                                </TabsTrigger>
+                                <TabsTrigger value="details" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                    Detaylar
+                                </TabsTrigger>
+                                <TabsTrigger value="team" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                    Ekip & Tarihler
+                                </TabsTrigger>
+                                <TabsTrigger value="criteria" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                    Metrikler ({criteria.length})
+                                </TabsTrigger>
+                                <TabsTrigger value="alternatives" className="shrink-0 flex-none px-3 py-2 text-sm">
+                                    Alternatifler
+                                </TabsTrigger>
                             </TabsList>
 
                             {/* Temel Bilgiler */}
@@ -1097,248 +1890,799 @@ const BenchmarkForm = ({
                                 </div>
                             </TabsContent>
 
-                            {/* Alternatifler Sekmesi */}
-                            <TabsContent value="alternatives" className="space-y-4 mt-4">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-lg font-semibold">Karşılaştırılacak Alternatifler</h3>
-                                    <Button 
-                                        type="button"
-                                        size="sm" 
-                                        onClick={() => setNewAlternative({
-                                            item_name: '',
-                                            item_code: '',
-                                            description: '',
-                                            manufacturer: '',
-                                            model_number: '',
-                                            unit_price: '',
-                                            currency: 'TRY',
-                                            total_cost_of_ownership: '',
-                                            roi_percentage: '',
-                                            quality_score: '',
-                                            performance_score: '',
-                                            reliability_score: '',
-                                            after_sales_service_score: '',
-                                            warranty_period_months: '',
-                                            support_availability: '',
-                                            technical_support_score: '',
-                                            delivery_time_days: '',
-                                            implementation_time_days: '',
-                                            training_required_hours: '',
-                                            maintenance_cost: '',
-                                            maintenance_frequency_months: '',
-                                            energy_efficiency_score: '',
-                                            environmental_impact_score: '',
-                                            ease_of_use_score: '',
-                                            documentation_quality_score: '',
-                                            scalability_score: '',
-                                            compatibility_score: '',
-                                            innovation_score: '',
-                                            market_reputation_score: '',
-                                            customer_references_count: '',
-                                            risk_level: ''
-                                        })}
-                                    >
+                            {/* Metrikler (benchmark_criteria) */}
+                            <TabsContent
+                                value="criteria"
+                                className="space-y-4 mt-4"
+                                onKeyDown={(e) => {
+                                    /* Form içinde Enter, ana formu gönderip benchmark kategori doğrulamasını tetiklemesin */
+                                    if (e.key !== 'Enter') return;
+                                    if (e.target instanceof HTMLTextAreaElement) return;
+                                    if (e.target instanceof HTMLInputElement) {
+                                        e.preventDefault();
+                                    }
+                                }}
+                            >
+                                <div className="rounded-lg border border-muted bg-muted/20 p-4 text-sm text-muted-foreground">
+                                    <p className="font-medium text-foreground">Manuel metrikler</p>
+                                    <p className="mt-1 leading-relaxed">
+                                        Karşılaştırma matrisinde kullanılacak metrikleri buradan tanımlayın. Yeni kayıtta
+                                        yaygın metrikler otomatik eklenir; istemediğinizi silebilirsiniz. Kayıt sonrası
+                                        alternatif alanlarından otomatik üretilen metrikler (akıllı karşılaştırma) buna eklenir;
+                                        otomatik satırlar kayıt sırasında güncellenir, manuel satırlar korunur.
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <h3 className="text-lg font-semibold">Metrik listesi</h3>
+                                    <Button type="button" size="sm" variant="secondary" onClick={handleOpenNewCriterion}>
                                         <Plus className="mr-2 h-4 w-4" />
-                                        Alternatif Ekle
+                                        Metrik ekle
                                     </Button>
                                 </div>
 
-                                {newAlternative && (
-                                    <div className="p-4 border-2 border-primary rounded-lg bg-muted/30">
-                                        <div className="space-y-4">
+                                {newCriterion && (
+                                    <Card className="border-2 border-primary">
+                                        <CardHeader className="py-3">
+                                            <CardTitle className="text-base">Yeni metrik</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
                                             <div className="grid gap-3 md:grid-cols-2">
-                                                <div>
-                                                    <Label>Alternatif Adı *</Label>
+                                                <div className="space-y-2">
+                                                    <Label>Metrik adı *</Label>
                                                     <Input
-                                                        value={newAlternative.item_name}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, item_name: e.target.value})}
-                                                        placeholder="Örn: Alternatif A"
+                                                        value={newCriterion.criterion_name}
+                                                        onChange={(e) =>
+                                                            setNewCriterion({
+                                                                ...newCriterion,
+                                                                criterion_name: e.target.value,
+                                                            })
+                                                        }
+                                                        placeholder="Örn: Toplam sahip olma maliyeti"
                                                     />
                                                 </div>
-                                                <div>
-                                                    <Label>Kod</Label>
-                                                    <Input
-                                                        value={newAlternative.item_code}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, item_code: e.target.value})}
-                                                        placeholder="Ürün/Parça kodu"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid gap-3 md:grid-cols-2">
-                                                <div>
-                                                    <Label>Üretici</Label>
-                                                    <Input
-                                                        value={newAlternative.manufacturer}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, manufacturer: e.target.value})}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>Model/Seri No</Label>
-                                                    <Input
-                                                        value={newAlternative.model_number}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, model_number: e.target.value})}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <Label>Açıklama</Label>
-                                                <Textarea
-                                                    value={newAlternative.description}
-                                                    onChange={(e) => setNewAlternative({...newAlternative, description: e.target.value})}
-                                                    rows={2}
-                                                />
-                                            </div>
-                                            
-                                            {/* Hızlı Kriter Girişi */}
-                                            <div className="grid gap-3 md:grid-cols-4 pt-2 border-t">
-                                                <div>
-                                                    <Label>Birim Fiyat</Label>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={newAlternative.unit_price}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, unit_price: e.target.value})}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>TCO</Label>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={newAlternative.total_cost_of_ownership}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, total_cost_of_ownership: e.target.value})}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>ROI %</Label>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={newAlternative.roi_percentage}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, roi_percentage: e.target.value})}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>Kalite Skoru (0-100)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        min="0"
-                                                        max="100"
-                                                        value={newAlternative.quality_score}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, quality_score: e.target.value})}
-                                                    />
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="grid gap-3 md:grid-cols-4">
-                                                <div>
-                                                    <Label>Performans (0-100)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        min="0"
-                                                        max="100"
-                                                        value={newAlternative.performance_score}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, performance_score: e.target.value})}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>Teslimat Süresi (gün)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={newAlternative.delivery_time_days}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, delivery_time_days: e.target.value})}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>Satış Sonrası (0-100)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        min="0"
-                                                        max="100"
-                                                        value={newAlternative.after_sales_service_score}
-                                                        onChange={(e) => setNewAlternative({...newAlternative, after_sales_service_score: e.target.value})}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>Risk Seviyesi</Label>
+                                                <div className="space-y-2">
+                                                    <Label>Kategori</Label>
                                                     <Select
-                                                        value={newAlternative.risk_level}
-                                                        onValueChange={(value) => setNewAlternative({...newAlternative, risk_level: value})}
+                                                        value={newCriterion.category || '__none__'}
+                                                        onValueChange={(v) =>
+                                                            setNewCriterion({
+                                                                ...newCriterion,
+                                                                category: v === '__none__' ? '' : v,
+                                                            })
+                                                        }
                                                     >
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Seçin" />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="Düşük">Düşük</SelectItem>
-                                                            <SelectItem value="Orta">Orta</SelectItem>
-                                                            <SelectItem value="Yüksek">Yüksek</SelectItem>
-                                                            <SelectItem value="Kritik">Kritik</SelectItem>
+                                                            <SelectItem value="__none__">—</SelectItem>
+                                                            {CRITERION_CATEGORY_OPTIONS.map((c) => (
+                                                                <SelectItem key={c} value={c}>
+                                                                    {c}
+                                                                </SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
                                             </div>
-
-                                            <div className="flex gap-2 pt-2 border-t">
-                                                <Button 
-                                                    type="button"
-                                                    size="sm" 
-                                                    onClick={() => {
-                                                        if (!newAlternative.item_name.trim()) {
-                                                            toast({
-                                                                variant: 'destructive',
-                                                                title: 'Hata',
-                                                                description: 'Alternatif adı zorunludur.'
-                                                            });
-                                                            return;
+                                            <div className="space-y-2">
+                                                <Label>Açıklama</Label>
+                                                <Textarea
+                                                    value={newCriterion.description}
+                                                    onChange={(e) =>
+                                                        setNewCriterion({
+                                                            ...newCriterion,
+                                                            description: e.target.value,
+                                                        })
+                                                    }
+                                                    rows={2}
+                                                />
+                                            </div>
+                                            <div className="grid gap-3 md:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label>Ağırlık (%)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.1"
+                                                        min="0"
+                                                        value={newCriterion.weight}
+                                                        onChange={(e) =>
+                                                            setNewCriterion({
+                                                                ...newCriterion,
+                                                                weight: e.target.value,
+                                                            })
                                                         }
-                                                        setAlternatives([...alternatives, {...newAlternative}]);
-                                                        setNewAlternative(null);
-                                                        toast({
-                                                            title: 'Başarılı',
-                                                            description: 'Alternatif eklendi. Benchmark kaydedildiğinde kaydedilecek.'
-                                                        });
-                                                    }}
-                                                >
-                                                    <Plus className="mr-2 h-4 w-4" />
-                                                    Ekle
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Ölçüm birimi</Label>
+                                                    <Select
+                                                        value={newCriterion.measurement_unit || '__none__'}
+                                                        onValueChange={(v) =>
+                                                            setNewCriterion({
+                                                                ...newCriterion,
+                                                                measurement_unit: v === '__none__' ? '' : v,
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="__none__">—</SelectItem>
+                                                            {MEASUREMENT_UNIT_OPTIONS.map((u) => (
+                                                                <SelectItem key={u} value={u}>
+                                                                    {u}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button type="button" size="sm" onClick={handleSaveNewCriterion}>
+                                                    <Save className="mr-2 h-4 w-4" />
+                                                    Kaydet
                                                 </Button>
-                                                <Button 
+                                                <Button
                                                     type="button"
-                                                    size="sm" 
-                                                    variant="outline" 
-                                                    onClick={() => setNewAlternative(null)}
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setNewCriterion(null)}
                                                 >
                                                     İptal
                                                 </Button>
                                             </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {editingCriterion && (
+                                    <Card className="border border-muted">
+                                        <CardHeader className="py-3">
+                                            <CardTitle className="text-base">Metriği düzenle</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                            <div className="grid gap-3 md:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label>Metrik adı *</Label>
+                                                    <Input
+                                                        value={editingCriterion.criterion_name}
+                                                        onChange={(e) =>
+                                                            setEditingCriterion({
+                                                                ...editingCriterion,
+                                                                criterion_name: e.target.value,
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Kategori</Label>
+                                                    <Select
+                                                        value={editingCriterion.category || '__none__'}
+                                                        onValueChange={(v) =>
+                                                            setEditingCriterion({
+                                                                ...editingCriterion,
+                                                                category: v === '__none__' ? '' : v,
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Seçin" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="__none__">—</SelectItem>
+                                                            {CRITERION_CATEGORY_OPTIONS.map((c) => (
+                                                                <SelectItem key={c} value={c}>
+                                                                    {c}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Açıklama</Label>
+                                                <Textarea
+                                                    value={editingCriterion.description}
+                                                    onChange={(e) =>
+                                                        setEditingCriterion({
+                                                            ...editingCriterion,
+                                                            description: e.target.value,
+                                                        })
+                                                    }
+                                                    rows={2}
+                                                />
+                                            </div>
+                                            <div className="grid gap-3 md:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label>Ağırlık (%)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.1"
+                                                        min="0"
+                                                        value={editingCriterion.weight}
+                                                        onChange={(e) =>
+                                                            setEditingCriterion({
+                                                                ...editingCriterion,
+                                                                weight: e.target.value,
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Ölçüm birimi</Label>
+                                                    <Select
+                                                        value={editingCriterion.measurement_unit || '__none__'}
+                                                        onValueChange={(v) =>
+                                                            setEditingCriterion({
+                                                                ...editingCriterion,
+                                                                measurement_unit: v === '__none__' ? '' : v,
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="__none__">—</SelectItem>
+                                                            {MEASUREMENT_UNIT_OPTIONS.map((u) => (
+                                                                <SelectItem key={u} value={u}>
+                                                                    {u}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button type="button" size="sm" onClick={handleSaveEditCriterion}>
+                                                    <Save className="mr-2 h-4 w-4" />
+                                                    Kaydet
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setEditingCriterion(null)}
+                                                >
+                                                    İptal
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {criteria.length === 0 && !newCriterion ? (
+                                    <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+                                        Henüz metrik yok. Manuel metrik eklemek için &quot;Metrik ekle&quot;ye tıklayın veya
+                                        önce alternatifleri doldurup kaydederek otomatik metrik üretin.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {criteria.map((c) => (
+                                            <Card key={c.id}>
+                                                <CardContent className="py-4">
+                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <h4 className="font-semibold">{c.criterion_name}</h4>
+                                                                <Badge variant="secondary">Ağırlık: %{c.weight}</Badge>
+                                                                <Badge variant="outline">
+                                                                    {c.source === 'auto' ? 'Otomatik' : 'Manuel'}
+                                                                </Badge>
+                                                                {c.include_in_matrix === false && (
+                                                                    <Badge variant="outline" className="border-amber-500/50 text-amber-800 dark:text-amber-200">
+                                                                        <EyeOff className="h-3 w-3 mr-1 inline" />
+                                                                        Matriste yok
+                                                                    </Badge>
+                                                                )}
+                                                                {c.category && (
+                                                                    <Badge variant="outline">{c.category}</Badge>
+                                                                )}
+                                                            </div>
+                                                            {c.description && (
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    {c.description}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex shrink-0 flex-wrap gap-1 justify-end">
+                                                            {c.include_in_matrix === false && (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="secondary"
+                                                                    onClick={() => handleMatrixInclude(c.id)}
+                                                                    title="Bu benchmark karşılaştırma matrisine tekrar dahil et"
+                                                                >
+                                                                    <RotateCcw className="mr-1 h-4 w-4" />
+                                                                    Matrise ekle
+                                                                </Button>
+                                                            )}
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => handleStartEditCriterion(c)}
+                                                            >
+                                                                <Edit className="mr-1 h-4 w-4" />
+                                                                Düzenle
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="text-destructive hover:text-destructive"
+                                                                onClick={() => handleDeleteCriterion(c)}
+                                                                disabled={c.source === 'auto'}
+                                                                title={
+                                                                    c.source === 'auto'
+                                                                        ? 'Otomatik metrik karşılaştırma ekranından yönetilir'
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                )}
+                            </TabsContent>
+
+                            {/* Alternatifler Sekmesi */}
+                            <TabsContent value="alternatives" className="space-y-4 mt-4">
+                                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex gap-3">
+                                    <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                                    <div className="text-sm space-y-1">
+                                        <p className="font-semibold text-foreground">Akıllı karşılaştırma</p>
+                                        <p className="text-muted-foreground leading-relaxed">
+                                            Doldurduğunuz sayısal alanlar kayıt sonrası otomatik olarak matris metrikleri ve skorlara dönüştürülür (en az iki alternatifte veri olan alanlar).
+                                            Maliyet ve süre gibi &quot;düşük iyidir&quot; alanlar alternatifler arasında normalize edilir; puan alanları doğrudan kullanılır.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap justify-between items-center gap-2">
+                                    <h3 className="text-lg font-semibold">Karşılaştırılacak alternatifler</h3>
+                                    <Button type="button" size="sm" onClick={() => setNewAlternative(createEmptyAlternative())}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Alternatif ekle
+                                    </Button>
+                                </div>
+
+                                {newAlternative && (
+                                    <div className="p-4 border-2 border-primary rounded-lg bg-muted/30 space-y-4">
+                                        <div>
+                                            <Label>Alternatif adı *</Label>
+                                            <Input
+                                                value={newAlternative.item_name}
+                                                onChange={(e) => setNewAlternative({ ...newAlternative, item_name: e.target.value })}
+                                                placeholder="Örn: Tedarikçi X çözümü"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Checkbox
+                                                id="current-sol"
+                                                checked={!!newAlternative.is_current_solution}
+                                                onCheckedChange={(c) =>
+                                                    setNewAlternative({ ...newAlternative, is_current_solution: !!c })
+                                                }
+                                            />
+                                            <Label htmlFor="current-sol" className="text-sm font-normal cursor-pointer">
+                                                Mevcut çözüm / referans (baz çizgisi)
+                                            </Label>
+                                        </div>
+
+                                        <Accordion type="multiple" defaultValue={['core', 'cost', 'scores']} className="w-full">
+                                            <AccordionItem value="core">
+                                                <AccordionTrigger>Temel bilgiler & tedarikçi</AccordionTrigger>
+                                                <AccordionContent className="space-y-3 pt-2">
+                                                    <div className="grid gap-3 md:grid-cols-2">
+                                                        <div className="space-y-2">
+                                                            <Label>Tedarikçi</Label>
+                                                            <Popover open={supplierSearchOpen} onOpenChange={setSupplierSearchOpen}>
+                                                                <PopoverTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        className="w-full justify-between"
+                                                                    >
+                                                                        {selectedSupplierForAlt ? (
+                                                                            <span className="truncate">{selectedSupplierForAlt.name}</span>
+                                                                        ) : (
+                                                                            <span className="text-muted-foreground">Seç (isteğe bağlı)</span>
+                                                                        )}
+                                                                        <Search className="h-4 w-4 opacity-50" />
+                                                                    </Button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-[340px] p-0">
+                                                                    <Command>
+                                                                        <CommandInput
+                                                                            placeholder="Ara..."
+                                                                            value={supplierSearchValue}
+                                                                            onValueChange={setSupplierSearchValue}
+                                                                        />
+                                                                        <CommandList>
+                                                                            <CommandEmpty>Sonuç yok</CommandEmpty>
+                                                                            <CommandGroup>
+                                                                                <CommandItem
+                                                                                    value="__clear"
+                                                                                    onSelect={() => {
+                                                                                        setNewAlternative({
+                                                                                            ...newAlternative,
+                                                                                            supplier_id: '',
+                                                                                        });
+                                                                                        setSupplierSearchOpen(false);
+                                                                                        setSupplierSearchValue('');
+                                                                                    }}
+                                                                                >
+                                                                                    Temizle
+                                                                                </CommandItem>
+                                                                                {filteredSuppliers.map((s) => (
+                                                                                    <CommandItem
+                                                                                        key={s.id}
+                                                                                        value={s.name}
+                                                                                        onSelect={() => {
+                                                                                            setNewAlternative({
+                                                                                                ...newAlternative,
+                                                                                                supplier_id: s.id,
+                                                                                            });
+                                                                                            setSupplierSearchOpen(false);
+                                                                                            setSupplierSearchValue('');
+                                                                                        }}
+                                                                                    >
+                                                                                        {s.name}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        </CommandList>
+                                                                    </Command>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                        <div>
+                                                            <Label>Model / seri no</Label>
+                                                            <Input
+                                                                value={newAlternative.model_number}
+                                                                onChange={(e) =>
+                                                                    setNewAlternative({
+                                                                        ...newAlternative,
+                                                                        model_number: e.target.value,
+                                                                    })
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <Label>Açıklama</Label>
+                                                        <Textarea
+                                                            value={newAlternative.description}
+                                                            onChange={(e) =>
+                                                                setNewAlternative({ ...newAlternative, description: e.target.value })
+                                                            }
+                                                            rows={2}
+                                                        />
+                                                    </div>
+                                                </AccordionContent>
+                                            </AccordionItem>
+
+                                            <AccordionItem value="cost">
+                                                <AccordionTrigger>Maliyet & tedarik süreleri</AccordionTrigger>
+                                                <AccordionContent className="space-y-3 pt-2">
+                                                    <div className="grid gap-3 md:grid-cols-4">
+                                                        <div>
+                                                            <Label>Birim fiyat</Label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={newAlternative.unit_price}
+                                                                onChange={(e) =>
+                                                                    setNewAlternative({ ...newAlternative, unit_price: e.target.value })
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <Label>Para birimi</Label>
+                                                            <Select
+                                                                value={newAlternative.currency}
+                                                                onValueChange={(v) =>
+                                                                    setNewAlternative({ ...newAlternative, currency: v })
+                                                                }
+                                                            >
+                                                                <SelectTrigger>
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {['TRY', 'USD', 'EUR'].map((c) => (
+                                                                        <SelectItem key={c} value={c}>
+                                                                            {c}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <Label>Min. sipariş adedi</Label>
+                                                            <Input
+                                                                type="number"
+                                                                value={newAlternative.minimum_order_quantity}
+                                                                onChange={(e) =>
+                                                                    setNewAlternative({
+                                                                        ...newAlternative,
+                                                                        minimum_order_quantity: e.target.value,
+                                                                    })
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <Label>Termin (gün)</Label>
+                                                            <Input
+                                                                type="number"
+                                                                value={newAlternative.lead_time_days}
+                                                                onChange={(e) =>
+                                                                    setNewAlternative({
+                                                                        ...newAlternative,
+                                                                        lead_time_days: e.target.value,
+                                                                    })
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid gap-3 md:grid-cols-3">
+                                                        <div>
+                                                            <Label>TCO</Label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={newAlternative.total_cost_of_ownership}
+                                                                onChange={(e) =>
+                                                                    setNewAlternative({
+                                                                        ...newAlternative,
+                                                                        total_cost_of_ownership: e.target.value,
+                                                                    })
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <Label>ROI %</Label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={newAlternative.roi_percentage}
+                                                                onChange={(e) =>
+                                                                    setNewAlternative({
+                                                                        ...newAlternative,
+                                                                        roi_percentage: e.target.value,
+                                                                    })
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <Label>Bakım maliyeti</Label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={newAlternative.maintenance_cost}
+                                                                onChange={(e) =>
+                                                                    setNewAlternative({
+                                                                        ...newAlternative,
+                                                                        maintenance_cost: e.target.value,
+                                                                    })
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <Label>Ödeme koşulları</Label>
+                                                        <Input
+                                                            value={newAlternative.payment_terms}
+                                                            onChange={(e) =>
+                                                                setNewAlternative({
+                                                                    ...newAlternative,
+                                                                    payment_terms: e.target.value,
+                                                                })
+                                                            }
+                                                        />
+                                                    </div>
+                                                </AccordionContent>
+                                            </AccordionItem>
+
+                                            <AccordionItem value="scores">
+                                                <AccordionTrigger>Metrik matrisi (tek kaynak)</AccordionTrigger>
+                                                <AccordionContent className="space-y-3 pt-2">
+                                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                                        Tanımlar{' '}
+                                                        <span className="font-medium text-foreground">Metrikler</span>{' '}
+                                                        sekmesindedir. Bu bölümde yalnızca{' '}
+                                                        <span className="font-medium">matriste kullanılan</span> metrikler
+                                                        listelenir. Bir metni karşılaştırmadan çıkardığınızda ağırlık
+                                                        kalanlara dağıtılır; metrik tanımı silinmez.
+                                                    </p>
+                                                    {matrixCriteria.length === 0 ? (
+                                                        <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-900 dark:text-amber-100">
+                                                            Matriste kullanılacak metrik yok.{' '}
+                                                            <span className="font-semibold">Metrikler</span> sekmesinden
+                                                            metrik ekleyin veya &quot;Matrise ekle&quot; ile gizlediğinizi
+                                                            geri açın.
+                                                        </div>
+                                                    ) : (
+                                                        <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                                                            <p className="text-xs font-medium text-foreground">
+                                                                Bu alternatif için puanlar ({matrixCriteria.length})
+                                                            </p>
+                                                            <p className="text-[11px] text-muted-foreground leading-snug">
+                                                                Girdiğiniz değerler kayıtta skor matrisine yazılır.
+                                                                Ölçüm birimi &quot;Puan&quot; olan satırlar için tipik
+                                                                aralık 0–100&apos;dir.
+                                                            </p>
+                                                            <div className="grid gap-2 sm:grid-cols-2">
+                                                                {matrixCriteria.map((c) => (
+                                                                    <div
+                                                                        key={c.id}
+                                                                        className="flex gap-2 items-end rounded-md border border-transparent bg-background/60 p-2"
+                                                                    >
+                                                                        <div className="min-w-0 flex-1 flex flex-col gap-1">
+                                                                            <Label className="text-xs font-medium leading-snug truncate">
+                                                                                {c.criterion_name}
+                                                                                {c.weight != null && (
+                                                                                    <span className="text-muted-foreground font-normal">
+                                                                                        {' '}
+                                                                                        (ağırlık {c.weight})
+                                                                                    </span>
+                                                                                )}
+                                                                                {c.measurement_unit ? (
+                                                                                    <span className="text-muted-foreground font-normal">
+                                                                                        {' '}
+                                                                                        · {c.measurement_unit}
+                                                                                    </span>
+                                                                                ) : null}
+                                                                            </Label>
+                                                                            <Input
+                                                                                type="number"
+                                                                                min={0}
+                                                                                max={100}
+                                                                                step={0.01}
+                                                                                placeholder="0–100"
+                                                                                value={
+                                                                                    newAlternative.criterionScores?.[
+                                                                                        c.id
+                                                                                    ] ?? ''
+                                                                                }
+                                                                                onChange={(e) =>
+                                                                                    setNewAlternative({
+                                                                                        ...newAlternative,
+                                                                                        criterionScores: {
+                                                                                            ...newAlternative.criterionScores,
+                                                                                            [c.id]: e.target.value,
+                                                                                        },
+                                                                                    })
+                                                                                }
+                                                                            />
+                                                                        </div>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="shrink-0 text-muted-foreground hover:text-amber-700"
+                                                                            title="Bu benchmark karşılaştırmasında kullanma (tanım Metrikler’de kalır)"
+                                                                            onClick={() => handleMatrixExclude(c.id)}
+                                                                        >
+                                                                            <EyeOff className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        </Accordion>
+
+                                        <div className="flex gap-2 pt-2 border-t">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                onClick={() => {
+                                                    if (!newAlternative.item_name.trim()) {
+                                                        toast({
+                                                            variant: 'destructive',
+                                                            title: 'Hata',
+                                                            description: 'Alternatif adı zorunludur.',
+                                                        });
+                                                        return;
+                                                    }
+                                                    setAlternatives([...alternatives, { ...newAlternative }]);
+                                                    setNewAlternative(null);
+                                                    toast({
+                                                        title: 'Listeye eklendi',
+                                                        description: 'Kaydettiğinizde veritabanına ve akıllı metriklere yazılacak.',
+                                                    });
+                                                }}
+                                            >
+                                                <Plus className="mr-2 h-4 w-4" />
+                                                Listeye ekle
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setNewAlternative(null)}
+                                            >
+                                                İptal
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
 
                                 {alternatives.length > 0 && (
                                     <div className="space-y-2">
-                                        <p className="text-sm font-medium">Eklenen Alternatifler ({alternatives.length}):</p>
+                                        <p className="text-sm font-medium">Listeye eklenen alternatifler ({alternatives.length})</p>
                                         {alternatives.map((alt, idx) => (
-                                            <div key={idx} className="p-3 border rounded-lg flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-medium">{alt.item_name}</p>
-                                                    {alt.unit_price && (
-                                                        <p className="text-sm text-muted-foreground">
-                                                            Fiyat: {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: alt.currency || 'TRY' }).format(alt.unit_price)}
-                                                        </p>
-                                                    )}
+                                            <div
+                                                key={idx}
+                                                className="p-3 border rounded-lg flex items-start justify-between gap-2"
+                                            >
+                                                <div className="min-w-0">
+                                                    <p className="font-medium flex flex-wrap items-center gap-2">
+                                                        {alt.item_name}
+                                                        {alt.is_current_solution && (
+                                                            <Badge variant="secondary" className="text-[10px]">
+                                                                Mevcut
+                                                            </Badge>
+                                                        )}
+                                                    </p>
+                                                    <div className="text-xs text-muted-foreground mt-1 space-x-2">
+                                                        {alt.unit_price ? (
+                                                            <span>
+                                                                Fiyat:{' '}
+                                                                {new Intl.NumberFormat('tr-TR', {
+                                                                    style: 'currency',
+                                                                    currency: alt.currency || 'TRY',
+                                                                }).format(alt.unit_price)}
+                                                            </span>
+                                                        ) : null}
+                                                        {(() => {
+                                                            const filled = Object.entries(
+                                                                alt.criterionScores || {}
+                                                            ).filter(([, v]) => v !== '' && v != null);
+                                                            return filled.length > 0 ? (
+                                                                <span>Matris: {filled.length} metrik dolduruldu</span>
+                                                            ) : null;
+                                                        })()}
+                                                        {alt.lead_time_days ? (
+                                                            <span>Termin: {alt.lead_time_days} gün</span>
+                                                        ) : null}
+                                                    </div>
                                                 </div>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => setAlternatives(alternatives.filter((_, i) => i !== idx))}
-                                                >
-                                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                                </Button>
+                                                <div className="flex shrink-0 gap-1">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        title="Düzenle"
+                                                        onClick={() => {
+                                                            setNewAlternative({ ...alt });
+                                                            setAlternatives(alternatives.filter((_, i) => i !== idx));
+                                                        }}
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() =>
+                                                            setAlternatives(alternatives.filter((_, i) => i !== idx))
+                                                        }
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -1346,24 +2690,67 @@ const BenchmarkForm = ({
 
                                 {alternatives.length === 0 && !newAlternative && (
                                     <div className="p-4 bg-muted rounded-lg text-center text-sm text-muted-foreground">
-                                        Henüz alternatif eklenmedi. "+ Alternatif Ekle" butonuna tıklayarak alternatif ekleyebilirsiniz.
+                                        Henüz alternatif yok. &quot;Alternatif ekle&quot; ile ekleyin.
                                     </div>
                                 )}
                             </TabsContent>
                         </Tabs>
                     </div>
                 </form>
-                <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6">
-                    <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
-                    <div className="space-y-3">
+                <aside className="w-[320px] min-w-[280px] shrink-0 min-h-0 overflow-y-auto bg-muted/30 py-4 px-6 space-y-4">
+                    <div>
+                        <h3 className="text-sm font-semibold text-foreground mb-3">Özet</h3>
                         <div className="bg-background rounded-xl p-4 shadow-sm border border-border">
                             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Benchmark</p>
                             <p className="font-bold text-foreground truncate">{formData.title || '-'}</p>
                         </div>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Durum:</span><span className="font-semibold text-foreground">{formData.status || '-'}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Öncelik:</span><span className="font-semibold text-foreground">{formData.priority || '-'}</span></div>
+                        <div className="space-y-2 text-sm mt-3">
+                            <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">Durum</span>
+                                <span className="font-semibold text-foreground">{formData.status || '-'}</span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">Öncelik</span>
+                                <span className="font-semibold text-foreground">{formData.priority || '-'}</span>
+                            </div>
                         </div>
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Sparkles className="h-4 w-4 text-primary" />
+                            <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Akıllı önizleme</p>
+                        </div>
+                        {alternatives.length >= 2 ? (
+                            <>
+                                <p className="text-[11px] text-muted-foreground mb-2">
+                                    Kayıt sonrası otomatik üretilecek metrikler (en az 2 alternatifte veri):
+                                </p>
+                                <ul className="text-[11px] space-y-1 max-h-32 overflow-y-auto text-foreground list-disc pl-4">
+                                    {activeComparisons.length > 0 ? (
+                                        activeComparisons.map((label) => <li key={label}>{label}</li>)
+                                    ) : (
+                                        <li className="text-muted-foreground list-none -ml-4">
+                                            Karşılaştırma için ortak alan girin (ör. fiyat veya kalite).
+                                        </li>
+                                    )}
+                                </ul>
+                                <p className="text-[10px] font-medium text-muted-foreground mt-3 mb-1">Taslak sıralama (otomatik skor)</p>
+                                <ol className="text-[11px] space-y-1 list-decimal pl-4">
+                                    {draftRankingPreview.map((r) => (
+                                        <li key={r.item_name}>
+                                            <span className="font-medium">{r.item_name}</span>
+                                            <span className="text-muted-foreground"> — {r.total.toFixed(1)} / 100</span>
+                                        </li>
+                                    ))}
+                                </ol>
+                            </>
+                        ) : (
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                En az iki alternatif ekleyin; doldurduğunuz alanlara göre hangi başlıkların otomatik
+                                karşılaştırılacağı ve taslak sıralama burada görünür.
+                            </p>
+                        )}
                     </div>
                 </aside>
                 </div>

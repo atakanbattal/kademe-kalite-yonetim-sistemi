@@ -1,24 +1,143 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Plus, Search, Filter, FileText, TrendingUp, 
+    Plus, Search, Filter, FileText, 
     BarChart3, Download, Eye, Edit, Trash2, 
     CheckCircle, Clock, AlertCircle, X,
-    ArrowUpDown, Calendar, User, Tag
+    ArrowUpDown, Calendar, User, Tag, MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { approveBenchmarkWithSignedPdf } from '@/lib/benchmarkApprovalUpload';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import BenchmarkForm from './BenchmarkForm';
 import BenchmarkDetail from './BenchmarkDetail';
-import BenchmarkComparison from './BenchmarkComparison';
 import BenchmarkFilters from './BenchmarkFilters';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+/**
+ * Liste ve kart görünümünde aynı işlem seti: detay + tek menü (dağınık butonları toplar).
+ */
+function BenchmarkActionsMenu({
+    benchmark,
+    approveUploading,
+    onView,
+    onEdit,
+    onApprove,
+    onDelete,
+    layout = 'row',
+}) {
+    const menuEditApproveDelete = (
+        <>
+            <DropdownMenuItem onClick={() => onEdit(benchmark)}>
+                <Edit className="mr-2 h-4 w-4 shrink-0" />
+                Düzenle
+            </DropdownMenuItem>
+            {benchmark.approval_status !== 'Onaylandı' && (
+                <DropdownMenuItem
+                    disabled={approveUploading}
+                    onClick={() => onApprove(benchmark)}
+                >
+                    <CheckCircle className="mr-2 h-4 w-4 shrink-0" />
+                    Onayla (PDF)
+                </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                onClick={() => onDelete(benchmark.id)}
+            >
+                <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                Sil
+            </DropdownMenuItem>
+        </>
+    );
+
+    if (layout === 'card') {
+        return (
+            <div className="space-y-2">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="default"
+                    className="w-full"
+                    onClick={() => onView(benchmark)}
+                >
+                    <Eye className="mr-1.5 h-4 w-4 shrink-0" />
+                    Görüntüle
+                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-center gap-2"
+                        >
+                            <MoreHorizontal className="h-4 w-4" />
+                            Diğer işlemler
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center" className="w-52">
+                        {menuEditApproveDelete}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+        );
+    }
+
+    return (
+        <div className="inline-flex items-center justify-end gap-1.5">
+            <Button
+                type="button"
+                size="sm"
+                variant="default"
+                className="h-8 gap-1.5 px-2.5 sm:px-3"
+                onClick={() => onView(benchmark)}
+            >
+                <Eye className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">Görüntüle</span>
+            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 w-8 p-0 sm:w-auto sm:px-2.5 sm:gap-1.5"
+                        aria-label="İşlemler menüsü"
+                    >
+                        <MoreHorizontal className="h-4 w-4 shrink-0" />
+                        <span className="hidden sm:inline text-xs font-medium">İşlemler</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                    {menuEditApproveDelete}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
+}
 
 const BenchmarkModule = () => {
     const { toast } = useToast();
@@ -40,16 +159,24 @@ const BenchmarkModule = () => {
     // Modal states
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
-    const [isComparisonOpen, setIsComparisonOpen] = useState(false);
     const [selectedBenchmark, setSelectedBenchmark] = useState(null);
     
-    // View mode
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+    // View mode — varsayılan liste (daha derli toplu)
+    const [viewMode, setViewMode] = useState('list'); // 'grid' | 'list'
+    const [approveUploading, setApproveUploading] = useState(false);
+    const approvePdfInputRef = useRef(null);
+    const approveTargetIdRef = useRef(null);
 
     // Data fetching
     useEffect(() => {
         fetchData();
     }, []);
+
+    useEffect(() => {
+        if (!isDetailOpen || !selectedBenchmark?.id) return;
+        const fresh = benchmarks.find((b) => b.id === selectedBenchmark.id);
+        if (fresh) setSelectedBenchmark(fresh);
+    }, [benchmarks, isDetailOpen, selectedBenchmark?.id]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -91,7 +218,7 @@ const BenchmarkModule = () => {
                     .order('created_at', { ascending: false }),
                 supabase
                     .from('personnel')
-                    .select('id, full_name, department')
+                    .select('id, full_name, department, email')
                     .order('full_name')
             ]);
 
@@ -179,19 +306,17 @@ const BenchmarkModule = () => {
         setIsFormOpen(true);
     };
 
-    const handleEdit = (benchmark) => {
+    const handleEdit = (benchmark, options = {}) => {
         setSelectedBenchmark(benchmark);
+        if (options.fromDetail) {
+            setIsDetailOpen(false);
+        }
         setIsFormOpen(true);
     };
 
     const handleView = (benchmark) => {
         setSelectedBenchmark(benchmark);
         setIsDetailOpen(true);
-    };
-
-    const handleCompare = (benchmark) => {
-        setSelectedBenchmark(benchmark);
-        setIsComparisonOpen(true);
     };
 
     const handleDelete = async (benchmarkId) => {
@@ -220,6 +345,48 @@ const BenchmarkModule = () => {
                 title: 'Hata',
                 description: 'Benchmark kaydı silinirken bir hata oluştu.'
             });
+        }
+    };
+
+    const handleApproveClick = (benchmark) => {
+        approveTargetIdRef.current = benchmark.id;
+        approvePdfInputRef.current?.click();
+    };
+
+    const handleApprovePdfChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (e.target) e.target.value = '';
+        const benchmarkId = approveTargetIdRef.current;
+        approveTargetIdRef.current = null;
+        if (!file || !benchmarkId) return;
+
+        const approverId = personnel.find((p) => p.email === user?.email)?.id;
+        if (!approverId) {
+            toast({
+                variant: 'destructive',
+                title: 'Onay verilemedi',
+                description: 'Oturum e-postanızla eşleşen personel kaydı bulunamadı.',
+            });
+            return;
+        }
+
+        setApproveUploading(true);
+        try {
+            await approveBenchmarkWithSignedPdf({ benchmarkId, file, approverId });
+            toast({
+                title: 'Onaylandı',
+                description: 'Onay dokümanı kaydedildi.',
+            });
+            fetchData();
+        } catch (error) {
+            console.error('Onay hatası:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Onay hatası',
+                description: error.message || 'İşlem tamamlanamadı.',
+            });
+        } finally {
+            setApproveUploading(false);
         }
     };
 
@@ -352,6 +519,24 @@ const BenchmarkModule = () => {
                                     className="search-input"
                                 />
                             </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant={viewMode === 'list' ? 'secondary' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setViewMode('list')}
+                                >
+                                    Liste
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={viewMode === 'grid' ? 'secondary' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setViewMode('grid')}
+                                >
+                                    Kart
+                                </Button>
+                            </div>
                             <Button
                                 variant="outline"
                                 onClick={() => setShowFilters(!showFilters)}
@@ -412,6 +597,71 @@ const BenchmarkModule = () => {
                         )}
                     </CardContent>
                 </Card>
+            ) : viewMode === 'list' ? (
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="min-w-[200px]">Başlık</TableHead>
+                                    <TableHead className="whitespace-nowrap">Kayıt no</TableHead>
+                                    <TableHead>Kategori</TableHead>
+                                    <TableHead>Durum</TableHead>
+                                    <TableHead>Onay</TableHead>
+                                    <TableHead>Sorumlu</TableHead>
+                                    <TableHead className="text-right w-[130px] min-w-[7.5rem]">İşlemler</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredBenchmarks.map((benchmark) => (
+                                    <TableRow key={benchmark.id} className="hover:bg-muted/40">
+                                        <TableCell>
+                                            <div className="font-medium">{benchmark.title}</div>
+                                            {benchmark.description && (
+                                                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 max-w-md">
+                                                    {benchmark.description}
+                                                </p>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs whitespace-nowrap">
+                                            {benchmark.benchmark_number}
+                                        </TableCell>
+                                        <TableCell>{benchmark.category?.name || '—'}</TableCell>
+                                        <TableCell>
+                                            <Badge className={getStatusColor(benchmark.status)}>{benchmark.status}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant="outline"
+                                                className={
+                                                    benchmark.approval_status === 'Onaylandı'
+                                                        ? 'border-green-600 text-green-800 bg-green-50'
+                                                        : ''
+                                                }
+                                            >
+                                                {benchmark.approval_status || '—'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm">
+                                            {benchmark.owner?.full_name || '—'}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <BenchmarkActionsMenu
+                                                benchmark={benchmark}
+                                                approveUploading={approveUploading}
+                                                onView={handleView}
+                                                onEdit={handleEdit}
+                                                onApprove={handleApproveClick}
+                                                onDelete={handleDelete}
+                                                layout="row"
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {filteredBenchmarks.map((benchmark) => (
@@ -460,7 +710,7 @@ const BenchmarkModule = () => {
                                         {benchmark.owner && (
                                             <div className="flex items-center gap-2">
                                                 <User className="h-4 w-4 text-muted-foreground" />
-                                                <span>{benchmark.owner.name}</span>
+                                                <span>{benchmark.owner.full_name}</span>
                                             </div>
                                         )}
                                         {benchmark.start_date && (
@@ -488,42 +738,15 @@ const BenchmarkModule = () => {
                                         </div>
                                     )}
 
-                                    <div className="flex gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleView(benchmark)}
-                                            className="flex-1"
-                                        >
-                                            <Eye className="mr-2 h-4 w-4" />
-                                            Detay
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleCompare(benchmark)}
-                                            className="flex-1"
-                                        >
-                                            <TrendingUp className="mr-2 h-4 w-4" />
-                                            Karşılaştır
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleEdit(benchmark)}
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="destructive"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDelete(benchmark.id);
-                                            }}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                                    <BenchmarkActionsMenu
+                                        benchmark={benchmark}
+                                        approveUploading={approveUploading}
+                                        onView={handleView}
+                                        onEdit={handleEdit}
+                                        onApprove={handleApproveClick}
+                                        onDelete={(id) => handleDelete(id)}
+                                        layout="card"
+                                    />
                                 </CardContent>
                             </Card>
                         </motion.div>
@@ -531,10 +754,19 @@ const BenchmarkModule = () => {
                 </div>
             )}
 
+            <input
+                ref={approvePdfInputRef}
+                type="file"
+                className="hidden"
+                accept="application/pdf,.pdf"
+                onChange={handleApprovePdfChange}
+            />
+
             {/* Modals */}
             <AnimatePresence>
                 {isFormOpen && (
                     <BenchmarkForm
+                        key={selectedBenchmark?.id ?? 'new-benchmark'}
                         isOpen={isFormOpen}
                         onClose={() => {
                             setIsFormOpen(false);
@@ -557,20 +789,8 @@ const BenchmarkModule = () => {
                         benchmark={selectedBenchmark}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
-                        onCompare={handleCompare}
                         onRefresh={fetchData}
-                    />
-                )}
-
-                {isComparisonOpen && (
-                    <BenchmarkComparison
-                        isOpen={isComparisonOpen}
-                        onClose={() => {
-                            setIsComparisonOpen(false);
-                            setSelectedBenchmark(null);
-                        }}
-                        benchmark={selectedBenchmark}
-                        onRefresh={fetchData}
+                        personnel={personnel}
                     />
                 )}
             </AnimatePresence>
