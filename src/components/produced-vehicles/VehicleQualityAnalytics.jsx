@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, startOfWeek, endOfWeek, subMonths, isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { parseFaultQuantity, sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
 
 const CHART_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -59,11 +60,12 @@ const VehicleQualityAnalytics = () => {
 
         filteredVehicles.forEach(vehicle => {
             const faults = vehicle.quality_inspection_faults || [];
-            const faultCount = faults.length; // Count all recorded faults
+            const defectQty = sumFaultQuantityWhere(faults, () => true);
+            const hasFaultRecords = faults.length > 0;
 
-            // KPI Counts
-            if (faultCount > 0) {
-                totalFaults += faultCount;
+            // KPI Counts (adet = quantity toplamı; araçta hata var = en az bir hata kaydı)
+            if (hasFaultRecords) {
+                totalFaults += defectQty;
                 vehiclesWithFaults++;
             } else {
                 vehiclesClean++;
@@ -82,7 +84,7 @@ const VehicleQualityAnalytics = () => {
                     cat = f.fault_category;
                 }
 
-                faultsByCategory[cat] = (faultsByCategory[cat] || 0) + (f.quantity || 1);
+                faultsByCategory[cat] = (faultsByCategory[cat] || 0) + parseFaultQuantity(f);
             });
 
             // Trend Data (Group by Week)
@@ -95,9 +97,9 @@ const VehicleQualityAnalytics = () => {
                 trendDataMap[weekKey] = { date: weekKey, total: 0, clean: 0, faults: 0, defects: 0 };
             }
             trendDataMap[weekKey].total++;
-            if (faultCount === 0) trendDataMap[weekKey].clean++;
+            if (!hasFaultRecords) trendDataMap[weekKey].clean++;
             else trendDataMap[weekKey].faults++;
-            trendDataMap[weekKey].defects += faultCount;
+            trendDataMap[weekKey].defects += defectQty;
 
             // Model Breakdown
             const model = vehicle.vehicle_type || 'Bilinmiyor';
@@ -105,8 +107,8 @@ const VehicleQualityAnalytics = () => {
                 faultsByModel[model] = { total: 0, clean: 0, defects: 0 };
             }
             faultsByModel[model].total++;
-            if (faultCount === 0) faultsByModel[model].clean++;
-            faultsByModel[model].defects += faultCount;
+            if (!hasFaultRecords) faultsByModel[model].clean++;
+            faultsByModel[model].defects += defectQty;
 
             });
 

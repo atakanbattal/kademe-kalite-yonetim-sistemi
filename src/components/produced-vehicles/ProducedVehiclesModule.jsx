@@ -14,6 +14,7 @@ import { useSearchParams } from 'react-router-dom';
     import { tr } from 'date-fns/locale';
     import { openPrintableReport } from '@/lib/reportUtils';
     import { calculateVehicleTimelineStats } from '@/lib/vehicleTimelineUtils';
+    import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
 
     import VehicleDashboard from '@/components/produced-vehicles/VehicleDashboard';
     import VehicleTable from '@/components/produced-vehicles/VehicleTable';
@@ -327,8 +328,8 @@ import { useSearchParams } from 'react-router-dom';
                     }
                     byVehicleType[vehicleType].count += 1;
                     const faults = vehicle.quality_inspection_faults || [];
-                    byVehicleType[vehicleType].totalFaults += faults.length;
-                    byVehicleType[vehicleType].activeFaults += faults.filter(f => !f.is_resolved).length;
+                    byVehicleType[vehicleType].totalFaults += sumFaultQuantityWhere(faults, () => true);
+                    byVehicleType[vehicleType].activeFaults += sumFaultQuantityWhere(faults, (f) => !f.is_resolved);
                 });
 
                 const topVehicleTypes = Object.entries(byVehicleType)
@@ -352,8 +353,8 @@ import { useSearchParams } from 'react-router-dom';
                     }
                     byCustomer[customer].count += 1;
                     const faults = vehicle.quality_inspection_faults || [];
-                    byCustomer[customer].totalFaults += faults.length;
-                    byCustomer[customer].activeFaults += faults.filter(f => !f.is_resolved).length;
+                    byCustomer[customer].totalFaults += sumFaultQuantityWhere(faults, () => true);
+                    byCustomer[customer].activeFaults += sumFaultQuantityWhere(faults, (f) => !f.is_resolved);
                 });
 
                 const topCustomers = Object.entries(byCustomer)
@@ -373,9 +374,9 @@ import { useSearchParams } from 'react-router-dom';
                 let resolvedFaults = 0;
                 memoizedVehicles.forEach(vehicle => {
                     const faults = vehicle.quality_inspection_faults || [];
-                    totalFaults += faults.length;
-                    activeFaults += faults.filter(f => !f.is_resolved).length;
-                    resolvedFaults += faults.filter(f => f.is_resolved).length;
+                    totalFaults += sumFaultQuantityWhere(faults, () => true);
+                    activeFaults += sumFaultQuantityWhere(faults, (f) => !f.is_resolved);
+                    resolvedFaults += sumFaultQuantityWhere(faults, (f) => Boolean(f.is_resolved));
                 });
 
                 // En çok hata olan araçlar
@@ -387,9 +388,9 @@ import { useSearchParams } from 'react-router-dom';
                             vehicleType: vehicle.vehicle_type || '-',
                             customerName: vehicle.customer_name || '-',
                             status: vehicle.status || '-',
-                            totalFaults: faults.length,
-                            activeFaults: faults.filter(f => !f.is_resolved).length,
-                            resolvedFaults: faults.filter(f => f.is_resolved).length
+                            totalFaults: sumFaultQuantityWhere(faults, () => true),
+                            activeFaults: sumFaultQuantityWhere(faults, (f) => !f.is_resolved),
+                            resolvedFaults: sumFaultQuantityWhere(faults, (f) => Boolean(f.is_resolved))
                         };
                     })
                     .filter(v => v.totalFaults > 0)
@@ -429,8 +430,8 @@ import { useSearchParams } from 'react-router-dom';
                         }
                         monthlyTrends[monthKey].count += 1;
                         const faults = vehicle.quality_inspection_faults || [];
-                        monthlyTrends[monthKey].totalFaults += faults.length;
-                        monthlyTrends[monthKey].activeFaults += faults.filter(f => !f.is_resolved).length;
+                        monthlyTrends[monthKey].totalFaults += sumFaultQuantityWhere(faults, () => true);
+                        monthlyTrends[monthKey].activeFaults += sumFaultQuantityWhere(faults, (f) => !f.is_resolved);
                     } catch (error) {
                         console.warn('Geçersiz tarih:', vehicle.created_at, error);
                     }

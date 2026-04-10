@@ -11,15 +11,26 @@ import React from 'react';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { formatDuration } from '@/lib/formatDuration.js';
 import { cn } from '@/lib/utils';
+import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
 
     const FaultStatusIndicator = ({ faults, onClick }) => {
-        if (!faults) return <Badge variant="secondary">0</Badge>;
-
-        const activeFaults = faults.filter(f => !f.is_resolved).length;
-        const resolvedFaults = faults.filter(f => f.is_resolved).length;
+        const list = faults || [];
+        const activeFaults = sumFaultQuantityWhere(list, (f) => !f.is_resolved);
+        const resolvedFaults = sumFaultQuantityWhere(list, (f) => Boolean(f.is_resolved));
 
         const content = (
-            <div className="flex items-center gap-2 cursor-pointer" onClick={onClick}>
+            <div
+                role="button"
+                tabIndex={0}
+                className="flex items-center gap-2 cursor-pointer"
+                onClick={onClick}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onClick?.(e);
+                    }
+                }}
+            >
                 {activeFaults > 0 ? (
                     <Badge variant="destructive" className="flex items-center gap-1.5 pl-1.5 pr-2.5 rounded-full">
                         <AlertTriangle className="h-3.5 w-3.5" />

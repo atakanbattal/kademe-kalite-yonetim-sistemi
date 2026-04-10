@@ -7,6 +7,7 @@ import { MoreHorizontal, Edit, Wrench, Clock, Eye, AlertTriangle, List } from 'l
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTimeInStatus } from '@/lib/date-fns-utils';
+import { sumFaultQuantityWhere } from '@/lib/vehicleFaultCounts';
 
 const VehicleStatusDetailModal = ({ 
     isOpen, 
@@ -64,10 +65,8 @@ const VehicleStatusDetailModal = ({
     }
   };
 
-  const getTotalFaults = (faults) => {
-    if (!faults || faults.length === 0) return 0;
-    return faults.filter(f => !f.is_resolved).reduce((total, fault) => total + (fault.quantity || 1), 0);
-  };
+  const getTotalFaults = (faults) =>
+    sumFaultQuantityWhere(faults, (f) => !f.is_resolved);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
