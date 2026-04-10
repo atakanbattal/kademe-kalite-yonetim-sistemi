@@ -66,7 +66,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     const { products, productCategories } = useData();
     const isEditMode = !!existingDeviation;
     const [formData, setFormData] = useState({});
-    const [vehicles, setVehicles] = useState([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
+    const [vehicles, setVehicles] = useState([{ customer_name: '', chassis_no: '', vehicle_serial_no: '', part_quantity_per_vehicle: '' }]);
     const [files, setFiles] = useState([]);
     const [existingAttachments, setExistingAttachments] = useState([]);
     const [deletedAttachmentIds, setDeletedAttachmentIds] = useState([]);
@@ -185,15 +185,19 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             
             // Araç bilgilerini yükle
             if (deviation_vehicles && Array.isArray(deviation_vehicles) && deviation_vehicles.length > 0) {
-                const vehiclesToSet = deviation_vehicles.map(({ customer_name, chassis_no, vehicle_serial_no }) => ({
+                const vehiclesToSet = deviation_vehicles.map(({ customer_name, chassis_no, vehicle_serial_no, part_quantity_per_vehicle }) => ({
                     customer_name: customer_name || '',
                     chassis_no: chassis_no || '',
-                    vehicle_serial_no: vehicle_serial_no || ''
+                    vehicle_serial_no: vehicle_serial_no || '',
+                    part_quantity_per_vehicle:
+                        part_quantity_per_vehicle != null && part_quantity_per_vehicle !== ''
+                            ? String(part_quantity_per_vehicle)
+                            : '',
                 }));
                 setVehicles(vehiclesToSet);
                 console.log('✅ Araç bilgileri yüklendi:', vehiclesToSet.length, vehiclesToSet);
             } else {
-                setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
+                setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '', part_quantity_per_vehicle: '' }]);
             }
             
             // Mevcut attachment'ları yükle
@@ -227,7 +231,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
             };
             setFormData(initialData);
             setDeviationType('Girdi Kontrolü');
-            setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
+            setVehicles([{ customer_name: '', chassis_no: '', vehicle_serial_no: '', part_quantity_per_vehicle: '' }]);
             setExistingAttachments([]);
         }
         setFiles([]);
@@ -263,7 +267,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
     };
 
     const addVehicle = () => {
-        setVehicles([...vehicles, { customer_name: '', chassis_no: '', vehicle_serial_no: '' }]);
+        setVehicles([...vehicles, { customer_name: '', chassis_no: '', vehicle_serial_no: '', part_quantity_per_vehicle: '' }]);
     };
 
     const removeVehicle = (index) => {
@@ -569,7 +573,21 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
 
         const validVehicles = vehicles.filter(v => v.customer_name || v.chassis_no || v.vehicle_serial_no);
         if (validVehicles.length > 0) {
-            const vehicleRecords = validVehicles.map(v => ({ ...v, deviation_id: deviationData.id }));
+            const vehicleRecords = validVehicles.map(v => {
+                const raw = v.part_quantity_per_vehicle;
+                let partQty = null;
+                if (raw !== '' && raw != null) {
+                    const n = parseInt(String(raw), 10);
+                    if (Number.isFinite(n) && n >= 1) partQty = n;
+                }
+                return {
+                    deviation_id: deviationData.id,
+                    customer_name: v.customer_name || null,
+                    chassis_no: v.chassis_no || null,
+                    vehicle_serial_no: v.vehicle_serial_no || null,
+                    part_quantity_per_vehicle: partQty,
+                };
+            });
             const { error: vehicleError } = await supabase.from('deviation_vehicles').insert(vehicleRecords);
             if (vehicleError) {
                 toast({ variant: 'destructive', title: 'Hata!', description: 'Araç bilgileri kaydedilemedi.' });
@@ -1027,7 +1045,7 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                     <div className="space-y-4 rounded-lg border p-4">
                         <Label>Etkilenen Araçlar</Label>
                         {vehicles.map((vehicle, index) => (
-                             <div key={index} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
+                             <div key={index} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_minmax(7rem,8rem)_auto] items-end gap-2">
                                 <div>
                                     {index === 0 && <Label htmlFor={`customer_name_${index}`}>Müşteri Adı</Label>}
                                     <Input id={`customer_name_${index}`} value={vehicle.customer_name} onChange={(e) => handleVehicleChange(index, 'customer_name', e.target.value)} placeholder="Müşteri Adı (Opsiyonel)" />
@@ -1040,7 +1058,19 @@ const DeviationFormModal = ({ isOpen, setIsOpen, refreshData, existingDeviation 
                                     {index === 0 && <Label htmlFor={`vehicle_serial_no_${index}`}>Araç Seri Numarası</Label>}
                                     <Input id={`vehicle_serial_no_${index}`} value={vehicle.vehicle_serial_no} onChange={(e) => handleVehicleChange(index, 'vehicle_serial_no', e.target.value)} placeholder="Seri No" />
                                 </div>
-                                <Button type="button" variant="ghost" size="icon" onClick={() => removeVehicle(index)} disabled={vehicles.length === 1}>
+                                <div>
+                                    {index === 0 && <Label htmlFor={`part_quantity_per_vehicle_${index}`}>Parça adedi (araç)</Label>}
+                                    <Input
+                                        id={`part_quantity_per_vehicle_${index}`}
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        value={vehicle.part_quantity_per_vehicle}
+                                        onChange={(e) => handleVehicleChange(index, 'part_quantity_per_vehicle', e.target.value)}
+                                        placeholder="Adet"
+                                    />
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeVehicle(index)} disabled={vehicles.length === 1} className="sm:col-span-2 xl:col-span-1 justify-self-end xl:justify-self-auto">
                                     <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>
                              </div>

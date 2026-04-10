@@ -814,13 +814,19 @@ const DeviationDetailModal = ({ isOpen, setIsOpen, deviation }) => {
                                         deviation.deviation_vehicles.map(vehicle => (
                                             <Card key={vehicle.id}>
                                                 <CardContent className="p-4">
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-3">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-center gap-3">
                                                         <div className="flex items-center gap-2">
                                                             <Truck className="w-5 h-5 text-primary" />
                                                             <span className="font-semibold">{deviation.vehicle_type || 'Bilinmiyor'}</span>
                                                         </div>
                                                         <p className="font-mono text-sm">{vehicle.chassis_no || vehicle.vehicle_serial_no}</p>
                                                         <p className="text-sm text-muted-foreground">{vehicle.customer_name}</p>
+                                                        <p className="text-sm">
+                                                            <span className="text-muted-foreground">Parça adedi (araç): </span>
+                                                            <span className="font-medium tabular-nums">
+                                                                {vehicle.part_quantity_per_vehicle != null ? vehicle.part_quantity_per_vehicle : '—'}
+                                                            </span>
+                                                        </p>
                                                     </div>
                                                 </CardContent>
                                             </Card>

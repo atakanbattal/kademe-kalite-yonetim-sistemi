@@ -171,6 +171,17 @@ const DeviationModule = ({ onOpenNCForm }) => {
                 requesting_unit: deviation.requesting_unit || '-',
                 source: deviation.source || '-',
                 product_part: deviation.product_part || '-',
+                part_qty_per_vehicle_summary: (() => {
+                    const vs = deviation.deviation_vehicles;
+                    if (!vs || !Array.isArray(vs) || vs.length === 0) return '-';
+                    return vs
+                        .map((v) =>
+                            v.part_quantity_per_vehicle != null && v.part_quantity_per_vehicle !== ''
+                                ? String(v.part_quantity_per_vehicle)
+                                : '—'
+                        )
+                        .join('; ');
+                })(),
                 created_at: deviation.record_date
                     ? format(new Date(String(deviation.record_date).includes('T') ? deviation.record_date : `${deviation.record_date}T12:00:00`), 'dd.MM.yyyy')
                     : deviation.created_at

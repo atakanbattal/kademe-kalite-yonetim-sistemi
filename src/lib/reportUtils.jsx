@@ -2171,7 +2171,7 @@ const generateListReportHtml = (record, type) => {
 		`;
 	} else if (type === 'deviation_list') {
 		title = record.title || 'Sapma Yönetimi Liste Raporu';
-		headers = ['Talep No', 'Durum', 'Talep Eden', 'Birim', 'Kaynak', 'Ürün / Parça', 'Talep Tarihi', 'Geçerlilik', 'Açıklama'];
+		headers = ['Talep No', 'Durum', 'Talep Eden', 'Birim', 'Kaynak', 'Ürün / Parça', 'Parça adedi (araç)', 'Talep Tarihi', 'Geçerlilik', 'Açıklama'];
 		rowsHtml = (record.items || []).map(item => {
 			const statusBadge = item.status === 'Onaylandı'
 				? '<span style="padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; background-color: #d1fae5; color: #065f46;">Onaylandı</span>'
@@ -2189,6 +2189,7 @@ const generateListReportHtml = (record, type) => {
 					<td>${item.requesting_unit || '-'}</td>
 					<td>${item.source || '-'}</td>
 					<td>${item.product_part || '-'}</td>
+					<td style="font-size: 0.85em; max-width: 140px;">${item.part_qty_per_vehicle_summary != null && item.part_qty_per_vehicle_summary !== '' ? item.part_qty_per_vehicle_summary : '-'}</td>
 					<td style="white-space: nowrap;">${item.created_at || '-'}</td>
 					<td style="white-space: nowrap;">${item.valid_until || '-'}</td>
 					<td style="font-size: 0.85em;">${item.description || '-'}</td>
@@ -5008,6 +5009,7 @@ const generateGenericReportHtml = async (record, type) => {
 										<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Müşteri Adı</th>
 										<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Şasi No</th>
 										<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Araç Seri No</th>
+										<th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Parça adedi (araç)</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -5016,6 +5018,7 @@ const generateGenericReportHtml = async (record, type) => {
 											<td style="border: 1px solid #d1d5db; padding: 8px;">${v.customer_name || '-'}</td>
 											<td style="border: 1px solid #d1d5db; padding: 8px;">${v.chassis_no || '-'}</td>
 											<td style="border: 1px solid #d1d5db; padding: 8px;">${v.vehicle_serial_no || '-'}</td>
+											<td style="border: 1px solid #d1d5db; padding: 8px;">${v.part_quantity_per_vehicle != null ? v.part_quantity_per_vehicle : '-'}</td>
 										</tr>
 									`).join('')}
 								</tbody>
