@@ -28,6 +28,13 @@ import { KPI_CATEGORIES, KPI_UNIT_OPTIONS, getAutoKpiDisplayMeta } from './kpi-d
 const fmt = (v, decimals = 2) =>
     v == null ? '—' : parseFloat(v).toLocaleString('tr-TR', { maximumFractionDigits: decimals });
 
+/** Supabase numeric / string → sayı; Recharts boş grafik çizebiliyor */
+const toChartNum = (v) => {
+    if (v == null || v === '') return null;
+    const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\s/g, '').replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+};
+
 const categoryMeta = {
     quality:     { color: '#ef4444', bg: '#fef2f2', label: 'Kalite & Uygunsuzluk' },
     production:  { color: '#f97316', bg: '#fff7ed', label: 'Üretim & Kontrol' },
@@ -149,40 +156,30 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     const displayMeta = useMemo(() => getAutoKpiDisplayMeta(kpi), [kpi]);
     const targetDir = displayMeta.target_direction ?? 'decrease';
 
+    const kpiId = kpi?.id;
+
     const runBackfillAndLoad = useCallback(async () => {
         if (!kpi?.is_auto) return;
         setIsBackfilling(true);
-        try { await supabase.rpc('backfill_kpi_monthly_data', { p_months_back: 13 }); }
-        catch { /* silent */ }
+        try {
+            const { error } = await supabase.rpc('backfill_kpi_monthly_data', { p_months_back: 13 });
+            if (error) console.warn('backfill_kpi_monthly_data:', error.message);
+        } catch (e) { console.warn('backfill_kpi_monthly_data', e); }
         finally { setIsBackfilling(false); }
     }, [kpi?.is_auto]);
 
-    useEffect(() => {
-        if (!kpi) return;
-        setTargetValue(kpi.target_value != null ? String(kpi.target_value) : '');
-        setResponsibleUnit(kpi.responsible_unit || '');
-        setUnit(kpi.unit?.trim() ?? '');
-        setEditingTargets({});
-        setBulkTargetInput('');
-        setAnnualTargetInput('');
-        setSmartSuggestion(null);
-        setTab('overview');
-        const init = async () => {
-            if (kpi.is_auto) await runBackfillAndLoad();
-            await fetchMonthlyData();
-            fetchSmartSuggestion();
-            fetchKpiLinkedNcs();
-        };
-        init();
-    }, [kpi?.id]); // eslint-disable-line
-
-    const fetchMonthlyData = async () => {
-        if (!kpi) return;
+    const fetchMonthlyData = useCallback(async () => {
+        if (!kpiId) return;
         setLoadingMonthly(true);
         try {
-            const { data } = await supabase
-                .from('kpi_monthly_data').select('*').eq('kpi_id', kpi.id)
+            const { data, error } = await supabase
+                .from('kpi_monthly_data').select('*').eq('kpi_id', kpiId)
                 .order('year', { ascending: true }).order('month', { ascending: true });
+            if (error) {
+                console.warn('kpi_monthly_data fetch:', error.message);
+                setMonthlyData([]);
+                return;
+            }
             const now = new Date();
             const last13 = [];
             for (let i = 12; i >= 0; i--) {
@@ -193,15 +190,17 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                     year: y, month: m,
                     monthName:     format(d, 'MMM yy',   { locale: tr }),
                     monthNameLong: format(d, 'MMMM yyyy', { locale: tr }),
-                    target: ex != null ? (ex.target_value ?? null) : null,
-                    actual: ex != null ? (ex.actual_value ?? null) : null,
+                    target: ex != null ? toChartNum(ex.target_value) : null,
+                    actual: ex != null ? toChartNum(ex.actual_value) : null,
                     id: ex?.id ?? null,
                 });
             }
             setMonthlyData(last13);
-        } catch { /* silent */ }
-        finally { setLoadingMonthly(false); }
-    };
+        } catch (e) {
+            console.warn('fetchMonthlyData', e);
+            setMonthlyData([]);
+        } finally { setLoadingMonthly(false); }
+    }, [kpiId]);
 
     const fetchSmartSuggestion = async () => {
         if (!kpi) return;
@@ -223,6 +222,30 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
             setKpiLinkedNcs(data || []);
         } catch { setKpiLinkedNcs([]); }
     };
+
+    useEffect(() => {
+        if (!kpi) return;
+        setTargetValue(kpi.target_value != null ? String(kpi.target_value) : '');
+        setResponsibleUnit(kpi.responsible_unit || '');
+        setUnit(kpi.unit?.trim() ?? '');
+        setEditingTargets({});
+        setBulkTargetInput('');
+        setAnnualTargetInput('');
+        setSmartSuggestion(null);
+        setTab('overview');
+        const init = async () => {
+            if (kpi.is_auto) await runBackfillAndLoad();
+            await fetchMonthlyData();
+            fetchSmartSuggestion();
+            fetchKpiLinkedNcs();
+        };
+        init();
+    }, [kpi?.id, runBackfillAndLoad, fetchMonthlyData]);
+
+    useEffect(() => {
+        if (!kpiId || tab !== 'trend') return;
+        fetchMonthlyData();
+    }, [kpiId, tab, fetchMonthlyData]);
 
     // ─── Bulk / toplu işlemler ────────────────────────────────────────────
     const handleApplyBulkTarget = () => {
@@ -325,8 +348,8 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
             toast({ variant: 'destructive', title: 'Hata', description: 'DF/8D formu açılamadı. Lütfen sayfayı yenileyiniz.' });
             return;
         }
-        const deviationTxt = deviation != null
-            ? `Sapma: ${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%`
+        const deviationTxt = deviationPercent != null
+            ? `Sapma (hedefe göre): ${deviationPercent > 0 ? '+' : ''}${deviationPercent.toFixed(1)}%`
             : 'Hedef aşımı';
         const ncFormData = {
             source_kpi_id: kpi.id,
@@ -348,7 +371,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
             category: catMeta.label,
             requesting_unit: kpi.responsible_unit || 'KPI Yönetimi',
             responsible_person: kpi.responsible_unit || '',
-            priority: Math.abs(deviation || 0) > 20 ? 'Kritik' : 'Yüksek',
+            priority: relativeGapAbs != null && relativeGapAbs > 20 ? 'Kritik' : 'Yüksek',
         };
         // Önce KPI modalını kapat, sonra kısa gecikmeyle NC formunu aç
         // (Radix Dialog kapanış animasyonu NC formunu bloke etmesin)
@@ -361,9 +384,24 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
     };
 
     // ─── Türetilmiş değerler ──────────────────────────────────────────────
+    // Recharts: ASCII dataKey + sayı tipi (Postgres numeric string sorunu)
     const chartData = useMemo(() =>
-        monthlyData.map(d => ({ month: d.monthName, Hedef: d.target, 'Gerçekleşen': d.actual })),
+        monthlyData.map(d => ({
+            month: d.monthName,
+            target: d.target,
+            actual: d.actual,
+        })),
         [monthlyData]
+    );
+
+    const showTargetSeries = useMemo(
+        () => monthlyData.some(d => d.target != null && !Number.isNaN(d.target)),
+        [monthlyData]
+    );
+
+    const chartSvgId = useMemo(
+        () => (kpiId ? `grad-${String(kpiId).replace(/[^a-zA-Z0-9_-]/g, '')}` : 'grad'),
+        [kpiId]
     );
 
     const currentMonthData = useMemo(() =>
@@ -401,22 +439,41 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
         return targetDir === 'decrease' ? kpiCurrent <= kpiTarget : kpiCurrent >= kpiTarget;
     }, [hasData, hasTarget, kpiCurrent, kpiTarget, targetDir]);
 
-    const deviation = useMemo(() => {
+    /** Hedef yönüne göre göreli sapma: hedefi tutturma yönünde iyi performans → pozitif % */
+    const deviationPercent = useMemo(() => {
         if (!hasData || !hasTarget || kpiTarget === 0) return null;
-        return (kpiCurrent - kpiTarget) / Math.abs(kpiTarget) * 100;
+        const t = Math.abs(kpiTarget);
+        if (targetDir === 'decrease') return ((kpiTarget - kpiCurrent) / t) * 100;
+        return ((kpiCurrent - kpiTarget) / t) * 100;
+    }, [kpiCurrent, kpiTarget, hasData, hasTarget, targetDir]);
+
+    /** Kritiklik / büyüklük: hedeften mutlak uzaklık (işaret yok) */
+    const relativeGapAbs = useMemo(() => {
+        if (!hasData || !hasTarget || kpiTarget === 0) return null;
+        return (Math.abs(kpiCurrent - kpiTarget) / Math.abs(kpiTarget)) * 100;
     }, [kpiCurrent, kpiTarget, hasData, hasTarget]);
+
+    /** Üst kartta +% sapmanın nasıl üretildiğini gösterir (↓: (H−M)/H) */
+    const sapmaFormulaHint = useMemo(() => {
+        if (!hasData || !hasTarget || deviationPercent == null || kpiTarget === 0) return null;
+        const u = kpi.unit || '';
+        if (targetDir === 'decrease') {
+            return `(Hedef − Mevcut) ÷ Hedef = (${fmt(kpiTarget)}${u} − ${fmt(kpiCurrent)}${u}) ÷ ${fmt(Math.abs(kpiTarget))}${u}`;
+        }
+        return `(Mevcut − Hedef) ÷ Hedef = (${fmt(kpiCurrent)}${u} − ${fmt(kpiTarget)}${u}) ÷ ${fmt(Math.abs(kpiTarget))}${u}`;
+    }, [hasData, hasTarget, deviationPercent, kpiTarget, kpiCurrent, targetDir, kpi.unit]);
 
     const statusConfig = useMemo(() => {
         if (!hasData) return { color: '#9ca3af', bg: '#f9fafb', label: 'Veri Yok', Icon: Activity };
         if (!hasTarget) return { color: '#6366f1', bg: '#eef2ff', label: 'Hedef Belirlenmedi', Icon: Target };
         if (isOnTarget) return { color: '#10b981', bg: '#ecfdf5', label: 'Hedefe Ulaşıldı', Icon: CheckCircle2 };
-        const dev = Math.abs(deviation || 0);
+        const dev = relativeGapAbs ?? 0;
         if (dev > 20) return { color: '#ef4444', bg: '#fef2f2', label: 'Kritik', Icon: AlertCircle };
         return { color: '#f97316', bg: '#fff7ed', label: 'Geliştirilmeli', Icon: Clock3 };
-    }, [hasData, hasTarget, isOnTarget, deviation]);
+    }, [hasData, hasTarget, isOnTarget, relativeGapAbs]);
 
     const ringColor = isOnTarget === true ? '#10b981' : isOnTarget === false
-        ? (Math.abs(deviation || 0) > 20 ? '#ef4444' : '#f97316')
+        ? ((relativeGapAbs ?? 0) > 20 ? '#ef4444' : '#f97316')
         : '#6366f1';
 
     const displayCategory = displayMeta.category || kpi?.category;
@@ -500,14 +557,18 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                             },
                             {
                                 label: 'Bu Ay Sapma',
-                                value: deviation != null ? `${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%` : 'N/A',
+                                value: deviationPercent != null ? `${deviationPercent > 0 ? '+' : ''}${deviationPercent.toFixed(1)}%` : 'N/A',
                                 sub: statusConfig.label,
+                                sub2: sapmaFormulaHint,
                             },
                         ].map((item, i) => (
                             <div key={i} className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
                                 <p className="text-[10px] font-medium text-white/60 uppercase tracking-wide mb-1">{item.label}</p>
                                 <p className="text-2xl font-black text-white leading-none">{item.value}</p>
                                 {item.sub && <p className="text-[10px] text-white/50 mt-0.5 truncate">{item.sub}</p>}
+                                {item.sub2 && (
+                                    <p className="text-[9px] text-white/40 mt-1 leading-snug break-words">{item.sub2}</p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -564,14 +625,14 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                     <p className="text-xs text-muted-foreground">
                                                         {hasTarget ? `Hedef: ${fmt(kpiTarget)}${kpi.unit || ''}` : 'Henüz hedef belirlenmemiş'}
                                                     </p>
-                                                    {deviation != null && (
+                                                    {deviationPercent != null && (
                                                         <div className="mt-1.5 flex items-center gap-1">
                                                             {isOnTarget
                                                                 ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />
                                                                 : <ArrowDownRight className="w-3.5 h-3.5 text-red-500" />}
                                                             <span className="text-xs font-semibold"
                                                                 style={{ color: isOnTarget ? '#10b981' : '#ef4444' }}>
-                                                                {deviation > 0 ? '+' : ''}{deviation.toFixed(1)}% sapma
+                                                                {deviationPercent > 0 ? '+' : ''}{deviationPercent.toFixed(1)}% sapma
                                                             </span>
                                                         </div>
                                                     )}
@@ -587,7 +648,7 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                     <ResponsiveContainer width="100%" height={90}>
                                                         <AreaChart data={chartData.slice(-6)} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                                             <defs>
-                                                                <linearGradient id="miniGrad" x1="0" y1="0" x2="0" y2="1">
+                                                                <linearGradient id={`${chartSvgId}-mini`} x1="0" y1="0" x2="0" y2="1">
                                                                     <stop offset="5%"  stopColor={catMeta.color} stopOpacity={0.3} />
                                                                     <stop offset="95%" stopColor={catMeta.color} stopOpacity={0} />
                                                                 </linearGradient>
@@ -595,8 +656,9 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                             <XAxis dataKey="month" hide />
                                                             <YAxis hide />
                                                             <Tooltip content={<CustomTooltip unit={kpi.unit} />} />
-                                                            <Area type="monotone" dataKey="Gerçekleşen" stroke={catMeta.color}
-                                                                fill="url(#miniGrad)" strokeWidth={2.5} dot={false} />
+                                                            <Area type="monotone" name="Gerçekleşen" dataKey="actual" stroke={catMeta.color}
+                                                                fill={`url(#${chartSvgId}-mini)`} strokeWidth={2.5} dot={false}
+                                                                connectNulls isAnimationActive={false} />
                                                         </AreaChart>
                                                     </ResponsiveContainer>
                                                 ) : (
@@ -622,14 +684,14 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                         <div>
                                                             <p className="text-sm font-bold text-red-800">Hedef Tutturulamıyor</p>
                                                             <p className="text-[10px] text-red-600">
-                                                                {Math.abs(deviation || 0) > 20
+                                                                {(relativeGapAbs ?? 0) > 20
                                                                     ? 'Kritik sapma — DF veya 8D açılması önerilir'
                                                                     : 'Sapma tespit edildi — DF oluşturarak takip başlatın'}
                                                             </p>
                                                         </div>
                                                     </div>
                                                     <div className="shrink-0 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
-                                                        {deviation != null ? `${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%` : 'Sapma var'}
+                                                        {deviationPercent != null ? `${deviationPercent > 0 ? '+' : ''}${deviationPercent.toFixed(1)}%` : 'Sapma var'}
                                                     </div>
                                                 </div>
                                                 <div className="px-5 py-4 space-y-3">
@@ -855,11 +917,11 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                         <ResponsiveContainer width="100%" height={360}>
                                             <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                                 <defs>
-                                                    <linearGradient id="areaActual" x1="0" y1="0" x2="0" y2="1">
+                                                    <linearGradient id={`${chartSvgId}-actual`} x1="0" y1="0" x2="0" y2="1">
                                                         <stop offset="5%"  stopColor={catMeta.color} stopOpacity={0.3} />
                                                         <stop offset="95%" stopColor={catMeta.color} stopOpacity={0} />
                                                     </linearGradient>
-                                                    <linearGradient id="areaTarget" x1="0" y1="0" x2="0" y2="1">
+                                                    <linearGradient id={`${chartSvgId}-target`} x1="0" y1="0" x2="0" y2="1">
                                                         <stop offset="5%"  stopColor="#9ca3af" stopOpacity={0.15} />
                                                         <stop offset="95%" stopColor="#9ca3af" stopOpacity={0} />
                                                     </linearGradient>
@@ -868,15 +930,17 @@ const KPIDetailModalEnhanced = ({ kpi, open, setOpen, refreshKpis, onOpenNCForm 
                                                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                                                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                                                 <Tooltip content={<CustomTooltip unit={kpi.unit} />} />
-                                                {hasTarget && (
-                                                    <Area type="monotone" dataKey="Hedef" stroke="#9ca3af"
-                                                        fill="url(#areaTarget)" strokeWidth={1.5} strokeDasharray="5 3"
-                                                        dot={false} activeDot={{ r: 4, fill: '#9ca3af' }} />
+                                                {showTargetSeries && (
+                                                    <Area type="monotone" name="Hedef" dataKey="target" stroke="#9ca3af"
+                                                        fill={`url(#${chartSvgId}-target)`} strokeWidth={1.5} strokeDasharray="5 3"
+                                                        dot={false} activeDot={{ r: 4, fill: '#9ca3af' }}
+                                                        connectNulls isAnimationActive={false} />
                                                 )}
-                                                <Area type="monotone" dataKey="Gerçekleşen" stroke={catMeta.color}
-                                                    fill="url(#areaActual)" strokeWidth={2.5}
+                                                <Area type="monotone" name="Gerçekleşen" dataKey="actual" stroke={catMeta.color}
+                                                    fill={`url(#${chartSvgId}-actual)`} strokeWidth={2.5}
                                                     dot={{ r: 3.5, fill: catMeta.color, strokeWidth: 0 }}
-                                                    activeDot={{ r: 6, fill: catMeta.color }} />
+                                                    activeDot={{ r: 6, fill: catMeta.color }}
+                                                    connectNulls isAnimationActive={false} />
                                             </AreaChart>
                                         </ResponsiveContainer>
                                     </div>

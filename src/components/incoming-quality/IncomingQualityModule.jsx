@@ -459,6 +459,16 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
         };
     }, [filters.dateRange]);
 
+    /** Dashboard verisiyle aynı filtre (özellikle tarih aralığı) — ret oranı kartındaki dönem etiketi */
+    const dashboardPeriodLabel = useMemo(() => {
+        if (!debouncedFilters.dateRange || !debouncedFilters.dateRange.from || !debouncedFilters.dateRange.to) {
+            return 'Tüm Zamanlar';
+        }
+        const from = debouncedFilters.dateRange.from;
+        const to = debouncedFilters.dateRange.to;
+        return `${format(from, 'dd.MM.yyyy', { locale: tr })} - ${format(to, 'dd.MM.yyyy', { locale: tr })}`;
+    }, [debouncedFilters.dateRange]);
+
     const handleOpenReportModal = useCallback(() => {
         if (filteredInspections.length === 0) {
             toast({
@@ -777,7 +787,7 @@ const IncomingQualityModule = ({ onOpenNCForm, onOpenNCView }) => {
                 <meta name="description" content="Gelen malzeme kalite kontrol süreçlerini yönetin." />
             </Helmet>
 
-            <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} controlPlanMissingCount={controlPlanMissingCount} />
+            <IncomingQualityDashboard inspections={dashboardData} loading={dashboardLoading} onCardClick={handleCardClick} inkrReports={inkrReports} inkrMissingCount={inkrMissingCount} controlPlanMissingCount={controlPlanMissingCount} periodLabel={dashboardPeriodLabel} />
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
                 <Button type="button" variant="outline" className="gap-2 sm:self-end" onClick={() => setIsFolderDownloadOpen(true)}>

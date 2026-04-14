@@ -322,26 +322,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Tedarikçi Uygunsuzluk Oranı
+-- Tedarikçi Uygunsuzluk Oranı (girdi kalite muayeneleri: ret miktarı / gelen miktar)
+-- Aynı mantık: get_incoming_rejection_rate — tek kaynak
 CREATE OR REPLACE FUNCTION get_supplier_nc_rate()
-RETURNS NUMERIC AS $$
-DECLARE
-    v_total_suppliers INTEGER;
-    v_nc_suppliers INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO v_total_suppliers FROM suppliers WHERE status = 'Onaylı';
-    
-    SELECT COUNT(DISTINCT supplier_id) INTO v_nc_suppliers 
-    FROM supplier_non_conformities 
-    WHERE status != 'Kapalı';
-    
-    IF v_total_suppliers = 0 THEN
-        RETURN 0;
-    END IF;
-    
-    RETURN ROUND((v_nc_suppliers::NUMERIC / v_total_suppliers::NUMERIC * 100), 2);
-END;
-$$ LANGUAGE plpgsql;
+RETURNS NUMERIC
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT get_incoming_rejection_rate();
+$$;
 
 -- ============================================
 -- KAIZEN MODÜLÜ KPI'LARI

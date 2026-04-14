@@ -226,9 +226,9 @@ export const predefinedKpis = [
     {
         id: 'supplier_nc_rate',
         name: 'Tedarikçi Uygunsuzluk Oranı',
-        description: 'Uygunsuzluk bulunan tedarikçilerin oranı.',
+        description: 'Girdi kalite muayenelerinde reddedilen miktarın, gelen toplam miktara oranı (Girdi Kalite Kontrol verisi).',
         unit: '%', target_direction: 'decrease',
-        data_source: 'Tedarikçi Kalite Yönetimi', rpc_name: 'get_supplier_nc_rate',
+        data_source: 'Girdi Kalite Kontrol', rpc_name: 'get_supplier_nc_rate',
         category: 'supplier',
     },
     {

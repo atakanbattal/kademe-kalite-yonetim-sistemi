@@ -1,24 +1,39 @@
 import React from 'react';
     import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-    import { AlertTriangle, CheckCircle, FileWarning, ListChecks } from 'lucide-react';
+    import { AlertTriangle, CheckCircle, FileWarning, ListChecks, Percent } from 'lucide-react';
     import StatCard from '@/components/dashboard/StatCard';
 
     const PIE_COLORS = { 'Kabul': '#22C55E', 'Şartlı Kabul': '#F59E0B', 'Ret': '#EF4444', 'Beklemede': '#6B7280' };
 
-    const IncomingQualityDashboard = ({ inspections, loading, onCardClick, inkrReports = [], inkrMissingCount = 0, controlPlanMissingCount = 0 }) => {
+    const IncomingQualityDashboard = ({ inspections, loading, onCardClick, inkrReports = [], inkrMissingCount = 0, controlPlanMissingCount = 0, periodLabel = 'Tüm Zamanlar' }) => {
         const stats = React.useMemo(() => {
-            if (!inspections) return { totalInspections: 0, rejectionRate: 0, conditionalAcceptance: 0, missingControlPlans: 0, missingInkr: 0, rejectedCount: 0 };
+            if (!inspections) {
+                return {
+                    totalInspections: 0,
+                    conditionalAcceptance: 0,
+                    missingControlPlans: 0,
+                    missingInkr: 0,
+                    rejectedCount: 0,
+                    supplierRejectionRatePercent: null,
+                };
+            }
             const totalInspections = inspections.length;
             const rejectedCount = inspections.filter(i => i.decision === 'Ret').length;
             const conditionalAcceptance = inspections.filter(i => i.decision === 'Şartlı Kabul').length;
+            const totalReceived = inspections.reduce((s, i) => s + (Number(i.quantity_received) || 0), 0);
+            const totalRejectedQty = inspections.reduce((s, i) => s + (Number(i.quantity_rejected) || 0), 0);
+            const supplierRejectionRatePercent = totalReceived > 0
+                ? parseFloat(((totalRejectedQty / totalReceived) * 100).toFixed(2))
+                : null;
 
             return {
                 totalInspections,
                 rejectedCount,
                 conditionalAcceptance,
                 missingControlPlans: controlPlanMissingCount,
-                missingInkr: inkrMissingCount
+                missingInkr: inkrMissingCount,
+                supplierRejectionRatePercent,
             };
         }, [inspections, inkrMissingCount, controlPlanMissingCount]);
 
@@ -61,8 +76,9 @@ import React from 'react';
 
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     <StatCard icon={ListChecks} title="Toplam Kontrol" value={stats.totalInspections} loading={loading} onClick={() => onCardClick({ decision: 'all', controlPlanStatus: 'all', inkrStatus: 'all' })} />
+                    <StatCard icon={Percent} title="% Tedarikçi Ret Oranı" subtitle={periodLabel} value={stats.supplierRejectionRatePercent != null ? `${stats.supplierRejectionRatePercent}%` : '—'} loading={loading} color="text-orange-600 dark:text-orange-400" onClick={() => onCardClick({ decision: 'Ret' })} />
                     <StatCard icon={AlertTriangle} title="Ret" value={stats.rejectedCount} loading={loading} color="text-destructive" onClick={() => onCardClick({ decision: 'Ret' })} />
                     <StatCard icon={FileWarning} title="Şartlı Kabul" value={stats.conditionalAcceptance} loading={loading} color="text-yellow-500" onClick={() => onCardClick({ decision: 'Şartlı Kabul' })} />
                     <StatCard icon={CheckCircle} title="Kontrol Planı Eksik" subtitle="Benzersiz Parça" value={stats.missingControlPlans} loading={loading} color={stats.missingControlPlans > 0 ? "text-destructive" : "text-green-500"} onClick={() => onCardClick({ controlPlanStatus: 'Mevcut Değil' })} />
