@@ -39,6 +39,10 @@ import {
   buildNonconformityDisplayNumberMap,
   getNonconformityDisplayRecordNumber
 } from '@/lib/nonconformityRecordNumbers';
+import {
+  normalizeSuggestionDetectionAreas,
+  buildSuggestionAreasForRpc,
+} from '@/lib/nonconformitySuggestionSources';
 
 const severityColors = {
   'Düşük': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -78,11 +82,6 @@ const getStoredSuggestionType = (status) => {
   if (status === '8D Önerildi') return '8D';
   return null;
 };
-
-/** DF/8D otomatik önerisi yalnızca Proses Kontrol (muayene) kaynaklı kayıtlar için — Üretilen Araçlar vb. otomatik kaynaklar hariç */
-const PROCESS_CONTROL_DETECTION_AREA = 'Proses İçi Kontrol';
-const isProcessControlNonconformityRecord = (r) =>
-  r?.detection_area === PROCESS_CONTROL_DETECTION_AREA;
 
 const INITIAL_CONVERT_DIALOG = {
   open: false,
@@ -128,6 +127,20 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [settings, setSettings] = useState(null);
+
+  const suggestionDetectionAreasSet = useMemo(
+    () => new Set(normalizeSuggestionDetectionAreas(settings?.suggestion_include_detection_areas)),
+    [settings?.suggestion_include_detection_areas]
+  );
+
+  const isSuggestionEligibleRecord = useCallback(
+    (r) => {
+      const a = r?.detection_area;
+      return !!a && suggestionDetectionAreasSet.has(a);
+    },
+    [suggestionDetectionAreasSet]
+  );
+
   const [convertDialog, setConvertDialog] = useState(INITIAL_CONVERT_DIALOG);
   const [groupConvertDialog, setGroupConvertDialog] = useState({ open: false, group: null, selectedType: null });
   const syncDoneRef = useRef(false);
@@ -184,7 +197,14 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       .order('created_at', { ascending: true })
       .limit(1)
       .single();
-    if (data) setSettings(data);
+    if (data) {
+      setSettings({
+        ...data,
+        suggestion_include_detection_areas: normalizeSuggestionDetectionAreas(
+          data.suggestion_include_detection_areas
+        ),
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -255,7 +275,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     const activeRecords = records.filter(
       (r) =>
         !isNonconformityLinkedToDf8d(r) &&
-        isProcessControlNonconformityRecord(r)
+        isSuggestionEligibleRecord(r)
     );
 
     for (let i = 0; i < activeRecords.length; i++) {
@@ -276,7 +296,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     }
 
     return { partCodeAnalysisData: partAnalysis, categoryAnalysisData: catAnalysis };
-  }, [records, settings]);
+  }, [records, settings, isSuggestionEligibleRecord]);
 
   const smartGroups = useMemo(() => {
     if (!records.length) return [];
@@ -290,7 +310,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       (r) =>
         r.status === 'Açık' &&
         !r.source_nc_id &&
-        isProcessControlNonconformityRecord(r)
+        isSuggestionEligibleRecord(r)
     );
 
     const buckets = {};
@@ -341,7 +361,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
         if (a.suggestion !== b.suggestion) return a.suggestion === '8D' ? -1 : 1;
         return b.records.length - a.records.length;
       });
-  }, [records, settings]);
+  }, [records, settings, isSuggestionEligibleRecord]);
 
   const recordGroupMap = useMemo(() => {
     const map = new Map();
@@ -354,7 +374,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     for (let i = 0; i < records.length; i++) {
       const r = records[i];
       if (isNonconformityLinkedToDf8d(r)) { map.set(r.id, null); continue; }
-      if (!isProcessControlNonconformityRecord(r)) { map.set(r.id, null); continue; }
+      if (!isSuggestionEligibleRecord(r)) { map.set(r.id, null); continue; }
       const dfQtyThreshold = settings?.df_quantity_threshold ?? 10;
       const eightDQtyThreshold = settings?.eight_d_quantity_threshold ?? 20;
       const dfThreshold = settings?.df_threshold ?? 3;
@@ -371,18 +391,18 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       else { map.set(r.id, null); }
     }
     return map;
-  }, [records, settings, partCodeAnalysisData, categoryAnalysisData]);
+  }, [records, settings, partCodeAnalysisData, categoryAnalysisData, isSuggestionEligibleRecord]);
 
   const getEffectiveSuggestionForStats = useCallback((record) => {
     if (!record || isNonconformityLinkedToDf8d(record)) return null;
-    if (!isProcessControlNonconformityRecord(record)) return null;
+    if (!isSuggestionEligibleRecord(record)) return null;
 
     if (settings?.auto_suggest) {
       return suggestionMap.get(record.id) ?? null;
     }
 
     return getStoredSuggestionType(record.status);
-  }, [suggestionMap, settings?.auto_suggest]);
+  }, [suggestionMap, settings?.auto_suggest, isSuggestionEligibleRecord]);
 
   const displayRecordNumberMap = useMemo(
     () => buildNonconformityDisplayNumberMap(records),
@@ -776,7 +796,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
     fetchRecords();
 
     if (!settings?.auto_suggest || !savedRecord) return;
-    if (!isProcessControlNonconformityRecord(savedRecord)) return;
+    if (!isSuggestionEligibleRecord(savedRecord)) return;
 
     setTimeout(async () => {
       const dfQtyThreshold = settings.df_quantity_threshold || 10;
@@ -805,7 +825,8 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       if (!newStatus && savedRecord.part_code) {
         const { data: recurrence } = await supabase.rpc('check_part_code_recurrence', {
           p_part_code: savedRecord.part_code,
-          p_period_days: settings.threshold_period_days || 30
+          p_period_days: settings.threshold_period_days || 30,
+          p_detection_areas: buildSuggestionAreasForRpc(settings?.suggestion_include_detection_areas),
         });
 
         if (recurrence) {
@@ -902,13 +923,13 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       critical: 0,
     });
 
-    // En çok tekrarlayan parça kodları (yalnızca Proses İçi Kontrol; kapalı kayıtlar dahil — DF/8D öneri eşikleriyle uyumlu)
+    // En çok tekrarlayan parça kodları (ayarlarda seçilen tespit alanları; kapalı kayıtlar dahil)
     const partCounts = {};
     records
       .filter(
         (r) =>
           r.part_code &&
-          isProcessControlNonconformityRecord(r) &&
+          isSuggestionEligibleRecord(r) &&
           !isNonconformityLinkedToDf8d(r)
       )
       .forEach((r) => {
@@ -948,7 +969,7 @@ const NonconformityModule = ({ onOpenNCForm, onOpenNCView }) => {
       .slice(0, 5);
 
     return { ...summary, topParts, topCategories, topResponsiblePersonnel, topDetectedByPersonnel };
-  }, [getEffectiveSuggestionForStats, records]);
+  }, [getEffectiveSuggestionForStats, records, isSuggestionEligibleRecord]);
 
   const activeConvertType = convertDialog.selectedType || convertDialog.suggestedType;
   const is8DConversion = activeConvertType === '8D';

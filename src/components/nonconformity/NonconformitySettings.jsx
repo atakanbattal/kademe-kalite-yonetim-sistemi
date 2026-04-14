@@ -6,7 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Save, Settings2, AlertTriangle, FileText, Shield } from 'lucide-react';
+import { Save, Settings2, AlertTriangle, FileText, Shield, Layers } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  NC_SUGGESTION_SOURCE_OPTIONS,
+  DEFAULT_SUGGESTION_DETECTION_AREAS,
+  normalizeSuggestionDetectionAreas,
+} from '@/lib/nonconformitySuggestionSources';
 
 const NonconformitySettings = () => {
   const { toast } = useToast();
@@ -18,6 +24,7 @@ const NonconformitySettings = () => {
     df_quantity_threshold: 10,
     eight_d_quantity_threshold: 20,
     auto_suggest: true,
+    suggestion_include_detection_areas: [...DEFAULT_SUGGESTION_DETECTION_AREAS],
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,7 +40,12 @@ const NonconformitySettings = () => {
         .single();
   
       if (data) {
-        setSettings(data);
+        setSettings({
+          ...data,
+          suggestion_include_detection_areas: normalizeSuggestionDetectionAreas(
+            data.suggestion_include_detection_areas
+          ),
+        });
       } else if (error && error.code !== 'PGRST116') {
         console.error('Settings fetch error:', error);
       }
@@ -53,6 +65,17 @@ const NonconformitySettings = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const areas = normalizeSuggestionDetectionAreas(settings.suggestion_include_detection_areas);
+      if (areas.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Kayıt yapılamadı',
+          description: 'DF/8D önerisi için en az bir kaynak modül seçmelisiniz.',
+        });
+        setSaving(false);
+        return;
+      }
+
       const updateData = {
         df_threshold: parseInt(settings.df_threshold) || 3,
         eight_d_threshold: parseInt(settings.eight_d_threshold) || 5,
@@ -60,6 +83,7 @@ const NonconformitySettings = () => {
         df_quantity_threshold: parseInt(settings.df_quantity_threshold) || 10,
         eight_d_quantity_threshold: parseInt(settings.eight_d_quantity_threshold) || 20,
         auto_suggest: settings.auto_suggest,
+        suggestion_include_detection_areas: areas,
       };
 
       let result;
@@ -116,6 +140,53 @@ const NonconformitySettings = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="rounded-lg border bg-card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-primary" />
+              <div>
+                <p className="text-sm font-medium">Öneri veri kaynakları</p>
+                <p className="text-xs text-muted-foreground">
+                  Tekrar ve eşik hesaplarında hangi modüllerden gelen uygunsuzluk kayıtları dikkate alınsın? (Tespit alanına göre)
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-3">
+              {NC_SUGGESTION_SOURCE_OPTIONS.map((opt) => {
+                const selectedList = Array.isArray(settings.suggestion_include_detection_areas)
+                  ? settings.suggestion_include_detection_areas
+                  : normalizeSuggestionDetectionAreas(settings.suggestion_include_detection_areas);
+                const checked = selectedList.includes(opt.detection_area);
+                return (
+                  <label
+                    key={opt.id}
+                    className="flex cursor-pointer items-start gap-3 rounded-md border border-border/80 bg-muted/20 p-3 hover:bg-muted/40"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(v) => {
+                        const on = v === true;
+                        const base = Array.isArray(settings.suggestion_include_detection_areas)
+                          ? [...settings.suggestion_include_detection_areas]
+                          : [...normalizeSuggestionDetectionAreas(settings.suggestion_include_detection_areas)];
+                        const nextSet = new Set(base);
+                        if (on) nextSet.add(opt.detection_area);
+                        else nextSet.delete(opt.detection_area);
+                        setSettings((prev) => ({
+                          ...prev,
+                          suggestion_include_detection_areas: Array.from(nextSet),
+                        }));
+                      }}
+                    />
+                    <span className="space-y-0.5">
+                      <span className="block text-sm font-medium leading-tight">{opt.label}</span>
+                      <span className="text-xs text-muted-foreground">{opt.description}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
             <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-primary" />
